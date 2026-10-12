@@ -62,7 +62,9 @@ export async function loadSession(): Promise<Session | null> {
   // Work stored by an earlier version of the editor has no team pictures.
   const graphics = { ...NO_GRAPHICS_EDITS, ...stored.project.graphics }
   const supported = graphicsSupported(stored.project.bytes, game)
-  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported } }
+  // Nor has work from before there were free agents any of those.
+  const freeAgents = stored.project.freeAgents ?? []
+  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported, freeAgents } }
 }
 
 export async function clearSession(): Promise<void> {

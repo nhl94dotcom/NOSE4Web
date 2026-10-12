@@ -6,6 +6,8 @@ import { formatCsv } from '../src/core/csv'
 import { expandPictureSpace, menuLogoPalette, pictureSpace } from '../src/core/graphics'
 import { teamSummaries } from '../src/core/league'
 import { emptyLineSlots } from '../src/core/lines'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
+import { trade } from '../src/core/trade'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { CSV_TABLES, csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
 import { currentPicture, pictureKinds } from '../src/core/pictureset'
@@ -60,6 +62,21 @@ describe.skipIf(names.length === 0)('every ROM on this computer', () => {
         expect(result.files.flatMap((file) => file.warnings)).toEqual([])
         expect(state(result.project)).toEqual(state(project))
         expect(buildRom(result.project)).toEqual(buildRom(project))
+      })
+
+      it('comes back the same from a project file, and trades a player', () => {
+        const project = open(name)
+        const reopened = openProjectFile(open(name), saveProjectFile(project, project, 'Set'))
+        expect(reopened.notes).toEqual([])
+        expect(buildRom(reopened.project)).toEqual(buildRom(project))
+
+        // The last skater of one team for the last of another, and the ROM still holds together.
+        const last = (team: number) => project.teams[team].players.length - 1
+        const traded = trade(project, { team: 0, picks: [last(0)] }, { team: 1, picks: [last(1)] })
+        expect(traded.teams[0].players).toHaveLength(project.teams[0].players.length)
+        const rebuilt = openRom(buildRom(traded))
+        expect(rebuilt.teams.map((t) => t.players)).toEqual(traded.teams.map((t) => t.players))
+        expect(checkProject(traded).filter((finding) => finding.level === 'problem')).toEqual([])
       })
 
       it('shows its pictures, and keeps them when they are given more room', () => {

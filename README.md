@@ -52,6 +52,10 @@ It can also:
 - bring a team in from another ROM, or copy one team's colours and pictures to
   another
 - reset any one part of a team to how it was in the ROM you opened
+- trade players between teams with a preview of what the trade does, and hold
+  players as free agents
+- save all your work as a project file, without the ROM, and open it again on
+  another computer or over another copy of the game
 - undo and redo, and keep work in progress in the browser between visits
 - copy players, lines and playoff draws between teams, or between two ROMs
   open in separate tabs

@@ -17,6 +17,7 @@ import {
   setGoalieNibble,
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
+import { gridKeyDown, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 
@@ -186,7 +187,7 @@ export function TeamEditor(props: Props) {
     return (
       <section>
         <h2>{title}</h2>
-        <table>
+        <table onKeyDown={gridKeyDown}>
           <thead>
             <tr>
               <th />
@@ -250,6 +251,14 @@ export function TeamEditor(props: Props) {
                           const next = Number(e.target.value)
                           const attributes = player.attributes.map((v, i) => (i === a ? next : v))
                           setPlayer(index, { ...player, attributes })
+                        }}
+                        onKeyDown={(e) => {
+                          // Where the stored values are showing, typing one sets it.
+                          if (!rawAttributes && kinds[a] !== 'value') return
+                          const next = typedValue(e, (v) => v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null))
+                          if (next === null) return
+                          e.preventDefault()
+                          setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
                         }}
                       >
                         {ATTRIBUTE_VALUES.map((v) => {
@@ -393,6 +402,10 @@ export function TeamEditor(props: Props) {
         </button>{' '}
         <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
       </p>
+      <p className="note">
+        In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
+        arrow to open a list{storedOnly || rawAttributes ? ', or type a number into one to set it' : ''}.
+      </p>
       <p>
         {reset('roster', 'roster')}{' '}
         <span className="note">The players, their order and attributes, and the forwards and goalie bytes.</span>
@@ -454,7 +467,7 @@ export function TeamEditor(props: Props) {
             you know the ROM uses them. Only the NLC line is played.
           </p>
         )}
-        <table>
+        <table onKeyDown={gridKeyDown}>
           <thead>
             <tr>
               <th />

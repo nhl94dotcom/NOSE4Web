@@ -60,7 +60,7 @@ export function deletePlayer(team: Team, index: number): Team {
 
 // Puts a skater on a roster: after the last forward, or at the end as a
 // defenceman. Lines keep pointing at the same people.
-function insertSkater(team: Team, player: Player, asForward: boolean): Team {
+export function insertSkater(team: Team, player: Player, asForward: boolean): Team {
   if (!asForward || team.forwards >= MAX_COUNT) {
     return withSkaterCounts({ ...team, players: [...team.players, player] }, team.forwards)
   }

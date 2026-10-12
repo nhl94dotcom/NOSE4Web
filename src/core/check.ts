@@ -102,6 +102,14 @@ export function checkProject(project: RomProject): Finding[] {
     }
   })
 
+  if (project.freeAgents.length > 0) {
+    findings.push({
+      level: 'note',
+      where: 'Free agents',
+      message: `${plural(project.freeAgents.length, 'free agent')} ${project.freeAgents.length === 1 ? 'is' : 'are'} not on any team, and so not in the ROM. They are kept with your work in this browser and in a project file.`,
+    })
+  }
+
   const names = labels
   settings.menu.forEach((item, i) => {
     if (item.value >= menuOptions(settings, game, i, names).length) {

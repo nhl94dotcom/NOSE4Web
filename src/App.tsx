@@ -17,11 +17,13 @@ import { HelpPage } from './HelpPage'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
 import { PicturesPage } from './PicturesPage'
+import { ProjectPage } from './ProjectPage'
 import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
+import { TradePage } from './TradePage'
 import './App.css'
 
 // Sidebar entries that are not teams.
@@ -35,6 +37,8 @@ const LEAGUE = -7
 const BULK = -8
 const IMPORT_TEAM = -9
 const PICTURES = -10
+const TRADE = -11
+const PROJECT = -12
 
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
@@ -51,6 +55,9 @@ export default function App() {
   // Names the downloaded ROM and starts the name of every spreadsheet file.
   const [name, setName] = useState('')
   const [selected, setSelected] = useState(0)
+  // The team last looked at, which pages about teams start from.
+  const [lastTeam, setLastTeam] = useState(0)
+  if (selected >= 0 && selected !== lastTeam) setLastTeam(selected)
   const [error, setError] = useState('')
   const [rawAttributes, setRawAttributes] = useState(false)
   const [quickKeys, setQuickKeys] = useState(false)
@@ -261,6 +268,20 @@ export default function App() {
         return <LeaguePage project={current} onGoToTeam={setSelected} />
       case BULK:
         return <BulkPage project={current} onChange={change} />
+      case TRADE:
+        return <TradePage project={current} startTeam={lastTeam} onChange={change} onGoToTeam={setSelected} />
+      case PROJECT:
+        return (
+          <ProjectPage
+            project={current}
+            opened={opened}
+            name={name || 'rom'}
+            onOpen={(next, projectName) => {
+              change(next)
+              if (projectName) setName(projectName)
+            }}
+          />
+        )
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
@@ -366,10 +387,12 @@ export default function App() {
           {entry(RINK, 'Rink colours')}
           {project.game.settingsSupported && entry(SETTINGS, 'Game settings')}
           {entry(LEAGUE, 'League')}
+          {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
           {entry(CSV, 'Spreadsheet files')}
           {project.graphicsSupported && entry(PICTURES, 'Picture files')}
+          {entry(PROJECT, 'Project file')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}

@@ -21,7 +21,7 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 10)
+  await expect(page.locator('nav button')).toHaveCount(28 + 12)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -776,7 +776,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
-    await expect(page.locator('nav button')).toHaveCount(28 + 10)
+    await expect(page.locator('nav button')).toHaveCount(28 + 12)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -906,6 +906,166 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('.picture').filter({ hasText: 'Menu logo' }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
     await page.getByRole('button', { name: 'Reset whole team' }).click()
     expect(await swatches()).not.toEqual(bostonColours)
+  })
+
+  test('previews and makes a trade, and holds a released player as a free agent', async ({ page }) => {
+    await openRom(page)
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    await team(page, 'Boston Bruins').click()
+    const bruin = await nameOf(rows(page, 'Skaters').first()).inputValue()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const duck = await nameOf(rows(page, 'Skaters').nth(3)).inputValue()
+
+    await entry(page, 'Trade').click()
+    const main = page.locator('main')
+    // The page starts on the team just looked at.
+    await expect(main.getByLabel('First side of the trade')).toHaveValue('0')
+    await main.getByLabel('Second side of the trade').selectOption({ label: 'Boston Bruins' })
+    await expect(main.getByText('Tick the players each side gives up.')).toBeVisible()
+    await main.getByLabel(`${bruin} leaves Boston Bruins`).check()
+    await main.getByLabel(`${duck} leaves Anaheim Mighty Ducks`).check()
+    await expect(main.getByText(`Anaheim Mighty Ducks give ${duck}; Boston Bruins give ${bruin}.`)).toBeVisible()
+    await expect(main.getByText(/positions? on the lines (is|are) held by players who would leave/).first()).toBeVisible()
+    await page.screenshot({ path: 'test-results/shots/trade.png', fullPage: true })
+
+    // A goalie for a skater cannot be done, and the page says why.
+    const goalie = await main.locator('section').nth(1).locator('tbody tr').first().locator('td').nth(2).textContent()
+    await main.getByLabel(`${goalie} leaves Boston Bruins`).check()
+    await expect(main.locator('p.error')).toContainText('Goalies change places one for one')
+    await expect(main.getByRole('button', { name: 'Make this trade' })).toHaveCount(0)
+    await main.getByLabel(`${goalie} leaves Boston Bruins`).uncheck()
+
+    await main.getByRole('button', { name: 'Make this trade' }).click()
+    await expect(main.getByText(/^Done\./)).toBeVisible()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(page.locator(`input.name[value="${bruin}"]`)).toHaveCount(1)
+    await expect(page.locator(`input.name[value="${duck}"]`)).toHaveCount(0)
+    await expect(rows(page, 'Skaters')).toHaveCount(16)
+
+    // Release him to the free agents, then sign him with Boston again.
+    await entry(page, 'Trade').click()
+    await main.getByLabel('Second side of the trade').selectOption({ label: 'Free agents (0)' })
+    await expect(main.getByText('There are no free agents.')).toBeVisible()
+    await main.getByLabel(`${bruin} leaves Anaheim Mighty Ducks`).check()
+    await main.getByRole('button', { name: 'Make this trade' }).click()
+    await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
+    await entry(page, /Check ROM/).click()
+    await expect(page.getByText('1 free agent is not on any team, and so not in the ROM.')).toBeVisible()
+
+    await entry(page, /^Trade/).click()
+    // A team already on one side cannot be chosen for the other.
+    await expect(main.getByLabel('First side of the trade').locator('option', { hasText: 'Boston Bruins' })).toBeDisabled()
+    await main.getByLabel('Second side of the trade').selectOption({ label: 'Free agents (1)' })
+    await main.getByLabel('First side of the trade').selectOption({ label: 'Boston Bruins' })
+    await main.getByLabel(`${bruin} leaves Free agents`).check()
+    await main.getByRole('button', { name: 'Make this trade' }).click()
+    await expect(entry(page, /^Trade/)).toHaveText('Trade')
+    await team(page, 'Boston Bruins').click()
+    await expect(page.locator(`input.name[value="${bruin}"]`)).toHaveCount(1)
+    // One Undo takes back one trade.
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(page.locator(`input.name[value="${bruin}"]`)).toHaveCount(0)
+  })
+
+  test('saves a project file and opens it again over the ROM', async ({ page }) => {
+    await openRom(page)
+    await page.locator('input.rom-name').fill('Season_10')
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    const first = nameOf(rows(page, 'Skaters').first())
+    const released = await nameOf(rows(page, 'Skaters').nth(2)).inputValue()
+    await first.fill('Kept In Project')
+    await entry(page, 'Trade').click()
+    await page.locator('main').getByLabel('Second side of the trade').selectOption({ label: 'Free agents (0)' })
+    await page.locator('main').getByLabel(`${released} leaves Anaheim Mighty Ducks`).check()
+    await page.getByRole('button', { name: 'Make this trade' }).click()
+
+    await entry(page, 'Project file').click()
+    const main = page.locator('main')
+    const saved = await downloadFrom(page, main.getByRole('button', { name: 'Save project file' }))
+    expect(saved.suggestedFilename()).toBe('Season_10_project.json')
+    const text = readFileSync(await saved.path(), 'utf8')
+    const file = JSON.parse(text)
+    expect(file.file).toBe('NOSE4Web project')
+    expect(file.teams).toHaveLength(28)
+    expect(file.freeAgents[0].player.name).toBe(released)
+    expect(file.expansions.rosterSpace).toBe(1)
+
+    // Start again from the ROM, as on another computer, and open the project.
+    page.on('dialog', (dialog) => void dialog.accept())
+    await romPicker(page).setInputFiles(romPath)
+    await expect(nameOf(rows(page, 'Skaters').first())).not.toHaveValue('Kept In Project')
+    await expect(page.locator('header')).toContainText('0 bytes free')
+    await entry(page, 'Project file').click()
+    await main.locator('input[type=file]').setInputFiles({ name: 'Season_10_project.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+    await expect(main.getByText('The project is open.')).toBeVisible()
+    await expect(page.locator('input.rom-name')).toHaveValue('Season_10')
+    await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(nameOf(rows(page, 'Skaters').first())).toHaveValue('Kept In Project')
+    await expect(page.locator('header')).not.toContainText('0 bytes free') // the roster space was made again
+
+    await entry(page, 'Project file').click()
+    await main.locator('input[type=file]').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"a":1}') })
+    await expect(main.getByText('This is not a project file.')).toBeVisible()
+  })
+
+  test('moves around the roster with the arrow keys, and sets stored values by typing', async ({ page }) => {
+    await openRom(page)
+    const skaters = rows(page, 'Skaters')
+    const focused = () => page.evaluate(() => (document.activeElement as HTMLInputElement | null)?.value)
+    const names = [await nameOf(skaters.nth(0)).inputValue(), await nameOf(skaters.nth(1)).inputValue(), await nameOf(skaters.nth(2)).inputValue()]
+
+    await nameOf(skaters.nth(0)).click()
+    await page.keyboard.press('ArrowDown')
+    expect(await focused()).toBe(names[1])
+    await page.keyboard.press('Enter')
+    expect(await focused()).toBe(names[2])
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('ArrowUp') // already at the top of the skaters
+    expect(await focused()).toBe(names[0])
+
+    // Right from the end of a name goes to the jersey number; Left in the middle of a name only moves the cursor.
+    await page.keyboard.press('End')
+    await page.keyboard.press('ArrowRight')
+    expect(await focused()).toBe(await skaters.nth(0).locator('input.num').inputValue())
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowLeft')
+    expect(await focused()).toBe(names[0])
+    await page.keyboard.press('ArrowLeft')
+    expect(await focused()).toBe(names[0])
+
+    // In a list, the arrows move between boxes and leave the value alone.
+    const agility = (row: number) => skaters.nth(row).locator('select.attribute').nth(1)
+    const before = [await agility(0).inputValue(), await agility(1).inputValue()]
+    await agility(0).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(agility(1)).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(skaters.nth(1).locator('select.attribute').nth(2)).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(agility(1)).toBeFocused()
+    expect([await agility(0).inputValue(), await agility(1).inputValue()]).toEqual(before)
+
+    // Showing stored values, typing a number sets it, two digits together as one number.
+    await page.getByLabel('Show attributes as stored values (0–15)').check()
+    await agility(1).focus()
+    await page.keyboard.press('Digit4')
+    await expect(agility(1)).toHaveValue('4')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Digit1')
+    await page.keyboard.press('Digit2')
+    await expect(agility(2)).toHaveValue('12')
+    await expect(agility(1)).toHaveValue('4')
+
+    // The lines table moves the same way.
+    const lineRows = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) }).locator('tbody tr')
+    const centre = (row: number) => lineRows.nth(row).locator('select').nth(4)
+    const was = await centre(0).inputValue()
+    await centre(0).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(centre(1)).toBeFocused()
+    await expect(centre(0)).toHaveValue(was)
   })
 
   test('keeps the work through a reload', async ({ page }) => {

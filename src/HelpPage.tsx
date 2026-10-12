@@ -9,6 +9,7 @@ const SECTIONS = [
   ['space', 'Space in the ROM'],
   ['teams', 'Teams'],
   ['players', 'Players and goalies'],
+  ['arrows', 'Moving with the keyboard'],
   ['copy', 'Copy and paste'],
   ['keys', 'Quick edit keys'],
   ['lines', 'Lines'],
@@ -19,7 +20,9 @@ const SECTIONS = [
   ['settings', 'Game settings'],
   ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
+  ['project', 'Project files'],
   ['league', 'The league at a glance'],
+  ['trade', 'Trades and free agents'],
   ['bulk', 'Bulk changes'],
   ['importteam', 'Importing a team'],
   ['check', 'Checking a ROM'],
@@ -193,6 +196,28 @@ export function HelpPage() {
         order the game uses, and the move buttons are switched off until you return to roster order with nothing in
         Find.
       </p>
+
+      <h3 id="help-arrows">Moving with the keyboard</h3>
+      <p>
+        In the roster tables and the lines table, the keyboard moves from box to box as it does in a spreadsheet.
+      </p>
+      <ul>
+        <li>
+          <b>Up</b> and <b>Down</b> go to the same column of the row above or below. <b>Enter</b> goes down.
+        </li>
+        <li>
+          <b>Left</b> and <b>Right</b> go along the row. In a name or a number they move the cursor first, and go to
+          the next box only from the end. <b>Tab</b> always goes to the next box.
+        </li>
+        <li>
+          In a list, the arrows move between boxes and no longer change the choice. To choose, hold <b>Alt</b> and
+          press <b>Down</b> to open the list, or click it.
+        </li>
+        <li>
+          Where attributes show as stored values, type a number into a list to set it. Two digits typed quickly
+          together count as one number, so 1 then 2 gives 12.
+        </li>
+      </ul>
 
       <h3 id="help-copy">Copy and paste</h3>
       <p>
@@ -518,6 +543,31 @@ export function HelpPage() {
         season's files in one go, check the free space, and download.
       </p>
 
+      <h3 id="help-project">Project files</h3>
+      <p>
+        A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
+        pictures you replaced and your free agents. <b>Save project file</b> on the Project file page downloads it,
+        named with the Name box at the top.
+      </p>
+      <p>Use one to:</p>
+      <ul>
+        <li>move your work to another computer or browser, where you open the ROM and then the project;</li>
+        <li>keep a copy of a season as it stood, to come back to;</li>
+        <li>pass your changes to someone who has the ROM themselves, without sending the ROM.</li>
+      </ul>
+      <p>
+        <b>Open a project file</b> lays the project over the ROM as you opened it, replacing whatever you have done
+        in the editor since; Undo brings that back. Any roster or picture room you had made is made again first. The
+        ROM has to be the same kind the project was made with, with the same number of teams, but it need not be the
+        very same file: opened over a different copy, the project's teams, colours and settings replace that copy's,
+        and the pictures you had replaced are replaced there too, while pictures you had left alone stay as that
+        copy has them.
+      </p>
+      <p>
+        If something in the file does not fit the ROM, the rest still opens and the page says what was left out. A
+        project file is not a ROM and cannot be played; download the ROM or a patch for that.
+      </p>
+
       <h3 id="help-league">The league at a glance</h3>
       <p>
         The <b>League</b> page looks across every team.
@@ -535,6 +585,36 @@ export function HelpPage() {
           or below the league average are coloured, to pick out stacked and thin teams.
         </li>
       </ul>
+
+      <h3 id="help-trade">Trades and free agents</h3>
+      <p>
+        The <b>Trade</b> page exchanges players between two sides. Choose a team for each, tick the players each
+        gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
+        its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
+        which makes it a plain move.
+      </p>
+      <ul>
+        <li>Skaters keep their role: a forward arrives among the other team's forwards, a defenceman at the end.</li>
+        <li>
+          Goalies change places one for one, each taking the other's spot on the roster, because the game needs a
+          team's goalies to stay where they are. A goalie cannot be traded for a skater.
+        </li>
+        <li>
+          A team has to keep at least 5 players and can hold 26. Two full rosters can still trade one for one.
+        </li>
+        <li>
+          Where a player who leaves was on his team's lines, another player is put in his place and the page says
+          how many positions that touched, so you can look the lines over.
+        </li>
+        <li>One Undo takes back one trade.</li>
+      </ul>
+      <p>
+        <b>Free agents</b> are players you are holding on no team. Choose Free agents as one side to release a
+        player to them or to sign one from them; a goalie can be swapped with a free-agent goalie. They are part of
+        your work, kept in this browser and in a project file, but they are <b>not in the ROM</b>: a downloaded ROM
+        has only the players on teams, and Check ROM reminds you when some are waiting. They are not in the
+        spreadsheet files either.
+      </p>
 
       <h3 id="help-bulk">Bulk changes</h3>
       <p>

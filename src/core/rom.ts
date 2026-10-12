@@ -4,6 +4,7 @@ import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits
 import { createIps } from './ips'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
+import type { FreeAgent } from './trade'
 
 const HEADER_CONSOLE = 0x100
 const HEADER_PRODUCT_CODE = 0x180
@@ -36,6 +37,9 @@ export interface RomProject {
   // pictures in the way the editor can read.
   graphics: GraphicsEdits
   graphicsSupported: boolean
+  // Players the user is holding who are on no team. They are part of the
+  // work, but are not written to the ROM.
+  freeAgents: FreeAgent[]
   wasSmd: boolean
 }
 
@@ -113,6 +117,7 @@ export function openRom(file: Uint8Array): RomProject {
     settings: game.settingsSupported ? parseSettings(bytes, game) : NO_SETTINGS,
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: graphicsSupported(bytes, game),
+    freeAgents: [],
     wasSmd,
   }
 }

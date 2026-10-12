@@ -339,6 +339,17 @@ nav .group {
   opacity: 0.7;
 }
 
+.trade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+tr.picked td {
+  background: rgba(191, 135, 0, 0.18);
+}
+
 .high {
   color: #2da44e;
   font-weight: 600;
