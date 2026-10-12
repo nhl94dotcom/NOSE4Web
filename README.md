@@ -13,6 +13,17 @@ NOSE4Web is based on **NOSE, the NHL Old Skool Editor** for Windows, written by
 source code and the notes distributed with it. The colour preview images are
 converted from the templates NOSE ships.
 
+## Licence
+
+The code in this repository is released under the [MIT licence](LICENSE).
+
+That licence does not cover:
+
+- the files in `public/templates`, which are derived from the game's own
+  artwork by way of NOSE's preview templates;
+- NOSE itself, which is wboy's work;
+- any ROM. None is included, and you need your own.
+
 ## What it edits
 
 - Team names, and each team's home and away colours with a live preview
