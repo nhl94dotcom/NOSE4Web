@@ -59,6 +59,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('header')).toContainText('0 bytes free')
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Guy Hebert')
     await expect(rows(page, 'Skaters')).toHaveCount(16)
+    await expect(page.locator('p.notice')).toHaveCount(0) // only for hacks with fewer skaters
     await team(page, 'Montreal Canadiens').click()
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Patrick Roy')
     await page.screenshot({ path: 'test-results/shots/team.png', fullPage: true })
@@ -780,6 +781,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
     await expect(lines.getByText('This ROM puts fewer skaters on the ice')).toBeVisible()
+    await expect(page.locator('p.notice')).toContainText('keep a copy of the file you opened')
     const first = lines.locator('tbody tr').first().locator('select')
     await expect(first.nth(1).locator('option:checked')).toHaveText('Empty')
     await expect(first.nth(5).locator('option:checked')).toHaveText('Empty')

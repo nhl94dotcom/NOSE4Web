@@ -141,6 +141,7 @@ export function TeamEditor(props: Props) {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
+  const fewerSkaters = emptySlots.some((slots) => slots.some(Boolean))
   const reset = (part: TeamPart, what: string) => (
     <ResetButton
       what={what}
@@ -294,6 +295,13 @@ export function TeamEditor(props: Props) {
 
   return (
     <main className="team">
+      {fewerSkaters && (
+        <p className="notice">
+          This ROM is a hack that puts fewer skaters on the ice. Editing ROMs like it is less tested than editing the
+          original game, so keep a copy of the file you opened and try your download in the game before relying on
+          it.
+        </p>
+      )}
       <section>
         <h2>Team</h2>
         <p>
@@ -435,7 +443,7 @@ export function TeamEditor(props: Props) {
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}
           </span>
         </p>
-        {emptySlots.some((slots) => slots.some(Boolean)) && (
+        {fewerSkaters && (
           <p className="note">
             This ROM puts fewer skaters on the ice, so some positions are empty on every team. Leave them empty unless
             you know the ROM uses them.

@@ -590,6 +590,12 @@ export function HelpPage() {
         hacks that put fewer skaters on the ice. The editor changes only the data it understands and leaves a
         hack's altered game code exactly as it is, so what a hack does differently keeps working.
       </p>
+      <p>
+        That said, hacks are less tested here than the original game, and the ones that put fewer skaters on the
+        ice least of all: the editor can read what they changed but cannot know everything they rely on. A team's
+        page says so at the top when the ROM is one of these. Keep a copy of the file you opened, and try a
+        download in the game before you hand it to anyone.
+      </p>
       <ul>
         <li>Other games in the series, and hacks that rearrange the game's data in other ways, are not supported yet.</li>
         <li>
