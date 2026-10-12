@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { attributeText } from './core/attributes'
 import { hex } from './core/bytes'
 import { playerRole, teamSummaries } from './core/league'
 import { overallRating } from './core/rating'
@@ -10,20 +11,29 @@ interface Props {
   project: RomProject
   // The team the user was last looking at, to start one side on.
   startTeam: number
+  // Whether attributes show as the numbers stored, as on a team's page.
+  rawAttributes: boolean
+  onRawAttributesChange: (raw: boolean) => void
   onChange: (project: RomProject) => void
   onGoToTeam: (team: number) => void
 }
 
 interface Row {
+  // Place on the roster or among the free agents, which a tick goes by.
+  index: number
   name: string
   role: string
   jersey: number
   overall: number
+  attributes: number[]
 }
 
 const one = (value: number | null) => (value === null ? '–' : value.toFixed(1))
 
-export function TradePage({ project, startTeam, onChange, onGoToTeam }: Props) {
+export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam }: Props) {
+  const { game } = project
+  const [showAttributes, setShowAttributes] = useState(true)
+  const storedOnly = game.playerAttributeKinds.every((kind) => kind === 'value')
   const count = project.teams.length
   const first = startTeam >= 0 && startTeam < count ? startTeam : 0
   const [sides, setSides] = useState<[TradeSide, TradeSide]>([
@@ -37,15 +47,18 @@ export function TradePage({ project, startTeam, onChange, onGoToTeam }: Props) {
   // Undo can shorten a roster under the ticks, so ticks past its end are dropped.
   const rowsOf = (team: number): Row[] =>
     team === FREE_AGENTS
-      ? project.freeAgents.map((agent) => ({
+      ? project.freeAgents.map((agent, index) => ({
+          index,
           name: agent.player.name,
           role: agent.role,
           jersey: agent.player.jersey,
           overall: overallRating(agent.player.attributes, agent.role === 'G', project.game),
+          attributes: agent.player.attributes,
         }))
-      : project.teams[team].players.map((player, i) => {
-          const role = playerRole(project.teams[team], i)
-          return { name: player.name, role, jersey: player.jersey, overall: overallRating(player.attributes, role === 'G', project.game) }
+      : project.teams[team].players.map((player, index) => {
+          const role = playerRole(project.teams[team], index)
+          const overall = overallRating(player.attributes, role === 'G', project.game)
+          return { index, name: player.name, role, jersey: player.jersey, overall, attributes: player.attributes }
         })
   const live = sides.map((side) => ({ ...side, picks: side.picks.filter((i) => i < rowsOf(side.team).length) })) as [TradeSide, TradeSide]
 
@@ -156,6 +169,19 @@ export function TradePage({ project, startTeam, onChange, onGoToTeam }: Props) {
           </p>
         </>
       )}
+      <p>
+        <label className="choice">
+          <input type="checkbox" checked={showAttributes} onChange={(e) => setShowAttributes(e.target.checked)} /> Show
+          attributes
+        </label>
+        {showAttributes && !storedOnly && (
+          <label className="choice">
+            <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} /> as
+            stored values (0–15)
+          </label>
+        )}
+        <span className="note">Hover a column heading for the attribute's full name.</span>
+      </p>
       <div className="trade">
         {live.map((side, which) => {
           const rows = rowsOf(side.team)
@@ -190,40 +216,62 @@ export function TradePage({ project, startTeam, onChange, onGoToTeam }: Props) {
                   make the trade.
                 </p>
               ) : (
-                <table className="left">
-                  <thead>
-                    <tr>
-                      <th />
-                      <th>Pos</th>
-                      <th>Player</th>
-                      <th>No.</th>
-                      <th>Ovr</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i} className={side.picks.includes(i) ? 'picked' : ''}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`${row.name} leaves ${label(side.team)}`}
-                            checked={side.picks.includes(i)}
-                            onChange={(e) =>
-                              setSide(which, {
-                                ...side,
-                                picks: e.target.checked ? [...side.picks, i].sort((a, b) => a - b) : side.picks.filter((p) => p !== i),
-                              })
-                            }
-                          />
-                        </td>
-                        <td>{row.role}</td>
-                        <td>{row.name}</td>
-                        <td>{hex(row.jersey)}</td>
-                        <td>{row.overall}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                // Goalies and skaters have different attributes, so each has its own table.
+                [true, false].map((isGoalies) => {
+                  const group = rows.filter((row) => (row.role === 'G') === isGoalies)
+                  if (group.length === 0) return null
+                  const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
+                  const attributeLabels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
+                  const attributeNames = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
+                  return (
+                    <table key={String(isGoalies)} className={showAttributes ? 'left attributes' : 'left'}>
+                      <thead>
+                        <tr>
+                          <th />
+                          <th>Pos</th>
+                          <th>{isGoalies ? 'Goalies' : 'Skaters'}</th>
+                          <th>No.</th>
+                          <th>Ovr</th>
+                          {showAttributes &&
+                            attributeLabels.map((text, a) => (
+                              <th key={a} title={attributeNames[a]}>
+                                {text}
+                              </th>
+                            ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.map((row) => (
+                          <tr key={row.index} className={side.picks.includes(row.index) ? 'picked' : ''}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                aria-label={`${row.name} leaves ${label(side.team)}`}
+                                checked={side.picks.includes(row.index)}
+                                onChange={(e) =>
+                                  setSide(which, {
+                                    ...side,
+                                    picks: e.target.checked
+                                      ? [...side.picks, row.index].sort((a, b) => a - b)
+                                      : side.picks.filter((p) => p !== row.index),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>{row.role}</td>
+                            <td>{row.name}</td>
+                            <td>{hex(row.jersey)}</td>
+                            <td>{row.overall}</td>
+                            {showAttributes &&
+                              row.attributes.map((value, a) => (
+                                <td key={a}>{rawAttributes ? value : (attributeText(kinds[a], value) ?? `! ${value}`)}</td>
+                              ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                })
               )}
             </section>
           )

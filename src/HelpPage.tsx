@@ -596,7 +596,9 @@ export function HelpPage() {
         The <b>Trade</b> page exchanges players between two sides. Choose a team for each, tick the players each
         gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
         its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
-        which makes it a plain move.
+        which makes it a plain move. Each player is listed with all his attributes, as on his team's page, so you
+        can weigh one against another; untick <b>Show attributes</b> for a shorter list. On a narrow window the two
+        sides sit one above the other.
       </p>
       <ul>
         <li>Skaters keep their role: a forward arrives among the other team's forwards, a defenceman at the end.</li>

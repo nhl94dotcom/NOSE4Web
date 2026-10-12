@@ -346,6 +346,18 @@ nav .group {
   align-items: flex-start;
 }
 
+.trade table {
+  margin-bottom: 1rem;
+}
+
+.trade table.attributes td,
+.trade table.attributes th {
+  padding-left: 0.3rem;
+  padding-right: 0.3rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 tr.picked td {
   background: rgba(191, 135, 0, 0.18);
 }

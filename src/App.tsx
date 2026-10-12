@@ -269,7 +269,16 @@ export default function App() {
       case BULK:
         return <BulkPage project={current} onChange={change} />
       case TRADE:
-        return <TradePage project={current} startTeam={lastTeam} onChange={change} onGoToTeam={setSelected} />
+        return (
+          <TradePage
+            project={current}
+            startTeam={lastTeam}
+            rawAttributes={rawAttributes}
+            onRawAttributesChange={setRawAttributes}
+            onChange={change}
+            onGoToTeam={setSelected}
+          />
+        )
       case PROJECT:
         return (
           <ProjectPage
