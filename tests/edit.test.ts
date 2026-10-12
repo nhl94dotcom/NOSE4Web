@@ -86,14 +86,21 @@ describe.skipIf(!hasRom)('roster changes', () => {
 })
 
 describe.skipIf(!hasRom)('expanding roster space', () => {
-  const base = openRom(original)
   const playoffSize = 32 * 16
-  const oldPlayoffs = base.layout.end
-  const oldCopyright = oldPlayoffs + playoffSize
-  const playoffData = base.bytes.slice(oldPlayoffs, oldCopyright)
-  const textData = base.bytes.slice(oldCopyright, oldCopyright + 934)
+
+  // Called inside each test: the body of a skipped group still runs, and
+  // without a ROM there is nothing to open.
+  function setup() {
+    const base = openRom(original)
+    const oldPlayoffs = base.layout.end
+    const oldCopyright = oldPlayoffs + playoffSize
+    const playoffData = base.bytes.slice(oldPlayoffs, oldCopyright)
+    const textData = base.bytes.slice(oldCopyright, oldCopyright + 934)
+    return { base, oldPlayoffs, playoffData, textData }
+  }
 
   it('moves the opening text first, without growing the ROM', () => {
+    const { base, oldPlayoffs, playoffData, textData } = setup()
     expect(nextExpansion(base)).toEqual({ step: 'introText', gain: 934, romSize: 0x100000 })
     const expanded = expandTeamSpace(base)
     const space = teamSpace(expanded.teams, expanded.layout)
@@ -119,6 +126,7 @@ describe.skipIf(!hasRom)('expanding roster space', () => {
   })
 
   it('then moves the playoff tables, growing the ROM to 2 MB', () => {
+    const { base, playoffData, textData } = setup()
     const once = openRom(buildRom(expandTeamSpace(base)))
     expect(nextExpansion(once)).toEqual({ step: 'playoffDraws', gain: 512, romSize: 0x200000 })
     const twice = expandTeamSpace(once)
@@ -140,7 +148,8 @@ describe.skipIf(!hasRom)('expanding roster space', () => {
   })
 
   it('lets rosters grow into the new space', () => {
-    const project = expandTeamSpace(base)
+    const { base } = setup()
+    const project = expandTeamSpace(openRom(original))
     for (let t = 0; t < 5; t++) {
       let team = project.teams[t]
       team = { ...team, players: team.players.map((p) => ({ ...p, name: p.name + ' Jr' })) }
