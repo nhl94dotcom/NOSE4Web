@@ -18,10 +18,14 @@ export interface GameConfig {
   graphics: {
     rinkLogoTablePointer: number
     menuLogoTablePointer: number
+    // Each team's banner stripe colours on the menus.
     menuLogoPalettePointer: number
+    // Each team's 16 menu logo colours.
+    menuLogoColorsPointer: number
     // Every place that holds a banner block's address, or an address a fixed
-    // distance into it. The first of each is the address of the block itself.
-    bannerReferences: Record<'menu' | 'game', { at: number; offset: number }[]>
+    // distance into it. The menus show a home team's banner and a visitor's;
+    // the original game draws both from one block, some hacks from two.
+    bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number }[]>
   }
   // Places in the game's code that hold the address of the playoff draw tables.
   playoffDrawPointerOffsets: number[]
@@ -77,12 +81,13 @@ export const NHL94: GameConfig = {
     rinkLogoTablePointer: 0xfea5a,
     menuLogoTablePointer: 0xf8682,
     menuLogoPalettePointer: 0x17b2a,
+    menuLogoColorsPointer: 0xf8694,
     bannerReferences: {
       menu: [
         { at: 0x17b7e, offset: 0 },
         { at: 0xf84d4, offset: 8 },
-        { at: 0xf84e4, offset: 8 },
       ],
+      visitor: [{ at: 0xf84e4, offset: 8 }],
       game: [
         { at: 0x16d26, offset: 0 },
         { at: 0x17672, offset: 0 },

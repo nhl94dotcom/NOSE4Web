@@ -25,11 +25,14 @@ const FLIP_V = 0x1000
 const RINK_LOGO = { tilesWide: 6, tilesHigh: 4 }
 const BANNER_TILES_HIGH = 2
 const LOGO_PALETTE_BYTES = 0x40
-// A team's menu palette is shared by its logo and its banner. Colours 1 and 2
-// (or 3 and 4, when the team is listed second) are the banner's two stripes.
-// Colours 5 and 6 are white and black for every team: the banner's lettering
-// uses them, so a logo may use them but must not redefine them. The logo's
-// own colours are 7 to 15.
+// A team's menu colours are kept in two tables. One holds the banner's two
+// stripes, as colours 1 and 2 (or 3 and 4, when the team is listed second).
+// The other holds the 16 colours its logo is drawn with: colours 5 and 6 are
+// white and black for every team, which the banner's lettering uses too, so a
+// logo may use them but must not redefine them; its own colours are 7 to 15.
+// The first table has places for the logo's colours as well, kept in step
+// here, though the game does not draw the logo from them.
+const LOGO_COLOR_BYTES = 0x20
 const BANNER_COLOR_SLOTS = [1, 2]
 const BANNER_COLOR_SLOTS_SECOND = [3, 4]
 const WHITE = 0x0eee
@@ -49,7 +52,7 @@ export interface Picture {
   pixels: Uint8Array
 }
 
-export type BannerKind = 'menu' | 'game'
+export type BannerKind = 'menu' | 'visitor' | 'game'
 
 // Pictures the user has replaced, by team. Anything not listed is left
 // exactly as it is in the ROM.
@@ -59,14 +62,19 @@ export interface GraphicsEdits {
   // A team's 32 menu colours: the logo's and the banner stripes'.
   menuPalettes: Record<number, number[]>
   menuBanners: Record<number, Picture>
+  // Only for ROMs that keep a separate set of banners for the visiting team.
+  visitorBanners: Record<number, Picture>
   gameBanners: Record<number, Picture>
 }
+
+const BANNER_EDITS = { menu: 'menuBanners', visitor: 'visitorBanners', game: 'gameBanners' } as const
 
 export const NO_GRAPHICS_EDITS: GraphicsEdits = {
   rinkLogos: {},
   menuLogos: {},
   menuPalettes: {},
   menuBanners: {},
+  visitorBanners: {},
   gameBanners: {},
 }
 
@@ -183,7 +191,10 @@ interface Layout {
   rinkLogos: number[]
   menuLogos: Block[]
   menuPalettesAt: number
+  menuLogoColorsAt: number
   banners: Record<BannerKind, Block>
+  // Whether the visiting team's menu banners are a set of their own.
+  visitorBannersApart: boolean
 }
 
 function layout(rom: Uint8Array, game: GameConfig): Layout {
@@ -198,26 +209,46 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     if (block.mapAt !== 0 || block.tileCount !== RINK_LOGO.tilesWide * RINK_LOGO.tilesHigh) throw new Error('bad rink logo')
   }
   const menuLogos = table(g.menuLogoTablePointer).map((at) => readBlock(rom, at))
-  const banners = {
-    menu: readBlock(rom, readU32(rom, g.bannerReferences.menu[0].at)),
-    game: readBlock(rom, readU32(rom, g.bannerReferences.game[0].at)),
+  const bannerBlock = (kind: BannerKind) => {
+    const ref = g.bannerReferences[kind][0]
+    return readBlock(rom, readU32(rom, ref.at) - ref.offset)
   }
-  for (const block of [...menuLogos, banners.menu, banners.game]) if (block.mapAt === 0) throw new Error('picture has no map')
-  for (const block of [banners.menu, banners.game]) {
+  const banners = { menu: bannerBlock('menu'), visitor: bannerBlock('visitor'), game: bannerBlock('game') }
+  for (const block of [...menuLogos, ...Object.values(banners)]) if (block.mapAt === 0) throw new Error('picture has no map')
+  for (const block of Object.values(banners)) {
     if (block.mapHeight < game.teamCount * BANNER_TILES_HIGH) throw new Error('too few banners')
   }
-  return { rinkLogos, menuLogos, menuPalettesAt: readU32(rom, g.menuLogoPalettePointer), banners }
+  return {
+    rinkLogos,
+    menuLogos,
+    menuPalettesAt: readU32(rom, g.menuLogoPalettePointer),
+    menuLogoColorsAt: readU32(rom, g.menuLogoColorsPointer),
+    banners,
+    visitorBannersApart: banners.visitor.at !== banners.menu.at,
+  }
+}
+
+// The places that hold the address of one set of banners. Where the visitors
+// have no set of their own, theirs are the menu banners.
+function bannerReferences(game: GameConfig, kind: BannerKind, where: Layout) {
+  const refs = game.graphics.bannerReferences
+  return kind === 'menu' && !where.visitorBannersApart ? [...refs.menu, ...refs.visitor] : refs[kind]
 }
 
 // Whether every place known to use a set of banners points at the one block
-// the editor reads. Some hacks split the banners into more than one set.
-function bannersAsExpected(rom: Uint8Array, game: GameConfig, kind: BannerKind, block: Block): boolean {
-  return game.graphics.bannerReferences[kind].every((ref) => readU32(rom, ref.at) === block.at + ref.offset)
+// the editor reads.
+function bannersAsExpected(rom: Uint8Array, game: GameConfig, kind: BannerKind, where: Layout): boolean {
+  return bannerReferences(game, kind, where).every((ref) => readU32(rom, ref.at) === where.banners[kind].at + ref.offset)
 }
 
 // Whether a ROM's banners of one kind can be replaced.
 export function bannersEditable(project: Source, kind: BannerKind): boolean {
-  return bannersAsExpected(project.bytes, project.game, kind, layout(project.bytes, project.game).banners[kind])
+  return bannersAsExpected(project.bytes, project.game, kind, layout(project.bytes, project.game))
+}
+
+// Whether this ROM shows the visiting team a set of menu banners of its own.
+export function visitorBannersApart(project: Source): boolean {
+  return layout(project.bytes, project.game).visitorBannersApart
 }
 
 // Whether this ROM keeps its team pictures where and how the editor expects.
@@ -297,7 +328,7 @@ function bannerSlice(all: Picture, team: number): Picture {
 }
 
 export function banner(project: Source, kind: BannerKind, team: number): Picture {
-  const edited = (kind === 'menu' ? project.graphics.menuBanners : project.graphics.gameBanners)[team]
+  const edited = project.graphics[BANNER_EDITS[kind]][team]
   if (edited) return edited
   return bannerSlice(decodeMapped(project.bytes, layout(project.bytes, project.game).banners[kind]), team)
 }
@@ -308,27 +339,45 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   const block = layout(project.bytes, project.game).banners[kind]
   const line = (block.entries[0] >> 13) & 3
   const palette = Array.from({ length: 16 }, (_, i) => readU16(project.bytes, block.paletteAt + (line * 16 + i) * 2))
-  if (kind === 'menu') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
+  if (kind !== 'game') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
   return palette
 }
 
-// Whether this ROM's menu logos take their colours from the menu palettes, as
-// in the original game. Some hacks leave those palettes unused, every logo
-// colour of every team set to one placeholder, and colour their logos some
-// other way, which the editor cannot follow. This looks at the ROM as it was
-// opened, across all teams, so a user's own plain logo cannot trip it.
-export function menuLogosEditable(project: Source): boolean {
-  const at = layout(project.bytes, project.game).menuPalettesAt
-  const colors = new Set<number>()
-  for (let team = 0; team < project.game.teamCount; team++) {
-    for (let i = LOGO_FIRST_COLOR; i < 16; i++) colors.add(readU16(project.bytes, at + team * LOGO_PALETTE_BYTES + i * 2))
-  }
-  return colors.size > 1
+const bannerRows = (block: Block, team: number) =>
+  block.entries.slice(team * BANNER_TILES_HIGH * block.mapWidth, (team + 1) * BANNER_TILES_HIGH * block.mapWidth).join()
+
+// Teams that show the same banner as this one because the ROM has room for
+// only one, as in hacks whose menu banners say just "Home" and "Visitor".
+// Changing it changes it for all of them, until the banners are given room.
+export function bannerSharedWith(project: Source, kind: BannerKind, team: number): number[] {
+  const block = layout(project.bytes, project.game).banners[kind]
+  if (block.capacity >= 2 * BANNER_TILES_HIGH * block.mapWidth) return [team]
+  const rows = bannerRows(block, team)
+  return Array.from({ length: project.game.teamCount }, (_, other) => other).filter((other) => bannerRows(block, other) === rows)
 }
 
-// The colours a menu logo is drawn with: the logo's own, in a full set of 16.
+// The edits with one banner replaced, for every team that shows it.
+export function withBanner(project: Source, kind: BannerKind, team: number, picture: Picture): GraphicsEdits {
+  const banners = { ...project.graphics[BANNER_EDITS[kind]] }
+  for (const other of bannerSharedWith(project, kind, team)) banners[other] = picture
+  return { ...project.graphics, [BANNER_EDITS[kind]]: banners }
+}
+
+// The 16 colours a menu logo is drawn with.
 export function menuLogoPalette(project: Source, team: number): number[] {
-  return menuPalette(project, team).slice(0, 16)
+  const edited = project.graphics.menuPalettes[team]
+  if (edited && project.graphics.menuLogos[team]) return edited.slice(0, 16)
+  const at = layout(project.bytes, project.game).menuLogoColorsAt + team * LOGO_COLOR_BYTES
+  return Array.from({ length: 16 }, (_, i) => readU16(project.bytes, at + i * 2))
+}
+
+// A team's menu colours as an imported logo should start from them.
+export function menuLogoStart(project: Source, team: number): number[] {
+  const palette = menuPalette(project, team).slice()
+  menuLogoPalette(project, team).forEach((word, i) => {
+    if (i >= LOGO_FIRST_COLOR) palette[i] = palette[16 + i] = word
+  })
+  return palette
 }
 
 // ------------------------------------------------------- pictures from files
@@ -510,10 +559,19 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
   }
   for (const [team, palette] of Object.entries(edits.menuPalettes)) {
     palette.forEach((word, i) => writeU16(rom, where.menuPalettesAt + Number(team) * LOGO_PALETTE_BYTES + i * 2, word))
+    // The colours the game really draws the logo with change only with the logo.
+    if (!edits.menuLogos[Number(team)]) continue
+    const at = where.menuLogoColorsAt + Number(team) * LOGO_COLOR_BYTES
+    for (let i = LOGO_FIRST_COLOR; i < 16; i++) writeU16(rom, at + i * 2, palette[i])
+    for (const { slot, word } of LOGO_FIXED_COLORS) writeU16(rom, at + slot * 2, word)
   }
-  const sets: [BannerKind, Record<number, Picture>, string][] = [['menu', edits.menuBanners, 'menu'], ['game', edits.gameBanners, 'in-game']]
+  const sets: [BannerKind, Record<number, Picture>, string][] = [
+    ['menu', edits.menuBanners, 'menu'],
+    ['visitor', where.visitorBannersApart ? edits.visitorBanners : {}, 'visitor menu'],
+    ['game', edits.gameBanners, 'in-game'],
+  ]
   for (const [kind, pictures, name] of sets) {
-    if (Object.keys(pictures).length > 0 && !bannersAsExpected(rom, game, kind, where.banners[kind])) {
+    if (Object.keys(pictures).length > 0 && !bannersAsExpected(rom, game, kind, where)) {
       throw new Error(`This ROM keeps its ${name} banners in a way the editor cannot change.`)
     }
     writeBanners(rom, where.banners[kind], pictures, name)
@@ -558,10 +616,10 @@ const distinctBlocks = (blocks: Block[]) => [...new Map(blocks.map((block) => [b
 
 function planSpace(rom: Uint8Array, game: GameConfig): SpacePlan | null {
   const where = layout(rom, game)
-  const kinds: BannerKind[] = ['menu', 'game']
+  const kinds: BannerKind[] = where.visitorBannersApart ? ['menu', 'visitor', 'game'] : ['menu', 'game']
   const banners = kinds.filter((kind) => {
     const block = where.banners[kind]
-    return bannersAsExpected(rom, game, kind, block) && block.capacity < block.entries.length
+    return bannersAsExpected(rom, game, kind, where) && block.capacity < block.entries.length
   })
   const logoBlocks = distinctBlocks(where.menuLogos)
   const logos = !logoBlocks.every(isFullSize)
@@ -599,7 +657,7 @@ export function expandPictureSpace<P extends Source>(project: P): P {
     rom.set(project.bytes.subarray(block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.tileCount * TILE_BYTES), at + HEADER_BYTES)
     rom.set(project.bytes.subarray(block.paletteAt, block.mapAt), at + paletteOffset)
     rom.set(project.bytes.subarray(block.mapAt, block.end), at + mapOffset)
-    for (const ref of game.graphics.bannerReferences[kind]) writeU32(rom, ref.at, at + ref.offset)
+    for (const ref of bannerReferences(game, kind, where)) writeU32(rom, ref.at, at + ref.offset)
     at += roomyBannerSize(block)
   }
 

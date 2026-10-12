@@ -4,12 +4,13 @@ import {
   bannerColors,
   bannerPalette,
   bannersEditable,
+  bannerSharedWith,
   expandPictureSpace,
   LOGO_COLORS,
   menuLogo,
-  menuLogosEditable,
   menuLogoFromImage,
   menuLogoPalette,
+  menuLogoStart,
   menuPalette,
   NoRoomError,
   pictureFromImage,
@@ -17,9 +18,12 @@ import {
   pictureToImage,
   rinkLogo,
   rinkLogoSharedWith,
+  visitorBannersApart,
+  withBanner,
   withBannerColors,
   withRinkLogo,
   writeGraphics,
+  type BannerKind,
   type GraphicsEdits,
   type Picture,
 } from './core/graphics'
@@ -132,6 +136,30 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     }
   }
 
+  // A banner on the menus: the only one, or the home or visiting team's.
+  const menuBanner = (kind: BannerKind, title: string, where: string) => {
+    const everyTeam = bannerSharedWith(project, kind, team).length > 1
+    return {
+      title,
+      editable: bannersEditable(project, kind),
+      picture: banner(project, kind, team),
+      palette: bannerPalette(project, kind, team),
+      scale: 3,
+      file: everyTeam ? `${kind === 'visitor' ? 'visitor' : 'home'}_menu_banner.png` : `${name}_${kind}_banner.png`,
+      note:
+        `Shown ${where}, with its two stripes in the banner colours below.` +
+        (everyTeam
+          ? ' This ROM has one banner here for every team, so replacing it replaces it for all of them. Giving the logos and banners more room, below, lets each team have its own.'
+          : ''),
+      load: (rgba: Uint8ClampedArray) =>
+        apply(
+          withBanner(project, kind, team, pictureFromImage(rgba, 88, 16, bannerPalette(project, kind, team), BANNER_COLORS.slice(1))),
+          everyTeam ? `${title} replaced for every team.` : `${title} replaced.`,
+        ),
+    }
+  }
+  const apart = visitorBannersApart(project)
+
   const pictures = [
     {
       title: 'Centre-ice logo',
@@ -151,14 +179,14 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu logo',
-      editable: menuLogosEditable(project),
+      editable: true,
       picture: menuLogo(project, team),
       palette: menuLogoPalette(project, team),
       scale: 3,
       file: `${name}_menu_logo.png`,
       note: `Uses white, black and ${LOGO_COLORS} colours of its own, taken from the image you import.`,
       load: (rgba: Uint8ClampedArray) => {
-        const logo = menuLogoFromImage(rgba, 48, 48, menuPalette(project, team))
+        const logo = menuLogoFromImage(rgba, 48, 48, menuLogoStart(project, team))
         const merged =
           logo.colorsFound > LOGO_COLORS
             ? ` Besides white and black the image had ${logo.colorsFound} colours, and a logo can hold ${LOGO_COLORS}; the least used were merged into the nearest.`
@@ -173,26 +201,12 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         )
       },
     },
-    {
-      title: 'Menu banner',
-      editable: bannersEditable(project, 'menu'),
-      picture: banner(project, 'menu', team),
-      palette: bannerPalette(project, 'menu', team),
-      scale: 3,
-      file: `${name}_menu_banner.png`,
-      note: 'Shown on the menus, with its two stripes in the banner colours below.',
-      load: (rgba: Uint8ClampedArray) =>
-        apply(
-          {
-            ...project.graphics,
-            menuBanners: {
-              ...project.graphics.menuBanners,
-              [team]: pictureFromImage(rgba, 88, 16, bannerPalette(project, 'menu', team), BANNER_COLORS.slice(1)),
-            },
-          },
-          'Menu banner replaced.',
-        ),
-    },
+    ...(apart
+      ? [
+          menuBanner('menu', 'Menu banner (home)', 'on the menus for the home team'),
+          menuBanner('visitor', 'Menu banner (visitor)', 'on the menus for the visiting team'),
+        ]
+      : [menuBanner('menu', 'Menu banner', 'on the menus')]),
     {
       title: 'In-game banner',
       editable: bannersEditable(project, 'game'),
@@ -250,7 +264,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
             <p className="note">
               {item.editable
                 ? item.note
-                : 'This ROM stores or colours this picture differently from the original game, so it cannot be replaced here yet, and may not be shown in its true colours.'}
+                : 'This ROM stores this picture differently from the original game, so it cannot be replaced here yet.'}
             </p>
           </div>
         ))}
@@ -267,8 +281,8 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
             {roomButton}
           </button>{' '}
           <span className="note">
-            In this ROM the menu logos and banners are packed with almost no room to spare. This moves them to unused
-            space at the end of the ROM, where each can be as detailed as you like.
+            In this ROM some logos and banners are packed with little or no room to spare. This moves them to unused
+            space at the end of the ROM, where each team's can be as detailed as you like.
           </span>
         </p>
       )}

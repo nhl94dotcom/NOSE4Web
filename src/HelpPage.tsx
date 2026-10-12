@@ -320,9 +320,10 @@ export function HelpPage() {
         the pictures have their room.
       </p>
       <p>
-        Some hacked ROMs keep separate menu banners for the home and visiting teams, or colour their menu logos in
-        a different way. The editor shows those pictures but cannot replace them yet, and the logos may not appear
-        in their true colours.
+        Some hacked ROMs, such as the 30-team one, show the same two menu banners for every team: one saying
+        "Home" and one saying "Visitor". The editor then lists a home and a visitor menu banner, and replacing
+        either replaces it for every team. Give the logos and banners more room and each team gets a home and a
+        visitor banner of its own, which you can then replace one team at a time, for instance with team names.
       </p>
       <p>
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it

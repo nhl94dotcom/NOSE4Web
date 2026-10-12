@@ -60,7 +60,7 @@ export async function loadSession(): Promise<Session | null> {
   const game = stored && findGame(stored.productCode)
   if (!stored || !game) return null
   // Work stored by an earlier version of the editor has no team pictures.
-  const graphics = stored.project.graphics ?? NO_GRAPHICS_EDITS
+  const graphics = { ...NO_GRAPHICS_EDITS, ...stored.project.graphics }
   const supported = graphicsSupported(stored.project.bytes, game)
   return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported } }
 }
