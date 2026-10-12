@@ -46,6 +46,11 @@ export function useProjectHistory() {
       })
     },
 
+    // Makes the next edit a step of its own, however soon it follows the last.
+    newStep() {
+      setHistory((h) => (h.editedAt === 0 ? h : { ...h, editedAt: 0 }))
+    },
+
     undo() {
       setHistory((h) => (h.index > 0 ? { ...h, index: h.index - 1, editedAt: 0 } : h))
     },

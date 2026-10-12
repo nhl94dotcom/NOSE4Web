@@ -19,6 +19,8 @@ it('renders the help page with every section its contents list links to', () => 
 it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   const project = openRom(new Uint8Array(readFileSync(romPath)))
   const rest = {
+    changed: false,
+    onResetAll: () => {},
     onChange: () => {},
     rawAttributes: false,
     onRawAttributesChange: () => {},
@@ -30,8 +32,8 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
     onMovePlayers: () => '',
   }
   for (const team of project.teams) {
-    const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} {...rest} />)
-    const raw = renderToStaticMarkup(<TeamEditor game={project.game} team={team} {...rest} rawAttributes />)
+    const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
+    const raw = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} rawAttributes />)
     expect(html).toContain('title="Stick Handling"')
     expect(html).toContain('title="Weight (pounds)"')
     expect(raw).toContain('<option value="15">15</option>')
@@ -39,6 +41,6 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
     expect(html.split('class="name"').length - 1).toBe(team.players.length)
     expect(html).not.toContain('Invalid (')
   }
-  const montreal = renderToStaticMarkup(<TeamEditor game={project.game} team={project.teams[11]} {...rest} />)
+  const montreal = renderToStaticMarkup(<TeamEditor game={project.game} team={project.teams[11]} original={project.teams[11]} {...rest} />)
   expect(montreal).toContain('value="Patrick Roy"')
 })

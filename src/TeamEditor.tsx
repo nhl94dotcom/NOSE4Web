@@ -6,6 +6,7 @@ import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } f
 import type { GameConfig } from './core/games'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { overallRating } from './core/rating'
+import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
 import {
   addPlayer,
   canAddPlayer,
@@ -17,6 +18,7 @@ import {
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
 import { PaletteEditor, Preview } from './Palette'
+import { ResetButton } from './ResetButton'
 
 const ATTRIBUTE_VALUES = Array.from({ length: 16 }, (_, i) => i)
 
@@ -28,6 +30,11 @@ function cleanText(text: string): string {
 interface Props {
   game: GameConfig
   team: Team
+  // The team as it is in the ROM that was opened, for resetting to.
+  original: Team
+  // Whether anything about the team, its pictures included, has been changed.
+  changed: boolean
+  onResetAll: () => void
   onChange: (team: Team) => void
   // Whether attributes show as the numbers stored in the ROM instead of as text.
   rawAttributes: boolean
@@ -56,7 +63,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original } = props
   const goalies = goalieCount(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
   // under them, so ticks past its end are dropped.
@@ -131,6 +138,14 @@ export function TeamEditor(props: Props) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
+
+  const reset = (part: TeamPart, what: string) => (
+    <ResetButton
+      what={what}
+      changed={teamPartChanged(team, original, part)}
+      onReset={() => (part === 'roster' ? changeRoster : onChange)(resetTeamPart(team, original, part))}
+    />
+  )
 
   function setPlayer(index: number, player: Player) {
     onChange({ ...team, players: team.players.map((p, i) => (i === index ? player : p)) })
@@ -279,6 +294,12 @@ export function TeamEditor(props: Props) {
     <main className="team">
       <section>
         <h2>Team</h2>
+        <p>
+          <ResetButton what="whole team" changed={props.changed} onReset={props.onResetAll} /> {reset('names', 'names')}{' '}
+          <span className="note">
+            Each Reset button puts one thing back to how it is in the ROM you opened and leaves the rest alone.
+          </span>
+        </p>
         <div className="fields">
           {game.teamNameLabels.map((label, i) => (
             <label key={i}>
@@ -358,6 +379,10 @@ export function TeamEditor(props: Props) {
         <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
       </p>
       <p>
+        {reset('roster', 'roster')}{' '}
+        <span className="note">The players, their order and attributes, and the forwards and goalie bytes.</span>
+      </p>
+      <p>
         <button disabled={ticked.length === 0 || otherTeams.length === 0} onClick={moveTicked}>
           Move ticked to
         </button>{' '}
@@ -403,6 +428,7 @@ export function TeamEditor(props: Props) {
           <button disabled={tickedLines.length === 0} onClick={() => void pasteOverTickedLines()}>
             Paste over ticked
           </button>{' '}
+          {reset('lines', 'lines')}{' '}
           <span className="note">
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}
           </span>
@@ -466,7 +492,8 @@ export function TeamEditor(props: Props) {
               <Preview template="sprites" palette={colors} scale={2} />
               <div>
                 <PaletteEditor palette={colors} labels={game.stripColorLabels} onChange={setColors} />
-                <button onClick={() => setColors(other)}>Copy from {strip === 0 ? 'away' : 'home'}</button>
+                <button onClick={() => setColors(other)}>Copy from {strip === 0 ? 'away' : 'home'}</button>{' '}
+                {reset(strip === 0 ? 'home' : 'away', `${label.toLowerCase()} colours`)}
               </div>
             </div>
           </section>

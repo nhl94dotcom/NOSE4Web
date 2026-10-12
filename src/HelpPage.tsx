@@ -16,6 +16,7 @@ const SECTIONS = [
   ['pictures', 'Logos and banners'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
+  ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
   ['check', 'Checking a ROM'],
   ['compare', 'Comparing two ROMs'],
@@ -357,6 +358,42 @@ export function HelpPage() {
           in seeding order. A warning appears if a team is in one draw twice.
         </li>
       </ul>
+
+      <h3 id="help-reset">Resetting changes</h3>
+      <p>
+        Reset buttons put one thing back to how it is in the ROM you opened and leave everything else you have
+        done alone. A button is greyed out while its part is unchanged, so the buttons also show at a glance what
+        you have altered.
+      </p>
+      <ul>
+        <li>
+          On a team's page: <strong>Reset names</strong>, <strong>Reset roster</strong> (the players, their order
+          and attributes, and the forwards and goalie bytes), <strong>Reset lines</strong>,{' '}
+          <strong>Reset home colours</strong> and <strong>Reset away colours</strong>.
+        </li>
+        <li>
+          Under each logo and banner: <strong>Reset picture</strong>. Below them,{' '}
+          <strong>Reset banner colours</strong>.
+        </li>
+        <li>
+          At the top of a team's page: <strong>Reset whole team</strong>, which does all of the above for that
+          team and no other.
+        </li>
+        <li>On the Rink colours page, one button each for the ice and the arena.</li>
+        <li>On the Game settings page, one button for each section.</li>
+      </ul>
+      <p>
+        "The ROM you opened" means the file as you opened it, even if you have downloaded your work since. A reset
+        is an edit like any other, so Undo brings your changes back.
+      </p>
+      <p>
+        Some things to know. Resetting a roster does not reset the lines, which name players by their place on the
+        roster, so reset both if you changed both. If you moved a player to another team, resetting one of the two
+        rosters leaves him on both teams or on neither; reset both rosters to put him back. A picture that several
+        teams share is reset for all of them. Resetting a roster can need more room than is free if other teams
+        have grown; the space meter will say so. Giving rosters or pictures more room is not something a reset
+        undoes.
+      </p>
 
       <h3 id="help-csv">Spreadsheet files</h3>
       <p>

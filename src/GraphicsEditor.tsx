@@ -27,9 +27,11 @@ import {
   type GraphicsEdits,
   type Picture,
 } from './core/graphics'
+import { pictureChanged, resetPicture, type PicturePart } from './core/reset'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
 import { PaletteEditor } from './Palette'
+import { ResetButton } from './ResetButton'
 
 // Colours a banner may use: all but 3 and 4, which belong to the other team's
 // banner when two are on screen together.
@@ -141,6 +143,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     const everyTeam = bannerSharedWith(project, kind, team).length > 1
     return {
       title,
+      part: (kind === 'visitor' ? 'visitorBanner' : 'menuBanner') as PicturePart,
       editable: bannersEditable(project, kind),
       picture: banner(project, kind, team),
       palette: bannerPalette(project, kind, team),
@@ -163,6 +166,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const pictures = [
     {
       title: 'Centre-ice logo',
+      part: 'rinkLogo' as PicturePart,
       editable: true,
       picture: rinkLogo(project, team),
       palette: homePalette,
@@ -179,6 +183,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu logo',
+      part: 'menuLogo' as PicturePart,
       editable: true,
       picture: menuLogo(project, team),
       palette: menuLogoPalette(project, team),
@@ -209,6 +214,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
       : [menuBanner('menu', 'Menu banner', 'on the menus')]),
     {
       title: 'In-game banner',
+      part: 'gameBanner' as PicturePart,
       editable: bannersEditable(project, 'game'),
       picture: banner(project, 'game', team),
       palette: bannerPalette(project, 'game', team),
@@ -259,7 +265,16 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                     e.target.value = ''
                   }}
                 />
-              </label>
+              </label>{' '}
+              <ResetButton
+                what="picture"
+                changed={pictureChanged(project, team, item.part)}
+                onReset={() => {
+                  onChange({ ...project, graphics: resetPicture(project, team, item.part) })
+                  setNotice(`${item.title} put back as it was.`)
+                  setFailed(false)
+                }}
+              />
             </p>
             <p className="note">
               {item.editable
@@ -300,6 +315,13 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
           })
         }
       />
+      <p>
+        <ResetButton
+          what="banner colours"
+          changed={pictureChanged(project, team, 'bannerColors')}
+          onReset={() => onChange({ ...project, graphics: resetPicture(project, team, 'bannerColors') })}
+        />
+      </p>
     </section>
   )
 }

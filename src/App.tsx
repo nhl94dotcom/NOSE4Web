@@ -5,6 +5,7 @@ import { CsvPanel } from './CsvPanel'
 import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
 import { SUPPORTED_GAMES } from './core/games'
+import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
 import { teamDisplayName, teamSpace, type Team } from './core/team'
@@ -33,7 +34,7 @@ const isTextField = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.matches('input:not([type=checkbox]):not([type=range]), textarea')
 
 export default function App() {
-  const { project, change, reset, undo, redo, canUndo, canRedo } = useProjectHistory()
+  const { project, change, reset, undo, redo, newStep, canUndo, canRedo } = useProjectHistory()
   // The project as it was when opened or last downloaded. Every edit makes a
   // new project object, so a different object means there is unsaved work.
   const [saved, setSaved] = useState<RomProject | null>(null)
@@ -83,7 +84,22 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
+  // Edits made in quick succession undo as one, which suits typing and
+  // dragging. What a button does is always a step of its own.
+  useEffect(() => {
+    function onClick(event: MouseEvent) {
+      if (!(event.target instanceof Element) || !event.target.closest('button')) return
+      newStep()
+      setTimeout(newStep)
+    }
+    window.addEventListener('click', onClick, true)
+    return () => window.removeEventListener('click', onClick, true)
+  })
+
   const findings = useMemo(() => (project ? checkProject(project) : []), [project])
+  // The ROM as it was opened, which the Reset buttons go back to.
+  const source = project?.source
+  const original = useMemo(() => (source ? openRom(source) : null), [source])
 
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
     reset(opened)
@@ -161,7 +177,7 @@ export default function App() {
     )
   }
 
-  if (!project) {
+  if (!project || !original) {
     return (
       <main className="welcome">
         <h1>NOSE4Web</h1>
@@ -209,15 +225,16 @@ export default function App() {
   const teamNames = project.teams.map(teamDisplayName)
   const problems = findings.filter((finding) => finding.level === 'problem').length
 
-  function page(current: RomProject) {
+  function page(current: RomProject, opened: RomProject) {
     switch (selected) {
       case RINK:
-        return <RinkEditor palette={current.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+        return <RinkEditor palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
       case SETTINGS:
         return (
           <SettingsEditor
             game={current.game}
             settings={current.settings}
+            original={opened.settings}
             teamNames={teamNames}
             onChange={(settings) => change({ ...current, settings })}
           />
@@ -236,6 +253,9 @@ export default function App() {
             key={selected}
             game={current.game}
             team={current.teams[selected]}
+            original={opened.teams[selected]}
+            changed={teamChanged(current, opened, selected)}
+            onResetAll={() => change(resetTeam(current, opened, selected))}
             onChange={(team) => updateTeam(selected, team)}
             rawAttributes={rawAttributes}
             onRawAttributesChange={setRawAttributes}
@@ -320,7 +340,7 @@ export default function App() {
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}
         </nav>
-        {page(project)}
+        {page(project, original)}
       </div>
     </div>
   )

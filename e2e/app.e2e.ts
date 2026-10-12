@@ -582,6 +582,60 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(image).toHaveCount(0)
   })
 
+  test('resets one part of a team, then the whole team, leaving other teams alone', async ({ page }) => {
+    await openRom(page)
+    const reset = (what: string) => page.getByRole('button', { name: `Reset ${what}`, exact: true })
+    const location = page.locator('.fields input').first()
+    const firstName = nameOf(rows(page, 'Skaters').first())
+    const home = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Home colours' }) })
+    const word = home.locator('.color-controls span.note').first()
+
+    // Another team's edit, which no reset here may touch.
+    await team(page, 'Boston Bruins').click()
+    await firstName.fill('Left Alone')
+    await team(page, 'Anaheim Mighty Ducks').click()
+
+    for (const what of ['whole team', 'names', 'roster', 'lines', 'home colours', 'away colours']) await expect(reset(what)).toBeDisabled()
+    const openedLocation = await location.inputValue()
+    const openedName = await firstName.inputValue()
+    const openedWord = await word.textContent()
+
+    await location.fill('Somewhere')
+    await firstName.fill('New Player')
+    await home.locator('input[type=range]').first().fill('7')
+    await expect(reset('names')).toBeEnabled()
+    await expect(reset('lines')).toBeDisabled()
+
+    await reset('roster').click()
+    await expect(firstName).toHaveValue(openedName)
+    await expect(location).toHaveValue('Somewhere')
+    await expect(reset('roster')).toBeDisabled()
+    // A reset can be undone like any other edit.
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(firstName).toHaveValue('New Player')
+
+    await reset('whole team').click()
+    await expect(firstName).toHaveValue(openedName)
+    await expect(location).toHaveValue(openedLocation)
+    await expect(word).toHaveText(openedWord!)
+    await expect(reset('whole team')).toBeDisabled()
+
+    await team(page, 'Boston Bruins').click()
+    await expect(firstName).toHaveValue('Left Alone')
+    await expect(reset('whole team')).toBeEnabled()
+
+    // Settings reset a section at a time.
+    await entry(page, 'Game settings').click()
+    await expect(reset('playoff draws')).toBeDisabled()
+    const draws = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Playoff draws' }) })
+    const firstDraw = draws.locator('tbody tr').first().locator('select').first()
+    const openedDraw = await firstDraw.inputValue()
+    await firstDraw.selectOption({ index: openedDraw === '5' ? 6 : 5 })
+    await expect(reset('clock settings')).toBeDisabled()
+    await reset('playoff draws').click()
+    await expect(firstDraw).toHaveValue(openedDraw)
+  })
+
   test('keeps the work through a reload', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept()) // the "leave site?" prompt
     await openRom(page)

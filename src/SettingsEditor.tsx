@@ -3,6 +3,8 @@ import { readClipboard, writeClipboard } from './clipboard'
 import { copyDraws, pasteDraws } from './core/clipboard'
 import type { GameConfig } from './core/games'
 import { MAX_SECONDS, menuOptions, type FixedText, type Settings } from './core/settings'
+import { resetSettingsPart, settingsPartChanged } from './core/reset'
+import { ResetButton } from './ResetButton'
 
 function cleanText(text: string): string {
   return text.replace(/[^\x20-\x7d]/g, '')
@@ -15,11 +17,13 @@ function clock(seconds: number): string {
 interface Props {
   game: GameConfig
   settings: Settings
+  // The settings as they are in the ROM that was opened.
+  original: Settings
   teamNames: string[]
   onChange: (settings: Settings) => void
 }
 
-export function SettingsEditor({ game, settings, teamNames, onChange }: Props) {
+export function SettingsEditor({ game, settings, original, teamNames, onChange }: Props) {
   // Playoff draws ticked for copying and pasting.
   const [ticked, setTicked] = useState<number[]>([])
   const [notice, setNotice] = useState('')
@@ -91,6 +95,13 @@ export function SettingsEditor({ game, settings, teamNames, onChange }: Props) {
     <main className="team">
       <section>
         <h2>Clock</h2>
+        <p>
+          <ResetButton
+            what="clock settings"
+            changed={settingsPartChanged(settings, original, 'clock')}
+            onReset={() => onChange(resetSettingsPart(settings, original, 'clock'))}
+          />
+        </p>
         <table className="left">
           <thead>
             <tr>
@@ -132,6 +143,13 @@ export function SettingsEditor({ game, settings, teamNames, onChange }: Props) {
 
       <section>
         <h2>Main menu starting choices</h2>
+        <p>
+          <ResetButton
+            what="starting choices"
+            changed={settingsPartChanged(settings, original, 'menu')}
+            onReset={() => onChange(resetSettingsPart(settings, original, 'menu'))}
+          />
+        </p>
         <table className="left">
           <tbody>
             {settings.menu.map((item, i) => {
@@ -164,6 +182,13 @@ export function SettingsEditor({ game, settings, teamNames, onChange }: Props) {
 
       <section>
         <h2>Rule messages</h2>
+        <p>
+          <ResetButton
+            what="rule messages"
+            changed={settingsPartChanged(settings, original, 'rules')}
+            onReset={() => onChange(resetSettingsPart(settings, original, 'rules'))}
+          />
+        </p>
         <table className="left">
           <thead>
             <tr>
@@ -210,6 +235,11 @@ export function SettingsEditor({ game, settings, teamNames, onChange }: Props) {
           <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked()}>
             Paste over ticked
           </button>{' '}
+          <ResetButton
+            what="playoff draws"
+            changed={settingsPartChanged(settings, original, 'playoffDraws')}
+            onReset={() => onChange(resetSettingsPart(settings, original, 'playoffDraws'))}
+          />{' '}
           <span className="note">{notice}</span>
         </p>
         <table>
