@@ -3,9 +3,18 @@ import { fileURLToPath } from 'node:url'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import { openRom } from '../src/core/rom'
+import { HelpPage } from '../src/HelpPage'
 import { TeamEditor } from '../src/TeamEditor'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
+
+it('renders the help page with every section its contents list links to', () => {
+  const html = renderToStaticMarkup(<HelpPage />)
+  const links = [...html.matchAll(/href="#(help-[a-z]+)"/g)].map((m) => m[1])
+  expect(links.length).toBeGreaterThan(10)
+  for (const id of links) expect(html).toContain(`id="${id}"`)
+  expect(html).toContain('_players.csv')
+})
 
 it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   const project = openRom(new Uint8Array(readFileSync(romPath)))

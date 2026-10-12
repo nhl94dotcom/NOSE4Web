@@ -5,6 +5,7 @@ import { SUPPORTED_GAMES } from './core/games'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
+import { HelpPage } from './HelpPage'
 import { RinkEditor } from './RinkEditor'
 import { SettingsEditor } from './SettingsEditor'
 import { TeamEditor } from './TeamEditor'
@@ -14,6 +15,7 @@ import './App.css'
 const RINK = -1
 const SETTINGS = -2
 const CSV = -3
+const HELP = -4
 
 export default function App() {
   const [project, setProject] = useState<RomProject | null>(null)
@@ -27,6 +29,8 @@ export default function App() {
   const [error, setError] = useState('')
   const [rawAttributes, setRawAttributes] = useState(false)
   const [quickKeys, setQuickKeys] = useState(false)
+  // Whether the help is showing before any ROM has been opened.
+  const [welcomeHelp, setWelcomeHelp] = useState(false)
 
   // Browsers show their own wording for this; the page can only ask for the warning.
   useEffect(() => {
@@ -82,12 +86,30 @@ export default function App() {
     </label>
   )
 
+  if (!project && welcomeHelp) {
+    return (
+      <div className="app">
+        <header>
+          <strong>NOSE4Web</strong>
+          {picker}
+          <button onClick={() => setWelcomeHelp(false)}>Back</button>
+        </header>
+        {error && <p className="error">{error}</p>}
+        <div className="body">
+          <HelpPage />
+        </div>
+      </div>
+    )
+  }
+
   if (!project) {
     return (
       <main className="welcome">
         <h1>NOSE4Web</h1>
         <p>An editor for NHL 94 on the Sega Genesis: rosters, lines, colours and game settings.</p>
-        {picker}
+        <p>
+          {picker} <button onClick={() => setWelcomeHelp(true)}>How to use it</button>
+        </p>
         <p className="note">
           Your ROM is read and edited in this browser tab. It is never uploaded, and no ROM comes with this site.
         </p>
@@ -161,12 +183,17 @@ export default function App() {
           <button className={selected === CSV ? 'active' : ''} onClick={() => setSelected(CSV)}>
             Spreadsheet files
           </button>
+          <button className={selected === HELP ? 'active' : ''} onClick={() => setSelected(HELP)}>
+            Help
+          </button>
         </nav>
         {selected === RINK ? (
           <RinkEditor
             palette={project.rinkPalette}
             onChange={(rinkPalette) => setProject({ ...project, rinkPalette })}
           />
+        ) : selected === HELP ? (
+          <HelpPage />
         ) : selected === CSV ? (
           <CsvPanel project={project} setName={name || 'rom'} onChange={setProject} onSetNameChange={setName} />
         ) : selected === SETTINGS ? (

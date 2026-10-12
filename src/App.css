@@ -237,6 +237,35 @@ table.left th {
   padding: 0;
 }
 
+.help {
+  line-height: 1.5;
+}
+
+.help > * {
+  max-width: 46rem;
+}
+
+.help h3 {
+  margin: 1.75rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.help li {
+  margin: 0.2rem 0;
+}
+
+.help .contents {
+  columns: 2;
+}
+
+.help kbd {
+  padding: 0 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  font: inherit;
+}
+
 .pick-image {
   display: block;
   max-width: min(100%, 40rem);
