@@ -85,11 +85,11 @@ describe('banner lettering', () => {
   it('measures text, capitalises it, and leaves out what it has no shape for', () => {
     expect(measureLettering('Boston')).toMatchObject({ text: 'BOSTON', dropped: '', width: 47, tooWide: 0 })
     expect(measureLettering('  new   york ').text).toBe('NEW YORK')
-    expect(measureLettering('Zürich #9')).toMatchObject({ text: 'ZRICH 9', dropped: 'Ü#' })
+    expect(measureLettering('Zürich #9 ~')).toMatchObject({ text: 'ZRICH #9', dropped: 'Ü~' })
     expect(measureLettering('').width).toBe(0)
     expect(measureLettering('Mighty Ducks of Anaheim').tooWide).toBeGreaterThan(0)
     // Every character it can draw is nine rows of one width.
-    for (const char of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-\'!&/') {
+    for (const char of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-\'!&/,:;?"()[]+*=#$%@_<>\\') {
       expect(measureLettering(char), char).toMatchObject({ text: char, dropped: '' })
       expect(measureLettering(char).width, char).toBeGreaterThan(1)
     }
