@@ -18,6 +18,9 @@ const SECTIONS = [
   ['settings', 'Game settings'],
   ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
+  ['league', 'The league at a glance'],
+  ['bulk', 'Bulk changes'],
+  ['importteam', 'Importing a team'],
   ['check', 'Checking a ROM'],
   ['compare', 'Comparing two ROMs'],
   ['download', 'Downloading your work'],
@@ -461,6 +464,62 @@ export function HelpPage() {
         season's files in one go, check the free space, and download.
       </p>
 
+      <h3 id="help-league">The league at a glance</h3>
+      <p>
+        The <b>League</b> page looks across every team.
+      </p>
+      <ul>
+        <li>
+          <b>Find a player</b> searches all rosters as you type. Part of a name is enough, and several words can be
+          in any order. Click a team in the results to go to it.
+        </li>
+        <li>
+          <b>How the teams compare</b> is a table of overall ratings, as the game shows them, averaged for each
+          team. <b>First line</b> is the five skaters on the NLC line, the one that plays when line changes are
+          off, and <b>Its goalie</b> is that line's goalie; for a league that plays without line changes these two
+          numbers are the team. The rest cover the whole roster. Click a heading to sort by it. Numbers well above
+          or below the league average are coloured, to pick out stacked and thin teams.
+        </li>
+      </ul>
+
+      <h3 id="help-bulk">Bulk changes</h3>
+      <p>
+        <b>Bulk changes</b> alters one attribute for many players at once: raise or lower it by a number of steps,
+        set it, cap it, or give it a floor. Choose skaters, forwards, defencemen or goalies, on every team or one,
+        and optionally only players within a range of overall rating.
+      </p>
+      <p>
+        The page lists everyone who would change, with the attribute and overall rating before and after, and
+        nothing happens until you press <b>Apply</b>. Players already at the end of a range are left out, since
+        they would not change. One Undo takes the whole change back.
+      </p>
+      <p>
+        Ratings have seven steps, which the game shows as ranges such as 81-98, so "raise by 1" moves a player up
+        one range. Hand, fighting and the goalie values the game does not use are not offered.
+      </p>
+
+      <h3 id="help-importteam">Importing a team</h3>
+      <p>
+        <b>Import a team</b> brings one team in from another ROM to replace a team in the editor. Use it when an
+        owner sends back their own edited ROM, or to carry a team over from an earlier season. Choose the other
+        ROM, the team to take, the team to replace, and which parts to bring: names, roster and lines, colours,
+        and logos and banners.
+      </p>
+      <ul>
+        <li>The roster and lines come together, because lines name players by their place on the roster.</li>
+        <li>
+          The two ROMs can be different kinds, such as the original game and the 30-team ROM. The teams do not have
+          to be in the same place in both.
+        </li>
+        <li>
+          Each picture is brought in separately, and the page says which made it. One that needs more room than
+          the ROM has is left alone; give the logos and banners more room on any team's page and import again.
+          Banners that every team shares in this ROM are also left alone.
+        </li>
+        <li>The centre-ice logo is drawn with the home colours, so bring the colours with it.</li>
+        <li>A bigger roster needs more room; the space meter shows whether it fits.</li>
+      </ul>
+
       <h3 id="help-check">Checking a ROM</h3>
       <p>
         <b>Check ROM</b> looks over everything in the editor and lists what it finds in two groups. It updates as you
@@ -489,6 +548,17 @@ export function HelpPage() {
         season's. The other ROM is only read. Teams are matched by their place in the list, and players by name, so
         it reports players added, removed and renamed, changed numbers and attributes, line changes, and changes to
         colours and game settings.
+      </p>
+      <p>
+        Above that detail is a summary <b>for the league</b>, which matches players by name across all teams
+        instead of team by team. It lists who changed teams, who is new, who is no longer in the ROM, and every
+        player whose overall rating changed, biggest change first. <b>Download report</b> saves the summary and the
+        detail as a plain text file, and <b>Copy report</b> puts the same text on the clipboard to paste into a
+        message or a post. The report is titled with the other ROM's file name and the Name box at the top.
+      </p>
+      <p>
+        Because players are matched by name, a renamed player reads as one leaving and another arriving in the
+        summary. Logos and banners are not compared.
       </p>
 
       <h3 id="help-download">Downloading your work</h3>

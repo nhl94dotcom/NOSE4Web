@@ -19,7 +19,7 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 6)
+  await expect(page.locator('nav button')).toHaveCount(28 + 9)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -372,7 +372,7 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Compare ROMs').click()
     await page.locator('main input[type=file]').setInputFiles(romPath)
     await expect(page.getByText('Overtime: 600 to 300 seconds.')).toBeVisible()
-    await expect(page.locator('main h3')).toHaveText(['Anaheim Mighty Ducks', 'Clock'])
+    await expect(page.locator('main h3')).toHaveText(['For the league', 'Everything, team by team', 'Anaheim Mighty Ducks', 'Clock'])
     await expect(page.getByText(/^Line NLC: LW .* to Guy Hebert\.$/)).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/compare.png', fullPage: true })
   })
@@ -634,6 +634,134 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(reset('clock settings')).toBeDisabled()
     await reset('playoff draws').click()
     await expect(firstDraw).toHaveValue(openedDraw)
+  })
+
+  test('finds a player anywhere and compares the teams', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'League').click()
+    await page.getByLabel('Player name to find').fill('gretzky')
+    await expect(page.getByText(/^\d+ players? found\.$/)).toBeVisible()
+    const found = page.locator('main table').first().locator('tbody tr')
+    await expect(found.first()).toContainText('Wayne Gretzky')
+    await expect(found.first()).toContainText('Los Angeles Kings')
+
+    const table = page.locator('main table').last()
+    await expect(table.locator('tbody tr')).toHaveCount(28)
+    await expect(table.locator('tfoot')).toContainText('League average')
+    const firstLine = () => table.locator('tbody tr td:nth-child(2)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    await table.getByRole('button', { name: /^First line/ }).click()
+    const down = await firstLine()
+    expect(down).toEqual([...down].sort((a, b) => b - a))
+    expect(down[0]).toBeGreaterThan(down[27])
+    await table.getByRole('button', { name: /^First line/ }).click()
+    expect(await firstLine()).toEqual([...down].reverse())
+    await page.screenshot({ path: 'test-results/shots/league.png', fullPage: true })
+
+    await found.first().getByRole('button', { name: 'Los Angeles Kings' }).click()
+    await expect(page.locator('input.name[value="Wayne Gretzky"]')).toHaveCount(1)
+  })
+
+  test('previews and applies a bulk change, and undoes it in one step', async ({ page }) => {
+    await openRom(page)
+    const speeds = async () => {
+      const all: string[] = []
+      for (const row of await rows(page, 'Skaters').all()) all.push(await row.locator('select.attribute').nth(2).inputValue())
+      return all
+    }
+    const before = await speeds()
+
+    await entry(page, 'Bulk changes').click()
+    const main = page.locator('main')
+    await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
+    await main.getByLabel('Teams to change').selectOption({ label: 'Anaheim Mighty Ducks' })
+    const movable = before.filter((v) => Number(v) < 6).length
+    await expect(main.getByRole('button', { name: `Apply to ${movable} players` })).toBeVisible()
+    await expect(main.locator('tbody tr')).toHaveCount(movable)
+    await page.screenshot({ path: 'test-results/shots/bulk.png', fullPage: true })
+
+    // Narrowing to forwards shows fewer; a cap nobody is above shows none.
+    await main.getByLabel('Players to change').selectOption({ label: 'Forwards' })
+    expect(await main.locator('tbody tr').count()).toBeLessThan(movable)
+    await main.getByLabel('Players to change').selectOption({ label: 'All skaters' })
+    await main.getByLabel('Kind of change').selectOption({ label: 'Cap at (lower anyone above)' })
+    await main.getByLabel('Value to use').selectOption({ index: 6 })
+    await expect(main.getByText('Nobody would change.')).toBeVisible()
+    await expect(main.getByRole('button', { name: 'Apply to 0 players' })).toBeDisabled()
+
+    await main.getByLabel('Kind of change').selectOption({ label: 'Raise by' })
+    await main.getByRole('button', { name: `Apply to ${movable} players` }).click()
+    await expect(main.getByText(`Changed ${movable} players.`)).toBeVisible()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    expect(await speeds()).toEqual(before.map((v) => String(Math.min(6, Number(v) + 1))))
+    await team(page, 'Boston Bruins').click()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    expect(await speeds()).toEqual(before)
+  })
+
+  test('imports a team from another ROM', async ({ page }) => {
+    await openRom(page)
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    await entry(page, 'Import a team').click()
+    const main = page.locator('main')
+    await main.locator('input[type=file]').setInputFiles(romPath)
+    await expect(main.getByText('NHL 94, 28 teams.')).toBeVisible()
+    await main.getByLabel('Team to take').selectOption({ label: 'Montreal Canadiens' })
+    await expect(main.getByLabel('Team to replace')).toHaveValue('11') // the same team here
+    await main.getByLabel('Team to replace').selectOption({ label: 'Anaheim Mighty Ducks' })
+    await main.getByLabel('Logos, banners and banner colours').uncheck()
+    await main.getByLabel('Names').uncheck()
+    await main.getByRole('button', { name: 'Import Montreal Canadiens over Anaheim Mighty Ducks' }).click()
+    await expect(main.getByText(/Roster and lines brought in: \d+ players\./)).toBeVisible()
+    await expect(main.getByText('Home and away colours brought in.')).toBeVisible()
+
+    // Anaheim keeps its name and has Montreal's players.
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Patrick Roy')
+    await expect(page.locator('.fields input').first()).toHaveValue('Anaheim')
+    await expect(entry(page, 'Check ROM')).toHaveText('Check ROM')
+
+    // With pictures too, each is reported, and the ROM still downloads.
+    await entry(page, 'Import a team').click()
+    await main.locator('input[type=file]').setInputFiles(romPath)
+    await main.getByLabel('Team to take').selectOption({ label: 'Montreal Canadiens' })
+    await main.getByLabel('Team to replace').selectOption({ label: 'Boston Bruins' })
+    await main.getByRole('button', { name: 'Import Montreal Canadiens over Boston Bruins' }).click()
+    await expect(main.getByText('Centre-ice logo brought in.')).toBeVisible()
+    await expect(main.getByText(/^In-game banner (brought in\.|left alone:)/)).toBeVisible()
+    await page.screenshot({ path: 'test-results/shots/import.png', fullPage: true })
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(download.suggestedFilename()).toBe('nhl94.bin')
+  })
+
+  test('writes a change report for the league', async ({ page }) => {
+    await openRom(page)
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    await team(page, 'Boston Bruins').click()
+    const moved = await nameOf(rows(page, 'Skaters').first()).inputValue()
+    await tick(rows(page, 'Skaters').first())
+    await page.getByLabel('Team to move players to').selectOption({ label: 'Anaheim Mighty Ducks' })
+    await page.getByRole('button', { name: 'Move ticked to' }).click()
+    await page.locator('input.rom-name').fill('Season_10')
+
+    await entry(page, 'Compare ROMs').click()
+    const main = page.locator('main')
+    await main.locator('input[type=file]').setInputFiles(romPath)
+    await expect(main.getByText('Changed teams (1)')).toBeVisible()
+    await expect(main.getByText(new RegExp(`^${moved}: Boston Bruins to Anaheim Mighty Ducks \\(overall \\d+\\)$`))).toBeVisible()
+
+    const report = await downloadFrom(page, main.getByRole('button', { name: 'Download report' }))
+    expect(report.suggestedFilename()).toBe('Season_10_changes.txt')
+    const text = readFileSync(await report.path(), 'utf8')
+    expect(text).toContain('Changes from nhl94 to Season_10')
+    expect(text).toContain('1 player changed teams, 0 new players, 0 players gone, 0 overall ratings changed.')
+    expect(text).toContain(`${moved}: Boston Bruins to Anaheim Mighty Ducks`)
+
+    await main.getByRole('button', { name: 'Copy report' }).click()
+    await expect(main.getByText('Copied.')).toBeVisible()
+    // Windows hands the clipboard's line ends back in its own style.
+    const copied = await page.evaluate(() => navigator.clipboard.readText())
+    expect(copied.replace(/\r\n/g, '\n')).toBe(text)
   })
 
   test('keeps the work through a reload', async ({ page }) => {

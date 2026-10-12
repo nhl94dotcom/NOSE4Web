@@ -323,6 +323,38 @@ button,
   cursor: pointer;
 }
 
+.high {
+  color: #2da44e;
+  font-weight: 600;
+}
+
+.low {
+  color: #d1242f;
+  font-weight: 600;
+}
+
+td.team-name {
+  text-align: left;
+}
+
+input.wide-input {
+  width: 18rem;
+}
+
+label.choice {
+  margin-right: 1.2rem;
+  white-space: nowrap;
+}
+
+details {
+  margin: 0.4rem 0;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 button.link {
   padding: 0;
   border: 0;

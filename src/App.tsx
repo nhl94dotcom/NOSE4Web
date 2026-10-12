@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BulkPage } from './BulkPage'
 import { CheckPage } from './CheckPage'
 import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
@@ -12,6 +13,8 @@ import { teamDisplayName, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
 import { HelpPage } from './HelpPage'
+import { ImportTeamPage } from './ImportTeamPage'
+import { LeaguePage } from './LeaguePage'
 import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
@@ -26,6 +29,9 @@ const CSV = -3
 const HELP = -4
 const CHECK = -5
 const COMPARE = -6
+const LEAGUE = -7
+const BULK = -8
+const IMPORT_TEAM = -9
 
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
@@ -244,7 +250,13 @@ export default function App() {
       case CHECK:
         return <CheckPage findings={findings} onGoToTeam={setSelected} />
       case COMPARE:
-        return <ComparePage project={current} />
+        return <ComparePage project={current} name={name || 'rom'} />
+      case LEAGUE:
+        return <LeaguePage project={current} onGoToTeam={setSelected} />
+      case BULK:
+        return <BulkPage project={current} onChange={change} />
+      case IMPORT_TEAM:
+        return <ImportTeamPage project={current} onChange={change} />
       case HELP:
         return <HelpPage />
       default:
@@ -335,6 +347,9 @@ export default function App() {
           ))}
           {entry(RINK, 'Rink colours')}
           {entry(SETTINGS, 'Game settings')}
+          {entry(LEAGUE, 'League')}
+          {entry(BULK, 'Bulk changes')}
+          {entry(IMPORT_TEAM, 'Import a team')}
           {entry(CSV, 'Spreadsheet files')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(COMPARE, 'Compare ROMs')}
