@@ -7,6 +7,7 @@ import {
   expandPictureSpace,
   LOGO_COLORS,
   menuLogo,
+  menuLogoEditable,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
@@ -150,15 +151,18 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu logo',
-      editable: true,
+      editable: menuLogoEditable(project, team),
       picture: menuLogo(project, team),
       palette: menuLogoPalette(project, team),
       scale: 3,
       file: `${name}_menu_logo.png`,
-      note: `Has its own ${LOGO_COLORS} colours, taken from the image you import.`,
+      note: `Uses white, black and ${LOGO_COLORS} colours of its own, taken from the image you import.`,
       load: (rgba: Uint8ClampedArray) => {
         const logo = menuLogoFromImage(rgba, 48, 48, menuPalette(project, team))
-        const merged = logo.colorsFound > LOGO_COLORS ? ` The image had ${logo.colorsFound} colours; the least used were merged into the nearest.` : ''
+        const merged =
+          logo.colorsFound > LOGO_COLORS
+            ? ` Besides white and black the image had ${logo.colorsFound} colours, and a logo can hold ${LOGO_COLORS}; the least used were merged into the nearest.`
+            : ''
         apply(
           {
             ...project.graphics,
@@ -244,7 +248,9 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
               </label>
             </p>
             <p className="note">
-              {item.editable ? item.note : 'This ROM arranges these banners differently from the original game, so they cannot be replaced here yet.'}
+              {item.editable
+                ? item.note
+                : 'This ROM stores or colours this picture differently from the original game, so it cannot be replaced here yet, and may not be shown in its true colours.'}
             </p>
           </div>
         ))}

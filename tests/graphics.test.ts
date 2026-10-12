@@ -10,6 +10,7 @@ import {
   bannersEditable,
   expandPictureSpace,
   menuLogo,
+  menuLogoEditable,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
@@ -78,10 +79,24 @@ describe('pictures from image files', () => {
     const start = new Array<number>(32).fill(0x0222)
     const { picture, palette: next, colorsFound } = menuLogoFromImage(rgba, 48, 48, start)
     expect(colorsFound).toBe(2)
-    expect(usedColors(picture)).toEqual([0, 5, 6])
-    expect([next[5], next[6]].sort()).toEqual([0x000e, 0x0e00])
-    expect(next.slice(16 + 5, 16 + 7)).toEqual(next.slice(5, 7)) // both copies of the palette
-    expect(next.slice(0, 5)).toEqual(start.slice(0, 5)) // the banner's colours are left alone
+    expect(usedColors(picture)).toEqual([0, 7, 8])
+    expect([next[7], next[8]].sort()).toEqual([0x000e, 0x0e00])
+    expect(next.slice(16 + 7, 16 + 9)).toEqual(next.slice(7, 9)) // both copies of the palette
+    expect(next.slice(0, 5)).toEqual(start.slice(0, 5)) // the banner's stripe colours are left alone
+    // White and black belong to the banner's lettering too, and are always these.
+    expect([next[5], next[6], next[21], next[22]]).toEqual([0x0eee, 0x0000, 0x0eee, 0x0000])
+  })
+
+  it('gives white and black their fixed places and never redefines them', () => {
+    const rgba = new Uint8Array(48 * 48 * 4)
+    // Mostly white and black, with a little green: the common colours must not take the green's place.
+    for (let i = 0; i < 48 * 48; i++) rgba.set(i % 50 === 0 ? [0, 255, 0, 255] : i % 2 ? [255, 255, 255, 255] : [0, 0, 0, 255], i * 4)
+    const { picture, palette: next, colorsFound } = menuLogoFromImage(rgba, 48, 48, new Array<number>(32).fill(0x0222))
+    expect(colorsFound).toBe(1)
+    expect(usedColors(picture)).toEqual([5, 6, 7])
+    expect([next[5], next[6], next[7]]).toEqual([0x0eee, 0x0000, 0x00e0])
+    expect(picture.pixels[1]).toBe(5) // white
+    expect(picture.pixels[2]).toBe(6) // black
   })
 })
 
@@ -106,6 +121,11 @@ describe.skipIf(!base)('team pictures in NHL 94', () => {
     expect(rinkLogoSharedWith(project, 26)).toEqual([26, 27]) // the two All Stars teams
     expect(rinkLogoSharedWith(project, MONTREAL)).toEqual([MONTREAL])
     expect(bannerPalette(project, 'menu', MONTREAL).slice(1, 3)).toEqual(bannerColors(project, MONTREAL))
+    // White and black sit in the same two places in every team's menu colours.
+    for (let team = 0; team < project.teams.length; team++) {
+      expect(menuPalette(project, team).slice(5, 7)).toEqual([0x0eee, 0x0000])
+      expect(menuLogoEditable(project, team)).toBe(true)
+    }
     expect(menuLogoPalette(project, MONTREAL)).toHaveLength(16)
   })
 
@@ -279,6 +299,7 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
   it('leaves its menu banners alone, because it keeps separate sets for home and visitor', () => {
     const project = openRom(league!)
     expect(bannersEditable(project, 'menu')).toBe(false)
+    expect(menuLogoEditable(project, 0)).toBe(false) // its logo colours are kept somewhere else
     expect(bannersEditable(project, 'game')).toBe(true)
     expect(() =>
       buildRom({ ...project, graphics: { ...project.graphics, menuBanners: { 2: noise(88, 16, [1, 2, 5, 6], 8) } } }),

@@ -25,11 +25,21 @@ const FLIP_V = 0x1000
 const RINK_LOGO = { tilesWide: 6, tilesHigh: 4 }
 const BANNER_TILES_HIGH = 2
 const LOGO_PALETTE_BYTES = 0x40
-// In a team's menu palette, colours 1 and 2 (or 3 and 4, when the team is
-// listed second) are the banner's two stripes. The logo uses 5 to 15.
+// A team's menu palette is shared by its logo and its banner. Colours 1 and 2
+// (or 3 and 4, when the team is listed second) are the banner's two stripes.
+// Colours 5 and 6 are white and black for every team: the banner's lettering
+// uses them, so a logo may use them but must not redefine them. The logo's
+// own colours are 7 to 15.
 const BANNER_COLOR_SLOTS = [1, 2]
 const BANNER_COLOR_SLOTS_SECOND = [3, 4]
-const LOGO_FIRST_COLOR = 5
+const WHITE = 0x0eee
+const BLACK = 0x0000
+const LOGO_FIXED_COLORS = [
+  { slot: 5, word: WHITE },
+  { slot: 6, word: BLACK },
+]
+const LOGO_FIRST_COLOR = 7
+// How many colours of its own a menu logo has, besides white and black.
 export const LOGO_COLORS = 16 - LOGO_FIRST_COLOR
 
 // A picture as rows of palette numbers, 0 to 15. Colour 0 is see-through.
@@ -302,6 +312,14 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   return palette
 }
 
+// Whether a team's menu logo takes its colours from the menu palette, as in
+// the original game. Some hacks leave that palette unused and colour their
+// logos some other way, which the editor cannot follow.
+export function menuLogoEditable(project: Source, team: number): boolean {
+  const own = menuPalette(project, team).slice(LOGO_FIRST_COLOR, 16)
+  return new Set(own).size > 1
+}
+
 // The colours a menu logo is drawn with: the logo's own, in a full set of 16.
 export function menuLogoPalette(project: Source, team: number): number[] {
   return menuPalette(project, team).slice(0, 16)
@@ -332,10 +350,11 @@ export function pictureFromImage(
   return { width, height, pixels }
 }
 
-// Builds a menu logo and its colours from an image. The image's most used
-// colours become the logo's palette; the rest are matched to the nearest.
-// Returns how many colours the image had after rounding to what the console
-// can show, so the caller can say when some were merged.
+// Builds a menu logo and its colours from an image. White and black are
+// always available; the image's other most used colours become the logo's
+// own, and the rest are matched to the nearest. Returns how many colours the
+// image had besides white and black, after rounding to what the console can
+// show, so the caller can say when some were merged.
 export function menuLogoFromImage(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
@@ -347,7 +366,7 @@ export function menuLogoFromImage(
     if (rgba[i * 4 + 3] < 128) continue
     const hexColor = '#' + [0, 1, 2].map((c) => rgba[i * 4 + c].toString(16).padStart(2, '0')).join('')
     const word = nearestColorWord(hexColor)
-    counts.set(word, (counts.get(word) ?? 0) + 1)
+    if (word !== WHITE && word !== BLACK) counts.set(word, (counts.get(word) ?? 0) + 1)
   }
   const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, LOGO_COLORS).map(([word]) => word)
   const next = palette.slice()
@@ -356,8 +375,12 @@ export function menuLogoFromImage(
     next[LOGO_FIRST_COLOR + i] = word
     next[16 + LOGO_FIRST_COLOR + i] = word
   }
-  const allowed = chosen.map((_, i) => LOGO_FIRST_COLOR + i)
-  const picture = allowed.length > 0 ? pictureFromImage(rgba, width, height, next, allowed) : { width, height, pixels: new Uint8Array(width * height) }
+  for (const { slot, word } of LOGO_FIXED_COLORS) {
+    next[slot] = word
+    next[16 + slot] = word
+  }
+  const allowed = [...LOGO_FIXED_COLORS.map((fixed) => fixed.slot), ...chosen.map((_, i) => LOGO_FIRST_COLOR + i)]
+  const picture = pictureFromImage(rgba, width, height, next, allowed)
   return { picture, palette: next, colorsFound: counts.size }
 }
 

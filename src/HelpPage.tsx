@@ -296,8 +296,8 @@ export function HelpPage() {
           pixel is matched to the nearest of them, so set the home colours first.
         </li>
         <li>
-          The <b>menu logo</b> has {LOGO_COLORS} colours of its own, taken from your image. If the image has more,
-          the least used are merged into the nearest.
+          The <b>menu logo</b> can use white, black, and {LOGO_COLORS} colours of its own, taken from your image.
+          If the image has more, the least used are merged into the nearest.
         </li>
         <li>
           The <b>menu banner</b> has two stripes in the team's <b>menu banner colours</b>, which are set just below
@@ -320,8 +320,9 @@ export function HelpPage() {
         the pictures have their room.
       </p>
       <p>
-        Some hacked ROMs keep separate menu banners for the home and visiting teams. The editor shows those banners
-        but cannot replace them yet.
+        Some hacked ROMs keep separate menu banners for the home and visiting teams, or colour their menu logos in
+        a different way. The editor shows those pictures but cannot replace them yet, and the logos may not appear
+        in their true colours.
       </p>
       <p>
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
