@@ -12,6 +12,16 @@ export interface GameConfig {
   // Teams whose location the game replaces with fuller text built into its
   // code, to tell apart two teams from one city.
   teamNameRedirects: { team: number; pointerOffset: number; defaultTextOffset: number }[]
+  // Places in the game's code that hold the addresses of the team pictures:
+  // tables of one address per team for the logos, and single blocks holding
+  // every team's banner.
+  graphics: {
+    rinkLogoTablePointer: number
+    menuLogoTablePointer: number
+    menuLogoPalettePointer: number
+    menuBannerPointer: number
+    gameBannerPointer: number
+  }
   // Places in the game's code that hold the address of the playoff draw tables.
   playoffDrawPointerOffsets: number[]
   playoffDrawCount: number
@@ -62,6 +72,13 @@ export const NHL94: GameConfig = {
     { team: 13, pointerOffset: 0xf7ca8, defaultTextOffset: 0xf7cb2 },
     { team: 14, pointerOffset: 0xf7c96, defaultTextOffset: 0xf7cc6 },
   ],
+  graphics: {
+    rinkLogoTablePointer: 0xfea5a,
+    menuLogoTablePointer: 0xf8682,
+    menuLogoPalettePointer: 0x17b2a,
+    menuBannerPointer: 0x17b7e,
+    gameBannerPointer: 0x16d26,
+  },
   playoffDrawPointerOffsets: [0x17d26, 0x17d90],
   playoffDrawCount: 32,
   copyrightTextPointerOffset: 0xff226,

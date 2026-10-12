@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { ATTRIBUTE_NOTES, attributeText, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
@@ -41,6 +41,8 @@ interface Props {
   otherTeams: { teamName: string; index: number }[]
   // Moves players to another team. Returns a message if it cannot be done.
   onMovePlayers: (indexes: number[], to: number) => string
+  // Shown at the end of the page: the team's logos and banners.
+  footer?: ReactNode
 }
 
 export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall'
@@ -54,7 +56,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer } = props
   const goalies = goalieCount(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
   // under them, so ticks past its end are dropped.
@@ -470,6 +472,7 @@ export function TeamEditor(props: Props) {
           </section>
         )
       })}
+      {footer}
     </main>
   )
 }

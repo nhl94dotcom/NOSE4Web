@@ -1,5 +1,6 @@
 import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { findGame, type GameConfig } from './games'
+import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
 import { parseSettings, writeSettings, type Settings } from './settings'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
@@ -31,6 +32,10 @@ export interface RomProject {
   // Sixteen ice colours, then sixteen arena colours.
   rinkPalette: number[]
   settings: Settings
+  // Team pictures the user has replaced, and whether this ROM keeps its
+  // pictures in the way the editor can read.
+  graphics: GraphicsEdits
+  graphicsSupported: boolean
   wasSmd: boolean
 }
 
@@ -98,7 +103,18 @@ export function openRom(file: Uint8Array): RomProject {
   const { teams, layout } = parseTeams(bytes, game)
   const rinkPalette: number[] = []
   for (let i = 0; i < RINK_COLORS; i++) rinkPalette.push(readU16(bytes, game.rinkPaletteOffset + i * 2))
-  return { game, source, bytes, teams, layout, rinkPalette, settings: parseSettings(bytes, game), wasSmd }
+  return {
+    game,
+    source,
+    bytes,
+    teams,
+    layout,
+    rinkPalette,
+    settings: parseSettings(bytes, game),
+    graphics: NO_GRAPHICS_EDITS,
+    graphicsSupported: graphicsSupported(bytes, game),
+    wasSmd,
+  }
 }
 
 // Points the game's built-in team text at the right place. While a redirected
@@ -133,6 +149,7 @@ export function buildRom(project: RomProject): Uint8Array {
   updateTeamNameRedirects(rom, project.game)
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
   writeSettings(rom, project.game, project.settings)
+  writeGraphics(rom, project.game, project.graphics)
   writeU32(rom, HEADER_ROM_END, rom.length - 1)
   writeU16(rom, HEADER_CHECKSUM, headerChecksum(rom))
   return rom

@@ -1,4 +1,5 @@
 import { SUPPORTED_GAMES } from './core/games'
+import { LOGO_COLORS } from './core/graphics'
 import { MAX_ROSTER, MIN_ROSTER } from './core/roster'
 import { MAX_SECONDS } from './core/settings'
 import { CSV_TABLES } from './core/tables'
@@ -12,6 +13,7 @@ const SECTIONS = [
   ['keys', 'Quick edit keys'],
   ['lines', 'Lines'],
   ['colours', 'Team colours'],
+  ['pictures', 'Logos and banners'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
   ['csv', 'Spreadsheet files'],
@@ -269,6 +271,52 @@ export function HelpPage() {
         <b>Copy from home</b> copy one set over the other.
       </p>
 
+      <h3 id="help-pictures">Logos and banners</h3>
+      <p>
+        At the bottom of a team's page are its four pictures: the <b>centre-ice logo</b>, the <b>menu logo</b>, the{' '}
+        <b>menu banner</b> and the <b>in-game banner</b>. They are changed outside the editor:
+      </p>
+      <ol>
+        <li>
+          Click <b>Export PNG</b> to save the picture as it is now.
+        </li>
+        <li>Change it in any image editor, keeping its size in pixels. Work zoomed in; these are small pictures.</li>
+        <li>
+          Click <b>Import…</b> and choose your file.
+        </li>
+      </ol>
+      <ul>
+        <li>
+          The size must match exactly: 48 by 32 for the centre-ice logo, 48 by 48 for the menu logo, and 88 by 16 for
+          each banner.
+        </li>
+        <li>See-through parts of your image stay see-through, showing the ice or the menu behind.</li>
+        <li>
+          The <b>centre-ice logo</b> is drawn with the team's 16 home colours, the same ones the players wear. Every
+          pixel is matched to the nearest of them, so set the home colours first.
+        </li>
+        <li>
+          The <b>menu logo</b> has {LOGO_COLORS} colours of its own, taken from your image. If the image has more,
+          the least used are merged into the nearest.
+        </li>
+        <li>
+          The <b>menu banner</b> has two stripes in the team's <b>menu banner colours</b>, which are set just below
+          the pictures, plus the fixed colours of the lettering.
+        </li>
+        <li>The <b>in-game banner</b> uses 16 colours that every team shares.</li>
+      </ul>
+      <p>
+        The game stores each picture as 8 by 8 pixel tiles and keeps only one copy of tiles that are the same, so
+        plain areas and repeated shapes take less room than fine detail. The room is limited and shared: in the
+        original game, the menu logos of all teams have space for only about eleven more tiles between them, and the
+        banners have none to spare beyond what the replaced banner frees. If a picture does not fit, the editor says
+        so and changes nothing. Simplify the picture, or simplify another to make room.
+      </p>
+      <p>
+        In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
+        for both. Logos and banners are not part of the spreadsheet files.
+      </p>
+
       <h3 id="help-rink">Rink colours</h3>
       <p>
         <b>Rink colours</b>, below the teams, has 16 colours for the ice and 16 for the arena around it. They are
@@ -413,7 +461,10 @@ export function HelpPage() {
       </p>
       <ul>
         <li>Other games in the series, and hacks that rearrange the game's data in other ways, are not supported yet.</li>
-        <li>Graphics such as logos, banners and player sprites cannot be edited, only colours.</li>
+        <li>
+          Team logos and banners can be replaced. Other graphics, such as player sprites, player photos and the title
+          screens, cannot.
+        </li>
         <li>
           To let the game run a changed ROM, the editor switches off the game's check of its own contents, as NOSE
           does.

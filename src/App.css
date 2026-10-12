@@ -287,6 +287,25 @@ table.left th {
   gap: 1rem;
 }
 
+.pictures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.picture {
+  max-width: 18rem;
+}
+
+.picture .preview {
+  margin: 0.4rem 0;
+}
+
+/* Shows through where a picture is see-through. */
+.checkered {
+  background: repeating-conic-gradient(#b8bcc4 0% 25%, #dfe2e7 0% 50%) 0 0 / 16px 16px;
+}
+
 .preview {
   display: block;
   border: 1px solid var(--line);

@@ -9,6 +9,7 @@ import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
 import { teamDisplayName, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
+import { GraphicsEditor } from './GraphicsEditor'
 import { HelpPage } from './HelpPage'
 import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
@@ -244,6 +245,11 @@ export default function App() {
             onRosterSortChange={setRosterSort}
             otherTeams={teamNames.map((teamName, index) => ({ teamName, index })).filter((t) => t.index !== selected)}
             onMovePlayers={(indexes, to) => movePlayers(selected, indexes, to)}
+            footer={
+              current.graphicsSupported && (
+                <GraphicsEditor project={current} team={selected} onChange={(graphics) => change({ ...current, graphics })} />
+              )
+            }
           />
         )
     }

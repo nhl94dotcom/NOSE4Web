@@ -1,4 +1,5 @@
 import { findGame } from './core/games'
+import { graphicsSupported, NO_GRAPHICS_EDITS } from './core/graphics'
 import type { RomProject } from './core/rom'
 
 // Keeps the work in progress in the browser's own storage on this computer,
@@ -57,7 +58,11 @@ export async function saveSession(session: Session): Promise<void> {
 export async function loadSession(): Promise<Session | null> {
   const stored = await run<StoredSession | undefined>('readonly', (store) => store.get(KEY)).catch(() => undefined)
   const game = stored && findGame(stored.productCode)
-  return stored && game ? { ...stored, project: { ...stored.project, game } } : null
+  if (!stored || !game) return null
+  // Work stored by an earlier version of the editor has no team pictures.
+  const graphics = stored.project.graphics ?? NO_GRAPHICS_EDITS
+  const supported = graphicsSupported(stored.project.bytes, game)
+  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported } }
 }
 
 export async function clearSession(): Promise<void> {

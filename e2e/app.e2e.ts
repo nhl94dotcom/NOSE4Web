@@ -145,6 +145,71 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/rink.png', fullPage: true })
   })
 
+  test('exports and replaces team logos and banners', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Montreal Canadiens').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos and banners' }) })
+    const pictures = section.locator('.picture')
+    await expect(pictures).toHaveCount(4)
+    const colourCount = (picture: Locator) =>
+      picture.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+        const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+        const seen = new Set<number>()
+        for (let i = 0; i < data.length; i += 4) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2])
+        return seen.size
+      })
+    for (let i = 0; i < 4; i++) expect(await colourCount(pictures.nth(i))).toBeGreaterThan(2) // real pictures
+    await section.screenshot({ path: 'test-results/shots/pictures.png' })
+
+    // Exporting gives a PNG of the right size, and importing it back is accepted.
+    const rink = pictures.nth(0)
+    const exported = await downloadFrom(page, rink.getByRole('button', { name: 'Export PNG' }))
+    expect(exported.suggestedFilename()).toBe('Montreal_Canadiens_rink_logo.png')
+    const png = readFileSync(await exported.path())
+    expect(png.subarray(1, 4).toString()).toBe('PNG')
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([48, 32])
+    await rink.locator('input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
+    await expect(section.getByText('Centre-ice logo replaced')).toBeVisible()
+
+    // A plain image of the right size replaces each picture.
+    const plain = async (width: number, height: number) => {
+      const url = await page.evaluate(
+        ([w, h]) => {
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const context = canvas.getContext('2d')!
+          context.fillStyle = '#c00000'
+          context.fillRect(0, 0, w, h)
+          return canvas.toDataURL('image/png')
+        },
+        [width, height],
+      )
+      return { name: 'plain.png', mimeType: 'image/png', buffer: Buffer.from(url.split(',')[1], 'base64') }
+    }
+    await rink.locator('input[type=file]').setInputFiles(await plain(48, 32))
+    expect(await colourCount(rink)).toBe(1)
+    await pictures.nth(1).locator('input[type=file]').setInputFiles(await plain(48, 48))
+    await expect(section.getByText('Menu logo replaced.')).toBeVisible()
+    expect(await colourCount(pictures.nth(1))).toBe(1)
+    await pictures.nth(3).locator('input[type=file]').setInputFiles(await plain(88, 16))
+    await expect(section.getByText('In-game banner replaced.')).toBeVisible()
+
+    // The wrong size is refused, with the size that is needed.
+    await pictures.nth(2).locator('input[type=file]').setInputFiles(await plain(48, 48))
+    await expect(section.getByText('This picture has to be 88 by 16.')).toBeVisible()
+
+    // The replacements are in the downloaded ROM.
+    const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
+    await romPicker(page).setInputFiles({ name: 'pictures.bin', mimeType: 'application/octet-stream', buffer: rom })
+    await team(page, 'Montreal Canadiens').click()
+    expect(await colourCount(pictures.nth(0))).toBe(1)
+    expect(await colourCount(pictures.nth(1))).toBe(1)
+    expect(await colourCount(pictures.nth(2))).toBeGreaterThan(2)
+    await team(page, 'Boston Bruins').click()
+    expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
+  })
+
   test('copies a player to another team', async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()
