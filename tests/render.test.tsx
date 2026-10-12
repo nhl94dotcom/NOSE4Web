@@ -24,6 +24,10 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
     onRawAttributesChange: () => {},
     quickKeys: false,
     onQuickKeysChange: () => {},
+    rosterSort: 'roster' as const,
+    onRosterSortChange: () => {},
+    otherTeams: [{ teamName: 'Other Team', index: 1 }],
+    onMovePlayers: () => '',
   }
   for (const team of project.teams) {
     const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} {...rest} />)

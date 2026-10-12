@@ -35,14 +35,43 @@ interface Props {
   // Whether keyboard keys adjust the ticked players' attributes.
   quickKeys: boolean
   onQuickKeysChange: (on: boolean) => void
+  // The order the roster tables are shown in. It never changes the roster itself.
+  rosterSort: RosterSort
+  onRosterSortChange: (sort: RosterSort) => void
+  otherTeams: { teamName: string; index: number }[]
+  // Moves players to another team. Returns a message if it cannot be done.
+  onMovePlayers: (indexes: number[], to: number) => string
 }
+
+export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall'
+
+const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
+  { value: 'roster', label: 'Roster order' },
+  { value: 'name', label: 'Name' },
+  { value: 'jersey', label: 'Jersey number' },
+  { value: 'overall', label: 'Overall rating, best first' },
+]
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers } = props
   const goalies = goalieCount(team)
-  // Roster rows ticked for copying and pasting.
-  const [ticked, setTicked] = useState<number[]>([])
+  // Roster rows ticked for copying and pasting. Undo can shorten the roster
+  // under them, so ticks past its end are dropped.
+  const [allTicked, setTicked] = useState<number[]>([])
+  const ticked = allTicked.filter((index) => index < team.players.length)
   const [notice, setNotice] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
+  const [moveTo, setMoveTo] = useState(otherTeams[0]?.index ?? 0)
+  const plainView = rosterSort === 'roster' && nameFilter.trim() === ''
+
+  function moveTicked() {
+    const count = ticked.length
+    const problem = onMovePlayers(ticked, moveTo)
+    if (!problem) setTicked([])
+    const destination = otherTeams.find((other) => other.index === moveTo)?.teamName
+    setNotice(problem || `Moved ${count === 1 ? '1 player' : `${count} players`} to ${destination}.`)
+  }
 
   // Roster positions shift when players move, so the ticks are cleared.
   function changeRoster(next: Team) {
@@ -119,6 +148,19 @@ export function TeamEditor(props: Props) {
     const labels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
     const names = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
     const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
+    // The rows to show, as roster positions, after filtering and sorting.
+    const wanted = nameFilter.trim().toLowerCase()
+    const sortKey: Record<RosterSort, (index: number) => string | number> = {
+      roster: (index) => index,
+      name: (index) => team.players[index].name.toLowerCase(),
+      jersey: (index) => team.players[index].jersey,
+      overall: (index) => -overallRating(team.players[index].attributes, isGoalies),
+    }
+    const key = sortKey[rosterSort]
+    const shown = Array.from({ length: to - from }, (_, row) => from + row)
+      .filter((index) => team.players[index].name.toLowerCase().includes(wanted))
+      .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a - b))
+    const moveHint = plainView ? '' : ' (show the roster in roster order, unfiltered, to move players)'
     return (
       <section>
         <h2>{title}</h2>
@@ -140,8 +182,8 @@ export function TeamEditor(props: Props) {
             </tr>
           </thead>
           <tbody>
-            {team.players.slice(from, to).map((player, row) => {
-              const index = from + row
+            {shown.map((index) => {
+              const player = team.players[index]
               return (
                 <tr key={index}>
                   <td>
@@ -202,12 +244,12 @@ export function TeamEditor(props: Props) {
                     </td>
                   ))}
                   <td className="actions">
-                    <button title="Move up" disabled={index === 0} onClick={() => changeRoster(movePlayer(team, index, -1))}>
+                    <button title={`Move up${moveHint}`} disabled={!plainView || index === 0} onClick={() => changeRoster(movePlayer(team, index, -1))}>
                       ↑
                     </button>
                     <button
-                      title="Move down"
-                      disabled={index === team.players.length - 1}
+                      title={`Move down${moveHint}`}
+                      disabled={!plainView || index === team.players.length - 1}
                       onClick={() => changeRoster(movePlayer(team, index, 1))}
                     >
                       ↓
@@ -312,6 +354,35 @@ export function TeamEditor(props: Props) {
           Paste attributes only
         </button>{' '}
         <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
+      </p>
+      <p>
+        <button disabled={ticked.length === 0 || otherTeams.length === 0} onClick={moveTicked}>
+          Move ticked to
+        </button>{' '}
+        <select className="wide" aria-label="Team to move players to" value={moveTo} onChange={(e) => setMoveTo(Number(e.target.value))}>
+          {otherTeams.map((other) => (
+            <option key={other.index} value={other.index}>
+              {other.teamName}
+            </option>
+          ))}
+        </select>
+      </p>
+      <p>
+        <label>
+          Show in order of{' '}
+          <select className="wide" value={rosterSort} onChange={(e) => onRosterSortChange(e.target.value as RosterSort)}>
+            {ROSTER_SORTS.map((sort) => (
+              <option key={sort.value} value={sort.value}>
+                {sort.label}
+              </option>
+            ))}
+          </select>
+        </label>{' '}
+        <label>
+          Find{' '}
+          <input placeholder="part of a name" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
+        </label>{' '}
+        {!plainView && <span className="note">This changes only what is shown, not the roster.</span>}
       </p>
       {roster('Goalies', true, 0, goalies)}
       {roster('Skaters', false, goalies, team.players.length)}

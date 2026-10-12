@@ -1,4 +1,4 @@
-import { goalieCount, type Team } from './team'
+import { goalieCount, type Player, type Team } from './team'
 
 // Limits NOSE enforces because of the game engine.
 export const MAX_ROSTER = 26
@@ -56,6 +56,43 @@ export function deletePlayer(team: Team, index: number): Team {
     lines: mapLines(team, (v) => (v === position ? last : v > position && v <= last + 1 ? v - 1 : v)),
   }
   return withSkaterCounts(next, team.forwards - (wasForward ? 1 : 0))
+}
+
+// Puts a skater on a roster: after the last forward, or at the end as a
+// defenceman. Lines keep pointing at the same people.
+function insertSkater(team: Team, player: Player, asForward: boolean): Team {
+  if (!asForward || team.forwards >= MAX_COUNT) {
+    return withSkaterCounts({ ...team, players: [...team.players, player] }, team.forwards)
+  }
+  const at = goalieCount(team) + team.forwards
+  const players = [...team.players.slice(0, at), player, ...team.players.slice(at)]
+  const lines = mapLines(team, (v) => (v > at && v <= team.players.length ? v + 1 : v))
+  return withSkaterCounts({ ...team, players, lines }, team.forwards + 1)
+}
+
+// Moves skaters from one team to another, as in a trade. They keep their role
+// as forward or defenceman, and both teams' lines are kept in step.
+export function transferPlayers(teams: Team[], from: number, indexes: number[], to: number): Team[] {
+  let source = teams[from]
+  let target = teams[to]
+  if (from === to) throw new Error('Choose a different team to move the players to.')
+  if (indexes.length === 0) throw new Error('Tick the players to move first.')
+  const goalies = goalieCount(source)
+  if (indexes.some((i) => i < goalies)) {
+    throw new Error('Goalies cannot be moved this way. Copy the goalie and paste over one on the other team.')
+  }
+  if (source.players.length - indexes.length < MIN_ROSTER) {
+    throw new Error(`A team needs at least ${MIN_ROSTER} players, so that many cannot leave.`)
+  }
+  if (target.players.length + indexes.length > MAX_ROSTER) {
+    throw new Error(`The other team would have more than ${MAX_ROSTER} players.`)
+  }
+
+  const ordered = [...indexes].sort((a, b) => a - b)
+  const moving = ordered.map((i) => ({ player: source.players[i], forward: i - goalies < source.forwards }))
+  for (const i of ordered.reverse()) source = deletePlayer(source, i)
+  for (const { player, forward } of moving) target = insertSkater(target, player, forward)
+  return teams.map((team, i) => (i === from ? source : i === to ? target : team))
 }
 
 // Sets how many skaters, counted from the top, are forwards. The rest are defence.

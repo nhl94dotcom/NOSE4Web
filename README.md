@@ -38,8 +38,12 @@ It can also:
 
 - make room for longer rosters in the original game by moving other data to
   the end of the ROM
-- export everything as a set of CSV files for a spreadsheet, and import them
-  again
+- export everything as an Excel workbook or a set of CSV files, and import
+  them again
+- move players between teams, keeping both teams' lines in step
+- check a ROM for mistakes that cause trouble in the game
+- describe the differences between two ROMs
+- undo and redo, and keep work in progress in the browser between visits
 - copy players, lines and playoff draws between teams, or between two ROMs
   open in separate tabs
 - save your changes as an IPS patch, so they can be shared without the ROM
@@ -64,9 +68,19 @@ Then open the address it prints. Other commands:
 
 | Command | What it does |
 |---|---|
-| `npm test` | Runs the automated tests |
+| `npm test` | Runs the automated tests of the editor's logic |
+| `npm run test:browser` | Opens the built site in a real browser and uses it |
 | `npm run build` | Builds the site into `dist` |
 | `npm run lint` | Checks the code for common mistakes |
+
+The browser tests need a one-off download of the browser they drive:
+
+```
+npx playwright install chromium
+```
+
+Like the other tests, most of them need your own ROM and skip themselves
+without it.
 
 ### Tests that need a ROM
 
@@ -90,6 +104,6 @@ its contents, so a different 30-team ROM will fail a few of them.
 - `src/core` reads and writes the ROM and knows nothing about the page. Start
   with `rom.ts` (opening and building a ROM) and `team.ts` (the team data).
 - `src/*.tsx` is the page itself, built with React.
-- `tests` holds the automated tests.
+- `tests` holds the tests of the logic, and `e2e` the browser tests.
 - `scripts/convert-templates.mjs` converts NOSE's preview bitmaps into the
   files in `public/templates`. It only needs running again if those change.

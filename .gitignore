@@ -32,3 +32,7 @@ dist-ssr
 
 # Names of local test ROMs
 tests/local.json
+
+# Browser test output
+test-results
+playwright-report

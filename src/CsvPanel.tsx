@@ -1,10 +1,21 @@
 import { useState } from 'react'
 import { formatCsv } from './core/csv'
 import type { RomProject } from './core/rom'
-import { CSV_TABLES, csvFileName, CsvImportError, importCsvSet, type CsvTable } from './core/tables'
+import {
+  CSV_TABLES,
+  csvFileName,
+  CsvImportError,
+  importCsvSet,
+  importWorkbookSheets,
+  workbookSheets,
+  type CsvTable,
+  type SetImportResult,
+} from './core/tables'
+import { readWorkbook, writeWorkbook } from './core/workbook'
 import { download } from './download'
 
 const MAX_PROBLEMS_SHOWN = 20
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 interface Outcome {
   title: string
@@ -15,7 +26,7 @@ interface Outcome {
 
 interface Props {
   project: RomProject
-  // The name at the start of every file in the set.
+  // The name of the workbook, and the start of every CSV file's name.
   setName: string
   onChange: (project: RomProject) => void
   onSetNameChange: (setName: string) => void
@@ -31,17 +42,19 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
     })
   }
 
-  async function importFiles(chosen: FileList | null) {
-    if (!chosen || chosen.length === 0) return
-    const names = Array.from(chosen, (file) => file.name)
+  async function exportWorkbook() {
+    download(await writeWorkbook(workbookSheets(project)), `${setName}.xlsx`, XLSX_TYPE)
+  }
+
+  // Runs an import and reports what happened, whichever kind of file it was.
+  async function runImport(title: string, read: () => Promise<Omit<SetImportResult, 'setName'> & { setName: string }>) {
     try {
-      const files = await Promise.all(Array.from(chosen, async (file) => ({ name: file.name, text: await file.text() })))
-      const result = importCsvSet(project, files)
+      const result = await read()
       onChange(result.project)
       if (result.setName) onSetNameChange(result.setName)
       setOutcome({
-        title: `Imported ${result.files.length === 1 ? names[0] : `${result.files.length} files`}`,
-        summary: result.setName ? `The set name is now "${result.setName}".` : '',
+        title,
+        summary: result.setName ? `The name at the top of the page is now "${result.setName}".` : '',
         details: result.files.flatMap((file) => [`${file.table.title}: ${file.summary}`, ...file.warnings]),
         failed: false,
       })
@@ -58,17 +71,33 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
     }
   }
 
-  function importButton(label: string, multiple: boolean) {
+  function importCsvFiles(chosen: File[]) {
+    const title = `Imported ${chosen.length === 1 ? chosen[0].name : `${chosen.length} files`}`
+    return runImport(title, async () => {
+      const files = await Promise.all(chosen.map(async (file) => ({ name: file.name, text: await file.text() })))
+      return importCsvSet(project, files)
+    })
+  }
+
+  function importWorkbook(file: File) {
+    return runImport(`Imported ${file.name}`, async () => {
+      const sheets = await readWorkbook(new Uint8Array(await file.arrayBuffer()))
+      return { ...importWorkbookSheets(project, sheets), setName: file.name.replace(/\.xlsx$/i, '') }
+    })
+  }
+
+  function importButton(label: string, accept: string, multiple: boolean, onFiles: (files: File[]) => Promise<void>) {
     return (
       <label className="button">
         {label}
         <input
           type="file"
-          accept=".csv,text/csv"
+          accept={accept}
           multiple={multiple}
           hidden
           onChange={(e) => {
-            void importFiles(e.target.files)
+            const files = Array.from(e.target.files ?? [])
+            if (files.length > 0) void onFiles(files)
             e.target.value = '' // so the same file can be chosen again
           }}
         />
@@ -81,17 +110,9 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
       <section>
         <h2>Spreadsheet files</h2>
         <p className="note">
-          The whole ROM as a set of CSV files for Excel or a similar program. Every file covers all teams and starts
-          with the name at the top of the page, for example {csvFileName(setName, CSV_TABLES[1])}.
-        </p>
-        <p>
-          <button onClick={() => exportTables(CSV_TABLES)}>Export all {CSV_TABLES.length} files</button>{' '}
-          {importButton('Import files…', true)}
-        </p>
-        <p className="note">
-          Choose any number of a set's files to import them together, in the right order. An import replaces what is
-          in the editor now, and reaches the ROM when you download it. Your browser may ask permission to download
-          several files at once.
+          Everything in the editor, for every team, as tables you can edit in Excel or a similar program and import
+          again. Use one Excel workbook or a set of CSV files; they hold the same tables. An import replaces what is
+          in the editor now, and reaches the ROM when you download it.
         </p>
         {outcome && (
           <div className={outcome.failed ? 'outcome error' : 'outcome'}>
@@ -104,6 +125,28 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
             </ul>
           </div>
         )}
+
+        <h2>Excel workbook</h2>
+        <p>
+          <button onClick={() => void exportWorkbook()}>Export {setName}.xlsx</button>{' '}
+          {importButton('Import a workbook…', '.xlsx', false, (files) => importWorkbook(files[0]))}
+        </p>
+        <p className="note">
+          One file with a sheet for each table below, named {CSV_TABLES.map((table) => table.id).join(', ')}. Keep
+          those sheet names. Sheets with other names, such as your own notes, are ignored.
+        </p>
+
+        <h2>CSV files</h2>
+        <p>
+          <button onClick={() => exportTables(CSV_TABLES)}>Export all {CSV_TABLES.length} files</button>{' '}
+          {importButton('Import files…', '.csv,text/csv', true, importCsvFiles)}
+        </p>
+        <p className="note">
+          Each file starts with the name at the top of the page. Choose any number of a set's files to import them
+          together, in the right order. Your browser may ask permission to download several files at once.
+        </p>
+
+        <h2>The tables</h2>
         <table className="left">
           <tbody>
             {CSV_TABLES.map((table) => (
@@ -113,7 +156,7 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
                   <div className="note">{csvFileName(setName, table)}</div>
                 </td>
                 <td>
-                  <button onClick={() => exportTables([table])}>Export</button>
+                  <button onClick={() => exportTables([table])}>Export CSV</button>
                 </td>
                 <td className="wrap note">{table.description}</td>
               </tr>

@@ -582,24 +582,62 @@ export function importCsvSet(project: RomProject, files: { name: string; text: s
   }
   if (problems.length > 0) throw new CsvImportError(problems)
 
-  const result: SetImportResult = { project, setName: '', files: [] }
+  const sources = identified.map((entry) => ({
+    table: entry.match!.table,
+    name: entry.file.name,
+    rows: parseCsv(entry.file.text),
+  }))
+  const names = new Set(identified.map((entry) => entry.match!.setName))
+  return { ...importTableRows(project, sources), setName: names.size === 1 ? [...names][0] : '' }
+}
+
+// Applies several tables' rows as one step, in the order the tables depend
+// on each other. `name` says where each came from, for messages.
+function importTableRows(
+  project: RomProject,
+  sources: { table: CsvTable; name: string; rows: string[][] }[],
+): Omit<SetImportResult, 'setName'> {
+  const result: Omit<SetImportResult, 'setName'> = { project, files: [] }
   for (const table of CSV_TABLES) {
-    const entry = identified.find((candidate) => candidate.match?.table === table)
-    if (!entry) continue
+    const source = sources.find((candidate) => candidate.table === table)
+    if (!source) continue
     try {
-      const applied = importCsv(table, result.project, entry.file.text)
+      const applied = table.apply(result.project, new Sheet(source.rows))
       result.project = applied.project
-      result.files.push({ fileName: entry.file.name, table, summary: applied.summary, warnings: applied.warnings })
+      result.files.push({ fileName: source.name, table, summary: applied.summary, warnings: applied.warnings })
     } catch (e) {
       if (!(e instanceof CsvImportError)) throw e
-      throw new CsvImportError(e.problems.map((problem) => `${entry.file.name}: ${problem}`))
+      throw new CsvImportError(e.problems.map((problem) => `${source.name}: ${problem}`))
     }
   }
-  // A lines file imported alongside the players settles any lines the new rosters disturbed.
+  // Lines imported alongside the players settle any lines the new rosters disturbed.
   if (result.files.some((file) => file.table === lines)) {
     for (const file of result.files) file.warnings = file.warnings.filter((warning) => !warning.endsWith(LINES_WARNING))
   }
-  const names = new Set(identified.map((entry) => entry.match!.setName))
-  result.setName = names.size === 1 ? [...names][0] : ''
   return result
+}
+
+// --------------------------------------------------------------- workbooks
+// The same tables as sheets of one spreadsheet file, each sheet named after
+// its table.
+
+export function workbookSheets(project: RomProject): { name: string; rows: Cell[][] }[] {
+  return CSV_TABLES.map((table) => ({ name: table.id, rows: table.rows(project) }))
+}
+
+// Sheets with other names, such as a user's own notes, are left alone.
+export function importWorkbookSheets(
+  project: RomProject,
+  sheets: { name: string; rows: string[][] }[],
+): Omit<SetImportResult, 'setName'> {
+  const sources = sheets.flatMap((sheet) => {
+    const table = CSV_TABLES.find((t) => sameText(t.id, sheet.name))
+    // Rows a spreadsheet program left empty are dropped, as they are for CSV.
+    const rows = sheet.rows.filter((row) => row.some((cell) => cell.trim() !== ''))
+    return table ? [{ table, name: `Sheet "${sheet.name}"`, rows }] : []
+  })
+  if (sources.length === 0) {
+    throw new CsvImportError([`The workbook has no sheet named ${CSV_TABLES.map((t) => t.id).join(', ')}.`])
+  }
+  return importTableRows(project, sources)
 }

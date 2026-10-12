@@ -15,6 +15,8 @@ const SECTIONS = [
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
   ['csv', 'Spreadsheet files'],
+  ['check', 'Checking a ROM'],
+  ['compare', 'Comparing two ROMs'],
   ['download', 'Downloading your work'],
   ['roms', 'Supported ROMs and limits'],
   ['trouble', 'If something goes wrong'],
@@ -39,8 +41,8 @@ export function HelpPage() {
           Click <b>Open ROM…</b> and choose your ROM file. It is read by this browser tab only. Nothing is uploaded.
         </li>
         <li>
-          Pick a team from the list on the left, or one of the entries below the teams: <b>Rink colours</b>,{' '}
-          <b>Game settings</b> or <b>Spreadsheet files</b>.
+          Pick a team from the list on the left, or one of the entries below the teams, such as{' '}
+          <b>Rink colours</b>, <b>Game settings</b> or <b>Spreadsheet files</b>.
         </li>
         <li>Make your changes. They take effect in the editor straight away, with no Apply button.</li>
         <li>
@@ -52,8 +54,18 @@ export function HelpPage() {
         of the page. Keep your original ROM somewhere safe all the same.
       </p>
       <p>
-        Your work lives in this tab until you download it. A note at the top reads <i>Not downloaded yet</i> while
-        there are changes you have not saved, and the browser will warn you before closing or refreshing the tab.
+        A note at the top reads <i>Not downloaded yet</i> while there are changes you have not saved, and the browser
+        will warn you before closing or refreshing the tab.
+      </p>
+      <p>
+        <b>Undo</b> and <b>Redo</b> at the top step back and forward through your changes, as do <kbd>Ctrl</kbd>+
+        <kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Y</kbd>. Typing in one box counts as a single step. Opening a ROM
+        starts the history afresh.
+      </p>
+      <p>
+        Your work is also kept in this browser, on this computer, a moment after each change. If the tab is closed or
+        refreshed, the welcome screen offers <b>Continue editing</b> to pick it up again, or <b>Discard it</b>. Only
+        the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
       </p>
 
       <h3 id="help-space">Space in the ROM</h3>
@@ -162,6 +174,17 @@ export function HelpPage() {
       <p>
         <b>Add player</b> puts a new defenceman at the bottom of the roster, named with their roster number, with
         every attribute at its lowest. A team can have at most {MAX_ROSTER} players.
+      </p>
+      <p>
+        To trade a skater, tick them, choose the other team beside <b>Move ticked to</b>, and click it. A forward
+        joins the end of the other team's forwards and a defenceman the end of its roster, and both teams' lines are
+        kept in step. Goalies cannot be moved this way; copy one and paste over a goalie on the other team.
+      </p>
+      <p>
+        <b>Show in order of</b> lists the players by name, jersey number or overall rating, and <b>Find</b> shows
+        only those whose name contains what you type. Both change only what you see. The roster itself stays in the
+        order the game uses, and the move buttons are switched off until you return to roster order with nothing in
+        Find.
       </p>
 
       <h3 id="help-copy">Copy and paste</h3>
@@ -276,21 +299,31 @@ export function HelpPage() {
 
       <h3 id="help-csv">Spreadsheet files</h3>
       <p>
-        <b>Spreadsheet files</b> exports everything in the editor as {CSV_TABLES.length} CSV files that Excel and
-        similar programs can open, and imports them again. Each file covers every team and starts with the{' '}
-        <b>Name</b> at the top of the page, for example <i>My_League_Season_10_players.csv</i>.
+        <b>Spreadsheet files</b> exports everything in the editor as {CSV_TABLES.length} tables that Excel and
+        similar programs can open, and imports them again. Every table covers every team. There are two forms, holding
+        the same tables:
       </p>
+      <ul>
+        <li>
+          <b>An Excel workbook</b>: one .xlsx file named after the <b>Name</b> at the top of the page, with a sheet for
+          each table. Keep the sheet names as they are. Sheets with other names, such as your own notes, are ignored.
+        </li>
+        <li>
+          <b>CSV files</b>: one file for each table, each starting with the Name, for example{' '}
+          <i>My_League_Season_10_players.csv</i>.
+        </li>
+      </ul>
       <table className="left">
         <tbody>
           {CSV_TABLES.map((table) => (
             <tr key={table.id}>
-              <td>_{table.id}.csv</td>
+              <td>{table.id}</td>
               <td className="wrap">{table.description}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p>To use them:</p>
+      <p>To use the CSV files:</p>
       <ol>
         <li>
           Click <b>Export all {CSV_TABLES.length} files</b>, or <b>Export</b> beside one file. Your browser may ask
@@ -317,6 +350,7 @@ export function HelpPage() {
         <li>
           Colours are written like <i>#24ffff</i> and are matched to the nearest colour the console can show.
         </li>
+        <li>Importing a workbook follows the same rules, and problems are listed by sheet and row.</li>
         <li>
           Lines, playoff draws and menu choices are written by name. Where two share a name, a number is used
           instead, written like <i>#12</i> for a roster position.
@@ -327,6 +361,36 @@ export function HelpPage() {
       <p>
         To build a ROM for a new season: open the base ROM, add roster space if the button is offered, import that
         season's files in one go, check the free space, and download.
+      </p>
+
+      <h3 id="help-check">Checking a ROM</h3>
+      <p>
+        <b>Check ROM</b> looks over everything in the editor and lists what it finds in two groups. It updates as you
+        work, and a number beside its name in the list on the left counts the first group.
+      </p>
+      <ul>
+        <li>
+          <b>Likely to cause trouble in the game</b>: a line position with no player, a goalie in a skater's position,
+          a player with no name, a jersey number that is not 00 to 99, a playoff draw naming a team that does not
+          exist, a menu item starting on a choice that does not exist, or team data too large to fit.
+        </li>
+        <li>
+          <b>Unusual, and worth a look</b>: a line without the first goalie in goal, a player twice on one line, two
+          players sharing a jersey number, an attribute outside its normal range, a name with no space, or a team
+          twice in one playoff draw.
+        </li>
+      </ul>
+      <p>
+        Click a team's name in the list to go to it. Nothing here stops you downloading, and it is worth a look
+        after importing spreadsheet files.
+      </p>
+
+      <h3 id="help-compare">Comparing two ROMs</h3>
+      <p>
+        <b>Compare ROMs</b> describes how what is in the editor differs from another ROM you choose, such as last
+        season's. The other ROM is only read. Teams are matched by their place in the list, and players by name, so
+        it reports players added, removed and renamed, changed numbers and attributes, line changes, and changes to
+        colours and game settings.
       </p>
 
       <h3 id="help-download">Downloading your work</h3>
@@ -371,8 +435,8 @@ export function HelpPage() {
           player, or add roster space.
         </li>
         <li>
-          <b>The edited ROM misbehaves in the game</b>: check the lines of any team whose roster you changed, and
-          that no attribute is showing in red. If it still fails, open your original ROM again and repeat the changes
+          <b>The edited ROM misbehaves in the game</b>: look at <b>Check ROM</b> first, then the lines of any team
+          whose roster you changed. If it still fails, open your original ROM again and repeat the changes
           a few at a time to find the one responsible.
         </li>
         <li>

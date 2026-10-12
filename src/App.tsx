@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { CheckPage } from './CheckPage'
+import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
+import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
 import { SUPPORTED_GAMES } from './core/games'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
-import { teamSpace, type Team } from './core/team'
+import { transferPlayers } from './core/roster'
+import { teamDisplayName, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { HelpPage } from './HelpPage'
+import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
+import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
-import { TeamEditor } from './TeamEditor'
+import { TeamEditor, type RosterSort } from './TeamEditor'
 import './App.css'
 
 // Sidebar entries that are not teams.
@@ -16,9 +22,17 @@ const RINK = -1
 const SETTINGS = -2
 const CSV = -3
 const HELP = -4
+const CHECK = -5
+const COMPARE = -6
+
+// How long after the last edit the work in progress is stored.
+const SESSION_SAVE_DELAY_MS = 800
+
+const isTextField = (target: EventTarget | null) =>
+  target instanceof HTMLElement && target.matches('input:not([type=checkbox]):not([type=range]), textarea')
 
 export default function App() {
-  const [project, setProject] = useState<RomProject | null>(null)
+  const { project, change, reset, undo, redo, canUndo, canRedo } = useProjectHistory()
   // The project as it was when opened or last downloaded. Every edit makes a
   // new project object, so a different object means there is unsaved work.
   const [saved, setSaved] = useState<RomProject | null>(null)
@@ -29,8 +43,22 @@ export default function App() {
   const [error, setError] = useState('')
   const [rawAttributes, setRawAttributes] = useState(false)
   const [quickKeys, setQuickKeys] = useState(false)
+  const [rosterSort, setRosterSort] = useState<RosterSort>('roster')
   // Whether the help is showing before any ROM has been opened.
   const [welcomeHelp, setWelcomeHelp] = useState(false)
+  // Work stored by an earlier visit, offered on the welcome screen.
+  const [earlier, setEarlier] = useState<Session | null>(null)
+
+  useEffect(() => {
+    void loadSession().then(setEarlier)
+  }, [])
+
+  // Stores the work in progress shortly after each change.
+  useEffect(() => {
+    if (!project) return
+    const timer = setTimeout(() => void saveSession({ name, project, unsaved, savedAt: Date.now() }), SESSION_SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [project, name, unsaved])
 
   // Browsers show their own wording for this; the page can only ask for the warning.
   useEffect(() => {
@@ -40,23 +68,53 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [unsaved])
 
+  // Ctrl+Z and Ctrl+Y, except in a text box, where they undo typing as usual.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextField(event.target)) return
+      const key = event.key.toLowerCase()
+      if (key !== 'z' && key !== 'y') return
+      event.preventDefault()
+      if (key === 'y' || event.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
+  const findings = useMemo(() => (project ? checkProject(project) : []), [project])
+
+  function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
+    reset(opened)
+    setSaved(hasUnsavedWork ? null : opened)
+    setName(openedName)
+    setSelected(0)
+    setError('')
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) return
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
     try {
-      const opened = openRom(new Uint8Array(await file.arrayBuffer()))
-      setProject(opened)
-      setSaved(opened)
-      setName(file.name.replace(/\.(bin|smd|md|gen)$/i, ''))
-      setSelected(0)
-      setError('')
+      start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen)$/i, ''), false)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
   }
 
   function updateTeam(index: number, team: Team) {
-    setProject((p) => p && { ...p, teams: p.teams.map((t, i) => (i === index ? team : t)) })
+    change((p) => ({ ...p, teams: p.teams.map((t, i) => (i === index ? team : t)) }))
+  }
+
+  // Returns a message if the move cannot be made.
+  function movePlayers(from: number, indexes: number[], to: number): string {
+    if (!project) return ''
+    try {
+      change({ ...project, teams: transferPlayers(project.teams, from, indexes, to) })
+      return ''
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
   }
 
   function handleDownload(asPatch: boolean) {
@@ -110,6 +168,26 @@ export default function App() {
         <p>
           {picker} <button onClick={() => setWelcomeHelp(true)}>How to use it</button>
         </p>
+        {earlier && (
+          <p>
+            <button onClick={() => start(earlier.project, earlier.name, earlier.unsaved)}>
+              Continue editing {earlier.name}
+            </button>{' '}
+            <button
+              onClick={() => {
+                void clearSession()
+                setEarlier(null)
+              }}
+            >
+              Discard it
+            </button>
+            <br />
+            <span className="note">
+              Kept in this browser from {new Date(earlier.savedAt).toLocaleString()}
+              {earlier.unsaved && ', with changes not yet downloaded'}.
+            </span>
+          </p>
+        )}
         <p className="note">
           Your ROM is read and edited in this browser tab. It is never uploaded, and no ROM comes with this site.
         </p>
@@ -127,6 +205,55 @@ export default function App() {
   const left = space.available - space.used
   const expansion = nextExpansion(project)
   const grows = expansion !== null && expansion.romSize > project.bytes.length
+  const teamNames = project.teams.map(teamDisplayName)
+  const problems = findings.filter((finding) => finding.level === 'problem').length
+
+  function page(current: RomProject) {
+    switch (selected) {
+      case RINK:
+        return <RinkEditor palette={current.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+      case SETTINGS:
+        return (
+          <SettingsEditor
+            game={current.game}
+            settings={current.settings}
+            teamNames={teamNames}
+            onChange={(settings) => change({ ...current, settings })}
+          />
+        )
+      case CSV:
+        return <CsvPanel project={current} setName={name || 'rom'} onChange={change} onSetNameChange={setName} />
+      case CHECK:
+        return <CheckPage findings={findings} onGoToTeam={setSelected} />
+      case COMPARE:
+        return <ComparePage project={current} />
+      case HELP:
+        return <HelpPage />
+      default:
+        return (
+          <TeamEditor
+            key={selected}
+            game={current.game}
+            team={current.teams[selected]}
+            onChange={(team) => updateTeam(selected, team)}
+            rawAttributes={rawAttributes}
+            onRawAttributesChange={setRawAttributes}
+            quickKeys={quickKeys}
+            onQuickKeysChange={setQuickKeys}
+            rosterSort={rosterSort}
+            onRosterSortChange={setRosterSort}
+            otherTeams={teamNames.map((teamName, index) => ({ teamName, index })).filter((t) => t.index !== selected)}
+            onMovePlayers={(indexes, to) => movePlayers(selected, indexes, to)}
+          />
+        )
+    }
+  }
+
+  const entry = (id: number, label: string) => (
+    <button className={selected === id ? 'active' : ''} onClick={() => setSelected(id)}>
+      {label}
+    </button>
+  )
 
   return (
     <div className="app">
@@ -137,6 +264,12 @@ export default function App() {
           Name{' '}
           <input className="rom-name" value={name} onChange={(e) => setName(cleanFileName(e.target.value))} />
         </label>
+        <button title="Undo (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
+          Undo
+        </button>
+        <button title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
+          Redo
+        </button>
         {unsaved && <span className="note">Not downloaded yet</span>}
         <span className={left < 0 ? 'space over' : 'space'}>
           {left < 0 ? `${-left} bytes over the limit` : `${left} bytes free`}
@@ -148,7 +281,7 @@ export default function App() {
                 ? 'Moves the opening screen text to the end of the ROM to make room for rosters.'
                 : 'Moves the playoff draw tables to the end of the ROM to make room for rosters.'
             }
-            onClick={() => setProject(expandTeamSpace(project))}
+            onClick={() => change(expandTeamSpace(project))}
           >
             Add {expansion.gain} bytes of roster space
             {grows && ` (ROM grows to ${expansion.romSize / 0x100000} MB)`}
@@ -169,52 +302,19 @@ export default function App() {
       {error && <p className="error">{error}</p>}
       <div className="body">
         <nav>
-          {project.teams.map((team, i) => (
+          {project.teams.map((_, i) => (
             <button key={i} className={i === selected ? 'active' : ''} onClick={() => setSelected(i)}>
-              {team.names[0]} {team.names[2]}
+              {teamNames[i]}
             </button>
           ))}
-          <button className={selected === RINK ? 'active' : ''} onClick={() => setSelected(RINK)}>
-            Rink colours
-          </button>
-          <button className={selected === SETTINGS ? 'active' : ''} onClick={() => setSelected(SETTINGS)}>
-            Game settings
-          </button>
-          <button className={selected === CSV ? 'active' : ''} onClick={() => setSelected(CSV)}>
-            Spreadsheet files
-          </button>
-          <button className={selected === HELP ? 'active' : ''} onClick={() => setSelected(HELP)}>
-            Help
-          </button>
+          {entry(RINK, 'Rink colours')}
+          {entry(SETTINGS, 'Game settings')}
+          {entry(CSV, 'Spreadsheet files')}
+          {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
+          {entry(COMPARE, 'Compare ROMs')}
+          {entry(HELP, 'Help')}
         </nav>
-        {selected === RINK ? (
-          <RinkEditor
-            palette={project.rinkPalette}
-            onChange={(rinkPalette) => setProject({ ...project, rinkPalette })}
-          />
-        ) : selected === HELP ? (
-          <HelpPage />
-        ) : selected === CSV ? (
-          <CsvPanel project={project} setName={name || 'rom'} onChange={setProject} onSetNameChange={setName} />
-        ) : selected === SETTINGS ? (
-          <SettingsEditor
-            game={project.game}
-            settings={project.settings}
-            teamNames={project.teams.map((team) => `${team.names[0]} ${team.names[2]}`.trim())}
-            onChange={(settings) => setProject({ ...project, settings })}
-          />
-        ) : (
-          <TeamEditor
-            key={selected}
-            game={project.game}
-            team={project.teams[selected]}
-            onChange={(team) => updateTeam(selected, team)}
-            rawAttributes={rawAttributes}
-            onRawAttributesChange={setRawAttributes}
-            quickKeys={quickKeys}
-            onQuickKeysChange={setQuickKeys}
-          />
-        )}
+        {page(project)}
       </div>
     </div>
   )
