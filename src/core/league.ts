@@ -1,5 +1,6 @@
 // Views across every team at once: finding players, and how the teams compare.
 
+import { emptyLineSlots } from './lines'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { goalieCount, teamContentSize, type Player, type Team } from './team'
@@ -44,8 +45,9 @@ export interface TeamSummary {
   team: number
   players: number
   goalies: number
-  // Average overall of the five skaters on the first line, which is the
-  // whole team when a league plays without line changes, and its goalie.
+  // Average overall of the skaters on the first line, which is the whole
+  // team when a league plays without line changes, and its goalie. Positions
+  // a ROM leaves empty, as hacks with fewer skaters do, are not counted.
   startingSkaters: number | null
   startingGoalie: number | null
   forwards: number | null
@@ -61,6 +63,7 @@ const SKATER_SLOTS = [1, 2, 3, 4, 5]
 
 export function teamSummaries(project: RomProject): TeamSummary[] {
   const everyone = leaguePlayers(project)
+  const empty = emptyLineSlots(project.teams)[0] ?? []
   return project.teams.map((team, t) => {
     const roster = everyone.filter((p) => p.team === t)
     const overalls = (role: Role) => roster.filter((p) => p.role === role).map((p) => p.overall)
@@ -68,12 +71,13 @@ export function teamSummaries(project: RomProject): TeamSummary[] {
     // A line slot holds a roster position from 1. A skater put in goal, or a
     // goalie skating, is rated as what the roster says they are.
     const at = (slot: number) => roster[line[slot] - 1]?.overall ?? null
-    const starters = SKATER_SLOTS.map(at).filter((v): v is number => v !== null)
+    const filled = SKATER_SLOTS.filter((slot) => !(line[slot] === 0 && empty[slot]))
+    const starters = filled.map(at).filter((v): v is number => v !== null)
     return {
       team: t,
       players: team.players.length,
       goalies: goalieCount(team),
-      startingSkaters: starters.length === SKATER_SLOTS.length ? average(starters) : null,
+      startingSkaters: starters.length === filled.length ? average(starters) : null,
       startingGoalie: at(0),
       forwards: average(overalls('F')),
       defence: average(overalls('D')),

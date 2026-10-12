@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
+import { buildRom, openRom as readRom } from '../src/core/rom'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
 // They run when your own copy of NHL 94, named nhl94.bin, is in the folder
@@ -762,6 +763,43 @@ test.describe('with the NHL 94 ROM', () => {
     // Windows hands the clipboard's line ends back in its own style.
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     expect(copied.replace(/\r\n/g, '\n')).toBe(text)
+  })
+
+  test('handles a ROM that puts fewer skaters on the ice', async ({ page }) => {
+    // A stand-in for the 3 on 3 hacks: the original game with the left
+    // defence and right wing emptied on every line of every team.
+    const stock = readRom(new Uint8Array(readFileSync(romPath)))
+    const teams = stock.teams.map((t) => ({ ...t, lines: t.lines.map((line) => line.map((v, slot) => (slot === 1 || slot === 5 ? 0 : v))) }))
+    const rom = Buffer.from(buildRom({ ...stock, teams }))
+
+    await page.goto('/')
+    await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
+    await expect(page.locator('nav button')).toHaveCount(28 + 9)
+    // Nothing for the checker to complain about.
+    await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
+
+    const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+    await expect(lines.getByText('This ROM puts fewer skaters on the ice')).toBeVisible()
+    const first = lines.locator('tbody tr').first().locator('select')
+    await expect(first.nth(1).locator('option:checked')).toHaveText('Empty')
+    await expect(first.nth(5).locator('option:checked')).toHaveText('Empty')
+    await expect(first.nth(4).locator('option:checked')).not.toHaveText('Empty')
+    await expect(lines.getByText('Invalid')).toHaveCount(0)
+    // A position the ROM uses cannot be emptied; one it leaves empty can be filled and emptied again.
+    await expect(first.nth(4).locator('option', { hasText: 'Empty' })).toHaveCount(0)
+    await first.nth(1).selectOption({ index: 5 })
+    await expect(first.nth(1).locator('option:checked')).not.toHaveText('Empty')
+    await first.nth(1).selectOption({ label: 'Empty' })
+    await page.screenshot({ path: 'test-results/shots/fewer-skaters.png', fullPage: true })
+
+    await entry(page, 'League').click()
+    await expect(page.locator('main table').last().locator('tbody tr')).toHaveCount(28)
+    await expect(page.locator('main table').last().locator('tbody tr td:nth-child(2)').first()).not.toHaveText('–')
+
+    // The download opens again with the empty positions as they were.
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const again = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(again.teams.map((t) => t.lines)).toEqual(teams.map((t) => t.lines))
   })
 
   test('keeps the work through a reload', async ({ page }) => {

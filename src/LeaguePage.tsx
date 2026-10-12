@@ -5,7 +5,7 @@ import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
 
 const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: number }[] = [
-  { key: 'startingSkaters', label: 'First line', title: 'Average overall of the five skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
+  { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
   { key: 'startingGoalie', label: 'Its goalie', title: 'Overall of the goalie on the first line', decimals: 0 },
   { key: 'skaters', label: 'Skaters', title: 'Average overall of every skater on the roster', decimals: 1 },
   { key: 'forwards', label: 'Forwards', title: 'Average overall of the forwards', decimals: 1 },

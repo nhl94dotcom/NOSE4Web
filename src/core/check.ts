@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
 import { goalieCount, teamDisplayName, teamSpace, type Team } from './team'
@@ -16,11 +17,10 @@ export interface Finding {
   message: string
 }
 
-const LINE_SLOTS = 7
 const EXTRA_ATTACKER_SLOT = 6
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
-function checkTeam(project: RomProject, team: Team, index: number, findings: Finding[]): void {
+function checkTeam(project: RomProject, team: Team, index: number, emptySlots: boolean[][], findings: Finding[]): void {
   const { game } = project
   const where = teamDisplayName(team)
   const add = (level: Finding['level'], message: string) => findings.push({ level, where, team: index, message })
@@ -42,7 +42,11 @@ function checkTeam(project: RomProject, team: Team, index: number, findings: Fin
   const jerseys = new Map<number, string[]>()
   for (const player of team.players) jerseys.set(player.jersey, [...(jerseys.get(player.jersey) ?? []), player.name])
   for (const [jersey, names] of jerseys) {
-    if (names.length > 1) add('note', `${names.join(' and ')} share jersey number ${jersey.toString(16).padStart(2, '0')}.`)
+    if (names.length < 2) continue
+    const number = jersey.toString(16).padStart(2, '0')
+    // Some hacks fill a roster with copies of one player.
+    if (new Set(names).size === 1) add('note', `${names[0]} is on the roster ${names.length} times, with jersey number ${number}.`)
+    else add('note', `${[...new Set(names)].join(' and ')} share jersey number ${number}.`)
   }
 
   if (goalies + team.forwards + team.defense !== count) {
@@ -52,7 +56,8 @@ function checkTeam(project: RomProject, team: Team, index: number, findings: Fin
   team.lines.forEach((line, l) => {
     const name = `Line ${game.lineLabels[l]}`
     const slots = line.slice(0, LINE_SLOTS)
-    const missing = slots.some((position) => position === 0 || position > count)
+    // A position this ROM leaves empty on every team is not a mistake.
+    const missing = slots.some((position, slot) => position > count || (position === 0 && !emptySlots[l]?.[slot]))
     if (missing) add('problem', `${name} has a position with no valid player.`)
     if (!missing && slots[0] !== 1) add('note', `${name} does not have the first goalie in goal.`)
     if (slots.slice(1).some((position) => position >= 1 && position <= goalies)) {
@@ -77,7 +82,8 @@ export function checkProject(project: RomProject): Finding[] {
     })
   }
 
-  teams.forEach((team, i) => checkTeam(project, team, i, findings))
+  const emptySlots = emptyLineSlots(teams)
+  teams.forEach((team, i) => checkTeam(project, team, i, emptySlots, findings))
 
   settings.playoffDraws.forEach((draw, d) => {
     const where = `Playoff draw ${d + 1}`

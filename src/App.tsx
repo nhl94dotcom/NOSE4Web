@@ -6,6 +6,7 @@ import { CsvPanel } from './CsvPanel'
 import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
 import { SUPPORTED_GAMES } from './core/games'
+import { emptyLineSlots } from './core/lines'
 import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
@@ -266,6 +267,7 @@ export default function App() {
             game={current.game}
             team={current.teams[selected]}
             original={opened.teams[selected]}
+            emptySlots={emptyLineSlots(current.teams)}
             changed={teamChanged(current, opened, selected)}
             onResetAll={() => change(resetTeam(current, opened, selected))}
             onChange={(team) => updateTeam(selected, team)}

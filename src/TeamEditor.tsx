@@ -48,6 +48,8 @@ interface Props {
   otherTeams: { teamName: string; index: number }[]
   // Moves players to another team. Returns a message if it cannot be done.
   onMovePlayers: (indexes: number[], to: number) => string
+  // Positions on each line that this ROM leaves empty on every team.
+  emptySlots: boolean[][]
   // Shown at the end of the page: the team's logos and banners.
   footer?: ReactNode
 }
@@ -63,7 +65,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots } = props
   const goalies = goalieCount(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
   // under them, so ticks past its end are dropped.
@@ -433,6 +435,12 @@ export function TeamEditor(props: Props) {
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}
           </span>
         </p>
+        {emptySlots.some((slots) => slots.some(Boolean)) && (
+          <p className="note">
+            This ROM puts fewer skaters on the ice, so some positions are empty on every team. Leave them empty unless
+            you know the ROM uses them.
+          </p>
+        )}
         <table>
           <thead>
             <tr>
@@ -462,7 +470,8 @@ export function TeamEditor(props: Props) {
                 {game.linePositionLabels.map((_, slot) => (
                   <td key={slot}>
                     <select value={line[slot]} onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}>
-                      {line[slot] === 0 || line[slot] > team.players.length ? (
+                      {emptySlots[l]?.[slot] && <option value={0}>Empty</option>}
+                      {(line[slot] === 0 && !emptySlots[l]?.[slot]) || line[slot] > team.players.length ? (
                         <option value={line[slot]}>Invalid ({hex(line[slot])})</option>
                       ) : null}
                       {team.players.map((player, i) => (

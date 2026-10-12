@@ -249,6 +249,12 @@ export function HelpPage() {
         The game expects the first goalie on the roster in the G column, no goalie in a skater's position, and no
         player twice on one line. The editor does not stop you breaking these, so check them in the game if you do.
       </p>
+      <p>
+        ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions
+        empty on every team. The editor recognises this: those positions show <b>Empty</b>, Check ROM does not
+        report them, and the lines sheet of the spreadsheet files has blank cells for them. Leave them empty unless
+        you know the ROM uses them. The League page rates a first line on the skaters it has.
+      </p>
 
       <h3 id="help-colours">Team colours</h3>
       <p>
@@ -579,8 +585,18 @@ export function HelpPage() {
         The editor opens: {SUPPORTED_GAMES.join('; ')}. Files can be .bin or .smd, and downloads are always .bin. A
         ROM edited here, or with the original NOSE, can be opened again.
       </p>
+      <p>
+        League and season ROMs built on the 30-team hack open as that, whatever their size of roster, and so do
+        hacks that put fewer skaters on the ice. The editor changes only the data it understands and leaves a
+        hack's altered game code exactly as it is, so what a hack does differently keeps working.
+      </p>
       <ul>
         <li>Other games in the series, and hacks that rearrange the game's data in other ways, are not supported yet.</li>
+        <li>
+          Some hacks store a count of defencemen that does not match the roster, or fill a roster with copies of
+          one player. Check ROM mentions these as notes; they are how the hack was made, not mistakes. Adding or
+          removing a player, or changing the number of forwards, sets the defence count to fit the roster.
+        </li>
         <li>
           Team logos and banners can be replaced. Other graphics, such as player sprites, player photos and the title
           screens, cannot.

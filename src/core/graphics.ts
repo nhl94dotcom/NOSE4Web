@@ -206,7 +206,10 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
   const rinkLogos = table(g.rinkLogoTablePointer)
   for (const at of rinkLogos) {
     const block = readBlock(rom, at)
-    if (block.mapAt !== 0 || block.tileCount !== RINK_LOGO.tilesWide * RINK_LOGO.tilesHigh) throw new Error('bad rink logo')
+    // Each has room for all its tiles even where a hack has set the count
+    // of them lower, so the count is not relied on.
+    const tiles = RINK_LOGO.tilesWide * RINK_LOGO.tilesHigh
+    if (block.mapAt !== 0 || block.tileCount > tiles || at + HEADER_BYTES + tiles * TILE_BYTES > rom.length) throw new Error('bad rink logo')
   }
   const menuLogos = table(g.menuLogoTablePointer).map((at) => readBlock(rom, at))
   const bannerBlock = (kind: BannerKind) => {

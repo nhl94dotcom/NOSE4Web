@@ -52,7 +52,9 @@ It can also:
 ## Supported ROMs
 
 - NHL 94 (product code `GM T-50656 -00`)
-- The 30-team hack of NHL 94 (product code `GM T-50656 -30`)
+- The 30-team hack of NHL 94 (product code `GM T-50656 -30`), and the league
+  and season ROMs built on it
+- Hacks of either that put fewer skaters on the ice (3 on 3, 2 on 2, 1 on 1)
 
 Both `.bin` and `.smd` files can be opened. Downloads are always `.bin`.
 
@@ -99,6 +101,14 @@ name it in a file called `tests/local.json`, which git also ignores:
 
 Those tests were written against one particular league ROM and check some of
 its contents, so a different 30-team ROM will fail a few of them.
+
+Any other ROMs you have can be listed too. Each is opened, rebuilt, checked,
+and put through the spreadsheet files and the picture handling, to confirm the
+editor reads it and gives back exactly what it was given:
+
+```json
+{ "league30Rom": "my-league.bin", "otherRoms": ["a-hack.bin", "another.bin"] }
+```
 
 ## How the code is laid out
 

@@ -20,6 +20,7 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   const project = openRom(new Uint8Array(readFileSync(romPath)))
   const rest = {
     changed: false,
+    emptySlots: [],
     onResetAll: () => {},
     onChange: () => {},
     rawAttributes: false,

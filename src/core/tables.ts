@@ -1,4 +1,5 @@
 import { cssHex, keepIfSameColor, nearestColorWord } from './color'
+import { emptyLineSlots, LINE_SLOTS } from './lines'
 import { parseCsv, type Cell } from './csv'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
@@ -36,7 +37,6 @@ export interface CsvTable {
 const VALID_TEXT = /^[\x20-\x7d]*$/
 const MAX_GOALIES = 4
 const MAX_COUNT = 15
-const LINE_SLOTS = 7
 const LINES_WARNING = 'Check the lines.'
 
 const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -231,7 +231,11 @@ const players: CsvTable = {
         .map((entry, file) => ({ ...entry, file }))
         .sort((a, b) => a.group - b.group || a.order - b.order || a.file - b.file)
       const count = (group: number) => sorted.filter((entry) => entry.group === group).length
-      const [goalies, forwards, defense] = [count(0), count(1), count(2)]
+      const [goalies, forwards] = [count(0), count(1)]
+      // Some hacks store a defence count that does not match the roster. A
+      // sheet that leaves the make-up of the roster alone leaves that alone too.
+      const sameMakeUp = goalies === goalieCount(old) && forwards === old.forwards && sorted.length === old.players.length
+      const defense = sameMakeUp ? old.defense : count(2)
 
       if (goalies < 1 || goalies > MAX_GOALIES) sheet.note(`${name} needs 1 to ${MAX_GOALIES} goalies, not ${goalies}.`)
       if (forwards > MAX_COUNT) sheet.note(`${name} can have at most ${MAX_COUNT} forwards, not ${forwards}.`)
@@ -289,7 +293,13 @@ const teams: CsvTable = {
       let team = changed.get(index) ?? project.teams[index]
       const given = (column: string) => sheet.has(column) && sheet.text(row, column) !== ''
 
-      const names = team.names.map((name, i) => (given(NAME_COLUMNS[i]) ? sheet.gameText(row, NAME_COLUMNS[i]) : name))
+      // Spaces around a name are dropped on the way in, as spreadsheets add them
+      // by accident; a name that is otherwise unchanged keeps any it had.
+      const names = team.names.map((name, i) => {
+        if (!given(NAME_COLUMNS[i])) return name
+        const text = sheet.gameText(row, NAME_COLUMNS[i])
+        return text === name.trim() ? name : text
+      })
       const teamBytes = team.teamBytes.map((value, i) =>
         given(TEAM_BYTE_COLUMNS[i]) ? sheet.int(row, TEAM_BYTE_COLUMNS[i], 0, 255) : value,
       )
@@ -327,11 +337,14 @@ const lines: CsvTable = {
 
   rows(project) {
     const { lineLabels, linePositionLabels } = project.game
+    const empty = emptyLineSlots(project.teams)
     const rows: Cell[][] = [['Team', 'Team name', 'Line', ...linePositionLabels]]
     project.teams.forEach((team, t) => {
       const names = team.players.map((player) => player.name)
       team.lines.forEach((line, l) => {
-        const cells = line.slice(0, LINE_SLOTS).map((position) => {
+        const cells = line.slice(0, LINE_SLOTS).map((position, slot) => {
+          // A position the ROM leaves empty on every team is a blank cell.
+          if (position === 0 && empty[l]?.[slot]) return ''
           const name = names[position - 1]
           return name !== undefined && names.filter((n) => sameText(n, name)).length === 1 ? name : `#${position}`
         })
@@ -344,6 +357,7 @@ const lines: CsvTable = {
   apply(project, sheet) {
     const { lineLabels, linePositionLabels } = project.game
     sheet.require(['Team', 'Line', ...linePositionLabels])
+    const empty = emptyLineSlots(project.teams)
     const changed = new Map<number, Team>()
     let lineCount = 0
     for (let row = 0; row < sheet.rowCount; row++) {
@@ -354,6 +368,10 @@ const lines: CsvTable = {
 
       linePositionLabels.forEach((column, slot) => {
         const text = sheet.text(row, column)
+        if ((text === '' || text === '#0') && empty[lineIndex]?.[slot]) {
+          line[slot] = 0
+          return
+        }
         if (text.startsWith('#')) {
           const position = Number(text.slice(1))
           if (Number.isInteger(position) && position >= 1 && position <= team.players.length) line[slot] = position
