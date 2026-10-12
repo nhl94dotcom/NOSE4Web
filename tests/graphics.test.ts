@@ -386,6 +386,78 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
     ).toThrow('more tiles than the ROM has room for')
   })
 
+  // The game draws the visitor's menu banner from the visitor's tiles, but
+  // by the home banner's map. This reads a ROM the way the game does, from
+  // the places in its code that say where each is, to check what it would show.
+  function asTheGameDraws(rom: Uint8Array, team: number): { home: Picture; visitor: Picture } {
+    const refs = openRom(rom).game.graphics.bannerReferences
+    const homeAt = readU32(rom, refs.menu[0].at)
+    const visitorTilesAt = readU32(rom, refs.visitor[0].at) + 2 // past the count of tiles
+    const mapAt = homeAt + readU32(rom, homeAt + 4)
+    const width = readU16(rom, mapAt)
+    const draw = (tilesAt: number): Picture => {
+      const pixels = new Uint8Array(width * 8 * 16)
+      for (let i = 0; i < width * 2; i++) {
+        const entry = readU16(rom, mapAt + 4 + (team * 2 * width + i) * 2)
+        const tileAt = tilesAt + (entry & 0x7ff) * 32
+        for (let y = 0; y < 8; y++) {
+          for (let x = 0; x < 8; x++) {
+            const [sx, sy] = [entry & 0x800 ? 7 - x : x, entry & 0x1000 ? 7 - y : y]
+            const byte = rom[tileAt + sy * 4 + (sx >> 1)]
+            pixels[(Math.floor(i / width) * 8 + y) * width * 8 + (i % width) * 8 + x] = sx & 1 ? byte & 15 : byte >> 4
+          }
+        }
+      }
+      return { width: width * 8, height: 16, pixels }
+    }
+    return { home: draw(homeAt + 10), visitor: draw(visitorTilesAt) }
+  }
+
+  it('shows the banners as the game draws them', () => {
+    const project = openRom(league!)
+    for (const team of [0, 13, 29]) {
+      const drawn = asTheGameDraws(buildRom(project), team)
+      expect(drawn.home).toEqual(banner(project, 'menu', team))
+      expect(drawn.visitor).toEqual(banner(project, 'visitor', team))
+    }
+  })
+
+  it('keeps the visitor banners right when either set is replaced, as the game draws them', () => {
+    const project = openRom(league!)
+    // Plain pictures, which pack down to very few tiles: the case that once
+    // left the visitor's tiles out of step with the map the game reads.
+    const flat = (color: number): Picture => ({ width: 88, height: 16, pixels: new Uint8Array(88 * 16).fill(color) })
+    const striped: Picture = { width: 88, height: 16, pixels: Uint8Array.from({ length: 88 * 16 }, (_, i) => (i % 88 < 44 ? 1 : 2)) }
+
+    const cases: [string, RomProject['graphics']][] = [
+      ['visitor only', withBanner(project, 'visitor', 4, flat(5))],
+      ['home only', withBanner(project, 'menu', 4, striped)],
+      ['both', withBanner({ ...project, graphics: withBanner(project, 'menu', 4, flat(6)) }, 'visitor', 9, striped)],
+    ]
+    for (const [name, graphics] of cases) {
+      const edited = { ...project, graphics }
+      const rom = buildRom(edited)
+      const reopened = openRom(rom)
+      for (const team of [0, 4, 29]) {
+        const drawn = asTheGameDraws(rom, team)
+        expect(drawn.home, `${name}: home banner of team ${team}`).toEqual(banner(edited, 'menu', team))
+        expect(drawn.visitor, `${name}: visitor banner of team ${team}`).toEqual(banner(edited, 'visitor', team))
+        expect(banner(reopened, 'visitor', team)).toEqual(banner(edited, 'visitor', team))
+      }
+    }
+  })
+
+  it('keeps every team\'s visitor banner right when one team\'s home banner changes, given room', () => {
+    const roomy = expandPictureSpace(openRom(league!))
+    const edited = { ...roomy, graphics: withBanner(roomy, 'menu', 7, noise(88, 16, [1, 2, 5, 6], 3)) }
+    const rom = buildRom({ ...edited, graphics: withBanner(edited, 'visitor', 21, noise(88, 16, [1, 2, 5, 6], 4)) })
+    for (const team of [0, 7, 8, 21, 29]) {
+      const drawn = asTheGameDraws(rom, team)
+      expect(drawn.home, `home banner of team ${team}`).toEqual(team === 7 ? noise(88, 16, [1, 2, 5, 6], 3) : banner(roomy, 'menu', team))
+      expect(drawn.visitor, `visitor banner of team ${team}`).toEqual(team === 21 ? noise(88, 16, [1, 2, 5, 6], 4) : banner(roomy, 'visitor', team))
+    }
+  })
+
   it('gives every team home and visitor banners of its own once they have room', () => {
     const project = openRom(league!)
     expect(pictureSpace(project)).toEqual({ romSize: league!.length, grows: false })

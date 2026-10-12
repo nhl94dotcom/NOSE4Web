@@ -127,11 +127,12 @@ function newPicture(tilesWide: number, tilesHigh: number): Picture {
   return { width: tilesWide * 8, height: tilesHigh * 8, pixels: new Uint8Array(tilesWide * tilesHigh * 64) }
 }
 
-function decodeMapped(rom: Uint8Array, block: Block): Picture {
-  const picture = newPicture(block.mapWidth, block.mapHeight)
-  block.entries.forEach((entry, i) => {
+// A picture from a block's tiles, laid out by its own map or by another's.
+function decodeMapped(rom: Uint8Array, block: Block, map: Block = block): Picture {
+  const picture = newPicture(map.mapWidth, map.mapHeight)
+  map.entries.forEach((entry, i) => {
     const tileAt = block.at + HEADER_BYTES + (entry & TILE_NUMBER) * TILE_BYTES
-    drawTile(rom, tileAt, entry, picture, (i % block.mapWidth) * 8, Math.floor(i / block.mapWidth) * 8)
+    drawTile(rom, tileAt, entry, picture, (i % map.mapWidth) * 8, Math.floor(i / map.mapWidth) * 8)
   })
   return picture
 }
@@ -149,24 +150,29 @@ function tileBytes(picture: Picture, left: number, top: number, flipH: boolean, 
   return bytes
 }
 
-// Turns a picture into tiles and a map, storing each distinct tile once and
-// reusing it mirrored where that works.
-function encodeMapped(picture: Picture, flags: number): { tiles: string[]; entries: number[] } {
-  const tiles: string[] = []
+// Turns pictures of one size into tiles and a single map that lays out every
+// one of them, storing each distinct tile once and reusing it mirrored where
+// that works. With more than one picture, a tile number means the tile in
+// that place of each picture's own set, so two places share a number only
+// where every picture is the same there.
+function encodeTogether(pictures: Picture[], flags: number): { tiles: string[][]; entries: number[] } {
+  const tiles: string[][] = pictures.map(() => [])
   const known = new Map<string, number>()
   const entries: number[] = []
-  for (let top = 0; top < picture.height; top += 8) {
-    for (let left = 0; left < picture.width; left += 8) {
-      const plain = tileBytes(picture, left, top, false, false)
-      let entry = known.get(plain)
+  const [first] = pictures
+  const at = (left: number, top: number, h: boolean, v: boolean) => pictures.map((picture) => tileBytes(picture, left, top, h, v))
+  for (let top = 0; top < first.height; top += 8) {
+    for (let left = 0; left < first.width; left += 8) {
+      const plain = at(left, top, false, false)
+      let entry = known.get(plain.join('|'))
       if (entry === undefined) {
-        entry = tiles.length
-        tiles.push(plain)
-        known.set(plain, entry)
+        entry = tiles[0].length
+        plain.forEach((tile, i) => tiles[i].push(tile))
+        known.set(plain.join('|'), entry)
         // Seen mirrored, this tile can stand in for its mirror images too.
         const mirrors: [boolean, boolean, number][] = [[true, false, FLIP_H], [false, true, FLIP_V], [true, true, FLIP_H | FLIP_V]]
         for (const [h, v, bits] of mirrors) {
-          const mirrored = tileBytes(picture, left, top, h, v)
+          const mirrored = at(left, top, h, v).join('|')
           if (!known.has(mirrored)) known.set(mirrored, entry | bits)
         }
       }
@@ -174,6 +180,11 @@ function encodeMapped(picture: Picture, flags: number): { tiles: string[]; entri
     }
   }
   return { tiles, entries }
+}
+
+function encodeMapped(picture: Picture, flags: number): { tiles: string[]; entries: number[] } {
+  const { tiles, entries } = encodeTogether([picture], flags)
+  return { tiles: tiles[0], entries }
 }
 
 function writeTiles(rom: Uint8Array, at: number, tiles: string[]): void {
@@ -333,7 +344,8 @@ function bannerSlice(all: Picture, team: number): Picture {
 export function banner(project: Source, kind: BannerKind, team: number): Picture {
   const edited = project.graphics[BANNER_EDITS[kind]][team]
   if (edited) return edited
-  return bannerSlice(decodeMapped(project.bytes, layout(project.bytes, project.game).banners[kind]), team)
+  const where = layout(project.bytes, project.game)
+  return bannerSlice(decodeMapped(project.bytes, where.banners[kind], bannerMap(where, kind)), team)
 }
 
 // The 16 colours a banner is drawn with. On the menus, two of them are the
@@ -346,6 +358,11 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   return palette
 }
 
+// The block whose map lays out a set of banners. The game draws the visiting
+// team's menu banner from tiles of its own but by the home banner's map, so
+// where the visitors have their own tiles, they still have no map of their own.
+const bannerMap = (where: Layout, kind: BannerKind) => (kind === 'visitor' ? where.banners.menu : where.banners[kind])
+
 const bannerRows = (block: Block, team: number) =>
   block.entries.slice(team * BANNER_TILES_HIGH * block.mapWidth, (team + 1) * BANNER_TILES_HIGH * block.mapWidth).join()
 
@@ -353,10 +370,12 @@ const bannerRows = (block: Block, team: number) =>
 // only one, as in hacks whose menu banners say just "Home" and "Visitor".
 // Changing it changes it for all of them, until the banners are given room.
 export function bannerSharedWith(project: Source, kind: BannerKind, team: number): number[] {
-  const block = layout(project.bytes, project.game).banners[kind]
-  if (block.capacity >= 2 * BANNER_TILES_HIGH * block.mapWidth) return [team]
-  const rows = bannerRows(block, team)
-  return Array.from({ length: project.game.teamCount }, (_, other) => other).filter((other) => bannerRows(block, other) === rows)
+  const where = layout(project.bytes, project.game)
+  const map = bannerMap(where, kind)
+  const capacity = Math.min(where.banners[kind].capacity, map.capacity)
+  if (capacity >= 2 * BANNER_TILES_HIGH * map.mapWidth) return [team]
+  const rows = bannerRows(map, team)
+  return Array.from({ length: project.game.teamCount }, (_, other) => other).filter((other) => bannerRows(map, other) === rows)
 }
 
 // The edits with one banner replaced, for every team that shows it.
@@ -533,23 +552,32 @@ function writeMenuLogos(rom: Uint8Array, game: GameConfig, blocks: Block[], edit
   blocks.forEach((block, team) => writeU32(rom, tableAt + team * 4, movedTo.get(block.at)!))
 }
 
-function writeBanners(rom: Uint8Array, block: Block, edits: Record<number, Picture>, name: string): void {
-  if (Object.keys(edits).length === 0) return
-  const all = decodeMapped(rom, block)
-  for (const [team, picture] of Object.entries(edits)) all.pixels.set(picture.pixels, Number(team) * picture.height * all.width)
-  const { tiles, entries } = encodeMapped(all, mapFlags(block))
-  // The block keeps its size and layout, so nothing that points into it moves.
-  if (tiles.length > block.capacity) {
+// Writes sets of banners that are laid out by one map: a single set, or the
+// home and visiting teams' menu banners together. The first block's map is
+// the one the game reads; the others are given the same, to stay readable.
+function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Picture>[], name: string): void {
+  if (edits.every((set) => Object.keys(set).length === 0)) return
+  const pictures = blocks.map((block, i) => {
+    const all = decodeMapped(rom, block, blocks[0])
+    for (const [team, picture] of Object.entries(edits[i])) all.pixels.set(picture.pixels, Number(team) * picture.height * all.width)
+    return all
+  })
+  const { tiles, entries } = encodeTogether(pictures, 0)
+  // Each block keeps its size and layout, so nothing that points into it moves.
+  const capacity = Math.min(...blocks.map((block) => block.capacity))
+  if (tiles[0].length > capacity) {
     throw new NoRoomError(
-      `The ${name} banners need ${tiles.length - block.capacity} more tiles than the ROM has room for. ` +
+      `The ${name} banners need ${tiles[0].length - capacity} more tiles than the ROM has room for. ` +
         'Lettering that repeats shapes, and banners that share them, take less room.',
     )
   }
-  rom.fill(0, block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.capacity * TILE_BYTES)
-  writeTiles(rom, block.at + HEADER_BYTES, tiles)
-  // The game is told about more tiles only when more are really in use.
-  writeU16(rom, block.at + 8, Math.max(tiles.length, block.tileCount))
-  entries.forEach((entry, i) => writeU16(rom, block.mapAt + 4 + i * 2, entry))
+  blocks.forEach((block, i) => {
+    rom.fill(0, block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.capacity * TILE_BYTES)
+    writeTiles(rom, block.at + HEADER_BYTES, tiles[i])
+    // The game is told about more tiles only when more are really in use.
+    writeU16(rom, block.at + 8, Math.max(tiles[i].length, block.tileCount))
+    entries.forEach((entry, e) => writeU16(rom, block.mapAt + 4 + e * 2, entry | mapFlags(block)))
+  })
 }
 
 // Writes the replaced pictures into `rom`. With no edits it changes nothing.
@@ -573,16 +601,21 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
     for (let i = LOGO_FIRST_COLOR; i < 16; i++) writeU16(rom, at + i * 2, palette[i])
     for (const { slot, word } of LOGO_FIXED_COLORS) writeU16(rom, at + slot * 2, word)
   }
-  const sets: [BannerKind, Record<number, Picture>, string][] = [
-    ['menu', edits.menuBanners, 'menu'],
-    ['visitor', where.visitorBannersApart ? edits.visitorBanners : {}, 'visitor menu'],
-    ['game', edits.gameBanners, 'in-game'],
+  // Where the visiting team has menu banners of its own, they are written
+  // together with the home team's, whose map the game draws both by.
+  const visitors = where.visitorBannersApart ? edits.visitorBanners : {}
+  const sets: { kinds: BannerKind[]; pictures: Record<number, Picture>[]; name: string }[] = [
+    where.visitorBannersApart
+      ? { kinds: ['menu', 'visitor'], pictures: [edits.menuBanners, visitors], name: 'menu' }
+      : { kinds: ['menu'], pictures: [edits.menuBanners], name: 'menu' },
+    { kinds: ['game'], pictures: [edits.gameBanners], name: 'in-game' },
   ]
-  for (const [kind, pictures, name] of sets) {
-    if (Object.keys(pictures).length > 0 && !bannersAsExpected(rom, game, kind, where)) {
+  for (const { kinds, pictures, name } of sets) {
+    if (pictures.every((set) => Object.keys(set).length === 0)) continue
+    if (!kinds.every((kind) => bannersAsExpected(rom, game, kind, where))) {
       throw new Error(`This ROM keeps its ${name} banners in a way the editor cannot change.`)
     }
-    writeBanners(rom, where.banners[kind], pictures, name)
+    writeBanners(rom, kinds.map((kind) => where.banners[kind]), pictures, name)
   }
   // Last, because it can move the logos and so change where things are.
   writeMenuLogos(rom, game, where.menuLogos, edits.menuLogos)
