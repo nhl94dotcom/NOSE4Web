@@ -312,12 +312,18 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   return palette
 }
 
-// Whether a team's menu logo takes its colours from the menu palette, as in
-// the original game. Some hacks leave that palette unused and colour their
-// logos some other way, which the editor cannot follow.
-export function menuLogoEditable(project: Source, team: number): boolean {
-  const own = menuPalette(project, team).slice(LOGO_FIRST_COLOR, 16)
-  return new Set(own).size > 1
+// Whether this ROM's menu logos take their colours from the menu palettes, as
+// in the original game. Some hacks leave those palettes unused, every logo
+// colour of every team set to one placeholder, and colour their logos some
+// other way, which the editor cannot follow. This looks at the ROM as it was
+// opened, across all teams, so a user's own plain logo cannot trip it.
+export function menuLogosEditable(project: Source): boolean {
+  const at = layout(project.bytes, project.game).menuPalettesAt
+  const colors = new Set<number>()
+  for (let team = 0; team < project.game.teamCount; team++) {
+    for (let i = LOGO_FIRST_COLOR; i < 16; i++) colors.add(readU16(project.bytes, at + team * LOGO_PALETTE_BYTES + i * 2))
+  }
+  return colors.size > 1
 }
 
 // The colours a menu logo is drawn with: the logo's own, in a full set of 16.
@@ -370,11 +376,11 @@ export function menuLogoFromImage(
   }
   const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, LOGO_COLORS).map(([word]) => word)
   const next = palette.slice()
-  for (let i = 0; i < LOGO_COLORS; i++) {
-    const word = chosen[i] ?? 0
+  // Places the image has no colour for keep whatever they held.
+  chosen.forEach((word, i) => {
     next[LOGO_FIRST_COLOR + i] = word
     next[16 + LOGO_FIRST_COLOR + i] = word
-  }
+  })
   for (const { slot, word } of LOGO_FIXED_COLORS) {
     next[slot] = word
     next[16 + slot] = word

@@ -10,7 +10,7 @@ import {
   bannersEditable,
   expandPictureSpace,
   menuLogo,
-  menuLogoEditable,
+  menuLogosEditable,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
@@ -97,6 +97,21 @@ describe('pictures from image files', () => {
     expect([next[5], next[6], next[7]]).toEqual([0x0eee, 0x0000, 0x00e0])
     expect(picture.pixels[1]).toBe(5) // white
     expect(picture.pixels[2]).toBe(6) // black
+    expect(next.slice(8, 16)).toEqual(new Array<number>(8).fill(0x0222)) // unused places are left as they were
+  })
+
+  it('stays replaceable however plain the logos a user imports', () => {
+    if (!base) return
+    const project = openRom(base)
+    const white = new Uint8Array(48 * 48 * 4).fill(255)
+    const graphics = { ...project.graphics, menuLogos: {} as Record<number, Picture>, menuPalettes: {} as Record<number, number[]> }
+    project.teams.forEach((_, team) => {
+      const logo = menuLogoFromImage(white, 48, 48, menuPalette(project, team))
+      graphics.menuLogos[team] = logo.picture
+      graphics.menuPalettes[team] = logo.palette
+    })
+    expect(menuLogosEditable({ ...project, graphics })).toBe(true)
+    expect(menuLogosEditable(openRom(buildRom(expandPictureSpace({ ...project, graphics }))))).toBe(true)
   })
 })
 
@@ -124,8 +139,8 @@ describe.skipIf(!base)('team pictures in NHL 94', () => {
     // White and black sit in the same two places in every team's menu colours.
     for (let team = 0; team < project.teams.length; team++) {
       expect(menuPalette(project, team).slice(5, 7)).toEqual([0x0eee, 0x0000])
-      expect(menuLogoEditable(project, team)).toBe(true)
     }
+    expect(menuLogosEditable(project)).toBe(true)
     expect(menuLogoPalette(project, MONTREAL)).toHaveLength(16)
   })
 
@@ -299,7 +314,7 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
   it('leaves its menu banners alone, because it keeps separate sets for home and visitor', () => {
     const project = openRom(league!)
     expect(bannersEditable(project, 'menu')).toBe(false)
-    expect(menuLogoEditable(project, 0)).toBe(false) // its logo colours are kept somewhere else
+    expect(menuLogosEditable(project)).toBe(false) // its logo colours are kept somewhere else
     expect(bannersEditable(project, 'game')).toBe(true)
     expect(() =>
       buildRom({ ...project, graphics: { ...project.graphics, menuBanners: { 2: noise(88, 16, [1, 2, 5, 6], 8) } } }),

@@ -7,7 +7,7 @@ import {
   expandPictureSpace,
   LOGO_COLORS,
   menuLogo,
-  menuLogoEditable,
+  menuLogosEditable,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
@@ -151,7 +151,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu logo',
-      editable: menuLogoEditable(project, team),
+      editable: menuLogosEditable(project),
       picture: menuLogo(project, team),
       palette: menuLogoPalette(project, team),
       scale: 3,
