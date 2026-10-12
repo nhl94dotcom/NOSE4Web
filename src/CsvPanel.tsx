@@ -35,6 +35,8 @@ interface Props {
 export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props) {
   // The tables this ROM has: some hacks keep their game settings out of reach.
   const tables = tablesFor(project.game)
+  // Whether imported rows go to the team they name, or to the team at their number.
+  const [byName, setByName] = useState(false)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
 
   function exportTables(tables: CsvTable[]) {
@@ -77,14 +79,14 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
     const title = `Imported ${chosen.length === 1 ? chosen[0].name : `${chosen.length} files`}`
     return runImport(title, async () => {
       const files = await Promise.all(chosen.map(async (file) => ({ name: file.name, text: await file.text() })))
-      return importCsvSet(project, files)
+      return importCsvSet(project, files, { byName })
     })
   }
 
   function importWorkbook(file: File) {
     return runImport(`Imported ${file.name}`, async () => {
       const sheets = await readWorkbook(new Uint8Array(await file.arrayBuffer()))
-      return { ...importWorkbookSheets(project, sheets), setName: file.name.replace(/\.xlsx$/i, '') }
+      return { ...importWorkbookSheets(project, sheets, { byName }), setName: file.name.replace(/\.xlsx$/i, '') }
     })
   }
 
@@ -127,6 +129,18 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
             </ul>
           </div>
         )}
+
+        <h2>Importing</h2>
+        <p>
+          <label className="choice">
+            <input type="checkbox" checked={byName} onChange={(e) => setByName(e.target.checked)} /> Match teams by name
+          </label>
+          <span className="note">
+            {byName
+              ? 'Rows of the teams, players and lines tables go to the team they name, wherever it is in this ROM. If any row names a team that is not here, nothing is imported.'
+              : 'Rows go to the team at their team number. Tick this for files from a ROM that lists the same teams in another order.'}
+          </span>
+        </p>
 
         <h2>Excel workbook</h2>
         <p>

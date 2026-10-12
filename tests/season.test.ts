@@ -5,6 +5,7 @@ import { convertWeight, WEIGHT_BASES, weightBase } from '../src/core/attributes'
 import { writeAscii } from '../src/core/bytes'
 import { applyBulk, previewBulk, type BulkChange } from '../src/core/bulk'
 import { checkProject } from '../src/core/check'
+import { formatCsv } from '../src/core/csv'
 import { expandTeamSpace } from '../src/core/expand'
 import { banner, expandPictureSpace, menuLogo, pictureToImage, withBanner } from '../src/core/graphics'
 import { ALL_PARTS, importTeam } from '../src/core/importteam'
@@ -13,6 +14,7 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { reportText } from '../src/core/report'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { changeCount, changesSince, nextSeasonName, startSeason } from '../src/core/season'
+import { CSV_TABLES, CsvImportError, importCsvSet, importWorkbookSheets } from '../src/core/tables'
 import { FREE_AGENTS, trade } from '../src/core/trade'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
@@ -267,5 +269,78 @@ describe.skipIf(!hasRom)('strips that are hard to tell apart', () => {
     // White jerseys with dark pants, as most away strips are, show up fine.
     const white = dressed(project, BOSTON, (palette) => palette.map((word, i) => ([11, 12, 13].includes(i) ? 0x0eee : [3, 4, 5].includes(i) ? 0x0000 : word)))
     expect(strips(white).filter((f) => f.message.includes('ice'))).toEqual([])
+  })
+})
+
+describe.skipIf(!hasRom)('matching spreadsheet rows to teams by name', () => {
+  const table = (id: string) => CSV_TABLES.find((t) => t.id === id)!
+  const file = (id: string, project: RomProject, edit: (rows: string[][]) => string[][] = (rows) => rows) => ({
+    name: `S_${id}.csv`,
+    text: formatCsv(edit(table(id).rows(project).map((row) => row.map(String)))),
+  })
+  const players = (project: RomProject, team: number) => project.teams[team].players.map((p) => p.name)
+
+  it('puts each team\'s rows on the team of that name, wherever it is in the list', () => {
+    const source = setup()
+    const target = swapped(setup(), BOSTON, MONTREAL) // Boston is now twelfth and Montreal second
+    const edited = { ...source, teams: source.teams.map((team, i) => (i === BOSTON ? { ...team, players: team.players.map((p, j) => (j === 4 ? { ...p, name: 'Edited Bruin' } : p)) } : team)) }
+    const files = [file('players', edited), file('lines', edited)]
+
+    // By number, Boston's rows land on the team in Boston's old place, which is Montreal.
+    const byNumber = importCsvSet(target, files).project
+    expect(players(byNumber, BOSTON)).toContain('Edited Bruin')
+    expect(byNumber.teams[BOSTON].names[0]).toBe('Montreal')
+    // By name they follow Boston, and everyone else is as they were.
+    const byName = importCsvSet(target, files, { byName: true }).project
+    expect(byName.teams[MONTREAL].names[0]).toBe('Boston')
+    expect(players(byName, MONTREAL)).toEqual(players(edited, BOSTON))
+    expect(players(byName, BOSTON)).toEqual(players(source, MONTREAL))
+    expect(byName.teams[MONTREAL].lines.map((l) => l.slice(0, 7))).toEqual(edited.teams[BOSTON].lines.map((l) => l.slice(0, 7)))
+    expect(openRom(buildRom(byName)).teams.map((t) => t.players)).toEqual(byName.teams.map((t) => t.players))
+  })
+
+  it('matches the teams table by location and name, and a workbook the same way', () => {
+    const source = setup()
+    const target = swapped(setup(), BOSTON, MONTREAL)
+    const recoloured = { ...source, teams: source.teams.map((team, i) => (i === BOSTON ? { ...team, palette: team.palette.map((w, c) => (c === 2 ? 0x0e00 : w)) } : team)) }
+    const byName = importCsvSet(target, [file('teams', recoloured)], { byName: true }).project
+    expect(byName.teams[MONTREAL].palette[2]).toBe(0x0e00)
+    expect(byName.teams[BOSTON].palette).toEqual(source.teams[MONTREAL].palette)
+
+    const sheets = [{ name: 'teams', rows: table('teams').rows(recoloured).map((row) => row.map(String)) }]
+    expect(importWorkbookSheets(target, sheets, { byName: true }).project.teams[MONTREAL].palette[2]).toBe(0x0e00)
+    expect(importWorkbookSheets(target, sheets).project.teams[BOSTON].palette[2]).toBe(0x0e00)
+  })
+
+  it('needs no team numbers at all, and takes names however they are capitalised', () => {
+    const source = setup()
+    const target = swapped(setup(), BOSTON, MONTREAL)
+    const noNumbers = file('lines', source, (rows) => rows.map((row, r) => row.slice(1).map((cell, c) => (r > 0 && c === 0 ? cell.toUpperCase() : cell))))
+    expect(noNumbers.text.split('\n')[0]).not.toContain('Team,')
+    const byName = importCsvSet(target, [noNumbers], { byName: true }).project
+    // Every team's lines as they were for that team, so nothing changes.
+    expect(byName.teams.map((t) => t.lines)).toEqual(target.teams.map((t) => t.lines))
+    // Without matching by name, a file with no team numbers cannot be used.
+    expect(() => importCsvSet(target, [noNumbers])).toThrow(/no column named Team/)
+  })
+
+  it('imports nothing if a row names a team the ROM does not have, and says which rows', () => {
+    const project = setup()
+    const bad = file('players', project, (rows) => rows.map((row, r) => (r === 3 || r === 40 ? row.map((cell, c) => (c === 1 ? 'Springfield Atoms' : cell)) : row)))
+    let problems: string[] = []
+    try {
+      importCsvSet(project, [file('teams', project), bad], { byName: true })
+    } catch (e) {
+      problems = (e as CsvImportError).problems
+    }
+    expect(problems).toEqual([
+      'S_players.csv: Row 4: this ROM has no team called "Springfield Atoms".',
+      'S_players.csv: Row 41: this ROM has no team called "Springfield Atoms".',
+    ])
+    // A table with no team name in it says what it needs.
+    const noNames = file('lines', project, (rows) => rows.map((row) => [row[0], ...row.slice(2)]))
+    expect(() => importCsvSet(project, [noNames], { byName: true })).toThrow('S_lines.csv: to match teams by name the file needs the column Team name.')
+    // Tables that are not about one team each come in as ever.
+    expect(importCsvSet(project, [file('rink', project), file('playoffs', project)], { byName: true }).files).toHaveLength(2)
   })
 })

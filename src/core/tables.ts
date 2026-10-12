@@ -646,7 +646,7 @@ export interface SetImportResult {
 }
 
 // Imports several files as one step: either all of them apply or none do.
-export function importCsvSet(project: RomProject, files: { name: string; text: string }[]): SetImportResult {
+export function importCsvSet(project: RomProject, files: { name: string; text: string }[], options: ImportOptions = {}): SetImportResult {
   const identified = files.map((file) => ({ file, match: identifyCsvFile(file.name) }))
   const problems = identified
     .filter((entry) => !entry.match)
@@ -663,15 +663,73 @@ export function importCsvSet(project: RomProject, files: { name: string; text: s
     rows: parseCsv(entry.file.text),
   }))
   const names = new Set(identified.map((entry) => entry.match!.setName))
-  return { ...importTableRows(project, sources), setName: names.size === 1 ? [...names][0] : '' }
+  return { ...importTableRows(project, sources, options), setName: names.size === 1 ? [...names][0] : '' }
+}
+
+export interface ImportOptions {
+  // Go by each row's team name, not its team number. For files made from a
+  // ROM that lists the same teams in another order.
+  byName?: boolean
+}
+
+// The tables whose rows each belong to a team, and where a row's team name is:
+// in a column of its own, or made of two of the team's names.
+const TEAM_NAME_COLUMNS = new Map<CsvTable, string[]>([
+  [teams, ['Location', 'Name']],
+  [players, ['Team name']],
+  [lines, ['Team name']],
+])
+
+// Rows with their team numbers set from their team names, as the teams stand
+// in the ROM. Anything that cannot be matched is added to `problems`.
+function numberByName(project: RomProject, table: CsvTable, name: string, rows: string[][], problems: string[]): string[][] {
+  const nameColumns = TEAM_NAME_COLUMNS.get(table)
+  if (!nameColumns || rows.length === 0) return rows
+  const headings = rows[0].map((heading) => heading.trim().toLowerCase())
+  const at = nameColumns.map((column) => headings.indexOf(column.toLowerCase()))
+  if (at.includes(-1)) {
+    problems.push(`${name}: to match teams by name the file needs ${nameColumns.length === 1 ? 'the column' : 'the columns'} ${nameColumns.join(' and ')}.`)
+    return rows
+  }
+  // A file may have had its Team column taken out; one is put back.
+  const numberAt = headings.includes('team') ? headings.indexOf('team') : rows[0].length
+  const known = project.teams.map(teamDisplayName)
+  return rows.map((row, r) => {
+    if (r === 0) return numberAt === row.length ? [...row, 'Team'] : row
+    const wanted = at.map((column) => (row[column] ?? '').trim()).join(' ').trim()
+    const matches = known.flatMap((other, index) => (sameText(other, wanted) ? [index] : []))
+    const given = Number((row[numberAt] ?? '').trim()) - 1
+    // Where two teams share a name, the row's own number says which, if it is one of them.
+    const index = matches.includes(given) ? given : matches.length === 1 ? matches[0] : -1
+    if (index < 0) {
+      problems.push(
+        matches.length === 0
+          ? `${name}: Row ${r + 1}: this ROM has no team called "${wanted}".`
+          : `${name}: Row ${r + 1}: this ROM has more than one team called "${wanted}", and the row's team number is not one of them.`,
+      )
+      return row
+    }
+    const out = row.slice()
+    while (out.length <= numberAt) out.push('')
+    out[numberAt] = String(index + 1)
+    return out
+  })
 }
 
 // Applies several tables' rows as one step, in the order the tables depend
 // on each other. `name` says where each came from, for messages.
 function importTableRows(
   project: RomProject,
-  sources: { table: CsvTable; name: string; rows: string[][] }[],
+  given: { table: CsvTable; name: string; rows: string[][] }[],
+  options: ImportOptions = {},
 ): Omit<SetImportResult, 'setName'> {
+  let sources = given
+  if (options.byName) {
+    // Matched against the teams as they are before any of the files comes in.
+    const unmatched: string[] = []
+    sources = given.map((source) => ({ ...source, rows: numberByName(project, source.table, source.name, source.rows, unmatched) }))
+    if (unmatched.length > 0) throw new CsvImportError(unmatched)
+  }
   const result: Omit<SetImportResult, 'setName'> = { project, files: [] }
   for (const table of CSV_TABLES) {
     const source = sources.find((candidate) => candidate.table === table)
@@ -707,6 +765,7 @@ export function workbookSheets(project: RomProject): { name: string; rows: Cell[
 export function importWorkbookSheets(
   project: RomProject,
   sheets: { name: string; rows: string[][] }[],
+  options: ImportOptions = {},
 ): Omit<SetImportResult, 'setName'> {
   const sources = sheets.flatMap((sheet) => {
     const table = CSV_TABLES.find((t) => sameText(t.id, sheet.name))
@@ -717,5 +776,5 @@ export function importWorkbookSheets(
   if (sources.length === 0) {
     throw new CsvImportError([`The workbook has no sheet named ${CSV_TABLES.map((t) => t.id).join(', ')}.`])
   }
-  return importTableRows(project, sources)
+  return importTableRows(project, sources, options)
 }

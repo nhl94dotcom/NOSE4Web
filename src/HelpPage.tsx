@@ -19,6 +19,7 @@ const SECTIONS = [
   ['picturefiles', 'Picture files'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
+  ['byname', 'Matching teams by name'],
   ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
   ['project', 'Project files'],
@@ -483,6 +484,36 @@ export function HelpPage() {
           in seeding order. A warning appears if a team is in one draw twice.
         </li>
       </ul>
+
+      <h3 id="help-byname">Matching teams by name</h3>
+      <p>
+        Spreadsheet files, picture files and project files all say which team each thing belongs to by the team's
+        place in the list. That is right when the files go back into the ROM they came from, or into one with the
+        teams in the same order. Where a ROM lists the same teams in another order, tick{' '}
+        <b>Match teams by name</b> on the page you are importing from, and each thing goes to the team of the same
+        name wherever it is.
+      </p>
+      <ul>
+        <li>
+          <b>Spreadsheet files:</b> rows of the teams, players and lines tables are matched, by the Team name
+          column, or by Location and Name in the teams table. The team number in a row is then ignored, and the
+          Team column can even be left out. Because the name is what finds the team, this is not the way to rename
+          one. If any row names a team the ROM does not have, nothing is imported and every such row is listed.
+          Playoff draws already name their teams.
+        </li>
+        <li>
+          <b>Picture files:</b> each file goes by the team name in the middle of its name. One whose team is not
+          in the ROM is left out and listed, and the rest go in.
+        </li>
+        <li>
+          <b>Project files:</b> every team has to find a team of its name, or nothing is opened. Playoff draws and
+          league rules follow the teams.
+        </li>
+      </ul>
+      <p>
+        Names have to agree exactly, apart from capitals in spreadsheets. Where two teams share a name, as leagues
+        of different years can, the number is used to tell them apart.
+      </p>
 
       <h3 id="help-reset">Resetting changes</h3>
       <p>

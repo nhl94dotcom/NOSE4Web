@@ -1297,6 +1297,22 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel('Match teams by name').check()
     await expect(main.getByText('Each team in the project goes where this ROM has a team of the same name.')).toBeVisible()
 
+    // Spreadsheet rows too: a players file with one team's name changed to another's.
+    await entry(page, 'Spreadsheet files').click()
+    await expect(main.getByText('Rows go to the team at their team number.')).toBeVisible()
+    await main.getByLabel('Match teams by name').check()
+    const csv = ['Team,Team name,Line,G,LD,RD,LW,C,RW,EA', '1,Springfield Atoms,NLC,#1,#3,#4,#5,#6,#7,#8'].join('\r\n') + '\r\n'
+    await main.locator('input[type=file][accept*="csv"]').setInputFiles({ name: 'S_lines.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+    await expect(page.locator('.outcome')).toContainText('this ROM has no team called "Springfield Atoms".')
+    const named = csv.replace('1,Springfield Atoms', '1,boston bruins')
+    await main.locator('input[type=file][accept*="csv"]').setInputFiles({ name: 'S_lines.csv', mimeType: 'text/csv', buffer: Buffer.from(named) })
+    await expect(page.locator('.outcome')).toContainText('Updated 1 line.')
+    await team(page, 'Boston Bruins').click()
+    const nlc = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) }).locator('tbody tr').first()
+    await expect(nlc.locator('select').nth(1)).toHaveValue('3')
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(nlc.locator('select').nth(1)).not.toHaveValue('3') // numbered 1 in the file, but not named
+
     await entry(page, 'Bulk changes').click()
     await expect(main.getByLabel('Kind of change').locator('option', { hasText: 'Convert from another era' })).toHaveCount(1) // weight is first
     await main.getByLabel('Kind of change').selectOption({ label: "Convert from another era's weights" })
