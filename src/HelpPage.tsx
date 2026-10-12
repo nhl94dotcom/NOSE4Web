@@ -28,6 +28,7 @@ const SECTIONS = [
   ['importteam', 'Importing a team'],
   ['check', 'Checking a ROM'],
   ['rules', "Your league's rules"],
+  ['changes', 'Changes and seasons'],
   ['compare', 'Comparing two ROMs'],
   ['download', 'Downloading your work'],
   ['roms', 'Supported ROMs and limits'],
@@ -441,6 +442,11 @@ export function HelpPage() {
         </li>
         <li>A picture several teams share is in the zip once, under the first of those teams.</li>
         <li>
+          Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
+          order. Each file then goes to the team named in it, wherever that team is in this ROM, and a file whose
+          team is not here is left out. Unticked, files go by their number.
+        </li>
+        <li>
           Pictures are fitted to the colours they are allowed, as when imported one at a time. A centre-ice logo
           uses the team's home colours, so import the team colours first if they are changing too.
         </li>
@@ -601,6 +607,12 @@ export function HelpPage() {
         copy has them.
       </p>
       <p>
+        Tick <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,
+        for a ROM that lists the same teams in another order. Playoff draws, league rules and anything else that
+        points at a team go with it. Every team in the project has to find a team of its name, or nothing is
+        opened and the page says which did not.
+      </p>
+      <p>
         If something in the file does not fit the ROM, the rest still opens and the page says what was left out. A
         project file is not a ROM and cannot be played; download the ROM or a patch for that.
       </p>
@@ -648,6 +660,11 @@ export function HelpPage() {
         <li>One Undo takes back one trade.</li>
       </ul>
       <p>
+        For a quick release or signing there is no need to leave a team's page: tick players and press{' '}
+        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b>. To sign a goalie, tick the goalie he
+        is to replace first.
+      </p>
+      <p>
         <b>Free agents</b> are players you are holding on no team. Choose Free agents as one side to release a
         player to them or to sign one from them; a goalie can be swapped with a free-agent goalie. They are part of
         your work, kept in this browser and in a project file, but they are <b>not in the ROM</b>: a downloaded ROM
@@ -670,6 +687,14 @@ export function HelpPage() {
         The page lists everyone who would change, with the attribute and overall rating before and after, and
         nothing happens until you press <b>Apply</b>. Players already at the end of a range are left out, since
         they would not change. One Undo takes the whole change back.
+      </p>
+      <p>
+        For weight there is one more choice, <b>Convert from another era's weights</b>. ROMs can be set up so that
+        the lightest weight stands for anything from 102 to 152 pounds, to suit the year they represent. If
+        players' weights were set for a different base from this ROM's, as when a roster comes in by spreadsheet
+        from an older season, choose the base they were set for and each player is moved to the weight here
+        nearest the pounds he had. Weights go in steps of 8 pounds, so the nearest can be up to 4 pounds out.
+        Import a team does this by itself when the two ROMs differ.
       </p>
       <p>
         Ratings have seven steps, which the game shows as ranges such as 81-98, so "raise by 1" moves a player up
@@ -720,6 +745,19 @@ export function HelpPage() {
         after importing spreadsheet files.
       </p>
 
+      <p>
+        Check ROM also notes strips that would be hard to tell apart in a game. A visiting team wears its away
+        strip, so a team's home strip is compared with every other team's away strip, by the colour of the jersey
+        and of the pants; and a strip that is close to the colour of the ice all over is noted too. These are notes,
+        not problems: the game plays the same, but the players are harder to follow.
+      </p>
+
+      <p>
+        A team's page can also save its <b>roster card</b>: the roster as a picture, with every player's number,
+        position, overall and attributes under the team's name and colours, sized to post where the league can see
+        it.
+      </p>
+
       <h3 id="help-rules">Your league's rules</h3>
       <p>
         On the <b>Check ROM</b> page, the box marked <b>Your league's rules</b> opens to let you set limits that
@@ -754,6 +792,31 @@ export function HelpPage() {
         this browser and in a project file, so a league's rules can be set once and carried from season to season.
         The original game breaks some of them as it comes: its two new teams' players are also on the teams they
         were drafted from, and its stars are on the All Stars teams too.
+      </p>
+
+      <h3 id="help-changes">Changes and seasons</h3>
+      <p>
+        The <b>Changes</b> page lists everything you have changed, in plain words, and keeps itself up to date as
+        you work. The number beside it in the list counts the changes. It is worked out from where things stand,
+        not from what you clicked, so something changed and changed back is not listed, and a renamed player is one
+        change however many lines he is on. <b>Download report</b> and <b>Copy report</b> give you the list as text
+        to pass on. Logos and banners are not listed.
+      </p>
+      <p>
+        The list can run from either of two starting points: <b>since this ROM was opened</b>, or{' '}
+        <b>since the season began</b>.
+      </p>
+      <p>
+        <b>Start a new season</b>, at the foot of the page, marks the teams as they stand as a season's starting
+        point. It gives the work the new season's name, counting up from the old one, and can first save a project
+        file of the season just ended and let the free agents go. From then on the page can list what has changed
+        since the season began, however often you close the editor or download the ROM in between, because the
+        starting point is kept with your work in this browser and in a project file. It is not in the ROM. Your
+        league rules carry over. Starting another season replaces the starting point.
+      </p>
+      <p>
+        A player released shows as "now a free agent", and one signed as "signed from the free agents", so the
+        list reads as a record of the off-season.
       </p>
 
       <h3 id="help-compare">Comparing two ROMs</h3>
@@ -856,6 +919,10 @@ export function HelpPage() {
             <li>
               The colour previews are drawn with the original game's player artwork, which that hack has redrawn, so
               they show roughly where each colour goes, not exactly.
+            </li>
+            <li>
+              Check ROM does not look for strips that are hard to tell apart in this ROM, since its players are
+              painted with the colours in ways of its own.
             </li>
             <li>
               Bringing a team in from the original game or a 30-team ROM carries its attributes across as stored,

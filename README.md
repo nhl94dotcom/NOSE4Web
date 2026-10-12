@@ -55,6 +55,8 @@ It can also:
 - reset any one part of a team to how it was in the ROM you opened
 - trade players between teams with a preview of what the trade does, and hold
   players as free agents
+- list everything changed since the ROM was opened or since a season began,
+  as text to pass on, and save a team's roster as a picture
 - save all your work as a project file, without the ROM, and open it again on
   another computer or over another copy of the game
 - undo and redo, and keep work in progress in the browser between visits
