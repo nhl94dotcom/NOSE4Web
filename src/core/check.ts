@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
@@ -8,8 +9,9 @@ import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './
 // game. Nothing here stops a download; it is a list for the user to review.
 
 export interface Finding {
-  // "problem": expect the game to misbehave. "note": unusual, worth a look.
-  level: 'problem' | 'note'
+  // "problem": expect the game to misbehave. "rule": against the league's own
+  // rules, which the game does not care about. "note": unusual, worth a look.
+  level: 'problem' | 'rule' | 'note'
   // Where it is: a team's name, or a part of the game settings.
   where: string
   // The team to go to, when the finding is about one.
@@ -117,5 +119,5 @@ export function checkProject(project: RomProject): Finding[] {
     }
   })
 
-  return findings
+  return [...findings, ...checkLeagueRules(project)]
 }

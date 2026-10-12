@@ -2,6 +2,7 @@ import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 }
 import { findGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
+import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
@@ -40,6 +41,8 @@ export interface RomProject {
   // Players the user is holding who are on no team. They are part of the
   // work, but are not written to the ROM.
   freeAgents: FreeAgent[]
+  // The league's own limits on its teams, which Check ROM holds the work to.
+  leagueRules: LeagueRules
   wasSmd: boolean
 }
 
@@ -118,6 +121,7 @@ export function openRom(file: Uint8Array): RomProject {
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: graphicsSupported(bytes, game),
     freeAgents: [],
+    leagueRules: NO_LEAGUE_RULES,
     wasSmd,
   }
 }

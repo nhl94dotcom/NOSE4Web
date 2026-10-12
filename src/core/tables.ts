@@ -332,6 +332,51 @@ const teams: CsvTable = {
   },
 }
 
+// ------------------------------------------------------------ free agents
+
+const freeAgents: CsvTable = {
+  id: 'freeagents',
+  title: 'Free agents',
+  description:
+    'Players you are holding on no team, with the same columns as the players file. The file is the whole list: importing it replaces the free agents you had. They are not in the ROM.',
+
+  rows(project) {
+    const rows: Cell[][] = [['Position', 'Name', 'Jersey', 'Overall', ...attributeHeadings(project)]]
+    for (const agent of project.freeAgents) {
+      rows.push([
+        agent.role,
+        agent.player.name,
+        jerseyToNumber(agent.player.jersey),
+        overallRating(agent.player.attributes, agent.role === 'G', project.game),
+        ...agent.player.attributes,
+      ])
+    }
+    return rows
+  },
+
+  apply(project, sheet) {
+    const headings = attributeHeadings(project)
+    sheet.require(['Position', 'Name', 'Jersey', ...headings])
+    const agents: RomProject['freeAgents'] = []
+    for (let row = 0; row < sheet.rowCount; row++) {
+      const position = sheet.text(row, 'Position').toUpperCase()
+      if (position.length !== 1 || !'GFD'.includes(position)) sheet.problem(row, `Position must be G, F or D, not "${position}".`)
+      const name = sheet.gameText(row, 'Name')
+      if (name === '') sheet.problem(row, 'Name is empty.')
+      agents.push({
+        role: (position.length === 1 && 'GFD'.includes(position) ? position : 'F') as RomProject['freeAgents'][number]['role'],
+        player: {
+          name,
+          jersey: numberToJersey(sheet.int(row, 'Jersey', 0, 99)),
+          attributes: headings.map((heading) => sheet.int(row, heading, 0, 15)),
+        },
+      })
+    }
+    sheet.finish()
+    return { project: { ...project, freeAgents: agents }, summary: `Set ${plural(agents.length, 'free agent')}.`, warnings: [] }
+  },
+}
+
 // ------------------------------------------------------------------ lines
 
 const lines: CsvTable = {
@@ -562,7 +607,7 @@ const rink: CsvTable = {
 
 // In the order a set of files has to be imported: lines are matched against
 // the roster, and playoff draws and menu choices against the team names.
-export const CSV_TABLES: CsvTable[] = [teams, players, lines, playoffs, rules, clock, menu, rink]
+export const CSV_TABLES: CsvTable[] = [teams, players, lines, freeAgents, playoffs, rules, clock, menu, rink]
 const SETTINGS_TABLES: CsvTable[] = [playoffs, rules, clock, menu]
 
 // The tables a ROM has. Some hacks keep their game settings where the editor

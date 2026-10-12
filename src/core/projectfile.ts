@@ -4,6 +4,7 @@
 // of a season as it stood, and passes changes to someone with their own ROM.
 
 import { expandTeamSpace, nextExpansion } from './expand'
+import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
 import type { RomProject } from './rom'
@@ -33,6 +34,7 @@ interface ProjectFile {
   pictures: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, Record<string, StoredPicture>>
   menuPalettes: Record<string, number[]>
   freeAgents: FreeAgent[]
+  leagueRules?: LeagueRules
 }
 
 const PICTURE_SETS: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, PictureKind> = {
@@ -90,6 +92,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     pictures,
     menuPalettes: project.graphics.menuPalettes,
     freeAgents: project.freeAgents,
+    leagueRules: project.leagueRules,
   }
   return JSON.stringify(file)
 }
@@ -208,7 +211,8 @@ export function openProjectFile(opened: RomProject, text: string): OpenedProject
   const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes }))
   const settings = game.settingsSupported && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
-  project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents }
+  const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)
+  project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents, leagueRules }
 
   if (project.graphicsSupported) {
     const kinds = pictureKinds(project)

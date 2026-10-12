@@ -410,6 +410,14 @@ details {
   margin: 0.4rem 0;
 }
 
+details.rules {
+  max-width: 46rem;
+  margin: 0.75rem 0;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
 summary {
   cursor: pointer;
   font-weight: 600;

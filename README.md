@@ -44,7 +44,8 @@ It can also:
 - export everything as an Excel workbook or a set of CSV files, and import
   them again
 - move players between teams, keeping both teams' lines in step
-- check a ROM for mistakes that cause trouble in the game
+- check a ROM for mistakes that cause trouble in the game, and against limits
+  your league sets itself: roster sizes, rating caps, nobody on two teams
 - describe the differences between two ROMs, with a summary of player moves
   and rating changes to post for a league
 - find a player on any team, compare the teams' ratings side by side, and

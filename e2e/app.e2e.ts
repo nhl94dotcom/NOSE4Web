@@ -319,14 +319,14 @@ test.describe('with the NHL 94 ROM', () => {
       buffer: readFileSync(await workbook.path()),
     })
     await expect(page.locator('.outcome')).toContainText('Imported Season_9.xlsx')
-    await expect(page.locator('.outcome li')).toHaveCount(8)
+    await expect(page.locator('.outcome li')).toHaveCount(9)
     await expect(page.locator('.outcome')).not.toHaveClass(/error/)
     await expect(page.locator('input.rom-name')).toHaveValue('Season_9')
 
     const downloads: Download[] = []
     page.on('download', (download) => downloads.push(download))
-    await page.getByRole('button', { name: 'Export all 8 files' }).click()
-    await expect.poll(() => downloads.length, { timeout: 15000 }).toBe(8)
+    await page.getByRole('button', { name: 'Export all 9 files' }).click()
+    await expect.poll(() => downloads.length, { timeout: 15000 }).toBe(9)
     expect(downloads.map((d) => d.suggestedFilename()).sort()).toContain('Season_9_players.csv')
 
     const files = await Promise.all(
@@ -337,7 +337,7 @@ test.describe('with the NHL 94 ROM', () => {
       })),
     )
     await page.locator('input[type=file][accept*=".csv"]').setInputFiles(files)
-    await expect(page.locator('.outcome')).toContainText('Imported 8 files')
+    await expect(page.locator('.outcome')).toContainText('Imported 9 files')
     await expect(page.locator('input.rom-name')).toHaveValue('Season_10')
     await page.screenshot({ path: 'test-results/shots/spreadsheets.png', fullPage: true })
 
@@ -1112,6 +1112,81 @@ test.describe('with the NHL 94 ROM', () => {
     await page.keyboard.press('ArrowDown')
     await expect(centre(1)).toBeFocused()
     await expect(centre(0)).toHaveValue(was)
+  })
+
+  test('holds the teams to the league\'s own rules', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Check ROM').click()
+    const main = page.locator('main')
+    await expect(main.getByText('Nothing to report.')).toBeVisible()
+    // The rules are folded away until wanted.
+    await expect(main.getByLabel('Players on a team, at most')).toBeHidden()
+    await main.getByText("Your league's rules").click()
+
+    // Nobody over 24 players, and at least 20.
+    await main.getByLabel('Players on a team, at most').fill('24')
+    await expect(main.getByRole('heading', { name: /Against your league's rules \(\d+\)/ })).toBeVisible()
+    await expect(main.getByText("Has 25 players; the league's rules allow at most 24.").first()).toBeVisible()
+    await main.getByLabel('Players on a team, at least').fill('20')
+    await expect(main.getByText("Has 18 players; the league's rules ask for at least 20.")).toBeVisible()
+    // The count beside Check ROM in the list takes them in.
+    await expect(entry(page, /Check ROM/)).toHaveText(/^Check ROM \(\d+\)$/)
+    await page.screenshot({ path: 'test-results/shots/rules.png', fullPage: true })
+
+    // Leaving a team out, and emptying a limit, each take findings away.
+    const before = await main.locator('section').first().locator('tbody tr').count()
+    await main.getByText('Teams the rules do not apply to').click()
+    await main.getByLabel('Anaheim Mighty Ducks', { exact: true }).check()
+    await expect(main.getByText("Has 18 players; the league's rules ask for at least 20.")).toHaveCount(0)
+    await main.getByLabel('Players on a team, at most').fill('')
+    expect(await main.locator('tbody tr').filter({ hasText: "the league's rules" }).count()).toBeLessThan(before)
+
+    // Fixing the team clears its finding: go to it from the list and add players.
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    const florida = main.locator('tbody tr').filter({ hasText: "Has 17 players; the league's rules ask for at least 20." })
+    await florida.getByRole('button', { name: 'Florida Panthers' }).click()
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add player' }).click()
+    await entry(page, /Check ROM/).click()
+    await expect(main.getByText("Has 17 players; the league's rules ask for at least 20.")).toHaveCount(0)
+
+    // The rules are kept with the work, and can be cleared.
+    await expect(main.getByLabel('Players on a team, at least')).toHaveValue('20')
+    await main.getByLabel('No two players on a team with the same number').check()
+    await main.getByRole('button', { name: 'Clear the rules' }).click()
+    await expect(main.getByLabel('Players on a team, at least')).toHaveValue('')
+    await expect(main.getByLabel('No two players on a team with the same number')).not.toBeChecked()
+    await expect(main.getByRole('heading', { name: /Against your league's rules/ })).toHaveCount(0)
+  })
+
+  test('keeps free agents in the spreadsheet files', async ({ page }) => {
+    await openRom(page)
+    await page.locator('input.rom-name').fill('Season_10')
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    const released = await nameOf(rows(page, 'Skaters').nth(4)).inputValue()
+    await entry(page, 'Trade').click()
+    await page.locator('main').getByLabel('Second side of the trade').selectOption({ label: 'Free agents (0)' })
+    await page.locator('main').getByLabel(`${released} leaves Anaheim Mighty Ducks`).check()
+    await page.getByRole('button', { name: 'Make this trade' }).click()
+
+    await entry(page, 'Spreadsheet files').click()
+    const row = page.locator('main tr').filter({ hasText: 'Season_10_freeagents.csv' })
+    const file = await downloadFrom(page, row.getByRole('button', { name: 'Export CSV' }))
+    expect(file.suggestedFilename()).toBe('Season_10_freeagents.csv')
+    const text = readFileSync(await file.path(), 'utf8')
+    const lines = text.trim().split(/\r?\n/)
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toContain('Position,Name,Jersey,Overall')
+    expect(lines[1]).toContain(released)
+
+    // A pool prepared in a spreadsheet: the one released, and a prospect typed in.
+    const prospect = ['G', 'Draft Pick', '30', '', ...new Array<string>(14).fill('3')].join(',')
+    const edited = [...lines, prospect].join('\r\n') + '\r\n'
+    await page.locator('main input[type=file][accept*="csv"]').setInputFiles({ name: 'Season_10_freeagents.csv', mimeType: 'text/csv', buffer: Buffer.from(edited) })
+    await expect(page.locator('.outcome')).toContainText('Set 2 free agents.')
+    await expect(entry(page, /^Trade/)).toHaveText('Trade (2 free)')
+    await entry(page, /^Trade/).click()
+    await page.locator('main').getByLabel('Second side of the trade').selectOption({ label: 'Free agents (2)' })
+    await expect(page.locator('main').getByLabel('Draft Pick leaves Free agents')).toBeVisible()
   })
 
   test('keeps the work through a reload', async ({ page }) => {

@@ -246,7 +246,8 @@ export default function App() {
   // Where a ROM has several leagues, the team that starts each.
   const groupStarts = new Map<number, string>()
   project.game.teamGroups.reduce((at, group) => (groupStarts.set(at, group.name), at + group.teams), 0)
-  const problems = findings.filter((finding) => finding.level === 'problem').length
+  // What wants attention: trouble for the game, and breaches of the league's rules.
+  const problems = findings.filter((finding) => finding.level !== 'note').length
 
   function page(current: RomProject, opened: RomProject) {
     switch (selected) {
@@ -265,7 +266,7 @@ export default function App() {
       case CSV:
         return <CsvPanel project={current} setName={name || 'rom'} onChange={change} onSetNameChange={setName} />
       case CHECK:
-        return <CheckPage findings={findings} onGoToTeam={setSelected} />
+        return <CheckPage project={current} findings={findings} onGoToTeam={setSelected} onChange={change} />
       case COMPARE:
         return <ComparePage project={current} name={name || 'rom'} />
       case LEAGUE:

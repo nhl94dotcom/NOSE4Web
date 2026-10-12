@@ -27,6 +27,7 @@ const SECTIONS = [
   ['bulk', 'Bulk changes'],
   ['importteam', 'Importing a team'],
   ['check', 'Checking a ROM'],
+  ['rules', "Your league's rules"],
   ['compare', 'Comparing two ROMs'],
   ['download', 'Downloading your work'],
   ['roms', 'Supported ROMs and limits'],
@@ -650,8 +651,13 @@ export function HelpPage() {
         <b>Free agents</b> are players you are holding on no team. Choose Free agents as one side to release a
         player to them or to sign one from them; a goalie can be swapped with a free-agent goalie. They are part of
         your work, kept in this browser and in a project file, but they are <b>not in the ROM</b>: a downloaded ROM
-        has only the players on teams, and Check ROM reminds you when some are waiting. They are not in the
-        spreadsheet files either.
+        has only the players on teams, and Check ROM reminds you when some are waiting.
+      </p>
+      <p>
+        They do have a sheet in the spreadsheet files, <b>freeagents</b>, with the same columns as the players
+        sheet less the team. That sheet is the whole list: importing it replaces the free agents you had, so add
+        rows to bring players in and delete rows to drop them. It is a way to prepare a draft pool in Excel and
+        then sign players from it on the Trade page.
       </p>
 
       <h3 id="help-bulk">Bulk changes</h3>
@@ -712,6 +718,42 @@ export function HelpPage() {
       <p>
         Click a team's name in the list to go to it. Nothing here stops you downloading, and it is worth a look
         after importing spreadsheet files.
+      </p>
+
+      <h3 id="help-rules">Your league's rules</h3>
+      <p>
+        On the <b>Check ROM</b> page, the box marked <b>Your league's rules</b> opens to let you set limits that
+        your league keeps to and the game itself does not care about. Fill in the ones you want and leave the rest
+        empty. Every team is then checked against
+        them as you work, and anything that breaks one is listed under <b>Against your league's rules</b>, with the
+        team to click through to. The number beside Check ROM in the list counts these along with the problems.
+      </p>
+      <ul>
+        <li>
+          <b>Size and make-up:</b> the fewest and most players, goalies, forwards and defencemen a team may have.
+        </li>
+        <li>
+          <b>Ratings:</b> the highest overall any one player may have; the highest a first line may average, which
+          is the limit that matters most where a league plays without line changes; the highest a team's skaters
+          may average; and the most a team's overall ratings may add up to, in the manner of a salary cap.
+        </li>
+        <li>
+          <b>No player on more than one team.</b> Players are told apart by name, ignoring capitals and stray
+          spaces. A free agent who is also on a team is caught as well.
+        </li>
+        <li>
+          <b>No two players on a team with the same number.</b>
+        </li>
+        <li>
+          <b>Teams the rules do not apply to:</b> tick any to leave out, such as All Stars teams or a team used as
+          a pool of spare players.
+        </li>
+      </ul>
+      <p>
+        The rules never stop you downloading, and they are not written to the ROM. They are kept with your work in
+        this browser and in a project file, so a league's rules can be set once and carried from season to season.
+        The original game breaks some of them as it comes: its two new teams' players are also on the teams they
+        were drafted from, and its stars are on the All Stars teams too.
       </p>
 
       <h3 id="help-compare">Comparing two ROMs</h3>

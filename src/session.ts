@@ -1,5 +1,6 @@
 import { findGame } from './core/games'
 import { graphicsSupported, NO_GRAPHICS_EDITS } from './core/graphics'
+import { cleanLeagueRules } from './core/leaguerules'
 import type { RomProject } from './core/rom'
 
 // Keeps the work in progress in the browser's own storage on this computer,
@@ -64,7 +65,8 @@ export async function loadSession(): Promise<Session | null> {
   const supported = graphicsSupported(stored.project.bytes, game)
   // Nor has work from before there were free agents any of those.
   const freeAgents = stored.project.freeAgents ?? []
-  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported, freeAgents } }
+  const leagueRules = cleanLeagueRules(stored.project.leagueRules, stored.project.teams.length)
+  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported, freeAgents, leagueRules } }
 }
 
 export async function clearSession(): Promise<void> {
