@@ -1,0 +1,404 @@
+import { useEffect, useState } from 'react'
+import { readClipboard, writeClipboard } from './clipboard'
+import { ATTRIBUTE_NOTES, attributeText, type AttributeKind } from './core/attributes'
+import { hex } from './core/bytes'
+import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
+import type { GameConfig } from './core/games'
+import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
+import { overallRating } from './core/rating'
+import {
+  addPlayer,
+  canAddPlayer,
+  canDeletePlayer,
+  deletePlayer,
+  movePlayer,
+  setForwards,
+  setGoalieNibble,
+} from './core/roster'
+import { goalieCount, type Player, type Team } from './core/team'
+import { PaletteEditor, Preview } from './Palette'
+
+const ATTRIBUTE_VALUES = Array.from({ length: 16 }, (_, i) => i)
+
+// The game's font covers the printable ASCII characters only.
+function cleanText(text: string): string {
+  return text.replace(/[^\x20-\x7d]/g, '')
+}
+
+interface Props {
+  game: GameConfig
+  team: Team
+  onChange: (team: Team) => void
+  // Whether attributes show as the numbers stored in the ROM instead of as text.
+  rawAttributes: boolean
+  onRawAttributesChange: (raw: boolean) => void
+  // Whether keyboard keys adjust the ticked players' attributes.
+  quickKeys: boolean
+  onQuickKeysChange: (on: boolean) => void
+}
+
+export function TeamEditor(props: Props) {
+  const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
+  const goalies = goalieCount(team)
+  // Roster rows ticked for copying and pasting.
+  const [ticked, setTicked] = useState<number[]>([])
+  const [notice, setNotice] = useState('')
+
+  // Roster positions shift when players move, so the ticks are cleared.
+  function changeRoster(next: Team) {
+    setTicked([])
+    onChange(next)
+  }
+
+  async function copyTicked() {
+    await writeClipboard(copyPlayers(team, ticked))
+    setNotice(`Copied ${ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`}.`)
+  }
+
+  async function pasteOverTicked(attributesOnly: boolean) {
+    try {
+      const text = await readClipboard()
+      onChange(pastePlayers(team, ticked, text, attributesOnly))
+      const count = copiedPlayerCount(text)
+      const repeated = ticked.length > count ? ', repeating them to fill the rows' : ''
+      setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${repeated}.`)
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const [tickedLines, setTickedLines] = useState<number[]>([])
+  const [lineNotice, setLineNotice] = useState('')
+
+  async function copyTickedLines() {
+    await writeClipboard(copyLines(team, tickedLines))
+    setLineNotice(`Copied ${tickedLines.length === 1 ? '1 line' : `${tickedLines.length} lines`}.`)
+  }
+
+  async function pasteOverTickedLines() {
+    try {
+      onChange(pasteLines(team, tickedLines, await readClipboard()))
+      setLineNotice('Pasted.')
+    } catch (e) {
+      setLineNotice(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // Quick edit keys act on the ticked players unless the user is typing in a field.
+  useEffect(() => {
+    if (!quickKeys) return
+    function onKeyDown(event: KeyboardEvent) {
+      const typing = (event.target as HTMLElement).matches('input:not([type=checkbox]), select, textarea')
+      if (typing || event.ctrlKey || event.altKey || event.metaKey || ticked.length === 0) return
+      const kindsFor = (index: number) =>
+        rawAttributes ? null : index < goalies ? game.goalieAttributeKinds : game.playerAttributeKinds
+      const next = quickEdit(team, ticked, event.code, event.shiftKey, kindsFor)
+      if (!next) return
+      event.preventDefault()
+      onChange(next)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
+  function setPlayer(index: number, player: Player) {
+    onChange({ ...team, players: team.players.map((p, i) => (i === index ? player : p)) })
+  }
+
+  function setLineSlot(line: number, slot: number, value: number) {
+    const lines = team.lines.map((l, i) => (i === line ? l.map((v, s) => (s === slot ? value : v)) : l))
+    onChange({ ...team, lines })
+  }
+
+  function attributeTitle(name: string, kind: AttributeKind, index: number): string {
+    const title = ATTRIBUTE_NOTES[kind] ? `${name} (${ATTRIBUTE_NOTES[kind]})` : name
+    return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
+  }
+
+  function roster(title: string, isGoalies: boolean, from: number, to: number) {
+    const labels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
+    const names = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
+    const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
+    return (
+      <section>
+        <h2>{title}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th />
+              <th>#</th>
+              <th>Pos</th>
+              <th>Name</th>
+              <th>No.</th>
+              <th>Ovr</th>
+              {labels.map((label, i) => (
+                <th key={i} title={attributeTitle(names[i], kinds[i], i)}>
+                  {label}
+                </th>
+              ))}
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {team.players.slice(from, to).map((player, row) => {
+              const index = from + row
+              return (
+                <tr key={index}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      title="Select for copy and paste"
+                      checked={ticked.includes(index)}
+                      onChange={(e) =>
+                        setTicked(
+                          e.target.checked ? [...ticked, index].sort((a, b) => a - b) : ticked.filter((i) => i !== index),
+                        )
+                      }
+                    />
+                  </td>
+                  <td>{index + 1}</td>
+                  <td>{index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D'}</td>
+                  <td>
+                    <input
+                      className="name"
+                      value={player.name}
+                      onChange={(e) => setPlayer(index, { ...player, name: cleanText(e.target.value) })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      className="num"
+                      value={hex(player.jersey)}
+                      maxLength={2}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '')
+                        setPlayer(index, { ...player, jersey: parseInt(digits || '0', 16) })
+                      }}
+                    />
+                  </td>
+                  <td>{overallRating(player.attributes, index < goalies)}</td>
+                  {player.attributes.map((value, a) => (
+                    <td key={a}>
+                      <select
+                        className={attributeText(kinds[a], value) === null ? 'attribute invalid' : 'attribute'}
+                        value={value}
+                        onChange={(e) => {
+                          const next = Number(e.target.value)
+                          const attributes = player.attributes.map((v, i) => (i === a ? next : v))
+                          setPlayer(index, { ...player, attributes })
+                        }}
+                      >
+                        {ATTRIBUTE_VALUES.map((v) => {
+                          const text = attributeText(kinds[a], v)
+                          // As text, values the game does not expect are only offered if already in use.
+                          if (!rawAttributes && text === null && v !== value) return null
+                          return (
+                            <option key={v} value={v}>
+                              {rawAttributes ? v : (text ?? `! ${v}`)}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </td>
+                  ))}
+                  <td className="actions">
+                    <button title="Move up" disabled={index === 0} onClick={() => changeRoster(movePlayer(team, index, -1))}>
+                      ↑
+                    </button>
+                    <button
+                      title="Move down"
+                      disabled={index === team.players.length - 1}
+                      onClick={() => changeRoster(movePlayer(team, index, 1))}
+                    >
+                      ↓
+                    </button>
+                    {index >= goalies && (
+                      <button
+                        title="Delete player"
+                        disabled={!canDeletePlayer(team, index)}
+                        onClick={() => changeRoster(deletePlayer(team, index))}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </section>
+    )
+  }
+
+  return (
+    <main className="team">
+      <section>
+        <h2>Team</h2>
+        <div className="fields">
+          {game.teamNameLabels.map((label, i) => (
+            <label key={i}>
+              {label}
+              <input
+                value={team.names[i]}
+                onChange={(e) =>
+                  onChange({ ...team, names: team.names.map((n, j) => (j === i ? cleanText(e.target.value) : n)) })
+                }
+              />
+            </label>
+          ))}
+        </div>
+        <div className="fields">
+          <label>
+            Forwards
+            <input
+              className="num"
+              type="number"
+              min={0}
+              max={15}
+              value={team.forwards}
+              onChange={(e) => onChange(setForwards(team, Number(e.target.value) || 0))}
+            />
+          </label>
+          <label>
+            Goalie bytes
+            <span>
+              {team.goalieNibbles.map((value, i) => (
+                <input
+                  key={i}
+                  className="num"
+                  type="number"
+                  min={0}
+                  max={15}
+                  value={value}
+                  onChange={(e) => changeRoster(setGoalieNibble(team, i, Number(e.target.value) || 0))}
+                />
+              ))}
+            </span>
+          </label>
+        </div>
+        <p className="note">
+          {team.players.length} players: {goalies} goalies, {team.forwards} forwards, {team.defense} defence. The
+          first skaters on the roster are the forwards. The roster's first players are goalies, one for each goalie
+          byte up to the last that is not zero.
+        </p>
+      </section>
+
+      <p>
+        <label>
+          <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
+          Show attributes as stored values (0–15)
+        </label>{' '}
+        <label>
+          <input type="checkbox" checked={quickKeys} onChange={(e) => onQuickKeysChange(e.target.checked)} /> Quick
+          edit keys
+        </label>
+      </p>
+      {quickKeys && (
+        <p className="note">
+          With players ticked, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
+          attribute, in column order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
+          to lower it. The {QUICK_EDIT_JERSEY_LABEL} keys change the jersey number. Hover a column heading to see its key.
+        </p>
+      )}
+      <p>
+        <button disabled={ticked.length === 0} onClick={() => void copyTicked()}>
+          Copy ticked
+        </button>{' '}
+        <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(false)}>
+          Paste over ticked
+        </button>{' '}
+        <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(true)}>
+          Paste attributes only
+        </button>{' '}
+        <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
+      </p>
+      {roster('Goalies', true, 0, goalies)}
+      {roster('Skaters', false, goalies, team.players.length)}
+      <p>
+        <button disabled={!canAddPlayer(team)} onClick={() => onChange(addPlayer(team))}>
+          Add player
+        </button>
+      </p>
+
+      <section>
+        <h2>Lines</h2>
+        <p>
+          <button disabled={tickedLines.length === 0} onClick={() => void copyTickedLines()}>
+            Copy ticked
+          </button>{' '}
+          <button disabled={tickedLines.length === 0} onClick={() => void pasteOverTickedLines()}>
+            Paste over ticked
+          </button>{' '}
+          <span className="note">
+            {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}
+          </span>
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th />
+              <th>Line</th>
+              {game.linePositionLabels.map((label) => (
+                <th key={label}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {team.lines.map((line, l) => (
+              <tr key={l}>
+                <td>
+                  <input
+                    type="checkbox"
+                    title="Select for copy and paste"
+                    checked={tickedLines.includes(l)}
+                    onChange={(e) =>
+                      setTickedLines(
+                        e.target.checked ? [...tickedLines, l].sort((a, b) => a - b) : tickedLines.filter((i) => i !== l),
+                      )
+                    }
+                  />
+                </td>
+                <td>{game.lineLabels[l]}</td>
+                {game.linePositionLabels.map((_, slot) => (
+                  <td key={slot}>
+                    <select value={line[slot]} onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}>
+                      {line[slot] === 0 || line[slot] > team.players.length ? (
+                        <option value={line[slot]}>Invalid ({hex(line[slot])})</option>
+                      ) : null}
+                      {team.players.map((player, i) => (
+                        <option key={i} value={i + 1}>
+                          {hex(player.jersey)} {player.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {['Home', 'Away'].map((label, strip) => {
+        const colors = team.palette.slice(strip * 16, strip * 16 + 16)
+        const other = team.palette.slice((1 - strip) * 16, (1 - strip) * 16 + 16)
+        const setColors = (next: number[]) =>
+          onChange({ ...team, palette: strip === 0 ? [...next, ...other] : [...other, ...next] })
+        return (
+          <section key={label}>
+            <h2>{label} colours</h2>
+            <div className="strip">
+              <Preview template="strip" palette={colors} scale={3} />
+              <Preview template="sprites" palette={colors} scale={2} />
+              <div>
+                <PaletteEditor palette={colors} labels={game.stripColorLabels} onChange={setColors} />
+                <button onClick={() => setColors(other)}>Copy from {strip === 0 ? 'away' : 'home'}</button>
+              </div>
+            </div>
+          </section>
+        )
+      })}
+    </main>
+  )
+}

@@ -1,0 +1,16 @@
+:root {
+  color-scheme: light dark;
+  --line: light-dark(#d0d4da, #3a3f47);
+  --field: light-dark(#fff, #23262b);
+  --muted: light-dark(#667, #99a);
+  --accent: #2563a8;
+  --bad: light-dark(#b3261e, #ff8a80);
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+  background: light-dark(#f6f7f9, #17191c);
+  color: light-dark(#1a1c1f, #e6e8eb);
+}
+
+body {
+  margin: 0;
+}

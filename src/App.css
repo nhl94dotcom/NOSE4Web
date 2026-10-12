@@ -1,0 +1,275 @@
+.welcome {
+  max-width: 32rem;
+  margin: 15vh auto 0;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+header .space {
+  margin-left: auto;
+}
+
+.space.over,
+.error {
+  color: var(--bad);
+}
+
+.error {
+  margin: 0.5rem 1rem;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  width: 14rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+}
+
+nav button {
+  padding: 0.35rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+
+nav button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.team {
+  flex: 1;
+  overflow: auto;
+  padding: 0 1rem 2rem;
+}
+
+h2 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th,
+td {
+  padding: 1px 3px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+input,
+select {
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+}
+
+input.rom-name {
+  width: 16rem;
+}
+
+input.name {
+  width: 12rem;
+}
+
+input.num {
+  width: 2.6rem;
+  text-align: center;
+}
+
+select {
+  max-width: 11rem;
+}
+
+td.wrap {
+  max-width: 34rem;
+  white-space: normal;
+}
+
+.outcome {
+  max-width: 50rem;
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.outcome p {
+  margin: 0.25rem 0;
+}
+
+.outcome ul {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+select.attribute {
+  padding: 2px 0;
+}
+
+select.invalid {
+  color: var(--bad);
+}
+
+select.wide {
+  max-width: none;
+}
+
+select.narrow {
+  max-width: 5.5rem;
+}
+
+input.seconds {
+  width: 4.5rem;
+}
+
+table.left td,
+table.left th {
+  padding: 2px 8px 2px 0;
+  text-align: left;
+}
+
+.fields + .fields {
+  margin-top: 0.75rem;
+}
+
+.actions button {
+  margin-left: 2px;
+  padding: 1px 6px;
+}
+
+.palette {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.swatch.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.color-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.color-controls strong {
+  min-width: 11rem;
+}
+
+.color-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.color-controls input[type='range'] {
+  width: 5rem;
+  padding: 0;
+}
+
+.color-controls input[type='color'] {
+  width: 2rem;
+  height: 1.5rem;
+  padding: 0;
+}
+
+.pick-image {
+  display: block;
+  max-width: min(100%, 40rem);
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  cursor: crosshair;
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.preview {
+  display: block;
+  border: 1px solid var(--line);
+  image-rendering: pixelated;
+}
+
+button,
+.button {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
