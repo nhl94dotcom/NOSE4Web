@@ -29,6 +29,8 @@ jobs:
       - run: npm run lint
       # Tests that need a ROM skip themselves here, since none is in the repository.
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
