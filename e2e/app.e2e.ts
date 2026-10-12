@@ -395,6 +395,193 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(drawRows.nth(1))).toEqual(first)
   })
 
+  test('copies lines to another team', async ({ page }) => {
+    await openRom(page)
+    const lines = () => page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+    const lineRows = () => lines().locator('tbody tr')
+    const values = (row: Locator) => row.locator('select').evaluateAll((selects) => selects.map((s) => (s as HTMLSelectElement).value))
+
+    // Anaheim has the shorter roster, so its lines suit any team.
+    const copied = [await values(lineRows().nth(0)), await values(lineRows().nth(1))]
+    await tick(lineRows().nth(0))
+    await tick(lineRows().nth(1))
+    await lines().getByRole('button', { name: 'Copy ticked' }).click()
+    await expect(lines().getByText('Copied 2 lines.')).toBeVisible()
+
+    await team(page, 'Boston Bruins').click()
+    const untouched = await values(lineRows().nth(6))
+    expect(await values(lineRows().nth(4))).not.toEqual(copied[0])
+    await tick(lineRows().nth(4))
+    await tick(lineRows().nth(5))
+    await lines().getByRole('button', { name: 'Paste over ticked' }).click()
+    await expect(lines().getByText('Pasted.')).toBeVisible()
+    expect([await values(lineRows().nth(4)), await values(lineRows().nth(5))]).toEqual(copied)
+    expect(await values(lineRows().nth(6))).toEqual(untouched)
+
+    // A line naming a player further down than a team's roster goes is refused.
+    const last = String(await rows(page, 'Skaters').count() + await rows(page, 'Goalies').count())
+    await lineRows().nth(4).locator('select').nth(3).selectOption(last)
+    await lines().getByRole('button', { name: 'Copy ticked' }).click()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const before = await values(lineRows().nth(2))
+    await tick(lineRows().nth(2))
+    await lines().getByRole('button', { name: 'Paste over ticked' }).click()
+    await expect(lines().getByText(`A copied line uses roster position ${last}, but this team has`)).toBeVisible()
+    expect(await values(lineRows().nth(2))).toEqual(before)
+  })
+
+  test('pastes attributes only, repeats a copy over more rows, and refuses a goalie over a skater', async ({ page }) => {
+    await openRom(page)
+    const attributes = (row: Locator) =>
+      row.locator('select.attribute').evaluateAll((selects) => selects.map((s) => (s as HTMLSelectElement).value))
+    const paste = (name: string) => page.getByRole('button', { name }).first().click()
+
+    await team(page, 'Boston Bruins').click()
+    const source = rows(page, 'Skaters').first()
+    const copiedName = await nameOf(source).inputValue()
+    const copiedAttributes = await attributes(source)
+    await tick(source)
+    await page.getByRole('button', { name: 'Copy ticked' }).first().click()
+
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const skaters = rows(page, 'Skaters')
+    const keptName = await nameOf(skaters.nth(3)).inputValue()
+    await tick(skaters.nth(3))
+    await paste('Paste attributes only')
+    await expect(page.getByText('Pasted the attributes of 1 player.')).toBeVisible()
+    await expect(nameOf(skaters.nth(3))).toHaveValue(keptName)
+    expect(await attributes(skaters.nth(3))).toEqual(copiedAttributes)
+
+    await tick(skaters.nth(5))
+    await tick(skaters.nth(6))
+    await paste('Paste over ticked')
+    await expect(page.getByText('Pasted 1 player, repeating them to fill the rows.')).toBeVisible()
+    for (const row of [3, 5, 6]) await expect(nameOf(skaters.nth(row))).toHaveValue(copiedName)
+
+    // A skater cannot be pasted over a goalie.
+    const goalie = rows(page, 'Goalies').first()
+    const goalieName = await nameOf(goalie).inputValue()
+    for (const row of [3, 5, 6]) await skaters.nth(row).locator('input[type=checkbox]').uncheck()
+    await tick(goalie)
+    await paste('Paste over ticked')
+    await expect(nameOf(goalie)).toHaveValue(goalieName)
+    await expect(page.getByText(/goalie/i).first()).toBeVisible()
+  })
+
+  test('copies between teams when the browser refuses the system clipboard', async ({ page }) => {
+    await page.addInitScript(() => {
+      const refuse = () => Promise.reject(new Error('denied'))
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: refuse, readText: refuse } })
+    })
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const source = rows(page, 'Skaters').first()
+    const copiedName = await nameOf(source).inputValue()
+    await tick(source)
+    await page.getByRole('button', { name: 'Copy ticked' }).first().click()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const target = rows(page, 'Skaters').nth(2)
+    await tick(target)
+    await page.getByRole('button', { name: 'Paste over ticked' }).first().click()
+    await expect(nameOf(target)).toHaveValue(copiedName)
+  })
+
+  test('quick edit keys change jersey numbers, respect limits, and stay out of the way of typing', async ({ page }) => {
+    await openRom(page)
+    const row = rows(page, 'Skaters').first()
+    const other = rows(page, 'Skaters').nth(1)
+    const agility = (r: Locator) => r.locator('select.attribute').nth(1)
+    const jersey = row.locator('input.num').first()
+    const before = Number(await agility(row).inputValue())
+    const otherBefore = await agility(other).inputValue()
+
+    // Off, the keys do nothing.
+    await tick(row)
+    await page.keyboard.press('Digit1')
+    await expect(agility(row)).toHaveValue(String(before))
+
+    await page.getByLabel('Quick edit keys').check()
+    await page.getByLabel('Quick edit keys').blur()
+    const number = Number(await jersey.inputValue())
+    await page.keyboard.press('NumpadAdd')
+    await expect(jersey).toHaveValue(String(number + 1))
+    await page.keyboard.press('NumpadSubtract')
+    await page.keyboard.press('NumpadSubtract')
+    await expect(jersey).toHaveValue(String(number - 1))
+
+    // Typing a digit into a name is typing, not a quick edit.
+    await nameOf(row).click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Digit1')
+    await expect(nameOf(row)).toHaveValue(/1$/)
+    await expect(agility(row)).toHaveValue(String(before))
+    await page.keyboard.press('Backspace')
+    await nameOf(row).blur()
+
+    // A rating stops at the top of its range however often the key is pressed.
+    for (let i = 0; i < 20; i++) await page.keyboard.press('Digit1')
+    const top = await agility(row).locator('option').last().getAttribute('value')
+    await expect(agility(row)).toHaveValue(top!)
+    // Players that are not ticked are untouched.
+    await expect(agility(other)).toHaveValue(otherBefore)
+  })
+
+  test('picks colours with the colour box, from an image, and from the screen', async ({ page }) => {
+    // The screen picker shows the operating system's own magnifier, which a
+    // test cannot click; this stands in for the user choosing pure green.
+    await page.addInitScript(() => {
+      ;(window as unknown as { EyeDropper: unknown }).EyeDropper = class {
+        open = () => Promise.resolve({ sRGBHex: '#00ff00' })
+      }
+    })
+    await openRom(page)
+    const home = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Home colours' }) })
+    const word = home.locator('.color-controls span.note').first()
+    const swatches = home.locator('button.swatch')
+
+    await swatches.nth(3).click()
+    await home.locator('input[type=color]').fill('#ff00ff')
+    await expect(word).toHaveText(/0E0E/i)
+    // A colour the console cannot show exactly snaps to the nearest it can.
+    await home.locator('input[type=color]').fill('#804020')
+    const snapped = (await word.textContent())!
+    expect(snapped).toMatch(/^0[02468ACE]{3}$/i)
+    await expect(swatches.nth(3)).toHaveAttribute('title', new RegExp(snapped, 'i'))
+
+    await swatches.nth(4).click()
+    await home.getByRole('button', { name: 'Pick from screen' }).click()
+    await expect(word).toHaveText(/00E0/i)
+
+    // An image that is red on the left and blue on the right.
+    const png = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 200
+      canvas.height = 100
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#ff0000'
+      context.fillRect(0, 0, 100, 100)
+      context.fillStyle = '#0000ff'
+      context.fillRect(100, 0, 100, 100)
+      return canvas.toDataURL('image/png').split(',')[1]
+    })
+    await home.locator('input[type=file]').setInputFiles({ name: 'two.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') })
+    const image = home.locator('canvas.pick-image')
+    await expect(image).toBeVisible()
+    await expect.poll(() => image.evaluate((c: HTMLCanvasElement) => c.width)).toBe(200)
+    const box = (await image.boundingBox())!
+    await swatches.nth(5).click()
+    await image.click({ position: { x: box.width * 0.25, y: box.height / 2 } })
+    await expect(word).toHaveText(/000E/i)
+    await swatches.nth(6).click()
+    await image.click({ position: { x: box.width * 0.75, y: box.height / 2 } })
+    await expect(word).toHaveText(/0E00/i)
+    // Earlier picks stayed where they were put.
+    await expect(swatches.nth(4)).toHaveAttribute('title', /00E0/i)
+    await expect(swatches.nth(5)).toHaveAttribute('title', /000E/i)
+    await home.getByRole('button', { name: 'Close image' }).click()
+    await expect(image).toHaveCount(0)
+  })
+
   test('keeps the work through a reload', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept()) // the "leave site?" prompt
     await openRom(page)
