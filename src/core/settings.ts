@@ -101,6 +101,9 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
   return items
 }
 
+// For ROMs whose settings are not where the editor can find them.
+export const NO_SETTINGS: Settings = { playoffDraws: [], rules: [], periodLengths: [], overtimeSeconds: 0, shootoutSeconds: 0, menu: [] }
+
 export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
   const playoffs = readU32(rom, game.playoffDrawPointerOffsets[0])
   const playoffDraws: number[][] = []

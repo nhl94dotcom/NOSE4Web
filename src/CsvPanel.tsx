@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { formatCsv } from './core/csv'
 import type { RomProject } from './core/rom'
 import {
-  CSV_TABLES,
+  tablesFor,
   csvFileName,
   CsvImportError,
   importCsvSet,
@@ -33,6 +33,8 @@ interface Props {
 }
 
 export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props) {
+  // The tables this ROM has: some hacks keep their game settings out of reach.
+  const tables = tablesFor(project.game)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
 
   function exportTables(tables: CsvTable[]) {
@@ -132,13 +134,13 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
           {importButton('Import a workbook…', '.xlsx', false, (files) => importWorkbook(files[0]))}
         </p>
         <p className="note">
-          One file with a sheet for each table below, named {CSV_TABLES.map((table) => table.id).join(', ')}. Keep
+          One file with a sheet for each table below, named {tables.map((table) => table.id).join(', ')}. Keep
           those sheet names. Sheets with other names, such as your own notes, are ignored.
         </p>
 
         <h2>CSV files</h2>
         <p>
-          <button onClick={() => exportTables(CSV_TABLES)}>Export all {CSV_TABLES.length} files</button>{' '}
+          <button onClick={() => exportTables(tables)}>Export all {tables.length} files</button>{' '}
           {importButton('Import files…', '.csv,text/csv', true, importCsvFiles)}
         </p>
         <p className="note">
@@ -149,7 +151,7 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
         <h2>The tables</h2>
         <table className="left">
           <tbody>
-            {CSV_TABLES.map((table) => (
+            {tables.map((table) => (
               <tr key={table.id}>
                 <td>
                   <strong>{table.title}</strong>

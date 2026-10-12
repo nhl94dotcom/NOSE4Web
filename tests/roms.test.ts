@@ -3,12 +3,14 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
 import { formatCsv } from '../src/core/csv'
-import { expandPictureSpace, banner, menuLogo, menuLogoPalette, pictureSpace, rinkLogo, visitorBannersApart } from '../src/core/graphics'
+import { expandPictureSpace, menuLogoPalette, pictureSpace } from '../src/core/graphics'
 import { teamSummaries } from '../src/core/league'
 import { emptyLineSlots } from '../src/core/lines'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
-import { CSV_TABLES, csvFileName, importCsvSet } from '../src/core/tables'
-import { goalieCount } from '../src/core/team'
+import { CSV_TABLES, csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
+import { currentPicture, pictureKinds } from '../src/core/pictureset'
+import { addPlayer } from '../src/core/roster'
+import { goalieCount, overfullTeams, teamContentSize, teamSpace } from '../src/core/team'
 
 // Hacked ROMs are checked against whatever copies are on this computer. Their
 // file names are listed in tests/local.json, which is not part of the project:
@@ -20,14 +22,7 @@ const names = ['nhl94.bin', local.league30Rom, ...(local.otherRoms ?? [])].filte
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const state = (project: RomProject) => ({ teams: project.teams.map((t) => ({ ...t, freeBytes: 0 })), settings: project.settings, rink: project.rinkPalette })
 const pictures = (project: RomProject) =>
-  project.teams.map((_, team) => [
-    rinkLogo(project, team),
-    menuLogo(project, team),
-    menuLogoPalette(project, team),
-    banner(project, 'menu', team),
-    banner(project, 'game', team),
-    ...(visitorBannersApart(project) ? [banner(project, 'visitor', team)] : []),
-  ])
+  project.teams.map((_, team) => [menuLogoPalette(project, team), ...pictureKinds(project).map((kind) => currentPicture(project, team, kind).picture)])
 
 describe.skipIf(names.length === 0)('every ROM on this computer', () => {
   // Numbered, so that no ROM's name appears in the test results.
@@ -60,7 +55,7 @@ describe.skipIf(names.length === 0)('every ROM on this computer', () => {
 
       it('comes back the same from a full set of spreadsheet files', () => {
         const project = open(name)
-        const files = CSV_TABLES.map((table) => ({ name: csvFileName('Set', table), text: formatCsv(table.rows(project)) }))
+        const files = tablesFor(project.game).map((table) => ({ name: csvFileName('Set', table), text: formatCsv(table.rows(project)) }))
         const result = importCsvSet(project, files)
         expect(result.files.flatMap((file) => file.warnings)).toEqual([])
         expect(state(result.project)).toEqual(state(project))
@@ -147,5 +142,74 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('a ROM with fewer skaters on the
     // And in the original game a blank is refused everywhere.
     const stock = open('nhl94.bin')
     expect(() => importCsvSet(stock, [{ name: 'Set_lines.csv', text: formatCsv(rows) }])).toThrow(/no player named ""/)
+  })
+})
+
+// A stand-in for hacks that give each team a place of its own in the ROM,
+// with unused room after it: the original game with its teams moved to
+// evenly spaced places in a larger file.
+describe.skipIf(!existsSync(path('nhl94.bin')))('a ROM whose teams each have their own room', () => {
+  const SLOT = 0x400
+  const BASE = 0x180000
+  const spaced = (): RomProject => {
+    const project = open('nhl94.bin')
+    const bytes = new Uint8Array(0x200000).fill(0xff)
+    bytes.set(project.bytes)
+    const slots = project.teams.map((_, i) => ({ at: BASE + i * SLOT, size: SLOT }))
+    const layout = { start: BASE, end: BASE + slots.length * SLOT, fileOrder: slots.map((_, i) => i), slots }
+    return openRom(buildRom({ ...project, bytes, layout }))
+  }
+
+  it('is recognised, and rebuilt exactly as it is', () => {
+    const project = spaced()
+    expect(project.layout.slots).toHaveLength(28)
+    expect(project.layout.slots![5]).toEqual({ at: BASE + 5 * SLOT, size: SLOT })
+    expect(project.teams.map((t) => t.players)).toEqual(open('nhl94.bin').teams.map((t) => t.players))
+    expect(buildRom(project)).toEqual(buildRom(openRom(buildRom(project))))
+    expect(checkProject(project).filter((f) => f.level === 'problem')).toEqual([])
+    // The original game's teams share their room, and have no places of their own.
+    expect(open('nhl94.bin').layout.slots).toBeUndefined()
+  })
+
+  it('measures room by the fullest team, and keeps every team in its place', () => {
+    const project = spaced()
+    const space = teamSpace(project.teams, project.layout)
+    expect(space.available).toBe(SLOT)
+    expect(space.team).toBeDefined()
+    expect(space.used).toBe(Math.max(...project.teams.map(teamContentSize)))
+
+    // Anaheim has 18 players; four more still fit its own room.
+    let anaheim = project.teams[0]
+    while (anaheim.players.length < 22) anaheim = addPlayer(anaheim)
+    const reopened = openRom(buildRom({ ...project, teams: project.teams.map((t, i) => (i === 0 ? anaheim : t)) }))
+    expect(reopened.teams[0].players).toHaveLength(22)
+    expect(reopened.layout.slots).toEqual(project.layout.slots)
+    expect(reopened.teams.slice(1)).toEqual(project.teams.slice(1))
+  })
+
+  it('refuses a team that has outgrown its place, and says which', () => {
+    const project = spaced()
+    let big = project.teams[8]
+    while (big.players.length < 26) big = addPlayer(big)
+    big = { ...big, players: big.players.map((p) => ({ ...p, name: 'A Very Long Player Name Indeed' })) }
+    const edited = { ...project, teams: project.teams.map((t, i) => (i === 8 ? big : t)) }
+
+    expect(overfullTeams(edited.teams, edited.layout).map((o) => o.team)).toEqual([8])
+    const space = teamSpace(edited.teams, edited.layout)
+    expect(space.team).toBe(8)
+    expect(space.used).toBeGreaterThan(space.available)
+    expect(() => buildRom(edited)).toThrow(/is \d+ bytes too large for its place in the ROM/)
+    const problems = checkProject(edited).filter((f) => f.level === 'problem')
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toMatchObject({ team: 8 })
+    expect(problems[0].message).toContain('too large for its place in the ROM')
+    // Room on other teams does not help: each has only its own.
+    expect(overfullTeams(project.teams, project.layout)).toEqual([])
+  })
+
+  it('will not read teams with something unknown lying between them', () => {
+    const rom = buildRom(spaced())
+    rom[BASE + SLOT - 4] = 0x12 // not unused room after all
+    expect(() => openRom(rom)).toThrow('The team data is not stored as one continuous run')
   })
 })

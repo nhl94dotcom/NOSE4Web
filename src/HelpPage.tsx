@@ -650,6 +650,39 @@ export function HelpPage() {
         notice at the top when the ROM is one of these.
       </p>
       <ul>
+        <li>
+          <b>NHL 94: EVO</b> rebuilds much of the game, and the editor supports part of it: rosters, lines, team
+          names, team and rink colours, and the centre-ice and menu logos, along with the spreadsheet and picture
+          files for those. Its 64 teams are listed under its three leagues. What differs:
+          <ul>
+            <li>
+              Game settings, playoff draws and banners are kept in ways the editor cannot follow. They are not shown
+              and are never changed.
+            </li>
+            <li>
+              Attributes are edited as the values stored, 0 to 15, because that hack gives them meanings and
+              display numbers of its own. Three goalie values the original game leaves at zero are in use there;
+              the editor shows them as G7, G9 and G10 without knowing what they stand for.
+            </li>
+            <li>
+              The game works out overall ratings its own way. The editor's Ovr, and everything built on it such as
+              the League page, uses a plain average of a player's values instead: useful for comparing, but not the
+              number the game shows.
+            </li>
+            <li>
+              Each team has a fixed amount of room of its own. The space meter shows the room left on the fullest
+              team, and a team that outgrows its room has to be trimmed before the ROM can be downloaded.
+            </li>
+            <li>
+              The colour previews are drawn with the original game's player artwork, which that hack has redrawn, so
+              they show roughly where each colour goes, not exactly.
+            </li>
+            <li>
+              Bringing a team in from the original game or a 30-team ROM carries its attributes across as stored,
+              on the other scale, so they need adjusting afterwards.
+            </li>
+          </ul>
+        </li>
         <li>Other games in the series, and hacks that rearrange the game's data in other ways, are not supported yet.</li>
         <li>
           Some hacks store a count of defencemen that does not match the roster, or fill a roster with copies of

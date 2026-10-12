@@ -2,7 +2,7 @@ import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 }
 import { findGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
-import { parseSettings, writeSettings, type Settings } from './settings'
+import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 
 const HEADER_CONSOLE = 0x100
@@ -110,7 +110,7 @@ export function openRom(file: Uint8Array): RomProject {
     teams,
     layout,
     rinkPalette,
-    settings: parseSettings(bytes, game),
+    settings: game.settingsSupported ? parseSettings(bytes, game) : NO_SETTINGS,
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: graphicsSupported(bytes, game),
     wasSmd,
@@ -148,7 +148,7 @@ export function buildRom(project: RomProject): Uint8Array {
   writeTeams(rom, project.game, project.teams, project.layout)
   updateTeamNameRedirects(rom, project.game)
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
-  writeSettings(rom, project.game, project.settings)
+  if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)
   writeGraphics(rom, project.game, project.graphics)
   writeU32(rom, HEADER_ROM_END, rom.length - 1)
   writeU16(rom, HEADER_CHECKSUM, headerChecksum(rom))

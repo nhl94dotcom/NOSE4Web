@@ -11,7 +11,7 @@ import {
   type BulkGroup,
 } from './core/bulk'
 import type { RomProject } from './core/rom'
-import { teamDisplayName } from './core/team'
+import { teamLabels } from './core/team'
 
 const PREVIEW_LIMIT = 300
 const optionalNumber = (text: string) => (text.trim() === '' || Number.isNaN(Number(text)) ? null : Number(text))
@@ -46,7 +46,7 @@ export function BulkPage({ project, onChange }: Props) {
     overallAtMost: optionalNumber(atMost),
   }
   const effects = previewBulk(project, change)
-  const names = project.teams.map(teamDisplayName)
+  const names = teamLabels(project.teams, project.game)
   const text = (value: number) => values.find((v) => v.value === value)?.text ?? String(value)
   const people = (count: number) => (count === 1 ? '1 player' : `${count} players`)
 
@@ -135,7 +135,9 @@ export function BulkPage({ project, onChange }: Props) {
       <p className="note">
         {chosen.kind === 'rating'
           ? 'A rating has seven steps, shown as the range the game displays for each. One step is one of those.'
-          : 'Weight goes in steps of 8 pounds.'}
+          : chosen.kind === 'value'
+            ? 'This ROM uses all sixteen values, 0 to 15. One step is one value.'
+            : 'Weight goes in steps of 8 pounds.'}
       </p>
       <p>
         <button

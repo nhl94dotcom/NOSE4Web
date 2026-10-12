@@ -924,3 +924,60 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText('Not downloaded yet')).toBeVisible()
   })
 })
+
+// Hacked ROMs on this computer, named in tests/local.json (not part of the
+// project). Each is opened and walked through every page, to catch anything
+// that breaks the editor on a ROM unlike the original game.
+const localPath = resolve(process.cwd(), 'tests', 'local.json')
+const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const hackRoms = [local.league30Rom, ...(local.otherRoms ?? [])]
+  .filter((name): name is string => !!name)
+  .map((name) => resolve(process.cwd(), '..', name))
+  .filter((path) => existsSync(path))
+
+test.describe('with the hacked ROMs on this computer', () => {
+  test.skip(hackRoms.length === 0, 'needs ROMs listed in tests/local.json')
+
+  // Numbered, so that no ROM's name appears in the test results.
+  hackRoms.forEach((path, n) => {
+    test(`hack ${n + 1} opens and every page works`, async ({ page }) => {
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(error.message))
+      page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
+
+      const rom = readRom(new Uint8Array(readFileSync(path)))
+      await page.goto('/')
+      await romPicker(page).setInputFiles({ name: `hack_${n + 1}.bin`, mimeType: 'application/octet-stream', buffer: readFileSync(path) })
+      await expect(page.locator('nav button').first()).toBeVisible()
+      await expect(page.locator('header')).toContainText(rom.game.title)
+      // Every team is listed, and nothing about the ROM as it stands is a problem.
+      expect(await page.locator('nav button').count()).toBeGreaterThanOrEqual(rom.teams.length + 6)
+      await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
+      await expect(rows(page, 'Goalies').first()).toBeVisible()
+      const shot = `test-results/shots/${rom.game.title.replace(/[^A-Za-z0-9]+/g, '_')}`
+      await page.screenshot({ path: `${shot}.png` })
+
+      // The last team, and each page in the list after the teams.
+      await page.locator('nav button').nth(rom.teams.length - 1).click()
+      await expect(rows(page, 'Skaters').first()).toBeVisible()
+      const pages = page.locator('nav button')
+      for (let i = rom.teams.length; i < (await pages.count()); i++) {
+        await pages.nth(i).click()
+        await expect(page.locator('main h2').first()).toBeVisible()
+        if ((await pages.nth(i).textContent()) === 'League') await page.screenshot({ path: `${shot}_league.png` })
+      }
+      await page.locator('nav button').first().click()
+      await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: `${shot}_pictures.png` })
+
+      // An edit, and the ROM still downloads and opens with it.
+      await page.locator('nav button').first().click()
+      await nameOf(rows(page, 'Skaters').first()).fill('Test Player')
+      const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+      const again = readRom(new Uint8Array(readFileSync(await download.path())))
+      expect(again.teams[0].players.some((player) => player.name === 'Test Player')).toBe(true)
+      expect(again.teams.slice(1).map((team) => team.players)).toEqual(rom.teams.slice(1).map((team) => team.players))
+      expect(errors).toEqual([])
+    })
+  })
+})

@@ -330,6 +330,15 @@ button,
   background: rgba(191, 135, 0, 0.12);
 }
 
+nav .group {
+  padding: 0.6rem 0.9rem 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
 .high {
   color: #2da44e;
   font-weight: 600;

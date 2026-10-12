@@ -1,3 +1,4 @@
+import type { GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord } from './color'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import { parseCsv, type Cell } from './csv'
@@ -185,7 +186,7 @@ const players: CsvTable = {
           position,
           player.name,
           jerseyToNumber(player.jersey),
-          overallRating(player.attributes, i < goalies),
+          overallRating(player.attributes, i < goalies, project.game),
           ...player.attributes,
         ])
       })
@@ -209,8 +210,12 @@ const players: CsvTable = {
       const group = position === '' ? -1 : 'GFD'.indexOf(position)
       if (group < 0) sheet.problem(row, `Position must be G, F or D, not "${position}".`)
       const order = Number(sheet.text(row, 'Order'))
+      // A name that differs from one on the team only in the spaces around it
+      // keeps those spaces, which a spreadsheet drops and a hack may have meant.
+      const typed = sheet.gameText(row, 'Name')
+      const spaced = project.teams[team]?.players.find((old) => old.name !== typed && old.name.trim() === typed)
       const player: Player = {
-        name: sheet.gameText(row, 'Name'),
+        name: spaced?.name ?? typed,
         jersey: numberToJersey(sheet.int(row, 'Jersey', 0, 99)),
         attributes: headings.map((heading) => sheet.int(row, heading, 0, 15)),
       }
@@ -558,6 +563,13 @@ const rink: CsvTable = {
 // In the order a set of files has to be imported: lines are matched against
 // the roster, and playoff draws and menu choices against the team names.
 export const CSV_TABLES: CsvTable[] = [teams, players, lines, playoffs, rules, clock, menu, rink]
+const SETTINGS_TABLES: CsvTable[] = [playoffs, rules, clock, menu]
+
+// The tables a ROM has. Some hacks keep their game settings where the editor
+// cannot find them, and have no tables for those.
+export function tablesFor(game: GameConfig): CsvTable[] {
+  return game.settingsSupported ? CSV_TABLES : CSV_TABLES.filter((table) => !SETTINGS_TABLES.includes(table))
+}
 
 export function importCsv(table: CsvTable, project: RomProject, text: string): ImportResult {
   return table.apply(project, new Sheet(parseCsv(text)))
@@ -619,6 +631,9 @@ function importTableRows(
   for (const table of CSV_TABLES) {
     const source = sources.find((candidate) => candidate.table === table)
     if (!source) continue
+    if (!tablesFor(project.game).includes(table)) {
+      throw new CsvImportError([`${source.name}: this ROM keeps its ${table.title.toLowerCase()} where the editor cannot change them.`])
+    }
     try {
       const applied = table.apply(result.project, new Sheet(source.rows))
       result.project = applied.project
@@ -640,7 +655,7 @@ function importTableRows(
 // its table.
 
 export function workbookSheets(project: RomProject): { name: string; rows: Cell[][] }[] {
-  return CSV_TABLES.map((table) => ({ name: table.id, rows: table.rows(project) }))
+  return tablesFor(project.game).map((table) => ({ name: table.id, rows: table.rows(project) }))
 }
 
 // Sheets with other names, such as a user's own notes, are left alone.

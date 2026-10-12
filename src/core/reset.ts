@@ -6,10 +6,10 @@ import {
   bannerSharedWith,
   menuPalette,
   rinkLogoSharedWith,
-  visitorBannersApart,
   withBannerColors,
   type GraphicsEdits,
 } from './graphics'
+import { pictureKinds } from './pictureset'
 import type { RomProject } from './rom'
 import type { Settings } from './settings'
 import type { Team } from './team'
@@ -118,10 +118,9 @@ export function resetPicture(project: RomProject, team: number, part: PicturePar
 }
 
 const TEAM_PART_LIST = Object.keys(TEAM_PARTS) as TeamPart[]
-const PICTURE_PARTS: PicturePart[] = ['rinkLogo', 'menuLogo', 'menuBanner', 'visitorBanner', 'gameBanner', 'bannerColors']
 
-const pictureParts = (project: RomProject) =>
-  project.graphicsSupported ? PICTURE_PARTS.filter((part) => part !== 'visitorBanner' || visitorBannersApart(project)) : []
+const pictureParts = (project: RomProject): PicturePart[] =>
+  project.graphicsSupported ? [...pictureKinds(project), 'bannerColors'] : []
 
 // Whether anything about a team differs from the ROM that was opened.
 export function teamChanged(project: RomProject, original: RomProject, team: number): boolean {

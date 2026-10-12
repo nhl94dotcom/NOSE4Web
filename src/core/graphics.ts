@@ -203,7 +203,8 @@ interface Layout {
   menuLogos: Block[]
   menuPalettesAt: number
   menuLogoColorsAt: number
-  banners: Record<BannerKind, Block>
+  // Null for a ROM whose banners the editor cannot follow.
+  banners: Record<BannerKind, Block> | null
   // Whether the visiting team's menu banners are a set of their own.
   visitorBannersApart: boolean
 }
@@ -227,9 +228,9 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     const ref = g.bannerReferences[kind][0]
     return readBlock(rom, readU32(rom, ref.at) - ref.offset)
   }
-  const banners = { menu: bannerBlock('menu'), visitor: bannerBlock('visitor'), game: bannerBlock('game') }
-  for (const block of [...menuLogos, ...Object.values(banners)]) if (block.mapAt === 0) throw new Error('picture has no map')
-  for (const block of Object.values(banners)) {
+  const banners = g.banners ? { menu: bannerBlock('menu'), visitor: bannerBlock('visitor'), game: bannerBlock('game') } : null
+  for (const block of [...menuLogos, ...Object.values(banners ?? {})]) if (block.mapAt === 0) throw new Error('picture has no map')
+  for (const block of Object.values(banners ?? {})) {
     if (block.mapHeight < game.teamCount * BANNER_TILES_HIGH) throw new Error('too few banners')
   }
   return {
@@ -238,8 +239,18 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     menuPalettesAt: readU32(rom, g.menuLogoPalettePointer),
     menuLogoColorsAt: readU32(rom, g.menuLogoColorsPointer),
     banners,
-    visitorBannersApart: banners.visitor.at !== banners.menu.at,
+    visitorBannersApart: banners !== null && banners.visitor.at !== banners.menu.at,
   }
+}
+
+function bannersOf(where: Layout): Record<BannerKind, Block> {
+  if (!where.banners) throw new Error('This ROM keeps its banners in a way the editor cannot follow.')
+  return where.banners
+}
+
+// Whether this ROM has banners the editor can show and replace at all.
+export function bannersSupported(project: Source): boolean {
+  return layout(project.bytes, project.game).banners !== null
 }
 
 // The places that hold the address of one set of banners. Where the visitors
@@ -252,7 +263,8 @@ function bannerReferences(game: GameConfig, kind: BannerKind, where: Layout) {
 // Whether every place known to use a set of banners points at the one block
 // the editor reads.
 function bannersAsExpected(rom: Uint8Array, game: GameConfig, kind: BannerKind, where: Layout): boolean {
-  return bannerReferences(game, kind, where).every((ref) => readU32(rom, ref.at) === where.banners[kind].at + ref.offset)
+  const block = where.banners?.[kind]
+  return block !== undefined && bannerReferences(game, kind, where).every((ref) => readU32(rom, ref.at) === block.at + ref.offset)
 }
 
 // Whether a ROM's banners of one kind can be replaced.
@@ -345,13 +357,13 @@ export function banner(project: Source, kind: BannerKind, team: number): Picture
   const edited = project.graphics[BANNER_EDITS[kind]][team]
   if (edited) return edited
   const where = layout(project.bytes, project.game)
-  return bannerSlice(decodeMapped(project.bytes, where.banners[kind], bannerMap(where, kind)), team)
+  return bannerSlice(decodeMapped(project.bytes, bannersOf(where)[kind], bannerMap(where, kind)), team)
 }
 
 // The 16 colours a banner is drawn with. On the menus, two of them are the
 // team's own stripe colours; during play the colours are the same for all.
 export function bannerPalette(project: Source, kind: BannerKind, team: number): number[] {
-  const block = layout(project.bytes, project.game).banners[kind]
+  const block = bannersOf(layout(project.bytes, project.game))[kind]
   const line = (block.entries[0] >> 13) & 3
   const palette = Array.from({ length: 16 }, (_, i) => readU16(project.bytes, block.paletteAt + (line * 16 + i) * 2))
   if (kind !== 'game') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
@@ -361,7 +373,7 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
 // The block whose map lays out a set of banners. The game draws the visiting
 // team's menu banner from tiles of its own but by the home banner's map, so
 // where the visitors have their own tiles, they still have no map of their own.
-const bannerMap = (where: Layout, kind: BannerKind) => (kind === 'visitor' ? where.banners.menu : where.banners[kind])
+const bannerMap = (where: Layout, kind: BannerKind) => bannersOf(where)[kind === 'visitor' ? 'menu' : kind]
 
 const bannerRows = (block: Block, team: number) =>
   block.entries.slice(team * BANNER_TILES_HIGH * block.mapWidth, (team + 1) * BANNER_TILES_HIGH * block.mapWidth).join()
@@ -372,7 +384,7 @@ const bannerRows = (block: Block, team: number) =>
 export function bannerSharedWith(project: Source, kind: BannerKind, team: number): number[] {
   const where = layout(project.bytes, project.game)
   const map = bannerMap(where, kind)
-  const capacity = Math.min(where.banners[kind].capacity, map.capacity)
+  const capacity = Math.min(bannersOf(where)[kind].capacity, map.capacity)
   if (capacity >= 2 * BANNER_TILES_HIGH * map.mapWidth) return [team]
   const rows = bannerRows(map, team)
   return Array.from({ length: project.game.teamCount }, (_, other) => other).filter((other) => bannerRows(map, other) === rows)
@@ -615,7 +627,7 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
     if (!kinds.every((kind) => bannersAsExpected(rom, game, kind, where))) {
       throw new Error(`This ROM keeps its ${name} banners in a way the editor cannot change.`)
     }
-    writeBanners(rom, kinds.map((kind) => where.banners[kind]), pictures, name)
+    writeBanners(rom, kinds.map((kind) => bannersOf(where)[kind]), pictures, name)
   }
   // Last, because it can move the logos and so change where things are.
   writeMenuLogos(rom, game, where.menuLogos, edits.menuLogos)
@@ -658,15 +670,16 @@ const distinctBlocks = (blocks: Block[]) => [...new Map(blocks.map((block) => [b
 function planSpace(rom: Uint8Array, game: GameConfig): SpacePlan | null {
   const where = layout(rom, game)
   const kinds: BannerKind[] = where.visitorBannersApart ? ['menu', 'visitor', 'game'] : ['menu', 'game']
-  const banners = kinds.filter((kind) => {
-    const block = where.banners[kind]
+  const blocks = where.banners
+  const banners = (blocks ? kinds : []).filter((kind) => {
+    const block = bannersOf(where)[kind]
     return bannersAsExpected(rom, game, kind, where) && block.capacity < block.entries.length
   })
   const logoBlocks = distinctBlocks(where.menuLogos)
   const logos = !logoBlocks.every(isFullSize)
   if (banners.length === 0 && !logos) return null
   const size =
-    banners.reduce((sum, kind) => sum + roomyBannerSize(where.banners[kind]), 0) +
+    banners.reduce((sum, kind) => sum + roomyBannerSize(bannersOf(where)[kind]), 0) +
     (logos ? logoBlocks.reduce((sum, block) => sum + roomyLogoSize(block), 0) : 0)
   return { banners, logos, size }
 }
@@ -688,7 +701,7 @@ export function expandPictureSpace<P extends Source>(project: P): P {
   let at = claimed.at
 
   for (const kind of plan.banners) {
-    const block = where.banners[kind]
+    const block = bannersOf(where)[kind]
     const paletteOffset = HEADER_BYTES + block.entries.length * TILE_BYTES
     const mapOffset = paletteOffset + (block.mapAt - block.paletteAt)
     rom.fill(0, at, at + roomyBannerSize(block))

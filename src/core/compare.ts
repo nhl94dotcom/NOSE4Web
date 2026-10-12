@@ -2,7 +2,7 @@ import { attributeText } from './attributes'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
-import { goalieCount, teamDisplayName, type Player, type Team } from './team'
+import { goalieCount, teamDisplayName, teamLabels, type Player, type Team } from './team'
 
 // Describes, in plain sentences, how one project differs from another.
 // Teams are matched by their position in the ROM, players and line members by
@@ -52,7 +52,7 @@ function comparePlayers(project: RomProject, before: Team, after: Team, changes:
   for (const a of unusedAfter) {
     const player = after.players[a]
     const r = role(after, a)
-    changes.push(`${player.name} was added (${ROLE_NAMES[r]}, number ${jerseyText(player.jersey)}, overall ${overallRating(player.attributes, r === 'G')}).`)
+    changes.push(`${player.name} was added (${ROLE_NAMES[r]}, number ${jerseyText(player.jersey)}, overall ${overallRating(player.attributes, r === 'G', project.game)}).`)
   }
 
   for (const [b, a] of pairs) {
@@ -171,9 +171,10 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   }
   if (general.length > 0) sections.push({ heading: 'In general', changes: general })
 
+  const labels = teamLabels(after.teams, after.game)
   after.teams.slice(0, before.teams.length).forEach((team, i) => {
     const changes = compareTeam(after, before.teams[i], team)
-    if (changes.length > 0) sections.push({ heading: teamDisplayName(team), changes })
+    if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
   return [...sections, ...compareSettings(before, after)]
 }

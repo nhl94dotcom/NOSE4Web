@@ -22,11 +22,25 @@ export interface GameConfig {
     menuLogoPalettePointer: number
     // Each team's 16 menu logo colours.
     menuLogoColorsPointer: number
+    // Whether the banners are kept as the original game keeps them. Hacks
+    // that draw their banners with code of their own are left alone.
+    banners: boolean
     // Every place that holds a banner block's address, or an address a fixed
     // distance into it. The menus show a home team's banner and a visitor's;
     // the original game draws both from one block, some hacks from two.
     bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number }[]>
   }
+  // Whether the playoff draws, clock, rule messages and main menu are where
+  // the original game keeps them. Hacks that rebuild the menus move them.
+  settingsSupported: boolean
+  // Whether the overall rating is worked out some other way than the original
+  // game's, so that the editor can only show a plain average of the ratings.
+  overallIsEstimate: boolean
+  // Shown at the top of every team's page: what is different about editing
+  // this kind of ROM. Empty for the original game.
+  notice: string
+  // Leagues the team list is divided into, in order, where a hack has several.
+  teamGroups: { name: string; teams: number }[]
   // Places in the game's code that hold the address of the playoff draw tables.
   playoffDrawPointerOffsets: number[]
   playoffDrawCount: number
@@ -82,6 +96,7 @@ export const NHL94: GameConfig = {
     menuLogoTablePointer: 0xf8682,
     menuLogoPalettePointer: 0x17b2a,
     menuLogoColorsPointer: 0xf8694,
+    banners: true,
     bannerReferences: {
       menu: [
         { at: 0x17b7e, offset: 0 },
@@ -96,6 +111,10 @@ export const NHL94: GameConfig = {
       ],
     },
   },
+  settingsSupported: true,
+  overallIsEstimate: false,
+  notice: '',
+  teamGroups: [],
   playoffDrawPointerOffsets: [0x17d26, 0x17d90],
   playoffDrawCount: 32,
   copyrightTextPointerOffset: 0xff226,
@@ -162,7 +181,47 @@ export const NHL94_30_TEAMS: GameConfig = {
   teamCount: 30,
 }
 
-const GAMES: GameConfig[] = [NHL94, NHL94_30_TEAMS]
+// NHL 94: EVO, a hack that rebuilds much of the game. It keeps the original
+// layout of a team's data, with each of its 64 teams in a place of fixed size,
+// and its pictures are found the same way. Its menus, clock and playoffs are
+// rebuilt, so those are left alone. Its players use all sixteen values of each
+// attribute, with meanings of their own, so attributes are edited as the
+// numbers stored; the three goalie values the original game leaves at zero
+// are in use, for what the editor does not know.
+const stored = (count: number): AttributeKind[] => new Array<AttributeKind>(count).fill('value')
+export const NHL94_EVO: GameConfig = {
+  ...NHL94,
+  productCode: 'GM T-50656-F3V',
+  title: 'NHL 94: EVO',
+  teamCount: 64,
+  teamNameRedirects: [],
+  // One "Home" and one "Visitors" banner serve every team on the menus, and
+  // the banners shown during play are found by the hack's own code.
+  graphics: { ...NHL94.graphics, banners: false },
+  settingsSupported: false,
+  overallIsEstimate: true,
+  notice:
+    'This ROM is NHL 94: EVO, a hack that rebuilds much of the game. The editor can change its rosters, lines, team ' +
+    'names, colours and logos. Its game settings and banners are kept in ways the editor cannot follow, and are left ' +
+    'alone. Attributes are shown as the values stored, 0 to 15. The game works out overall ratings in its own way, so ' +
+    'Ovr here is a plain average for comparing players, not the number the game shows; and what the three goalie ' +
+    'values marked G7, G9 and G10 stand for is not known to the editor. Each team has its own fixed room in the ROM. ' +
+    'Editing this ROM has been tested less than editing the original game, so keep a copy of the file you opened.',
+  teamGroups: [
+    { name: 'NHL', teams: 32 },
+    { name: 'International', teams: 6 },
+    { name: "NHL '94", teams: 26 },
+  ],
+  goalieAttributeLabels: ['Wgt', 'Agl', 'Spd', 'OfA', 'DfA', 'PkC', 'G7', 'GlH', 'G9', 'G10', 'StR', 'StL', 'GvR', 'GvL'],
+  goalieAttributeNames: [
+    'Weight', 'Agility', 'Speed', 'Offensive Awareness', 'Defensive Awareness', 'Puck Control', 'Goalie value 7',
+    'Glove Hand', 'Goalie value 9', 'Goalie value 10', 'Stick Right', 'Stick Left', 'Glove Right', 'Glove Left',
+  ],
+  playerAttributeKinds: stored(14),
+  goalieAttributeKinds: stored(14),
+}
+
+const GAMES: GameConfig[] = [NHL94, NHL94_30_TEAMS, NHL94_EVO]
 
 export const SUPPORTED_GAMES = GAMES.map((game) => game.title)
 

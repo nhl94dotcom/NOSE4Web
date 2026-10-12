@@ -27,7 +27,7 @@ import {
 } from './core/pictureset'
 import { pictureChanged, resetPicture } from './core/reset'
 import type { RomProject } from './core/rom'
-import { teamDisplayName } from './core/team'
+import { teamDisplayName, teamLabels } from './core/team'
 import { download } from './download'
 import { pictureToPng, readImage } from './images'
 import { PaletteEditor } from './Palette'
@@ -84,6 +84,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const teamName = teamDisplayName(project.teams[team])
   const name = teamName.replace(/[^A-Za-z0-9]+/g, '_')
   const kinds = pictureKinds(project)
+  const hasBanners = BANNERS.some((b) => kinds.includes(b.kind))
   const moreRoom = pictureSpace(project)
   const roomButton = moreRoom
     ? `Give logos and banners more room${moreRoom.grows ? ` (ROM grows to ${moreRoom.romSize / 0x100000} MB)` : ''}`
@@ -178,6 +179,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   }
 
   // ------------------------------------------------------------- copying
+  const labels = teamLabels(project.teams, project.game)
   const others = project.teams.map((_, i) => i).filter((i) => i !== team)
   const [copyTo, setCopyTo] = useState(others[0] ?? 0)
   const [copyColours, setCopyColours] = useState(true)
@@ -273,7 +275,12 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         </p>
       )}
 
-      <h2>Banner lettering</h2>
+      {!hasBanners && (
+        <p className="note">
+          This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.
+        </p>
+      )}
+      <h2 hidden={!hasBanners}>Banner lettering</h2>
       <p className="note">
         Makes a banner that reads whatever you type, in the game's own lettering, with the stripes in the banner
         colours below.
@@ -350,7 +357,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         <select className="wide" aria-label="Team to copy colours and pictures to" value={target} onChange={(e) => setCopyTo(Number(e.target.value))}>
           {others.map((other) => (
             <option key={other} value={other}>
-              {teamDisplayName(project.teams[other])}
+              {labels[other]}
             </option>
           ))}
         </select>{' '}

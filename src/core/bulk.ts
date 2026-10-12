@@ -48,7 +48,7 @@ const kindsFor = (game: GameConfig, group: BulkGroup) =>
 export function bulkAttributes(game: GameConfig, group: BulkGroup): { index: number; name: string; kind: AttributeKind }[] {
   const names = group === 'goalies' ? game.goalieAttributeNames : game.playerAttributeNames
   return kindsFor(game, group).flatMap((kind, index) =>
-    kind === 'rating' || kind === 'weight' ? [{ index, name: names[index], kind }] : [],
+    kind === 'rating' || kind === 'weight' || kind === 'value' ? [{ index, name: names[index], kind }] : [],
   )
 }
 
@@ -98,7 +98,7 @@ export function previewBulk(project: RomProject, change: BulkChange): BulkEffect
     )
     if (to === from) return []
     const attributes = player.attributes.map((v, i) => (i === change.attribute ? to : v))
-    return [{ team, index, name: player.name, role, from, to, overallFrom: overall, overallTo: overallRating(attributes, role === 'G') }]
+    return [{ team, index, name: player.name, role, from, to, overallFrom: overall, overallTo: overallRating(attributes, role === 'G', project.game) }]
   })
 }
 

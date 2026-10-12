@@ -5,6 +5,7 @@ import {
   bannerPalette,
   bannerSharedWith,
   bannersEditable,
+  bannersSupported,
   LOGO_COLORS,
   menuLogo,
   menuLogoFromImage,
@@ -44,7 +45,8 @@ const MENU_BANNER_COLORS = ALL_COLORS.filter((color) => color !== 3 && color !==
 
 // The kinds of picture this ROM has for each team.
 export function pictureKinds(project: RomProject): PictureKind[] {
-  return KINDS.map((k) => k.kind).filter((kind) => kind !== 'visitorBanner' || visitorBannersApart(project))
+  const banners = bannersSupported(project)
+  return KINDS.map((k) => k.kind).filter((kind) => (BANNER_KINDS[kind] ? banners : true) && (kind !== 'visitorBanner' || visitorBannersApart(project)))
 }
 
 export function pictureTitle(project: RomProject, kind: PictureKind): string {

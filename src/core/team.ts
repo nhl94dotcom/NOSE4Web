@@ -47,6 +47,18 @@ export interface TeamLayout {
   end: number
   // Team table positions in the order their blocks appear in the ROM.
   fileOrder: number[]
+  // Only for ROMs that give each team a place of its own, with unused room
+  // after it: where each team's place is and how big, by team. Such teams do
+  // not share their room, and none of them moves.
+  slots?: { at: number; size: number }[]
+}
+
+// A team's name with its league, where a ROM has several leagues and the
+// name alone is not enough: "Boston Bruins (NHL '94)".
+export function teamLabels(teams: Team[], game: GameConfig): string[] {
+  const names = teams.map(teamDisplayName)
+  const groups = game.teamGroups.flatMap((group) => new Array<string>(group.teams).fill(group.name))
+  return names.map((name, i) => (groups[i] && names.filter((other) => other === name).length > 1 ? `${name} (${groups[i]})` : name))
 }
 
 // A name that tells apart teams sharing a location, such as the two in New York.
@@ -129,16 +141,35 @@ export function parseTeams(rom: Uint8Array, game: GameConfig): { teams: Team[]; 
   const fileOrder = pointers.map((_, i) => i).sort((a, b) => pointers[a] - pointers[b])
 
   const teams: Team[] = new Array(game.teamCount)
+  const ends: number[] = new Array(game.teamCount)
   let next = pointers[fileOrder[0]]
+  let gaps = false
   for (const index of fileOrder) {
-    if (pointers[index] !== next) {
+    // Unused room between one team and the next is fine if it is plainly
+    // unused. Anything else there is something the editor does not know.
+    const gap = rom.subarray(next, pointers[index])
+    if (pointers[index] < next || !gap.every((byte) => byte === 0xff)) {
       throw new Error('The team data is not stored as one continuous run, so it cannot be edited safely.')
     }
-    const { team, end } = parseTeam(rom, game, next)
+    gaps ||= gap.length > 0
+    const { team, end } = parseTeam(rom, game, pointers[index])
     teams[index] = team
+    ends[index] = end
     next = end
   }
-  return { teams, layout: { start: pointers[fileOrder[0]], end: next, fileOrder } }
+  const layout: TeamLayout = { start: pointers[fileOrder[0]], end: next, fileOrder }
+  if (!gaps) return { teams, layout }
+
+  // Each team has the room up to the next. The last has as much as the others
+  // where they all have the same and that much is unused after it.
+  const sizes = fileOrder.slice(0, -1).map((index, i) => pointers[fileOrder[i + 1]] - pointers[index])
+  const last = fileOrder[fileOrder.length - 1]
+  const usual = sizes.every((size) => size === sizes[0]) ? sizes[0] : 0
+  const spare = rom.subarray(ends[last], pointers[last] + usual)
+  const lastSize = pointers[last] + usual <= rom.length && spare.every((byte) => byte === 0xff) && usual > 0 ? usual : ends[last] - pointers[last]
+  const slots = new Array<{ at: number; size: number }>(game.teamCount)
+  fileOrder.forEach((index, i) => (slots[index] = { at: pointers[index], size: i < sizes.length ? sizes[i] : lastSize }))
+  return { teams, layout: { ...layout, end: pointers[last] + lastSize, slots } }
 }
 
 // Bytes a team needs, not counting its free bytes.
@@ -149,7 +180,23 @@ export function teamContentSize(team: Team): number {
   return size
 }
 
-export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; available: number } {
+// How far each team that has outgrown its own place is over. Empty for ROMs
+// whose teams share their room.
+export function overfullTeams(teams: Team[], layout: TeamLayout): { team: number; over: number }[] {
+  return (layout.slots ?? []).flatMap((slot, team) => {
+    const over = teamContentSize(teams[team]) + teams[team].freeBytes - slot.size
+    return over > 0 ? [{ team, over }] : []
+  })
+}
+
+// The room the team data takes and has. Where each team has a place of its
+// own, this is for the team with the least to spare, which `team` names.
+export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; available: number; team?: number } {
+  if (layout.slots) {
+    const spare = layout.slots.map((slot, team) => slot.size - teamContentSize(teams[team]) - teams[team].freeBytes)
+    const team = spare.indexOf(Math.min(...spare))
+    return { used: layout.slots[team].size - spare[team], available: layout.slots[team].size, team }
+  }
   const used = teams.reduce((sum, team) => sum + teamContentSize(team), 0)
   return { used, available: layout.end - layout.start }
 }
@@ -213,6 +260,18 @@ function writeTeam(rom: Uint8Array, p: number, team: Team, freeBytes: number): n
 
 // Rewrites every team block and the team table into `rom`.
 export function writeTeams(rom: Uint8Array, game: GameConfig, teams: Team[], layout: TeamLayout): void {
+  if (layout.slots) {
+    const [worst] = overfullTeams(teams, layout).sort((a, b) => b.over - a.over)
+    if (worst) {
+      throw new Error(`${teamDisplayName(teams[worst.team])} is ${worst.over} bytes too large for its place in the ROM.`)
+    }
+    layout.slots.forEach((slot, index) => {
+      writeU32(rom, game.teamTableOffset + index * 4, slot.at)
+      const end = writeTeam(rom, slot.at, teams[index], teams[index].freeBytes)
+      rom.fill(0xff, end, slot.at + slot.size)
+    })
+    return
+  }
   const free = allocateFreeBytes(teams, layout)
   let p = layout.start
   for (const index of layout.fileOrder) {

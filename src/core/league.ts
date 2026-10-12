@@ -26,7 +26,7 @@ export function leaguePlayers(project: RomProject): LeaguePlayer[] {
   return project.teams.flatMap((team, t) =>
     team.players.map((player, index) => {
       const role = playerRole(team, index)
-      return { team: t, index, player, role, overall: overallRating(player.attributes, role === 'G') }
+      return { team: t, index, player, role, overall: overallRating(player.attributes, role === 'G', project.game) }
     }),
   )
 }

@@ -6,6 +6,7 @@ import {
   bannerColors,
   bannerSharedWith,
   bannersEditable,
+  bannersSupported,
   menuLogo,
   menuLogoPalette,
   menuLogoStart,
@@ -64,6 +65,9 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       lines: team.lines.map((line, l) => (source.lines[l] ? [...source.lines[l].slice(0, 7), ...line.slice(7)] : line)),
     }
     notes.push(`Roster and lines brought in: ${source.players.length} players.`)
+    if (project.game.playerAttributeKinds.join() !== other.game.playerAttributeKinds.join()) {
+      notes.push('The two ROMs rate players on different scales. The attributes came across as the values stored, so they will need adjusting.')
+    }
   }
   if (parts.colours) {
     team = { ...team, palette: source.palette }
@@ -121,6 +125,10 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
     },
   }))
 
+  if (!bannersSupported(project) || !bannersSupported(other)) {
+    notes.push('Banners left alone: one of the two ROMs keeps them in a way the editor cannot follow.')
+    return next
+  }
   const banners: [BannerKind, BannerKind, string][] = [
     ['menu', 'menu', visitorBannersApart(project) ? 'Menu banner (home)' : 'Menu banner'],
     ['game', 'game', 'In-game banner'],

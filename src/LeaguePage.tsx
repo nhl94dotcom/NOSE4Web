@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
 import { findPlayers, leagueAverages, teamSummaries, type SummaryColumn } from './core/league'
 import type { RomProject } from './core/rom'
-import { teamDisplayName } from './core/team'
+import { teamLabels } from './core/team'
 
 const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: number }[] = [
   { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
@@ -32,7 +32,7 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
   const summaries = useMemo(() => teamSummaries(project), [project])
   const averages = useMemo(() => leagueAverages(summaries), [summaries])
   const found = useMemo(() => findPlayers(project, search), [project, search])
-  const names = project.teams.map(teamDisplayName)
+  const names = teamLabels(project.teams, project.game)
 
   const sorted = summaries.slice().sort((a, b) => {
     if (sort.key === 'team') return a.team - b.team
@@ -100,7 +100,9 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
       <section>
         <h3>How the teams compare</h3>
         <p className="note">
-          Overall ratings as the game shows them, averaged. Click a heading to sort by it, and a team to go to it.
+          {project.game.overallIsEstimate
+            ? 'This ROM works out overall ratings in its own way, so these are plain averages of each player\'s values: good for comparing teams, not what the game shows.'
+            : 'Overall ratings as the game shows them, averaged.'} Click a heading to sort by it, and a team to go to it.
           Numbers well above the league average are marked <span className="high">like this</span> and those well
           below <span className="low">like this</span>.
         </p>

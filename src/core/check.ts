@@ -2,7 +2,7 @@ import { attributeText } from './attributes'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
-import { goalieCount, teamDisplayName, teamSpace, type Team } from './team'
+import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
 
 // Looks over a project for things that are likely to cause trouble in the
 // game. Nothing here stops a download; it is a list for the user to review.
@@ -20,9 +20,8 @@ export interface Finding {
 const EXTRA_ATTACKER_SLOT = 6
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
-function checkTeam(project: RomProject, team: Team, index: number, emptySlots: boolean[][], findings: Finding[]): void {
+function checkTeam(project: RomProject, team: Team, index: number, where: string, emptySlots: boolean[][], findings: Finding[]): void {
   const { game } = project
-  const where = teamDisplayName(team)
   const add = (level: Finding['level'], message: string) => findings.push({ level, where, team: index, message })
   const goalies = goalieCount(team)
   const count = team.players.length
@@ -73,8 +72,17 @@ export function checkProject(project: RomProject): Finding[] {
   const { game, teams, settings, layout } = project
   const findings: Finding[] = []
 
+  const labels = teamLabels(teams, game)
+  for (const { team, over } of overfullTeams(teams, layout)) {
+    findings.push({
+      level: 'problem',
+      where: labels[team],
+      team,
+      message: `The team is ${over} bytes too large for its place in the ROM. The ROM cannot be downloaded until it fits: shorten names or remove a player.`,
+    })
+  }
   const space = teamSpace(teams, layout)
-  if (space.used > space.available) {
+  if (!layout.slots && space.used > space.available) {
     findings.push({
       level: 'problem',
       where: 'Space',
@@ -83,7 +91,7 @@ export function checkProject(project: RomProject): Finding[] {
   }
 
   const emptySlots = emptyLineSlots(teams)
-  teams.forEach((team, i) => checkTeam(project, team, i, emptySlots, findings))
+  teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, findings))
 
   settings.playoffDraws.forEach((draw, d) => {
     const where = `Playoff draw ${d + 1}`
@@ -94,7 +102,7 @@ export function checkProject(project: RomProject): Finding[] {
     }
   })
 
-  const names = teams.map(teamDisplayName)
+  const names = labels
   settings.menu.forEach((item, i) => {
     if (item.value >= menuOptions(settings, game, i, names).length) {
       findings.push({ level: 'problem', where: 'Main menu', message: `"${item.caption}" starts on a choice that does not exist.` })

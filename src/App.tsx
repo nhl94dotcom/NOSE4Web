@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { BulkPage } from './BulkPage'
 import { CheckPage } from './CheckPage'
 import { ComparePage } from './ComparePage'
@@ -10,7 +10,7 @@ import { emptyLineSlots } from './core/lines'
 import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
-import { teamDisplayName, teamSpace, type Team } from './core/team'
+import { teamDisplayName, teamLabels, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
 import { HelpPage } from './HelpPage'
@@ -231,7 +231,10 @@ export default function App() {
   const left = space.available - space.used
   const expansion = nextExpansion(project)
   const grows = expansion !== null && expansion.romSize > project.bytes.length
-  const teamNames = project.teams.map(teamDisplayName)
+  const teamNames = teamLabels(project.teams, project.game)
+  // Where a ROM has several leagues, the team that starts each.
+  const groupStarts = new Map<number, string>()
+  project.game.teamGroups.reduce((at, group) => (groupStarts.set(at, group.name), at + group.teams), 0)
   const problems = findings.filter((finding) => finding.level === 'problem').length
 
   function page(current: RomProject, opened: RomProject) {
@@ -316,7 +319,13 @@ export default function App() {
         </button>
         {unsaved && <span className="note">Not downloaded yet</span>}
         <span className={left < 0 ? 'space over' : 'space'}>
-          {left < 0 ? `${-left} bytes over the limit` : `${left} bytes free`}
+          {space.team === undefined
+            ? left < 0
+              ? `${-left} bytes over the limit`
+              : `${left} bytes free`
+            : left < 0
+              ? `${teamNames[space.team]} is ${-left} bytes too large`
+              : `At least ${left} bytes free for each team`}
         </span>
         {expansion && (
           <button
@@ -346,13 +355,16 @@ export default function App() {
       {error && <p className="error">{error}</p>}
       <div className="body">
         <nav>
-          {project.teams.map((_, i) => (
-            <button key={i} className={i === selected ? 'active' : ''} onClick={() => setSelected(i)}>
-              {teamNames[i]}
-            </button>
+          {project.teams.map((team, i) => (
+            <Fragment key={i}>
+              {groupStarts.has(i) && <div className="group">{groupStarts.get(i)}</div>}
+              <button className={i === selected ? 'active' : ''} onClick={() => setSelected(i)}>
+                {groupStarts.size > 0 ? teamDisplayName(team) : teamNames[i]}
+              </button>
+            </Fragment>
           ))}
           {entry(RINK, 'Rink colours')}
-          {entry(SETTINGS, 'Game settings')}
+          {project.game.settingsSupported && entry(SETTINGS, 'Game settings')}
           {entry(LEAGUE, 'League')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}

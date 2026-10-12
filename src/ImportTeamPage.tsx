@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ALL_PARTS, importTeam, type ImportParts } from './core/importteam'
 import { openRom, type RomProject } from './core/rom'
-import { teamDisplayName } from './core/team'
+import { teamLabels } from './core/team'
 
 const PARTS: { key: keyof ImportParts; label: string }[] = [
   { key: 'names', label: 'Names' },
@@ -54,8 +54,8 @@ export function ImportTeamPage({ project, onChange }: Props) {
     }
   }
 
-  const theirs = other?.project.teams.map(teamDisplayName) ?? []
-  const ours = project.teams.map(teamDisplayName)
+  const theirs = other ? teamLabels(other.project.teams, other.project.game) : []
+  const ours = teamLabels(project.teams, project.game)
   const nothingChosen = !Object.values(parts).some(Boolean)
 
   return (

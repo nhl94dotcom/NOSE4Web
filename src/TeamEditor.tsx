@@ -142,6 +142,8 @@ export function TeamEditor(props: Props) {
   })
 
   const fewerSkaters = emptySlots.some((slots) => slots.some(Boolean))
+  // Some hacks' attributes have no wording but the values stored.
+  const storedOnly = game.playerAttributeKinds.every((kind) => kind === 'value')
   const reset = (part: TeamPart, what: string) => (
     <ResetButton
       what={what}
@@ -174,7 +176,7 @@ export function TeamEditor(props: Props) {
       roster: (index) => index,
       name: (index) => team.players[index].name.toLowerCase(),
       jersey: (index) => team.players[index].jersey,
-      overall: (index) => -overallRating(team.players[index].attributes, isGoalies),
+      overall: (index) => -overallRating(team.players[index].attributes, isGoalies, game),
     }
     const key = sortKey[rosterSort]
     const shown = Array.from({ length: to - from }, (_, row) => from + row)
@@ -238,7 +240,7 @@ export function TeamEditor(props: Props) {
                       }}
                     />
                   </td>
-                  <td>{overallRating(player.attributes, index < goalies)}</td>
+                  <td>{overallRating(player.attributes, index < goalies, game)}</td>
                   {player.attributes.map((value, a) => (
                     <td key={a}>
                       <select
@@ -295,6 +297,7 @@ export function TeamEditor(props: Props) {
 
   return (
     <main className="team">
+      {game.notice && <p className="notice">{game.notice}</p>}
       {fewerSkaters && (
         <p className="notice">
           This ROM is a hack that puts fewer skaters on the ice. Such ROMs are played with line changes off, and are
@@ -360,10 +363,12 @@ export function TeamEditor(props: Props) {
       </section>
 
       <p>
-        <label>
-          <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
-          Show attributes as stored values (0–15)
-        </label>{' '}
+        {!storedOnly && (
+          <label>
+            <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
+            Show attributes as stored values (0–15)
+          </label>
+        )}{' '}
         <label>
           <input type="checkbox" checked={quickKeys} onChange={(e) => onQuickKeysChange(e.target.checked)} /> Quick
           edit keys

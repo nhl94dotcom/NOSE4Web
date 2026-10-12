@@ -1,7 +1,9 @@
 // What each stored attribute value (0-15) means in the game, ported from
 // NOSE's ini\hextext.ini. Values the game does not expect have no text.
 
-export type AttributeKind = 'weight' | 'rating' | 'handedFighting' | 'gloveHand' | 'zero'
+// 'value' is for hacks that use all sixteen values for something the editor
+// has no wording for: it is shown and edited as the number stored.
+export type AttributeKind = 'weight' | 'rating' | 'handedFighting' | 'gloveHand' | 'zero' | 'value'
 
 const RATINGS = ['25-29', '29-38', '38-47', '47-62', '63-80', '81-98', '99']
 const FIGHTING = [0, 14, 28, 42, 57, 71, 85, 100]
@@ -18,6 +20,8 @@ export function attributeText(kind: AttributeKind, value: number): string | null
       return value < 2 ? (value ? 'R' : 'L') : null
     case 'zero':
       return value === 0 ? '0' : null
+    case 'value':
+      return value >= 0 && value <= 15 ? String(value) : null
   }
 }
 
@@ -28,4 +32,5 @@ export const ATTRIBUTE_NOTES: Record<AttributeKind, string> = {
   handedFighting: 'shooting hand, then fighting ability',
   gloveHand: 'left or right',
   zero: 'not used by the game',
+  value: 'the value stored, 0 to 15',
 }

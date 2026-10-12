@@ -4,7 +4,7 @@
 import { compareProjects } from './compare'
 import { leaguePlayers, ROLE_NAMES, type LeaguePlayer } from './league'
 import type { RomProject } from './rom'
-import { teamDisplayName } from './team'
+import { teamLabels } from './team'
 
 export interface Move {
   name: string
@@ -64,7 +64,8 @@ function pairPlayers(before: LeaguePlayer[], after: LeaguePlayer[]) {
 }
 
 export function changeReport(before: RomProject, after: RomProject): ChangeReport {
-  const teamName = (project: RomProject, team: number) => teamDisplayName(project.teams[team])
+  const labels = new Map([before, after].map((project) => [project, teamLabels(project.teams, project.game)]))
+  const teamName = (project: RomProject, team: number) => labels.get(project)![team]
   const { pairs, arrived, departed } = pairPlayers(leaguePlayers(before), leaguePlayers(after))
   const arrival = (project: RomProject) => (p: LeaguePlayer): Arrival => ({
     name: p.player.name,

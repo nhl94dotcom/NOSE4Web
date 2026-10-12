@@ -63,6 +63,9 @@ It can also:
 - The 30-team hack of NHL 94 (product code `GM T-50656 -30`), and the league
   and season ROMs built on it
 - Hacks of either that put fewer skaters on the ice (3 on 3, 2 on 2, 1 on 1)
+- NHL 94: EVO (product code `GM T-50656-F3V`): rosters, lines, team names,
+  colours and logos. Its game settings and banners are left alone, and its
+  attributes are edited as the values stored.
 
 Both `.bin` and `.smd` files can be opened. Downloads are always `.bin`.
 
