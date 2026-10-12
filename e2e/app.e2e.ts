@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { buildRom, openRom as readRom } from '../src/core/rom'
+import { createZip, readZip } from '../src/core/zip'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
 // They run when your own copy of NHL 94, named nhl94.bin, is in the folder
@@ -20,7 +21,7 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 9)
+  await expect(page.locator('nav button')).toHaveCount(28 + 10)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -775,7 +776,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
-    await expect(page.locator('nav button')).toHaveCount(28 + 9)
+    await expect(page.locator('nav button')).toHaveCount(28 + 10)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -802,6 +803,104 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     const again = readRom(new Uint8Array(readFileSync(await download.path())))
     expect(again.teams.map((t) => t.lines)).toEqual(teams.map((t) => t.lines))
+  })
+
+  test('exports every picture as a zip and imports a changed set', async ({ page }) => {
+    await openRom(page)
+    await page.locator('input.rom-name').fill('Season_10')
+    await entry(page, 'Picture files').click()
+    const main = page.locator('main')
+
+    await expect(main.getByText('111 pictures in Season_10_pictures.zip')).toBeVisible()
+    const download = await downloadFrom(page, main.getByRole('button', { name: 'Export all pictures' }))
+    expect(download.suggestedFilename()).toBe('Season_10_pictures.zip')
+    const zip = new Uint8Array(readFileSync(await download.path()))
+    const files = await readZip(zip)
+    // Four pictures for each of 28 teams, less the centre-ice logo the two All Stars teams share.
+    expect(files).toHaveLength(28 * 4 - 1)
+    expect(files.map((f) => f.name)).toContain('02_Boston_Bruins_menu_logo.png')
+    for (const file of files) expect([...file.data.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+
+    // Brought straight back in, nothing changes.
+    const picker = main.locator('input[type=file]')
+    await picker.setInputFiles({ name: 'Season_10_pictures.zip', mimeType: 'application/zip', buffer: Buffer.from(zip) })
+    await expect(main.getByText('Replaced 0 pictures. 111 files matched what was there already.')).toBeVisible()
+    await expect(page.getByText('Not downloaded yet')).toHaveCount(0)
+
+    // A set with one logo painted red, in a folder, with a stray file beside it.
+    const red = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 48
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#ff0000'
+      context.fillRect(0, 0, 48, 48)
+      return canvas.toDataURL('image/png').split(',')[1]
+    })
+    const changed = createZip([
+      ...files.map((f) => ({ name: `pictures/${f.name}`, data: f.name === '02_Boston_Bruins_menu_logo.png' ? new Uint8Array(Buffer.from(red, 'base64')) : f.data })),
+      { name: 'pictures/readme.txt', data: new Uint8Array([104, 105]) },
+    ])
+    await picker.setInputFiles({ name: 'edited.zip', mimeType: 'application/zip', buffer: Buffer.from(changed) })
+    await expect(main.getByText('Replaced 1 picture. 110 files matched what was there already. 1 file could not be used.')).toBeVisible()
+    await expect(main.getByText('pictures/readme.txt: not a PNG file, so it was left out.')).toBeVisible()
+    await expect(main.getByText('Boston Bruins: Menu logo')).toBeVisible()
+    await page.screenshot({ path: 'test-results/shots/picture-files.png', fullPage: true })
+
+    // Loose PNG files work as well as a zip.
+    await picker.setInputFiles([
+      { name: '03_whatever_menu_logo.png', mimeType: 'image/png', buffer: Buffer.from(red, 'base64') },
+      { name: 'not_named_properly.png', mimeType: 'image/png', buffer: Buffer.from(red, 'base64') },
+    ])
+    await expect(main.getByText('Replaced 1 picture. 0 files matched what was there already. 1 file could not be used.')).toBeVisible()
+    await expect(main.getByText('Buffalo Sabres: Menu logo')).toBeVisible()
+
+    await team(page, 'Boston Bruins').click()
+    const logo = page.locator('.picture').filter({ hasText: 'Menu logo' })
+    await expect(logo.getByRole('button', { name: 'Reset picture' })).toBeEnabled()
+    // The downloaded ROM holds the red logo.
+    const rom = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(readRom(new Uint8Array(readFileSync(await rom.path()))).graphicsSupported).toBe(true)
+  })
+
+  test('letters a banner and copies colours and pictures to another team', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const text = page.getByLabel('Banner text')
+    await expect(text).toHaveValue('Boston') // what the game's own banner reads
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Banner lettering' }) })
+
+    await text.fill('Montreal Canadiens Hockey Club')
+    await expect(section.getByText(/pixels too wide for a banner/)).toBeVisible()
+    await expect(section.getByRole('button', { name: 'Use for the menu banner' })).toBeDisabled()
+    await text.fill('Bruins ~')
+    await expect(section.getByText('There is no lettering for ~, so it is left out.')).toBeVisible()
+    await text.fill('Bruins')
+    // Too much new lettering for the packed ROM, until the pictures are given room.
+    await section.getByRole('button', { name: 'Use for all 2' }).click()
+    await expect(section.getByText(/need \d+ more tiles than the ROM has room for.*Or click "Give logos and banners more room/)).toBeVisible()
+    await page.getByRole('button', { name: /Give logos and banners more room/ }).click()
+    await section.getByRole('button', { name: 'Use for all 2' }).click()
+    await expect(section.getByText('Lettered the menu banner and the in-game banner "BRUINS".')).toBeVisible()
+    for (const title of ['Menu banner', 'In-game banner']) {
+      await expect(page.locator('.picture').filter({ hasText: title }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
+    }
+    await section.screenshot({ path: 'test-results/shots/lettering.png' })
+
+    // Copy Boston's colours and pictures over Anaheim's.
+    const home = () => page.locator('section').filter({ has: page.getByRole('heading', { name: 'Home colours' }) })
+    const swatches = () => home().locator('button.swatch').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('title')))
+    const bostonColours = await swatches()
+    await page.getByLabel('Team to copy colours and pictures to').selectOption({ label: 'Anaheim Mighty Ducks' })
+    await page.getByRole('button', { name: 'Copy from Boston Bruins to' }).click()
+    await expect(page.getByText('Home and away colours copied.')).toBeVisible()
+    await expect(page.getByText('Menu banner copied.')).toBeVisible()
+
+    await team(page, 'Anaheim Mighty Ducks').click()
+    expect(await swatches()).toEqual(bostonColours)
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Guy Hebert') // the roster is its own
+    await expect(page.locator('.picture').filter({ hasText: 'Menu logo' }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Reset whole team' }).click()
+    expect(await swatches()).not.toEqual(bostonColours)
   })
 
   test('keeps the work through a reload', async ({ page }) => {

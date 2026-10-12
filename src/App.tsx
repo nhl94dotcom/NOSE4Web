@@ -16,6 +16,7 @@ import { GraphicsEditor } from './GraphicsEditor'
 import { HelpPage } from './HelpPage'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
+import { PicturesPage } from './PicturesPage'
 import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
@@ -33,6 +34,7 @@ const COMPARE = -6
 const LEAGUE = -7
 const BULK = -8
 const IMPORT_TEAM = -9
+const PICTURES = -10
 
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
@@ -256,6 +258,8 @@ export default function App() {
         return <LeaguePage project={current} onGoToTeam={setSelected} />
       case BULK:
         return <BulkPage project={current} onChange={change} />
+      case PICTURES:
+        return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HELP:
@@ -353,6 +357,7 @@ export default function App() {
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
           {entry(CSV, 'Spreadsheet files')}
+          {project.graphicsSupported && entry(PICTURES, 'Picture files')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}

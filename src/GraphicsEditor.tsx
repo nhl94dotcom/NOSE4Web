@@ -1,42 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  banner,
   bannerColors,
-  bannerPalette,
-  bannersEditable,
-  bannerSharedWith,
   expandPictureSpace,
   LOGO_COLORS,
-  menuLogo,
-  menuLogoFromImage,
-  menuLogoPalette,
-  menuLogoStart,
   menuPalette,
   NoRoomError,
-  pictureFromImage,
   pictureSpace,
   pictureToImage,
-  rinkLogo,
-  rinkLogoSharedWith,
-  visitorBannersApart,
   withBanner,
   withBannerColors,
-  withRinkLogo,
   writeGraphics,
   type BannerKind,
   type GraphicsEdits,
   type Picture,
 } from './core/graphics'
-import { pictureChanged, resetPicture, type PicturePart } from './core/reset'
+import { importTeam } from './core/importteam'
+import { letterBanner, measureLettering } from './core/lettering'
+import {
+  currentPicture,
+  pictureEditable,
+  pictureKinds,
+  pictureSharedWith,
+  pictureTitle,
+  withPictureFromImage,
+  type PictureKind,
+} from './core/pictureset'
+import { pictureChanged, resetPicture } from './core/reset'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
+import { download } from './download'
+import { pictureToPng, readImage } from './images'
 import { PaletteEditor } from './Palette'
 import { ResetButton } from './ResetButton'
-
-// Colours a banner may use: all but 3 and 4, which belong to the other team's
-// banner when two are on screen together.
-const BANNER_COLORS = [0, 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-const ALL_COLORS = Array.from({ length: 16 }, (_, i) => i)
 
 interface PictureViewProps {
   picture: Picture
@@ -64,34 +59,18 @@ function PictureView({ picture, palette, scale }: PictureViewProps) {
   )
 }
 
-// Reads an image file into raw pixels, four bytes each.
-async function readImage(file: File): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
-  const bitmap = await createImageBitmap(file)
-  const canvas = document.createElement('canvas')
-  canvas.width = bitmap.width
-  canvas.height = bitmap.height
-  const context = canvas.getContext('2d')!
-  context.drawImage(bitmap, 0, 0)
-  return { rgba: context.getImageData(0, 0, bitmap.width, bitmap.height).data, width: bitmap.width, height: bitmap.height }
+const FILE_ENDINGS: Record<PictureKind, string> = {
+  rinkLogo: 'rink_logo',
+  menuLogo: 'menu_logo',
+  menuBanner: 'menu_banner',
+  visitorBanner: 'visitor_banner',
+  gameBanner: 'game_banner',
 }
-
-function savePng(picture: Picture, palette: number[], fileName: string) {
-  const canvas = document.createElement('canvas')
-  canvas.width = picture.width
-  canvas.height = picture.height
-  const context = canvas.getContext('2d')!
-  const data = context.createImageData(picture.width, picture.height)
-  data.data.set(pictureToImage(picture, palette))
-  context.putImageData(data, 0, 0)
-  canvas.toBlob((blob) => {
-    if (!blob) return
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = fileName
-    link.click()
-    URL.revokeObjectURL(link.href)
-  })
-}
+const BANNERS: { kind: PictureKind; banner: BannerKind }[] = [
+  { kind: 'menuBanner', banner: 'menu' },
+  { kind: 'visitorBanner', banner: 'visitor' },
+  { kind: 'gameBanner', banner: 'game' },
+]
 
 interface Props {
   project: RomProject
@@ -102,9 +81,9 @@ interface Props {
 export function GraphicsEditor({ project, team, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
-  const name = teamDisplayName(project.teams[team]).replace(/[^A-Za-z0-9]+/g, '_')
-  const homePalette = project.teams[team].palette.slice(0, 16)
-  const shared = rinkLogoSharedWith(project, team).filter((other) => other !== team)
+  const teamName = teamDisplayName(project.teams[team])
+  const name = teamName.replace(/[^A-Za-z0-9]+/g, '_')
+  const kinds = pictureKinds(project)
   const moreRoom = pictureSpace(project)
   const roomButton = moreRoom
     ? `Give logos and banners more room${moreRoom.grows ? ` (ROM grows to ${moreRoom.romSize / 0x100000} MB)` : ''}`
@@ -125,164 +104,156 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     }
   }
 
-  async function importPicture(file: File, width: number, height: number, load: (rgba: Uint8ClampedArray) => void) {
+  function fail(e: unknown, fallback: string) {
+    setNotice(e instanceof Error ? e.message : fallback)
+    setFailed(true)
+  }
+
+  const everyTeam = (kind: PictureKind) => pictureSharedWith(project, team, kind).length === project.teams.length
+  const replacedText = (kind: PictureKind) => `${pictureTitle(project, kind)} replaced${everyTeam(kind) ? ' for every team' : ''}.`
+
+  async function importPicture(file: File, kind: PictureKind) {
     try {
-      const image = await readImage(file)
-      if (image.width !== width || image.height !== height) {
-        throw new Error(`${file.name} is ${image.width} by ${image.height} pixels. This picture has to be ${width} by ${height}.`)
+      let image
+      try {
+        image = await readImage(file)
+      } catch {
+        throw new Error(`${file.name} could not be read as an image.`)
       }
-      load(image.rgba)
+      const made = withPictureFromImage(project, team, kind, image)
+      apply(made.graphics, `${replacedText(kind)} ${made.note}`.trim())
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : `${file.name} could not be read as an image.`)
-      setFailed(true)
+      fail(e, `${file.name} could not be used.`)
     }
   }
 
-  // A banner on the menus: the only one, or the home or visiting team's.
-  const menuBanner = (kind: BannerKind, title: string, where: string) => {
-    const everyTeam = bannerSharedWith(project, kind, team).length > 1
-    return {
-      title,
-      part: (kind === 'visitor' ? 'visitorBanner' : 'menuBanner') as PicturePart,
-      editable: bannersEditable(project, kind),
-      picture: banner(project, kind, team),
-      palette: bannerPalette(project, kind, team),
-      scale: 3,
-      file: everyTeam ? `${kind === 'visitor' ? 'visitor' : 'home'}_menu_banner.png` : `${name}_${kind}_banner.png`,
-      note:
-        `Shown ${where}, with its two stripes in the banner colours below.` +
-        (everyTeam
-          ? ' This ROM has one banner here for every team, so replacing it replaces it for all of them. Giving the logos and banners more room, below, lets each team have its own.'
-          : ''),
-      load: (rgba: Uint8ClampedArray) =>
-        apply(
-          withBanner(project, kind, team, pictureFromImage(rgba, 88, 16, bannerPalette(project, kind, team), BANNER_COLORS.slice(1))),
-          everyTeam ? `${title} replaced for every team.` : `${title} replaced.`,
-        ),
-    }
-  }
-  const apart = visitorBannersApart(project)
-
-  const pictures = [
-    {
-      title: 'Centre-ice logo',
-      part: 'rinkLogo' as PicturePart,
-      editable: true,
-      picture: rinkLogo(project, team),
-      palette: homePalette,
-      scale: 4,
-      file: `${name}_rink_logo.png`,
-      note:
-        'Drawn with the home colours above, so it can only use those 16.' +
-        (shared.length > 0 ? ` Shared with ${shared.map((other) => teamDisplayName(project.teams[other])).join(', ')}.` : ''),
-      load: (rgba: Uint8ClampedArray) =>
-        apply(
-          withRinkLogo(project, team, pictureFromImage(rgba, 48, 32, homePalette, ALL_COLORS.slice(1))),
-          'Centre-ice logo replaced, matched to the home colours.',
-        ),
-    },
-    {
-      title: 'Menu logo',
-      part: 'menuLogo' as PicturePart,
-      editable: true,
-      picture: menuLogo(project, team),
-      palette: menuLogoPalette(project, team),
-      scale: 3,
-      file: `${name}_menu_logo.png`,
-      note: `Uses white, black and ${LOGO_COLORS} colours of its own, taken from the image you import.`,
-      load: (rgba: Uint8ClampedArray) => {
-        const logo = menuLogoFromImage(rgba, 48, 48, menuLogoStart(project, team))
-        const merged =
-          logo.colorsFound > LOGO_COLORS
-            ? ` Besides white and black the image had ${logo.colorsFound} colours, and a logo can hold ${LOGO_COLORS}; the least used were merged into the nearest.`
-            : ''
-        apply(
-          {
-            ...project.graphics,
-            menuLogos: { ...project.graphics.menuLogos, [team]: logo.picture },
-            menuPalettes: { ...project.graphics.menuPalettes, [team]: logo.palette },
-          },
-          `Menu logo replaced.${merged}`,
+  function note(kind: PictureKind): string {
+    const others = pictureSharedWith(project, team, kind).filter((other) => other !== team)
+    switch (kind) {
+      case 'rinkLogo':
+        return (
+          'Drawn with the home colours above, so it can only use those 16.' +
+          (others.length > 0 ? ` Shared with ${others.map((other) => teamDisplayName(project.teams[other])).join(', ')}.` : '')
         )
-      },
-    },
-    ...(apart
-      ? [
-          menuBanner('menu', 'Menu banner (home)', 'on the menus for the home team'),
-          menuBanner('visitor', 'Menu banner (visitor)', 'on the menus for the visiting team'),
-        ]
-      : [menuBanner('menu', 'Menu banner', 'on the menus')]),
-    {
-      title: 'In-game banner',
-      part: 'gameBanner' as PicturePart,
-      editable: bannersEditable(project, 'game'),
-      picture: banner(project, 'game', team),
-      palette: bannerPalette(project, 'game', team),
-      scale: 3,
-      file: `${name}_game_banner.png`,
-      note: 'Shown during play. Every team shares the same 16 colours for these.',
-      load: (rgba: Uint8ClampedArray) =>
-        apply(
-          {
-            ...project.graphics,
-            gameBanners: {
-              ...project.graphics.gameBanners,
-              [team]: pictureFromImage(rgba, 88, 16, bannerPalette(project, 'game', team), ALL_COLORS.slice(1)),
-            },
-          },
-          'In-game banner replaced.',
-        ),
-    },
-  ]
+      case 'menuLogo':
+        return `Uses white, black and ${LOGO_COLORS} colours of its own, taken from the image you import.`
+      case 'gameBanner':
+        return 'Shown during play. Every team shares the same 16 colours for these.'
+      default:
+        return (
+          `Shown on the menus${kinds.includes('visitorBanner') ? (kind === 'visitorBanner' ? ' for the visiting team' : ' for the home team') : ''}, with its two stripes in the banner colours below.` +
+          (everyTeam(kind)
+            ? ' This ROM has one banner here for every team, so replacing it replaces it for all of them. Giving the logos and banners more room, below, lets each team have its own.'
+            : '')
+        )
+    }
+  }
+
+  // ----------------------------------------------------------- lettering
+  const [letteringText, setLetteringText] = useState<string | null>(null)
+  // Until the user types, the banner reads what the game's own would: the team's location.
+  const wanted = letteringText ?? project.teams[team].names[0]
+  const lettering = measureLettering(wanted)
+  const letterable = BANNERS.filter((b) => kinds.includes(b.kind) && pictureEditable(project, b.kind) && !everyTeam(b.kind))
+  const preview = (() => {
+    try {
+      const kind = letterable[0]?.banner ?? 'menu'
+      return { picture: letterBanner(project, kind, team, wanted), palette: currentPicture(project, team, letterable[0]?.kind ?? 'menuBanner').palette }
+    } catch {
+      return null
+    }
+  })()
+
+  function letter(targets: typeof letterable) {
+    try {
+      let graphics = project.graphics
+      for (const target of targets) {
+        graphics = withBanner({ ...project, graphics }, target.banner, team, letterBanner(project, target.banner, team, wanted))
+      }
+      const names = targets.map((target) => pictureTitle(project, target.kind).toLowerCase())
+      apply(graphics, `Lettered the ${names.join(' and the ')} "${lettering.text}".`)
+    } catch (e) {
+      fail(e, 'The banner could not be made.')
+    }
+  }
+
+  // ------------------------------------------------------------- copying
+  const others = project.teams.map((_, i) => i).filter((i) => i !== team)
+  const [copyTo, setCopyTo] = useState(others[0] ?? 0)
+  const [copyColours, setCopyColours] = useState(true)
+  const [copyPictures, setCopyPictures] = useState(true)
+  const [copyNotes, setCopyNotes] = useState<string[]>([])
+  const target = others.includes(copyTo) ? copyTo : (others[0] ?? 0)
+
+  function copyToTeam() {
+    const result = importTeam(project, project, team, target, { names: false, roster: false, colours: copyColours, pictures: copyPictures })
+    onChange(result.project)
+    setCopyNotes(result.notes.map((line) => line.replace('brought in', 'copied')))
+  }
 
   return (
     <section>
       <h2>Logos and banners</h2>
       <p className="note">
         Export a picture, change it in any image editor, and import it again at the same size. Colours are matched to
-        the nearest the picture is allowed to use, and see-through areas stay see-through.
+        the nearest the picture is allowed to use, and see-through areas stay see-through. To move every team's
+        pictures at once, use Picture files in the list on the left.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <div className="pictures">
-        {pictures.map((item) => (
-          <div key={item.title} className="picture">
-            <strong>{item.title}</strong>{' '}
-            <span className="note">
-              {item.picture.width} by {item.picture.height}
-            </span>
-            <PictureView picture={item.picture} palette={item.palette} scale={item.scale} />
-            <p>
-              <button onClick={() => savePng(item.picture, item.palette, item.file)}>Export PNG</button>{' '}
-              <label className="button" hidden={!item.editable}>
-                Import…
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void importPicture(file, item.picture.width, item.picture.height, item.load)
-                    e.target.value = ''
+        {kinds.map((kind) => {
+          const { picture, palette } = currentPicture(project, team, kind)
+          const title = pictureTitle(project, kind)
+          const editable = pictureEditable(project, kind)
+          const fileName = everyTeam(kind) ? `${FILE_ENDINGS[kind]}.png` : `${name}_${FILE_ENDINGS[kind]}.png`
+          return (
+            <div key={kind} className="picture">
+              <strong>{title}</strong>{' '}
+              <span className="note">
+                {picture.width} by {picture.height}
+              </span>
+              <PictureView picture={picture} palette={palette} scale={kind === 'rinkLogo' ? 4 : 3} />
+              <p>
+                <button
+                  onClick={() =>
+                    void pictureToPng(picture, palette)
+                      .then((png) => download(png, fileName, 'image/png'))
+                      .catch((e) => fail(e, 'The picture could not be exported.'))
+                  }
+                >
+                  Export PNG
+                </button>{' '}
+                <label className="button" hidden={!editable}>
+                  Import…
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void importPicture(file, kind)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>{' '}
+                <ResetButton
+                  what="picture"
+                  changed={pictureChanged(project, team, kind)}
+                  onReset={() => {
+                    onChange({ ...project, graphics: resetPicture(project, team, kind) })
+                    setNotice(`${title} put back as it was.`)
+                    setFailed(false)
                   }}
                 />
-              </label>{' '}
-              <ResetButton
-                what="picture"
-                changed={pictureChanged(project, team, item.part)}
-                onReset={() => {
-                  onChange({ ...project, graphics: resetPicture(project, team, item.part) })
-                  setNotice(`${item.title} put back as it was.`)
-                  setFailed(false)
-                }}
-              />
-            </p>
-            <p className="note">
-              {item.editable
-                ? item.note
-                : 'This ROM stores this picture differently from the original game, so it cannot be replaced here yet.'}
-            </p>
-          </div>
-        ))}
+              </p>
+              <p className="note">
+                {editable
+                  ? note(kind)
+                  : 'This ROM stores this picture differently from the original game, so it cannot be replaced here yet.'}
+              </p>
+            </div>
+          )
+        })}
       </div>
       {moreRoom && (
         <p>
@@ -301,6 +272,45 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
           </span>
         </p>
       )}
+
+      <h2>Banner lettering</h2>
+      <p className="note">
+        Makes a banner that reads whatever you type, with the frame and stripes of the game's own banners and the
+        stripes in the banner colours below. The lettering is the editor's own, so it will not match banners you
+        leave as they are.
+      </p>
+      <p>
+        <input
+          className="wide-input"
+          aria-label="Banner text"
+          value={wanted}
+          onChange={(e) => setLetteringText(e.target.value)}
+        />{' '}
+        {letterable.map((b) => (
+          <span key={b.kind}>
+            <button disabled={!preview} onClick={() => letter([b])}>
+              Use for the {pictureTitle(project, b.kind).toLowerCase()}
+            </button>{' '}
+          </span>
+        ))}
+        {letterable.length > 1 && (
+          <button disabled={!preview} onClick={() => letter(letterable)}>
+            Use for all {letterable.length}
+          </button>
+        )}
+      </p>
+      {preview && <PictureView picture={preview.picture} palette={preview.palette} scale={3} />}
+      <p className={lettering.tooWide > 0 ? 'error' : 'note'}>
+        {lettering.tooWide > 0
+          ? `That is ${lettering.tooWide} pixels too wide for a banner. Try a shorter form of the name.`
+          : lettering.text === ''
+            ? 'Type the name to put on the banner.'
+            : `${lettering.width} of 82 pixels wide.`}
+        {lettering.dropped && ` There is no lettering for ${[...lettering.dropped].join(' ')}, so it is left out.`}
+        {letterable.length === 0 &&
+          ' In this ROM every team shows the same banners, so there is none to letter for one team. Give the logos and banners more room first.'}
+      </p>
+
       <h2>Menu banner colours</h2>
       <PaletteEditor
         palette={bannerColors(project, team)}
@@ -322,6 +332,38 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
           onReset={() => onChange({ ...project, graphics: resetPicture(project, team, 'bannerColors') })}
         />
       </p>
+
+      <h2>Copy to another team</h2>
+      <p>
+        <label className="choice">
+          <input type="checkbox" checked={copyColours} onChange={(e) => setCopyColours(e.target.checked)} /> Home and away
+          colours
+        </label>
+        <label className="choice">
+          <input type="checkbox" checked={copyPictures} onChange={(e) => setCopyPictures(e.target.checked)} /> Logos,
+          banners and banner colours
+        </label>
+      </p>
+      <p>
+        <button disabled={others.length === 0 || (!copyColours && !copyPictures)} onClick={copyToTeam}>
+          Copy from {teamName} to
+        </button>{' '}
+        <select className="wide" aria-label="Team to copy colours and pictures to" value={target} onChange={(e) => setCopyTo(Number(e.target.value))}>
+          {others.map((other) => (
+            <option key={other} value={other}>
+              {teamDisplayName(project.teams[other])}
+            </option>
+          ))}
+        </select>{' '}
+        <span className="note">This team keeps its own; the other team's are replaced. Undo takes it back.</span>
+      </p>
+      {copyNotes.length > 0 && (
+        <ul>
+          {copyNotes.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

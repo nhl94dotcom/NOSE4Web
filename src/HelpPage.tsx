@@ -14,6 +14,7 @@ const SECTIONS = [
   ['lines', 'Lines'],
   ['colours', 'Team colours'],
   ['pictures', 'Logos and banners'],
+  ['picturefiles', 'Picture files'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
   ['reset', 'Resetting changes'],
@@ -340,6 +341,53 @@ export function HelpPage() {
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
         for both. Logos and banners are not part of the spreadsheet files.
       </p>
+
+      <p>
+        <b>Banner lettering</b> makes a banner for you. Type what it should read and choose which banner to use it
+        for. It is drawn with the frame and the two stripes the game's banners have, in bold capitals of the same
+        size. The lettering is the editor's own and is plainer than the game's, so a lettered banner looks a
+        little different beside one left as it was; letter every team's if you want them to match.
+        The stripes take the team's menu banner colours, so set those first for the in-game banner, whose stripes
+        are fixed when it is made. Capital letters, digits and . - ' ! &amp; / can be drawn, and a name has to fit
+        in 82 pixels, about twelve letters, so use a short form for a long one. A banner starts out reading the
+        team's location, as the original game's do.
+      </p>
+      <p>
+        <b>Copy to another team</b>, at the foot of a team's page, copies its colours, its logos and banners, or
+        both, over another team's. It is a quick way to start a new team from one that looks similar.
+      </p>
+
+      <h3 id="help-picturefiles">Picture files</h3>
+      <p>
+        <b>Picture files</b> handles every team's logos and banners at once, as the spreadsheet files do the rest.
+        <b> Export all pictures</b> saves them as PNG files in one zip, named with the Name box at the top.
+        <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for.
+      </p>
+      <ul>
+        <li>
+          Each file's name says what it is: <code>03_Buffalo_Sabres_menu_logo.png</code>. The number is the team's
+          place in the list and the ending is the picture: <code>rink_logo</code>, <code>menu_logo</code>,{' '}
+          <code>menu_banner</code>, <code>visitor_banner</code> or <code>game_banner</code>. The team name in the
+          middle is only there for you, so renaming a team does not send its pictures astray.
+        </li>
+        <li>
+          A file that shows what the editor already has is skipped. So you can export, edit a few pictures, and
+          import the whole zip again: only the ones you changed are replaced, and the page lists them.
+        </li>
+        <li>
+          To carry artwork to another ROM, such as next season's, export from one and import into the other. Teams
+          are matched by their place in the list.
+        </li>
+        <li>A picture several teams share is in the zip once, under the first of those teams.</li>
+        <li>
+          Pictures are fitted to the colours they are allowed, as when imported one at a time. A centre-ice logo
+          uses the team's home colours, so import the team colours first if they are changing too.
+        </li>
+        <li>
+          If the ROM has no room for some of them, the rest still go in and the page says which did not. Give the
+          logos and banners more room on any team's page, then import again.
+        </li>
+      </ul>
 
       <h3 id="help-rink">Rink colours</h3>
       <p>

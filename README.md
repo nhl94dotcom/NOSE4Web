@@ -27,7 +27,9 @@ That licence does not cover:
 ## What it edits
 
 - Team names, and each team's home and away colours with a live preview
-- Team logos and banners, by exporting and importing PNG images
+- Team logos and banners, by exporting and importing PNG images one at a time
+  or every team's at once as a zip, and banners lettered for you in the style of
+  the game's own
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on
@@ -43,7 +45,13 @@ It can also:
   them again
 - move players between teams, keeping both teams' lines in step
 - check a ROM for mistakes that cause trouble in the game
-- describe the differences between two ROMs
+- describe the differences between two ROMs, with a summary of player moves
+  and rating changes to post for a league
+- find a player on any team, compare the teams' ratings side by side, and
+  change one attribute for many players at once
+- bring a team in from another ROM, or copy one team's colours and pictures to
+  another
+- reset any one part of a team to how it was in the ROM you opened
 - undo and redo, and keep work in progress in the browser between visits
 - copy players, lines and playoff draws between teams, or between two ROMs
   open in separate tabs

@@ -389,12 +389,16 @@ const distance = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]
 
 // Matches each pixel of an image to the nearest of the allowed colours.
 // `rgba` is four bytes per pixel. Mostly see-through pixels become colour 0.
+// Where two allowed colours look the same, a pixel keeps the one it has in
+// `like`, the picture being replaced, so that an untouched part of it still
+// follows the same colour when the colours are changed later.
 export function pictureFromImage(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
   palette: number[],
   allowed: number[],
+  like?: Picture,
 ): Picture {
   const colors = allowed.map((index) => ({ index, rgb: colorRgb(palette[index]) }))
   const pixels = new Uint8Array(width * height)
@@ -403,7 +407,8 @@ export function pictureFromImage(
     const rgb = [rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]]
     let best = colors[0]
     for (const color of colors) if (distance(color.rgb, rgb) < distance(best.rgb, rgb)) best = color
-    pixels[i] = best.index
+    const kept = like && colors.find((color) => color.index === like.pixels[i])
+    pixels[i] = kept && distance(kept.rgb, rgb) === distance(best.rgb, rgb) ? kept.index : best.index
   }
   return { width, height, pixels }
 }
