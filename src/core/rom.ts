@@ -103,7 +103,7 @@ export function openRom(file: Uint8Array): RomProject {
     productCode = 'GM' + productCode.slice(2)
     writeAscii(bytes, HEADER_PRODUCT_CODE, 'GM')
   }
-  const game = findGame(productCode)
+  const game = findGame(productCode, bytes)
   if (!game) throw new Error(`This game is not supported yet (product code "${productCode}").`)
 
   disableSelfCheck(bytes, game)

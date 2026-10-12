@@ -1,10 +1,13 @@
 // Per-game settings, ported from NOSE's ini\roms.ini. Only NHL 94 so far.
 
-import type { AttributeKind } from './attributes'
+import { weightKind, type AttributeKind } from './attributes'
 
 export interface GameConfig {
   productCode: string
   title: string
+  // Text in the ROM's header that only this game has, where its product code
+  // is not enough to tell it from others.
+  headerName?: string
   // Address of the 4-byte operand of the "call checksum routine" instruction.
   checksumCallOffset: number
   teamTableOffset: number
@@ -191,7 +194,10 @@ export const NHL94_30_TEAMS: GameConfig = {
 const stored = (count: number): AttributeKind[] => new Array<AttributeKind>(count).fill('value')
 export const NHL94_EVO: GameConfig = {
   ...NHL94,
+  // The code is the one smozROM gives any 30-team ROM with 0 to 15 ratings
+  // and a base weight of 144, so the name in the header is what marks it out.
   productCode: 'GM T-50656-F3V',
+  headerName: 'NHL 94: EVO',
   title: 'NHL 94: EVO',
   teamCount: 64,
   teamNameRedirects: [],
@@ -221,10 +227,59 @@ export const NHL94_EVO: GameConfig = {
   goalieAttributeKinds: stored(14),
 }
 
-const GAMES: GameConfig[] = [NHL94, NHL94_30_TEAMS, NHL94_EVO]
+export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO].map((game) => game.title)
 
-export const SUPPORTED_GAMES = GAMES.map((game) => game.title)
+// ---------------------------------------------------------- product codes
+// The hack program smozROM marks a ROM's product code to say how it is set
+// up, and NOSE reads the marks. After "GM T-50656" come four characters:
+//
+//   " -" for the original 0 to 6 ratings, or "-F" for 0 to 15;
+//   "0" for the original 28 teams, or "3" for the 30-team ROM;
+//   a letter for the weight a player's lowest weight value stands for, A for
+//   102 pounds up to Z for 152 in twos, or "0" for the original 140 (as is T).
 
-export function findGame(productCode: string): GameConfig | undefined {
-  return GAMES.find((g) => g.productCode === productCode)
+const HEADER_NAME_AT = 0x120
+const SMOZROM_CODE = /^GM T-50656( -|-F)([03])([0A-Z])$/
+
+const variants = new Map<string, GameConfig>()
+
+function variant(productCode: string): GameConfig | undefined {
+  const known = variants.get(productCode)
+  if (known) return known
+  const marks = SMOZROM_CODE.exec(productCode)
+  if (!marks) return undefined
+  const wideRatings = marks[1] === '-F'
+  const base = marks[2] === '3' ? NHL94_30_TEAMS : NHL94
+  const baseWeight = marks[3] === '0' ? 140 : 100 + 2 * (marks[3].charCodeAt(0) - 64)
+  if (!wideRatings && baseWeight === 140) return base
+
+  const details = [...(wideRatings ? ['0–15 ratings'] : []), ...(baseWeight === 140 ? [] : [`base weight ${baseWeight}`])]
+  // With 0 to 15 ratings a rating is shown and edited as the number stored.
+  const kinds = (list: AttributeKind[]) =>
+    list.map((kind) => (kind === 'weight' ? weightKind(baseWeight) : kind === 'rating' && wideRatings ? 'value' : kind))
+  const config: GameConfig = {
+    ...base,
+    productCode,
+    title: `${base.title}, ${details.join(', ')}`,
+    playerAttributeKinds: kinds(base.playerAttributeKinds),
+    goalieAttributeKinds: kinds(base.goalieAttributeKinds),
+    overallIsEstimate: wideRatings,
+    notice: wideRatings
+      ? 'This ROM has been set up for ratings from 0 to 15, in place of the original 0 to 6. They are shown as the ' +
+        'numbers stored. With them comes a different way of working out overall ratings, so Ovr here is a plain ' +
+        'average for comparing players, not the number the game shows.'
+      : '',
+  }
+  variants.set(productCode, config)
+  return config
+}
+
+// The game a ROM is, going by its product code and, where that is not enough,
+// by its header. Undefined for a ROM the editor does not know.
+export function findGame(productCode: string, rom: Uint8Array): GameConfig | undefined {
+  const named = [NHL94_EVO].find((game) => {
+    const name = game.headerName ?? ''
+    return game.productCode === productCode && name.split('').every((char, i) => rom[HEADER_NAME_AT + i] === char.charCodeAt(0))
+  })
+  return named ?? variant(productCode)
 }

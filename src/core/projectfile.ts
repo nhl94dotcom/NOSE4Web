@@ -185,7 +185,8 @@ export function openProjectFile(opened: RomProject, text: string): OpenedProject
   if (file?.file !== MARK) throw new ProjectFileError('This is not a project file.')
   if (file.format > FORMAT) throw new ProjectFileError('This project file was made by a newer version of the editor. Reload the page to get it, and try again.')
   const { game } = opened
-  if (file.productCode !== game.productCode) {
+  // The same code can stand for more than one kind of ROM, so both are checked.
+  if (file.productCode !== game.productCode || file.game !== game.title) {
     throw new ProjectFileError(`This project is for ${file.game}, and the ROM in the editor is ${game.title}. Open a ROM of the same kind first.`)
   }
   if (!Array.isArray(file.teams) || file.teams.length !== opened.teams.length) {

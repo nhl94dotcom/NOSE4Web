@@ -799,6 +799,26 @@ export function HelpPage() {
         hack's altered game code exactly as it is, so what a hack does differently keeps working.
       </p>
       <p>
+        ROMs set up with the hack program smozROM open too, in any of its combinations. The editor reads how a ROM
+        was set up from its product code, as NOSE does, and the top bar says so:
+      </p>
+      <ul>
+        <li>
+          <b>A base weight for another era.</b> Weights are shown from the base the ROM uses, so a ROM set up for
+          the 2000s shows 144 pounds where the original game shows 140.
+        </li>
+        <li>
+          <b>Ratings from 0 to 15.</b> They are shown and edited as the numbers stored, and every value from 0 to 15
+          is on offer. That set-up brings its own way of working out overall ratings, so Ovr and everything built
+          on it use a plain average instead: useful for comparing players, but not the number the game shows.
+        </li>
+      </ul>
+      <p>
+        Those programs put code of their own in the unused room at the end of a ROM. When the editor needs room
+        there, for longer rosters or for pictures, it takes it from beyond whatever is already in the ROM and moves
+        nothing that is there, so such hacks keep working.
+      </p>
+      <p>
         Hacks have been tested less widely here than the original game: the editor can read what they changed but
         cannot know everything they rely on. Keep a copy of the file you opened, and try a download in the game
         before you hand it to anyone.

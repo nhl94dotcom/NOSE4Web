@@ -1,6 +1,7 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { colorRgb, nearestColorWord } from './color'
 import type { GameConfig } from './games'
+import { claimSpace } from './space'
 
 // Team pictures: the logo at centre ice, the logo on the main menu, and the
 // name banners shown on the menus and during play.
@@ -638,23 +639,6 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
 // replacement with more detail may not fit. This moves them to unused space
 // at the end of the ROM, each with room for a tile in every position, and
 // repoints the game at them. The ROM file grows if it has to.
-
-function claimSpace(rom: Uint8Array, size: number): { rom: Uint8Array; at: number } | null {
-  let last = rom.length - 1
-  while (last >= 0 && rom[last] === 0xff) last--
-  // NOSE marks the end of the used part of a ROM it has edited. Where that
-  // mark is the last thing in the ROM, it is moved to follow the new data.
-  const marked = last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
-  const at = marked ? last - 1 : last + 1 + ((last + 1) % 2)
-  const needed = at + size + (marked ? 2 : 0)
-  let length = rom.length
-  if (needed > length) length = length === 0x80000 || length === 0x100000 ? length * 2 : length === 0x200000 ? 0x300000 : 0
-  if (needed > length) return null
-  const grown = new Uint8Array(length).fill(0xff)
-  grown.set(rom)
-  if (marked) grown.set([0x60, 0xfe], at + size)
-  return { rom: grown, at }
-}
 
 interface SpacePlan {
   banners: BannerKind[]

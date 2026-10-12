@@ -3,15 +3,25 @@
 
 // 'value' is for hacks that use all sixteen values for something the editor
 // has no wording for: it is shown and edited as the number stored.
-export type AttributeKind = 'weight' | 'rating' | 'handedFighting' | 'gloveHand' | 'zero' | 'value'
+// A weight can name the weight its lowest value stands for, as 'weight:144',
+// for ROMs set up for another era; plain 'weight' is the original game's 140.
+export type AttributeKind = 'weight' | `weight:${number}` | 'rating' | 'handedFighting' | 'gloveHand' | 'zero' | 'value'
+
+const ORIGINAL_BASE_WEIGHT = 140
+const WEIGHT_STEP = 8
+
+export const isWeight = (kind: AttributeKind): boolean => kind === 'weight' || kind.startsWith('weight:')
+export const weightKind = (base: number): AttributeKind => (base === ORIGINAL_BASE_WEIGHT ? 'weight' : `weight:${base}`)
 
 const RATINGS = ['25-29', '29-38', '38-47', '47-62', '63-80', '81-98', '99']
 const FIGHTING = [0, 14, 28, 42, 57, 71, 85, 100]
 
 export function attributeText(kind: AttributeKind, value: number): string | null {
+  if (isWeight(kind)) {
+    const base = kind === 'weight' ? ORIGINAL_BASE_WEIGHT : Number(kind.slice('weight:'.length))
+    return `${base + value * WEIGHT_STEP}`
+  }
   switch (kind) {
-    case 'weight':
-      return `${140 + value * 8}`
     case 'rating':
       return RATINGS[value] ?? null
     case 'handedFighting':
@@ -22,15 +32,19 @@ export function attributeText(kind: AttributeKind, value: number): string | null
       return value === 0 ? '0' : null
     case 'value':
       return value >= 0 && value <= 15 ? String(value) : null
+    default:
+      return null
   }
 }
 
 // A note on how to read a kind of value, where its name alone is not enough.
-export const ATTRIBUTE_NOTES: Record<AttributeKind, string> = {
-  weight: 'pounds',
-  rating: '',
-  handedFighting: 'shooting hand, then fighting ability',
-  gloveHand: 'left or right',
-  zero: 'not used by the game',
-  value: 'the value stored, 0 to 15',
+export function attributeNote(kind: AttributeKind): string {
+  if (isWeight(kind)) return 'pounds'
+  const notes: Partial<Record<AttributeKind, string>> = {
+    handedFighting: 'shooting hand, then fighting ability',
+    gloveHand: 'left or right',
+    zero: 'not used by the game',
+    value: 'the value stored, 0 to 15',
+  }
+  return notes[kind] ?? ''
 }

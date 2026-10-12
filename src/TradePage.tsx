@@ -33,7 +33,7 @@ const one = (value: number | null) => (value === null ? '–' : value.toFixed(1)
 export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam }: Props) {
   const { game } = project
   const [showAttributes, setShowAttributes] = useState(true)
-  const storedOnly = game.playerAttributeKinds.every((kind) => kind === 'value')
+  const storedOnly = game.playerAttributeKinds.every((kind) => kind !== 'rating')
   const count = project.teams.length
   const first = startTeam >= 0 && startTeam < count ? startTeam : 0
   const [sides, setSides] = useState<[TradeSide, TradeSide]>([

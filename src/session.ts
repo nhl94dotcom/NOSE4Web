@@ -58,7 +58,7 @@ export async function saveSession(session: Session): Promise<void> {
 
 export async function loadSession(): Promise<Session | null> {
   const stored = await run<StoredSession | undefined>('readonly', (store) => store.get(KEY)).catch(() => undefined)
-  const game = stored && findGame(stored.productCode)
+  const game = stored && findGame(stored.productCode, stored.project.bytes)
   if (!stored || !game) return null
   // Work stored by an earlier version of the editor has no team pictures.
   const graphics = { ...NO_GRAPHICS_EDITS, ...stored.project.graphics }

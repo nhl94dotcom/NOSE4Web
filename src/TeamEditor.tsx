@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
-import { ATTRIBUTE_NOTES, attributeText, type AttributeKind } from './core/attributes'
+import { attributeNote, attributeText, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
 import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
 import type { GameConfig } from './core/games'
@@ -148,7 +148,7 @@ export function TeamEditor(props: Props) {
 
   const fewerSkaters = emptySlots.some((slots) => slots.some(Boolean))
   // Some hacks' attributes have no wording but the values stored.
-  const storedOnly = game.playerAttributeKinds.every((kind) => kind === 'value')
+  const storedOnly = game.playerAttributeKinds.every((kind) => kind !== 'rating')
   const lineTick = (l: number) => (
     <input
       type="checkbox"
@@ -194,7 +194,7 @@ export function TeamEditor(props: Props) {
   }
 
   function attributeTitle(name: string, kind: AttributeKind, index: number): string {
-    const title = ATTRIBUTE_NOTES[kind] ? `${name} (${ATTRIBUTE_NOTES[kind]})` : name
+    const title = attributeNote(kind) ? `${name} (${attributeNote(kind)})` : name
     return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
   }
 

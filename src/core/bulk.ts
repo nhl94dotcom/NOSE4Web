@@ -1,6 +1,6 @@
 // Changing one attribute for many players at once.
 
-import { attributeText, type AttributeKind } from './attributes'
+import { attributeText, isWeight, type AttributeKind } from './attributes'
 import type { GameConfig } from './games'
 import { leaguePlayers, type Role } from './league'
 import { overallRating } from './rating'
@@ -48,7 +48,7 @@ const kindsFor = (game: GameConfig, group: BulkGroup) =>
 export function bulkAttributes(game: GameConfig, group: BulkGroup): { index: number; name: string; kind: AttributeKind }[] {
   const names = group === 'goalies' ? game.goalieAttributeNames : game.playerAttributeNames
   return kindsFor(game, group).flatMap((kind, index) =>
-    kind === 'rating' || kind === 'weight' || kind === 'value' ? [{ index, name: names[index], kind }] : [],
+    kind === 'rating' || kind === 'value' || isWeight(kind) ? [{ index, name: names[index], kind }] : [],
   )
 }
 
