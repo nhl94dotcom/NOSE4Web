@@ -297,9 +297,9 @@ export function TeamEditor(props: Props) {
     <main className="team">
       {fewerSkaters && (
         <p className="notice">
-          This ROM is a hack that puts fewer skaters on the ice. Editing ROMs like it is less tested than editing the
-          original game, so keep a copy of the file you opened and try your download in the game before relying on
-          it.
+          This ROM is a hack that puts fewer skaters on the ice. Such ROMs are played with line changes off, and are
+          known to crash with them on, so only the first line (NLC) is used. Editing them has been tested less widely
+          than editing the original game, so keep a copy of the file you opened.
         </p>
       )}
       <section>
@@ -446,7 +446,7 @@ export function TeamEditor(props: Props) {
         {fewerSkaters && (
           <p className="note">
             This ROM puts fewer skaters on the ice, so some positions are empty on every team. Leave them empty unless
-            you know the ROM uses them.
+            you know the ROM uses them. Only the NLC line is played.
           </p>
         )}
         <table>

@@ -253,7 +253,8 @@ export function HelpPage() {
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions
         empty on every team. The editor recognises this: those positions show <b>Empty</b>, Check ROM does not
         report them, and the lines sheet of the spreadsheet files has blank cells for them. Leave them empty unless
-        you know the ROM uses them. The League page rates a first line on the skaters it has.
+        you know the ROM uses them. The League page rates a first line on the skaters it has. These ROMs are played
+        with line changes off, so NLC is the only line that matters in them.
       </p>
 
       <h3 id="help-colours">Team colours</h3>
@@ -591,10 +592,15 @@ export function HelpPage() {
         hack's altered game code exactly as it is, so what a hack does differently keeps working.
       </p>
       <p>
-        That said, hacks are less tested here than the original game, and the ones that put fewer skaters on the
-        ice least of all: the editor can read what they changed but cannot know everything they rely on. A team's
-        page says so at the top when the ROM is one of these. Keep a copy of the file you opened, and try a
-        download in the game before you hand it to anyone.
+        Hacks have been tested less widely here than the original game: the editor can read what they changed but
+        cannot know everything they rely on. Keep a copy of the file you opened, and try a download in the game
+        before you hand it to anyone.
+      </p>
+      <p>
+        Hacks that put fewer skaters on the ice are played with line changes off, and are known to crash with them
+        on. That is how those hacks behave, not something the editor causes or can fix. Only the first line, NLC,
+        is used in them. Roster edits to one of these ROMs have been checked in the game. A team's page has a
+        notice at the top when the ROM is one of these.
       </p>
       <ul>
         <li>Other games in the series, and hacks that rearrange the game's data in other ways, are not supported yet.</li>
