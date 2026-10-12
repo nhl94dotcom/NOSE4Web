@@ -3,12 +3,16 @@ import {
   banner,
   bannerColors,
   bannerPalette,
+  bannersEditable,
+  expandPictureSpace,
   LOGO_COLORS,
   menuLogo,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
+  NoRoomError,
   pictureFromImage,
+  pictureSpace,
   pictureToImage,
   rinkLogo,
   rinkLogoSharedWith,
@@ -85,7 +89,7 @@ function savePng(picture: Picture, palette: number[], fileName: string) {
 interface Props {
   project: RomProject
   team: number
-  onChange: (graphics: GraphicsEdits) => void
+  onChange: (project: RomProject) => void
 }
 
 export function GraphicsEditor({ project, team, onChange }: Props) {
@@ -94,17 +98,22 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const name = teamDisplayName(project.teams[team]).replace(/[^A-Za-z0-9]+/g, '_')
   const homePalette = project.teams[team].palette.slice(0, 16)
   const shared = rinkLogoSharedWith(project, team).filter((other) => other !== team)
+  const moreRoom = pictureSpace(project)
+  const roomButton = moreRoom
+    ? `Give logos and banners more room${moreRoom.grows ? ` (ROM grows to ${moreRoom.romSize / 0x100000} MB)` : ''}`
+    : ''
 
   // Applies a replacement if it can be written into the ROM. Pictures share
   // limited room, so some replacements do not fit.
   function apply(graphics: GraphicsEdits, message: string) {
     try {
       writeGraphics(project.bytes.slice(), project.game, graphics)
-      onChange(graphics)
+      onChange({ ...project, graphics })
       setNotice(message)
       setFailed(false)
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e))
+      const hint = e instanceof NoRoomError && moreRoom ? ` Or click "${roomButton}" below.` : ''
+      setNotice((e instanceof Error ? e.message : String(e)) + hint)
       setFailed(true)
     }
   }
@@ -125,6 +134,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const pictures = [
     {
       title: 'Centre-ice logo',
+      editable: true,
       picture: rinkLogo(project, team),
       palette: homePalette,
       scale: 4,
@@ -140,6 +150,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu logo',
+      editable: true,
       picture: menuLogo(project, team),
       palette: menuLogoPalette(project, team),
       scale: 3,
@@ -160,6 +171,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'Menu banner',
+      editable: bannersEditable(project, 'menu'),
       picture: banner(project, 'menu', team),
       palette: bannerPalette(project, 'menu', team),
       scale: 3,
@@ -179,6 +191,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
     },
     {
       title: 'In-game banner',
+      editable: bannersEditable(project, 'game'),
       picture: banner(project, 'game', team),
       palette: bannerPalette(project, 'game', team),
       scale: 3,
@@ -216,7 +229,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
             <PictureView picture={item.picture} palette={item.palette} scale={item.scale} />
             <p>
               <button onClick={() => savePng(item.picture, item.palette, item.file)}>Export PNG</button>{' '}
-              <label className="button">
+              <label className="button" hidden={!item.editable}>
                 Import…
                 <input
                   type="file"
@@ -230,18 +243,40 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                 />
               </label>
             </p>
-            <p className="note">{item.note}</p>
+            <p className="note">
+              {item.editable ? item.note : 'This ROM arranges these banners differently from the original game, so they cannot be replaced here yet.'}
+            </p>
           </div>
         ))}
       </div>
+      {moreRoom && (
+        <p>
+          <button
+            onClick={() => {
+              onChange(expandPictureSpace(project))
+              setNotice('The logos and banners now have room for any replacement.')
+              setFailed(false)
+            }}
+          >
+            {roomButton}
+          </button>{' '}
+          <span className="note">
+            In this ROM the menu logos and banners are packed with almost no room to spare. This moves them to unused
+            space at the end of the ROM, where each can be as detailed as you like.
+          </span>
+        </p>
+      )}
       <h2>Menu banner colours</h2>
       <PaletteEditor
         palette={bannerColors(project, team)}
         labels={['Top stripe', 'Bottom stripe']}
         onChange={(colors) =>
           onChange({
-            ...project.graphics,
-            menuPalettes: { ...project.graphics.menuPalettes, [team]: withBannerColors(menuPalette(project, team), colors) },
+            ...project,
+            graphics: {
+              ...project.graphics,
+              menuPalettes: { ...project.graphics.menuPalettes, [team]: withBannerColors(menuPalette(project, team), colors) },
+            },
           })
         }
       />

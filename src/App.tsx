@@ -247,7 +247,7 @@ export default function App() {
             onMovePlayers={(indexes, to) => movePlayers(selected, indexes, to)}
             footer={
               current.graphicsSupported && (
-                <GraphicsEditor project={current} team={selected} onChange={(graphics) => change({ ...current, graphics })} />
+                <GraphicsEditor project={current} team={selected} onChange={change} />
               )
             }
           />

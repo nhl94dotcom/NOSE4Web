@@ -7,11 +7,14 @@ import {
   banner,
   bannerColors,
   bannerPalette,
+  bannersEditable,
+  expandPictureSpace,
   menuLogo,
   menuLogoFromImage,
   menuLogoPalette,
   menuPalette,
   pictureFromImage,
+  pictureSpace,
   pictureToImage,
   rinkLogo,
   rinkLogoSharedWith,
@@ -19,7 +22,9 @@ import {
   withRinkLogo,
   type Picture,
 } from '../src/core/graphics'
+import { expandTeamSpace, nextExpansion } from '../src/core/expand'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
+import { addPlayer } from '../src/core/roster'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const load = (name: string) => (existsSync(path(name)) ? new Uint8Array(readFileSync(path(name))) : null)
@@ -176,6 +181,69 @@ describe.skipIf(!base)('team pictures in NHL 94', () => {
     )
   })
 
+  it('gives the pictures room for any replacement by moving them to the end of the ROM', () => {
+    const project = openRom(base!)
+    expect(pictureSpace(project)).toEqual({ romSize: 0x200000, grows: true })
+    const roomy = expandPictureSpace(project)
+    expect(roomy.bytes.length).toBe(0x200000)
+    expect(pictureSpace(roomy)).toBeNull()
+    // Nothing looks different, and nothing in the first megabyte changed but addresses.
+    expect(allPictures(roomy)).toEqual(allPictures(project))
+    const changed = differingOffsets(project.bytes, roomy.bytes.subarray(0, project.bytes.length))
+    const addresses = [0x17b7e, 0xf84d4, 0xf84e4, 0x16d26, 0x17672, 0x17b9e, 0x11f24]
+    const table = readU32(project.bytes, 0xf8682)
+    const expected = (o: number) =>
+      addresses.some((a) => o >= a && o < a + 4) || (o >= table && o < table + 28 * 4) || o >= 0xffac0 // the end mark moved
+    expect(changed.filter((o) => !expected(o))).toEqual([])
+    expect(readU32(roomy.bytes, 0xf84d4)).toBe(readU32(roomy.bytes, 0x17b7e) + 8)
+    expect(readU32(roomy.bytes, 0x11f24)).toBe(readU32(roomy.bytes, 0x16d26) + 8)
+
+    // Now the busiest pictures fit, for every team at once.
+    const all = (width: number, height: number, colors: number[], seed: number) =>
+      Object.fromEntries(project.teams.map((_, team) => [team, noise(width, height, colors, seed + team)]))
+    const graphics = {
+      ...roomy.graphics,
+      menuLogos: all(48, 48, [5, 6, 7, 8], 100),
+      menuBanners: all(88, 16, [1, 2, 5, 6], 200),
+      gameBanners: all(88, 16, [1, 5, 7, 9], 300),
+    }
+    const rom = buildRom({ ...roomy, graphics })
+    const reopened = openRom(rom)
+    expect(pictureSpace(reopened)).toBeNull()
+    const after = allPictures(reopened)
+    project.teams.forEach((_, team) => {
+      expect(after[team].logo).toEqual(graphics.menuLogos[team])
+      expect(after[team].menu).toEqual(graphics.menuBanners[team])
+      expect(after[team].game).toEqual(graphics.gameBanners[team])
+    })
+    expect(after.map((p) => p.rink)).toEqual(allPictures(project).map((p) => p.rink))
+    expect(reopened.teams).toEqual(project.teams)
+    expect(reopened.settings).toEqual(project.settings)
+  })
+
+  it('keeps roster space and picture space working together, in either order', () => {
+    const noisy = (project: RomProject) => ({ ...project.graphics, menuBanners: { 3: noise(88, 16, [1, 2, 5, 6], 9) } })
+    for (const picturesFirst of [true, false]) {
+      let project = openRom(base!)
+      const pictures = allPictures(project)
+      if (picturesFirst) project = expandPictureSpace(project)
+      project = expandTeamSpace(project)
+      project = expandTeamSpace(openRom(buildRom(project)))
+      expect(nextExpansion(project)).toBeNull()
+      if (!picturesFirst) project = expandPictureSpace(project)
+      project = { ...project, graphics: noisy(project) }
+      project.teams[0] = addPlayer(project.teams[0])
+
+      const reopened = openRom(buildRom(project))
+      expect(reopened.teams.map((t) => t.players)).toEqual(project.teams.map((t) => t.players))
+      expect(reopened.settings).toEqual(project.settings)
+      expect(banner(reopened, 'menu', 3)).toEqual(project.graphics.menuBanners[3])
+      expect(allPictures(reopened).map((p) => p.logo)).toEqual(pictures.map((p) => p.logo))
+      expect(pictureSpace(reopened)).toBeNull()
+      expect(nextExpansion(reopened)).toBeNull()
+    }
+  })
+
   it("changes a team's banner colours in both copies of its palette", () => {
     const project = openRom(base!)
     const palette = withBannerColors(menuPalette(project, MONTREAL), [0x0e00, 0x000e])
@@ -206,5 +274,17 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
     expect(after[9].game).toEqual(graphics.gameBanners[9])
     const untouched = (list: typeof before) => list.filter((_, i) => ![4, 7, 9].includes(i))
     expect(untouched(after)).toEqual(untouched(before))
+  })
+
+  it('leaves its menu banners alone, because it keeps separate sets for home and visitor', () => {
+    const project = openRom(league!)
+    expect(bannersEditable(project, 'menu')).toBe(false)
+    expect(bannersEditable(project, 'game')).toBe(true)
+    expect(() =>
+      buildRom({ ...project, graphics: { ...project.graphics, menuBanners: { 2: noise(88, 16, [1, 2, 5, 6], 8) } } }),
+    ).toThrow('This ROM keeps its menu banners in a way the editor cannot change.')
+    // Its other pictures already have all the room they can use.
+    expect(pictureSpace(project)).toBeNull()
+    expect(expandPictureSpace(project)).toBe(project)
   })
 })

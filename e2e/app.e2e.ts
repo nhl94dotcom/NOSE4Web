@@ -195,6 +195,29 @@ test.describe('with the NHL 94 ROM', () => {
     await pictures.nth(3).locator('input[type=file]').setInputFiles(await plain(88, 16))
     await expect(section.getByText('In-game banner replaced.')).toBeVisible()
 
+    // A busy menu banner does not fit the original ROM until the pictures are given more room.
+    const busy = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 88
+      canvas.height = 16
+      const context = canvas.getContext('2d')!
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 88; x++) {
+          context.fillStyle = (x * 7 + y * 13 + ((x * y) % 5)) % 3 ? '#ffffff' : '#000000'
+          context.fillRect(x, y, 1, 1)
+        }
+      }
+      return canvas.toDataURL('image/png')
+    })
+    const busyBanner = { name: 'busy.png', mimeType: 'image/png', buffer: Buffer.from(busy.split(',')[1], 'base64') }
+    await pictures.nth(2).locator('input[type=file]').setInputFiles(busyBanner)
+    await expect(section.getByText(/The menu banners need \d+ more tiles/)).toBeVisible()
+    await section.getByRole('button', { name: 'Give logos and banners more room (ROM grows to 2 MB)' }).click()
+    await expect(section.getByText('now have room for any replacement')).toBeVisible()
+    await pictures.nth(2).locator('input[type=file]').setInputFiles(busyBanner)
+    await expect(section.getByText('Menu banner replaced.')).toBeVisible()
+    await expect(section.getByRole('button', { name: /more room/ })).toBeHidden()
+
     // The wrong size is refused, with the size that is needed.
     await pictures.nth(2).locator('input[type=file]').setInputFiles(await plain(48, 48))
     await expect(section.getByText('This picture has to be 88 by 16.')).toBeVisible()
@@ -205,8 +228,10 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Montreal Canadiens').click()
     expect(await colourCount(pictures.nth(0))).toBe(1)
     expect(await colourCount(pictures.nth(1))).toBe(1)
-    expect(await colourCount(pictures.nth(2))).toBeGreaterThan(2)
+    expect(await colourCount(pictures.nth(2))).toBe(2) // the busy black and white banner
+    expect(rom.length).toBe(2097152)
     await team(page, 'Boston Bruins').click()
+    expect(await colourCount(pictures.nth(2))).toBeGreaterThan(2)
     expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
   })
 

@@ -63,6 +63,9 @@ export const NO_GRAPHICS_EDITS: GraphicsEdits = {
 interface Block {
   at: number
   tileCount: number
+  // How many tiles there is room for before whatever follows them. A block
+  // that has been given more room holds fewer tiles than this.
+  capacity: number
   paletteAt: number
   mapAt: number
   mapWidth: number
@@ -77,7 +80,7 @@ function readBlock(rom: Uint8Array, at: number): Block {
   const tileCount = readU16(rom, at + 8)
   if (mapOffset === 0) {
     const end = at + HEADER_BYTES + tileCount * TILE_BYTES
-    return { at, tileCount, paletteAt: 0, mapAt: 0, mapWidth: 0, mapHeight: 0, entries: [], end }
+    return { at, tileCount, capacity: tileCount, paletteAt: 0, mapAt: 0, mapWidth: 0, mapHeight: 0, entries: [], end }
   }
   const mapAt = at + mapOffset
   if (mapOffset < HEADER_BYTES + tileCount * TILE_BYTES || mapAt + 4 > rom.length) throw new Error('bad picture block')
@@ -87,7 +90,8 @@ function readBlock(rom: Uint8Array, at: number): Block {
   const entries: number[] = []
   for (let i = 0; i < mapWidth * mapHeight; i++) entries.push(readU16(rom, mapAt + 4 + i * 2))
   if (entries.some((entry) => (entry & TILE_NUMBER) >= tileCount)) throw new Error('bad picture map')
-  return { at, tileCount, paletteAt: at + paletteOffset, mapAt, mapWidth, mapHeight, entries, end: mapAt + 4 + entries.length * 2 }
+  const capacity = Math.floor((Math.min(paletteOffset || mapOffset, mapOffset) - HEADER_BYTES) / TILE_BYTES)
+  return { at, tileCount, capacity, paletteAt: at + paletteOffset, mapAt, mapWidth, mapHeight, entries, end: mapAt + 4 + entries.length * 2 }
 }
 
 function drawTile(rom: Uint8Array, tileAt: number, flags: number, picture: Picture, left: number, top: number): void {
@@ -160,6 +164,9 @@ function writeTiles(rom: Uint8Array, at: number, tiles: string[]): void {
   })
 }
 
+// Thrown when a picture is fine but the ROM has no room left for it.
+export class NoRoomError extends Error {}
+
 // ---------------------------------------------------------- where things are
 
 interface Layout {
@@ -181,12 +188,26 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     if (block.mapAt !== 0 || block.tileCount !== RINK_LOGO.tilesWide * RINK_LOGO.tilesHigh) throw new Error('bad rink logo')
   }
   const menuLogos = table(g.menuLogoTablePointer).map((at) => readBlock(rom, at))
-  const banners = { menu: readBlock(rom, readU32(rom, g.menuBannerPointer)), game: readBlock(rom, readU32(rom, g.gameBannerPointer)) }
+  const banners = {
+    menu: readBlock(rom, readU32(rom, g.bannerReferences.menu[0].at)),
+    game: readBlock(rom, readU32(rom, g.bannerReferences.game[0].at)),
+  }
   for (const block of [...menuLogos, banners.menu, banners.game]) if (block.mapAt === 0) throw new Error('picture has no map')
   for (const block of [banners.menu, banners.game]) {
     if (block.mapHeight < game.teamCount * BANNER_TILES_HIGH) throw new Error('too few banners')
   }
   return { rinkLogos, menuLogos, menuPalettesAt: readU32(rom, g.menuLogoPalettePointer), banners }
+}
+
+// Whether every place known to use a set of banners points at the one block
+// the editor reads. Some hacks split the banners into more than one set.
+function bannersAsExpected(rom: Uint8Array, game: GameConfig, kind: BannerKind, block: Block): boolean {
+  return game.graphics.bannerReferences[kind].every((ref) => readU32(rom, ref.at) === block.at + ref.offset)
+}
+
+// Whether a ROM's banners of one kind can be replaced.
+export function bannersEditable(project: Source, kind: BannerKind): boolean {
+  return bannersAsExpected(project.bytes, project.game, kind, layout(project.bytes, project.game).banners[kind])
 }
 
 // Whether this ROM keeps its team pictures where and how the editor expects.
@@ -352,6 +373,32 @@ export function pictureToImage(picture: Picture, palette: number[]): Uint8Clampe
 
 // ------------------------------------------------------------------ writing
 
+const mapFlags = (block: Block) => block.entries[0] & ~(TILE_NUMBER | FLIP_H | FLIP_V)
+const isFullSize = (block: Block) => block.tileCount === block.entries.length
+
+// A menu logo as a block of its own. Sharing tiles makes it smaller; without
+// sharing, every logo is the same size and can be replaced in place.
+function logoBlock(picture: Picture, like: Block, shareTiles: boolean): Uint8Array {
+  let { tiles, entries } = encodeMapped(picture, mapFlags(like))
+  if (!shareTiles) {
+    tiles = []
+    for (let top = 0; top < picture.height; top += 8) {
+      for (let left = 0; left < picture.width; left += 8) tiles.push(tileBytes(picture, left, top, false, false))
+    }
+    entries = tiles.map((_, i) => i | mapFlags(like))
+  }
+  const mapOffset = HEADER_BYTES + tiles.length * TILE_BYTES
+  const bytes = new Uint8Array(mapOffset + 4 + entries.length * 2)
+  writeU32(bytes, 0, mapOffset)
+  writeU32(bytes, 4, mapOffset)
+  writeU16(bytes, 8, tiles.length)
+  writeTiles(bytes, HEADER_BYTES, tiles)
+  writeU16(bytes, mapOffset, like.mapWidth)
+  writeU16(bytes, mapOffset + 2, like.mapHeight)
+  entries.forEach((entry, i) => writeU16(bytes, mapOffset + 4 + i * 2, entry))
+  return bytes
+}
+
 function writeMenuLogos(rom: Uint8Array, game: GameConfig, blocks: Block[], edits: Record<number, Picture>): void {
   const teams = Object.keys(edits).map(Number)
   if (teams.length === 0) return
@@ -369,26 +416,20 @@ function writeMenuLogos(rom: Uint8Array, game: GameConfig, blocks: Block[], edit
   })
   if (occupied) throw new Error('The menu logos are not stored together in this ROM, so they cannot be replaced.')
 
+  // Where every logo already has a tile for each position, as in ROMs given
+  // more room, a logo is simply written in place at full size.
+  if (distinct.every(isFullSize)) {
+    for (const team of teams) rom.set(logoBlock(edits[team], blocks[team], false), blocks[team].at)
+    return
+  }
+
   const contents = new Map<number, Uint8Array>()
   for (const block of distinct) contents.set(block.at, rom.slice(block.at, block.end))
-  for (const team of teams) {
-    const block = blocks[team]
-    const { tiles, entries } = encodeMapped(edits[team], block.entries[0] & ~(TILE_NUMBER | FLIP_H | FLIP_V))
-    const mapOffset = HEADER_BYTES + tiles.length * TILE_BYTES
-    const bytes = new Uint8Array(mapOffset + 4 + entries.length * 2)
-    writeU32(bytes, 0, mapOffset)
-    writeU32(bytes, 4, mapOffset)
-    writeU16(bytes, 8, tiles.length)
-    writeTiles(bytes, HEADER_BYTES, tiles)
-    writeU16(bytes, mapOffset, block.mapWidth)
-    writeU16(bytes, mapOffset + 2, block.mapHeight)
-    entries.forEach((entry, i) => writeU16(bytes, mapOffset + 4 + i * 2, entry))
-    contents.set(block.at, bytes)
-  }
+  for (const team of teams) contents.set(blocks[team].at, logoBlock(edits[team], blocks[team], true))
 
   const needed = [...contents.values()].reduce((sum, bytes) => sum + bytes.length, 0)
   if (needed > end - start) {
-    throw new Error(
+    throw new NoRoomError(
       `The menu logos need ${needed - (end - start)} more bytes than the ROM has for them. ` +
         'Logos with plainer areas and fewer fine details take less room.',
     )
@@ -410,16 +451,18 @@ function writeBanners(rom: Uint8Array, block: Block, edits: Record<number, Pictu
   if (Object.keys(edits).length === 0) return
   const all = decodeMapped(rom, block)
   for (const [team, picture] of Object.entries(edits)) all.pixels.set(picture.pixels, Number(team) * picture.height * all.width)
-  const { tiles, entries } = encodeMapped(all, block.entries[0] & ~(TILE_NUMBER | FLIP_H | FLIP_V))
+  const { tiles, entries } = encodeMapped(all, mapFlags(block))
   // The block keeps its size and layout, so nothing that points into it moves.
-  if (tiles.length > block.tileCount) {
-    throw new Error(
-      `The ${name} banners need ${tiles.length - block.tileCount} more tiles than the ROM has room for. ` +
+  if (tiles.length > block.capacity) {
+    throw new NoRoomError(
+      `The ${name} banners need ${tiles.length - block.capacity} more tiles than the ROM has room for. ` +
         'Lettering that repeats shapes, and banners that share them, take less room.',
     )
   }
-  rom.fill(0, block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.tileCount * TILE_BYTES)
+  rom.fill(0, block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.capacity * TILE_BYTES)
   writeTiles(rom, block.at + HEADER_BYTES, tiles)
+  // The game is told about more tiles only when more are really in use.
+  writeU16(rom, block.at + 8, Math.max(tiles.length, block.tileCount))
   entries.forEach((entry, i) => writeU16(rom, block.mapAt + 4 + i * 2, entry))
 }
 
@@ -439,10 +482,109 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
   for (const [team, palette] of Object.entries(edits.menuPalettes)) {
     palette.forEach((word, i) => writeU16(rom, where.menuPalettesAt + Number(team) * LOGO_PALETTE_BYTES + i * 2, word))
   }
-  writeBanners(rom, where.banners.menu, edits.menuBanners, 'menu')
-  writeBanners(rom, where.banners.game, edits.gameBanners, 'in-game')
+  const sets: [BannerKind, Record<number, Picture>, string][] = [['menu', edits.menuBanners, 'menu'], ['game', edits.gameBanners, 'in-game']]
+  for (const [kind, pictures, name] of sets) {
+    if (Object.keys(pictures).length > 0 && !bannersAsExpected(rom, game, kind, where.banners[kind])) {
+      throw new Error(`This ROM keeps its ${name} banners in a way the editor cannot change.`)
+    }
+    writeBanners(rom, where.banners[kind], pictures, name)
+  }
   // Last, because it can move the logos and so change where things are.
   writeMenuLogos(rom, game, where.menuLogos, edits.menuLogos)
+}
+
+// ---------------------------------------------------------------- more room
+// In the original game the menu logos and the banners are packed tight, so a
+// replacement with more detail may not fit. This moves them to unused space
+// at the end of the ROM, each with room for a tile in every position, and
+// repoints the game at them. The ROM file grows if it has to.
+
+function claimSpace(rom: Uint8Array, size: number): { rom: Uint8Array; at: number } | null {
+  let last = rom.length - 1
+  while (last >= 0 && rom[last] === 0xff) last--
+  // NOSE marks the end of the used part of a ROM it has edited. Where that
+  // mark is the last thing in the ROM, it is moved to follow the new data.
+  const marked = last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
+  const at = marked ? last - 1 : last + 1 + ((last + 1) % 2)
+  const needed = at + size + (marked ? 2 : 0)
+  let length = rom.length
+  if (needed > length) length = length === 0x80000 || length === 0x100000 ? length * 2 : length === 0x200000 ? 0x300000 : 0
+  if (needed > length) return null
+  const grown = new Uint8Array(length).fill(0xff)
+  grown.set(rom)
+  if (marked) grown.set([0x60, 0xfe], at + size)
+  return { rom: grown, at }
+}
+
+interface SpacePlan {
+  banners: BannerKind[]
+  logos: boolean
+  size: number
+}
+
+const roomyBannerSize = (block: Block) =>
+  HEADER_BYTES + block.entries.length * TILE_BYTES + (block.mapAt - block.paletteAt) + 4 + block.entries.length * 2
+const roomyLogoSize = (block: Block) => HEADER_BYTES + block.entries.length * TILE_BYTES + 4 + block.entries.length * 2
+const distinctBlocks = (blocks: Block[]) => [...new Map(blocks.map((block) => [block.at, block])).values()].sort((a, b) => a.at - b.at)
+
+function planSpace(rom: Uint8Array, game: GameConfig): SpacePlan | null {
+  const where = layout(rom, game)
+  const kinds: BannerKind[] = ['menu', 'game']
+  const banners = kinds.filter((kind) => {
+    const block = where.banners[kind]
+    return bannersAsExpected(rom, game, kind, block) && block.capacity < block.entries.length
+  })
+  const logoBlocks = distinctBlocks(where.menuLogos)
+  const logos = !logoBlocks.every(isFullSize)
+  if (banners.length === 0 && !logos) return null
+  const size =
+    banners.reduce((sum, kind) => sum + roomyBannerSize(where.banners[kind]), 0) +
+    (logos ? logoBlocks.reduce((sum, block) => sum + roomyLogoSize(block), 0) : 0)
+  return { banners, logos, size }
+}
+
+// What giving the pictures more room would do, or null if they have it already.
+export function pictureSpace(project: Source): { romSize: number; grows: boolean } | null {
+  const plan = planSpace(project.bytes, project.game)
+  const claimed = plan && claimSpace(project.bytes, plan.size)
+  return claimed ? { romSize: claimed.rom.length, grows: claimed.rom.length > project.bytes.length } : null
+}
+
+export function expandPictureSpace<P extends Source>(project: P): P {
+  const { game } = project
+  const plan = planSpace(project.bytes, game)
+  const claimed = plan && claimSpace(project.bytes, plan.size)
+  if (!plan || !claimed) return project
+  const where = layout(project.bytes, game)
+  const rom = claimed.rom
+  let at = claimed.at
+
+  for (const kind of plan.banners) {
+    const block = where.banners[kind]
+    const paletteOffset = HEADER_BYTES + block.entries.length * TILE_BYTES
+    const mapOffset = paletteOffset + (block.mapAt - block.paletteAt)
+    rom.fill(0, at, at + roomyBannerSize(block))
+    writeU32(rom, at, paletteOffset)
+    writeU32(rom, at + 4, mapOffset)
+    writeU16(rom, at + 8, block.tileCount)
+    rom.set(project.bytes.subarray(block.at + HEADER_BYTES, block.at + HEADER_BYTES + block.tileCount * TILE_BYTES), at + HEADER_BYTES)
+    rom.set(project.bytes.subarray(block.paletteAt, block.mapAt), at + paletteOffset)
+    rom.set(project.bytes.subarray(block.mapAt, block.end), at + mapOffset)
+    for (const ref of game.graphics.bannerReferences[kind]) writeU32(rom, ref.at, at + ref.offset)
+    at += roomyBannerSize(block)
+  }
+
+  if (plan.logos) {
+    const movedTo = new Map<number, number>()
+    for (const block of distinctBlocks(where.menuLogos)) {
+      rom.set(logoBlock(decodeMapped(project.bytes, block), block, false), at)
+      movedTo.set(block.at, at)
+      at += roomyLogoSize(block)
+    }
+    const tableAt = readU32(rom, game.graphics.menuLogoTablePointer)
+    where.menuLogos.forEach((block, team) => writeU32(rom, tableAt + team * 4, movedTo.get(block.at)!))
+  }
+  return { ...project, bytes: rom }
 }
 
 export const RINK_LOGO_SIZE = { width: RINK_LOGO.tilesWide * 8, height: RINK_LOGO.tilesHigh * 8 }

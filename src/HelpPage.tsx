@@ -310,7 +310,18 @@ export function HelpPage() {
         plain areas and repeated shapes take less room than fine detail. The room is limited and shared: in the
         original game, the menu logos of all teams have space for only about eleven more tiles between them, and the
         banners have none to spare beyond what the replaced banner frees. If a picture does not fit, the editor says
-        so and changes nothing. Simplify the picture, or simplify another to make room.
+        so and changes nothing.
+      </p>
+      <p>
+        When that happens, <b>Give logos and banners more room</b>, below the pictures, moves the menu logos and both
+        sets of banners to unused space at the end of the ROM, where every one of them can be as detailed as you
+        like. In the original game this doubles the ROM file to 2 MB, which emulators and flash cartridges handle
+        normally. It cannot be undone except with Undo or by opening the ROM again, and the button disappears once
+        the pictures have their room.
+      </p>
+      <p>
+        Some hacked ROMs keep separate menu banners for the home and visiting teams. The editor shows those banners
+        but cannot replace them yet.
       </p>
       <p>
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it

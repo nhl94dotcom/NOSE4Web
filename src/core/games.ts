@@ -19,8 +19,9 @@ export interface GameConfig {
     rinkLogoTablePointer: number
     menuLogoTablePointer: number
     menuLogoPalettePointer: number
-    menuBannerPointer: number
-    gameBannerPointer: number
+    // Every place that holds a banner block's address, or an address a fixed
+    // distance into it. The first of each is the address of the block itself.
+    bannerReferences: Record<'menu' | 'game', { at: number; offset: number }[]>
   }
   // Places in the game's code that hold the address of the playoff draw tables.
   playoffDrawPointerOffsets: number[]
@@ -76,8 +77,19 @@ export const NHL94: GameConfig = {
     rinkLogoTablePointer: 0xfea5a,
     menuLogoTablePointer: 0xf8682,
     menuLogoPalettePointer: 0x17b2a,
-    menuBannerPointer: 0x17b7e,
-    gameBannerPointer: 0x16d26,
+    bannerReferences: {
+      menu: [
+        { at: 0x17b7e, offset: 0 },
+        { at: 0xf84d4, offset: 8 },
+        { at: 0xf84e4, offset: 8 },
+      ],
+      game: [
+        { at: 0x16d26, offset: 0 },
+        { at: 0x17672, offset: 0 },
+        { at: 0x17b9e, offset: 0 },
+        { at: 0x11f24, offset: 8 },
+      ],
+    },
   },
   playoffDrawPointerOffsets: [0x17d26, 0x17d90],
   playoffDrawCount: 32,
