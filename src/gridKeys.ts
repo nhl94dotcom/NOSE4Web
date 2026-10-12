@@ -47,6 +47,16 @@ export function gridKeyDown(event: KeyboardEvent<HTMLTableElement>): void {
   if (next instanceof HTMLInputElement) next.select()
 }
 
+// Plus and minus, on the main keys or the number pad, step a list's value up
+// or down. Returns +1 or -1, or 0 for any other key. The key beside minus
+// counts as plus without Shift, as it does when zooming a page.
+export function stepKey(event: KeyboardEvent<HTMLElement>): number {
+  if (event.altKey || event.ctrlKey || event.metaKey) return 0
+  if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 1
+  if (event.key === '-' || event.key === '_' || event.code === 'NumpadSubtract') return -1
+  return 0
+}
+
 // Typing a number into a list of stored values chooses that value, taking two
 // digits typed quickly together as one number. Returns the value to set, or
 // null if the key is not part of a number.

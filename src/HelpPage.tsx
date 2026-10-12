@@ -214,6 +214,11 @@ export function HelpPage() {
           press <b>Down</b> to open the list, or click it.
         </li>
         <li>
+          In an attribute's list, <b>+</b> and <b>-</b> raise and lower it one step, stopping at the top and bottom
+          of its range. Either the main keys or the number pad will do, and the key beside minus counts as plus
+          without Shift. This changes the one box you are in; the Quick edit keys change every ticked player.
+        </li>
+        <li>
           Where attributes show as stored values, type a number into a list to set it. Two digits typed quickly
           together count as one number, so 1 then 2 gives 12.
         </li>

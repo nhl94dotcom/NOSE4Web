@@ -17,7 +17,7 @@ import {
   setGoalieNibble,
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
-import { gridKeyDown, typedValue } from './gridKeys'
+import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 
@@ -253,12 +253,22 @@ export function TeamEditor(props: Props) {
                           setPlayer(index, { ...player, attributes })
                         }}
                         onKeyDown={(e) => {
+                          const allowed = (v: number) => v >= 0 && v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null)
+                          const set = (next: number) => {
+                            e.preventDefault()
+                            setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
+                          }
+                          // Plus and minus step to the next value the list offers, and stop at its ends.
+                          const step = stepKey(e)
+                          if (step !== 0) {
+                            let next = value + step
+                            while (next >= 0 && next <= 15 && !allowed(next)) next += step
+                            return allowed(next) ? set(next) : e.preventDefault()
+                          }
                           // Where the stored values are showing, typing one sets it.
                           if (!rawAttributes && kinds[a] !== 'value') return
-                          const next = typedValue(e, (v) => v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null))
-                          if (next === null) return
-                          e.preventDefault()
-                          setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
+                          const typed = typedValue(e, allowed)
+                          if (typed !== null) set(typed)
                         }}
                       >
                         {ATTRIBUTE_VALUES.map((v) => {
@@ -404,7 +414,8 @@ export function TeamEditor(props: Props) {
       </p>
       <p className="note">
         In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
-        arrow to open a list{storedOnly || rawAttributes ? ', or type a number into one to set it' : ''}.
+        arrow to open a list. In an attribute's list, + and - raise and lower it
+        {storedOnly || rawAttributes ? ', and typing a number sets it' : ''}.
       </p>
       <p>
         {reset('roster', 'roster')}{' '}

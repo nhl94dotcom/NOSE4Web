@@ -1058,6 +1058,38 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(agility(2)).toHaveValue('12')
     await expect(agility(1)).toHaveValue('4')
 
+    // Plus and minus step the value in the box, on the main keys or the number pad.
+    await agility(1).focus()
+    await page.keyboard.press('NumpadAdd')
+    await expect(agility(1)).toHaveValue('5')
+    await page.keyboard.press('Equal') // the plus key without Shift
+    await page.keyboard.press('Shift+Equal')
+    await expect(agility(1)).toHaveValue('7')
+    await page.keyboard.press('Minus')
+    await page.keyboard.press('NumpadSubtract')
+    await expect(agility(1)).toHaveValue('5')
+    for (let i = 0; i < 20; i++) await page.keyboard.press('NumpadAdd')
+    await expect(agility(1)).toHaveValue('15') // stored values go to 15
+    await expect(agility(0)).toHaveValue(before[0])
+    // Shown as the game's ratings, they stop at the top and bottom of the rating's range.
+    await page.getByLabel('Show attributes as stored values (0–15)').uncheck()
+    await agility(0).focus()
+    for (let i = 0; i < 20; i++) await page.keyboard.press('Minus')
+    await expect(agility(0)).toHaveValue('0')
+    await page.keyboard.press('NumpadAdd')
+    await expect(agility(0)).toHaveValue('1')
+    for (let i = 0; i < 20; i++) await page.keyboard.press('NumpadAdd')
+    await expect(agility(0)).toHaveValue('6')
+    // With the quick edit keys on as well, the box in hand is still the only thing changed.
+    await page.getByLabel('Quick edit keys').check()
+    await tick(skaters.nth(4))
+    const other = await agility(4).inputValue()
+    await agility(0).focus()
+    await page.keyboard.press('Minus')
+    await expect(agility(0)).toHaveValue('5')
+    await expect(agility(4)).toHaveValue(other)
+    await page.getByLabel('Quick edit keys').uncheck()
+
     // The lines table moves the same way.
     const lineRows = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) }).locator('tbody tr')
     const centre = (row: number) => lineRows.nth(row).locator('select').nth(4)
