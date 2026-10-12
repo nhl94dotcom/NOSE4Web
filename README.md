@@ -28,8 +28,8 @@ That licence does not cover:
 
 - Team names, and each team's home and away colours with a live preview
 - Team logos and banners, by exporting and importing PNG images one at a time
-  or every team's at once as a zip, and banners lettered for you in the style of
-  the game's own
+  or every team's at once as a zip, and banners lettered for you in the game's
+  own style
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on

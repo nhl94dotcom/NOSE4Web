@@ -344,10 +344,8 @@ export function HelpPage() {
 
       <p>
         <b>Banner lettering</b> makes a banner for you. Type what it should read and choose which banner to use it
-        for. It is drawn with the frame and the two stripes the game's banners have, in bold capitals of the same
-        size. The lettering is the editor's own and is plainer than the game's, so a lettered banner looks a
-        little different beside one left as it was; letter every team's if you want them to match.
-        The stripes take the team's menu banner colours, so set those first for the in-game banner, whose stripes
+        for. It is drawn in the game's own lettering, with the frame and the two stripes the game's banners have;
+        the stripes take the team's menu banner colours, so set those first for the in-game banner, whose stripes
         are fixed when it is made. Capital letters, digits and . - ' ! &amp; / can be drawn, and a name has to fit
         in 82 pixels, about twelve letters, so use a short form for a long one. A banner starts out reading the
         team's location, as the original game's do.

@@ -275,9 +275,8 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
 
       <h2>Banner lettering</h2>
       <p className="note">
-        Makes a banner that reads whatever you type, with the frame and stripes of the game's own banners and the
-        stripes in the banner colours below. The lettering is the editor's own, so it will not match banners you
-        leave as they are.
+        Makes a banner that reads whatever you type, in the game's own lettering, with the stripes in the banner
+        colours below.
       </p>
       <p>
         <input

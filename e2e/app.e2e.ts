@@ -877,9 +877,14 @@ test.describe('with the NHL 94 ROM', () => {
     await text.fill('Bruins')
     // Too much new lettering for the packed ROM, until the pictures are given room.
     await section.getByRole('button', { name: 'Use for all 2' }).click()
-    await expect(section.getByText(/need \d+ more tiles than the ROM has room for.*Or click "Give logos and banners more room/)).toBeVisible()
-    await page.getByRole('button', { name: /Give logos and banners more room/ }).click()
-    await section.getByRole('button', { name: 'Use for all 2' }).click()
+    const done = section.getByText('Lettered the menu banner and the in-game banner "BRUINS".')
+    const noRoom = section.getByText(/more tiles than the ROM has room for/)
+    await expect(done.or(noRoom)).toBeVisible()
+    // New lettering may not fit the packed ROM until the pictures are given room.
+    if (await noRoom.isVisible()) {
+      await page.getByRole('button', { name: /Give logos and banners more room/ }).click()
+      await section.getByRole('button', { name: 'Use for all 2' }).click()
+    }
     await expect(section.getByText('Lettered the menu banner and the in-game banner "BRUINS".')).toBeVisible()
     for (const title of ['Menu banner', 'In-game banner']) {
       await expect(page.locator('.picture').filter({ hasText: title }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()

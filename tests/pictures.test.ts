@@ -83,7 +83,7 @@ describe('zip files', () => {
 
 describe('banner lettering', () => {
   it('measures text, capitalises it, and leaves out what it has no shape for', () => {
-    expect(measureLettering('Boston')).toMatchObject({ text: 'BOSTON', dropped: '', width: 44, tooWide: 0 })
+    expect(measureLettering('Boston')).toMatchObject({ text: 'BOSTON', dropped: '', width: 47, tooWide: 0 })
     expect(measureLettering('  new   york ').text).toBe('NEW YORK')
     expect(measureLettering('Zürich #9')).toMatchObject({ text: 'ZRICH 9', dropped: 'Ü#' })
     expect(measureLettering('').width).toBe(0)
@@ -95,47 +95,31 @@ describe('banner lettering', () => {
     }
   })
 
-  it.skipIf(!hasRom)('draws the frame and stripes the game\'s banners have, around lettering of its own', () => {
+  it.skipIf(!hasRom)('redraws the original game\'s own banners exactly', () => {
     const project = setup()
-    for (const kind of ['menu', 'game'] as const) {
-      for (const team of [BOSTON, MONTREAL, 9]) {
-        const made = letterBanner(project, kind, team, project.teams[team].names[0])
-        const theirs = banner(project, kind, team)
-        const differing: number[] = []
-        made.pixels.forEach((v, i) => {
-          const [x, y] = [i % 88, Math.floor(i / 88)]
-          // The frame, and the stripes to either side of where the names sit.
-          const outside = x < 2 || x > 85 || y < 2 || y > 13 || x < 10 || x > 80
-          if (outside && v !== theirs.pixels[i]) differing.push(i)
-        })
-        expect(differing, `${kind} banner of team ${team}`).toEqual([])
-        // The lettering itself is this project's, not the game's.
-        expect(made).not.toEqual(theirs)
-      }
+    // The game's artists placed each name by eye, a pixel or two either way,
+    // and now and then squeezed two letters together. So the lettering is
+    // compared wherever it sits, for the teams whose banner is their location.
+    const lettersOf = (pixels: Uint8Array, shift: number) => {
+      const found: string[] = []
+      // Inside the frame, which is the same white as the letters.
+      pixels.forEach((v, i) => v === 5 && i % 88 > 1 && i % 88 < 86 && i >= 2 * 88 && i < 14 * 88 && found.push(`${(i % 88) + shift},${Math.floor(i / 88)}`))
+      return found.join(' ')
     }
-    // Letters are white with a black shadow below and to the right, on the menus.
-    const made = letterBanner(project, 'menu', BOSTON, 'I')
-    const white = [...made.pixels].flatMap((v, i) => (v === 5 && i % 88 > 1 && i % 88 < 86 && i > 2 * 88 && i < 14 * 88 ? [i] : []))
-    expect(white.length).toBeGreaterThan(10)
-    for (const i of white) expect([5, 6]).toContain(made.pixels[i + 89])
-    // And centred.
-    const columns = white.map((i) => i % 88)
-    expect(Math.min(...columns) - 2).toBe(85 - Math.max(...columns))
-  })
-
-  it('has a shape of nine rows and one width for every character it draws', () => {
-    for (const char of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') {
-      const alone = measureLettering(char).width
-      expect(alone, char).toBeGreaterThanOrEqual(4)
-      expect(alone, char).toBeLessThanOrEqual(8)
-      // Two of a character are twice its width and the gap between.
-      expect(measureLettering(char + char).width, char).toBe(alone * 2 + 1)
+    const matching = project.teams.flatMap((team, t) => {
+      if (measureLettering(team.names[0]).tooWide > 0) return []
+      const mine = letterBanner(project, 'menu', t, team.names[0]).pixels
+      const theirs = lettersOf(banner(project, 'menu', t).pixels, 0)
+      return [-3, -2, -1, 0, 1, 2, 3].some((shift) => lettersOf(mine, shift) === theirs) ? [team.names[0]] : []
+    })
+    // Between them these use nearly every letter the game's banners have.
+    for (const name of ['Boston', 'Buffalo', 'Chicago', 'Dallas', 'Edmonton', 'Hartford', 'Montreal', 'Ottawa', 'Quebec', 'Vancouver', 'New York', 'San Jose']) {
+      if (!matching.includes(name)) expect.soft(name, 'lettering differs').toBe('')
     }
-    // No two letters share a shape.
-    const project = hasRom ? setup() : null
-    if (!project) return
-    const shapes = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789'].map((char) => letterBanner(project, 'menu', 0, char).pixels.join(''))
-    expect(new Set(shapes).size).toBe(shapes.length)
+    expect(matching.length).toBeGreaterThanOrEqual(15)
+    // Index for index, not just in looks, on the menus.
+    expect(letterBanner(project, 'menu', BOSTON, 'boston')).toEqual(banner(project, 'menu', BOSTON))
+    expect(letterBanner(project, 'game', BOSTON, 'boston')).toEqual(banner(project, 'game', BOSTON))
   })
 
   it.skipIf(!hasRom)('follows the team\'s banner colours, and refuses text that does not fit', () => {
