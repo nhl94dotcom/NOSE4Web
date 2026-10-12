@@ -133,12 +133,13 @@ export function pictureFileName(project: RomProject, team: number, kind: Picture
   return `${String(team + 1).padStart(2, '0')}_${cleanName(teamDisplayName(project.teams[team]))}_${file}.png`
 }
 
-export function identifyPictureFile(fileName: string): { team: number; kind: PictureKind } | null {
+// `name` is the team name in the middle of the file's name, as it was written there.
+export function identifyPictureFile(fileName: string): { team: number; name: string; kind: PictureKind } | null {
   const base = fileName.replace(/^.*[\\/]/, '')
-  const match = /^(\d+)_(?:.*_)?(rink_logo|menu_logo|menu_banner|visitor_banner|game_banner)\.png$/i.exec(base)
+  const match = /^(\d+)_(?:(.*)_)?(rink_logo|menu_logo|menu_banner|visitor_banner|game_banner)\.png$/i.exec(base)
   if (!match) return null
-  const kind = KINDS.find((k) => k.file === match[2].toLowerCase())!.kind
-  return { team: Number(match[1]) - 1, kind }
+  const kind = KINDS.find((k) => k.file === match[3].toLowerCase())!.kind
+  return { team: Number(match[1]) - 1, name: match[2] ?? '', kind }
 }
 
 // Every team's pictures, named for a set. A picture several teams share is
@@ -168,9 +169,16 @@ const sameLook = (a: Uint8ClampedArray, b: Uint8ClampedArray) => a.length === b.
 // Brings in a set of picture files. A file that shows what the editor has
 // already is skipped, so an exported set comes back in without changing
 // anything, and only the pictures that were edited are replaced.
-export function importPictureSet(project: RomProject, files: ({ name: string } & ImageData)[]): PictureSetResult {
+export interface PictureSetOptions {
+  // Go by the team name in each file's name, not by its number. For sets made
+  // from a ROM that lists the same teams in another order.
+  byName?: boolean
+}
+
+export function importPictureSet(project: RomProject, files: ({ name: string } & ImageData)[], options: PictureSetOptions = {}): PictureSetResult {
   const problems: string[] = []
   const kinds = pictureKinds(project)
+  const named = project.teams.map((team) => cleanName(teamDisplayName(team)).toLowerCase())
   let unchanged = 0
   const changes: { team: number; kind: PictureKind; image: ImageData; title: string; name: string }[] = []
   const seen = new Set<string>()
@@ -181,7 +189,22 @@ export function importPictureSet(project: RomProject, files: ({ name: string } &
       problems.push(`${file.name}: the name does not say which team and picture it is. It should look like 03_Team_menu_logo.png.`)
       continue
     }
-    const { team, kind } = found
+    const { kind } = found
+    let { team } = found
+    if (options.byName) {
+      const matches = named.flatMap((name, index) => (name === found.name.toLowerCase() ? [index] : []))
+      // Where two teams share a name, the file's number says which, if it is one of them.
+      if (matches.length === 0 || (matches.length > 1 && !matches.includes(team))) {
+        const what = found.name.replace(/_/g, ' ')
+        problems.push(
+          matches.length === 0
+            ? `${file.name}: this ROM has no team called ${what || '(no name)'}.`
+            : `${file.name}: this ROM has more than one team called ${what}, and the file's number is not one of them.`,
+        )
+        continue
+      }
+      if (!matches.includes(team)) team = matches[0]
+    }
     if (team < 0 || team >= project.teams.length) {
       problems.push(`${file.name}: this ROM has no team ${team + 1}.`)
       continue

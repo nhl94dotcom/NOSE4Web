@@ -53,8 +53,10 @@ export interface GameConfig {
   introTextSize: number
   // The 32 colours used to draw the ice and the arena around it.
   rinkPaletteOffset: number
-  // What each of a strip's 16 colours is used for.
+  // What each of a strip's 16 colours is used for, and whether that is known:
+  // hacks that repaint the players use the colours their own way.
   stripColorLabels: string[]
+  stripColorsKnown: boolean
   // The 16 seedings in a playoff draw, in the order they are stored.
   playoffSlotLabels: string[]
   rulesOffset: number
@@ -124,6 +126,7 @@ export const NHL94: GameConfig = {
   introTextPointerOffset: 0xff292,
   introTextSize: 0x364,
   rinkPaletteOffset: 0x59924,
+  stripColorsKnown: true,
   stripColorLabels: [
     'Ice', 'Blade', 'Boot/Gloves', 'Pants (dark)', 'Pants (medium)', 'Pants (light)',
     'Face (light)', 'Face (dark)', 'Body/Leg trim (dark)', 'Body/Leg trim (light)',
@@ -198,6 +201,7 @@ export const NHL94_EVO: GameConfig = {
   // and a base weight of 144, so the name in the header is what marks it out.
   productCode: 'GM T-50656-F3V',
   headerName: 'NHL 94: EVO',
+  stripColorsKnown: false,
   title: 'NHL 94: EVO',
   teamCount: 64,
   teamNameRedirects: [],

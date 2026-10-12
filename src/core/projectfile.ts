@@ -8,9 +8,10 @@ import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
 import type { RomProject } from './rom'
+import type { Baseline } from './season'
 import { MAX_ROSTER } from './roster'
 import type { Settings } from './settings'
-import type { Team } from './team'
+import { teamDisplayName, type Team } from './team'
 import type { FreeAgent } from './trade'
 
 const FORMAT = 1
@@ -35,6 +36,7 @@ interface ProjectFile {
   menuPalettes: Record<string, number[]>
   freeAgents: FreeAgent[]
   leagueRules?: LeagueRules
+  baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
 }
 
 const PICTURE_SETS: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, PictureKind> = {
@@ -93,6 +95,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     menuPalettes: project.graphics.menuPalettes,
     freeAgents: project.freeAgents,
     leagueRules: project.leagueRules,
+    baseline: project.baseline,
   }
   return JSON.stringify(file)
 }
@@ -165,6 +168,68 @@ function mergeSettings(base: Settings, from: Settings, teamCount: number, notes:
   }
 }
 
+export interface ProjectFileOptions {
+  // Put each team in the file where the ROM has a team of the same name, not
+  // where it stood in the file. For a ROM that lists the teams in another order.
+  byName?: boolean
+}
+
+// Where each of a file's teams goes in the ROM, going by name. Every team has
+// to find a place of its own, or the file is not matched at all.
+function placesByName(file: ProjectFile, opened: RomProject): number[] {
+  const names = opened.teams.map(teamDisplayName)
+  const taken = new Set<number>()
+  const missing: string[] = []
+  const places = file.teams.map((team, i) => {
+    const name = `${team?.names?.[0] ?? ''} ${team?.names?.[2] ?? ''}`.trim()
+    const matches = names.flatMap((other, index) => (other === name && !taken.has(index) ? [index] : []))
+    // Of several teams with one name, the one in the same place is preferred.
+    const place = matches.includes(i) ? i : matches[0]
+    if (place === undefined) missing.push(name || `team ${i + 1}`)
+    else taken.add(place)
+    return place ?? -1
+  })
+  if (missing.length > 0) {
+    throw new ProjectFileError(
+      `Matching by name, the ROM has no team of its own for: ${missing.join(', ')}. Open the project without matching by name, or rename the teams to agree.`,
+    )
+  }
+  return places
+}
+
+// The file with its teams, and everything that refers to a team by number,
+// moved to the places given.
+function moveTeams(file: ProjectFile, places: number[], game: RomProject['game']): ProjectFile {
+  const moved = <T>(list: T[]): T[] => {
+    const out = new Array<T>(list.length)
+    list.forEach((item, i) => (out[places[i]] = item))
+    return out
+  }
+  const keys = <T>(record: Record<string, T> | undefined): Record<string, T> =>
+    Object.fromEntries(Object.entries(record ?? {}).flatMap(([team, value]) => (places[Number(team)] === undefined ? [] : [[String(places[Number(team)]), value]])))
+  const number = (team: number) => places[team] ?? team
+  const settings = (from: Settings | null): Settings | null =>
+    from && Array.isArray(from.playoffDraws) && Array.isArray(from.menu)
+      ? {
+          ...from,
+          playoffDraws: from.playoffDraws.map((draw) => (Array.isArray(draw) ? draw.map(number) : draw)),
+          menu: from.menu.map((item, i) => (game.menuTeamItems.includes(i) && item ? { ...item, value: number(item.value) } : item)),
+        }
+      : from
+  return {
+    ...file,
+    teams: moved(file.teams),
+    settings: settings(file.settings),
+    pictures: Object.fromEntries(SET_NAMES.map((set) => [set, keys(file.pictures?.[set])])) as ProjectFile['pictures'],
+    menuPalettes: keys(file.menuPalettes),
+    leagueRules: file.leagueRules && Array.isArray(file.leagueRules.exempt) ? { ...file.leagueRules, exempt: file.leagueRules.exempt.map(number) } : file.leagueRules,
+    baseline:
+      file.baseline && Array.isArray(file.baseline.teams) && file.baseline.teams.length === places.length
+        ? { ...file.baseline, teams: moved(file.baseline.teams), settings: settings(file.baseline.settings) ?? file.baseline.settings }
+        : file.baseline,
+  }
+}
+
 export interface OpenedProjectFile {
   project: RomProject
   name: string
@@ -175,7 +240,7 @@ export interface OpenedProjectFile {
 // Puts the work in a project file onto a ROM. `opened` is the ROM as it was
 // opened, which the work starts again from; whatever else had been done to it
 // in the editor is replaced.
-export function openProjectFile(opened: RomProject, text: string): OpenedProjectFile {
+export function openProjectFile(opened: RomProject, text: string, options: ProjectFileOptions = {}): OpenedProjectFile {
   let file: ProjectFile
   try {
     file = JSON.parse(text) as ProjectFile
@@ -195,6 +260,7 @@ export function openProjectFile(opened: RomProject, text: string): OpenedProject
   file.teams.forEach((team, i) => {
     if (!checkTeam(team, opened.teams[i])) throw new ProjectFileError(`The project file is damaged: team ${i + 1} cannot be read.`)
   })
+  if (options.byName) file = moveTeams(file, placesByName(file, opened), game)
   if (!isNumbers(file.rinkPalette, opened.rinkPalette.length, 0xffff)) throw new ProjectFileError('The project file is damaged: the rink colours cannot be read.')
 
   const notes: string[] = []
@@ -213,7 +279,26 @@ export function openProjectFile(opened: RomProject, text: string): OpenedProject
   const settings = game.settingsSupported && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
   const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)
-  project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents, leagueRules }
+  // A season's starting point is kept if all of it can be read, and dropped if not.
+  const started = file.baseline
+  const baseline: Baseline | null =
+    started &&
+    typeof started.name === 'string' &&
+    typeof started.startedAt === 'string' &&
+    Array.isArray(started.teams) &&
+    started.teams.length === teams.length &&
+    started.teams.every((team, i) => checkTeam(team, opened.teams[i])) &&
+    isNumbers(started.rinkPalette, opened.rinkPalette.length, 0xffff)
+      ? {
+          name: started.name,
+          startedAt: started.startedAt,
+          teams: started.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes })),
+          settings: game.settingsSupported && started.settings ? mergeSettings(project.settings, started.settings, teams.length, []) : project.settings,
+          rinkPalette: started.rinkPalette,
+          freeAgents: (Array.isArray(started.freeAgents) ? started.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role)),
+        }
+      : null
+  project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents, leagueRules, baseline }
 
   if (project.graphicsSupported) {
     const kinds = pictureKinds(project)

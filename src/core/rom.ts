@@ -3,6 +3,7 @@ import { findGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
 import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
+import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
@@ -43,6 +44,9 @@ export interface RomProject {
   freeAgents: FreeAgent[]
   // The league's own limits on its teams, which Check ROM holds the work to.
   leagueRules: LeagueRules
+  // The teams as they stood when the user marked the start of a season, to
+  // say what has changed since. Null until a season is started.
+  baseline: Baseline | null
   wasSmd: boolean
 }
 
@@ -122,6 +126,7 @@ export function openRom(file: Uint8Array): RomProject {
     graphicsSupported: graphicsSupported(bytes, game),
     freeAgents: [],
     leagueRules: NO_LEAGUE_RULES,
+    baseline: null,
     wasSmd,
   }
 }

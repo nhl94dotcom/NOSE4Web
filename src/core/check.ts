@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { colorRgb } from './color'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
@@ -70,6 +71,49 @@ function checkTeam(project: RomProject, team: Team, index: number, where: string
   })
 }
 
+// A strip's colours are 16 of a team's 32: the home strip first, then the
+// away. These are the ones that say what a player looks like from a distance.
+const BODY = [11, 12, 13]
+const PANTS = [3, 4, 5]
+const ICE = 0
+// How far apart two colours must be to be told apart at a glance, as a
+// distance between them where black to white is about 440.
+const TOO_CLOSE = 40
+const GHOSTLY = 60
+
+const mix = (palette: number[], slots: number[]): number[] => {
+  const colours = slots.map((slot) => colorRgb(palette[slot]))
+  return [0, 1, 2].map((channel) => colours.reduce((sum, colour) => sum + colour[channel], 0) / colours.length)
+}
+const apart = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+// Strips that would be hard to tell apart in a game: one team's home strip
+// against another's away strip, which is how the two meet, and a strip that
+// all but vanishes against the ice.
+function checkStrips(project: RomProject, labels: string[], findings: Finding[]): void {
+  if (!project.game.stripColorsKnown) return
+  const strips = project.teams.map((team) => ({ home: team.palette.slice(0, 16), away: team.palette.slice(16) }))
+  strips.forEach((mine, t) => {
+    const alike = strips.flatMap((theirs, other) =>
+      other !== t && apart(mix(mine.home, BODY), mix(theirs.away, BODY)) < TOO_CLOSE && apart(mix(mine.home, PANTS), mix(theirs.away, PANTS)) < TOO_CLOSE ? [labels[other]] : [],
+    )
+    if (alike.length > 0) {
+      findings.push({
+        level: 'note',
+        where: labels[t],
+        team: t,
+        message: `The home strip looks much like the away strip of ${alike.join(', ')}. When they visit, the two teams will be hard to tell apart.`,
+      })
+    }
+    for (const [name, strip] of [['home', mine.home], ['away', mine.away]] as const) {
+      const ice = colorRgb(strip[ICE])
+      if (apart(mix(strip, BODY), ice) < GHOSTLY && apart(mix(strip, PANTS), ice) < GHOSTLY) {
+        findings.push({ level: 'note', where: labels[t], team: t, message: `The ${name} strip is close to the colour of the ice all over, so the players will be hard to see.` })
+      }
+    }
+  })
+}
+
 export function checkProject(project: RomProject): Finding[] {
   const { game, teams, settings, layout } = project
   const findings: Finding[] = []
@@ -94,6 +138,7 @@ export function checkProject(project: RomProject): Finding[] {
 
   const emptySlots = emptyLineSlots(teams)
   teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, findings))
+  checkStrips(project, labels, findings)
 
   settings.playoffDraws.forEach((draw, d) => {
     const where = `Playoff draw ${d + 1}`

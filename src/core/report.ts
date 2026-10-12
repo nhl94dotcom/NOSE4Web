@@ -18,6 +18,9 @@ export interface Arrival {
   team: string
   role: string
   overall: number
+  // For a player gone from his team, that he is now a free agent; for one new
+  // to a team, that he was one.
+  freeAgent: boolean
 }
 
 export interface Rerating {
@@ -67,11 +70,13 @@ export function changeReport(before: RomProject, after: RomProject): ChangeRepor
   const labels = new Map([before, after].map((project) => [project, teamLabels(project.teams, project.game)]))
   const teamName = (project: RomProject, team: number) => labels.get(project)![team]
   const { pairs, arrived, departed } = pairPlayers(leaguePlayers(before), leaguePlayers(after))
-  const arrival = (project: RomProject) => (p: LeaguePlayer): Arrival => ({
+  // `pool` is the other project's free agents: where a new player came from, or a gone one went.
+  const arrival = (project: RomProject, pool: RomProject) => (p: LeaguePlayer): Arrival => ({
     name: p.player.name,
     team: teamName(project, p.team),
     role: ROLE_NAMES[p.role],
     overall: p.overall,
+    freeAgent: pool.freeAgents.some((agent) => agent.player.name === p.player.name),
   })
   const byName = <T extends { name: string }>(list: T[]) => list.sort((a, b) => a.name.localeCompare(b.name))
 
@@ -81,8 +86,8 @@ export function changeReport(before: RomProject, after: RomProject): ChangeRepor
         .filter(([old, now]) => old.team !== now.team)
         .map(([old, now]) => ({ name: now.player.name, from: teamName(before, old.team), to: teamName(after, now.team), overall: now.overall })),
     ),
-    arrivals: byName(arrived.map(arrival(after))),
-    departures: byName(departed.map(arrival(before))),
+    arrivals: byName(arrived.map(arrival(after, before))),
+    departures: byName(departed.map(arrival(before, after))),
     reratings: pairs
       .filter(([old, now]) => old.overall !== now.overall)
       .map(([old, now]) => ({ name: now.player.name, team: teamName(after, now.team), from: old.overall, to: now.overall }))
@@ -90,6 +95,10 @@ export function changeReport(before: RomProject, after: RomProject): ChangeRepor
     details: compareProjects(before, after),
   }
 }
+
+// One line of the report for a player new to a team, and for one gone from his.
+export const arrivalText = (a: Arrival) => `${a.name}: ${a.team}, ${a.role}, overall ${a.overall}${a.freeAgent ? ', signed from the free agents' : ''}`
+export const departureText = (d: Arrival) => `${d.name}: was with ${d.team}, ${d.role}, overall ${d.overall}${d.freeAgent ? ', now a free agent' : ''}`
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
@@ -117,8 +126,8 @@ export function reportText(report: ChangeReport, beforeName: string, afterName: 
     lines.push(title.toUpperCase(), ...rows.map((row) => `  ${row}`), '')
   }
   section('Changed teams', report.moves.map((m) => `${m.name}: ${m.from} to ${m.to} (overall ${m.overall})`))
-  section('New players', report.arrivals.map((a) => `${a.name}: ${a.team}, ${a.role}, overall ${a.overall}`))
-  section('No longer in the ROM', report.departures.map((d) => `${d.name}: was with ${d.team}, ${d.role}, overall ${d.overall}`))
+  section('New players', report.arrivals.map(arrivalText))
+  section('No longer on a team', report.departures.map(departureText))
   section(
     'Overall ratings, biggest change first',
     report.reratings.map((r) => `${r.name} (${r.team}): ${r.from} to ${r.to} (${signed(r.to - r.from)})`),

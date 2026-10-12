@@ -1,13 +1,15 @@
 // Changing one attribute for many players at once.
 
-import { attributeText, isWeight, type AttributeKind } from './attributes'
+import { attributeText, convertWeight, isWeight, weightBase, type AttributeKind } from './attributes'
 import type { GameConfig } from './games'
 import { leaguePlayers, type Role } from './league'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 
 export type BulkGroup = 'skaters' | 'forwards' | 'defence' | 'goalies'
-export type BulkAction = 'raise' | 'lower' | 'set' | 'atMost' | 'atLeast'
+// 'fromBase' is for weights only: the players' weights were set for a ROM
+// with another base weight, and are moved to the nearest the same pounds here.
+export type BulkAction = 'raise' | 'lower' | 'set' | 'atMost' | 'atLeast' | 'fromBase'
 
 export interface BulkChange {
   group: BulkGroup
@@ -16,7 +18,8 @@ export interface BulkChange {
   // Which of the 14 attributes, counted in the order of the game's labels.
   attribute: number
   action: BulkAction
-  // In stored values: steps for raise and lower, a value for the rest.
+  // In stored values: steps for raise and lower, a value for the rest. For
+  // 'fromBase' it is the base weight the players' weights were set for.
   amount: number
   // Only players whose overall rating is within these, if given.
   overallAtLeast: number | null
@@ -85,8 +88,12 @@ export function previewBulk(project: RomProject, change: BulkChange): BulkEffect
     if (change.overallAtLeast !== null && overall < change.overallAtLeast) return []
     if (change.overallAtMost !== null && overall > change.overallAtMost) return []
     const from = player.attributes[change.attribute]
+    const base = weightBase(kind)
+    if (change.action === 'fromBase' && base === null) return []
     const to = clamp(
-      change.action === 'raise'
+      change.action === 'fromBase'
+        ? convertWeight(from, change.amount, base ?? 0)
+        : change.action === 'raise'
         ? from + change.amount
         : change.action === 'lower'
           ? from - change.amount

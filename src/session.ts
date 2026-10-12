@@ -66,7 +66,8 @@ export async function loadSession(): Promise<Session | null> {
   // Nor has work from before there were free agents any of those.
   const freeAgents = stored.project.freeAgents ?? []
   const leagueRules = cleanLeagueRules(stored.project.leagueRules, stored.project.teams.length)
-  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported, freeAgents, leagueRules } }
+  const baseline = stored.project.baseline ?? null
+  return { ...stored, project: { ...stored.project, game, graphics, graphicsSupported: supported, freeAgents, leagueRules, baseline } }
 }
 
 export async function clearSession(): Promise<void> {

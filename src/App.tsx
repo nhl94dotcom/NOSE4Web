@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { BulkPage } from './BulkPage'
+import { ChangesPage } from './ChangesPage'
 import { CheckPage } from './CheckPage'
 import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
@@ -7,9 +8,13 @@ import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
 import { SUPPORTED_GAMES } from './core/games'
 import { emptyLineSlots } from './core/lines'
+import { overallRating } from './core/rating'
 import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
+import { changeCount, changesSince } from './core/season'
+import { FREE_AGENTS, trade } from './core/trade'
+import { rosterCardPng } from './rosterCard'
 import { teamDisplayName, teamLabels, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
@@ -39,6 +44,7 @@ const IMPORT_TEAM = -9
 const PICTURES = -10
 const TRADE = -11
 const PROJECT = -12
+const CHANGES = -13
 
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
@@ -154,6 +160,17 @@ export default function App() {
     }
   }
 
+  // An exchange with the free agents from a team's page. Returns a message if it cannot be made.
+  function withFreeAgents(team: number, out: number[], agents: number[]): string {
+    if (!project) return ''
+    try {
+      change(trade(project, { team, picks: out }, { team: FREE_AGENTS, picks: agents }))
+      return ''
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
+  }
+
   function handleDownload(asPatch: boolean) {
     if (!project) return
     try {
@@ -246,6 +263,8 @@ export default function App() {
   // Where a ROM has several leagues, the team that starts each.
   const groupStarts = new Map<number, string>()
   project.game.teamGroups.reduce((at, group) => (groupStarts.set(at, group.name), at + group.teams), 0)
+  // How much has been changed since the season began, or since the ROM was opened.
+  const changes = changeCount(changesSince(project, project.baseline ?? original))
   // What wants attention: trouble for the game, and breaches of the league's rules.
   const problems = findings.filter((finding) => finding.level !== 'note').length
 
@@ -296,6 +315,8 @@ export default function App() {
             }}
           />
         )
+      case CHANGES:
+        return <ChangesPage project={current} opened={opened} name={name || 'rom'} onChange={change} onNameChange={setName} />
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
@@ -321,6 +342,19 @@ export default function App() {
             onRosterSortChange={setRosterSort}
             otherTeams={teamNames.map((teamName, index) => ({ teamName, index })).filter((t) => t.index !== selected)}
             onMovePlayers={(indexes, to) => movePlayers(selected, indexes, to)}
+            freeAgents={current.freeAgents.map((agent) => ({
+              name: agent.player.name,
+              role: agent.role,
+              overall: overallRating(agent.player.attributes, agent.role === 'G', current.game),
+            }))}
+            onRelease={(indexes) => withFreeAgents(selected, indexes, [])}
+            onSign={(agent, goalies) => withFreeAgents(selected, goalies, [agent])}
+            onRosterCard={() => {
+              const team = current.teams[selected]
+              void rosterCardPng(current.game, team, rawAttributes)
+                .then((png) => download(png, `${teamNames[selected].replace(/[^A-Za-z0-9]+/g, '_')}_roster.png`, 'image/png'))
+                .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+            }}
             footer={
               current.graphicsSupported && (
                 <GraphicsEditor project={current} team={selected} onChange={change} />
@@ -353,6 +387,7 @@ export default function App() {
     [PICTURES]: 'Picture files',
     [TRADE]: 'Trade',
     [PROJECT]: 'Project file',
+    [CHANGES]: 'Changes',
   }
   const pageName = selected >= 0 ? teamNames[selected] : PAGE_NAMES[selected]
 
@@ -436,6 +471,7 @@ export default function App() {
           {project.graphicsSupported && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
+          {entry(CHANGES, changes > 0 ? `Changes (${changes})` : 'Changes')}
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}
         </nav>

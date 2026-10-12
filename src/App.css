@@ -139,7 +139,8 @@ select {
   font: inherit;
 }
 
-input.rom-name {
+input.rom-name,
+input.season-name {
   width: 13rem;
 }
 

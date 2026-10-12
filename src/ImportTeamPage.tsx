@@ -98,8 +98,11 @@ export function ImportTeamPage({ project, onChange }: Props) {
                 onChange={(e) => {
                   const next = Number(e.target.value)
                   setFrom(next)
-                  // The same team is usually in the same place in both ROMs.
-                  if (next < ours.length) setTo(next)
+                  // The team of the same name here is the likely one to replace;
+                  // failing that, the one in the same place.
+                  const named = ours.indexOf(theirs[next])
+                  if (named >= 0) setTo(named)
+                  else if (next < ours.length) setTo(next)
                 }}
               >
                 {theirs.map((name, i) => (

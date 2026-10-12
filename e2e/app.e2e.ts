@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { buildRom, openRom as readRom } from '../src/core/rom'
@@ -21,7 +21,7 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 12)
+  await expect(page.locator('nav button')).toHaveCount(28 + 13)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -776,7 +776,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
-    await expect(page.locator('nav button')).toHaveCount(28 + 12)
+    await expect(page.locator('nav button')).toHaveCount(28 + 13)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -1187,6 +1187,127 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, /^Trade/).click()
     await page.locator('main').getByLabel('Second side of the trade').selectOption({ label: 'Free agents (2)' })
     await expect(page.locator('main').getByLabel('Draft Pick leaves Free agents')).toBeVisible()
+  })
+
+  test('releases and signs free agents from a team\'s page, and saves a roster card', async ({ page }) => {
+    await openRom(page)
+    await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
+    await expect(page.getByRole('button', { name: 'Sign', exact: true })).toBeDisabled()
+    const skater = rows(page, 'Skaters').nth(3)
+    const released = await nameOf(skater).inputValue()
+    await tick(skater)
+    await page.getByRole('button', { name: 'Release ticked' }).click()
+    await expect(page.getByText('Released 1 player to the free agents.')).toBeVisible()
+    await expect(rows(page, 'Skaters')).toHaveCount(15)
+    await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
+
+    // Signed by another team, from that team's own page.
+    await team(page, 'Boston Bruins').click()
+    await expect(page.getByLabel('Free agent to sign').locator('option')).toHaveText([new RegExp(`^F ${released} \\(\\d+\\)$`)])
+    await page.getByRole('button', { name: 'Sign', exact: true }).click()
+    await expect(page.getByText(`Signed ${released}.`)).toBeVisible()
+    await expect(page.locator(`input.name[value="${released}"]`)).toHaveCount(1)
+    await expect(entry(page, /^Trade/)).toHaveText('Trade')
+
+    // A goalie cannot simply be released: he has to change places with another.
+    await tick(rows(page, 'Goalies').first())
+    await page.getByRole('button', { name: 'Release ticked' }).click()
+    await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
+
+    // The roster as a picture.
+    const card = await downloadFrom(page, page.getByRole('button', { name: 'Roster card (PNG)' }))
+    expect(card.suggestedFilename()).toBe('Boston_Bruins_roster.png')
+    const png = readFileSync(await card.path())
+    expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)]
+    expect(width).toBeGreaterThan(1500)
+    expect(height).toBeGreaterThan(1000)
+    writeFileSync('test-results/shots/roster-card.png', png)
+  })
+
+  test('lists changes as you go, and starts a new season', async ({ page }) => {
+    await openRom(page)
+    await page.locator('input.rom-name').fill('Season_12')
+    await expect(entry(page, /^Changes/)).toHaveText('Changes')
+    await entry(page, /^Changes/).click()
+    const main = page.locator('main')
+    await expect(main.getByText('Nothing has changed since the ROM was opened.')).toBeVisible()
+    await expect(main.getByLabel(/Since the season began/)).toBeDisabled()
+
+    // A rename and a re-rating show up at once.
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const first = rows(page, 'Skaters').first()
+    const player = await nameOf(first).inputValue()
+    await first.locator('select.attribute').nth(2).selectOption({ index: 6 })
+    await page.locator('.fields input').first().fill('Orange County')
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (2)')
+    await entry(page, /^Changes/).click()
+    await expect(main.getByText('Location: "Anaheim" to "Orange County".')).toBeVisible()
+    await expect(main.getByText(new RegExp(`^${player}: Spd .* to 99\\.$`))).toBeVisible()
+    await expect(main.getByText('Overall ratings, biggest change first (1)')).toBeVisible()
+    const report = await downloadFrom(page, main.getByRole('button', { name: 'Download report' }))
+    expect(report.suggestedFilename()).toBe('Season_12_changes.txt')
+    expect(readFileSync(await report.path(), 'utf8')).toContain('Changes from the ROM as opened to Season_12')
+    await page.screenshot({ path: 'test-results/shots/changes.png', fullPage: true })
+
+    // Start the next season: the old one is saved, the name moves on, and the count starts again.
+    await expect(main.getByLabel('Name for the new season')).toHaveValue('Season_13')
+    const saved = await downloadFrom(page, main.getByRole('button', { name: 'Start Season_13' }))
+    expect(saved.suggestedFilename()).toBe('Season_12_project.json')
+    await expect(page.locator('input.rom-name')).toHaveValue('Season_13')
+    await expect(main.getByText('Nothing has changed since the season began.')).toBeVisible()
+    await expect(entry(page, /^Changes/)).toHaveText('Changes')
+    await expect(main.getByLabel(/Since Season_13 began/)).toBeChecked()
+    // What was done before the season is still there to see.
+    await main.getByLabel('Since this ROM was opened').check()
+    await expect(main.getByText('Location: "Anaheim" to "Orange County".')).toBeVisible()
+
+    await team(page, 'Boston Bruins').click()
+    await nameOf(rows(page, 'Skaters').first()).fill('New Signing')
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (1)')
+    await entry(page, /^Changes/).click()
+    await expect(main.getByText(/was renamed New Signing\.$/)).toBeVisible()
+    await expect(main.getByText('Location: "Anaheim" to "Orange County".')).toHaveCount(0)
+  })
+
+  test('offers to match teams by name, and to convert weights from another era', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Picture files').click()
+    const main = page.locator('main')
+    await expect(main.getByText('Each file goes to the team at the number in its name.')).toBeVisible()
+    await main.getByLabel('Match teams by name').check()
+    await expect(main.getByText('Each file goes to the team named in it')).toBeVisible()
+    const red = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 48
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#ff0000'
+      context.fillRect(0, 0, 48, 48)
+      return canvas.toDataURL('image/png').split(',')[1]
+    })
+    // Numbered for Anaheim's place, named for Boston: by name it is Boston's.
+    await main.locator('input[type=file]').setInputFiles([
+      { name: '01_Boston_Bruins_menu_logo.png', mimeType: 'image/png', buffer: Buffer.from(red, 'base64') },
+      { name: '02_Springfield_Atoms_menu_logo.png', mimeType: 'image/png', buffer: Buffer.from(red, 'base64') },
+    ])
+    await expect(main.getByText('Boston Bruins: Menu logo')).toBeVisible()
+    await expect(main.getByText('this ROM has no team called Springfield Atoms.')).toBeVisible()
+
+    await entry(page, 'Project file').click()
+    await main.getByLabel('Match teams by name').check()
+    await expect(main.getByText('Each team in the project goes where this ROM has a team of the same name.')).toBeVisible()
+
+    await entry(page, 'Bulk changes').click()
+    await expect(main.getByLabel('Kind of change').locator('option', { hasText: 'Convert from another era' })).toHaveCount(1) // weight is first
+    await main.getByLabel('Kind of change').selectOption({ label: "Convert from another era's weights" })
+    await main.getByLabel('Base weight the players were set for').selectOption('148')
+    await main.getByLabel('Teams to change').selectOption({ label: 'Boston Bruins' })
+    await expect(main.getByRole('button', { name: /^Apply to \d+ players$/ })).toBeEnabled()
+    await expect(main.locator('tbody tr').first()).toContainText(/\d+ to \d+/)
+    // For anything but weight the choice is not there.
+    await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
+    await expect(main.getByLabel('Kind of change').locator('option', { hasText: 'Convert from another era' })).toHaveCount(0)
+    await expect(main.getByLabel('Kind of change')).toHaveValue('raise')
   })
 
   test('keeps the work through a reload', async ({ page }) => {

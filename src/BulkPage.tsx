@@ -10,6 +10,7 @@ import {
   type BulkChange,
   type BulkGroup,
 } from './core/bulk'
+import { isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
 import type { RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 
@@ -35,13 +36,22 @@ export function BulkPage({ project, onChange }: Props) {
   // Goalies and skaters have different attributes, so the choice may not carry over.
   const chosen = attributes.find((a) => a.index === attribute) ?? attributes[0]
   const values = bulkValues(chosen.kind)
-  const steps = action === 'raise' || action === 'lower'
+  // Weights can also be moved from the base another ROM was set up with.
+  const ownBase = weightBase(chosen.kind)
+  const usable: BulkAction = action === 'fromBase' && !isWeight(chosen.kind) ? 'raise' : action
+  const steps = usable === 'raise' || usable === 'lower'
+  const bases = WEIGHT_BASES.filter((base) => base !== ownBase)
   const change: BulkChange = {
     group,
     team,
     attribute: chosen.index,
-    action,
-    amount: steps ? Math.max(1, amount) : (values.find((v) => v.value === amount) ?? values[0]).value,
+    action: usable,
+    amount:
+      usable === 'fromBase'
+        ? (bases.find((base) => base === amount) ?? (ownBase === 140 ? 144 : 140))
+        : steps
+          ? Math.max(1, amount)
+          : (values.find((v) => v.value === amount) ?? values[0]).value,
     overallAtLeast: optionalNumber(atLeast),
     overallAtMost: optionalNumber(atMost),
   }
@@ -96,7 +106,7 @@ export function BulkPage({ project, onChange }: Props) {
           <select
             className="wide"
             aria-label="Kind of change"
-            value={action}
+            value={usable}
             onChange={(e) => {
               setAction(e.target.value as BulkAction)
               setAmount(1)
@@ -107,11 +117,20 @@ export function BulkPage({ project, onChange }: Props) {
                 {a.label}
               </option>
             ))}
+            {isWeight(chosen.kind) && <option value="fromBase">Convert from another era's weights</option>}
           </select>
         </label>
         <label>
-          {steps ? 'Steps' : 'Value'}
-          {steps ? (
+          {usable === 'fromBase' ? 'Set for a base weight of' : steps ? 'Steps' : 'Value'}
+          {usable === 'fromBase' ? (
+            <select aria-label="Base weight the players were set for" value={change.amount} onChange={(e) => setAmount(Number(e.target.value))}>
+              {bases.map((base) => (
+                <option key={base} value={base}>
+                  {base}
+                </option>
+              ))}
+            </select>
+          ) : steps ? (
             <input className="num" type="number" min={1} max={15} value={change.amount} onChange={(e) => setAmount(Number(e.target.value) || 1)} />
           ) : (
             <select aria-label="Value to use" value={change.amount} onChange={(e) => setAmount(Number(e.target.value))}>
@@ -133,7 +152,9 @@ export function BulkPage({ project, onChange }: Props) {
         </label>
       </div>
       <p className="note">
-        {chosen.kind === 'rating'
+        {usable === 'fromBase'
+          ? `For players whose weights were set in a ROM with another base weight, such as a team brought in by spreadsheet. This ROM's weights start at ${ownBase} pounds. Each player is moved to the weight here nearest the pounds he had, which can be up to 4 pounds out.`
+          : chosen.kind === 'rating'
           ? 'A rating has seven steps, shown as the range the game displays for each. One step is one of those.'
           : chosen.kind === 'value'
             ? 'This ROM uses all sixteen values, 0 to 15. One step is one value.'

@@ -14,11 +14,13 @@ interface Props {
 export function ProjectPage({ project, opened, name, onOpen }: Props) {
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<string[] | null>(null)
+  // Whether the project's teams go where this ROM has teams of the same names.
+  const [byName, setByName] = useState(false)
 
   async function open(file: File | undefined) {
     if (!file) return
     try {
-      const result = openProjectFile(opened, await file.text())
+      const result = openProjectFile(opened, await file.text(), { byName })
       onOpen(result.project, result.name)
       setNotes(result.notes)
       setError('')
@@ -60,6 +62,16 @@ export function ProjectPage({ project, opened, name, onOpen }: Props) {
               }}
             />
           </label>
+        </p>
+        <p>
+          <label className="choice">
+            <input type="checkbox" checked={byName} onChange={(e) => setByName(e.target.checked)} /> Match teams by name
+          </label>
+          <span className="note">
+            {byName
+              ? 'Each team in the project goes where this ROM has a team of the same name. Every team has to find one, or nothing is opened.'
+              : 'Each team in the project goes to the same place in the list. Tick this for a ROM that lists the same teams in another order.'}
+          </span>
         </p>
         <p className="note">
           The project is laid over the ROM as you opened it, so it replaces whatever you have done in the editor

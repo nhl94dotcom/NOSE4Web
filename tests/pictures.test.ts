@@ -151,10 +151,10 @@ describe.skipIf(!hasRom)('picture files', () => {
     expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo', 'menuBanner', 'gameBanner'])
     expect(pictureFileName(project, BOSTON, 'menuLogo')).toBe('02_Boston_Bruins_menu_logo.png')
     expect(pictureFileName(project, 20, 'gameBanner')).toBe('21_St_Louis_Blues_game_banner.png')
-    expect(identifyPictureFile('02_Boston_Bruins_menu_logo.png')).toEqual({ team: BOSTON, kind: 'menuLogo' })
+    expect(identifyPictureFile('02_Boston_Bruins_menu_logo.png')).toEqual({ team: BOSTON, name: 'Boston_Bruins', kind: 'menuLogo' })
     // The middle is only for the reader, and a folder in front does not matter.
-    expect(identifyPictureFile('My_League_pictures/2_anything at all_RINK_LOGO.PNG')).toEqual({ team: BOSTON, kind: 'rinkLogo' })
-    expect(identifyPictureFile('28_visitor_banner.png')).toEqual({ team: 27, kind: 'visitorBanner' })
+    expect(identifyPictureFile('My_League_pictures/2_anything at all_RINK_LOGO.PNG')).toEqual({ team: BOSTON, name: 'anything at all', kind: 'rinkLogo' })
+    expect(identifyPictureFile('28_visitor_banner.png')).toEqual({ team: 27, name: '', kind: 'visitorBanner' })
     expect(identifyPictureFile('Boston_menu_logo.png')).toBeNull()
     expect(identifyPictureFile('02_Boston_logo.png')).toBeNull()
     const names = pictureSet(project).map((entry) => entry.name)

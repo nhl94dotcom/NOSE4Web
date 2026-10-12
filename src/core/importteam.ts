@@ -18,6 +18,7 @@ import {
   writeGraphics,
   type BannerKind,
 } from './graphics'
+import { convertWeight, weightBase } from './attributes'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
 import { teamDisplayName } from './team'
@@ -65,7 +66,15 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       lines: team.lines.map((line, l) => (source.lines[l] ? [...source.lines[l].slice(0, 7), ...line.slice(7)] : line)),
     }
     notes.push(`Roster and lines brought in: ${source.players.length} players.`)
-    if (project.game.playerAttributeKinds.join() !== other.game.playerAttributeKinds.join()) {
+    // Where the two ROMs are set up for different eras' weights, each player
+    // keeps as near as can be the pounds he weighed.
+    const [theirs, ours] = [weightBase(other.game.playerAttributeKinds[0]), weightBase(project.game.playerAttributeKinds[0])]
+    if (theirs !== null && ours !== null && theirs !== ours) {
+      team = { ...team, players: team.players.map((p) => ({ ...p, attributes: p.attributes.map((v, a) => (a === 0 ? convertWeight(v, theirs, ours) : v)) })) }
+      notes.push(`The other ROM's weights start at ${theirs} pounds and this one's at ${ours}. Each player's weight was moved to the nearest here.`)
+    }
+    const ratings = (kinds: string[]) => kinds.slice(1).join()
+    if (ratings(project.game.playerAttributeKinds) !== ratings(other.game.playerAttributeKinds)) {
       notes.push('The two ROMs rate players on different scales. The attributes came across as the values stored, so they will need adjusting.')
     }
   }

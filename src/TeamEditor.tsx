@@ -50,6 +50,14 @@ interface Props {
   otherTeams: { teamName: string; index: number }[]
   // Moves players to another team. Returns a message if it cannot be done.
   onMovePlayers: (indexes: number[], to: number) => string
+  // Players held on no team, to sign from, and how many there are to release to.
+  freeAgents: { name: string; role: string; overall: number }[]
+  // Releases players to the free agents, or signs one of them, a goalie
+  // taking the place of the goalie ticked. Each returns a message if it cannot be done.
+  onRelease: (indexes: number[]) => string
+  onSign: (agent: number, goalies: number[]) => string
+  // Saves the roster as a picture to post.
+  onRosterCard: () => void
   // Positions on each line that this ROM leaves empty on every team.
   emptySlots: boolean[][]
   // Shown at the end of the page: the team's logos and banners.
@@ -79,6 +87,21 @@ export function TeamEditor(props: Props) {
   const narrow = useNarrow()
   const [openCards, setOpenCards] = useState<number[]>([])
   const [moveTo, setMoveTo] = useState(otherTeams[0]?.index ?? 0)
+  const [signing, setSigning] = useState(0)
+
+  function releaseTicked() {
+    const count = ticked.length
+    const problem = props.onRelease(ticked)
+    if (!problem) setTicked([])
+    setNotice(problem || `Released ${count === 1 ? '1 player' : `${count} players`} to the free agents.`)
+  }
+
+  function sign() {
+    const agent = props.freeAgents[Math.min(signing, props.freeAgents.length - 1)]
+    const problem = props.onSign(Math.min(signing, props.freeAgents.length - 1), ticked.filter((index) => index < goalies))
+    if (!problem) setTicked([])
+    setNotice(problem || `Signed ${agent.name}.`)
+  }
   const plainView = rosterSort === 'roster' && nameFilter.trim() === ''
 
   function moveTicked() {
@@ -523,7 +546,37 @@ export function TeamEditor(props: Props) {
               {other.teamName}
             </option>
           ))}
-        </select>
+        </select>{' '}
+        <button disabled={ticked.length === 0} onClick={releaseTicked}>
+          Release ticked
+        </button>
+      </p>
+      <p>
+        <button disabled={props.freeAgents.length === 0} onClick={sign}>
+          Sign
+        </button>{' '}
+        <select
+          className="wide"
+          aria-label="Free agent to sign"
+          disabled={props.freeAgents.length === 0}
+          value={Math.min(signing, Math.max(0, props.freeAgents.length - 1))}
+          onChange={(e) => setSigning(Number(e.target.value))}
+        >
+          {props.freeAgents.length === 0 && <option value={0}>no free agents</option>}
+          {props.freeAgents.map((agent, i) => (
+            <option key={i} value={i}>
+              {agent.role} {agent.name} ({agent.overall})
+            </option>
+          ))}
+        </select>{' '}
+        <span className="note">
+          Released players wait as free agents, off every team and out of the ROM. To sign a goalie, tick the goalie
+          he replaces.
+        </span>
+      </p>
+      <p>
+        <button onClick={props.onRosterCard}>Roster card (PNG)</button>{' '}
+        <span className="note">The roster as a picture, to post where the league can see it.</span>
       </p>
       <p>
         <label>

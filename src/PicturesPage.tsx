@@ -19,6 +19,8 @@ export function PicturesPage({ project, setName, onChange }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<PictureSetResult | null>(null)
+  // Whether files go to the team named in them, or to the team at their number.
+  const [byName, setByName] = useState(false)
   const kinds = pictureKinds(project)
   const set = pictureSet(project)
 
@@ -63,7 +65,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           unreadable.push(`${file.name}: could not be read as an image.`)
         }
       }
-      const imported = importPictureSet(project, images)
+      const imported = importPictureSet(project, images, { byName })
       if (imported.replaced.length > 0) onChange(imported.project)
       setResult({ ...imported, problems: [...unreadable, ...imported.problems] })
     } catch (e) {
@@ -111,6 +113,16 @@ export function PicturesPage({ project, setName, onChange }: Props) {
             />
           </label>{' '}
           <span className="note">Choose a zip, or any number of PNG files.</span>
+        </p>
+        <p>
+          <label className="choice">
+            <input type="checkbox" checked={byName} onChange={(e) => setByName(e.target.checked)} /> Match teams by name
+          </label>
+          <span className="note">
+            {byName
+              ? 'Each file goes to the team named in it, wherever that team is in this ROM. A file whose team is not here is left out.'
+              : 'Each file goes to the team at the number in its name. Tick this for pictures from a ROM that lists the same teams in another order.'}
+          </span>
         </p>
         <p className="note">
           A file is matched to its team and picture by its name, such as 03_Buffalo_Sabres_menu_logo.png: the number at

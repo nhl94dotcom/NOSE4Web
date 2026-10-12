@@ -25,7 +25,9 @@ function role(team: Team, index: number): keyof typeof ROLE_NAMES {
 
 const sameStats = (a: Player, b: Player) => a.jersey === b.jersey && a.attributes.every((v, i) => v === b.attributes[i])
 
-function comparePlayers(project: RomProject, before: Team, after: Team, changes: string[]): void {
+// Says how the players differ, and returns where each player who stayed now
+// is on the roster, by where he was.
+function comparePlayers(project: RomProject, before: Team, after: Team, changes: string[]): Map<number, number> {
   const { game } = project
   // Pair up players by name, then treat an unpaired pair with identical numbers as a rename.
   const pairs: [number, number][] = []
@@ -75,15 +77,20 @@ function comparePlayers(project: RomProject, before: Team, after: Team, changes:
   const order = (team: Team, indexes: number[]) => indexes.slice().sort((x, y) => x - y).map((i) => team.players[i].name).join('|')
   const kept = pairs.filter(([b, a]) => before.players[b].name === after.players[a].name)
   if (order(before, kept.map(([b]) => b)) !== order(after, kept.map(([, a]) => a))) changes.push('The roster order changed.')
+  return new Map(pairs)
 }
 
-function compareLines(project: RomProject, before: Team, after: Team, changes: string[]): void {
+// A position on a line has changed if a different player is in it. The same
+// player under a new name, or in a new place on the roster, is no change.
+function compareLines(project: RomProject, before: Team, after: Team, stayed: Map<number, number>, changes: string[]): void {
   const { lineLabels, linePositionLabels } = project.game
   const name = (team: Team, position: number) => team.players[position - 1]?.name ?? 'nobody'
   after.lines.forEach((line, l) => {
     const swaps = linePositionLabels.flatMap((label, slot) => {
-      const [old, now] = [name(before, before.lines[l]?.[slot] ?? 0), name(after, line[slot])]
-      return old === now ? [] : [`${label} ${old} to ${now}`]
+      const was = before.lines[l]?.[slot] ?? 0
+      const [old, now] = [name(before, was), name(after, line[slot])]
+      const samePlayer = stayed.has(was - 1) ? stayed.get(was - 1) === line[slot] - 1 : old === now
+      return samePlayer ? [] : [`${label} ${old} to ${now}`]
     })
     if (swaps.length > 0) changes.push(`Line ${lineLabels[l]}: ${swaps.join('; ')}.`)
   })
@@ -94,8 +101,8 @@ function compareTeam(project: RomProject, before: Team, after: Team): string[] {
   after.names.forEach((text, i) => {
     if (text !== before.names[i]) changes.push(`${NAME_LABELS[i]}: "${before.names[i]}" to "${text}".`)
   })
-  comparePlayers(project, before, after, changes)
-  compareLines(project, before, after, changes)
+  const stayed = comparePlayers(project, before, after, changes)
+  compareLines(project, before, after, stayed, changes)
 
   const changedColors = (from: number) => after.palette.slice(from, from + 16).filter((w, i) => w !== before.palette[from + i]).length
   const [home, away] = [changedColors(0), changedColors(16)]
