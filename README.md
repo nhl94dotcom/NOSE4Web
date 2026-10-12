@@ -57,6 +57,8 @@ It can also:
 - save all your work as a project file, without the ROM, and open it again on
   another computer or over another copy of the game
 - undo and redo, and keep work in progress in the browser between visits
+- fit a phone or tablet as well as a monitor, with rosters shown as cards
+  where a table would be too wide
 - copy players, lines and playoff draws between teams, or between two ROMs
   open in separate tabs
 - save your changes as an IPS patch, so they can be shared without the ROM

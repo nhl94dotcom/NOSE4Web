@@ -7,7 +7,8 @@
   --bad: light-dark(#b3261e, #ff8a80);
   font-family: system-ui, sans-serif;
   font-size: 15px;
-  background: light-dark(#f6f7f9, #17191c);
+  --page: light-dark(#f6f7f9, #17191c);
+  background: var(--page);
   color: light-dark(#1a1c1f, #e6e8eb);
 }
 

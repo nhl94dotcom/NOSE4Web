@@ -106,10 +106,11 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
           Numbers well above the league average are marked <span className="high">like this</span> and those well
           below <span className="low">like this</span>.
         </p>
+        <div className="scroll">
         <table>
           <thead>
             <tr>
-              <th>
+              <th className="pin">
                 <button className="link" onClick={() => setSort({ key: 'team', down: false })}>
                   Team
                 </button>
@@ -130,7 +131,7 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
           <tbody>
             {sorted.map((summary) => (
               <tr key={summary.team}>
-                <td className="team-name">
+                <td className="team-name pin">
                   <button className="link" onClick={() => onGoToTeam(summary.team)}>
                     {names[summary.team]}
                   </button>
@@ -145,13 +146,14 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
           </tbody>
           <tfoot>
             <tr>
-              <th>League average</th>
+              <th className="pin">League average</th>
               {COLUMNS.map((column) => (
                 <th key={column.key}>{number(averages[column.key], 1)}</th>
               ))}
             </tr>
           </tfoot>
         </table>
+        </div>
       </section>
     </main>
   )

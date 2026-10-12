@@ -224,12 +224,13 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                   const attributeLabels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
                   const attributeNames = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
                   return (
-                    <table key={String(isGoalies)} className={showAttributes ? 'left attributes' : 'left'}>
+                    <div key={String(isGoalies)} className="scroll">
+                    <table className={showAttributes ? 'left attributes' : 'left'}>
                       <thead>
                         <tr>
                           <th />
                           <th>Pos</th>
-                          <th>{isGoalies ? 'Goalies' : 'Skaters'}</th>
+                          <th className="pin">{isGoalies ? 'Goalies' : 'Skaters'}</th>
                           <th>No.</th>
                           <th>Ovr</th>
                           {showAttributes &&
@@ -259,7 +260,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                               />
                             </td>
                             <td>{row.role}</td>
-                            <td>{row.name}</td>
+                            <td className="pin">{row.name}</td>
                             <td>{hex(row.jersey)}</td>
                             <td>{row.overall}</td>
                             {showAttributes &&
@@ -270,6 +271,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   )
                 })
               )}

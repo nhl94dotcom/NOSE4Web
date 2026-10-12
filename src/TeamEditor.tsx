@@ -20,6 +20,7 @@ import { goalieCount, type Player, type Team } from './core/team'
 import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
+import { useNarrow } from './useNarrow'
 
 const ATTRIBUTE_VALUES = Array.from({ length: 16 }, (_, i) => i)
 
@@ -74,6 +75,9 @@ export function TeamEditor(props: Props) {
   const ticked = allTicked.filter((index) => index < team.players.length)
   const [notice, setNotice] = useState('')
   const [nameFilter, setNameFilter] = useState('')
+  // On a narrow window, the players whose cards are open for editing.
+  const narrow = useNarrow()
+  const [openCards, setOpenCards] = useState<number[]>([])
   const [moveTo, setMoveTo] = useState(otherTeams[0]?.index ?? 0)
   const plainView = rosterSort === 'roster' && nameFilter.trim() === ''
 
@@ -145,6 +149,33 @@ export function TeamEditor(props: Props) {
   const fewerSkaters = emptySlots.some((slots) => slots.some(Boolean))
   // Some hacks' attributes have no wording but the values stored.
   const storedOnly = game.playerAttributeKinds.every((kind) => kind === 'value')
+  const lineTick = (l: number) => (
+    <input
+      type="checkbox"
+      title="Select for copy and paste"
+      aria-label={`Select line ${game.lineLabels[l]}`}
+      checked={tickedLines.includes(l)}
+      onChange={(e) => setTickedLines(e.target.checked ? [...tickedLines, l].sort((a, b) => a - b) : tickedLines.filter((i) => i !== l))}
+    />
+  )
+  const lineBox = (l: number, slot: number, line: number[]) => (
+    <select
+      aria-label={`${game.linePositionLabels[slot]} on line ${game.lineLabels[l]}`}
+      value={line[slot]}
+      onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}
+    >
+      {emptySlots[l]?.[slot] && <option value={0}>Empty</option>}
+      {(line[slot] === 0 && !emptySlots[l]?.[slot]) || line[slot] > team.players.length ? (
+        <option value={line[slot]}>Invalid ({hex(line[slot])})</option>
+      ) : null}
+      {team.players.map((player, i) => (
+        <option key={i} value={i + 1}>
+          {hex(player.jersey)} {player.name}
+        </option>
+      ))}
+    </select>
+  )
+
   const reset = (part: TeamPart, what: string) => (
     <ResetButton
       what={what}
@@ -184,132 +215,193 @@ export function TeamEditor(props: Props) {
       .filter((index) => team.players[index].name.toLowerCase().includes(wanted))
       .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a - b))
     const moveHint = plainView ? '' : ' (show the roster in roster order, unfiltered, to move players)'
+    const position = (index: number) => (index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D')
+    const overall = (index: number) => overallRating(team.players[index].attributes, isGoalies, game)
+    const tickBox = (index: number) => (
+      <input
+        type="checkbox"
+        title="Select for copy and paste"
+        aria-label={`Select ${team.players[index].name}`}
+        checked={ticked.includes(index)}
+        onChange={(e) => setTicked(e.target.checked ? [...ticked, index].sort((a, b) => a - b) : ticked.filter((i) => i !== index))}
+      />
+    )
+    const nameBox = (index: number) => {
+      const player = team.players[index]
+      return (
+        <input
+          className="name"
+          aria-label={`Name of player ${index + 1}`}
+          value={player.name}
+          onChange={(e) => setPlayer(index, { ...player, name: cleanText(e.target.value) })}
+        />
+      )
+    }
+    const numberBox = (index: number) => {
+      const player = team.players[index]
+      return (
+        <input
+          className="num"
+          aria-label={`Jersey number of ${player.name}`}
+          inputMode="numeric"
+          value={hex(player.jersey)}
+          maxLength={2}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, '')
+            setPlayer(index, { ...player, jersey: parseInt(digits || '0', 16) })
+          }}
+        />
+      )
+    }
+    const attributeBox = (index: number, a: number) => {
+      const player = team.players[index]
+      const value = player.attributes[a]
+      const allowed = (v: number) => v >= 0 && v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null)
+      const set = (next: number) => setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
+      return (
+        <select
+          className={attributeText(kinds[a], value) === null ? 'attribute invalid' : 'attribute'}
+          aria-label={`${names[a]} of ${player.name}`}
+          value={value}
+          onChange={(e) => set(Number(e.target.value))}
+          onKeyDown={(e) => {
+            // Plus and minus step to the next value the list offers, and stop at its ends.
+            const step = stepKey(e)
+            if (step !== 0) {
+              e.preventDefault()
+              let next = value + step
+              while (next >= 0 && next <= 15 && !allowed(next)) next += step
+              if (allowed(next)) set(next)
+              return
+            }
+            // Where the stored values are showing, typing one sets it.
+            if (!rawAttributes && kinds[a] !== 'value') return
+            const typed = typedValue(e, allowed)
+            if (typed === null) return
+            e.preventDefault()
+            set(typed)
+          }}
+        >
+          {ATTRIBUTE_VALUES.map((v) => {
+            const text = attributeText(kinds[a], v)
+            // As text, values the game does not expect are only offered if already in use.
+            if (!rawAttributes && text === null && v !== value) return null
+            return (
+              <option key={v} value={v}>
+                {rawAttributes ? v : (text ?? `! ${v}`)}
+              </option>
+            )
+          })}
+        </select>
+      )
+    }
+    const actions = (index: number) => (
+      <>
+        <button title={`Move up${moveHint}`} disabled={!plainView || index === 0} onClick={() => changeRoster(movePlayer(team, index, -1))}>
+          ↑
+        </button>
+        <button
+          title={`Move down${moveHint}`}
+          disabled={!plainView || index === team.players.length - 1}
+          onClick={() => changeRoster(movePlayer(team, index, 1))}
+        >
+          ↓
+        </button>
+        {index >= goalies && (
+          <button title="Delete player" disabled={!canDeletePlayer(team, index)} onClick={() => changeRoster(deletePlayer(team, index))}>
+            ✕
+          </button>
+        )}
+      </>
+    )
+
+    // On a narrow window each player is a card: a line to read, opened to edit.
+    if (narrow) {
+      return (
+        <section>
+          <h2>{title}</h2>
+          <div className="cards">
+            {shown.map((index) => {
+              const open = openCards.includes(index)
+              return (
+                <div key={index} className={open ? 'card open' : 'card'}>
+                  <div className="card-head">
+                    {tickBox(index)}
+                    <span className="card-place">
+                      {index + 1} {position(index)}
+                    </span>
+                    {nameBox(index)}
+                    <button
+                      className="card-toggle"
+                      aria-expanded={open}
+                      aria-label={`${open ? 'Close' : 'Open'} ${team.players[index].name}, overall ${overall(index)}`}
+                      onClick={() => setOpenCards(open ? openCards.filter((i) => i !== index) : [...openCards, index])}
+                    >
+                      {overall(index)} {open ? '▴' : '▾'}
+                    </button>
+                  </div>
+                  {open && (
+                    <div className="card-body">
+                      <label>
+                        <span>Jersey number</span>
+                        {numberBox(index)}
+                      </label>
+                      {names.map((name, a) => (
+                        <label key={a}>
+                          <span>{name}</span>
+                          {attributeBox(index, a)}
+                        </label>
+                      ))}
+                      <div className="actions">{actions(index)}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )
+    }
+
     return (
       <section>
         <h2>{title}</h2>
-        <table onKeyDown={gridKeyDown}>
-          <thead>
-            <tr>
-              <th />
-              <th>#</th>
-              <th>Pos</th>
-              <th>Name</th>
-              <th>No.</th>
-              <th>Ovr</th>
-              {labels.map((label, i) => (
-                <th key={i} title={attributeTitle(names[i], kinds[i], i)}>
-                  {label}
-                </th>
-              ))}
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((index) => {
-              const player = team.players[index]
-              return (
+        <div className="scroll">
+          <table onKeyDown={gridKeyDown}>
+            <thead>
+              <tr>
+                <th />
+                <th>#</th>
+                <th>Pos</th>
+                <th className="pin">Name</th>
+                <th>No.</th>
+                <th>Ovr</th>
+                {labels.map((label, i) => (
+                  <th key={i} title={attributeTitle(names[i], kinds[i], i)}>
+                    {label}
+                  </th>
+                ))}
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((index) => (
                 <tr key={index}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      title="Select for copy and paste"
-                      checked={ticked.includes(index)}
-                      onChange={(e) =>
-                        setTicked(
-                          e.target.checked ? [...ticked, index].sort((a, b) => a - b) : ticked.filter((i) => i !== index),
-                        )
-                      }
-                    />
-                  </td>
+                  <td>{tickBox(index)}</td>
                   <td>{index + 1}</td>
-                  <td>{index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D'}</td>
-                  <td>
-                    <input
-                      className="name"
-                      value={player.name}
-                      onChange={(e) => setPlayer(index, { ...player, name: cleanText(e.target.value) })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="num"
-                      value={hex(player.jersey)}
-                      maxLength={2}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, '')
-                        setPlayer(index, { ...player, jersey: parseInt(digits || '0', 16) })
-                      }}
-                    />
-                  </td>
-                  <td>{overallRating(player.attributes, index < goalies, game)}</td>
-                  {player.attributes.map((value, a) => (
-                    <td key={a}>
-                      <select
-                        className={attributeText(kinds[a], value) === null ? 'attribute invalid' : 'attribute'}
-                        value={value}
-                        onChange={(e) => {
-                          const next = Number(e.target.value)
-                          const attributes = player.attributes.map((v, i) => (i === a ? next : v))
-                          setPlayer(index, { ...player, attributes })
-                        }}
-                        onKeyDown={(e) => {
-                          const allowed = (v: number) => v >= 0 && v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null)
-                          const set = (next: number) => {
-                            e.preventDefault()
-                            setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
-                          }
-                          // Plus and minus step to the next value the list offers, and stop at its ends.
-                          const step = stepKey(e)
-                          if (step !== 0) {
-                            let next = value + step
-                            while (next >= 0 && next <= 15 && !allowed(next)) next += step
-                            return allowed(next) ? set(next) : e.preventDefault()
-                          }
-                          // Where the stored values are showing, typing one sets it.
-                          if (!rawAttributes && kinds[a] !== 'value') return
-                          const typed = typedValue(e, allowed)
-                          if (typed !== null) set(typed)
-                        }}
-                      >
-                        {ATTRIBUTE_VALUES.map((v) => {
-                          const text = attributeText(kinds[a], v)
-                          // As text, values the game does not expect are only offered if already in use.
-                          if (!rawAttributes && text === null && v !== value) return null
-                          return (
-                            <option key={v} value={v}>
-                              {rawAttributes ? v : (text ?? `! ${v}`)}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </td>
+                  <td>{position(index)}</td>
+                  <td className="pin">{nameBox(index)}</td>
+                  <td>{numberBox(index)}</td>
+                  <td>{overall(index)}</td>
+                  {team.players[index].attributes.map((_, a) => (
+                    <td key={a}>{attributeBox(index, a)}</td>
                   ))}
-                  <td className="actions">
-                    <button title={`Move up${moveHint}`} disabled={!plainView || index === 0} onClick={() => changeRoster(movePlayer(team, index, -1))}>
-                      ↑
-                    </button>
-                    <button
-                      title={`Move down${moveHint}`}
-                      disabled={!plainView || index === team.players.length - 1}
-                      onClick={() => changeRoster(movePlayer(team, index, 1))}
-                    >
-                      ↓
-                    </button>
-                    {index >= goalies && (
-                      <button
-                        title="Delete player"
-                        disabled={!canDeletePlayer(team, index)}
-                        onClick={() => changeRoster(deletePlayer(team, index))}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </td>
+                  <td className="actions">{actions(index)}</td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     )
   }
@@ -412,7 +504,7 @@ export function TeamEditor(props: Props) {
         </button>{' '}
         <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
       </p>
-      <p className="note">
+      <p className="note" hidden={narrow}>
         In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
         arrow to open a list. In an attribute's list, + and - raise and lower it
         {storedOnly || rawAttributes ? ', and typing a number sets it' : ''}.
@@ -478,51 +570,51 @@ export function TeamEditor(props: Props) {
             you know the ROM uses them. Only the NLC line is played.
           </p>
         )}
-        <table onKeyDown={gridKeyDown}>
-          <thead>
-            <tr>
-              <th />
-              <th>Line</th>
-              {game.linePositionLabels.map((label) => (
-                <th key={label}>{label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+        {narrow ? (
+          <div className="cards">
             {team.lines.map((line, l) => (
-              <tr key={l}>
-                <td>
-                  <input
-                    type="checkbox"
-                    title="Select for copy and paste"
-                    checked={tickedLines.includes(l)}
-                    onChange={(e) =>
-                      setTickedLines(
-                        e.target.checked ? [...tickedLines, l].sort((a, b) => a - b) : tickedLines.filter((i) => i !== l),
-                      )
-                    }
-                  />
-                </td>
-                <td>{game.lineLabels[l]}</td>
-                {game.linePositionLabels.map((_, slot) => (
-                  <td key={slot}>
-                    <select value={line[slot]} onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}>
-                      {emptySlots[l]?.[slot] && <option value={0}>Empty</option>}
-                      {(line[slot] === 0 && !emptySlots[l]?.[slot]) || line[slot] > team.players.length ? (
-                        <option value={line[slot]}>Invalid ({hex(line[slot])})</option>
-                      ) : null}
-                      {team.players.map((player, i) => (
-                        <option key={i} value={i + 1}>
-                          {hex(player.jersey)} {player.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                ))}
-              </tr>
+              <div key={l} className="card open">
+                <div className="card-head">
+                  {lineTick(l)}
+                  <strong>{game.lineLabels[l]}</strong>
+                </div>
+                <div className="card-body">
+                  {game.linePositionLabels.map((label, slot) => (
+                    <label key={slot}>
+                      <span>{label}</span>
+                      {lineBox(l, slot, line)}
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <div className="scroll">
+            <table onKeyDown={gridKeyDown}>
+              <thead>
+                <tr>
+                  <th />
+                  <th>Line</th>
+                  {game.linePositionLabels.map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {team.lines.map((line, l) => (
+                  <tr key={l}>
+                    <td>{lineTick(l)}</td>
+                    <td>{game.lineLabels[l]}</td>
+                    {game.linePositionLabels.map((_, slot) => (
+                      <td key={slot}>{lineBox(l, slot, line)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {['Home', 'Away'].map((label, strip) => {

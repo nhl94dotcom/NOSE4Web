@@ -1187,3 +1187,127 @@ test.describe('with the hacked ROMs on this computer', () => {
     })
   })
 })
+
+// The same site at the widths of a phone, a tablet, a laptop and a large
+// monitor. On none of them may the page itself scroll sideways.
+const WIDTHS = [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'laptop', width: 1280, height: 720 },
+  { name: 'monitor', width: 1920, height: 1080 },
+]
+
+test.describe('at different window widths', () => {
+  test.skip(!hasRom, 'needs ../nhl94.bin')
+
+  for (const size of WIDTHS) {
+    test(`every page fits a ${size.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height })
+      await page.goto('/')
+      await romPicker(page).setInputFiles(romPath)
+      const narrow = size.width <= 820
+      const fits = async (what: string) => {
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+        expect(overflow, `${what} on a ${size.name} scrolls sideways`).toBeLessThanOrEqual(0)
+      }
+      const openList = async () => {
+        if (narrow) await page.locator('.nav-toggle').click()
+      }
+
+      await expect(page.locator(narrow ? '.card' : 'tbody tr').first()).toBeVisible()
+      await fits('A team')
+      await page.screenshot({ path: `test-results/shots/width-${size.name}-team.png` })
+
+      const count = await page.locator('nav button').count()
+      for (let i = 28; i < count; i++) {
+        await openList()
+        const button = page.locator('nav button').nth(i)
+        const name = (await button.textContent()) ?? ''
+        await button.click()
+        await expect(page.locator('main h2').first()).toBeVisible()
+        await fits(name)
+        if (/^(Trade|League|Game settings)/.test(name)) {
+          await page.screenshot({ path: `test-results/shots/width-${size.name}-${name.split(' ')[0].toLowerCase()}.png` })
+        }
+      }
+      // The nav is out of the way on a narrow window until asked for, and always there on a wide one.
+      if (narrow) await expect(page.locator('nav')).toBeHidden()
+      else await expect(page.locator('nav')).toBeVisible()
+    })
+  }
+
+  test('a phone edits a roster with cards, and reaches everything from the folded bars', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await romPicker(page).setInputFiles(romPath)
+
+    // The bar at the top names the page and opens the list of teams.
+    const toggle = page.locator('.nav-toggle')
+    await expect(toggle).toContainText('Anaheim Mighty Ducks')
+    await expect(page.locator('nav')).toBeHidden()
+    await toggle.click()
+    await expect(page.locator('nav')).toBeVisible()
+    await page.locator('nav').getByRole('button', { name: 'Boston Bruins', exact: true }).click()
+    await expect(page.locator('nav')).toBeHidden()
+    await expect(toggle).toContainText('Boston Bruins')
+    // Tapping outside the list shuts it.
+    await toggle.click()
+    await page.locator('.backdrop').click({ position: { x: 370, y: 400 } })
+    await expect(page.locator('nav')).toBeHidden()
+
+    // Players are cards: a line each, opened to edit.
+    const skaters = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Skaters', exact: true }) })
+    const card = skaters.locator('.card').first()
+    await expect(skaters.locator('table')).toHaveCount(0)
+    await expect(skaters.locator('.card')).toHaveCount(23)
+    await expect(card.locator('.card-body')).toHaveCount(0)
+    const name = await card.locator('input.name').inputValue()
+    await card.locator('.card-toggle').click()
+    await expect(card.locator('.card-body label')).toHaveCount(15) // the number and fourteen attributes
+    await page.screenshot({ path: 'test-results/shots/width-phone-card.png' })
+
+    const speed = card.getByLabel(`Speed of ${name}`)
+    await speed.selectOption({ index: 0 })
+    await card.locator('input.name').fill('Phone Edit')
+    await card.locator('input.num').fill('77')
+    await expect(page.getByLabel('Speed of Phone Edit')).toHaveValue('0')
+    // Moving a player down takes his card with him.
+    await card.getByRole('button', { name: '↓' }).click()
+    await expect(skaters.locator('.card').nth(1).locator('input.name')).toHaveValue('Phone Edit')
+
+    // Lines are cards too, one position to a row.
+    const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+    await expect(lines.locator('table')).toHaveCount(0)
+    await expect(lines.locator('.card')).toHaveCount(8)
+    await expect(lines.locator('.card').first().locator('select')).toHaveCount(7)
+    await lines.locator('.card').first().scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'test-results/shots/width-phone-lines.png' })
+
+    // The less used buttons are behind More; downloading is always in reach.
+    await expect(page.getByRole('button', { name: 'Download patch' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Download ROM' })).toBeVisible()
+    await page.locator('.more-toggle').click()
+    await expect(page.getByRole('button', { name: 'Download patch' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Add 934 bytes of roster space/ })).toBeVisible()
+    await page.screenshot({ path: 'test-results/shots/width-phone-more.png' })
+    await page.locator('.more-toggle').click()
+
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    const edited = rom.teams[1].players.find((player) => player.name === 'Phone Edit')
+    expect(edited?.jersey).toBe(0x77)
+    expect(edited?.attributes[2]).toBe(0)
+  })
+
+  test('turning a tablet switches between the table and the cards without losing work', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.goto('/')
+    await romPicker(page).setInputFiles(romPath)
+    await nameOf(rows(page, 'Skaters').first()).fill('Turned Over')
+    await page.setViewportSize({ width: 768, height: 1024 })
+    const skaters = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Skaters', exact: true }) })
+    await expect(skaters.locator('.card').first().locator('input.name')).toHaveValue('Turned Over')
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await expect(nameOf(rows(page, 'Skaters').first())).toHaveValue('Turned Over')
+  })
+})

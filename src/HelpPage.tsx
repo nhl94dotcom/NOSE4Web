@@ -6,6 +6,7 @@ import { CSV_TABLES } from './core/tables'
 
 const SECTIONS = [
   ['start', 'Getting started'],
+  ['narrow', 'On a phone or tablet'],
   ['space', 'Space in the ROM'],
   ['teams', 'Teams'],
   ['players', 'Players and goalies'],
@@ -76,6 +77,36 @@ export function HelpPage() {
         Your work is also kept in this browser, on this computer, a moment after each change. If the tab is closed or
         refreshed, the welcome screen offers <b>Continue editing</b> to pick it up again, or <b>Discard it</b>. Only
         the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
+      </p>
+
+      <h3 id="help-narrow">On a phone or tablet</h3>
+      <p>
+        The editor fits itself to the window. On a phone, a tablet held upright, or any narrow window, a few things
+        are arranged differently. Nothing is missing.
+      </p>
+      <ul>
+        <li>
+          The list of teams and pages is tucked away. The button at the top left names the page you are on; tap it
+          to slide the list in, and tap a team or page to go there.
+        </li>
+        <li>
+          The top bar keeps Undo, Redo, the space meter and <b>Download ROM</b> in view. <b>More</b> opens the rest:
+          adding roster space, opening another ROM, and downloading a patch.
+        </li>
+        <li>
+          Players are shown as cards in place of a wide table. Each card is one line: the tick-box, the player's
+          place and position, his name, and a button showing his overall rating. Tap that button to open the card
+          and edit his number and every attribute, or to move or delete him. Several cards can be open at once.
+        </li>
+        <li>Lines are cards too, with one position to a row.</li>
+        <li>
+          Other wide tables, such as the trade screen's and the League page's, scroll sideways inside their own
+          box, with the name column staying in view.
+        </li>
+      </ul>
+      <p>
+        Turning a tablet, or resizing a window, switches between the two arrangements at once and keeps your work.
+        The keyboard shortcuts for moving between boxes belong to the table arrangement.
       </p>
 
       <h3 id="help-space">Space in the ROM</h3>

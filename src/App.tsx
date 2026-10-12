@@ -55,6 +55,10 @@ export default function App() {
   // Names the downloaded ROM and starts the name of every spreadsheet file.
   const [name, setName] = useState('')
   const [selected, setSelected] = useState(0)
+  // On a narrow window the list of teams and pages slides in over the page,
+  // and the less used buttons at the top are folded away.
+  const [navOpen, setNavOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   // The team last looked at, which pages about teams start from.
   const [lastTeam, setLastTeam] = useState(0)
   if (selected >= 0 && selected !== lastTeam) setLastTeam(selected)
@@ -326,17 +330,39 @@ export default function App() {
     }
   }
 
+  const go = (id: number) => {
+    setSelected(id)
+    setNavOpen(false)
+  }
   const entry = (id: number, label: string) => (
-    <button className={selected === id ? 'active' : ''} onClick={() => setSelected(id)}>
+    <button className={selected === id ? 'active' : ''} onClick={() => go(id)}>
       {label}
     </button>
   )
+  const PAGE_NAMES: Record<number, string> = {
+    [RINK]: 'Rink colours',
+    [SETTINGS]: 'Game settings',
+    [CSV]: 'Spreadsheet files',
+    [HELP]: 'Help',
+    [CHECK]: 'Check ROM',
+    [COMPARE]: 'Compare ROMs',
+    [LEAGUE]: 'League',
+    [BULK]: 'Bulk changes',
+    [IMPORT_TEAM]: 'Import a team',
+    [PICTURES]: 'Picture files',
+    [TRADE]: 'Trade',
+    [PROJECT]: 'Project file',
+  }
+  const pageName = selected >= 0 ? teamNames[selected] : PAGE_NAMES[selected]
 
   return (
     <div className="app">
-      <header>
-        <strong>NOSE4Web</strong>
-        <span>{project.game.title}</span>
+      <header className={moreOpen ? 'more-open' : ''}>
+        <button className="nav-toggle" aria-expanded={navOpen} title="Show the teams and pages" onClick={() => setNavOpen(!navOpen)}>
+          ☰ {pageName}
+        </button>
+        <strong className="brand">NOSE4Web</strong>
+        <span className="brand">{project.game.title}</span>
         <label title="Names the downloaded ROM and starts the name of every spreadsheet file.">
           Name{' '}
           <input className="rom-name" value={name} onChange={(e) => setName(cleanFileName(e.target.value))} />
@@ -357,8 +383,12 @@ export default function App() {
               ? `${teamNames[space.team]} is ${-left} bytes too large`
               : `At least ${left} bytes free for each team`}
         </span>
+        <button className="more-toggle" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+          More {moreOpen ? '▴' : '▾'}
+        </button>
         {expansion && (
           <button
+            className="extra"
             title={
               expansion.step === 'introText'
                 ? 'Moves the opening screen text to the end of the ROM to make room for rosters.'
@@ -370,11 +400,12 @@ export default function App() {
             {grows && ` (ROM grows to ${expansion.romSize / 0x100000} MB)`}
           </button>
         )}
-        {picker}
+        <span className="extra">{picker}</span>
         <button onClick={() => handleDownload(false)} disabled={left < 0}>
           Download ROM
         </button>
         <button
+          className="extra"
           title="An IPS patch holds only your changes. Anyone with the same ROM you opened can apply it to get your version, so you can share your work without sharing the ROM."
           onClick={() => handleDownload(true)}
           disabled={left < 0}
@@ -384,11 +415,12 @@ export default function App() {
       </header>
       {error && <p className="error">{error}</p>}
       <div className="body">
-        <nav>
+        {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
+        <nav className={navOpen ? 'open' : ''}>
           {project.teams.map((team, i) => (
             <Fragment key={i}>
               {groupStarts.has(i) && <div className="group">{groupStarts.get(i)}</div>}
-              <button className={i === selected ? 'active' : ''} onClick={() => setSelected(i)}>
+              <button className={i === selected ? 'active' : ''} onClick={() => go(i)}>
                 {groupStarts.size > 0 ? teamDisplayName(team) : teamNames[i]}
               </button>
             </Fragment>
