@@ -769,15 +769,47 @@ export function HelpPage() {
           them.
         </li>
         <li>
-          <b>Hot and cold bonuses:</b> the game makes players a little hot or cold each game, and the ratings in
-          Edit Lines do not show it truly. You can switch the bonuses off, hide them in Edit Lines, make the
-          players match Edit Lines, or make Edit Lines match the players.
+          <b>Hot and cold bonuses:</b> what becomes of the bonuses that make a player hot or cold for a game.
+          They are explained below.
         </li>
         <li>
           <b>Base weight:</b> the weight a player's lowest weight value stands for, from 102 to 152 pounds. Type a
           season's year to get the weight smozROM suggests for it.
         </li>
       </ul>
+      <p>
+        <b>Hot and cold bonuses.</b> Before each game, the game makes every player a little hot or cold: a small
+        bonus or penalty on top of the ratings you set, which are not changed. It keeps two sets of these. One is
+        used on the ice, where a player has a single bonus for all his attributes, so he is hot or cold in
+        everything at once. The other is shown in the ratings on the Edit Lines screen, with a separate bonus for
+        each attribute. The two do not agree, so in the original game Edit Lines does not tell you who is really
+        hot. There are five choices:
+      </p>
+      <ul>
+        <li>
+          <b>As the original game has them:</b> the two sets stay as they are, and you have to feel who is hot.
+        </li>
+        <li>
+          <b>No bonuses:</b> nobody is hot or cold. Every player plays to his ratings every game, and Edit Lines
+          shows the plain ratings. This suits a league that wants an even contest.
+        </li>
+        <li>
+          <b>Bonuses not shown in Edit Lines:</b> players are still hot or cold on the ice, but Edit Lines shows
+          the plain ratings. Nothing misleads you, but nothing tells you who is hot either.
+        </li>
+        <li>
+          <b>Players match Edit Lines:</b> on the ice, each player gets the bonuses Edit Lines shows. What you
+          see is what you get, and a player can be hot in one attribute and cold in another.
+        </li>
+        <li>
+          <b>Edit Lines matches players:</b> Edit Lines shows the bonus each player really has. What you see is
+          what you get, and a player is hot or cold in everything at once.
+        </li>
+      </ul>
+      <p>
+        None of the choices puts right the ratings the announcer gives before a game. If your league is happy with
+        how its ROM plays now, leave this as the ROM has it.
+      </p>
       <p>
         Changing the <b>rating scale</b> restates every player's ratings so that each plays as he did: 0, 1, 2, 3,
         4, 5, 6 become 0, 3, 5, 8, 10, 13, 15, and going back turns them round again. Changing the{' '}

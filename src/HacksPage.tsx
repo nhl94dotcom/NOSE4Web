@@ -25,13 +25,34 @@ interface Props {
 }
 
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
-const BONUS_NOTES: Record<Bonuses, string> = {
-  original:
-    'The game makes each player a little hot or cold for a game. The ratings Edit Lines shows include bonuses too, but not the ones the players really get, so they mislead.',
-  disabled: 'No player is hot or cold, on the ice or in Edit Lines. Players are the same every game, which suits leagues that want an even contest.',
-  hidden: 'Players are still hot or cold on the ice, but Edit Lines shows their plain ratings, so you have to feel who is hot.',
-  playersMatchLines: 'The players get the bonuses Edit Lines shows, so a player can be hot in one attribute and cold in another.',
-  linesMatchPlayers: 'Edit Lines shows the bonuses the players really have, so each player is hot or cold in everything at once.',
+// What each choice of bonuses means where it shows: in play, and in the
+// ratings on the Edit Lines screen.
+const BONUS_EFFECTS: Record<Bonuses, { ice: string; lines: string; more: string }> = {
+  original: {
+    ice: 'each player is hot or cold in everything at once.',
+    lines: 'ratings with a different set of bonuses, one for each attribute, so they do not tell you who is hot.',
+    more: 'You have to feel who is hot.',
+  },
+  disabled: {
+    ice: 'no bonuses. Every player plays to his ratings every game.',
+    lines: 'the plain ratings.',
+    more: 'This suits a league that wants an even contest.',
+  },
+  hidden: {
+    ice: 'each player is hot or cold in everything at once, as in the original game.',
+    lines: 'the plain ratings.',
+    more: 'Nothing misleads you, but nothing tells you who is hot either.',
+  },
+  playersMatchLines: {
+    ice: 'each player gets the bonuses Edit Lines shows, one for each attribute, so he can be hot in one and cold in another.',
+    lines: 'the bonuses the players really have.',
+    more: 'What you see is what you get.',
+  },
+  linesMatchPlayers: {
+    ice: 'each player is hot or cold in everything at once, as in the original game.',
+    lines: 'the bonus each player really has, the same on every attribute.',
+    more: 'What you see is what you get.',
+  },
 }
 
 export function HacksPage({ project, onChange }: Props) {
@@ -192,7 +213,16 @@ export function HacksPage({ project, onChange }: Props) {
             ))}
           </select>,
           <>
-            {BONUS_NOTES[wanted.bonuses]} Whatever you choose, the announcer's pre-game ratings stay as they were.
+            Before each game, the game makes every player a little hot or cold: a small bonus or penalty on top of
+            the ratings you set, which are not changed. It keeps two sets of these. One is used on the ice, where a
+            player has a single bonus for all his attributes. The other is shown in Edit Lines, with a separate
+            bonus for each attribute. The two do not agree, so in the original game Edit Lines misleads.
+            <br />
+            <b>With this choice, on the ice:</b> {BONUS_EFFECTS[wanted.bonuses].ice}
+            <br />
+            <b>In Edit Lines:</b> {BONUS_EFFECTS[wanted.bonuses].lines}
+            <br />
+            {BONUS_EFFECTS[wanted.bonuses].more} Whatever you choose, the announcer's pre-game ratings are not put right.
             {wanted.wideRatings && ' "Edit Lines matches players" is not offered with 0 to 15 ratings, where the code for it looks to be mistaken.'}
           </>,
         )}
