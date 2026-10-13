@@ -10,6 +10,7 @@ import {
   applyHacks,
   baseWeightForYear,
   detectHacks,
+  hackChanges,
   HackError,
   hackRom,
   hacksSupported,
@@ -38,6 +39,7 @@ const hasLeague = !!local.league30Rom && existsSync(path(local.league30Rom))
 const BONUSES: Bonuses[] = ['original', 'disabled', 'hidden', 'playersMatchLines', 'linesMatchPlayers']
 // smozROM's usual set, with everything it offers switched on.
 const FULL: HackChoices = {
+  ...NO_HACKS,
   weightFix: 'on',
   bodychecks: 'on',
   secondAssist: true,
@@ -47,6 +49,89 @@ const FULL: HackChoices = {
   threeStars: 'linesOn',
   baseWeight: 144,
 }
+
+describe.skipIf(!hasRom)('hacks to how the game plays', () => {
+  const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+
+  it('writes what the forum posts give, and nothing else', () => {
+    const rom = stock()
+    const play: HackChoices = {
+      ...NO_HACKS,
+      checkFix: true,
+      goalieHold: 300,
+      goalieWidth: 40,
+      goalieOut: 224,
+      goalieLine: 144,
+      stamina: true,
+      energyDrain: 65,
+      energyRecovery: 6,
+      speedBurst: 24,
+      turnRate: 300,
+      realTime: true,
+    }
+    const hacked = hackRom(rom, play)
+    const expected: [number, string][] = [
+      [0x13d6c, '4e714e71'],
+      [0x1530e, '012c'],
+      [0xb632, '0028'],
+      [0xb650, 'ffd8'],
+      [0xb66a, '00e0'],
+      [0xb674, 'ff20'],
+      [0xd3ea, '0090'],
+      [0xd3f2, 'ff70'],
+      [0x15782, '6002'],
+      [0x10d42, '0041'],
+      [0x7a1a, '0006'],
+      [0xbb88, '7018'],
+      [0x10e24, '012c'],
+      [0x10e32, '012c'],
+      [0x10e48, '012c'],
+      [0x10e56, '012c'],
+      [0x15dec, '0444'],
+      [0x128cc, '003c'],
+      [0x15e32, '0444'],
+    ]
+    for (const [offset, bytes] of expected) expect(at(hacked, offset, bytes.length / 2), offset.toString(16)).toBe(bytes)
+    // Those are the only bytes that differ, and the ROM is no larger.
+    expect(hacked.length).toBe(rom.length)
+    const changed = new Set<number>()
+    hacked.forEach((byte, i) => byte !== rom[i] && changed.add(i))
+    const allowed = new Set(expected.flatMap(([offset, bytes]) => Array.from({ length: bytes.length / 2 }, (_, i) => offset + i)))
+    expect([...changed].filter((i) => !allowed.has(i))).toEqual([])
+    expect(detectHacks(hacked)).toEqual({ choices: play, unknown: [] })
+    expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
+  })
+
+  it('stops the goalie whistle by leaving its count alone, and refuses numbers the game cannot take', () => {
+    const rom = stock()
+    const never = hackRom(rom, { ...NO_HACKS, goalieHold: 0 })
+    expect(at(never, 0xd4c6, 2)).toBe('6002')
+    expect(at(never, 0x1530e, 2)).toBe('008c')
+    expect(() => hackRom(rom, { ...NO_HACKS, speedBurst: 96 })).toThrow('Speed burst has to be a whole number from 0 to 95.')
+    expect(() => hackRom(rom, { ...NO_HACKS, turnRate: 0 })).toThrow(HackError)
+    expect(() => hackRom(rom, { ...NO_HACKS, goalieOut: 1.5 })).toThrow(HackError)
+  })
+
+  it('leaves alone what it does not recognise, and says what changed', () => {
+    const rom = stock()
+    // The two ends of the ice disagree, and the clocks are half changed.
+    rom.set([0x00, 0x30], 0xb632)
+    rom.set([0x04, 0x44], 0x15dec)
+    const state = detectHacks(rom)
+    expect(state.unknown).toEqual(['clock', 'goalieBox'])
+    const hacked = hackRom(rom, { ...NO_HACKS, goalieWidth: 60, goalieOut: 200, realTime: true, turnRate: 200 })
+    expect(at(hacked, 0xb632, 2)).toBe('0030')
+    expect(at(hacked, 0xb66a, 2)).toBe('00e7')
+    expect(at(hacked, 0x128cc, 2)).toBe('0018')
+    expect(at(hacked, 0x10e24, 2)).toBe('00c8')
+    expect(hackChanges(NO_HACKS, { ...NO_HACKS, goalieHold: 0, speedBurst: 16, realTime: true, goalieOut: 224 })).toEqual([
+      'Goalie hold time: 2.33 seconds to no whistle.',
+      'Goalie range up the ice: 231 to 224.',
+      "Speed burst: the original game's to 16.",
+      'Real-time clock: off to on.',
+    ])
+  })
+})
 
 describe('the weight smozROM suggests for a season', () => {
   it('follows its table, and uses the ends of it for years outside', () => {
@@ -92,6 +177,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     for (const [answers, hash] of Object.entries(expected as Record<string, string>)) {
       const [fix, year, scale, stars, lines] = answers.split('_')
       const choices: HackChoices = {
+        ...NO_HACKS,
         weightFix: fix === 'y' ? 'on' : 'off',
         bodychecks: fix === 'y' ? 'on' : 'off',
         secondAssist: true,
@@ -131,6 +217,16 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { threeStars: 'linesOff' },
       { baseWeight: 102 },
       { baseWeight: 152 },
+      { checkFix: true },
+      { goalieHold: 0 },
+      { goalieHold: 300 },
+      { goalieWidth: 40, goalieOut: 224 },
+      { goalieLine: 96 },
+      { stamina: true },
+      { energyDrain: 65, energyRecovery: 6 },
+      { speedBurst: 24 },
+      { turnRate: 300 },
+      { realTime: true },
     ]
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }

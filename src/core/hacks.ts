@@ -1,12 +1,16 @@
 // Changes to the game's own code: bug fixes, extra statistics, finer ratings.
 //
-// Everything here is the work of Michael Capewell (smozoma), ported from his
-// hack program smozROM with his permission. The places changed, the code put
-// there and the table of weights by year are his.
+// All but the last group are the work of Michael Capewell (smozoma), ported
+// from his hack program smozROM with his permission. The places changed, the
+// code put there and the table of weights by year are his.
 //
 //   smozROM  Copyright 2010 Michael Capewell (smozoma)
 //   https://github.com/nhl94dotcom/smozROM
 //   Released under the GNU General Public License, version 3 or later.
+//
+// The last group, how the game plays, comes from findings posted on the
+// NHL94 forums by wboy, Tony H, clockwise, smozoma, Brodeur30, kingraph and
+// AverageRangersFan: see "play" below.
 //
 // Each hack is looked for by the exact bytes it leaves, and a ROM whose code
 // at a hack's places is neither the original game's nor the hack's is left
@@ -43,10 +47,48 @@ export interface HackChoices {
   threeStars: ThreeStars
   // The weight in pounds that a player's lowest weight value stands for.
   baseWeight: number
+
+  // How the game plays. The numbers are the game's own, as its code holds them.
+  // Stops a player who presses C and then B from checking as if he were anyone.
+  checkFix: boolean
+  // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
+  goalieHold: number
+  // How far a goalie without the puck may go to either side of the middle of the ice.
+  goalieWidth: number
+  // How near centre ice a goalie may come, as his distance from it: without the puck, then with it.
+  goalieOut: number
+  goalieLine: number
+  // Players on the ice do not tire.
+  stamina: boolean
+  energyDrain: number
+  energyRecovery: number
+  // The push the C button gives; 0 for the original game's, which is 32 for a fresh player and less for a tired one.
+  speedBurst: number
+  turnRate: number
+  // The game, penalty and penalty shot clocks count true seconds.
+  realTime: boolean
 }
 
 // 'ratings' covers the rating scale and the bonuses, whose code is shared.
-export type HackPart = 'weightFix' | 'bodychecks' | 'secondAssist' | 'plusMinus' | 'ratings' | 'threeStars' | 'baseWeight'
+// 'goalieBox' covers both ways a goalie without the puck may roam.
+export type HackPart =
+  | 'weightFix'
+  | 'bodychecks'
+  | 'secondAssist'
+  | 'plusMinus'
+  | 'ratings'
+  | 'threeStars'
+  | 'baseWeight'
+  | 'checkFix'
+  | 'goalieHold'
+  | 'goalieBox'
+  | 'goalieLine'
+  | 'stamina'
+  | 'energyDrain'
+  | 'energyRecovery'
+  | 'speedBurst'
+  | 'turnRate'
+  | 'clock'
 
 export interface HackState {
   choices: HackChoices
@@ -64,7 +106,30 @@ export const NO_HACKS: HackChoices = {
   bonuses: 'original',
   threeStars: 'original',
   baseWeight: 140,
+  checkFix: false,
+  goalieHold: 140,
+  goalieWidth: 36,
+  goalieOut: 231,
+  goalieLine: 170,
+  stamina: false,
+  energyDrain: 33,
+  energyRecovery: 9,
+  speedBurst: 0,
+  turnRate: 150,
+  realTime: false,
 }
+
+// The least and most each number can be.
+export const HACK_RANGES = {
+  goalieHold: [0, 3600],
+  goalieWidth: [0, 124],
+  goalieOut: [0, 255],
+  goalieLine: [0, 255],
+  energyDrain: [0, 999],
+  energyRecovery: [0, 999],
+  speedBurst: [0, 95],
+  turnRate: [1, 999],
+} satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}
 
@@ -447,6 +512,126 @@ export function baseWeightForYear(year: number): number {
   return base
 }
 
+// ---------------------------------------------------------------------- play
+// How the game plays. Each of these is a number or an instruction changed
+// where it stands in the game's code; none adds code of its own. They were
+// found and posted on the NHL94 forums:
+//   the C-then-B check bug, and how far a goalie roams        smozoma
+//   how long a goalie holds the puck                clockwise and smozoma
+//   energy, the speed burst, stopping and turning    wboy, with Tony H
+//   the clocks      Brodeur30, smozoma, kingraph and AverageRangersFan
+
+// A number in the game's code, known by the instruction just before it. Some
+// are kept as the negative of what they mean, for the other end of the ice.
+interface NumberSite {
+  at: number
+  lead: Uint8Array
+  negative?: boolean
+}
+const site = (at: number, lead: string, negative = false): NumberSite => ({ at, lead: bytes(lead), negative })
+
+function readSite(rom: Uint8Array, { at, lead, negative }: NumberSite): number | undefined {
+  if (!is(rom, at - lead.length, lead)) return undefined
+  const value = readU16(rom, at)
+  if (!negative) return value
+  const signed = value >= 0x8000 ? value - 0x10000 : value
+  return signed <= 0 ? -signed : undefined
+}
+const writeSite = (rom: Uint8Array, { at, negative }: NumberSite, value: number) => writeU16(rom, at, (negative ? -value : value) & 0xffff)
+
+// One number kept in one or more places, which have to agree.
+function numberPart(sites: NumberSite[], original: number): Part<number> {
+  return {
+    detect(rom) {
+      const values = sites.map((each) => readSite(rom, each))
+      return values.every((value) => value === values[0]) ? values[0] : undefined
+    },
+    remove: (rom) => sites.forEach((each) => writeSite(rom, each, original)),
+    apply: (work, value) => sites.forEach((each) => writeSite(work.rom, each, value)),
+  }
+}
+
+// An instruction that is either the original game's or its replacement.
+function switchPart(at: number, original: Uint8Array, hacked: Uint8Array): Part<boolean> {
+  return {
+    detect: (rom) => (is(rom, at, original) ? false : is(rom, at, hacked) ? true : undefined),
+    remove: (rom) => rom.set(original, at),
+    apply: (work, value) => void (value && work.rom.set(hacked, at)),
+  }
+}
+
+// The game doubles a number in working out a check when the checker is
+// marked as checking, and pressing C and then B gets a player that mark when
+// he should not have it. The fix doubles it for everybody, so that the trick
+// gains nothing.
+const checkFix = switchPart(0x13d6c, bytes('6700 0004'), bytes('4E71 4E71'))
+
+// A goalie holding the puck is whistled when a count of sixtieths of a second
+// runs out. The count can be made longer, or never be counted down.
+const holdFrames = numberPart([site(0x1530e, '357C')], NO_HACKS.goalieHold)
+const holdCounted = switchPart(0xd4c6, bytes('9F6B'), bytes('6002'))
+const goalieHold: Part<number> = {
+  detect(rom) {
+    const [frames, never] = [holdFrames.detect(rom), holdCounted.detect(rom)]
+    if (frames === undefined || never === undefined || frames === 0) return undefined
+    return never ? 0 : frames
+  },
+  remove(rom) {
+    holdFrames.remove(rom)
+    holdCounted.remove(rom)
+  },
+  apply(work, value) {
+    if (value === 0) holdCounted.apply(work, true)
+    else holdFrames.apply(work, value)
+  },
+}
+
+// Where a goalie may go. Without the puck he is kept in a box in front of his
+// net; with it, play is whistled if he crosses a line.
+const goalieWidth = numberPart([site(0xb632, '0C53'), site(0xb650, '0C53', true)], NO_HACKS.goalieWidth)
+const goalieOut = numberPart([site(0xb66a, '0C6B'), site(0xb674, '0C6B', true)], NO_HACKS.goalieOut)
+const goalieLine = numberPart([site(0xd3ea, 'B27C'), site(0xd3f2, 'B27C', true)], NO_HACKS.goalieLine)
+
+// With line changes on, a player loses energy each moment on the ice and
+// gains it on the bench. The first switch stops the loss being kept.
+const stamina = switchPart(0x15782, bytes('3580'), bytes('6002'))
+const energyDrain = numberPart([site(0x10d42, '0440')], NO_HACKS.energyDrain)
+const energyRecovery = numberPart([site(0x7a1a, '0672')], NO_HACKS.energyRecovery)
+
+// The C button's push. The original game works it out from the player's
+// energy, 32 at the most; the hack makes it one number for everybody.
+const BURST_AT = 0xbb88
+const BURST_ORIGINAL = bytes('EE48')
+const OP_MOVEQ_D0 = 0x70
+const speedBurst: Part<number> = {
+  detect(rom) {
+    if (is(rom, BURST_AT, BURST_ORIGINAL)) return 0
+    const value = rom[BURST_AT + 1]
+    return rom[BURST_AT] === OP_MOVEQ_D0 && value >= 1 && value <= 0x7f ? value : undefined
+  },
+  remove: (rom) => rom.set(BURST_ORIGINAL, BURST_AT),
+  apply: (work, value) => void (value > 0 && work.rom.set([OP_MOVEQ_D0, value], BURST_AT)),
+}
+
+// How fast a skater loses speed when he reverses, one place for each direction.
+const turnRate = numberPart([site(0x10e24, '066B'), site(0x10e32, '046B'), site(0x10e48, '066B'), site(0x10e56, '046B')], NO_HACKS.turnRate)
+
+// The game clock and the penalty shot clock each take a number from a count
+// every sixtieth of a second and tick when it runs out; the penalty clock
+// ticks every so many sixtieths. The original game's run two and a half
+// times as fast as a real clock.
+const CLOCK_SITES = [site(0x15dec, '0478'), site(0x128cc, '0678'), site(0x15e32, '0478')]
+const CLOCK_VALUES = { original: [0x0aaa, 0x0018, 0x0aaa], realTime: [0x0444, 0x003c, 0x0444] }
+const clock: Part<boolean> = {
+  detect(rom) {
+    const values = CLOCK_SITES.map((each) => readSite(rom, each))
+    if (values.every((value, i) => value === CLOCK_VALUES.original[i])) return false
+    return values.every((value, i) => value === CLOCK_VALUES.realTime[i]) ? true : undefined
+  },
+  remove: (rom) => CLOCK_SITES.forEach((each, i) => writeSite(rom, each, CLOCK_VALUES.original[i])),
+  apply: (work, value) => void (value && CLOCK_SITES.forEach((each, i) => writeSite(work.rom, each, CLOCK_VALUES.realTime[i]))),
+}
+
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -466,7 +651,21 @@ export function detectHacks(rom: Uint8Array): HackState {
     bonuses: scale.bonuses,
     threeStars: found('threeStars', threeStars.detect(rom), NO_HACKS.threeStars),
     baseWeight: found('baseWeight', baseWeight.detect(rom), NO_HACKS.baseWeight),
+    checkFix: found('checkFix', checkFix.detect(rom), NO_HACKS.checkFix),
+    goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
+    goalieWidth: NO_HACKS.goalieWidth,
+    goalieOut: NO_HACKS.goalieOut,
+    goalieLine: found('goalieLine', goalieLine.detect(rom), NO_HACKS.goalieLine),
+    stamina: found('stamina', stamina.detect(rom), NO_HACKS.stamina),
+    energyDrain: found('energyDrain', energyDrain.detect(rom), NO_HACKS.energyDrain),
+    energyRecovery: found('energyRecovery', energyRecovery.detect(rom), NO_HACKS.energyRecovery),
+    speedBurst: found('speedBurst', speedBurst.detect(rom), NO_HACKS.speedBurst),
+    turnRate: found('turnRate', turnRate.detect(rom), NO_HACKS.turnRate),
+    realTime: found('clock', clock.detect(rom), NO_HACKS.realTime),
   }
+  const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
+  if (width === undefined || out === undefined) unknown.push('goalieBox')
+  else Object.assign(choices, { goalieWidth: width, goalieOut: out })
   return { choices, unknown }
 }
 
@@ -476,6 +675,10 @@ export function detectHacks(rom: Uint8Array): HackState {
 // smozROM's order, so that the same choices always give the same ROM.
 export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   if (!validBase(wanted.baseWeight)) throw new HackError('A base weight has to be an even number from 102 to 152.')
+  for (const key of Object.keys(HACK_RANGES) as (keyof typeof HACK_RANGES)[]) {
+    const [least, most] = HACK_RANGES[key]
+    if (!Number.isInteger(wanted[key]) || wanted[key] < least || wanted[key] > most) throw new HackError(`${HACK_TITLES[key]} has to be a whole number from ${least} to ${most}.`)
+  }
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
   const steps: [HackPart, () => void, () => void][] = [
@@ -486,6 +689,17 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['ratings', () => ratings.remove(work.rom), () => ratings.apply(work, { wide: wanted.wideRatings, bonuses: wanted.bonuses })],
     ['plusMinus', () => plusMinus.remove(work.rom), () => plusMinus.apply(work, wanted.plusMinus)],
     ['threeStars', () => threeStars.remove(work.rom), () => threeStars.apply(work, wanted.threeStars)],
+    ['checkFix', () => checkFix.remove(work.rom), () => checkFix.apply(work, wanted.checkFix)],
+    ['goalieHold', () => goalieHold.remove(work.rom), () => goalieHold.apply(work, wanted.goalieHold)],
+    ['goalieBox', () => goalieWidth.remove(work.rom), () => goalieWidth.apply(work, wanted.goalieWidth)],
+    ['goalieBox', () => goalieOut.remove(work.rom), () => goalieOut.apply(work, wanted.goalieOut)],
+    ['goalieLine', () => goalieLine.remove(work.rom), () => goalieLine.apply(work, wanted.goalieLine)],
+    ['stamina', () => stamina.remove(work.rom), () => stamina.apply(work, wanted.stamina)],
+    ['energyDrain', () => energyDrain.remove(work.rom), () => energyDrain.apply(work, wanted.energyDrain)],
+    ['energyRecovery', () => energyRecovery.remove(work.rom), () => energyRecovery.apply(work, wanted.energyRecovery)],
+    ['speedBurst', () => speedBurst.remove(work.rom), () => speedBurst.apply(work, wanted.speedBurst)],
+    ['turnRate', () => turnRate.remove(work.rom), () => turnRate.apply(work, wanted.turnRate)],
+    ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -583,6 +797,17 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   bonuses: 'Hot and cold bonuses',
   threeStars: 'Three stars',
   baseWeight: 'Base weight',
+  checkFix: 'C-then-B check bug fix',
+  goalieHold: 'Goalie hold time',
+  goalieWidth: 'Goalie range to each side',
+  goalieOut: 'Goalie range up the ice',
+  goalieLine: 'Goalie whistle line',
+  stamina: 'Unlimited stamina',
+  energyDrain: 'Energy lost on the ice',
+  energyRecovery: 'Energy gained on the bench',
+  speedBurst: 'Speed burst',
+  turnRate: 'Stopping and turning',
+  realTime: 'Real-time clock',
 }
 
 // Which part's code each choice is kept in.
@@ -595,6 +820,17 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   bonuses: 'ratings',
   threeStars: 'threeStars',
   baseWeight: 'baseWeight',
+  checkFix: 'checkFix',
+  goalieHold: 'goalieHold',
+  goalieWidth: 'goalieBox',
+  goalieOut: 'goalieBox',
+  goalieLine: 'goalieLine',
+  stamina: 'stamina',
+  energyDrain: 'energyDrain',
+  energyRecovery: 'energyRecovery',
+  speedBurst: 'speedBurst',
+  turnRate: 'turnRate',
+  realTime: 'clock',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {
@@ -610,6 +846,9 @@ export const STAR_TEXTS: Record<ThreeStars, string> = {
   linesOn: 'improved, for line changes on',
 }
 
+// A goalie's hold time in seconds, to the hundredth.
+export const holdSeconds = (frames: number) => Number((frames / 60).toFixed(2))
+
 // A choice in words, as reports give it.
 export function hackValueText<K extends keyof HackChoices>(key: K, choices: HackChoices): string {
   const value = choices[key]
@@ -617,6 +856,9 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'bonuses') return BONUS_TEXTS[choices.bonuses]
   if (key === 'threeStars') return STAR_TEXTS[choices.threeStars]
   if (key === 'baseWeight') return `${choices.baseWeight} pounds`
+  if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
+  if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
+  if (typeof value === 'number') return String(value)
   if (value === 'simple') return 'the earlier, simpler fix'
   if (value === 'earlier') return 'an earlier version'
   return value === true || value === 'on' ? 'on' : 'off'

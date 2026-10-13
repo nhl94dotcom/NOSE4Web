@@ -424,6 +424,11 @@ details {
   margin-left: 0.4rem;
 }
 
+.hack input[aria-invalid='true'] {
+  border-color: var(--bad);
+  outline-color: var(--bad);
+}
+
 .hack p {
   margin: 0.25rem 0 0;
 }

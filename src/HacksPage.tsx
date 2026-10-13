@@ -6,8 +6,10 @@ import {
   BONUS_TEXTS,
   detectHacks,
   HACK_PARTS,
+  HACK_RANGES,
   HACK_TITLES,
   hackChanges,
+  holdSeconds,
   NO_HACKS,
   sameHacks,
   STAR_TEXTS,
@@ -55,6 +57,47 @@ const BONUS_EFFECTS: Record<Bonuses, { ice: string; lines: string; more: string 
   },
 }
 
+type NumberKey = keyof typeof HACK_RANGES
+
+interface NumberBoxProps {
+  label: string
+  value: number
+  range: [number, number]
+  // How many of the game's units make one of what is typed.
+  perUnit: number
+  // Anything whose changing means the box should show the value afresh.
+  fresh: unknown
+  disabled: boolean
+  onChange: (value: number) => void
+}
+
+// A box for one of the game's numbers. What is typed is kept as typed, and
+// passed on whenever it is a number the game can take.
+function NumberBox({ label, value, range, perUnit, fresh, disabled, onChange }: NumberBoxProps) {
+  const shown = (stored: number) => String(perUnit === 1 ? stored : Number((stored / perUnit).toFixed(2)))
+  const [typed, setTyped] = useState({ value, fresh, text: shown(value) })
+  if (typed.value !== value || typed.fresh !== fresh) setTyped({ value, fresh, text: shown(value) })
+  const read = (text: string) => {
+    const stored = Math.round(Number(text) * perUnit)
+    return text.trim() !== '' && Number.isFinite(stored) && stored >= range[0] && stored <= range[1] ? stored : null
+  }
+  return (
+    <input
+      className="num"
+      inputMode="decimal"
+      aria-label={label}
+      aria-invalid={read(typed.text) === null}
+      disabled={disabled}
+      value={typed.text}
+      onChange={(e) => {
+        const stored = read(e.target.value)
+        setTyped({ value: stored ?? value, fresh, text: e.target.value })
+        if (stored !== null && stored !== value) onChange(stored)
+      }}
+    />
+  )
+}
+
 export function HacksPage({ project, onChange }: Props) {
   const state = useMemo(() => detectHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
@@ -62,6 +105,8 @@ export function HacksPage({ project, onChange }: Props) {
   if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices })
   const wanted = draft.rom === project.bytes ? draft.choices : state.choices
   const [year, setYear] = useState('')
+  // Counts the times the choices were set back, so that the number boxes show them afresh.
+  const [setBack, setSetBack] = useState(0)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
 
@@ -96,7 +141,13 @@ export function HacksPage({ project, onChange }: Props) {
       </p>
     </div>
   )
-  const onOff = (key: 'secondAssist' | 'plusMinus') => (
+  const number = (key: NumberKey, perUnit = 1) => (
+    <NumberBox label={HACK_TITLES[key]} value={wanted[key]} range={HACK_RANGES[key]} perUnit={perUnit} key={setBack} fresh={project.bytes} disabled={unknown(key)} onChange={(value) => set({ [key]: value })} />
+  )
+  // "The original game has 150", with what this ROM has if that is different.
+  const stock = (key: NumberKey) =>
+    `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'checkFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -117,12 +168,13 @@ export function HacksPage({ project, onChange }: Props) {
     <main className="team help">
       <h2>Hacks</h2>
       <p className="note">
-        Changes to the game itself: bug fixes, extra statistics, finer ratings. They are the work of smozoma, from his
-        program{' '}
+        Changes to the game itself: bug fixes, extra statistics, finer ratings, and how it plays. Most are the work of
+        smozoma, from his program{' '}
         <a href="https://github.com/nhl94dotcom/smozROM" target="_blank" rel="noreferrer">
           smozROM
         </a>
-        , built in here with his permission. The page shows what this ROM has now. Change what you like and press
+        , built in here with his permission; those under Play were found by members of the NHL94 forums, who are named
+        in Help. The page shows what this ROM has now. Change what you like and press
         Apply; nothing is changed until you do. Test a hacked ROM in a game before a league plays on it.
       </p>
 
@@ -145,6 +197,11 @@ export function HacksPage({ project, onChange }: Props) {
           'secondAssist',
           onOff('secondAssist'),
           'When two players pass back and forth and then one scores, the original game gives no assist to the player who passed to them. This gives it.',
+        )}
+        {hack(
+          'checkFix',
+          onOff('checkFix'),
+          'In the original game, pressing C and then B lets any player check as a strong checker does. This takes the trick away by treating every player that way, so it also changes how checks go for everybody. It has been used in a tournament ROM, but little tested beyond that.',
         )}
       </section>
 
@@ -256,6 +313,80 @@ export function HacksPage({ project, onChange }: Props) {
       </section>
 
       <section>
+        <h3>Play</h3>
+        <p className="note">
+          How the game plays. Most of these are the game's own numbers, shown as its code holds them, so change them
+          a little at a time and try the result in a game.
+        </p>
+        {hack(
+          'goalieHold',
+          <>{number('goalieHold', 60)} seconds</>,
+          <>
+            How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(NO_HACKS.goalieHold)}{' '}
+            seconds. Put 0 for no whistle at all; a goalie the game controls still gives the puck up by himself.
+          </>,
+        )}
+        {hack(
+          'goalieWidth',
+          number('goalieWidth'),
+          <>How far a goalie without the puck may go to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
+        )}
+        {hack(
+          'goalieOut',
+          number('goalieOut'),
+          <>
+            How near centre ice a goalie without the puck may come, as his distance from it, so a smaller number lets
+            him come farther out. {stock('goalieOut')}
+          </>,
+        )}
+        {hack(
+          'goalieLine',
+          number('goalieLine'),
+          <>
+            The line a goalie carrying the puck may not cross without a whistle, again as a distance from centre ice,
+            so a smaller number lets him carry it farther. {stock('goalieLine')}
+          </>,
+        )}
+        {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
+        {hack(
+          'energyDrain',
+          number('energyDrain'),
+          <>How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more line changes. {stock('energyDrain')}</>,
+        )}
+        {hack(
+          'energyRecovery',
+          number('energyRecovery'),
+          <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock('energyRecovery')}</>,
+        )}
+        {hack(
+          'speedBurst',
+          number('speedBurst'),
+          <>
+            The push the C button gives a player without the puck. Put 0 for the original game's, which is 32 for a
+            fresh player and less for a tired one. Any other number is the push for everybody, tired or not: 1 as
+            good as takes it away, 16 is half the original's, and much over 64 sends players the wrong way.
+          </>,
+        )}
+        {hack(
+          'turnRate',
+          number('turnRate'),
+          <>
+            How quickly a skater stops and turns when he reverses. A larger number stops him sooner; a small one gives
+            a long, sliding stop. {stock('turnRate')}
+          </>,
+        )}
+        {hack(
+          'realTime',
+          onOff('realTime'),
+          <>
+            The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
+            2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
+            seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
+          </>,
+        )}
+      </section>
+
+      <section>
         <h3>Apply</h3>
         {changes.length === 0 ? (
           <p>Nothing is set to change.</p>
@@ -291,7 +422,11 @@ export function HacksPage({ project, onChange }: Props) {
           <button disabled={changes.length === 0} onClick={apply}>
             Apply
           </button>{' '}
-          <button disabled={sameHacks(wanted, state.choices)} onClick={() => set(state.choices)}>
+          <button disabled={sameHacks(wanted, state.choices)} onClick={() => {
+              set(state.choices)
+              setSetBack(setBack + 1)
+            }}
+          >
             Set back to what the ROM has
           </button>{' '}
           <span className="note">{notice}</span>

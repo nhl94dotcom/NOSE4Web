@@ -735,8 +735,9 @@ export function HelpPage() {
 
       <h3 id="help-hacks">Hacks</h3>
       <p>
-        The <b>Hacks</b> page changes the game itself, where every other page changes its data. The hacks are the
-        work of smozoma, from his program smozROM, and are built in with his permission. The page shows what the
+        The <b>Hacks</b> page changes the game itself, where every other page changes its data. Most of the hacks
+        are the work of smozoma, from his program smozROM, and are built in with his permission; those under Play
+        were found by members of the NHL94 forums. The page shows what the
         ROM has now, which for a league ROM is often several of them already. Set what you want and press{' '}
         <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
         takes it all back.
@@ -839,6 +840,48 @@ export function HelpPage() {
           to be mistaken. A ROM that already has it is shown as having it.
         </li>
         <li>The page is there for the original game and the 30-team ROM. It is not offered for NHL 94: EVO.</li>
+      </ul>
+      <p>
+        <b>Play.</b> The last group changes how the game plays. Each is a number or an instruction in the game's
+        code, changed where it stands. The numbers are the game's own, so change them a little at a time and try
+        the result.
+      </p>
+      <ul>
+        <li>
+          <b>C-then-B check bug fix</b> (in with the fixes): pressing C and then B lets any player check as a strong
+          checker does. The fix treats every player that way, so the trick gains nothing; it changes checking for
+          everybody, and has been little tested.
+        </li>
+        <li>
+          <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
+          game. 0 means no whistle.
+        </li>
+        <li>
+          <b>Goalie range to each side</b> and <b>up the ice:</b> the box a goalie without the puck is kept in. The
+          original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a little
+          more room each way.
+        </li>
+        <li>
+          <b>Goalie whistle line:</b> how far from centre ice a goalie carrying the puck is whistled, 170 in the
+          original game. A smaller number lets him carry it farther.
+        </li>
+        <li>
+          <b>Unlimited stamina</b>, <b>energy lost on the ice</b> and <b>energy gained on the bench:</b> for games
+          with line changes on. The original game takes 33 and gives back 9.
+        </li>
+        <li>
+          <b>Speed burst:</b> the push the C button gives. 0 keeps the original game's, which is 32 for a fresh
+          player and less for a tired one; any other number is the push for everybody.
+        </li>
+        <li>
+          <b>Stopping and turning:</b> how quickly a skater stops when he reverses, 150 in the original game.
+        </li>
+        <li>
+          <b>Real-time clock:</b> the game clock, penalty clock and penalty shot clock count true seconds, where
+          the original game's run two and a half times as fast. Periods then last as long as they say, so set
+          shorter ones in Game settings. People who have played this way report that the penalty clock can skip
+          now and then.
+        </li>
       </ul>
       <p>
         The editor makes the same ROM smozROM would, byte for byte, for the choices smozROM offers. smozROM always
@@ -1125,6 +1168,12 @@ export function HelpPage() {
       <p>
         The hacks on the Hacks page are the work of smozoma (Michael Capewell), ported from his program smozROM
         with his permission, as is the table of weights by season.
+      </p>
+      <p>
+        The Play hacks on that page come from findings posted on the NHL94 forums: the C-then-B check bug fix and
+        the goalie's range by smozoma; the goalie's hold time by clockwise and smozoma; energy, the speed burst and
+        stopping and turning by wboy, with Tony H; and the real-time clock by Brodeur30, smozoma, kingraph and
+        AverageRangersFan.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

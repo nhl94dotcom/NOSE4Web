@@ -56,6 +56,9 @@ That licence does not cover:
   second-assist fix, bodycheck and plus-minus statistics, the improved three
   stars, 0 to 15 ratings, the hot and cold bonuses, and the base weight for
   another era
+- Hacks to how the game plays, from findings on the NHL94 forums: the
+  C-then-B check bug fix, the goalie's range and hold time, energy and
+  stamina, the speed burst, stopping and turning, and a real-time clock
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, and the main menu's starting choices
 

@@ -1326,6 +1326,34 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Kind of change')).toHaveValue('raise')
   })
 
+  test('changes how the game plays from the Hacks page', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    await entry(page, 'Hacks').click()
+    await expect(main.getByLabel('Goalie hold time')).toHaveValue('2.33')
+    await expect(main.getByLabel('Stopping and turning')).toHaveValue('150')
+    await main.getByLabel('Goalie hold time').fill('4')
+    await main.getByLabel('Goalie range up the ice').fill('224')
+    await main.getByLabel('Real-time clock').selectOption('on')
+    // A number the game cannot take is marked and not passed on.
+    await main.getByLabel('Speed burst').fill('500')
+    await expect(main.getByLabel('Speed burst')).toHaveAttribute('aria-invalid', 'true')
+    await expect(main.locator('.outcome li')).toHaveText([
+      'Goalie hold time: 2.33 seconds to 4 seconds.',
+      'Goalie range up the ice: 231 to 224.',
+      'Real-time clock: off to on.',
+    ])
+    await page.screenshot({ path: 'test-results/shots/hacks-play.png', fullPage: true })
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(main.getByText('Done: 3 changes to the game. Undo puts it back.')).toBeVisible()
+    await expect(main.getByLabel('Goalie hold time')).toHaveValue('4')
+    await expect(main.getByLabel('Speed burst')).toHaveValue('0')
+    await expect(main.getByText('The original game has 231, and this ROM has 224.')).toBeVisible()
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (3)')
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(main.getByLabel('Goalie hold time')).toHaveValue('2.33')
+  })
+
   test('applies hacks to the game, undoes them, and reopens a hacked ROM', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')
