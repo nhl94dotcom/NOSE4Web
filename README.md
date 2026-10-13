@@ -15,7 +15,20 @@ converted from the templates NOSE ships.
 
 ## Licence
 
-The code in this repository is released under the [MIT licence](LICENSE).
+Copyright (C) 2026 Tickenest
+
+NOSE4Web is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+NOSE4Web is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the [GNU General Public License](LICENSE) for more
+details.
+
+Versions up to and including commit `3e6174a` were released under the MIT
+licence, and anyone who has one of those may go on using it on those terms.
 
 That licence does not cover:
 

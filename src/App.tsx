@@ -250,6 +250,12 @@ export default function App() {
           Based on NOSE, the NHL Old Skool Editor for Windows by wboy, whose work mapping these games made this
           possible.
         </p>
+        <p className="note">
+          Free software under the GNU General Public License, version 3 or later, with no warranty.{' '}
+          <a href="https://github.com/nhl94dotcom/NOSE4Web" target="_blank" rel="noreferrer">
+            Source code
+          </a>
+        </p>
         {error && <p className="error">{error}</p>}
       </main>
     )

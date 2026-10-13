@@ -1007,6 +1007,14 @@ export function HelpPage() {
         NOSE4Web is based on NOSE, the NHL Old Skool Editor for Windows, written by wboy. Its understanding of how
         these games store their data comes from NOSE.
       </p>
+      <p>
+        NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes
+        with no warranty. Its source code is at{' '}
+        <a href="https://github.com/nhl94dotcom/NOSE4Web" target="_blank" rel="noreferrer">
+          github.com/nhl94dotcom/NOSE4Web
+        </a>
+        .
+      </p>
     </main>
   )
 }
