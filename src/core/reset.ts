@@ -18,10 +18,11 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 // ---------------------------------------------------------------- team data
 
-export type TeamPart = 'names' | 'roster' | 'lines' | 'home' | 'away'
+export type TeamPart = 'names' | 'ratings' | 'roster' | 'lines' | 'home' | 'away'
 
 const TEAM_PARTS: Record<TeamPart, (team: Team) => unknown> = {
   names: (team) => team.names,
+  ratings: (team) => team.teamBytes,
   // Who is on the team and how the roster is split into positions.
   roster: (team) => [team.players, team.forwards, team.defense, team.goalieNibbles],
   lines: (team) => team.lines,
@@ -37,6 +38,8 @@ export function resetTeamPart(team: Team, original: Team, part: TeamPart): Team 
   switch (part) {
     case 'names':
       return { ...team, names: original.names }
+    case 'ratings':
+      return { ...team, teamBytes: original.teamBytes }
     case 'roster':
       return {
         ...team,

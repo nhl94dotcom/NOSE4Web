@@ -5,7 +5,10 @@ import { formatCsv, parseCsv, type Cell } from '../src/core/csv'
 import { expandTeamSpace } from '../src/core/expand'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { CSV_TABLES, csvFileName, CsvImportError, identifyCsvFile, importCsv, importCsvSet } from '../src/core/tables'
+import { compareProjects } from '../src/core/compare'
+import { resetTeamPart, teamPartChanged } from '../src/core/reset'
 import { goalieCount } from '../src/core/team'
+import { setTeamRating, teamRatingChoices, teamRatings } from '../src/core/teamratings'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -125,6 +128,33 @@ describe.skipIf(!hasRom)('CSV tables', () => {
     expect(team.palette[2]).toBe(0x000e)
     expect(team.palette[3]).toBe(project.teams[4].palette[3])
     expect(() => importCsv(table('teams'), project, 'Team,Home 1\r\n5,red')).toThrow(/Home 1 must look like #1a2b3c/)
+  })
+
+  it('gives the six team ratings by name, and still takes the bytes that hold them', () => {
+    const project = openRom(original)
+    const rows = table('teams').rows(project)
+    const ratings = ['Offence', 'Defence', 'Power play', 'Penalty kill', 'Home', 'Away'].map((label) => column(rows, `${label} rating`))
+    // Anaheim, the weakest; Detroit; and the All Stars, as the original game has them.
+    expect(ratings.map((c) => rows[1][c])).toEqual([0, 7, 0, 2, 1, 3])
+    expect(ratings.map((c) => rows[7][c])).toEqual([7, 3, 2, 1, 0, 0])
+    expect(ratings.map((c) => rows[27][c])).toEqual([7, 7, 2, 0, 0, 0])
+    expect(teamRatings(project.teams[0])).toEqual([0, 7, 0, 2, 1, 3])
+
+    const named = importCsv(table('teams'), project, 'Team,Offence rating,Away rating\r\n1,5,\r\n2,,0\r\n')
+    expect(named.project.teams[0].teamBytes).toEqual([0x57, 0x02, 0x13])
+    expect(named.project.teams[1].teamBytes).toEqual([0x41, 0x21, 0x20])
+    expect(compareProjects(project, named.project).flatMap((difference) => difference.changes).join(' ')).toContain('Offence rating: 0 to 5.')
+    const bytes = importCsv(table('teams'), project, 'Team,Team byte 1,Penalty kill rating\r\n1,52,0\r\n')
+    expect(bytes.project.teams[0].teamBytes).toEqual([0x34, 0x00, 0x13])
+    expect(() => importCsv(table('teams'), project, 'Team,Home rating\r\n1,16')).toThrow(/Home rating/)
+
+    const set = setTeamRating(project.teams[0], 3, 1)
+    expect(set.teamBytes).toEqual([0x07, 0x01, 0x13])
+    expect(teamRatingChoices(5, 3)).toEqual([0, 1, 2, 3])
+    expect(teamRatingChoices(4, 3)).toEqual([0, 1, 2, 3])
+    expect(teamRatingChoices(2, 1)).toEqual([0, 1, 2])
+    expect(teamPartChanged(set, project.teams[0], 'ratings')).toBe(true)
+    expect(resetTeamPart(set, project.teams[0], 'ratings')).toEqual(project.teams[0])
   })
 
   it('reads lines by player name or roster position', () => {

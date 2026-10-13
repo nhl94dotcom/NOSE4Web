@@ -7,6 +7,7 @@ import type { RomProject } from './rom'
 import { MAX_ROSTER, MIN_ROSTER, withSkaterCounts } from './roster'
 import { MAX_SECONDS, menuOptions } from './settings'
 import { goalieCount, teamDisplayName, type Player, type Team } from './team'
+import { setTeamRating, TEAM_RATINGS, teamRatings } from './teamratings'
 
 // Each table is one CSV file: a view of part of the ROM that can be exported,
 // edited in a spreadsheet and imported again. An import changes nothing unless
@@ -273,19 +274,22 @@ const players: CsvTable = {
 
 const NAME_COLUMNS = ['Location', 'Initials', 'Name', 'Stadium']
 const GOALIE_BYTE_COLUMNS = [1, 2, 3, 4].map((n) => `Goalie byte ${n}`)
+// The team ratings were once given as the three bytes that hold them, and
+// files that still do are taken.
 const TEAM_BYTE_COLUMNS = [1, 2, 3].map((n) => `Team byte ${n}`)
+const TEAM_RATING_COLUMNS = TEAM_RATINGS.map((rating) => `${rating.label} rating`)
 const COLOR_COLUMNS = ['Home', 'Away'].flatMap((strip) => Array.from({ length: 16 }, (_, i) => `${strip} ${i + 1}`))
 
 const teams: CsvTable = {
   id: 'teams',
   title: 'Teams',
   description:
-    'Team names and home and away colours. Only the columns present in the file are changed, and an empty cell keeps the current value.',
+    'Team names, team ratings, and home and away colours. Only the columns present in the file are changed, and an empty cell keeps the current value.',
 
   rows(project) {
-    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_BYTE_COLUMNS, ...COLOR_COLUMNS]]
+    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...COLOR_COLUMNS]]
     project.teams.forEach((team, t) => {
-      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...team.teamBytes, ...team.palette.map(cssHex)])
+      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...team.palette.map(cssHex)])
     })
     return rows
   },
@@ -316,6 +320,9 @@ const teams: CsvTable = {
         return word
       })
       team = { ...team, names, teamBytes, palette }
+      TEAM_RATING_COLUMNS.forEach((column, i) => {
+        if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
+      })
 
       const goalieNibbles = team.goalieNibbles.map((value, i) =>
         given(GOALIE_BYTE_COLUMNS[i]) ? sheet.int(row, GOALIE_BYTE_COLUMNS[i], 0, 15) : value,

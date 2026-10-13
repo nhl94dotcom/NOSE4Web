@@ -1326,6 +1326,25 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Kind of change')).toHaveValue('raise')
   })
 
+  test('edits the six team ratings and resets them', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(main.getByLabel('Offence rating')).toHaveValue('0')
+    await expect(main.getByLabel('Defence rating')).toHaveValue('7')
+    await expect(main.getByLabel('Away rating')).toHaveValue('3')
+    await main.getByLabel('Offence rating').selectOption('4')
+    await main.getByLabel('Away rating').selectOption('0')
+    await entry(page, /^Changes/).click()
+    await expect(main.getByText('Offence rating: 0 to 4.')).toBeVisible()
+    await expect(main.getByText('Away rating: 3 to 0.')).toBeVisible()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await page.screenshot({ path: 'test-results/shots/team-ratings.png' })
+    await main.getByRole('button', { name: 'Reset team ratings' }).click()
+    await expect(main.getByLabel('Offence rating')).toHaveValue('0')
+    await expect(main.getByLabel('Away rating')).toHaveValue('3')
+  })
+
   test('changes how the game plays from the Hacks page', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')

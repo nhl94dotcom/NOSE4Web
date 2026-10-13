@@ -4,6 +4,7 @@ import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
 import { goalieCount, teamDisplayName, teamLabels, type Player, type Team } from './team'
+import { TEAM_RATINGS, teamRatings } from './teamratings'
 
 // Describes, in plain sentences, how one project differs from another.
 // Teams are matched by their position in the ROM, players and line members by
@@ -112,9 +113,10 @@ function compareTeam(project: RomProject, before: Team, after: Team): string[] {
   if (after.goalieNibbles.join() !== before.goalieNibbles.join()) {
     changes.push(`Goalie bytes: ${before.goalieNibbles.join(' ')} to ${after.goalieNibbles.join(' ')}.`)
   }
-  if (after.teamBytes.join() !== before.teamBytes.join()) {
-    changes.push(`Team bytes: ${before.teamBytes.join(' ')} to ${after.teamBytes.join(' ')}.`)
-  }
+  const [ratedBefore, ratedAfter] = [teamRatings(before), teamRatings(after)]
+  TEAM_RATINGS.forEach((rating, i) => {
+    if (ratedAfter[i] !== ratedBefore[i]) changes.push(`${rating.label} rating: ${ratedBefore[i]} to ${ratedAfter[i]}.`)
+  })
   return changes
 }
 

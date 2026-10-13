@@ -29,7 +29,7 @@ export interface Player {
 
 export interface Team {
   palette: number[]
-  // Meaning not yet known; kept as read.
+  // Six ratings, two to a byte: see teamratings.ts.
   teamBytes: number[]
   forwards: number
   defense: number

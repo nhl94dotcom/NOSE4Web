@@ -160,6 +160,13 @@ export function HelpPage() {
           the last that is not zero. What the values mean beyond that is not known, so it is safest to leave existing
           ones alone and use 1 for a goalie you add.
         </li>
+        <li>
+          <b>Offence, Defence, Power play, Penalty kill, Home, Away</b>: the six team ratings. For Offence (0 to 7),
+          Power play and Home (0 to 2) a high number is good. For Defence (0 to 7), Penalty kill (0 to 2) and Away
+          (0 to 2, with 3 for the original game's weakest teams) a <b>low</b> number is good. Their meaning was
+          worked out by wboy and smozoma; how much each changes play has not been measured. In the Teams
+          spreadsheet they are the six rating columns.
+        </li>
       </ul>
       <p>
         In the original game the two New York teams are shown using text built into the game ("New York Islanders",

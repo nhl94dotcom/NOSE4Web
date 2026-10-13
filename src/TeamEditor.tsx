@@ -17,6 +17,7 @@ import {
   setGoalieNibble,
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
+import { setTeamRating, TEAM_RATINGS, teamRatingChoices, teamRatings } from './core/teamratings'
 import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
@@ -77,6 +78,7 @@ export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
   const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots } = props
   const goalies = goalieCount(team)
+  const ratings = teamRatings(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
   // under them, so ticks past its end are dropped.
   const [allTicked, setTicked] = useState<number[]>([])
@@ -489,6 +491,25 @@ export function TeamEditor(props: Props) {
             </span>
           </label>
         </div>
+        <div className="fields">
+          {TEAM_RATINGS.map((rating, i) => (
+            <label key={rating.label} title={`${rating.label}: ${rating.about}.`}>
+              {rating.label}
+              <select aria-label={`${rating.label} rating`} value={ratings[i]} onChange={(e) => onChange(setTeamRating(team, i, Number(e.target.value)))}>
+                {teamRatingChoices(i, ratings[i]).map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          {reset('ratings', 'team ratings')}
+        </div>
+        <p className="note">
+          The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
+          good for Defence, Penalty kill and Away. How much each changes play has not been measured.
+        </p>
         <p className="note">
           {team.players.length} players: {goalies} goalies, {team.forwards} forwards, {team.defense} defence. The
           first skaters on the roster are the forwards. The roster's first players are goalies, one for each goalie
