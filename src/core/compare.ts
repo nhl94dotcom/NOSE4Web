@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { hackDifferences, hacksSupported } from './hacks'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
@@ -170,13 +171,19 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
 export function compareProjects(before: RomProject, after: RomProject): Difference[] {
   const sections: Difference[] = []
   const general: string[] = []
-  if (before.game.productCode !== after.game.productCode) {
+  if (before.game.productCode !== after.game.productCode && before.source !== after.source) {
     general.push(`These are different games: ${before.game.title} and ${after.game.title}.`)
   }
   if (before.teams.length !== after.teams.length) {
     general.push(`One ROM has ${before.teams.length} teams and the other ${after.teams.length}. Only the teams both have are compared.`)
   }
   if (general.length > 0) sections.push({ heading: 'In general', changes: general })
+  // Where both are one opened ROM at different moments, the hacks changed
+  // are those changed since it was opened.
+  if (hacksSupported(before.game) && hacksSupported(after.game)) {
+    const hacks = hackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
+    if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
+  }
 
   const labels = teamLabels(after.teams, after.game)
   after.teams.slice(0, before.teams.length).forEach((team, i) => {

@@ -26,6 +26,7 @@ const SECTIONS = [
   ['league', 'The league at a glance'],
   ['trade', 'Trades and free agents'],
   ['bulk', 'Bulk changes'],
+  ['hacks', 'Hacks'],
   ['importteam', 'Importing a team'],
   ['check', 'Checking a ROM'],
   ['rules', "Your league's rules"],
@@ -732,6 +733,88 @@ export function HelpPage() {
         one range. Hand, fighting and the goalie values the game does not use are not offered.
       </p>
 
+      <h3 id="help-hacks">Hacks</h3>
+      <p>
+        The <b>Hacks</b> page changes the game itself, where every other page changes its data. The hacks are the
+        work of smozoma, from his program smozROM, and are built in with his permission. The page shows what the
+        ROM has now, which for a league ROM is often several of them already. Set what you want and press{' '}
+        <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
+        takes it all back.
+      </p>
+      <ul>
+        <li>
+          <b>Weight bug fix:</b> the original game makes light players good at checking and heavy players easy to
+          knock over. The fix turns that round and counts both players' checking ratings. It is balanced for the
+          original game's players, so keep checking ratings about where the original's are: most forwards 2 or 3
+          out of 6, most defencemen 2 to 4, very few players 5 or 6.
+        </li>
+        <li>
+          <b>Second-assist bug fix:</b> gives the assist the original game leaves out when two players pass back
+          and forth before a goal.
+        </li>
+        <li>
+          <b>Bodycheck statistics:</b> counts each player's checks and shows them in Player Stats as Chk, in place
+          of penalty minutes.
+        </li>
+        <li>
+          <b>Plus-minus statistic:</b> kept for every player but not shown by the game. It is there to be read
+          from a save state.
+        </li>
+        <li>
+          <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
+          one for line changes on. It counts bodychecks, so it goes with bodycheck statistics.
+        </li>
+        <li>
+          <b>Rating scale:</b> ratings from 0 to 15 in place of 0 to 6, with overall rating formulas made for
+          them.
+        </li>
+        <li>
+          <b>Hot and cold bonuses:</b> the game makes players a little hot or cold each game, and the ratings in
+          Edit Lines do not show it truly. You can switch the bonuses off, hide them in Edit Lines, make the
+          players match Edit Lines, or make Edit Lines match the players.
+        </li>
+        <li>
+          <b>Base weight:</b> the weight a player's lowest weight value stands for, from 102 to 152 pounds. Type a
+          season's year to get the weight smozROM suggests for it.
+        </li>
+      </ul>
+      <p>
+        Changing the <b>rating scale</b> restates every player's ratings so that each plays as he did: 0, 1, 2, 3,
+        4, 5, 6 become 0, 3, 5, 8, 10, 13, 15, and going back turns them round again. Changing the{' '}
+        <b>base weight</b> moves each player to the step nearest the pounds he weighs, which can be up to 4 pounds
+        out. Free agents and a season's starting point are restated with the teams, and the Reset buttons go back
+        to the opened ROM's players on the new scale. Overall ratings read differently on the two scales.
+      </p>
+      <ul>
+        <li>The Changes page and the change report list hacks you have changed under <b>Hacks</b>.</li>
+        <li>
+          A project file carries the ROM's hacks. Opened over a ROM without them, it puts them in first and says
+          so.
+        </li>
+        <li>
+          Import a team restates ratings and weights when the other ROM is on a different scale or base weight.
+        </li>
+        <li>
+          Where a ROM's code at a hack's place is neither the original game's nor a version of the hack the editor
+          knows, that hack is greyed out and left exactly as it is. The others can still be changed.
+        </li>
+        <li>
+          Some league ROMs carry an earlier version of the bodycheck statistics, or an earlier, simpler weight bug
+          fix. Each is kept as it is unless you choose On, which replaces it with the current version, or Off.
+        </li>
+        <li>
+          With 0 to 15 ratings, "Edit Lines matches players" is not offered: smozROM's code for that pairing looks
+          to be mistaken. A ROM that already has it is shown as having it.
+        </li>
+        <li>The page is there for the original game and the 30-team ROM. It is not offered for NHL 94: EVO.</li>
+      </ul>
+      <p>
+        The editor makes the same ROM smozROM would, byte for byte, for the choices smozROM offers. smozROM always
+        puts in the second-assist fix and the plus-minus statistic, and adds bodycheck statistics with the weight
+        bug fix; here each can be chosen by itself. Whatever you choose, play a game on the hacked ROM before a
+        league does.
+      </p>
+
       <h3 id="help-importteam">Importing a team</h3>
       <p>
         <b>Import a team</b> brings one team in from another ROM to replace a team in the editor. Use it when an
@@ -1006,6 +1089,10 @@ export function HelpPage() {
       <p>
         NOSE4Web is based on NOSE, the NHL Old Skool Editor for Windows, written by wboy. Its understanding of how
         these games store their data comes from NOSE.
+      </p>
+      <p>
+        The hacks on the Hacks page are the work of smozoma (Michael Capewell), ported from his program smozROM
+        with his permission, as is the table of weights by season.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

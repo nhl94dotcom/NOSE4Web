@@ -19,9 +19,11 @@ import {
   type BannerKind,
 } from './graphics'
 import { convertWeight, weightBase } from './attributes'
+import { NHL94 } from './games'
+import { hackState, narrowRating, widenRating } from './hacks'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
-import { teamDisplayName } from './team'
+import { goalieCount, teamDisplayName } from './team'
 
 export interface ImportParts {
   names: boolean
@@ -74,7 +76,22 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       notes.push(`The other ROM's weights start at ${theirs} pounds and this one's at ${ours}. Each player's weight was moved to the nearest here.`)
     }
     const ratings = (kinds: string[]) => kinds.slice(1).join()
-    if (ratings(project.game.playerAttributeKinds) !== ratings(other.game.playerAttributeKinds)) {
+    // Between the original 0 to 6 ratings and a ROM hacked for 0 to 15, each
+    // rating is restated so that the player plays as he did.
+    const [theirScale, ourScale] = [hackState(other), hackState(project)]
+    if (theirScale && ourScale && theirScale.choices.wideRatings !== ourScale.choices.wideRatings && ![...theirScale.unknown, ...ourScale.unknown].includes('ratings')) {
+      const restate = ourScale.choices.wideRatings ? widenRating : narrowRating
+      const goalies = goalieCount(team)
+      team = {
+        ...team,
+        players: team.players.map((p, i) => {
+          const kinds = i < goalies ? NHL94.goalieAttributeKinds : NHL94.playerAttributeKinds
+          return { ...p, attributes: p.attributes.map((v, a) => (kinds[a] === 'rating' ? restate(v) : v)) }
+        }),
+      }
+      const scale = (wide: boolean) => (wide ? '0 to 15' : '0 to 6')
+      notes.push(`The other ROM rates players from ${scale(theirScale.choices.wideRatings)} and this one from ${scale(ourScale.choices.wideRatings)}. Each rating was restated on this ROM's scale.`)
+    } else if (ratings(project.game.playerAttributeKinds) !== ratings(other.game.playerAttributeKinds)) {
       notes.push('The two ROMs rate players on different scales. The attributes came across as the values stored, so they will need adjusting.')
     }
   }

@@ -4,6 +4,7 @@
 // of a season as it stood, and passes changes to someone with their own ROM.
 
 import { expandTeamSpace, nextExpansion } from './expand'
+import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
@@ -36,6 +37,8 @@ interface ProjectFile {
   menuPalettes: Record<string, number[]>
   freeAgents: FreeAgent[]
   leagueRules?: LeagueRules
+  // The hacks the ROM had, to be put into the ROM the project is opened over.
+  hacks?: HackChoices
   baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
 }
 
@@ -95,6 +98,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     menuPalettes: project.graphics.menuPalettes,
     freeAgents: project.freeAgents,
     leagueRules: project.leagueRules,
+    hacks: hackState(project)?.choices,
     baseline: project.baseline,
   }
   return JSON.stringify(file)
@@ -240,7 +244,8 @@ export interface OpenedProjectFile {
 // Puts the work in a project file onto a ROM. `opened` is the ROM as it was
 // opened, which the work starts again from; whatever else had been done to it
 // in the editor is replaced.
-export function openProjectFile(opened: RomProject, text: string, options: ProjectFileOptions = {}): OpenedProjectFile {
+export function openProjectFile(given: RomProject, text: string, options: ProjectFileOptions = {}): OpenedProjectFile {
+  let opened = given
   let file: ProjectFile
   try {
     file = JSON.parse(text) as ProjectFile
@@ -249,6 +254,17 @@ export function openProjectFile(opened: RomProject, text: string, options: Proje
   }
   if (file?.file !== MARK) throw new ProjectFileError('This is not a project file.')
   if (file.format > FORMAT) throw new ProjectFileError('This project file was made by a newer version of the editor. Reload the page to get it, and try again.')
+  const notes: string[] = []
+  // A project made on a hacked ROM brings its hacks with it.
+  const hacksNow = hackState(opened)
+  if (file.hacks && hacksNow && !sameHacks({ ...hacksNow.choices, ...file.hacks }, hacksNow.choices)) {
+    try {
+      opened = applyHacks(opened, { ...hacksNow.choices, ...file.hacks })
+      notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
+    } catch (e) {
+      throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
   const { game } = opened
   // The same code can stand for more than one kind of ROM, so both are checked.
   if (file.productCode !== game.productCode || file.game !== game.title) {
@@ -263,7 +279,6 @@ export function openProjectFile(opened: RomProject, text: string, options: Proje
   if (options.byName) file = moveTeams(file, placesByName(file, opened), game)
   if (!isNumbers(file.rinkPalette, opened.rinkPalette.length, 0xffff)) throw new ProjectFileError('The project file is damaged: the rink colours cannot be read.')
 
-  const notes: string[] = []
   // First the room the user had made, then the work that needs it.
   let project = opened
   for (let i = 0; i < (file.expansions?.rosterSpace ?? 0); i++) {

@@ -411,6 +411,23 @@ details {
   margin: 0.4rem 0;
 }
 
+.hack {
+  max-width: 50rem;
+  margin: 0.9rem 0;
+}
+
+.hack label {
+  margin-right: 0.6rem;
+}
+
+.hack label select {
+  margin-left: 0.4rem;
+}
+
+.hack p {
+  margin: 0.25rem 0 0;
+}
+
 details.rules {
   max-width: 46rem;
   margin: 0.75rem 0;

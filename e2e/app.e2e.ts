@@ -21,7 +21,7 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 13)
+  await expect(page.locator('nav button')).toHaveCount(28 + 14)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -776,7 +776,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
-    await expect(page.locator('nav button')).toHaveCount(28 + 13)
+    await expect(page.locator('nav button')).toHaveCount(28 + 14)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -1324,6 +1324,88 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
     await expect(main.getByLabel('Kind of change').locator('option', { hasText: 'Convert from another era' })).toHaveCount(0)
     await expect(main.getByLabel('Kind of change')).toHaveValue('raise')
+  })
+
+  test('applies hacks to the game, undoes them, and reopens a hacked ROM', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    const apply = main.getByRole('button', { name: 'Apply', exact: true })
+    await entry(page, 'Hacks').click()
+    await expect(main.getByText('Nothing is set to change.')).toBeVisible()
+    await expect(apply).toBeDisabled()
+    await expect(main.getByLabel('Weight bug fix')).toHaveValue('off')
+    await expect(main.getByLabel('Base weight')).toHaveValue('140')
+
+    await main.getByLabel('Second-assist bug fix').selectOption('on')
+    await main.getByLabel('Rating scale').selectOption('wide')
+    // The pairing whose code looks mistaken is not offered.
+    await expect(main.getByLabel('Hot and cold bonuses').locator('option[value=linesMatchPlayers]')).toHaveAttribute('disabled', '')
+    await main.getByLabel('Rating scale').selectOption('narrow')
+    await main.getByLabel('Hot and cold bonuses').selectOption('linesMatchPlayers')
+    await main.getByLabel('Rating scale').selectOption('wide')
+    await expect(main.getByLabel('Hot and cold bonuses')).toHaveValue('original')
+    await main.getByLabel('Hot and cold bonuses').selectOption('disabled')
+    await expect(main.getByRole('button', { name: 'Use that season' })).toBeDisabled()
+    await main.getByLabel('Season year').fill('2010')
+    await main.getByRole('button', { name: 'Use 144 pounds' }).click()
+    await expect(main.getByLabel('Base weight')).toHaveValue('144')
+    await expect(main.locator('.outcome li')).toHaveText([
+      'Second-assist bug fix: off to on.',
+      'Rating scale: 0 to 6 to 0 to 15.',
+      'Hot and cold bonuses: as the original game has them to no bonuses.',
+      'Base weight: 140 pounds to 144 pounds.',
+    ])
+    await expect(main.locator('.outcome')).toContainText('0, 1, 2, 3, 4, 5, 6 become 0, 3, 5, 8, 10, 13, 15')
+    await page.screenshot({ path: 'test-results/shots/hacks.png', fullPage: true })
+
+    // Nothing has happened yet; setting it back leaves nothing to do.
+    await expect(page.locator('header')).not.toContainText('0–15 ratings')
+    await main.getByRole('button', { name: 'Set back to what the ROM has' }).click()
+    await expect(main.getByText('Nothing is set to change.')).toBeVisible()
+
+    await main.getByLabel('Rating scale').selectOption('wide')
+    await main.getByLabel('Three stars').selectOption('linesOff')
+    await expect(main.locator('.outcome')).toContainText('The improved three stars count bodychecks')
+    await main.getByLabel('Bodycheck statistics').selectOption('on')
+    await expect(main.locator('.outcome')).not.toContainText('The improved three stars count bodychecks')
+    await apply.click()
+    await expect(main.getByText('Done: 3 changes to the game. Undo puts it back.')).toBeVisible()
+    await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
+    await expect(main.getByLabel('Rating scale')).toHaveValue('wide')
+    await expect(apply).toBeDisabled()
+    // The hacks are the only changes: every player is as he was, on the new scale.
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (3)')
+    await entry(page, /^Changes/).click()
+    await expect(main.getByRole('heading', { name: 'Hacks', exact: true })).toBeVisible()
+    await expect(main.getByText('Rating scale: 0 to 6 to 0 to 15.')).toBeVisible()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(main.getByText('This ROM has been set up for ratings from 0 to 15')).toBeVisible()
+    await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
+
+    // One Undo takes the hacks out, and Redo puts them back.
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(page.locator('header')).not.toContainText('0–15 ratings')
+    await expect(entry(page, /^Changes/)).toHaveText('Changes')
+    await page.getByRole('button', { name: 'Redo', exact: true }).click()
+    await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
+
+    // The downloaded ROM opens as a hacked ROM, with the hacks shown as there.
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    await romPicker(page).setInputFiles(await download.path())
+    await expect(page.locator('nav button')).toHaveCount(28 + 14)
+    await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
+    await expect(entry(page, /^Changes/)).toHaveText('Changes')
+    await entry(page, 'Hacks').click()
+    await expect(main.getByLabel('Rating scale')).toHaveValue('wide')
+    await expect(main.getByLabel('Three stars')).toHaveValue('linesOff')
+    await expect(main.getByLabel('Bodycheck statistics')).toHaveValue('on')
+    await expect(main.getByLabel('Second-assist bug fix')).toHaveValue('off')
+    // And they come out again, back to the plain game.
+    await main.getByLabel('Rating scale').selectOption('narrow')
+    await main.getByLabel('Three stars').selectOption('original')
+    await main.getByLabel('Bodycheck statistics').selectOption('off')
+    await apply.click()
+    await expect(page.locator('header .brand').nth(1)).toHaveText('NHL 94')
   })
 
   test('keeps the work through a reload', async ({ page }) => {

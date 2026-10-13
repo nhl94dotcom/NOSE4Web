@@ -13,15 +13,16 @@ const GAP = 4
 
 // Room for `size` bytes at the end of the ROM: a copy of the ROM, made larger
 // if it has to be, and where in it the room starts. Null if there is no room
-// and the file cannot grow.
-export function claimSpace(rom: Uint8Array, size: number): { rom: Uint8Array; at: number } | null {
+// and the file cannot grow. Code a hack adds goes after the end mark, which
+// stays where it is, as the hack program smozROM leaves it: `keepMark`.
+export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { rom: Uint8Array; at: number } | null {
   let last = rom.length - 1
   while (last >= 0 && rom[last] === UNUSED) last--
   // NOSE marks the end of the used part of a ROM it has edited. Where that
   // mark is the very last thing in the ROM, it is moved to follow the new
   // data, as NOSE would move it. Where something follows the mark, that is
   // another tool's work, and the mark is left where it is.
-  const marked = last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
+  const marked = !keepMark && last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
   const at = marked ? last - 1 : last + 1 + ((last + 1) % 2) + GAP
   const needed = at + size + (marked ? 2 : 0)
   let length = rom.length

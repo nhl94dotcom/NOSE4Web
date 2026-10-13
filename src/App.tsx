@@ -18,6 +18,8 @@ import { rosterCardPng } from './rosterCard'
 import { teamDisplayName, teamLabels, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
+import { HacksPage } from './HacksPage'
+import { hacksSupported, withHacksOf } from './core/hacks'
 import { HelpPage } from './HelpPage'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
@@ -45,6 +47,7 @@ const PICTURES = -10
 const TRADE = -11
 const PROJECT = -12
 const CHANGES = -13
+const HACKS = -14
 
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
@@ -123,9 +126,17 @@ export default function App() {
   })
 
   const findings = useMemo(() => (project ? checkProject(project) : []), [project])
-  // The ROM as it was opened, which the Reset buttons go back to.
+  // The ROM as it was opened, which the Reset buttons go back to. Where the
+  // game has been hacked since, it is given the same hacks, so that players
+  // are compared and reset on the scales the work now uses.
   const source = project?.source
-  const original = useMemo(() => (source ? openRom(source) : null), [source])
+  const [hackedBytes, hackedGame] = [project?.bytes, project?.game]
+  // It keeps the very bytes the work was opened from, which is how the two are known for one ROM.
+  const asOpened = useMemo(() => (source ? { ...openRom(source), source } : null), [source])
+  const original = useMemo(
+    () => (asOpened && hackedBytes && hackedGame ? withHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
+    [asOpened, hackedBytes, hackedGame],
+  )
 
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
     reset(opened)
@@ -327,6 +338,8 @@ export default function App() {
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
+      case HACKS:
+        return <HacksPage project={current} onChange={change} />
       case HELP:
         return <HelpPage />
       default:
@@ -394,6 +407,7 @@ export default function App() {
     [TRADE]: 'Trade',
     [PROJECT]: 'Project file',
     [CHANGES]: 'Changes',
+    [HACKS]: 'Hacks',
   }
   const pageName = selected >= 0 ? teamNames[selected] : PAGE_NAMES[selected]
 
@@ -473,6 +487,7 @@ export default function App() {
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
+          {hacksSupported(project.game) && entry(HACKS, 'Hacks')}
           {entry(CSV, 'Spreadsheet files')}
           {project.graphicsSupported && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}

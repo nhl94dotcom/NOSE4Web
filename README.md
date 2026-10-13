@@ -13,6 +13,11 @@ NOSE4Web is based on **NOSE, the NHL Old Skool Editor** for Windows, written by
 source code and the notes distributed with it. The colour preview images are
 converted from the templates NOSE ships.
 
+The hacks it applies to the game are the work of **smozoma** (Michael
+Capewell), ported from his program
+[smozROM](https://github.com/nhl94dotcom/smozROM) with his permission and
+under its licence, the GNU General Public License, version 3 or later.
+
 ## Licence
 
 Copyright (C) 2026 Tickenest
@@ -47,6 +52,10 @@ That licence does not cover:
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on
 - Rink colours
+- Hacks to the game itself, from smozoma's smozROM: the weight bug fix, the
+  second-assist fix, bodycheck and plus-minus statistics, the improved three
+  stars, 0 to 15 ratings, the hot and cold bonuses, and the base weight for
+  another era
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, and the main menu's starting choices
 
