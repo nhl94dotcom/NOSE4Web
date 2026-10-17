@@ -205,7 +205,8 @@ export function HelpPage() {
           up to 99.
         </li>
         <li>
-          <b>H/F</b> (skaters): shooting hand and fighting ability together, such as R/57.
+          <b>H/F</b> (skaters): shooting hand and fighting together, such as R/57. There are no
+          fights in the game: fighting decides whether a player he injures is out for the period or the game.
         </li>
         <li>
           <b>GlH</b> (goalies): glove hand, L or R.
@@ -919,8 +920,8 @@ export function HelpPage() {
           blue line about 88, roughly 3 to a foot.
         </li>
         <li>
-          <b>Goalie whistle line:</b> how far from centre ice a goalie carrying the puck is whistled, 170 in the
-          original game. A smaller number lets him carry it farther.
+          <b>Goalie whistle line:</b> how far from centre ice a goalie you control may skate before play is
+          whistled, with the puck or without it, 170 in the original game. A smaller number lets him go farther.
         </li>
         <li>
           <b>Unlimited stamina</b>, <b>energy lost on the ice</b> and <b>energy gained on the bench:</b> for games

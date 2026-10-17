@@ -64,7 +64,8 @@ export interface HackChoices {
   goalieHold: number
   // How far a goalie without the puck may go to either side of the middle of the ice.
   goalieWidth: number
-  // How near centre ice a goalie may come, as his distance from it: without the puck, then with it.
+  // How near centre ice a goalie may come, as his distance from it: without the puck, then before
+  // the whistle for one a person controls.
   goalieOut: number
   goalieLine: number
   // Players on the ice do not tire.
@@ -623,7 +624,8 @@ const goalieHold: Part<number> = {
 }
 
 // Where a goalie may go. Without the puck he is kept in a box in front of his
-// net; with it, play is whistled if he crosses a line.
+// net; play is whistled if a goalie a person controls crosses a line, with
+// the puck or without it.
 const goalieWidth = numberPart([site(0xb632, '0C53'), site(0xb650, '0C53', true)], NO_HACKS.goalieWidth)
 const goalieOut = numberPart([site(0xb66a, '0C6B'), site(0xb674, '0C6B', true)], NO_HACKS.goalieOut)
 const goalieLine = numberPart([site(0xd3ea, 'B27C'), site(0xd3f2, 'B27C', true)], NO_HACKS.goalieLine)

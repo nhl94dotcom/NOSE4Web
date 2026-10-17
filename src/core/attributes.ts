@@ -56,7 +56,7 @@ export function attributeText(kind: AttributeKind, value: number): string | null
 export function attributeNote(kind: AttributeKind): string {
   if (isWeight(kind)) return 'pounds'
   const notes: Partial<Record<AttributeKind, string>> = {
-    handedFighting: 'shooting hand, then fighting ability',
+    handedFighting: 'shooting hand, then fighting',
     gloveHand: 'left or right',
     zero: 'not used by the game',
     value: 'the value stored, 0 to 15',

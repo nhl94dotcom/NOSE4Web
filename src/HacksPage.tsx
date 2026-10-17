@@ -365,8 +365,9 @@ export function HacksPage({ project, onChange }: Props) {
           'goalieLine',
           number('goalieLine'),
           <>
-            The line a goalie carrying the puck may not cross without a whistle, again as a distance from centre ice,
-            so a smaller number lets him carry it farther; 170 is about the top of the faceoff circles. {stock('goalieLine')}
+            The line a goalie you control may not skate past without a whistle, with the puck or without it, again as
+            a distance from centre ice, so a smaller number lets him go farther; 170 is about the top of the faceoff
+            circles. A goalie the computer controls stays near his net anyway. {stock('goalieLine')}
           </>,
         )}
         {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
