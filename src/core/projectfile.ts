@@ -5,6 +5,7 @@
 
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
+import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from './sneshacks'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
@@ -39,6 +40,8 @@ interface ProjectFile {
   leagueRules?: LeagueRules
   // The hacks the ROM had, to be put into the ROM the project is opened over.
   hacks?: HackChoices
+  // The same for an SNES ROM.
+  snesHacks?: SnesHackChoices
   baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
 }
 
@@ -99,6 +102,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     freeAgents: project.freeAgents,
     leagueRules: project.leagueRules,
     hacks: hackState(project)?.choices,
+    snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
     baseline: project.baseline,
   }
   return JSON.stringify(file)
@@ -264,6 +268,17 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
       notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
     } catch (e) {
       throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  if (file.snesHacks && opened.game.platform === 'snes') {
+    const now = detectSnesHacks(opened.bytes).choices
+    if (SNES_HACKS.some((hack) => typeof file.snesHacks![hack] === 'boolean' && file.snesHacks![hack] !== now[hack])) {
+      try {
+        opened = applySnesHacks(opened, file.snesHacks)
+        notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
+      } catch (e) {
+        throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
   }
   const { game } = opened

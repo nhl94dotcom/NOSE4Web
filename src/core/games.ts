@@ -258,8 +258,8 @@ export const NHL94_SNES: GameConfig = {
   ],
   notice:
     "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names, team ratings and " +
-    'colours. Its rink, game settings and pictures are kept in ways the editor does not follow yet, and are left ' +
-    'alone. SNES editing is new, so keep a copy of the file you opened.',
+    'colours, and put in the hacks on the Hacks page. Its rink, game settings and pictures are kept in ways the ' +
+    'editor does not follow yet, and are left alone. SNES editing is new, so keep a copy of the file you opened.',
   playoffDrawPointerOffsets: [],
   playoffDrawCount: 0,
 }

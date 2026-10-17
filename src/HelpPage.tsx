@@ -282,7 +282,8 @@ export function HelpPage() {
       <p>
         On the SNES the ratings play the same parts, with these differences, which the team page's column headings
         also give for an SNES ROM. There a rating counts two and a half times its value, and the game's hot and cold
-        bug puts about half of every player's ratings at the maximum each game, whatever they are in the ROM.
+        bug puts about half of every player's ratings at the maximum each game, whatever they are in the ROM, unless
+        the ROM has the hot and cold bug fix from the Hacks page.
       </p>
       <ul>
         {Object.entries(SNES_SKATER_RATING_USES).map(([label, use]) => (
@@ -1240,8 +1241,16 @@ export function HelpPage() {
           Genesis ROM, as the two games give their colours different jobs.
         </li>
         <li>
-          <b>Not yet:</b> the rink, game settings, hacks, and logos and banners. The SNES game keeps them elsewhere
-          and in other ways, so the editor leaves them exactly as they are.
+          <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
+          cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
+          penalties, no penalty shots, no goal posts, and skipping the intros. Most worth knowing is the{' '}
+          <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the
+          maximum each game, whatever they are in the ROM, and the fix makes the ratings you set the ones that play.
+          A hack is only changed where the ROM has the original game's code or the hack's in its place.
+        </li>
+        <li>
+          <b>Not yet:</b> the rink, game settings, and logos and banners. The SNES game keeps them elsewhere and in
+          other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,
@@ -1319,7 +1328,7 @@ export function HelpPage() {
           NHL94SNESVault
         </a>
         , the community's disassembly of NHL '94 for the SNES by Mhopkinsinc and its contributors, and the SNES
-        findings of the NHL94 Match Viewer project.
+        findings of the NHL94 Match Viewer project. The SNES hacks are that project's patches.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

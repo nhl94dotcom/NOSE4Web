@@ -30,6 +30,7 @@ import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
+import { SnesHacksPage } from './SnesHacksPage'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
 import './App.css'
@@ -261,7 +262,7 @@ export default function App() {
         </p>
         <p className="note">
           Supported ROMs: {SUPPORTED_GAMES.join(', ')}. Genesis ROMs as .bin or .smd files, SNES ROMs as .smc or .sfc
-          files. For the SNES, the editor changes rosters, lines, team names, ratings and colours so far.
+          files. For the SNES, the editor changes rosters, lines, team names, ratings and colours, and has hacks of its own.
         </p>
         <p className="note">
           Based on NOSE, the NHL Old Skool Editor for Windows by wboy, whose work mapping these games made this
@@ -345,7 +346,7 @@ export default function App() {
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HACKS:
-        return <HacksPage project={current} onChange={change} />
+        return current.game.platform === 'snes' ? <SnesHacksPage project={current} onChange={change} /> : <HacksPage project={current} onChange={change} />
       case HELP:
         return <HelpPage />
       default:
@@ -494,7 +495,7 @@ export default function App() {
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
-          {hacksSupported(project.game) && entry(HACKS, 'Hacks')}
+          {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
           {entry(CSV, 'Spreadsheet files')}
           {project.graphicsSupported && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}

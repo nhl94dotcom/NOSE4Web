@@ -1,5 +1,6 @@
 import { attributeText } from './attributes'
 import { hackDifferences, hacksSupported } from './hacks'
+import { snesHackDifferences } from './sneshacks'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { menuOptions } from './settings'
@@ -199,6 +200,9 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   // are those changed since it was opened.
   if (hacksSupported(before.game) && hacksSupported(after.game)) {
     const hacks = hackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
+    if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
+  } else if (before.game.platform === 'snes' && after.game.platform === 'snes') {
+    const hacks = snesHackDifferences(before.bytes, after.bytes)
     if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
   }
 

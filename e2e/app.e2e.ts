@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { buildRom, openRom as readRom } from '../src/core/rom'
+import { detectSnesHacks } from '../src/core/sneshacks'
 import { createZip, readZip } from '../src/core/zip'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
@@ -1662,8 +1663,8 @@ test.describe('with the SNES game', () => {
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
-    await expect(page.locator('nav button')).toHaveCount(28 + 10)
-    for (const name of ['Rink colours', 'Game settings', 'Hacks', 'Picture files']) await expect(entry(page, name)).toHaveCount(0)
+    await expect(page.locator('nav button')).toHaveCount(28 + 11)
+    for (const name of ['Rink colours', 'Game settings', 'Picture files']) await expect(entry(page, name)).toHaveCount(0)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 
     await team(page, 'Boston Bruins').click()
@@ -1674,6 +1675,10 @@ test.describe('with the SNES game', () => {
     await home.screenshot({ path: 'test-results/shots/snes-colours.png' })
     await home.locator('.swatch').nth(12).click()
     await home.getByLabel(/^Red/).fill('31')
+    await entry(page, 'Hacks').click()
+    await page.getByLabel('Hot and cold bug fix').selectOption('on')
+    await page.getByRole('button', { name: 'Apply' }).click()
+    await expect(page.getByText('Done: 1 change to the game.')).toBeVisible()
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     expect(download.suggestedFilename()).toMatch(/\.smc$/)
     const rom = readRom(new Uint8Array(readFileSync(await download.path())))
@@ -1681,5 +1686,6 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].players.some((player) => player.name === 'Snes Edit')).toBe(true)
     expect(rom.teams[1].shownOverall).toBe(88)
     expect(rom.teams[1].palette[12] & 0x1f).toBe(31)
+    expect(detectSnesHacks(rom.bytes).choices.hotColdFix).toBe(true)
   })
 })

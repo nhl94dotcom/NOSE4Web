@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { readU16LE } from '../src/core/bytes'
 import { colorRgb, SNES_COLORS } from '../src/core/color'
 import { snesPreviewSprites } from '../src/core/snes'
+import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from '../src/core/sneshacks'
 import { checkProject } from '../src/core/check'
 import { compareProjects } from '../src/core/compare'
 import { formatCsv } from '../src/core/csv'
@@ -220,5 +221,52 @@ describe.skipIf(!existsSync(path(STOCK)) || !existsSync(path(GENESIS)))('the SNE
     expect(boston[0]).toBe('Gord Murphy was removed.')
     expect(boston.slice(1).every((change) => change.startsWith('Line '))).toBe(true)
     expect(differences.map((d) => d.heading)).not.toContain('Clock')
+  })
+})
+
+describe.skipIf(names.length === 0)('SNES hacks', () => {
+  const allOn = Object.fromEntries(SNES_HACKS.map((hack) => [hack, true])) as SnesHackChoices
+  const allOff = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
+
+  names.forEach((name, n) => {
+    it(`are recognised in SNES ROM ${n + 1}, and go in and come out again`, () => {
+      const project = openRom(read(name))
+      const before = detectSnesHacks(project.bytes)
+      expect(before.unknown).toEqual([])
+      const on = applySnesHacks(project, allOn)
+      expect(detectSnesHacks(on.bytes).choices).toEqual(allOn)
+      const reopened = openRom(buildRom(on))
+      expect(detectSnesHacks(reopened.bytes).choices).toEqual(allOn)
+      expect(teamsOf(reopened)).toEqual(teamsOf(project))
+      // Back to what it had, byte for byte.
+      expect(applySnesHacks(on, before.choices).bytes).toEqual(project.bytes)
+    })
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('puts in the hot and cold fix as the disassembly has it, and leaves code it does not know alone', () => {
+    const project = openRom(read(STOCK))
+    expect(detectSnesHacks(project.bytes).choices).toEqual(allOff)
+    const fixed = applySnesHacks(project, { hotColdFix: true })
+    const at = (address: number, count: number) => Array.from(fixed.bytes.subarray(address, address + count))
+    // $9F:D234 and $9F:FB32 in the ROM.
+    expect(at(0xfd234, 5)).toEqual([0x20, 0x32, 0xfb, 0xea, 0xea])
+    expect(at(0xffb32, 3)).toEqual([0xb9, 0x12, 0x1a])
+    const differing = fixed.bytes.reduce((count, byte, i) => count + (byte !== project.bytes[i] ? 1 : 0), 0)
+    expect(differing).toBeLessThanOrEqual(5 + 17)
+
+    const changes = compareProjects(project, fixed).flatMap((d) => (d.heading === 'Hacks' ? d.changes : []))
+    expect(changes).toEqual(['Hot and cold bug fix: off to on.'])
+
+    // A project file brings its hacks to a fresh copy of the ROM.
+    const reopened = openProjectFile(openRom(read(STOCK)), saveProjectFile(fixed, project, 'Set'))
+    expect(detectSnesHacks(reopened.project.bytes).choices.hotColdFix).toBe(true)
+
+    // Something else where a hack goes: it is not recognised, and is not changed.
+    const other = project.bytes.slice()
+    other[0xffb40] = 0x00
+    const odd = { ...project, bytes: other }
+    expect(detectSnesHacks(other).unknown).toEqual(['hotColdFix'])
+    expect(() => applySnesHacks(odd, { hotColdFix: true })).toThrow(/other code/)
+    expect(applySnesHacks(odd, { skipEaIntro: true }).bytes[0xffb40]).toBe(0x00)
   })
 })
