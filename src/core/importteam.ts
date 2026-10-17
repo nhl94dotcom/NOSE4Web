@@ -95,7 +95,9 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       notes.push('The two ROMs rate players on different scales. The attributes came across as the values stored, so they will need adjusting.')
     }
   }
-  if (parts.colours) {
+  if (parts.colours && source.palette.length !== team.palette.length) {
+    notes.push('Colours were not brought in: the two games keep them in different ways.')
+  } else if (parts.colours) {
     team = { ...team, palette: source.palette }
     notes.push('Home and away colours brought in.')
   }

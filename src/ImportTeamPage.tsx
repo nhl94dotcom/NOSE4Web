@@ -71,7 +71,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
           Choose the other ROM…
           <input
             type="file"
-            accept=".bin,.smd,.md,.gen"
+            accept=".bin,.smd,.md,.gen,.smc,.sfc"
             hidden
             onChange={(e) => {
               void open(e.target.files?.[0])
@@ -124,7 +124,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
             </label>
           </div>
           <p>
-            {PARTS.map((part) => (
+            {PARTS.filter((part) => project.game.platform === 'genesis' || part.key === 'names' || part.key === 'roster').map((part) => (
               <label key={part.key} className="choice">
                 <input
                   type="checkbox"

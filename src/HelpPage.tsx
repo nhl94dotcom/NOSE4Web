@@ -1,7 +1,7 @@
 import { SUPPORTED_GAMES } from './core/games'
 import { LOGO_COLORS } from './core/graphics'
 import { MAX_ROSTER, MIN_ROSTER } from './core/roster'
-import { GOALIE_RATING_USES, SKATER_RATING_USES } from './core/ratinguse'
+import { GOALIE_RATING_USES, SKATER_RATING_USES, SNES_GOALIE_RATING_USES, SNES_SKATER_RATING_USES } from './core/ratinguse'
 import { MAX_SECONDS } from './core/settings'
 import { CSV_TABLES } from './core/tables'
 
@@ -36,6 +36,7 @@ const SECTIONS = [
   ['compare', 'Comparing two ROMs'],
   ['download', 'Downloading your work'],
   ['roms', 'Supported ROMs and limits'],
+  ['snes', 'The SNES game'],
   ['trouble', 'If something goes wrong'],
   ['credit', 'Credit'],
 ]
@@ -278,6 +279,26 @@ export function HelpPage() {
         changes off; and with the original game's code, Aggression and GvL do not rise with the rating. The
         Aggression bug fix under Hacks puts the last right.
       </p>
+      <p>
+        On the SNES the ratings play the same parts, with these differences, which the team page's column headings
+        also give for an SNES ROM. There a rating counts two and a half times its value, and the game's hot and cold
+        bug puts about half of every player's ratings at the maximum each game, whatever they are in the ROM.
+      </p>
+      <ul>
+        {Object.entries(SNES_SKATER_RATING_USES).map(([label, use]) => (
+          <li key={label}>
+            <b>{label}</b>: {use}.
+          </li>
+        ))}
+      </ul>
+      <p>And for SNES goalies:</p>
+      <ul>
+        {Object.entries(SNES_GOALIE_RATING_USES).map(([label, use]) => (
+          <li key={label}>
+            <b>{label}</b>: {use}.
+          </li>
+        ))}
+      </ul>
 
       <h3 id="help-arrows">Moving with the keyboard</h3>
       <p>
@@ -1100,8 +1121,9 @@ export function HelpPage() {
 
       <h3 id="help-roms">Supported ROMs and limits</h3>
       <p>
-        The editor opens: {SUPPORTED_GAMES.join('; ')}. Files can be .bin or .smd, and downloads are always .bin. A
-        ROM edited here, or with the original NOSE, can be opened again.
+        The editor opens: {SUPPORTED_GAMES.join('; ')}. Genesis files can be .bin or .smd, and are downloaded as
+        .bin; SNES files can be .smc or .sfc, and are downloaded as .smc. A ROM edited here, or with the original
+        NOSE, can be opened again.
       </p>
       <p>
         League and season ROMs built on the 30-team hack open as that, whatever their size of roster, and so do
@@ -1193,6 +1215,48 @@ export function HelpPage() {
         </li>
       </ul>
 
+      <h3 id="help-snes">The SNES game</h3>
+      <p>
+        NOSE4Web also opens NHL '94 for the SNES, the original game and league ROMs built on it. The SNES game keeps
+        its players, lines and team ratings just as the Genesis game does, so most of the editor works the same:
+        rosters, lines, team names, the six team ratings, spreadsheet files, project files, the league page, trades,
+        bulk changes, importing a team, checking the ROM, changes and comparing.
+      </p>
+      <ul>
+        <li>
+          <b>Overall shown:</b> the SNES game keeps each team's overall rating, the number on the matchup screen,
+          with the team rather than working it out. It is on the team page and in the Teams spreadsheet, and does
+          not change when the players do, so set it yourself if you want it to match.
+        </li>
+        <li>
+          <b>Ovr</b> for players is a plain average for comparing them. The SNES works players' overall ratings out
+          in a way of its own that the editor does not follow yet.
+        </li>
+        <li>
+          <b>Not yet:</b> team colours, the rink, game settings, hacks, and logos and banners. The SNES game keeps
+          them elsewhere and in other ways, so the editor leaves them exactly as they are.
+        </li>
+        <li>
+          <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,
+          so there is no room to spare. Room comes only from making something shorter, such as a stadium name or a
+          player's name, or from a league ROM that already has some. The top bar shows how much there is.
+        </li>
+        <li>
+          <b>Importing</b> a team from a Genesis ROM brings its names, roster and lines, but not its colours.{' '}
+          <b>Comparing</b> a Genesis ROM with an SNES one matches the teams by name, since the two games keep them in
+          different orders.
+        </li>
+        <li>
+          Some copies of the ROM start with a 512-byte header from old copier devices. It is kept, so the file you
+          download is the same kind as the one you opened. The ROM's checksum is put right on the way out, where the
+          ROM is of a standard size. The game does not check it, but emulators report it.
+        </li>
+      </ul>
+      <p>
+        SNES editing is new and has been checked against fewer ROMs than Genesis editing, so keep a copy of the file
+        you opened, and try the ROM in an emulator before your league plays it.
+      </p>
+
       <h3 id="help-trouble">If something goes wrong</h3>
       <ul>
         <li>
@@ -1241,6 +1305,14 @@ export function HelpPage() {
         </a>{' '}
         project, which read them in the community's disassembly of the game by abdulahmad and checked them against
         recorded games.
+      </p>
+      <p>
+        What the editor knows of the SNES game comes from{' '}
+        <a href="https://github.com/Mhopkinsinc/NHL94SNESVault" target="_blank" rel="noreferrer">
+          NHL94SNESVault
+        </a>
+        , the community's disassembly of NHL '94 for the SNES by Mhopkinsinc and its contributors, and the SNES
+        findings of the NHL94 Match Viewer project.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

@@ -22,7 +22,7 @@ export type TeamPart = 'names' | 'ratings' | 'roster' | 'lines' | 'home' | 'away
 
 const TEAM_PARTS: Record<TeamPart, (team: Team) => unknown> = {
   names: (team) => team.names,
-  ratings: (team) => team.teamBytes,
+  ratings: (team) => [team.teamBytes, team.shownOverall],
   // Who is on the team and how the roster is split into positions.
   roster: (team) => [team.players, team.forwards, team.defense, team.goalieNibbles],
   lines: (team) => team.lines,
@@ -39,7 +39,7 @@ export function resetTeamPart(team: Team, original: Team, part: TeamPart): Team 
     case 'names':
       return { ...team, names: original.names }
     case 'ratings':
-      return { ...team, teamBytes: original.teamBytes }
+      return { ...team, teamBytes: original.teamBytes, shownOverall: original.shownOverall }
     case 'roster':
       return {
         ...team,

@@ -47,7 +47,7 @@ test.describe('without a ROM', () => {
   test('explains when a file is not a ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'notes.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('hello') })
-    await expect(page.getByText('This file is not a Sega Genesis ROM.')).toBeVisible()
+    await expect(page.getByText("This file is not a Sega Genesis ROM or NHL '94 for the SNES.")).toBeVisible()
   })
 })
 
@@ -1650,5 +1650,31 @@ test.describe('at different window widths', () => {
     await expect(skaters.locator('.card').first().locator('input.name')).toHaveValue('Turned Over')
     await page.setViewportSize({ width: 1024, height: 768 })
     await expect(nameOf(rows(page, 'Skaters').first())).toHaveValue('Turned Over')
+  })
+})
+
+// The original SNES game, named NHL94.smc, in the folder above the project.
+const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
+
+test.describe('with the SNES game', () => {
+  test.skip(!existsSync(snesPath), 'needs ../NHL94.smc')
+
+  test('edits a roster and the overall shown, and downloads the ROM', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await expect(page.locator('nav button')).toHaveCount(28 + 10)
+    for (const name of ['Rink colours', 'Game settings', 'Hacks', 'Picture files']) await expect(entry(page, name)).toHaveCount(0)
+    await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Home colours' })).toHaveCount(0)
+
+    await team(page, 'Boston Bruins').click()
+    await nameOf(rows(page, 'Skaters').first()).fill('Snes Edit')
+    await page.getByLabel('Overall shown').fill('88')
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(download.suggestedFilename()).toMatch(/\.smc$/)
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(rom.game.platform).toBe('snes')
+    expect(rom.teams[1].players.some((player) => player.name === 'Snes Edit')).toBe(true)
+    expect(rom.teams[1].shownOverall).toBe(88)
   })
 })

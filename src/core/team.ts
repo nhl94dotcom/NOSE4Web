@@ -1,7 +1,8 @@
 import { readText, readU16, readU32, textSize, writeText, writeU16, writeU32 } from './bytes'
 import type { GameConfig } from './games'
+import { parseSnesTeams, snesTeamContentSize, writeSnesTeams } from './snesteam'
 
-// A team block in the ROM, in order:
+// A team block in the Genesis ROM, in order (the SNES game's are in snesteam.ts):
 //   0x00  six offset words (roster, palette, names, lines, team bytes, goalie bytes)
 //   0x0C  palette: 32 colour words, home strip then away strip
 //   0x4C  three team bytes, then one byte holding the forward and defence counts
@@ -28,12 +29,17 @@ export interface Player {
 }
 
 export interface Team {
+  // 32 colour words, home strip then away strip. Empty for the SNES game,
+  // which keeps its colours elsewhere.
   palette: number[]
   // Six ratings, two to a byte: see teamratings.ts.
   teamBytes: number[]
   forwards: number
   defense: number
   goalieNibbles: number[]
+  // The team's overall rating as the SNES game shows it, which it keeps with
+  // the team. The Genesis game works its own out.
+  shownOverall?: number
   lines: number[][]
   freeBytes: number
   players: Player[]
@@ -51,6 +57,8 @@ export interface TeamLayout {
   // after it: where each team's place is and how big, by team. Such teams do
   // not share their room, and none of them moves.
   slots?: { at: number; size: number }[]
+  // Whether the blocks are kept as the SNES game keeps them.
+  snes?: boolean
 }
 
 // A team's name with its league, where a ROM has several leagues and the
@@ -136,6 +144,7 @@ function parseTeam(rom: Uint8Array, game: GameConfig, p: number): { team: Team; 
 }
 
 export function parseTeams(rom: Uint8Array, game: GameConfig): { teams: Team[]; layout: TeamLayout } {
+  if (game.platform === 'snes') return parseSnesTeams(rom, game)
   const pointers: number[] = []
   for (let i = 0; i < game.teamCount; i++) pointers.push(readU32(rom, game.teamTableOffset + i * 4))
   const fileOrder = pointers.map((_, i) => i).sort((a, b) => pointers[a] - pointers[b])
@@ -173,7 +182,8 @@ export function parseTeams(rom: Uint8Array, game: GameConfig): { teams: Team[]; 
 }
 
 // Bytes a team needs, not counting its free bytes.
-export function teamContentSize(team: Team): number {
+export function teamContentSize(team: Team, layout: TeamLayout): number {
+  if (layout.snes) return snesTeamContentSize(team)
   let size = LINES_OFFSET + team.lines.length * LINE_SIZE + ROSTER_END_SIZE
   for (const player of team.players) size += textSize(player.name) + PLAYER_ATTRIBUTE_BYTES
   for (const name of team.names) size += textSize(name)
@@ -184,7 +194,7 @@ export function teamContentSize(team: Team): number {
 // whose teams share their room.
 export function overfullTeams(teams: Team[], layout: TeamLayout): { team: number; over: number }[] {
   return (layout.slots ?? []).flatMap((slot, team) => {
-    const over = teamContentSize(teams[team]) + teams[team].freeBytes - slot.size
+    const over = teamContentSize(teams[team], layout) + teams[team].freeBytes - slot.size
     return over > 0 ? [{ team, over }] : []
   })
 }
@@ -193,11 +203,11 @@ export function overfullTeams(teams: Team[], layout: TeamLayout): { team: number
 // own, this is for the team with the least to spare, which `team` names.
 export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; available: number; team?: number } {
   if (layout.slots) {
-    const spare = layout.slots.map((slot, team) => slot.size - teamContentSize(teams[team]) - teams[team].freeBytes)
+    const spare = layout.slots.map((slot, team) => slot.size - teamContentSize(teams[team], layout) - teams[team].freeBytes)
     const team = spare.indexOf(Math.min(...spare))
     return { used: layout.slots[team].size - spare[team], available: layout.slots[team].size, team }
   }
-  const used = teams.reduce((sum, team) => sum + teamContentSize(team), 0)
+  const used = teams.reduce((sum, team) => sum + teamContentSize(team, layout), 0)
   return { used, available: layout.end - layout.start }
 }
 
@@ -206,7 +216,7 @@ export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; av
 // from existing free bytes, working back from the last team.
 function allocateFreeBytes(teams: Team[], layout: TeamLayout): number[] {
   const free = teams.map((team) => team.freeBytes)
-  const total = teams.reduce((sum, team, i) => sum + teamContentSize(team) + free[i], 0)
+  const total = teams.reduce((sum, team, i) => sum + teamContentSize(team, layout) + free[i], 0)
   let spare = layout.end - layout.start - total
   const last = layout.fileOrder[layout.fileOrder.length - 1]
   if (spare >= 0) {
@@ -273,6 +283,7 @@ export function writeTeams(rom: Uint8Array, game: GameConfig, teams: Team[], lay
     return
   }
   const free = allocateFreeBytes(teams, layout)
+  if (layout.snes) return writeSnesTeams(rom, game, teams, layout, free)
   let p = layout.start
   for (const index of layout.fileOrder) {
     writeU32(rom, game.teamTableOffset + index * 4, p)

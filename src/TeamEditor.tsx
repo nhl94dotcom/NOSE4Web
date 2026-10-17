@@ -221,7 +221,7 @@ export function TeamEditor(props: Props) {
 
   function attributeTitle(name: string, kind: AttributeKind, index: number, label: string, isGoalies: boolean): string {
     const named = attributeNote(kind) ? `${name} (${attributeNote(kind)})` : name
-    const use = ratingUse(label, isGoalies)
+    const use = ratingUse(label, isGoalies, game.platform)
     const title = use ? `${named}. In play: ${use}.` : named
     return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
   }
@@ -507,6 +507,19 @@ export function TeamEditor(props: Props) {
               </select>
             </label>
           ))}
+          {team.shownOverall !== undefined && (
+            <label title="The team's overall rating as the SNES game shows it on the matchup screen. The game keeps this number with the team and does not work it out, so it does not change when the players do.">
+              Overall shown
+              <input
+                className="num"
+                type="number"
+                min={0}
+                max={255}
+                value={team.shownOverall}
+                onChange={(e) => onChange({ ...team, shownOverall: Math.max(0, Math.min(255, Math.trunc(Number(e.target.value) || 0))) })}
+              />
+            </label>
+          )}
           {reset('ratings', 'team ratings')}
         </div>
         <p className="note">
@@ -695,7 +708,7 @@ export function TeamEditor(props: Props) {
         )}
       </section>
 
-      {['Home', 'Away'].map((label, strip) => {
+      {team.palette.length > 0 && ['Home', 'Away'].map((label, strip) => {
         const colors = team.palette.slice(strip * 16, strip * 16 + 16)
         const other = team.palette.slice((1 - strip) * 16, (1 - strip) * 16 + 16)
         const setColors = (next: number[]) =>

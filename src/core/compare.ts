@@ -107,11 +107,15 @@ function compareTeam(project: RomProject, before: Team, after: Team): string[] {
   compareLines(project, before, after, stayed, changes)
 
   const changedColors = (from: number) => after.palette.slice(from, from + 16).filter((w, i) => w !== before.palette[from + i]).length
-  const [home, away] = [changedColors(0), changedColors(16)]
+  // Only where both keep their colours with the team; the SNES game does not.
+  const [home, away] = before.palette.length === after.palette.length ? [changedColors(0), changedColors(16)] : [0, 0]
   if (home > 0) changes.push(`${plural(home, 'home colour')} changed.`)
   if (away > 0) changes.push(`${plural(away, 'away colour')} changed.`)
   if (after.goalieNibbles.join() !== before.goalieNibbles.join()) {
     changes.push(`Goalie bytes: ${before.goalieNibbles.join(' ')} to ${after.goalieNibbles.join(' ')}.`)
+  }
+  if (after.shownOverall !== before.shownOverall && after.shownOverall !== undefined && before.shownOverall !== undefined) {
+    changes.push(`Overall shown on the matchup screen: ${before.shownOverall} to ${after.shownOverall}.`)
   }
   const [ratedBefore, ratedAfter] = [teamRatings(before), teamRatings(after)]
   TEAM_RATINGS.forEach((rating, i) => {
@@ -176,7 +180,18 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   if (before.game.productCode !== after.game.productCode && before.source !== after.source) {
     general.push(`These are different games: ${before.game.title} and ${after.game.title}.`)
   }
-  if (before.teams.length !== after.teams.length) {
+  // One game's ROMs keep their teams in one order, so teams are compared by
+  // place. The Genesis and SNES games keep theirs in different orders, so
+  // between the two, teams are matched by name.
+  const byName = before.game.platform !== after.game.platform
+  const beforeNames = before.teams.map(teamDisplayName)
+  const counterpart = after.teams.map((team, i) => (byName ? beforeNames.indexOf(teamDisplayName(team)) : i < before.teams.length ? i : -1))
+  if (byName) {
+    const unmatched = after.teams.filter((_, i) => counterpart[i] < 0).map(teamDisplayName)
+    general.push(
+      `Teams are matched by name, as the two games keep them in different orders.${unmatched.length > 0 ? ` No match was found for ${unmatched.join(', ')}.` : ''}`,
+    )
+  } else if (before.teams.length !== after.teams.length) {
     general.push(`One ROM has ${before.teams.length} teams and the other ${after.teams.length}. Only the teams both have are compared.`)
   }
   if (general.length > 0) sections.push({ heading: 'In general', changes: general })
@@ -188,9 +203,11 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   }
 
   const labels = teamLabels(after.teams, after.game)
-  after.teams.slice(0, before.teams.length).forEach((team, i) => {
-    const changes = compareTeam(after, before.teams[i], team)
+  after.teams.forEach((team, i) => {
+    if (counterpart[i] < 0) return
+    const changes = compareTeam(after, before.teams[counterpart[i]], team)
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
-  return [...sections, ...compareSettings(before, after)]
+  // The SNES game's settings are not read, so there is nothing to compare them with.
+  return [...sections, ...(byName ? [] : compareSettings(before, after))]
 }

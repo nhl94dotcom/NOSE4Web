@@ -83,7 +83,7 @@ export function teamSummaries(project: RomProject): TeamSummary[] {
       defence: average(overalls('D')),
       skaters: average([...overalls('F'), ...overalls('D')]),
       bestGoalie: overalls('G').length > 0 ? Math.max(...overalls('G')) : null,
-      size: teamContentSize(team),
+      size: teamContentSize(team, project.layout),
     }
   })
 }

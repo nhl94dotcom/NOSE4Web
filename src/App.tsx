@@ -150,7 +150,7 @@ export default function App() {
     if (!file) return
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
     try {
-      start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen)$/i, ''), false)
+      start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen|smc|sfc)$/i, ''), false)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -186,7 +186,7 @@ export default function App() {
     if (!project) return
     try {
       if (asPatch) download(buildPatch(project), `${name || 'rom'}.ips`, 'application/octet-stream')
-      else download(buildRom(project), `${name || 'rom'}.bin`, 'application/octet-stream')
+      else download(buildRom(project), `${name || 'rom'}.${project.game.platform === 'snes' ? 'smc' : 'bin'}`, 'application/octet-stream')
       setSaved(project)
       setError('')
     } catch (e) {
@@ -199,7 +199,7 @@ export default function App() {
       Open ROM…
       <input
         type="file"
-        accept=".bin,.smd,.md,.gen"
+        accept=".bin,.smd,.md,.gen,.smc,.sfc"
         hidden
         onChange={(e) => {
           void handleFile(e.target.files?.[0])
@@ -229,7 +229,7 @@ export default function App() {
     return (
       <main className="welcome">
         <h1>NOSE4Web</h1>
-        <p>An editor for NHL 94 on the Sega Genesis: rosters, lines, colours and game settings.</p>
+        <p>An editor for NHL 94 on the Sega Genesis, and NHL '94 on the SNES: rosters, lines, colours and game settings.</p>
         <p>
           {picker} <button onClick={() => setWelcomeHelp(true)}>How to use it</button>
         </p>
@@ -256,7 +256,10 @@ export default function App() {
         <p className="note">
           Your ROM is read and edited in this browser tab. It is never uploaded, and no ROM comes with this site.
         </p>
-        <p className="note">Supported ROMs: {SUPPORTED_GAMES.join(', ')}, as .bin or .smd files.</p>
+        <p className="note">
+          Supported ROMs: {SUPPORTED_GAMES.join(', ')}. Genesis ROMs as .bin or .smd files, SNES ROMs as .smc or .sfc
+          files. For the SNES, the editor changes rosters, lines, team names and team ratings so far.
+        </p>
         <p className="note">
           Based on NOSE, the NHL Old Skool Editor for Windows by wboy, whose work mapping these games made this
           possible.
@@ -481,7 +484,7 @@ export default function App() {
               </button>
             </Fragment>
           ))}
-          {entry(RINK, 'Rink colours')}
+          {project.rinkPalette.length > 0 && entry(RINK, 'Rink colours')}
           {project.game.settingsSupported && entry(SETTINGS, 'Game settings')}
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}

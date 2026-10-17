@@ -35,6 +35,31 @@ export const GOALIE_RATING_USES: Record<string, string> = {
   GvL: 'the reaching glove save, which takes 11 or more in play; in the original game this wraps round like Aggression, so a 3 allows it and a 4 does not',
 }
 
-export function ratingUse(label: string, isGoalie: boolean): string {
-  return (isGoalie ? GOALIE_RATING_USES : SKATER_RATING_USES)[label] ?? ''
+// Where the SNES game differs. It counts a rating as two and a half times its
+// value, and its hot and cold bug puts about half of every player's ratings at
+// the maximum each game, whatever they are in the ROM.
+export const SNES_SKATER_RATING_USES: Record<string, string> = {
+  Wgt: 'how quickly he speeds up (heavier is slower, though less so than on the Genesis), and collisions; the SNES has no weight bug',
+  Agl: 'how quickly he speeds up, turns and stops',
+  Spd: 'top speed, cut by up to half as he tires, which only happens with line changes on',
+  ShP: 'shot speed; unlike on the Genesis, a weak shooter can still take a full slapshot',
+  Chk: 'how often his checks knock a man down, and how often a computer player tries to check, which on the SNES is very often',
+  'H/F': 'shooting hand only: the SNES never reads the fighting half',
+  Pas: 'pass speed, and how accurately the flip goes',
+  Agr: 'how often he takes penalties; a bug in the SNES penalty roll makes a player you control at a working value of 12 (about a rating of 5) draw a penalty on every contact',
+}
+
+export const SNES_GOALIE_RATING_USES: Record<string, string> = {
+  Agl: 'how quickly he speeds up; unlike on the Genesis, not how far he reaches. A goalie the computer controls loses it while a pass is in the air',
+  DfA: 'for a goalie the computer controls, how quickly he moves to cut down the angle; every pass slows him by half of it',
+  PkC: 'on the Genesis, how often he holds on to a shot rather than giving a rebound; not yet confirmed on the SNES',
+  StR: 'nothing: the game looks it up and then overwrites it',
+  StL: 'nothing: the game looks it up and then overwrites it',
+  GvR: 'nothing: the game looks it up and then overwrites it',
+  GvL: 'nothing: the game looks it up and then overwrites it',
+}
+
+export function ratingUse(label: string, isGoalie: boolean, platform: 'genesis' | 'snes' = 'genesis'): string {
+  const snes = platform === 'snes' ? (isGoalie ? SNES_GOALIE_RATING_USES : SNES_SKATER_RATING_USES)[label] : undefined
+  return snes ?? (isGoalie ? GOALIE_RATING_USES : SKATER_RATING_USES)[label] ?? ''
 }

@@ -1,4 +1,5 @@
 // Big-endian helpers. The Genesis CPU (68000) stores multi-byte values high byte first.
+// The SNES helpers are at the end.
 
 export function readU16(b: Uint8Array, o: number): number {
   return (b[o] << 8) | b[o + 1]
@@ -54,4 +55,32 @@ export function writeText(b: Uint8Array, o: number, text: string): number {
 
 export function hex(v: number, digits = 2): string {
   return v.toString(16).toUpperCase().padStart(digits, '0')
+}
+
+// The SNES CPU (65816) stores values low byte first, and the SNES game keeps
+// its text as a length word and the characters, with no padding.
+
+export function readU16LE(b: Uint8Array, o: number): number {
+  return b[o] | (b[o + 1] << 8)
+}
+
+export function writeU16LE(b: Uint8Array, o: number, v: number): void {
+  b[o] = v & 0xff
+  b[o + 1] = (v >> 8) & 0xff
+}
+
+export function snesTextSize(text: string): number {
+  return 2 + text.length
+}
+
+export function readSnesText(b: Uint8Array, o: number): { text: string; size: number } {
+  const size = readU16LE(b, o)
+  return { text: readAscii(b, o + 2, size - 2), size }
+}
+
+export function writeSnesText(b: Uint8Array, o: number, text: string): number {
+  const size = snesTextSize(text)
+  writeU16LE(b, o, size)
+  writeAscii(b, o + 2, text)
+  return size
 }

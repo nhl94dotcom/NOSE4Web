@@ -280,6 +280,7 @@ export function visitorBannersApart(project: Source): boolean {
 
 // Whether this ROM keeps its team pictures where and how the editor expects.
 export function graphicsSupported(rom: Uint8Array, game: GameConfig): boolean {
+  if (game.platform === 'snes') return false
   try {
     layout(rom, game)
     return true

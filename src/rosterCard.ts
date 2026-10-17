@@ -47,8 +47,9 @@ export function drawRosterCard(game: GameConfig, team: Team, rawAttributes: bool
     const levels = [(word >> 1) & 7, (word >> 5) & 7, (word >> 9) & 7]
     return Math.max(...levels) - Math.min(...levels)
   }
-  const strip = colourful(team.palette[16 + 11]) > colourful(team.palette[11]) ? 16 : 0
-  const [band, trim] = [team.palette[strip + 11], team.palette[strip + 9]]
+  // The SNES game's colours are not known to the editor, so its teams get a plain blue.
+  const strip = colourful(team.palette[16 + 11] ?? 0) > colourful(team.palette[11] ?? 0) ? 16 : 0
+  const [band, trim] = team.palette.length > 0 ? [team.palette[strip + 11], team.palette[strip + 9]] : [0x842, 0xccc]
   c.fillStyle = '#f6f7f9'
   c.fillRect(0, 0, width, height)
   c.fillStyle = cssHex(band)

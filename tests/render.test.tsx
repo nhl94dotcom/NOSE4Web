@@ -50,3 +50,34 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   const montreal = renderToStaticMarkup(<TeamEditor game={project.game} team={project.teams[11]} original={project.teams[11]} {...rest} />)
   expect(montreal).toContain('value="Patrick Roy"')
 })
+
+const snesPath = fileURLToPath(new URL('../../NHL94.smc', import.meta.url))
+
+it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall and SNES rating notes, and no colours', () => {
+  const project = openRom(new Uint8Array(readFileSync(snesPath)))
+  const rest = {
+    changed: false,
+    freeAgents: [],
+    onRelease: () => '',
+    onSign: () => '',
+    onRosterCard: () => {},
+    emptySlots: [],
+    onResetAll: () => {},
+    onChange: () => {},
+    rawAttributes: false,
+    onRawAttributesChange: () => {},
+    quickKeys: false,
+    onQuickKeysChange: () => {},
+    rosterSort: 'roster' as const,
+    onRosterSortChange: () => {},
+    otherTeams: [{ teamName: 'Other Team', index: 1 }],
+    onMovePlayers: () => '',
+  }
+  const team = project.teams[1]
+  const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
+  expect(html).toContain('Overall shown')
+  expect(html).toContain(`value="${team.shownOverall}"`)
+  expect(html).not.toContain('Home colours')
+  expect(html).toContain('In play: pass speed, and how accurately the flip goes.')
+  expect(html).toContain('In play: nothing: the game looks it up and then overwrites it.')
+})

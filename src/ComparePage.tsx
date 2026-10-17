@@ -43,7 +43,7 @@ export function ComparePage({ project, name }: Props) {
           Compare with a ROM…
           <input
             type="file"
-            accept=".bin,.smd,.md,.gen"
+            accept=".bin,.smd,.md,.gen,.smc,.sfc"
             hidden
             onChange={(e) => {
               void compareWith(e.target.files?.[0])

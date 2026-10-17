@@ -116,7 +116,8 @@ function checkPlayer(player: unknown): boolean {
 
 function checkTeam(team: StoredTeam, like: Team): boolean {
   return (
-    isNumbers(team?.palette, 32, 0xffff) &&
+    isNumbers(team?.palette, like.palette.length, 0xffff) &&
+    (like.shownOverall === undefined || (Number.isInteger(team.shownOverall) && team.shownOverall! >= 0 && team.shownOverall! <= 0xff)) &&
     isNumbers(team.teamBytes, like.teamBytes.length, 0xff) &&
     isNumbers(team.goalieNibbles, 4, 15) &&
     Number.isInteger(team.forwards) &&

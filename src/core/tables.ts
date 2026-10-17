@@ -279,17 +279,21 @@ const GOALIE_BYTE_COLUMNS = [1, 2, 3, 4].map((n) => `Goalie byte ${n}`)
 const TEAM_BYTE_COLUMNS = [1, 2, 3].map((n) => `Team byte ${n}`)
 const TEAM_RATING_COLUMNS = TEAM_RATINGS.map((rating) => `${rating.label} rating`)
 const COLOR_COLUMNS = ['Home', 'Away'].flatMap((strip) => Array.from({ length: 16 }, (_, i) => `${strip} ${i + 1}`))
+// The SNES game keeps the team overall rating it shows; the Genesis game works it out.
+const SHOWN_OVERALL_COLUMN = 'Overall shown'
 
 const teams: CsvTable = {
   id: 'teams',
   title: 'Teams',
   description:
-    'Team names, team ratings, and home and away colours. Only the columns present in the file are changed, and an empty cell keeps the current value.',
+    'Team names, team ratings, and home and away colours (on the Genesis) or the overall rating shown (on the SNES). Only the columns present in the file are changed, and an empty cell keeps the current value.',
 
   rows(project) {
-    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...COLOR_COLUMNS]]
+    const snes = project.game.platform === 'snes'
+    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...(snes ? [SHOWN_OVERALL_COLUMN] : COLOR_COLUMNS)]]
     project.teams.forEach((team, t) => {
-      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...team.palette.map(cssHex)])
+      const last = snes ? [team.shownOverall ?? 0] : team.palette.map(cssHex)
+      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...last])
     })
     return rows
   },
@@ -319,7 +323,9 @@ const teams: CsvTable = {
         sheet.problem(row, `${COLOR_COLUMNS[i]} must look like #1a2b3c, not "${color}".`)
         return word
       })
-      team = { ...team, names, teamBytes, palette }
+      const shownOverall =
+        team.shownOverall !== undefined && given(SHOWN_OVERALL_COLUMN) ? sheet.int(row, SHOWN_OVERALL_COLUMN, 0, 255) : team.shownOverall
+      team = { ...team, names, teamBytes, palette, shownOverall }
       TEAM_RATING_COLUMNS.forEach((column, i) => {
         if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
       })

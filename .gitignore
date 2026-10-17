@@ -29,6 +29,10 @@ dist-ssr
 *.md
 !README.md
 *.gen
+*.smc
+*.sfc
+*.swc
+*.fig
 
 # Names of local test ROMs
 tests/local.json

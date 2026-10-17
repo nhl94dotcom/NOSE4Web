@@ -1,10 +1,11 @@
 import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { findGame, type GameConfig } from './games'
+import { findGame, NHL94_SNES, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
 import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
+import { fixSnesChecksum, splitSnesFile } from './snes'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
 
@@ -28,11 +29,14 @@ export interface RomProject {
   game: GameConfig
   // The ROM exactly as opened (converted from SMD if need be), for making patches.
   source: Uint8Array
-  // The ROM as loaded, with the game's self-check switched off.
+  // The ROM as loaded, with the game's self-check switched off. For the SNES
+  // game, without the copier header some copies start with.
   bytes: Uint8Array
+  // That header, put back on the finished ROM; null where there is none.
+  copierHeader?: Uint8Array | null
   teams: Team[]
   layout: TeamLayout
-  // Sixteen ice colours, then sixteen arena colours.
+  // Sixteen ice colours, then sixteen arena colours. Empty for the SNES game.
   rinkPalette: number[]
   settings: Settings
   // Team pictures the user has replaced, and whether this ROM keeps its
@@ -95,10 +99,33 @@ function disableSelfCheck(rom: Uint8Array, game: GameConfig): void {
   rom.fill(0xff, routine + 2)
 }
 
+function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array | null): RomProject {
+  const game = NHL94_SNES
+  const { teams, layout } = parseTeams(rom, game)
+  return {
+    game,
+    source: file.slice(),
+    bytes: rom,
+    copierHeader,
+    teams,
+    layout,
+    rinkPalette: [],
+    settings: NO_SETTINGS,
+    graphics: NO_GRAPHICS_EDITS,
+    graphicsSupported: false,
+    freeAgents: [],
+    leagueRules: NO_LEAGUE_RULES,
+    baseline: null,
+    wasSmd: false,
+  }
+}
+
 export function openRom(file: Uint8Array): RomProject {
+  const snes = splitSnesFile(file)
+  if (snes) return openSnesRom(file, snes.rom, snes.copierHeader)
   const wasSmd = isSmd(file)
   const bytes = wasSmd ? smdToBin(file) : file.slice()
-  if (!isBin(bytes)) throw new Error('This file is not a Sega Genesis ROM.')
+  if (!isBin(bytes)) throw new Error("This file is not a Sega Genesis ROM or NHL '94 for the SNES.")
   const source = bytes.slice()
 
   let productCode = readAscii(bytes, HEADER_PRODUCT_CODE, PRODUCT_CODE_LENGTH).trimEnd()
@@ -160,6 +187,14 @@ export function buildPatch(project: RomProject): Uint8Array {
 export function buildRom(project: RomProject): Uint8Array {
   const rom = project.bytes.slice()
   writeTeams(rom, project.game, project.teams, project.layout)
+  if (project.game.platform === 'snes') {
+    fixSnesChecksum(rom)
+    if (!project.copierHeader) return rom
+    const file = new Uint8Array(project.copierHeader.length + rom.length)
+    file.set(project.copierHeader)
+    file.set(rom, project.copierHeader.length)
+    return file
+  }
   updateTeamNameRedirects(rom, project.game)
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
   if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)

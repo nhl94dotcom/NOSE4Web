@@ -1,7 +1,8 @@
 # NOSE4Web
 
-A web editor for NHL 94 on the Sega Genesis. Open a ROM in your browser, change
-rosters, lines, colours and game settings, and download the result.
+A web editor for NHL 94 on the Sega Genesis, and NHL '94 on the SNES. Open a
+ROM in your browser, change rosters, lines, colours and game settings, and
+download the result.
 
 Everything happens in the browser tab. Your ROM is never uploaded, and no ROM
 is included with this project.
@@ -59,6 +60,10 @@ That licence does not cover:
 - Hacks to how the game plays, from findings on the NHL94 forums: the
   C-then-B check bug fix, the goalie's range and hold time, energy and
   stamina, the speed burst, stopping and turning, and a real-time clock
+- NHL '94 for the SNES too: rosters, lines, team names and ratings, and the
+  team overall the SNES shows, with spreadsheets, project files, trades,
+  checking and comparing, from the community's SNES disassembly,
+  [NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault)
 - Fixes for two bugs found by the
   [NHL94 Match Viewer](https://github.com/nhl94dotcom/NHL94MatchViewer)
   project, Aggression wrapping round and the comeback bonus coming at the wrong
@@ -109,7 +114,13 @@ It can also:
   colours and logos. Its game settings and banners are left alone, and its
   attributes are edited as the values stored.
 
-Both `.bin` and `.smd` files can be opened. Downloads are always `.bin`.
+- NHL '94 for the SNES, the original game and league ROMs built on it:
+  rosters, lines, team names and ratings, and the team overall the SNES
+  shows. Its colours, rink, settings and pictures are left alone so far.
+
+Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
+SNES `.smc` and `.sfc` files can be opened, with or without a copier header,
+and are downloaded as `.smc` of the same kind.
 
 ## Running it yourself
 
@@ -162,6 +173,9 @@ editor reads it and gives back exactly what it was given:
 ```json
 { "league30Rom": "my-league.bin", "otherRoms": ["a-hack.bin", "another.bin"] }
 ```
+
+The SNES tests use the original SNES game, named `NHL94.smc`, in the same
+folder, and any SNES league ROMs listed as `"snesRoms"` in `tests/local.json`.
 
 ## How the code is laid out
 

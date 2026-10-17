@@ -19,6 +19,7 @@ export interface Expansion {
 // The next expansion that can be applied, or null when there is none left.
 export function nextExpansion(project: RomProject): Expansion | null {
   const { game, bytes, layout } = project
+  if (game.platform === 'snes') return null
   const playoffs = game.playoffDrawPointerOffsets.map((o) => readU32(bytes, o))
   const playoffSize = game.playoffDrawCount * PLAYOFF_DRAW_SIZE
   const copyright = readU32(bytes, game.copyrightTextPointerOffset)

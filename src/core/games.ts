@@ -1,8 +1,11 @@
-// Per-game settings, ported from NOSE's ini\roms.ini. Only NHL 94 so far.
+// Per-game settings, ported from NOSE's ini\roms.ini: NHL 94 on the Genesis,
+// with the hacks built on it, and NHL '94 on the SNES.
 
 import { weightKind, type AttributeKind } from './attributes'
 
 export interface GameConfig {
+  // The SNES game keeps its data in its own way: see snes.ts.
+  platform: 'genesis' | 'snes'
   productCode: string
   title: string
   // Text in the ROM's header that only this game has, where its product code
@@ -86,6 +89,7 @@ export interface GameConfig {
 }
 
 export const NHL94: GameConfig = {
+  platform: 'genesis',
   productCode: 'GM T-50656 -00',
   title: 'NHL 94',
   checksumCallOffset: 0x302,
@@ -231,7 +235,32 @@ export const NHL94_EVO: GameConfig = {
   goalieAttributeKinds: stored(14),
 }
 
-export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO].map((game) => game.title)
+// NHL '94 on the SNES. Its players and lines are kept as the Genesis game
+// keeps them, so most of the Genesis settings stand; what it keeps elsewhere
+// or not at all (team colours, the rink, game settings, pictures) the editor
+// leaves alone. The team table is given as a place in the ROM without its
+// copier header; see snes.ts.
+export const NHL94_SNES: GameConfig = {
+  ...NHL94,
+  platform: 'snes',
+  productCode: 'SNES NHL 94',
+  title: "NHL '94 (SNES)",
+  checksumCallOffset: 0,
+  teamTableOffset: 0xe25e7,
+  teamNameRedirects: [],
+  settingsSupported: false,
+  overallIsEstimate: true,
+  stripColorsKnown: false,
+  notice:
+    "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names and team ratings. " +
+    'Its team colours, rink, game settings and pictures are kept in ways the editor does not follow yet, and are ' +
+    'left alone. The SNES works out overall ratings in its own way, so Ovr here is a plain average for comparing ' +
+    "players, not the number the game shows. SNES editing is new, so keep a copy of the file you opened.",
+  playoffDrawPointerOffsets: [],
+  playoffDrawCount: 0,
+}
+
+export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO, NHL94_SNES].map((game) => game.title)
 
 // ---------------------------------------------------------- product codes
 // The hack program smozROM marks a ROM's product code to say how it is set
@@ -281,6 +310,7 @@ function variant(productCode: string): GameConfig | undefined {
 // The game a ROM is, going by its product code and, where that is not enough,
 // by its header. Undefined for a ROM the editor does not know.
 export function findGame(productCode: string, rom: Uint8Array): GameConfig | undefined {
+  if (productCode === NHL94_SNES.productCode) return NHL94_SNES
   const named = [NHL94_EVO].find((game) => {
     const name = game.headerName ?? ''
     return game.productCode === productCode && name.split('').every((char, i) => rom[HEADER_NAME_AT + i] === char.charCodeAt(0))
