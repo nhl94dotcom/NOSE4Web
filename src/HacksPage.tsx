@@ -147,7 +147,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'checkFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'checkFix' | 'aggressionFix' | 'comebackFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -203,6 +203,27 @@ export function HacksPage({ project, onChange }: Props) {
           'checkFix',
           onOff('checkFix'),
           `In the original game a check is judged one way when a person controls the checker at the moment of contact, and another way when the computer does, and the computer's way is kinder to heavy checkers. Pressing C to charge and then B to switch away hands the checker to the computer just before he hits. This makes every check use the person's way, so the trick gains nothing; it changes every check the computer makes too, and without the weight bug fix those checks then suffer from the weight bug as well. It has been little tested.`,
+        )}
+        {hack(
+          'aggressionFix',
+          onOff('aggressionFix'),
+          <>
+            The original game wraps a player's Aggression round in play, so it does not rise with the rating: a 4
+            plays like a 1, and a 3 draws the most penalties. This makes it rise with the rating, so a 6 draws the
+            most penalties and a 0 the fewest. Players rated 4 to 6 will take more penalties than they do now. For
+            goalies the same place holds GvL, the glove rating: with the fix a goalie needs about 5 for the
+            reaching glove save, where now it jumps about with the rating (a 3 can make it and a 4 cannot).
+          </>,
+        )}
+        {hack(
+          'comebackFix',
+          onOff('comebackFix'),
+          <>
+            A team tied or behind in the third period gets a small boost to Offensive Awareness, Checking and how
+            readily its computer players shoot. The original game checks the clock the wrong way round, so the boost
+            comes in the first half of the period and goes for the second. This gives it in the second half, as
+            meant. Overtime is unchanged: both teams have it throughout.
+          </>,
         )}
       </section>
 

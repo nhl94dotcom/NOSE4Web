@@ -58,6 +58,8 @@ describe.skipIf(!hasRom)('hacks to how the game plays', () => {
     const play: HackChoices = {
       ...NO_HACKS,
       checkFix: true,
+      aggressionFix: true,
+      comebackFix: true,
       goalieHold: 300,
       goalieWidth: 40,
       goalieOut: 224,
@@ -71,6 +73,8 @@ describe.skipIf(!hasRom)('hacks to how the game plays', () => {
     }
     const hacked = hackRom(rom, play)
     const expected: [number, string][] = [
+      [0x15d78, '6100000ae20b17430073'],
+      [0x15b70, '6d000026'],
       [0x13d6c, '4e714e71'],
       [0x1530e, '012c'],
       [0xb632, '0028'],
@@ -218,6 +222,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { baseWeight: 102 },
       { baseWeight: 152 },
       { checkFix: true },
+      { aggressionFix: true },
+      { comebackFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },

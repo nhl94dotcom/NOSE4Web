@@ -1,6 +1,7 @@
 import { SUPPORTED_GAMES } from './core/games'
 import { LOGO_COLORS } from './core/graphics'
 import { MAX_ROSTER, MIN_ROSTER } from './core/roster'
+import { GOALIE_RATING_USES, SKATER_RATING_USES } from './core/ratinguse'
 import { MAX_SECONDS } from './core/settings'
 import { CSV_TABLES } from './core/tables'
 
@@ -10,6 +11,7 @@ const SECTIONS = [
   ['space', 'Space in the ROM'],
   ['teams', 'Teams'],
   ['players', 'Players and goalies'],
+  ['ratinguse', 'What the ratings do in play'],
   ['arrows', 'Moving with the keyboard'],
   ['copy', 'Copy and paste'],
   ['keys', 'Quick edit keys'],
@@ -217,6 +219,10 @@ export function HelpPage() {
         view also allows values the game does not normally use, such as a rating above 99, for experimenting. Such
         values appear in red with a ! in the normal view.
       </p>
+      <p>
+        Point at a column heading to see what that rating does in play; <a href="#help-ratinguse">What the ratings
+        do in play</a> lists them all.
+      </p>
       <p>The buttons at the end of each row:</p>
       <ul>
         <li>
@@ -242,6 +248,34 @@ export function HelpPage() {
         only those whose name contains what you type. Both change only what you see. The roster itself stays in the
         order the game uses, and the move buttons are switched off until you return to roster order with nothing in
         Find.
+      </p>
+
+      <h3 id="help-ratinguse">What the ratings do in play</h3>
+      <p>
+        The NHL94 Match Viewer project read every place the game's code uses each rating, and checked much of it
+        against recorded games. In play each rating counts five times its value, give or take a little for being hot
+        or cold, and some are nudged by the team ratings. What each one does:
+      </p>
+      <ul>
+        {Object.entries(SKATER_RATING_USES).map(([label, use]) => (
+          <li key={label}>
+            <b>{label}</b>: {use}.
+          </li>
+        ))}
+      </ul>
+      <p>And for goalies:</p>
+      <ul>
+        {Object.entries(GOALIE_RATING_USES)
+          .map(([label, use]) => (
+            <li key={label}>
+              <b>{label}</b>: {use}.
+            </li>
+          ))}
+      </ul>
+      <p>
+        So for a league: the goalie save ratings StR, StL and GvR change nothing; Endurance does nothing with line
+        changes off; and with the original game's code, Aggression and GvL do not rise with the rating. The
+        Aggression bug fix under Hacks puts the last right.
       </p>
 
       <h3 id="help-arrows">Moving with the keyboard</h3>
@@ -860,6 +894,14 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
+          <b>Aggression bug fix</b> and <b>comeback bonus fix</b> (in with the fixes): two bugs found by the NHL94
+          Match Viewer project in the game's code. In play Aggression wraps round, so a 4 plays like a 1 and a 3
+          draws the most penalties; the fix makes it rise with the rating. It also changes goalies, whose glove
+          rating GvL sits in the same place: with the fix it takes about 5 for the reaching glove save. The
+          comeback bonus, for a team tied or behind in the third period, comes in the first half of the period
+          where it is meant for the second; the fix puts it in the second.
+        </li>
+        <li>
           <b>C-then-B check bug fix</b> (in with the fixes): the game judges a check one way when a person controls
           the checker at the moment of contact and another, kinder to heavy checkers, when the computer does.
           Pressing C and then B hands the checker to the computer just before contact. The fix makes every check use
@@ -1189,6 +1231,15 @@ export function HelpPage() {
         the goalie's range by smozoma; the goalie's hold time by clockwise and smozoma; energy, the speed burst and
         stopping and turning by wboy, with Tony H; and the real-time clock by Brodeur30, smozoma, kingraph and
         AverageRangersFan.
+      </p>
+      <p>
+        What the ratings do in play, what the team ratings do, and the Aggression and comeback bonus bugs come from
+        the{' '}
+        <a href="https://github.com/nhl94dotcom/NHL94MatchViewer" target="_blank" rel="noreferrer">
+          NHL94 Match Viewer
+        </a>{' '}
+        project, which read them in the community's disassembly of the game by abdulahmad and checked them against
+        recorded games.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

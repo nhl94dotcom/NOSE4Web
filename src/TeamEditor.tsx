@@ -17,6 +17,7 @@ import {
   setGoalieNibble,
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
+import { ratingUse } from './core/ratinguse'
 import { setTeamRating, TEAM_RATINGS, teamRatingChoices, teamRatings } from './core/teamratings'
 import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
@@ -218,8 +219,10 @@ export function TeamEditor(props: Props) {
     onChange({ ...team, lines })
   }
 
-  function attributeTitle(name: string, kind: AttributeKind, index: number): string {
-    const title = attributeNote(kind) ? `${name} (${attributeNote(kind)})` : name
+  function attributeTitle(name: string, kind: AttributeKind, index: number, label: string, isGoalies: boolean): string {
+    const named = attributeNote(kind) ? `${name} (${attributeNote(kind)})` : name
+    const use = ratingUse(label, isGoalies)
+    const title = use ? `${named}. In play: ${use}.` : named
     return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
   }
 
@@ -402,7 +405,7 @@ export function TeamEditor(props: Props) {
                 <th>No.</th>
                 <th>Ovr</th>
                 {labels.map((label, i) => (
-                  <th key={i} title={attributeTitle(names[i], kinds[i], i)}>
+                  <th key={i} title={attributeTitle(names[i], kinds[i], i, label, isGoalies)}>
                     {label}
                   </th>
                 ))}

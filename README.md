@@ -59,6 +59,11 @@ That licence does not cover:
 - Hacks to how the game plays, from findings on the NHL94 forums: the
   C-then-B check bug fix, the goalie's range and hold time, energy and
   stamina, the speed burst, stopping and turning, and a real-time clock
+- Fixes for two bugs found by the
+  [NHL94 Match Viewer](https://github.com/nhl94dotcom/NHL94MatchViewer)
+  project, Aggression wrapping round and the comeback bonus coming at the wrong
+  time, and an explanation of what every rating does in play from the same
+  project
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, and the main menu's starting choices
 

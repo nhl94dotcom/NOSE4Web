@@ -10,7 +10,9 @@
 //
 // The last group, how the game plays, comes from findings posted on the
 // NHL94 forums by wboy, Tony H, clockwise, smozoma, Brodeur30, kingraph and
-// AverageRangersFan: see "play" below.
+// AverageRangersFan: see "play" below. The Aggression and comeback bonus
+// fixes are the editor's own, to bugs found by the NHL94 Match Viewer project
+// in the disassembly at github.com/abdulahmad/NHL94Genesis: see "more fixes".
 //
 // Each hack is looked for by the exact bytes it leaves, and a ROM whose code
 // at a hack's places is neither the original game's nor the hack's is left
@@ -49,6 +51,12 @@ export interface HackChoices {
   baseWeight: number
 
   // How the game plays. The numbers are the game's own, as its code holds them.
+  // Makes a player's Aggression in play rise with his rating, where the
+  // original game wraps it round.
+  aggressionFix: boolean
+  // Gives the comeback bonus in the second half of the third period, where
+  // the original game gives it in the first.
+  comebackFix: boolean
   // Judges every check as one by a person, so that pressing C and then B to
   // hand the checker to the computer before contact gains nothing.
   checkFix: boolean
@@ -81,6 +89,8 @@ export type HackPart =
   | 'threeStars'
   | 'baseWeight'
   | 'checkFix'
+  | 'aggressionFix'
+  | 'comebackFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -108,6 +118,8 @@ export const NO_HACKS: HackChoices = {
   threeStars: 'original',
   baseWeight: 140,
   checkFix: false,
+  aggressionFix: false,
+  comebackFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -515,6 +527,27 @@ export function baseWeightForYear(year: number): number {
   return base
 }
 
+// ---------------------------------------------------------------- more fixes
+// Two bugs in setplayer, which works out a player's ratings in play each time
+// he comes on the ice. In play a rating counts five times its value, give or
+// take a little for being hot or cold, so 0 to 30.
+
+// Aggression is then cut to 0 to 15 by keeping only its last four bits, so
+// it wraps round: a 4 plays like a 1, and a 3 is the most penalised. The fix
+// keeps it in bounds with the game's own ClampNibble, which the code is
+// followed by, and halves it, so it runs from 0 to 15 with the rating. For
+// goalies the same place holds the glove rating GvL, which lets him make the
+// reaching glove save at 11 and over: with the fix that takes about 5.
+//   move.b d3,$73(a3) / andi.b #$F,$73(a3)
+//   becomes  bsr.w ClampNibble / lsr.b #1,d3 / move.b d3,$73(a3)
+const aggressionFix = switchPart(0x15d78, bytes('1743 0073 022B 000F 0073'), bytes('6100 000A E20B 1743 0073'))
+
+// A team tied or behind in the third period is meant to get a small boost
+// late on, but the test of the clock is the wrong way round (bgt for blt),
+// so the boost comes while more than half the period is left and goes for
+// the rest. Overtime is not affected: both teams have it throughout.
+const comebackFix = switchPart(0x15b70, bytes('6E00 0026'), bytes('6D00 0026'))
+
 // ---------------------------------------------------------------------- play
 // How the game plays. Each of these is a number or an instruction changed
 // where it stands in the game's code; none adds code of its own. They were
@@ -655,6 +688,8 @@ export function detectHacks(rom: Uint8Array): HackState {
     threeStars: found('threeStars', threeStars.detect(rom), NO_HACKS.threeStars),
     baseWeight: found('baseWeight', baseWeight.detect(rom), NO_HACKS.baseWeight),
     checkFix: found('checkFix', checkFix.detect(rom), NO_HACKS.checkFix),
+    aggressionFix: found('aggressionFix', aggressionFix.detect(rom), NO_HACKS.aggressionFix),
+    comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -693,6 +728,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['plusMinus', () => plusMinus.remove(work.rom), () => plusMinus.apply(work, wanted.plusMinus)],
     ['threeStars', () => threeStars.remove(work.rom), () => threeStars.apply(work, wanted.threeStars)],
     ['checkFix', () => checkFix.remove(work.rom), () => checkFix.apply(work, wanted.checkFix)],
+    ['aggressionFix', () => aggressionFix.remove(work.rom), () => aggressionFix.apply(work, wanted.aggressionFix)],
+    ['comebackFix', () => comebackFix.remove(work.rom), () => comebackFix.apply(work, wanted.comebackFix)],
     ['goalieHold', () => goalieHold.remove(work.rom), () => goalieHold.apply(work, wanted.goalieHold)],
     ['goalieBox', () => goalieWidth.remove(work.rom), () => goalieWidth.apply(work, wanted.goalieWidth)],
     ['goalieBox', () => goalieOut.remove(work.rom), () => goalieOut.apply(work, wanted.goalieOut)],
@@ -801,6 +838,8 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   threeStars: 'Three stars',
   baseWeight: 'Base weight',
   checkFix: 'C-then-B check bug fix',
+  aggressionFix: 'Aggression bug fix',
+  comebackFix: 'Comeback bonus fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -824,6 +863,8 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   threeStars: 'threeStars',
   baseWeight: 'baseWeight',
   checkFix: 'checkFix',
+  aggressionFix: 'aggressionFix',
+  comebackFix: 'comebackFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',
