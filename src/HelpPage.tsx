@@ -164,8 +164,13 @@ export function HelpPage() {
           <b>Offence, Defence, Power play, Penalty kill, Home, Away</b>: the six team ratings. For Offence (0 to 7),
           Power play and Home (0 to 2) a high number is good. For Defence (0 to 7), Penalty kill (0 to 2) and Away
           (0 to 2, with 3 for the original game's weakest teams) a <b>low</b> number is good. Their meaning was
-          worked out by wboy and smozoma; how much each changes play has not been measured. In the Teams
-          spreadsheet they are the six rating columns.
+          worked out by wboy and smozoma. When a player comes on the ice, the home team adds its Home rating to
+          his Offensive and Defensive Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes
+          its Away rating off the same five. A team on the power play adds its Power play rating to Offensive
+          Awareness, Stickhandling, Shot Accuracy and Passing, and a team killing a penalty takes its Penalty kill
+          rating off the first three. These are on the game's own scale, where a rating point is worth 5, so 2 is
+          less than half a point. No use in play has been found for Offence and Defence. In the Teams spreadsheet
+          they are the six rating columns.
         </li>
       </ul>
       <p>
@@ -751,8 +756,8 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Weight bug fix:</b> the original game makes light players good at checking and heavy players easy to
-          knock over. The fix turns that round and counts both players' checking ratings. It is balanced for the
+          <b>Weight bug fix:</b> when a person controls the checker, the original game makes light players good at
+          checking and heavy players easy to knock over. The fix turns that round and counts both players' checking ratings. It is balanced for the
           original game's players, so keep checking ratings about where the original's are: most forwards 2 or 3
           out of 6, most defencemen 2 to 4, very few players 5 or 6.
         </li>
@@ -855,9 +860,11 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>C-then-B check bug fix</b> (in with the fixes): pressing C and then B lets any player check as a strong
-          checker does. The fix treats every player that way, so the trick gains nothing; it changes checking for
-          everybody, and has been little tested.
+          <b>C-then-B check bug fix</b> (in with the fixes): the game judges a check one way when a person controls
+          the checker at the moment of contact and another, kinder to heavy checkers, when the computer does.
+          Pressing C and then B hands the checker to the computer just before contact. The fix makes every check use
+          the person's way, so the trick gains nothing. It changes the computer's checks too, which without the
+          weight bug fix then suffer the weight bug as well, and it has been little tested.
         </li>
         <li>
           <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
@@ -866,7 +873,8 @@ export function HelpPage() {
         <li>
           <b>Goalie range to each side</b> and <b>up the ice:</b> the box a goalie without the puck is kept in. The
           original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a little
-          more room each way.
+          more room each way. For scale, the rink is about 260 wide, the goal line is 268 from centre ice and the
+          blue line about 88, roughly 3 to a foot.
         </li>
         <li>
           <b>Goalie whistle line:</b> how far from centre ice a goalie carrying the puck is whistled, 170 in the

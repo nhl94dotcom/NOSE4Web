@@ -188,8 +188,9 @@ export function HacksPage({ project, onChange }: Props) {
             <option value="on">On</option>
           </select>,
           <>
-            The original game has a bug that makes light players good at checking and heavy players easy to knock
-            over. This turns that round, and also counts both players' checking ratings in whether a check succeeds.
+            The original game has a bug that, when a person controls the checker, makes light players good at
+            checking and heavy players easy to knock over. This turns that round, and also counts both players'
+            checking ratings in whether a check succeeds.
             {state.choices.weightFix === 'simple' && ' This ROM has an earlier fix, which swaps the weights and leaves checking ratings out of it.'}
           </>,
         )}
@@ -201,7 +202,7 @@ export function HacksPage({ project, onChange }: Props) {
         {hack(
           'checkFix',
           onOff('checkFix'),
-          'In the original game, pressing C and then B lets any player check as a strong checker does. This takes the trick away by treating every player that way, so it also changes how checks go for everybody. It has been used in a tournament ROM, but little tested beyond that.',
+          `In the original game a check is judged one way when a person controls the checker at the moment of contact, and another way when the computer does, and the computer's way is kinder to heavy checkers. Pressing C to charge and then B to switch away hands the checker to the computer just before he hits. This makes every check use the person's way, so the trick gains nothing; it changes every check the computer makes too, and without the weight bug fix those checks then suffer from the weight bug as well. It has been little tested.`,
         )}
       </section>
 
@@ -336,7 +337,7 @@ export function HacksPage({ project, onChange }: Props) {
           number('goalieOut'),
           <>
             How near centre ice a goalie without the puck may come, as his distance from it, so a smaller number lets
-            him come farther out. {stock('goalieOut')}
+            him come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
           </>,
         )}
         {hack(
@@ -344,7 +345,7 @@ export function HacksPage({ project, onChange }: Props) {
           number('goalieLine'),
           <>
             The line a goalie carrying the puck may not cross without a whistle, again as a distance from centre ice,
-            so a smaller number lets him carry it farther. {stock('goalieLine')}
+            so a smaller number lets him carry it farther; 170 is about the top of the faceoff circles. {stock('goalieLine')}
           </>,
         )}
         {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}

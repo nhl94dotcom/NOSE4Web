@@ -1,7 +1,10 @@
 // A team's six ratings, which the game keeps as the halves of three bytes
 // near the start of its data. What they mean was worked out by wboy and
 // smozoma on the NHL94 forums. For three of them a low number is the good
-// one. How much each changes play has not been measured.
+// one. Home, Away, Power play and Penalty kill are added to or taken off some
+// of each player's ratings, on the game's scale where a rating point is worth
+// 5, as a player comes on the ice (shown by the NHL94 Match Viewer project's
+// recordings). No use in play has been found for Offence and Defence.
 
 import type { Team } from './team'
 

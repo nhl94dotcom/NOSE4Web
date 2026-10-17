@@ -49,7 +49,8 @@ export interface HackChoices {
   baseWeight: number
 
   // How the game plays. The numbers are the game's own, as its code holds them.
-  // Stops a player who presses C and then B from checking as if he were anyone.
+  // Judges every check as one by a person, so that pressing C and then B to
+  // hand the checker to the computer before contact gains nothing.
   checkFix: boolean
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -200,9 +201,11 @@ interface Part<T> {
 }
 
 // ----------------------------------------------------------- weight bug fix
-// The original game takes the checker's weight from the other player's, so
-// that light players check well and heavy ones fall over. The fix turns that
-// round and brings both players' checking ratings into it.
+// For a checker a person controls, the original game works out the
+// knockdown in a single byte that overflows when the other player is two or
+// more weight steps heavier, so that light players check well and heavy ones
+// fall over. The fix works it out afresh, the right way round, and brings
+// both players' checking ratings into it.
 
 const WEIGHT_HOOK: Hook = { at: 0x13d72, original: bytes('902B 0067 D02A 0067') }
 const WEIGHT_SIMPLE = bytes('902A 0067 D02B 0067')
@@ -560,10 +563,10 @@ function switchPart(at: number, original: Uint8Array, hacked: Uint8Array): Part<
   }
 }
 
-// The game doubles a number in working out a check when the checker is
-// marked as checking, and pressing C and then B gets a player that mark when
-// he should not have it. The fix doubles it for everybody, so that the trick
-// gains nothing.
+// The game starts from 240 in working out a check when a person controls the
+// checker at contact, and from 120 when the computer does. Pressing C and
+// then B hands the checker to the computer just before contact. The fix uses
+// 240 for everybody, so that the trick gains nothing.
 const checkFix = switchPart(0x13d6c, bytes('6700 0004'), bytes('4E71 4E71'))
 
 // A goalie holding the puck is whistled when a count of sixtieths of a second
