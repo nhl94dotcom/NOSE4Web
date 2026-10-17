@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { hex } from './core/bytes'
-import { colorLevels, colorRgb, colorWord, cssColor, cssHex, nearestColorWord, type Levels } from './core/color'
+import { colorLevels, colorRgb, colorWord, cssColor, cssHex, GENESIS_COLORS, nearestColorWord, type ColorFormat, type Levels } from './core/color'
 
 // The browser's own screen colour picker. Chrome and Edge have it; Firefox and
 // Safari do not, and there the button is left out.
@@ -9,7 +9,7 @@ interface EyeDropperApi {
 }
 const ScreenEyeDropper = (globalThis as { EyeDropper?: new () => EyeDropperApi }).EyeDropper
 
-interface Template {
+export interface Template {
   width: number
   height: number
   pixels: Uint8Array
@@ -32,19 +32,28 @@ function loadTemplate(name: string): Promise<Template> {
 }
 
 interface PreviewProps {
-  template: string
+  // A picture that comes with the editor, or one taken from the ROM.
+  template: string | Template
   palette: number[]
   scale: number
+  format?: ColorFormat
+  // Whether colour 0 is left see-through, as the SNES game's sprites have it.
+  seeThrough?: boolean
 }
 
+// What a see-through picture is shown on, much as it is on the ice.
+const ICE = '#c8e4ee'
+
 // Draws one of the game's pictures using the given colours.
-export function Preview({ template, palette, scale }: PreviewProps) {
+export function Preview({ template, palette, scale, format = GENESIS_COLORS, seeThrough = false }: PreviewProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const [image, setImage] = useState<Template | null>(null)
+  const [loaded, setLoaded] = useState<Template | null>(null)
+  const image = typeof template === 'string' ? loaded : template
 
   useEffect(() => {
+    if (typeof template !== 'string') return
     let current = true
-    loadTemplate(template).then((loaded) => current && setImage(loaded))
+    loadTemplate(template).then((next) => current && setLoaded(next))
     return () => {
       current = false
     }
@@ -53,14 +62,14 @@ export function Preview({ template, palette, scale }: PreviewProps) {
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
     if (!context || !image) return
-    const colors = palette.map(colorRgb)
+    const colors = palette.map((word) => colorRgb(word, format))
     const data = context.createImageData(image.width, image.height)
     image.pixels.forEach((index, i) => {
       const color = colors[index]
-      if (color) data.data.set([color[0], color[1], color[2], 255], i * 4)
+      if (color && !(seeThrough && index === 0)) data.data.set([color[0], color[1], color[2], 255], i * 4)
     })
     context.putImageData(data, 0, 0)
-  }, [image, palette])
+  }, [image, palette, format, seeThrough])
 
   if (!image) return null
   return (
@@ -69,7 +78,7 @@ export function Preview({ template, palette, scale }: PreviewProps) {
       className="preview"
       width={image.width}
       height={image.height}
-      style={{ width: image.width * scale }}
+      style={{ width: image.width * scale, background: seeThrough ? ICE : undefined }}
     />
   )
 }
@@ -78,13 +87,14 @@ interface EditorProps {
   palette: number[]
   labels: string[]
   onChange: (palette: number[]) => void
+  format?: ColorFormat
 }
 
 // A row of colour swatches with controls to change the selected one.
-export function PaletteEditor({ palette, labels, onChange }: EditorProps) {
+export function PaletteEditor({ palette, labels, onChange, format = GENESIS_COLORS }: EditorProps) {
   const [selected, setSelected] = useState(0)
   const word = palette[selected]
-  const levels = colorLevels(word)
+  const levels = colorLevels(word, format)
 
   function setWord(next: number) {
     onChange(palette.map((w, i) => (i === selected ? next : w)))
@@ -94,7 +104,7 @@ export function PaletteEditor({ palette, labels, onChange }: EditorProps) {
   async function pickFromScreen() {
     if (!ScreenEyeDropper) return
     try {
-      setWord(nearestColorWord((await new ScreenEyeDropper().open()).sRGBHex))
+      setWord(nearestColorWord((await new ScreenEyeDropper().open()).sRGBHex, format))
     } catch {
       // The user pressed Escape.
     }
@@ -123,7 +133,7 @@ export function PaletteEditor({ palette, labels, onChange }: EditorProps) {
     const x = Math.floor((event.nativeEvent.offsetX * canvas.width) / canvas.clientWidth)
     const y = Math.floor((event.nativeEvent.offsetY * canvas.height) / canvas.clientHeight)
     const pixel = canvas.getContext('2d', { willReadFrequently: true })?.getImageData(x, y, 1, 1).data
-    if (pixel) setWord(nearestColorWord('#' + [pixel[0], pixel[1], pixel[2]].map((v) => v.toString(16).padStart(2, '0')).join('')))
+    if (pixel) setWord(nearestColorWord('#' + [pixel[0], pixel[1], pixel[2]].map((v) => v.toString(16).padStart(2, '0')).join(''), format))
   }
 
   return (
@@ -134,7 +144,7 @@ export function PaletteEditor({ palette, labels, onChange }: EditorProps) {
             key={i}
             className={i === selected ? 'swatch selected' : 'swatch'}
             title={`${labels[i]} (${hex(w, 4)})`}
-            style={{ background: cssColor(w) }}
+            style={{ background: cssColor(w, format) }}
             onClick={() => setSelected(i)}
           />
         ))}
@@ -147,19 +157,19 @@ export function PaletteEditor({ palette, labels, onChange }: EditorProps) {
             <input
               type="range"
               min={0}
-              max={7}
+              max={format.top}
               value={levels[c]}
               onChange={(e) => {
                 const next = levels.slice() as Levels
                 next[c] = Number(e.target.value)
-                setWord(colorWord(next))
+                setWord(colorWord(next, format))
               }}
             />
           </label>
         ))}
         <label>
           Pick
-          <input type="color" value={cssHex(word)} onChange={(e) => setWord(nearestColorWord(e.target.value))} />
+          <input type="color" value={cssHex(word, format)} onChange={(e) => setWord(nearestColorWord(e.target.value, format))} />
         </label>
         <span className="note">{hex(word, 4)}</span>
       </div>

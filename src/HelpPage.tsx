@@ -1219,8 +1219,8 @@ export function HelpPage() {
       <p>
         NOSE4Web also opens NHL '94 for the SNES, the original game and league ROMs built on it. The SNES game keeps
         its players, lines and team ratings just as the Genesis game does, so most of the editor works the same:
-        rosters, lines, team names, the six team ratings, spreadsheet files, project files, the league page, trades,
-        bulk changes, importing a team, checking the ROM, changes and comparing.
+        rosters, lines, team names, the six team ratings, team colours, spreadsheet files, project files, the league
+        page, trades, bulk changes, importing a team, checking the ROM, changes and comparing.
       </p>
       <ul>
         <li>
@@ -1229,12 +1229,19 @@ export function HelpPage() {
           not change when the players do, so set it yourself if you want it to match.
         </li>
         <li>
-          <b>Ovr</b> for players is a plain average for comparing them. The SNES works players' overall ratings out
-          in a way of its own that the editor does not follow yet.
+          <b>Ovr</b> for players is worked out as the SNES game does it on its roster screens. For skaters that is
+          the same as on the Genesis; a goalie can come out one higher, as the SNES rounds differently.
         </li>
         <li>
-          <b>Not yet:</b> team colours, the rink, game settings, hacks, and logos and banners. The SNES game keeps
-          them elsewhere and in other ways, so the editor leaves them exactly as they are.
+          <b>Team colours:</b> each team has a white home strip and a dark away strip of 16 colours, shown on the
+          game's own players, drawn from the ROM. The SNES has 32 levels of each of red, green and blue where the
+          Genesis has 8. What each colour is for was found by changing one at a time on the game's players; the
+          first is never drawn on them. The Teams spreadsheet has them too. Colours do not come across from a
+          Genesis ROM, as the two games give their colours different jobs.
+        </li>
+        <li>
+          <b>Not yet:</b> the rink, game settings, hacks, and logos and banners. The SNES game keeps them elsewhere
+          and in other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,

@@ -60,8 +60,9 @@ That licence does not cover:
 - Hacks to how the game plays, from findings on the NHL94 forums: the
   C-then-B check bug fix, the goalie's range and hold time, energy and
   stamina, the speed burst, stopping and turning, and a real-time clock
-- NHL '94 for the SNES too: rosters, lines, team names and ratings, and the
-  team overall the SNES shows, with spreadsheets, project files, trades,
+- NHL '94 for the SNES too: rosters, lines, team names and ratings, team
+  colours shown on the game's own players, and the team overall the SNES
+  shows, with spreadsheets, project files, trades,
   checking and comparing, from the community's SNES disassembly,
   [NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault)
 - Fixes for two bugs found by the
@@ -115,8 +116,8 @@ It can also:
   attributes are edited as the values stored.
 
 - NHL '94 for the SNES, the original game and league ROMs built on it:
-  rosters, lines, team names and ratings, and the team overall the SNES
-  shows. Its colours, rink, settings and pictures are left alone so far.
+  rosters, lines, team names, ratings and colours, and the team overall the
+  SNES shows. Its rink, settings and pictures are left alone so far.
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
 SNES `.smc` and `.sfc` files can be opened, with or without a copier header,

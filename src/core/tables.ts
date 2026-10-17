@@ -1,5 +1,5 @@
 import type { GameConfig } from './games'
-import { cssHex, keepIfSameColor, nearestColorWord } from './color'
+import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import { parseCsv, type Cell } from './csv'
 import { overallRating } from './rating'
@@ -286,14 +286,16 @@ const teams: CsvTable = {
   id: 'teams',
   title: 'Teams',
   description:
-    'Team names, team ratings, and home and away colours (on the Genesis) or the overall rating shown (on the SNES). Only the columns present in the file are changed, and an empty cell keeps the current value.',
+    'Team names, team ratings, home and away colours, and on the SNES the overall rating shown. Only the columns present in the file are changed, and an empty cell keeps the current value.',
 
   rows(project) {
     const snes = project.game.platform === 'snes'
-    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...(snes ? [SHOWN_OVERALL_COLUMN] : COLOR_COLUMNS)]]
+    const format = colorFormat(project.game.platform)
+    const colours = project.teams[0]?.palette.length ? COLOR_COLUMNS : []
+    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...(snes ? [SHOWN_OVERALL_COLUMN] : []), ...colours]]
     project.teams.forEach((team, t) => {
-      const last = snes ? [team.shownOverall ?? 0] : team.palette.map(cssHex)
-      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...last])
+      const overall = snes ? [team.shownOverall ?? 0] : []
+      rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...overall, ...team.palette.map((word) => cssHex(word, format))])
     })
     return rows
   },
@@ -319,7 +321,8 @@ const teams: CsvTable = {
       const palette = team.palette.map((word, i) => {
         if (!given(COLOR_COLUMNS[i])) return word
         const color = sheet.text(row, COLOR_COLUMNS[i])
-        if (/^#[0-9a-f]{6}$/i.test(color)) return keepIfSameColor(word, nearestColorWord(color))
+        const format = colorFormat(project.game.platform)
+        if (/^#[0-9a-f]{6}$/i.test(color)) return keepIfSameColor(word, nearestColorWord(color, format), format)
         sheet.problem(row, `${COLOR_COLUMNS[i]} must look like #1a2b3c, not "${color}".`)
         return word
       })

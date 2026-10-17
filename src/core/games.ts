@@ -237,8 +237,9 @@ export const NHL94_EVO: GameConfig = {
 
 // NHL '94 on the SNES. Its players and lines are kept as the Genesis game
 // keeps them, so most of the Genesis settings stand; what it keeps elsewhere
-// or not at all (team colours, the rink, game settings, pictures) the editor
-// leaves alone. The team table is given as a place in the ROM without its
+// or not at all (the rink, game settings, pictures) the editor leaves alone.
+// What each strip colour is for was found by drawing the game's player
+// sprites with one colour at a time changed. The team table is given as a place in the ROM without its
 // copier header; see snes.ts.
 export const NHL94_SNES: GameConfig = {
   ...NHL94,
@@ -249,13 +250,16 @@ export const NHL94_SNES: GameConfig = {
   teamTableOffset: 0xe25e7,
   teamNameRedirects: [],
   settingsSupported: false,
-  overallIsEstimate: true,
+  overallIsEstimate: false,
   stripColorsKnown: false,
+  stripColorLabels: [
+    'Not drawn on players', 'Skate blades', 'Skates and stick tape', 'Gloves', 'Pants', 'Socks', 'Shoulder trim',
+    'Skin', 'Stripe 1', 'Stripe 2', 'Stripe 3', 'Jersey shading', 'Jersey and helmet', 'Shoulders', 'Stick', 'Shadow',
+  ],
   notice:
-    "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names and team ratings. " +
-    'Its team colours, rink, game settings and pictures are kept in ways the editor does not follow yet, and are ' +
-    'left alone. The SNES works out overall ratings in its own way, so Ovr here is a plain average for comparing ' +
-    "players, not the number the game shows. SNES editing is new, so keep a copy of the file you opened.",
+    "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names, team ratings and " +
+    'colours. Its rink, game settings and pictures are kept in ways the editor does not follow yet, and are left ' +
+    'alone. SNES editing is new, so keep a copy of the file you opened.',
   playoffDrawPointerOffsets: [],
   playoffDrawCount: 0,
 }

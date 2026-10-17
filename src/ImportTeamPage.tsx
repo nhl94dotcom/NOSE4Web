@@ -124,7 +124,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
             </label>
           </div>
           <p>
-            {PARTS.filter((part) => project.game.platform === 'genesis' || part.key === 'names' || part.key === 'roster').map((part) => (
+            {PARTS.filter((part) => project.game.platform === 'genesis' || part.key !== 'pictures').map((part) => (
               <label key={part.key} className="choice">
                 <input
                   type="checkbox"

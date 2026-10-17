@@ -53,7 +53,7 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
 
 const snesPath = fileURLToPath(new URL('../../NHL94.smc', import.meta.url))
 
-it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall and SNES rating notes, and no colours', () => {
+it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall, its colours and SNES rating notes', () => {
   const project = openRom(new Uint8Array(readFileSync(snesPath)))
   const rest = {
     changed: false,
@@ -77,7 +77,8 @@ it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall and SNES
   const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
   expect(html).toContain('Overall shown')
   expect(html).toContain(`value="${team.shownOverall}"`)
-  expect(html).not.toContain('Home colours')
+  expect(html).toContain('Home colours')
+  expect(html).toContain('Jersey and helmet')
   expect(html).toContain('In play: pass speed, and how accurately the flip goes.')
   expect(html).toContain('In play: nothing: the game looks it up and then overwrites it.')
 })

@@ -3,7 +3,9 @@ import { readClipboard, writeClipboard } from './clipboard'
 import { attributeNote, attributeText, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
 import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
+import { colorFormat } from './core/color'
 import type { GameConfig } from './core/games'
+import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { overallRating } from './core/rating'
 import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
@@ -64,6 +66,8 @@ interface Props {
   emptySlots: boolean[][]
   // Shown at the end of the page: the team's logos and banners.
   footer?: ReactNode
+  // For the SNES game, its own players to show the colours on.
+  players?: SpriteImage[]
 }
 
 export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall'
@@ -713,14 +717,21 @@ export function TeamEditor(props: Props) {
         const other = team.palette.slice((1 - strip) * 16, (1 - strip) * 16 + 16)
         const setColors = (next: number[]) =>
           onChange({ ...team, palette: strip === 0 ? [...next, ...other] : [...other, ...next] })
+        const format = colorFormat(game.platform)
         return (
           <section key={label}>
             <h2>{label} colours</h2>
             <div className="strip">
-              <Preview template="strip" palette={colors} scale={3} />
-              <Preview template="sprites" palette={colors} scale={2} />
+              {game.platform === 'snes' ? (
+                (props.players ?? []).map((image, i) => <Preview key={i} template={image} palette={colors} scale={3} format={format} seeThrough />)
+              ) : (
+                <>
+                  <Preview template="strip" palette={colors} scale={3} />
+                  <Preview template="sprites" palette={colors} scale={2} />
+                </>
+              )}
               <div>
-                <PaletteEditor palette={colors} labels={game.stripColorLabels} onChange={setColors} />
+                <PaletteEditor palette={colors} labels={game.stripColorLabels} onChange={setColors} format={format} />
                 <button onClick={() => setColors(other)}>Copy from {strip === 0 ? 'away' : 'home'}</button>{' '}
                 {reset(strip === 0 ? 'home' : 'away', `${label.toLowerCase()} colours`)}
               </div>

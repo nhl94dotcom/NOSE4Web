@@ -98,7 +98,7 @@ function compareLines(project: RomProject, before: Team, after: Team, stayed: Ma
   })
 }
 
-function compareTeam(project: RomProject, before: Team, after: Team): string[] {
+function compareTeam(project: RomProject, before: Team, after: Team, sameGame: boolean): string[] {
   const changes: string[] = []
   after.names.forEach((text, i) => {
     if (text !== before.names[i]) changes.push(`${NAME_LABELS[i]}: "${before.names[i]}" to "${text}".`)
@@ -107,8 +107,8 @@ function compareTeam(project: RomProject, before: Team, after: Team): string[] {
   compareLines(project, before, after, stayed, changes)
 
   const changedColors = (from: number) => after.palette.slice(from, from + 16).filter((w, i) => w !== before.palette[from + i]).length
-  // Only where both keep their colours with the team; the SNES game does not.
-  const [home, away] = before.palette.length === after.palette.length ? [changedColors(0), changedColors(16)] : [0, 0]
+  // Only within one game: the Genesis and SNES games give their colours different jobs.
+  const [home, away] = sameGame ? [changedColors(0), changedColors(16)] : [0, 0]
   if (home > 0) changes.push(`${plural(home, 'home colour')} changed.`)
   if (away > 0) changes.push(`${plural(away, 'away colour')} changed.`)
   if (after.goalieNibbles.join() !== before.goalieNibbles.join()) {
@@ -205,7 +205,7 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   const labels = teamLabels(after.teams, after.game)
   after.teams.forEach((team, i) => {
     if (counterpart[i] < 0) return
-    const changes = compareTeam(after, before.teams[counterpart[i]], team)
+    const changes = compareTeam(after, before.teams[counterpart[i]], team, !byName)
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
   // The SNES game's settings are not read, so there is nothing to compare them with.

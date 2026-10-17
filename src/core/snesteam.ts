@@ -1,6 +1,6 @@
 import { readSnesText, readU16LE, snesTextSize, writeSnesText, writeU16LE } from './bytes'
 import type { GameConfig } from './games'
-import { loRomAddress, loRomBank, loRomOffset } from './snes'
+import { loRomAddress, loRomBank, loRomOffset, snesStripTables, STRIP_BYTES } from './snes'
 import type { Player, Team, TeamLayout } from './team'
 
 // A team block in the SNES game, in order. It holds what a Genesis block
@@ -16,6 +16,7 @@ import type { Player, Team, TeamLayout } from './team'
 //         with another empty length word, as SNES league editors leave them.
 //         The game stops at the first one.
 //   ....  four names: location, initials, name, stadium
+// The team colours are kept apart from the blocks; see snes.ts.
 // The team table holds each block's address as a word, its bank and a zero.
 // The game looks for every block in the one bank, so they must stay there.
 const TEAM_BYTES_OFFSET = 0x0e
@@ -122,6 +123,13 @@ export function parseSnesTeams(rom: Uint8Array, game: GameConfig): { teams: Team
     teams[index] = team
     next = end
   }
+  // Home strip then away strip, as for the Genesis game, where the ROM keeps them as the editor expects.
+  const strips = snesStripTables(rom)
+  if (strips) {
+    const strip = (table: number, team: number) =>
+      Array.from({ length: STRIP_BYTES / 2 }, (_, i) => readU16LE(rom, table + team * STRIP_BYTES + i * 2))
+    teams.forEach((team, i) => (team.palette = [...strip(strips.home, i), ...strip(strips.away, i)]))
+  }
   return { teams, layout: { start: pointers[fileOrder[0]], end: next, fileOrder, snes: true } }
 }
 
@@ -167,6 +175,12 @@ function writeTeam(rom: Uint8Array, p: number, team: Team, freeBytes: number): n
 // Rewrites every team block and the team table into `rom`, given how many
 // free bytes each team is to have.
 export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[], layout: TeamLayout, free: number[]): void {
+  const strips = snesStripTables(rom)
+  if (strips) {
+    teams.forEach((team, t) =>
+      team.palette.forEach((word, i) => writeU16LE(rom, (i < 16 ? strips.home : strips.away) + t * STRIP_BYTES + (i % 16) * 2, word)),
+    )
+  }
   const bank = rom[game.teamTableOffset + 2]
   let p = layout.start
   for (const index of layout.fileOrder) {

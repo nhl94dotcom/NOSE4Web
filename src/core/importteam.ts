@@ -95,7 +95,8 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       notes.push('The two ROMs rate players on different scales. The attributes came across as the values stored, so they will need adjusting.')
     }
   }
-  if (parts.colours && source.palette.length !== team.palette.length) {
+  // The Genesis and SNES games give their 16 strip colours different jobs.
+  if (parts.colours && (project.game.platform !== other.game.platform || source.palette.length !== team.palette.length)) {
     notes.push('Colours were not brought in: the two games keep them in different ways.')
   } else if (parts.colours) {
     team = { ...team, palette: source.palette }

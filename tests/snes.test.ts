@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readU16LE } from '../src/core/bytes'
+import { colorRgb, SNES_COLORS } from '../src/core/color'
+import { snesPreviewSprites } from '../src/core/snes'
 import { checkProject } from '../src/core/check'
 import { compareProjects } from '../src/core/compare'
 import { formatCsv } from '../src/core/csv'
@@ -14,6 +16,7 @@ import { resetTeamPart } from '../src/core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from '../src/core/rom'
 import { csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
 import { goalieCount, teamDisplayName, teamSpace } from '../src/core/team'
+import { overallRating } from '../src/core/rating'
 import { trade } from '../src/core/trade'
 
 // SNES ROMs are checked against whatever copies are on this computer: the
@@ -64,7 +67,12 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         const extra = 'x'.repeat(Math.min(10, room))
         const teams = project.teams.map((t, i) =>
           i === 1
-            ? { ...t, players: t.players.map((p, j) => (j === 3 ? { ...p, name: p.name + extra, jersey: 0x99 } : p)), shownOverall: 77 }
+            ? {
+                ...t,
+                players: t.players.map((p, j) => (j === 3 ? { ...p, name: p.name + extra, jersey: 0x99 } : p)),
+                shownOverall: 77,
+                palette: t.palette.map((w, k) => (k === 12 ? 0x001f : k === 28 ? 0x7c00 : w)),
+              }
             : i === 2
               ? { ...t, names: [t.names[0], t.names[1], t.names[2], 'Arena'] }
               : t,
@@ -73,6 +81,8 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         const reopened = openRom(buildRom(edited))
         expect(reopened.teams[1].players[3]).toEqual({ ...team.players[3], name: team.players[3].name + extra, jersey: 0x99 })
         expect(reopened.teams[1].shownOverall).toBe(77)
+        expect([reopened.teams[1].palette[12], reopened.teams[1].palette[28]]).toEqual([0x001f, 0x7c00])
+        expect(reopened.teams.map((t) => t.palette)).toEqual(teams.map((t) => t.palette))
         expect(reopened.teams[2].names[3]).toBe('Arena')
         expect(teamDisplayName(reopened.teams[2])).toBe(teamDisplayName(shorter))
         expect(reopened.teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
@@ -158,7 +168,27 @@ describe.skipIf(!existsSync(path(STOCK)))('the original SNES game', () => {
     expect([ase.forwards, ase.defense, ase.shownOverall]).toEqual([14, 8, 91])
     expect(ase.lines[0]).toEqual([1, 0x13, 0x12, 7, 4, 0x10, 9, 0])
     expect(project.teams[0].shownOverall).toBe(52)
-    expect(project.teams.every((t) => t.palette.length === 0)).toBe(true)
+    // Chicago: white at home, red away, on the jersey.
+    const chicago = project.teams[4]
+    expect(chicago.palette).toHaveLength(32)
+    expect(colorRgb(chicago.palette[12], SNES_COLORS).every((level) => level > 200)).toBe(true)
+    const [red, green, blue] = colorRgb(chicago.palette[16 + 12], SNES_COLORS)
+    expect([red > 200, green < 50, blue < 50]).toEqual([true, true, true])
+    // The players to show colours on are drawn from the ROM.
+    const players = snesPreviewSprites(project.bytes)
+    expect(players).toHaveLength(3)
+    for (const image of players) {
+      expect(image.width).toBeGreaterThan(10)
+      expect(image.height).toBeGreaterThan(20)
+      expect(image.pixels.some((colour) => colour === 12)).toBe(true)
+    }
+    // Overall ratings as the game works them out, which for goalies can be one above the Genesis game's.
+    expect(overallRating(ase.players[0].attributes, true, project.game)).toBe(94)
+    const fuhr = ase.players.find((p) => p.name === 'Grant Fuhr')!
+    expect(overallRating(fuhr.attributes, true, project.game)).toBe(85)
+    expect(overallRating(fuhr.attributes, true)).toBe(84)
+    const lemieux = ase.players.find((p) => p.name === 'Mario Lemieux')!
+    expect(overallRating(lemieux.attributes, false, project.game)).toBe(overallRating(lemieux.attributes, false))
   })
 })
 
@@ -174,7 +204,7 @@ describe.skipIf(!existsSync(path(STOCK)) || !existsSync(path(GENESIS)))('the SNE
     const to = snes.teams.findIndex((t) => teamDisplayName(t) === 'Boston Bruins')
     const { project, notes } = importTeam(snes, genesis, from, to, ALL_PARTS)
     expect(project.teams[to].players).toEqual(genesis.teams[from].players)
-    expect(project.teams[to].palette).toEqual([])
+    expect(project.teams[to].palette).toEqual(snes.teams[to].palette)
     expect(project.teams[to].shownOverall).toBe(snes.teams[to].shownOverall)
     expect(notes.join(' ')).toMatch(/Colours were not brought in/)
     expect(openRom(buildRom(project)).teams[to].players).toEqual(genesis.teams[from].players)

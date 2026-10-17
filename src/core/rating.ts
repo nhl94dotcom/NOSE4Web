@@ -11,8 +11,29 @@ function averageRating(attributes: number[]): number {
   return Math.round(BASE + (values.reduce((sum, v) => sum + v, 0) / values.length / 15) * (99 - BASE))
 }
 
-export function overallRating(attributes: number[], isGoalie: boolean, game?: { overallIsEstimate: boolean }): number {
+// The SNES game's own way, read from its roster screens' Overall column: a
+// weighted sum of the ratings (the weights at $9F9AD8, the ratings counted
+// chosen by the column's mask), halved for goalies, then shown as it is up to
+// 100, or as half of it plus 25 below 50. Skaters come out as on the Genesis;
+// a goalie can come out one higher, as only the total is halved.
+// Each weight applies to the attribute after weight, in label order.
+const SNES_GOALIE_WEIGHTS = [9, 0, 0, 9, 9, 0, 0, 0, 0, 2, 2, 2, 2]
+const SNES_PLAYER_WEIGHTS = [2, 3, 3, 2, 1, 2, 0, 3, 2, 1, 0, 1, 0]
+
+function snesRating(attributes: number[], isGoalie: boolean): number {
+  const weights = isGoalie ? SNES_GOALIE_WEIGHTS : SNES_PLAYER_WEIGHTS
+  let sum = weights.reduce((total, weight, i) => total + weight * attributes[i + 1], 0)
+  if (isGoalie) sum = Math.floor(sum / 2)
+  return sum >= 50 ? Math.min(sum, 100) : Math.floor(sum / 2) + 25
+}
+
+export function overallRating(
+  attributes: number[],
+  isGoalie: boolean,
+  game?: { overallIsEstimate: boolean; platform?: 'genesis' | 'snes' },
+): number {
   if (game?.overallIsEstimate) return averageRating(attributes)
+  if (game?.platform === 'snes') return snesRating(attributes, isGoalie)
   const weights = isGoalie ? GOALIE_WEIGHTS : PLAYER_WEIGHTS
   let rating = 0
   for (let i = 0; i < weights.length; i++) {

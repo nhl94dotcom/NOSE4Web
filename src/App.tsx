@@ -12,6 +12,7 @@ import { overallRating } from './core/rating'
 import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
+import { snesPreviewSprites } from './core/snes'
 import { changeCount, changesSince } from './core/season'
 import { FREE_AGENTS, trade } from './core/trade'
 import { rosterCardPng } from './rosterCard'
@@ -133,6 +134,8 @@ export default function App() {
   const [hackedBytes, hackedGame] = [project?.bytes, project?.game]
   // It keeps the very bytes the work was opened from, which is how the two are known for one ROM.
   const asOpened = useMemo(() => (source ? { ...openRom(source), source } : null), [source])
+  // The SNES game's own players, drawn in a team's colours on its page.
+  const snesPlayers = useMemo(() => (hackedGame?.platform === 'snes' && hackedBytes ? snesPreviewSprites(hackedBytes) : []), [hackedGame, hackedBytes])
   const original = useMemo(
     () => (asOpened && hackedBytes && hackedGame ? withHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
     [asOpened, hackedBytes, hackedGame],
@@ -258,7 +261,7 @@ export default function App() {
         </p>
         <p className="note">
           Supported ROMs: {SUPPORTED_GAMES.join(', ')}. Genesis ROMs as .bin or .smd files, SNES ROMs as .smc or .sfc
-          files. For the SNES, the editor changes rosters, lines, team names and team ratings so far.
+          files. For the SNES, the editor changes rosters, lines, team names, ratings and colours so far.
         </p>
         <p className="note">
           Based on NOSE, the NHL Old Skool Editor for Windows by wboy, whose work mapping these games made this
@@ -350,6 +353,7 @@ export default function App() {
           <TeamEditor
             key={selected}
             game={current.game}
+            players={snesPlayers}
             team={current.teams[selected]}
             original={opened.teams[selected]}
             emptySlots={emptyLineSlots(current.teams)}
