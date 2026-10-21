@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
-import { attributeNote, attributeText, type AttributeKind } from './core/attributes'
+import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
 import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
 import { colorFormat } from './core/color'
@@ -178,7 +178,7 @@ export function TeamEditor(props: Props) {
 
   const fewerSkaters = emptySlots.some((slots) => slots.some(Boolean))
   // Some hacks' attributes have no wording but the values stored.
-  const storedOnly = game.playerAttributeKinds.every((kind) => kind !== 'rating')
+  const storedOnly = !game.playerAttributeKinds.some(isRating)
   const lineTick = (l: number) => (
     <input
       type="checkbox"
@@ -512,7 +512,7 @@ export function TeamEditor(props: Props) {
             </label>
           ))}
           {team.shownOverall !== undefined && (
-            <label title="The team's overall rating as the SNES game shows it on the matchup screen. The game keeps this number with the team and does not work it out, so it does not change when the players do.">
+            <label title="The team's overall rating as the SNES game shows it on the matchup screen and the player cards. The game keeps this number with the team and does not work it out, so it does not change when the players do.">
               Overall shown
               <input
                 className="num"
@@ -528,8 +528,8 @@ export function TeamEditor(props: Props) {
         </div>
         <p className="note">
           The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
-          good for Defence, Penalty kill and Away. Offence and Defence score the other playoff games the game plays
-          out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
+          good for Defence, Penalty kill and Away. Offence and Defence are the team's, not its players' Offensive and
+          Defensive Awareness: they score the other playoff games the game plays out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
           ratings in those situations, by less than half a point; see Help.
         </p>
         <p className="note">

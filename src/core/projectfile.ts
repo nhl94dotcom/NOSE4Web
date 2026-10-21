@@ -262,6 +262,10 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   const notes: string[] = []
   // A project made on a hacked ROM brings its hacks with it.
   const hacksNow = hackState(opened)
+  // Files from before the checking fix had three choices kept it as on or off.
+  if (file.hacks && typeof (file.hacks.checkFix as unknown) === 'boolean') {
+    file.hacks = { ...file.hacks, checkFix: (file.hacks.checkFix as unknown) === true ? 'all240' : 'off' }
+  }
   if (file.hacks && hacksNow && !sameHacks({ ...hacksNow.choices, ...file.hacks }, hacksNow.choices)) {
     try {
       opened = applyHacks(opened, { ...hacksNow.choices, ...file.hacks })

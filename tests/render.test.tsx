@@ -79,6 +79,8 @@ it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall, its col
   expect(html).toContain(`value="${team.shownOverall}"`)
   expect(html).toContain('Home colours')
   expect(html).toContain('Jersey and helmet')
-  expect(html).toContain('In play: pass speed, and how accurately the flip goes.')
+  expect(html).toContain('the speed of a pass to nobody, and how accurately the flip goes.')
+  // The SNES screens show the top steps a little higher than the Genesis ones.
+  expect(html).toContain('<option value="6">99-100</option>')
   expect(html).toContain('In play: nothing: the game looks it up and then overwrites it.')
 })

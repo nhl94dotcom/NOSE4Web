@@ -172,7 +172,8 @@ export function HelpPage() {
           each is used:
           <ul>
             <li>
-              <b>Offence and Defence</b> score the other playoff games, the ones the game plays out while you play
+              <b>Offence and Defence</b> are the team's, not its players' Offensive and Defensive Awareness. They
+              score the other playoff games, the ones the game plays out while you play
               yours and shows on its score ticker. In each period a team's goals are drawn at random, more likely
               the higher its Offence and the higher the other team's Defence. Only 0 to 7 count. They do nothing in
               the game you play.
@@ -397,7 +398,9 @@ export function HelpPage() {
       <h3 id="help-lines">Lines</h3>
       <p>
         Each row is one of the game's line combinations, and each column a position on the ice. Choose a player for
-        every position. The first line on the list, NLC, is the one used when line changes are off.
+        every position. The first line on the list, NLC, is the one used when line changes are off. The game puts
+        it in place of Sc1, so with line changes on Auto it is also the first of the lines that rotate; with them On,
+        Sc1 is used instead and NLC not at all.
       </p>
       <p>
         The game expects the first goalie on the roster in the G column, no goalie in a skater's position, and no
@@ -832,10 +835,13 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Weight bug fix:</b> when a person controls the checker, the original game makes light players good at
-          checking and heavy players easy to knock over. The fix turns that round and counts both players' checking ratings. It is balanced for the
-          original game's players, so keep checking ratings about where the original's are: most forwards 2 or 3
-          out of 6, most defencemen 2 to 4, very few players 5 or 6.
+          <b>Weight bug fix:</b> smozoma's fix, from smozROM. The NHL94 Match Viewer project has since found that it
+          rests on a misreading: the original formula is the physical one, where the heavier checker does better,
+          and the only bug is an overflow for a checker a person controls. The fix swaps the weights round, so the
+          computer's checkers then do better the lighter they are, and counts both players' checking ratings. It is
+          kept for league ROMs that have it; for the weight bug itself the checking fix is the better choice. If you
+          use it, keep checking ratings about where the original's are: most forwards 2 or 3 out of 6, most
+          defencemen 2 to 4, very few players 5 or 6.
         </li>
         <li>
           <b>Second-assist bug fix:</b> gives the assist the original game leaves out when two players pass back
@@ -937,32 +943,37 @@ export function HelpPage() {
       <ul>
         <li>
           <b>Aggression bug fix</b> and <b>comeback bonus fix</b> (in with the fixes): two bugs found by the NHL94
-          Match Viewer project in the game's code. In play Aggression wraps round, so a 4 plays like a 1 and a 3
-          draws the most penalties; the fix makes it rise with the rating. It also changes goalies, whose glove
+          Match Viewer project in the game's code. In play Aggression wraps round, so a 4 plays like a 1 and a 6 or a
+          3 draws the most penalties; the fix makes it rise with the rating. It also changes goalies, whose glove
           rating GvL sits in the same place: with the fix it takes about 5 for the reaching glove save. The
           comeback bonus, for a team tied or behind in the third period, comes in the first half of the period
           where it is meant for the second; the fix puts it in the second.
         </li>
         <li>
-          <b>C-then-B check bug fix</b> (in with the fixes): the game judges a check one way when a person controls
-          the checker at the moment of contact and another, kinder to heavy checkers, when the computer does.
-          Pressing C and then B hands the checker to the computer just before contact. The fix makes every check use
-          the person's way, so the trick gains nothing. It changes the computer's checks too, which without the
-          weight bug fix then suffer the weight bug as well, and it has been little tested.
+          <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
+          checker at the moment of contact and another when the computer does, and works the person's way out in a
+          single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
+          two or more weight steps heavier. Pressing C and then B hands the checker to the computer just before
+          contact, the C-then-B check. The fix, found by the NHL94 Match Viewer project, judges every check the
+          computer's way, which never overflows, so it fixes both: the heavier checker does better, and switching
+          away gains nothing. A person's checks against players his own weight or lighter get easier than they were.
+          Leave the weight bug fix off with it. An earlier version of this fix, still recognised in ROMs that have it,
+          judged every check the person's way, which gave the computer's checkers the weight bug too.
         </li>
         <li>
           <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
           game. 0 means no whistle.
         </li>
         <li>
-          <b>Goalie range to each side</b> and <b>up the ice:</b> the box a goalie without the puck is kept in. The
+          <b>Goalie range to each side</b> and <b>up the ice:</b> the box a goalie you control is kept in without the puck. The
           original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a little
           more room each way. For scale, the rink is about 260 wide, the goal line is 268 from centre ice and the
           blue line about 88, roughly 3 to a foot.
         </li>
         <li>
           <b>Goalie whistle line:</b> how far from centre ice a goalie you control may skate before play is
-          whistled, with the puck or without it, 170 in the original game. A smaller number lets him go farther.
+          whistled, 170 in the original game. A smaller number lets him go farther. Without the puck he is kept in
+          the box above, so in practice it is the line he may carry the puck to.
         </li>
         <li>
           <b>Unlimited stamina</b>, <b>energy lost on the ice</b> and <b>energy gained on the bench:</b> for games
@@ -1244,7 +1255,7 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Overall shown:</b> the SNES game keeps each team's overall rating, the number on the matchup screen,
+          <b>Overall shown:</b> the SNES game keeps each team's overall rating, the number on the matchup screen and the player cards,
           with the team rather than working it out. It is on the team page and in the Teams spreadsheet, and does
           not change when the players do, so set it yourself if you want it to match.
         </li>
@@ -1327,13 +1338,13 @@ export function HelpPage() {
         with his permission, as is the table of weights by season.
       </p>
       <p>
-        The Play hacks on that page come from findings posted on the NHL94 forums: the C-then-B check bug fix and
+        The Play hacks on that page come from findings posted on the NHL94 forums: the C-then-B check finding and
         the goalie's range by smozoma; the goalie's hold time by clockwise and smozoma; energy, the speed burst and
         stopping and turning by wboy, with Tony H; and the real-time clock by Brodeur30, smozoma, kingraph and
         AverageRangersFan.
       </p>
       <p>
-        What the ratings do in play, what the team ratings do, and the Aggression and comeback bonus bugs come from
+        What the ratings do in play, what the team ratings do, the checking fix, and the Aggression and comeback bonus bugs come from
         the{' '}
         <a href="https://github.com/nhl94dotcom/NHL94MatchViewer" target="_blank" rel="noreferrer">
           NHL94 Match Viewer

@@ -18,7 +18,7 @@ import {
   writeGraphics,
   type BannerKind,
 } from './graphics'
-import { convertWeight, weightBase } from './attributes'
+import { convertWeight, isRating, weightBase, type AttributeKind } from './attributes'
 import { NHL94 } from './games'
 import { hackState, narrowRating, widenRating } from './hacks'
 import type { RomProject } from './rom'
@@ -75,7 +75,8 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       team = { ...team, players: team.players.map((p) => ({ ...p, attributes: p.attributes.map((v, a) => (a === 0 ? convertWeight(v, theirs, ours) : v)) })) }
       notes.push(`The other ROM's weights start at ${theirs} pounds and this one's at ${ours}. Each player's weight was moved to the nearest here.`)
     }
-    const ratings = (kinds: string[]) => kinds.slice(1).join()
+    // The two games' 0 to 6 ratings are kept alike, though their screens show them a little differently.
+    const ratings = (kinds: AttributeKind[]) => kinds.slice(1).map((kind) => (isRating(kind) ? 'rating' : kind)).join()
     // Between the original 0 to 6 ratings and a ROM hacked for 0 to 15, each
     // rating is restated so that the player plays as he did.
     const [theirScale, ourScale] = [hackState(other), hackState(project)]

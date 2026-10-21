@@ -57,7 +57,7 @@ describe.skipIf(!hasRom)('hacks to how the game plays', () => {
     const rom = stock()
     const play: HackChoices = {
       ...NO_HACKS,
-      checkFix: true,
+      checkFix: 'all120',
       aggressionFix: true,
       comebackFix: true,
       goalieHold: 300,
@@ -75,7 +75,7 @@ describe.skipIf(!hasRom)('hacks to how the game plays', () => {
     const expected: [number, string][] = [
       [0x15d78, '6100000ae20b17430073'],
       [0x15b70, '6d000026'],
-      [0x13d6c, '4e714e71'],
+      [0x13d6c, '670000044e71'],
       [0x1530e, '012c'],
       [0xb632, '0028'],
       [0xb650, 'ffd8'],
@@ -221,7 +221,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { threeStars: 'linesOff' },
       { baseWeight: 102 },
       { baseWeight: 152 },
-      { checkFix: true },
+      { checkFix: 'all120' },
+      { checkFix: 'all240' },
       { aggressionFix: true },
       { comebackFix: true },
       { goalieHold: 0 },
@@ -450,5 +451,27 @@ describe.skipIf(!hasLeague)('hacks already in a league ROM', () => {
     const removed = applyHacks(opened, { ...state.choices, bodychecks: 'off' })
     expect(readAscii(removed.bytes, 0x993f, 3)).toBe('PIM')
     expect(hackState(removed)!.choices.bodychecks).toBe('off')
+  })
+})
+
+describe.skipIf(!hasRom)('the checking fix', () => {
+  it('judges every check from 120, and reads project files that kept it as on or off', () => {
+    const opened = openRom(stock())
+    const choices = detectHacks(opened.bytes).choices
+    expect(choices.checkFix).toBe('off')
+    const fixed = applyHacks(opened, { ...choices, checkFix: 'all120' })
+    // Only the doubling to 240 goes: asl.w #1,d0 becomes a NOP.
+    expect(Buffer.from(fixed.bytes.subarray(0x13d6c, 0x13d72)).toString('hex')).toBe('670000044e71')
+    expect(detectHacks(fixed.bytes).choices.checkFix).toBe('all120')
+    expect(hackChanges(choices, detectHacks(fixed.bytes).choices)).toEqual(['Checking fix: off to everyone checks as the computer.'])
+
+    // The earlier fix, every check from 240, is still recognised.
+    const earlier = applyHacks(opened, { ...choices, checkFix: 'all240' })
+    expect(detectHacks(earlier.bytes).choices.checkFix).toBe('all240')
+
+    // A project file from before kept the earlier fix as true.
+    const file = JSON.parse(saveProjectFile(opened, opened, 'S'))
+    file.hacks = { ...file.hacks, checkFix: true }
+    expect(detectHacks(openProjectFile(openRom(stock()), JSON.stringify(file)).project.bytes).choices.checkFix).toBe('all240')
   })
 })

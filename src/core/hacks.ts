@@ -37,6 +37,16 @@ export type Bodychecks = 'off' | 'earlier' | 'on'
 // What becomes of the bonuses that make a player hot or cold for a game.
 export type Bonuses = 'original' | 'disabled' | 'hidden' | 'playersMatchLines' | 'linesMatchPlayers'
 export type ThreeStars = 'original' | 'linesOff' | 'linesOn'
+// How a check is judged. The original game starts from 240 when a person
+// controls the checker at contact and from 120 when the computer does, and
+// works the knockdown out in one byte, which overflows from 240 when the
+// target is two or more weight steps heavier: the weight bug. 'all120' judges
+// every check from 120, which never overflows, so it fixes both the weight
+// bug and the C-then-B check (found by the NHL94 Match Viewer project).
+// 'all240' is the editor's earlier C-then-B fix, which judges every check
+// from 240 and so gives every checker the weight bug; it is recognised and
+// can be kept, but is not offered afresh.
+export type CheckFix = 'off' | 'all120' | 'all240'
 
 export interface HackChoices {
   weightFix: WeightFix
@@ -57,12 +67,10 @@ export interface HackChoices {
   // Gives the comeback bonus in the second half of the third period, where
   // the original game gives it in the first.
   comebackFix: boolean
-  // Judges every check as one by a person, so that pressing C and then B to
-  // hand the checker to the computer before contact gains nothing.
-  checkFix: boolean
+  checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
-  // How far a goalie without the puck may go to either side of the middle of the ice.
+  // How far a goalie a person controls may go without the puck to either side of the middle of the ice.
   goalieWidth: number
   // How near centre ice a goalie may come, as his distance from it: without the puck, then before
   // the whistle for one a person controls.
@@ -118,7 +126,7 @@ export const NO_HACKS: HackChoices = {
   bonuses: 'original',
   threeStars: 'original',
   baseWeight: 140,
-  checkFix: false,
+  checkFix: 'off',
   aggressionFix: false,
   comebackFix: false,
   goalieHold: 140,
@@ -534,7 +542,7 @@ export function baseWeightForYear(year: number): number {
 // take a little for being hot or cold, so 0 to 30.
 
 // Aggression is then cut to 0 to 15 by keeping only its last four bits, so
-// it wraps round: a 4 plays like a 1, and a 3 is the most penalised. The fix
+// it wraps round: a 4 plays like a 1, and a 6 or a 3 is the most penalised. The fix
 // keeps it in bounds with the game's own ClampNibble, which the code is
 // followed by, and halves it, so it runs from 0 to 15 with the rating. For
 // goalies the same place holds the glove rating GvL, which lets him make the
@@ -597,11 +605,18 @@ function switchPart(at: number, original: Uint8Array, hacked: Uint8Array): Part<
   }
 }
 
-// The game starts from 240 in working out a check when a person controls the
-// checker at contact, and from 120 when the computer does. Pressing C and
-// then B hands the checker to the computer just before contact. The fix uses
-// 240 for everybody, so that the trick gains nothing.
-const checkFix = switchPart(0x13d6c, bytes('6700 0004'), bytes('4E71 4E71'))
+// See CheckFix.
+const CHECK_BASE_AT = 0x13d6c
+const CHECK_BASES: Record<CheckFix, Uint8Array> = {
+  off: bytes('6700 0004 E340'),
+  all120: bytes('6700 0004 4E71'),
+  all240: bytes('4E71 4E71 E340'),
+}
+const checkFix: Part<CheckFix> = {
+  detect: (rom) => (Object.keys(CHECK_BASES) as CheckFix[]).find((value) => is(rom, CHECK_BASE_AT, CHECK_BASES[value])),
+  remove: (rom) => rom.set(CHECK_BASES.off, CHECK_BASE_AT),
+  apply: (work, value) => work.rom.set(CHECK_BASES[value], CHECK_BASE_AT),
+}
 
 // A goalie holding the puck is whistled when a count of sixtieths of a second
 // runs out. The count can be made longer, or never be counted down.
@@ -839,7 +854,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   bonuses: 'Hot and cold bonuses',
   threeStars: 'Three stars',
   baseWeight: 'Base weight',
-  checkFix: 'C-then-B check bug fix',
+  checkFix: 'Checking fix',
   aggressionFix: 'Aggression bug fix',
   comebackFix: 'Comeback bonus fix',
   goalieHold: 'Goalie hold time',
@@ -905,6 +920,7 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
   if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (typeof value === 'number') return String(value)
+  if (key === 'checkFix') return choices.checkFix === 'all120' ? 'everyone checks as the computer' : choices.checkFix === 'all240' ? 'everyone checks as a person' : 'off'
   if (value === 'simple') return 'the earlier, simpler fix'
   if (value === 'earlier') return 'an earlier version'
   return value === true || value === 'on' ? 'on' : 'off'

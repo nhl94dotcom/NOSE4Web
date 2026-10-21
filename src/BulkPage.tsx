@@ -10,7 +10,7 @@ import {
   type BulkChange,
   type BulkGroup,
 } from './core/bulk'
-import { isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
+import { isRating, isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
 import type { RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 
@@ -154,7 +154,7 @@ export function BulkPage({ project, onChange }: Props) {
       <p className="note">
         {usable === 'fromBase'
           ? `For players whose weights were set in a ROM with another base weight, such as a team brought in by spreadsheet. This ROM's weights start at ${ownBase} pounds. Each player is moved to the weight here nearest the pounds he had, which can be up to 4 pounds out.`
-          : chosen.kind === 'rating'
+          : isRating(chosen.kind)
           ? 'A rating has seven steps, shown as the range the game displays for each. One step is one of those.'
           : chosen.kind === 'value'
             ? 'This ROM uses all sixteen values, 0 to 15. One step is one value.'

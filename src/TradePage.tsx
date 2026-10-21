@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { attributeText } from './core/attributes'
+import { attributeText, isRating } from './core/attributes'
 import { hex } from './core/bytes'
 import { playerRole, teamSummaries } from './core/league'
 import { overallRating } from './core/rating'
@@ -33,7 +33,7 @@ const one = (value: number | null) => (value === null ? '–' : value.toFixed(1)
 export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam }: Props) {
   const { game } = project
   const [showAttributes, setShowAttributes] = useState(true)
-  const storedOnly = game.playerAttributeKinds.every((kind) => kind !== 'rating')
+  const storedOnly = !game.playerAttributeKinds.some(isRating)
   const count = project.teams.length
   const first = startTeam >= 0 && startTeam < count ? startTeam : 0
   const [sides, setSides] = useState<[TradeSide, TradeSide]>([

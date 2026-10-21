@@ -14,6 +14,7 @@ import {
   sameHacks,
   STAR_TEXTS,
   type Bodychecks,
+  type CheckFix,
   type Bonuses,
   type HackChoices,
   type ThreeStars,
@@ -147,7 +148,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'checkFix' | 'aggressionFix' | 'comebackFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'comebackFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -188,9 +189,12 @@ export function HacksPage({ project, onChange }: Props) {
             <option value="on">On</option>
           </select>,
           <>
-            The original game has a bug that, when a person controls the checker, makes light players good at
-            checking and heavy players easy to knock over. This turns that round, and also counts both players'
-            checking ratings in whether a check succeeds.
+            smozoma's fix for the weight bug, from smozROM. The NHL94 Match Viewer project has since found that it
+            rests on a misreading of the game's code: the original formula is the physical one, where the heavier
+            checker does better, and the only bug is an overflow for a checker a person controls. This fix swaps the
+            weights round, so the computer's checkers then do better the lighter they are, and counts both players'
+            checking ratings. For the weight bug itself, the checking fix below is the better choice. This one is
+            kept for league ROMs that have it.
             {state.choices.weightFix === 'simple' && ' This ROM has an earlier fix, which swaps the weights and leaves checking ratings out of it.'}
           </>,
         )}
@@ -201,15 +205,30 @@ export function HacksPage({ project, onChange }: Props) {
         )}
         {hack(
           'checkFix',
-          onOff('checkFix'),
-          `In the original game a check is judged one way when a person controls the checker at the moment of contact, and another way when the computer does, and the computer's way is kinder to heavy checkers. Pressing C to charge and then B to switch away hands the checker to the computer just before he hits. This makes every check use the person's way, so the trick gains nothing; it changes every check the computer makes too, and without the weight bug fix those checks then suffer from the weight bug as well. It has been little tested.`,
+          <select aria-label={HACK_TITLES.checkFix} disabled={unknown('checkFix')} value={wanted.checkFix} onChange={(e) => set({ checkFix: e.target.value as CheckFix })}>
+            <option value="off">Off</option>
+            <option value="all120">Everyone checks as the computer</option>
+            {state.choices.checkFix === 'all240' && <option value="all240">Keep this ROM's earlier fix: everyone checks as a person</option>}
+          </select>,
+          <>
+            The original game judges a check one way when a person controls the checker at the moment of contact and
+            another when the computer does, and works the person's way out in a single byte that overflows. That
+            overflow is the weight bug: a light skater you control knocks down anyone two or more weight steps heavier,
+            and a heavy one struggles. Pressing C to charge and then B to switch away hands the checker to the computer
+            just before he hits, the C-then-B check. This fix, found by the NHL94 Match Viewer project, judges every
+            check the computer's way, which never overflows: the heavier checker does better, as it should, and
+            switching away gains nothing. Your checks get easier than they were against players your own weight or
+            lighter. Leave the weight bug fix above off with it.
+            {state.choices.checkFix === 'all240' &&
+              " This ROM has the editor's earlier C-then-B fix, which judges every check the person's way, so the computer's checkers get the weight bug too."}
+          </>,
         )}
         {hack(
           'aggressionFix',
           onOff('aggressionFix'),
           <>
             The original game wraps a player's Aggression round in play, so it does not rise with the rating: a 4
-            plays like a 1, and a 3 draws the most penalties. This makes it rise with the rating, so a 6 draws the
+            plays like a 1, and a 6 or a 3 draws the most penalties. This makes it rise with the rating, so a 6 draws the
             most penalties and a 0 the fewest. Players rated 4 to 6 will take more penalties than they do now. For
             goalies the same place holds GvL, the glove rating: with the fix a goalie needs about 5 for the
             reaching glove save, where now it jumps about with the rating (a 3 can make it and a 4 cannot).
@@ -351,13 +370,13 @@ export function HacksPage({ project, onChange }: Props) {
         {hack(
           'goalieWidth',
           number('goalieWidth'),
-          <>How far a goalie without the puck may go to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
+          <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
         )}
         {hack(
           'goalieOut',
           number('goalieOut'),
           <>
-            How near centre ice a goalie without the puck may come, as his distance from it, so a smaller number lets
+            How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
             him come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
           </>,
         )}
@@ -365,9 +384,10 @@ export function HacksPage({ project, onChange }: Props) {
           'goalieLine',
           number('goalieLine'),
           <>
-            The line a goalie you control may not skate past without a whistle, with the puck or without it, again as
-            a distance from centre ice, so a smaller number lets him go farther; 170 is about the top of the faceoff
-            circles. A goalie the computer controls stays near his net anyway. {stock('goalieLine')}
+            The line a goalie you control may not skate past without a whistle, again as a distance from centre ice, so
+            a smaller number lets him go farther; 170 is about the top of the faceoff circles. The code whistles him
+            with or without the puck, but without it he is kept in the range above, so in practice it is the line he
+            may carry the puck to. {stock('goalieLine')}
           </>,
         )}
         {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
@@ -429,6 +449,12 @@ export function HacksPage({ project, onChange }: Props) {
               </p>
             )}
             {reweighed && <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>}
+            {wanted.checkFix === 'all120' && wanted.weightFix !== 'off' && (
+              <p>
+                The checking fix and the weight bug fix should not go together: with the checking fix there is no
+                overflow left to fix, and the weight bug fix would then have every checker do better the lighter he is.
+              </p>
+            )}
             {wanted.weightFix === 'on' && state.choices.weightFix !== 'on' && (
               <p>
                 The weight bug fix is balanced for the original game's players. Keep checking ratings about where the

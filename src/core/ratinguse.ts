@@ -18,7 +18,7 @@ export const SKATER_RATING_USES: Record<string, string> = {
   End: 'how fast he tires, which only matters with line changes on',
   Rgh: 'for a computer puck carrier, how readily he shoots rather than passes (the game calls it the pass / shoot bias)',
   Pas: 'pass speed only: passes always go where they are aimed',
-  Agr: 'how often he takes penalties; the original game wraps it round, so a 4 plays like a 1 and a 3 is penalised most (see the Aggression bug fix under Hacks)',
+  Agr: 'how often he takes penalties; the original game wraps it round, so a 4 plays like a 1 and a 6 or a 3 is penalised most, though the spread is only about 1.5 to 1 (see the Aggression bug fix under Hacks)',
 }
 
 export const GOALIE_RATING_USES: Record<string, string> = {
@@ -45,14 +45,14 @@ export const SNES_SKATER_RATING_USES: Record<string, string> = {
   ShP: 'shot speed; unlike on the Genesis, a weak shooter can still take a full slapshot',
   Chk: 'how often his checks knock a man down, and how often a computer player tries to check, which on the SNES is very often',
   'H/F': 'shooting hand only: the SNES never reads the fighting half',
-  Pas: 'pass speed, and how accurately the flip goes',
+  Pas: 'how steady a pass\'s speed is, the speed of a pass to nobody, and how accurately the flip goes',
   Agr: 'how often he takes penalties; a bug in the SNES penalty roll makes a player you control at a working value of 12 (about a rating of 5) draw a penalty on every contact',
 }
 
 export const SNES_GOALIE_RATING_USES: Record<string, string> = {
   Agl: 'how quickly he speeds up; unlike on the Genesis, not how far he reaches. A goalie the computer controls loses it while a pass is in the air',
   DfA: 'for a goalie the computer controls, how quickly he moves to cut down the angle; every pass slows him by half of it',
-  PkC: 'on the Genesis, how often he holds on to a shot rather than giving a rebound; not yet confirmed on the SNES',
+  PkC: 'how hard a shot he can hold rather than let bounce off him; the SNES goalie holds softer shots than the Genesis one, and a diving goalie can still hold a low puck',
   StR: 'nothing: the game looks it up and then overwrites it',
   StL: 'nothing: the game looks it up and then overwrites it',
   GvR: 'nothing: the game looks it up and then overwrites it',

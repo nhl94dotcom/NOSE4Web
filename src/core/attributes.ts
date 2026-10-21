@@ -5,7 +5,11 @@
 // has no wording for: it is shown and edited as the number stored.
 // A weight can name the weight its lowest value stands for, as 'weight:144',
 // for ROMs set up for another era; plain 'weight' is the original game's 140.
-export type AttributeKind = 'weight' | `weight:${number}` | 'rating' | 'handedFighting' | 'gloveHand' | 'zero' | 'value'
+// 'snesRating' is a 0 to 6 rating in the SNES game, whose screens show its
+// top steps a little higher than the Genesis game's do.
+export type AttributeKind = 'weight' | `weight:${number}` | 'rating' | 'snesRating' | 'handedFighting' | 'gloveHand' | 'zero' | 'value'
+
+export const isRating = (kind: AttributeKind): boolean => kind === 'rating' || kind === 'snesRating'
 
 const ORIGINAL_BASE_WEIGHT = 140
 const WEIGHT_STEP = 8
@@ -28,7 +32,11 @@ export function convertWeight(value: number, fromBase: number, toBase: number): 
 
 export const weightKind = (base: number): AttributeKind => (base === ORIGINAL_BASE_WEIGHT ? 'weight' : `weight:${base}`)
 
+// The numbers the games' screens show for each step, as the NHL94 Match
+// Viewer project worked them out: 18 times the step, give or take the
+// rating's hot or cold value, squashed to half plus 25 below 50.
 const RATINGS = ['25-29', '29-38', '38-47', '47-62', '63-80', '81-98', '99']
+const SNES_RATINGS = ['25-29', '29-38', '38-47', '47-63', '63-81', '81-99', '99-100']
 const FIGHTING = [0, 14, 28, 42, 57, 71, 85, 100]
 
 export function attributeText(kind: AttributeKind, value: number): string | null {
@@ -39,6 +47,8 @@ export function attributeText(kind: AttributeKind, value: number): string | null
   switch (kind) {
     case 'rating':
       return RATINGS[value] ?? null
+    case 'snesRating':
+      return SNES_RATINGS[value] ?? null
     case 'handedFighting':
       return `${value % 2 ? 'R' : 'L'}/${FIGHTING[value >> 1]}`
     case 'gloveHand':

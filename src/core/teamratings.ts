@@ -33,14 +33,14 @@ export const TEAM_RATINGS: TeamRating[] = [
     column: 'Offence rating',
     most: 7,
     higherIsBetter: true,
-    about: '7 is the best and 0 the worst; it sets how many goals the team scores in the playoff games the game plays out',
+    about: "a team rating, not the players' Offensive Awareness. 7 is the best and 0 the worst; it sets how many goals the team scores in the playoff games the game plays out",
   },
   {
     label: 'Defence',
     column: 'Defence rating',
     most: 7,
     higherIsBetter: false,
-    about: '0 is the best and 7 the worst; it sets how many goals other teams score against it in the playoff games the game plays out',
+    about: "a team rating, not the players' Defensive Awareness. 0 is the best and 7 the worst; it sets how many goals other teams score against it in the playoff games the game plays out",
   },
   {
     label: 'Penalty kill',

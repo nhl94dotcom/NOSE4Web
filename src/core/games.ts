@@ -262,6 +262,8 @@ export const NHL94_SNES: GameConfig = {
     'editor does not follow yet, and are left alone. SNES editing is new, so keep a copy of the file you opened.',
   playoffDrawPointerOffsets: [],
   playoffDrawCount: 0,
+  playerAttributeKinds: NHL94.playerAttributeKinds.map((kind) => (kind === 'rating' ? 'snesRating' : kind)),
+  goalieAttributeKinds: NHL94.goalieAttributeKinds.map((kind) => (kind === 'rating' ? 'snesRating' : kind)),
 }
 
 export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO, NHL94_SNES].map((game) => game.title)
