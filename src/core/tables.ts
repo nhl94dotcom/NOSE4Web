@@ -7,7 +7,8 @@ import type { RomProject } from './rom'
 import { MAX_ROSTER, MIN_ROSTER, withSkaterCounts } from './roster'
 import { MAX_SECONDS, menuOptions } from './settings'
 import { goalieCount, teamDisplayName, type Player, type Team } from './team'
-import { setTeamRating, TEAM_RATINGS, teamRatings } from './teamratings'
+import { projectTeamRatings } from './ppfix'
+import { setTeamRating, teamRatings } from './teamratings'
 
 // Each table is one CSV file: a view of part of the ROM that can be exported,
 // edited in a spreadsheet and imported again. An import changes nothing unless
@@ -277,7 +278,9 @@ const GOALIE_BYTE_COLUMNS = [1, 2, 3, 4].map((n) => `Goalie byte ${n}`)
 // The team ratings were once given as the three bytes that hold them, and
 // files that still do are taken.
 const TEAM_BYTE_COLUMNS = [1, 2, 3].map((n) => `Team byte ${n}`)
-const TEAM_RATING_COLUMNS = TEAM_RATINGS.map((rating) => rating.column)
+// The six rating columns, as this ROM reads the ratings: with the power play
+// and penalty kill fix the two swap halves, and their columns go with them.
+const ratingColumns = (project: RomProject) => projectTeamRatings(project).map((rating) => rating.column)
 // Files from before the halves of the second byte were named as the game
 // reads them call them the other way round. Their columns still go to the
 // halves they came from.
@@ -299,7 +302,7 @@ const teams: CsvTable = {
     const snes = project.game.platform === 'snes'
     const format = colorFormat(project.game.platform)
     const colours = project.teams[0]?.palette.length ? COLOR_COLUMNS : []
-    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...TEAM_RATING_COLUMNS, ...(snes ? [SHOWN_OVERALL_COLUMN] : []), ...colours]]
+    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...ratingColumns(project), ...(snes ? [SHOWN_OVERALL_COLUMN] : []), ...colours]]
     project.teams.forEach((team, t) => {
       const overall = snes ? [team.shownOverall ?? 0] : []
       rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...overall, ...team.palette.map((word) => cssHex(word, format))])
@@ -339,7 +342,7 @@ const teams: CsvTable = {
       OLD_RATING_COLUMNS.forEach(([column, i]) => {
         if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
       })
-      TEAM_RATING_COLUMNS.forEach((column, i) => {
+      ratingColumns(project).forEach((column, i) => {
         if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
       })
 

@@ -189,6 +189,8 @@ export function HelpPage() {
               rating off the first three. The original game's data and the forums have these two the other way round,
               but the game reads them as they are named here (the disassembly calls it a bug), so Anaheim, meant to
               be weakest at both, plays with the best of both. Earlier versions of this editor followed the forums.
+              The <b>power play and penalty kill fix</b> on the Hacks page (both games) makes the game read them as
+              intended instead; with it, the team page and the Teams spreadsheet show the two that way round.
             </li>
           </ul>
           These are on the game's own scale, where a rating point is worth 5, so 2 is less than half a point. In the
@@ -942,6 +944,13 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
+          <b>Power play and penalty kill fix</b> (in with the fixes): the game reads a team's power play and penalty
+          kill ratings from the wrong halves of their byte, the other way round from the rosters, which were written
+          for the intended way. The fix, the editor's own, makes the game read them as intended, so existing rosters
+          play as their makers meant, and the team page shows them that way round. A league that set the two by what
+          the editor showed before should check them once the fix is in.
+        </li>
+        <li>
           <b>Aggression bug fix</b> and <b>comeback bonus fix</b> (in with the fixes): two bugs found by the NHL94
           Match Viewer project in the game's code. In play Aggression wraps round, so a 4 plays like a 1 and a 6 or a
           3 draws the most penalties; the fix makes it rise with the rating. It also changes goalies, whose glove
@@ -1273,7 +1282,8 @@ export function HelpPage() {
         <li>
           <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
           cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
-          penalties, no penalty shots, no goal posts, and skipping the intros. Most worth knowing is the{' '}
+          penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
+          penalty kill fix, as for the Genesis. Most worth knowing is the{' '}
           <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the
           maximum each game, whatever they are in the ROM, and the fix makes the ratings you set the ones that play.
           A hack is only changed where the ROM has the original game's code or the hack's in its place.

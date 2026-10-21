@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readU16LE } from '../src/core/bytes'
 import { colorRgb, SNES_COLORS } from '../src/core/color'
+import { projectTeamRatings } from '../src/core/ppfix'
 import { snesPreviewSprites } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from '../src/core/sneshacks'
 import { checkProject } from '../src/core/check'
@@ -268,5 +269,19 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
     expect(detectSnesHacks(other).unknown).toEqual(['hotColdFix'])
     expect(() => applySnesHacks(odd, { hotColdFix: true })).toThrow(/other code/)
     expect(applySnesHacks(odd, { skipEaIntro: true }).bytes[0xffb40]).toBe(0x00)
+  })
+})
+
+describe.skipIf(!existsSync(path(STOCK)))('the SNES power play and penalty kill fix', () => {
+  it('rewrites the two in the same 32 bytes, with the branches to them, and the editor names them to match', () => {
+    const project = openRom(read(STOCK))
+    const fixed = applySnesHacks(project, { ppPkFix: true })
+    // $9F:CF9D in the ROM.
+    const at = (rom: Uint8Array) => Buffer.from(rom.subarray(0xfcf9d, 0xfcf9d + 34)).toString('hex')
+    expect(at(project.bytes)).toBe('f00da00100b789290f008d0b0d8013a00100b7894a4a4a4a290f0049ffff1a8d090d')
+    expect(at(fixed.bytes)).toBe('f011a00100b7894a4a4a4a290f008d0b0d800fa00100b789290f0049ffff1a8d090d')
+    expect(detectSnesHacks(fixed.bytes).choices.ppPkFix).toBe(true)
+    expect(projectTeamRatings(fixed).map((rating) => rating.label).slice(2, 4)).toEqual(['Power play', 'Penalty kill'])
+    expect(applySnesHacks(fixed, { ppPkFix: false }).bytes).toEqual(project.bytes)
   })
 })

@@ -24,7 +24,9 @@ import {
 } from '../src/core/hacks'
 import { importTeam, ALL_PARTS } from '../src/core/importteam'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
+import { projectTeamRatings } from '../src/core/ppfix'
 import { buildRom, openRom } from '../src/core/rom'
+import { CSV_TABLES } from '../src/core/tables'
 import { changesSince } from '../src/core/season'
 import { claimSpace } from '../src/core/space'
 import expected from './smozrom-hashes.json'
@@ -224,6 +226,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { checkFix: 'all120' },
       { checkFix: 'all240' },
       { aggressionFix: true },
+      { ppPkFix: true },
       { comebackFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
@@ -473,5 +476,30 @@ describe.skipIf(!hasRom)('the checking fix', () => {
     const file = JSON.parse(saveProjectFile(opened, opened, 'S'))
     file.hacks = { ...file.hacks, checkFix: true }
     expect(detectHacks(openProjectFile(openRom(stock()), JSON.stringify(file)).project.bytes).choices.checkFix).toBe('all240')
+  })
+})
+
+describe.skipIf(!hasRom)('the power play and penalty kill fix', () => {
+  it('reads the two halves the other way round, in the same room, and the editor names them to match', () => {
+    const opened = openRom(stock())
+    const choices = detectHacks(opened.bytes).choices
+    expect(choices.ppPkFix).toBe(false)
+    const fixed = applyHacks(opened, { ...choices, ppPkFix: true })
+    const at = (rom: Uint8Array) => Buffer.from(rom.subarray(0x15b1e, 0x15b3a)).toString('hex')
+    // Power play: move.b 1(a0),d0 / lsr.b #4,d0 / move.b d0,PPBonus / nop; penalty kill: moveq #$F,d0 / and.b 1(a0),d0 / neg.b d0 / move.b d0,PKBonus.
+    expect(at(fixed.bytes)).toBe('10280001e80811c0cf2e4e716000000e700fc02800014400' + '11c0cf2f')
+    const differing = fixed.bytes.reduce((count, byte, i) => count + (byte !== opened.bytes[i] ? 1 : 0), 0)
+    expect(differing).toBeLessThanOrEqual(28)
+    expect(detectHacks(fixed.bytes).choices.ppPkFix).toBe(true)
+    expect(applyHacks(fixed, { ...choices, ppPkFix: false }).bytes).toEqual(opened.bytes)
+
+    // The team page, spreadsheets and comparisons follow the ROM.
+    expect(projectTeamRatings(opened).map((rating) => rating.label).slice(2, 4)).toEqual(['Penalty kill', 'Power play'])
+    expect(projectTeamRatings(fixed).map((rating) => rating.label).slice(2, 4)).toEqual(['Power play', 'Penalty kill'])
+    const teams = CSV_TABLES.find((table) => table.id === 'teams')!
+    // Anaheim's byte is 02: as intended, power play 0 and penalty kill 2.
+    const rows = teams.rows(fixed)
+    expect(rows[1][rows[0].indexOf('Power play bonus')]).toBe(0)
+    expect(rows[1][rows[0].indexOf('Penalty kill cost')]).toBe(2)
   })
 })

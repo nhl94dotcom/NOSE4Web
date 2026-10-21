@@ -64,6 +64,9 @@ export interface HackChoices {
   // Makes a player's Aggression in play rise with his rating, where the
   // original game wraps it round.
   aggressionFix: boolean
+  // Reads a team's power play and penalty kill ratings from the halves of
+  // their byte that the original data was written for.
+  ppPkFix: boolean
   // Gives the comeback bonus in the second half of the third period, where
   // the original game gives it in the first.
   comebackFix: boolean
@@ -99,6 +102,7 @@ export type HackPart =
   | 'baseWeight'
   | 'checkFix'
   | 'aggressionFix'
+  | 'ppPkFix'
   | 'comebackFix'
   | 'goalieHold'
   | 'goalieBox'
@@ -128,6 +132,7 @@ export const NO_HACKS: HackChoices = {
   baseWeight: 140,
   checkFix: 'off',
   aggressionFix: false,
+  ppPkFix: false,
   comebackFix: false,
   goalieHold: 140,
   goalieWidth: 36,
@@ -557,6 +562,22 @@ const aggressionFix = switchPart(0x15d78, bytes('1743 0073 022B 000F 0073'), byt
 // the rest. Overtime is not affected: both teams have it throughout.
 const comebackFix = switchPart(0x15b70, bytes('6E00 0026'), bytes('6D00 0026'))
 
+// A team's power play and penalty kill ratings share a byte. The original
+// data, and the community, have the power play in the high half, but the game
+// adds the low half on the power play and takes the high half off on the
+// penalty kill (the Genesis disassembly calls it a bug). The fix reads them
+// the other way round, in the same room:
+//   move.b 1(a0),(PPBonus).w / andi.b #$F,(PPBonus).w
+//   becomes  move.b 1(a0),d0 / lsr.b #4,d0 / move.b d0,(PPBonus).w / nop
+//   move.b 1(a0),d0 / lsr.b #4,d0 / neg.b d0 / move.b d0,(PKBonus).w
+//   becomes  moveq #$F,d0 / and.b 1(a0),d0 / neg.b d0 / move.b d0,(PKBonus).w
+// d0 is loaded afresh straight after either, so using it changes nothing else.
+const ppPkFix = switchPart(
+  0x15b1e,
+  bytes('11E8 0001 CF2E 0238 000F CF2E 6000 000E 1028 0001 E808 4400 11C0 CF2F'),
+  bytes('1028 0001 E808 11C0 CF2E 4E71 6000 000E 700F C028 0001 4400 11C0 CF2F'),
+)
+
 // ---------------------------------------------------------------------- play
 // How the game plays. Each of these is a number or an instruction changed
 // where it stands in the game's code; none adds code of its own. They were
@@ -706,6 +727,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     baseWeight: found('baseWeight', baseWeight.detect(rom), NO_HACKS.baseWeight),
     checkFix: found('checkFix', checkFix.detect(rom), NO_HACKS.checkFix),
     aggressionFix: found('aggressionFix', aggressionFix.detect(rom), NO_HACKS.aggressionFix),
+    ppPkFix: found('ppPkFix', ppPkFix.detect(rom), NO_HACKS.ppPkFix),
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
@@ -746,6 +768,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['threeStars', () => threeStars.remove(work.rom), () => threeStars.apply(work, wanted.threeStars)],
     ['checkFix', () => checkFix.remove(work.rom), () => checkFix.apply(work, wanted.checkFix)],
     ['aggressionFix', () => aggressionFix.remove(work.rom), () => aggressionFix.apply(work, wanted.aggressionFix)],
+    ['ppPkFix', () => ppPkFix.remove(work.rom), () => ppPkFix.apply(work, wanted.ppPkFix)],
     ['comebackFix', () => comebackFix.remove(work.rom), () => comebackFix.apply(work, wanted.comebackFix)],
     ['goalieHold', () => goalieHold.remove(work.rom), () => goalieHold.apply(work, wanted.goalieHold)],
     ['goalieBox', () => goalieWidth.remove(work.rom), () => goalieWidth.apply(work, wanted.goalieWidth)],
@@ -856,6 +879,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   baseWeight: 'Base weight',
   checkFix: 'Checking fix',
   aggressionFix: 'Aggression bug fix',
+  ppPkFix: 'Power play and penalty kill fix',
   comebackFix: 'Comeback bonus fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
@@ -881,6 +905,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   baseWeight: 'baseWeight',
   checkFix: 'checkFix',
   aggressionFix: 'aggressionFix',
+  ppPkFix: 'ppPkFix',
   comebackFix: 'comebackFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',

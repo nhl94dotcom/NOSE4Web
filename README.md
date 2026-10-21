@@ -73,6 +73,9 @@ That licence does not cover:
   project, Aggression wrapping round and the comeback bonus coming at the wrong
   time, and an explanation of what every rating does in play from the same
   project
+- A power play and penalty kill fix, for the Genesis and the SNES: the games
+  read the two team ratings from the wrong halves of their byte, and the fix
+  makes them read the rosters as they were written
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, and the main menu's starting choices
 

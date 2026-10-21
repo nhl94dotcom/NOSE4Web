@@ -20,7 +20,7 @@ import {
 } from './core/roster'
 import { goalieCount, type Player, type Team } from './core/team'
 import { ratingUse } from './core/ratinguse'
-import { setTeamRating, TEAM_RATINGS, teamRatingChoices, teamRatings } from './core/teamratings'
+import { setTeamRating, TEAM_RATINGS, teamRatingChoices, teamRatings, type TeamRating } from './core/teamratings'
 import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
@@ -68,6 +68,8 @@ interface Props {
   footer?: ReactNode
   // For the SNES game, its own players to show the colours on.
   players?: SpriteImage[]
+  // The six team ratings as this ROM reads them (see ppfix.ts).
+  teamRatingList?: TeamRating[]
 }
 
 export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall'
@@ -499,11 +501,11 @@ export function TeamEditor(props: Props) {
           </label>
         </div>
         <div className="fields">
-          {TEAM_RATINGS.map((rating, i) => (
+          {(props.teamRatingList ?? TEAM_RATINGS).map((rating, i) => (
             <label key={rating.label} title={`${rating.label}: ${rating.about}.`}>
               {rating.label}
               <select aria-label={`${rating.label} rating`} value={ratings[i]} onChange={(e) => onChange(setTeamRating(team, i, Number(e.target.value)))}>
-                {teamRatingChoices(i, ratings[i]).map((value) => (
+                {teamRatingChoices(i, ratings[i], props.teamRatingList).map((value) => (
                   <option key={value} value={value}>
                     {value}
                   </option>

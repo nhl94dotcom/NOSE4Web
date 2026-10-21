@@ -60,6 +60,12 @@ export const TEAM_RATINGS: TeamRating[] = [
   { label: 'Away', column: 'Away rating', most: 3, higherIsBetter: false, about: '0 is the best; the original game gives its weakest teams 3' },
 ]
 
+// The same ratings in a ROM with the power play and penalty kill fix, where
+// the halves of the second byte mean what the data was written for.
+const FIXED_TEAM_RATINGS: TeamRating[] = [TEAM_RATINGS[0], TEAM_RATINGS[1], TEAM_RATINGS[3], TEAM_RATINGS[2], TEAM_RATINGS[4], TEAM_RATINGS[5]]
+
+export const teamRatingsFor = (ppPkFixed: boolean): TeamRating[] => (ppPkFixed ? FIXED_TEAM_RATINGS : TEAM_RATINGS)
+
 const HIGHEST = 15
 
 export function teamRatings(team: Team): number[] {
@@ -74,7 +80,7 @@ export function setTeamRating(team: Team, index: number, value: number): Team {
 
 // The values to offer for a rating: those the original game uses, and the
 // team's own if it is beyond them.
-export function teamRatingChoices(index: number, current: number): number[] {
-  const usual = Array.from({ length: TEAM_RATINGS[index].most + 1 }, (_, value) => value)
+export function teamRatingChoices(index: number, current: number, ratings = TEAM_RATINGS): number[] {
+  const usual = Array.from({ length: ratings[index].most + 1 }, (_, value) => value)
   return usual.includes(current) ? usual : [...usual, current]
 }

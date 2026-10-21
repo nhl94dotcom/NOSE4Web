@@ -13,6 +13,8 @@ import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
 import { snesPreviewSprites } from './core/snes'
+import { teamRatingsFor } from './core/teamratings'
+import { hasPpPkFix } from './core/ppfix'
 import { changeCount, changesSince } from './core/season'
 import { FREE_AGENTS, trade } from './core/trade'
 import { rosterCardPng } from './rosterCard'
@@ -136,6 +138,7 @@ export default function App() {
   // It keeps the very bytes the work was opened from, which is how the two are known for one ROM.
   const asOpened = useMemo(() => (source ? { ...openRom(source), source } : null), [source])
   // The SNES game's own players, drawn in a team's colours on its page.
+  const ppPkFixed = useMemo(() => (hackedGame && hackedBytes ? hasPpPkFix({ game: hackedGame, bytes: hackedBytes }) : false), [hackedGame, hackedBytes])
   const snesPlayers = useMemo(() => (hackedGame?.platform === 'snes' && hackedBytes ? snesPreviewSprites(hackedBytes) : []), [hackedGame, hackedBytes])
   const original = useMemo(
     () => (asOpened && hackedBytes && hackedGame ? withHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
@@ -355,6 +358,7 @@ export default function App() {
             key={selected}
             game={current.game}
             players={snesPlayers}
+            teamRatingList={teamRatingsFor(ppPkFixed)}
             team={current.teams[selected]}
             original={opened.teams[selected]}
             emptySlots={emptyLineSlots(current.teams)}

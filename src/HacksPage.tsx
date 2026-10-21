@@ -148,7 +148,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'comebackFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -232,6 +232,18 @@ export function HacksPage({ project, onChange }: Props) {
             most penalties and a 0 the fewest. Players rated 4 to 6 will take more penalties than they do now. For
             goalies the same place holds GvL, the glove rating: with the fix a goalie needs about 5 for the
             reaching glove save, where now it jumps about with the rating (a 3 can make it and a 4 cannot).
+          </>,
+        )}
+        {hack(
+          'ppPkFix',
+          onOff('ppPkFix'),
+          <>
+            The game is meant to add a team's power play rating to some of each player's ratings on the power play
+            and take its penalty kill rating off them on the penalty kill, but it reads the two from the wrong halves
+            of their byte. The original rosters were written for the intended way, so in play Anaheim, meant to be weak
+            at both, has the best power play and penalty kill. This makes the game read them as intended, so rosters
+            play as their makers meant; the team page then shows the two that way round too. Leagues that have already
+            set these ratings as the editor showed them before the fix should check them after it.
           </>,
         )}
         {hack(

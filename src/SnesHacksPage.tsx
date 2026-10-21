@@ -16,6 +16,16 @@ const ABOUT: Record<SnesHack, ReactNode> = {
       the ones that play. It changes how every game plays, so try it before a league uses it.
     </>
   ),
+  ppPkFix: (
+    <>
+      The game is meant to add a team's power play rating to some of each player's ratings on the power play
+            and take its penalty kill rating off them on the penalty kill, but it reads the two from the wrong halves
+            of their byte. The original rosters were written for the intended way, so in play Anaheim, meant to be weak
+            at both, has the best power play and penalty kill. This makes the game read them as intended, so rosters
+            play as their makers meant; the team page then shows the two that way round too. Leagues that have already
+            set these ratings as the editor showed them before the fix should check them after it.
+    </>
+  ),
   defenceControl: 'Turns defence control on for both teams at the start of every game, where the original game starts with it off.',
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
@@ -27,7 +37,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
-  { title: 'Fixes', hacks: ['hotColdFix'] },
+  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix'] },
   { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]

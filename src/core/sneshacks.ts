@@ -12,6 +12,7 @@ import { loRomOffset } from './snes'
 
 export type SnesHack =
   | 'hotColdFix'
+  | 'ppPkFix'
   | 'defenceControl'
   | 'oneMinutePenalties'
   | 'thirtySecondPeriods'
@@ -43,6 +44,19 @@ const SITES: Record<SnesHack, Site[]> = {
       hacked: 'B9121A 1009 49FF 1A 4A 4A 49FF 1A 60 4A 4A 60',
     },
   ],
+  // The game adds the low half of a team's power play and penalty kill byte
+  // on the power play and takes the high half off on the penalty kill, the
+  // other way round from the data (as on the Genesis). The fix, the editor's
+  // own, rewrites the two in the same 32 bytes, with the branches to them:
+  // the power play takes the high half (LSR x4, AND #$F) and the penalty
+  // kill the low half (AND #$F), each then stored as before.
+  ppPkFix: [
+    {
+      at: 0x9fcf9d,
+      original: 'F00D A00100 B789 290F00 8D0B0D 8013 A00100 B789 4A4A4A4A 290F00 49FFFF 1A 8D090D',
+      hacked: 'F011 A00100 B789 4A4A4A4A 290F00 8D0B0D 800F A00100 B789 290F00 49FFFF 1A 8D090D',
+    },
+  ],
   // Turns defence control on for both teams at the start of every game.
   defenceControl: [
     { at: 0x9f837c, original: '22B2C69F', hacked: '2024FB EA' },
@@ -69,6 +83,7 @@ export const SNES_HACKS = Object.keys(SITES) as SnesHack[]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   hotColdFix: 'Hot and cold bug fix',
+  ppPkFix: 'Power play and penalty kill fix',
   defenceControl: 'Defence control on',
   oneMinutePenalties: 'One-minute penalties',
   thirtySecondPeriods: '30-second periods',
