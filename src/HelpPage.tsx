@@ -160,20 +160,39 @@ export function HelpPage() {
         </li>
         <li>
           <b>Goalie bytes</b>: four values. The first players on the roster are goalies, one for each value up to
-          the last that is not zero. What the values mean beyond that is not known, so it is safest to leave existing
-          ones alone and use 1 for a goalie you add.
+          the last that is not zero. The values were meant as weights for picking a computer team's starting goalie,
+          but the Genesis game never calls the code that would do it, so only whether each is zero matters; use 1
+          for a goalie you add.
         </li>
         <li>
-          <b>Offence, Defence, Power play, Penalty kill, Home, Away</b>: the six team ratings. For Offence (0 to 7),
-          Power play and Home (0 to 2) a high number is good. For Defence (0 to 7), Penalty kill (0 to 2) and Away
-          (0 to 2, with 3 for the original game's weakest teams) a <b>low</b> number is good. Their meaning was
-          worked out by wboy and smozoma. When a player comes on the ice, the home team adds its Home rating to
-          his Offensive and Defensive Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes
-          its Away rating off the same five. A team on the power play adds its Power play rating to Offensive
-          Awareness, Stickhandling, Shot Accuracy and Passing, and a team killing a penalty takes its Penalty kill
-          rating off the first three. These are on the game's own scale, where a rating point is worth 5, so 2 is
-          less than half a point. No use in play has been found for Offence and Defence. In the Teams spreadsheet
-          they are the six rating columns.
+          <b>Offence, Defence, Penalty kill, Power play, Home, Away</b>: the six team ratings, which both games read
+          the same way. For Offence (0 to 7), Power play and Home (0 to 2) a high number is good. For Defence (0 to
+          7), Penalty kill (0 to 2) and Away (0 to 2, with 3 for the original game's weakest teams) a <b>low</b>{' '}
+          number is good. wboy and smozoma first worked out their meaning, and the game's disassembly shows how
+          each is used:
+          <ul>
+            <li>
+              <b>Offence and Defence</b> score the other playoff games, the ones the game plays out while you play
+              yours and shows on its score ticker. In each period a team's goals are drawn at random, more likely
+              the higher its Offence and the higher the other team's Defence. Only 0 to 7 count. They do nothing in
+              the game you play.
+            </li>
+            <li>
+              <b>Home and Away</b>: when a player comes on the ice, the home team adds its Home rating to his
+              Offensive and Defensive Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes its
+              Away rating off the same five.
+            </li>
+            <li>
+              <b>Power play and Penalty kill</b>: a team on the power play adds its Power play rating to Offensive
+              Awareness, Stickhandling, Shot Accuracy and Passing, and a team killing a penalty takes its Penalty kill
+              rating off the first three. The original game's data and the forums have these two the other way round,
+              but the game reads them as they are named here (the disassembly calls it a bug), so Anaheim, meant to
+              be weakest at both, plays with the best of both. Earlier versions of this editor followed the forums.
+            </li>
+          </ul>
+          These are on the game's own scale, where a rating point is worth 5, so 2 is less than half a point. In the
+          Teams spreadsheet they are the six rating columns; files made before the change name the power play and
+          penalty kill columns the old way round, and still go to the same values.
         </li>
       </ul>
       <p>

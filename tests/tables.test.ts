@@ -8,7 +8,7 @@ import { CSV_TABLES, csvFileName, CsvImportError, identifyCsvFile, importCsv, im
 import { compareProjects } from '../src/core/compare'
 import { resetTeamPart, teamPartChanged } from '../src/core/reset'
 import { goalieCount } from '../src/core/team'
-import { setTeamRating, teamRatingChoices, teamRatings } from '../src/core/teamratings'
+import { setTeamRating, teamRatingChoices, TEAM_RATINGS, teamRatings } from '../src/core/teamratings'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -133,7 +133,7 @@ describe.skipIf(!hasRom)('CSV tables', () => {
   it('gives the six team ratings by name, and still takes the bytes that hold them', () => {
     const project = openRom(original)
     const rows = table('teams').rows(project)
-    const ratings = ['Offence', 'Defence', 'Power play', 'Penalty kill', 'Home', 'Away'].map((label) => column(rows, `${label} rating`))
+    const ratings = ['Offence rating', 'Defence rating', 'Penalty kill cost', 'Power play bonus', 'Home rating', 'Away rating'].map((name) => column(rows, name))
     // Anaheim, the weakest; Detroit; and the All Stars, as the original game has them.
     expect(ratings.map((c) => rows[1][c])).toEqual([0, 7, 0, 2, 1, 3])
     expect(ratings.map((c) => rows[7][c])).toEqual([7, 3, 2, 1, 0, 0])
@@ -146,6 +146,14 @@ describe.skipIf(!hasRom)('CSV tables', () => {
     expect(compareProjects(project, named.project).flatMap((difference) => difference.changes).join(' ')).toContain('Offence rating: 0 to 5.')
     const bytes = importCsv(table('teams'), project, 'Team,Team byte 1,Penalty kill rating\r\n1,52,0\r\n')
     expect(bytes.project.teams[0].teamBytes).toEqual([0x34, 0x00, 0x13])
+    // Files from before the power play and penalty kill were named as the game reads them still go to the same halves.
+    const old = importCsv(table('teams'), project, 'Team,Power play rating,Penalty kill rating\r\n1,1,0\r\n')
+    expect(old.project.teams[0].teamBytes[1]).toBe(0x10)
+    const renamed = importCsv(table('teams'), project, 'Team,Penalty kill cost,Power play bonus\r\n1,1,0\r\n')
+    expect(renamed.project.teams[0].teamBytes[1]).toBe(0x10)
+    // Anaheim, meant to be weakest at both, plays with the best of both: Penalty kill 0 and Power play 2.
+    expect(TEAM_RATINGS.map((rating) => rating.label).slice(2, 4)).toEqual(['Penalty kill', 'Power play'])
+    expect(teamRatings(project.teams[0]).slice(2, 4)).toEqual([0, 2])
     expect(() => importCsv(table('teams'), project, 'Team,Home rating\r\n1,16')).toThrow(/Home rating/)
 
     const set = setTeamRating(project.teams[0], 3, 1)

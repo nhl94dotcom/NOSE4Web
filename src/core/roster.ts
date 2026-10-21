@@ -101,7 +101,10 @@ export function setForwards(team: Team, forwards: number): Team {
 }
 
 // The goalie bytes hold four values; the game treats the roster's first
-// players as goalies up to the last value that is not zero.
+// players as goalies up to the last value that is not zero. The values were
+// meant as weights for picking a computer team's starting goalie, but the
+// Genesis game never calls the routine that would (PickStartingGoalie in the
+// disassembly), so only whether each is zero matters.
 export function setGoalieNibble(team: Team, index: number, value: number): Team {
   const goalieNibbles = team.goalieNibbles.map((v, i) => (i === index ? value & 0x0f : v))
   if (goalieNibbles.every((v) => v === 0)) return team

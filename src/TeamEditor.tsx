@@ -528,7 +528,8 @@ export function TeamEditor(props: Props) {
         </div>
         <p className="note">
           The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
-          good for Defence, Penalty kill and Away. Home, Away, Power play and Penalty kill nudge a few of each player's
+          good for Defence, Penalty kill and Away. Offence and Defence score the other playoff games the game plays
+          out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
           ratings in those situations, by less than half a point; see Help.
         </p>
         <p className="note">

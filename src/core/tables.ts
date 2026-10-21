@@ -253,7 +253,7 @@ const players: CsvTable = {
       const roster = sorted.map((entry) => entry.player)
       const { lines, lost } = remapLines(old, roster)
       if (lost > 0) warnings.push(`${name}: ${plural(lost, 'line slot')} used players who are gone. ${LINES_WARNING}`)
-      // A goalie byte's meaning is not known beyond "not zero means a goalie".
+      // Only whether a goalie byte is zero matters to the game (see roster.ts).
       const goalieNibbles = old.goalieNibbles.map((value, i) => (i >= goalies ? 0 : value || 1))
       if (goalies > goalieCount(old)) warnings.push(`${name}: the goalie byte for each added goalie was set to 1.`)
 
@@ -277,7 +277,14 @@ const GOALIE_BYTE_COLUMNS = [1, 2, 3, 4].map((n) => `Goalie byte ${n}`)
 // The team ratings were once given as the three bytes that hold them, and
 // files that still do are taken.
 const TEAM_BYTE_COLUMNS = [1, 2, 3].map((n) => `Team byte ${n}`)
-const TEAM_RATING_COLUMNS = TEAM_RATINGS.map((rating) => `${rating.label} rating`)
+const TEAM_RATING_COLUMNS = TEAM_RATINGS.map((rating) => rating.column)
+// Files from before the halves of the second byte were named as the game
+// reads them call them the other way round. Their columns still go to the
+// halves they came from.
+const OLD_RATING_COLUMNS: [column: string, index: number][] = [
+  ['Power play rating', 2],
+  ['Penalty kill rating', 3],
+]
 const COLOR_COLUMNS = ['Home', 'Away'].flatMap((strip) => Array.from({ length: 16 }, (_, i) => `${strip} ${i + 1}`))
 // The SNES game keeps the team overall rating it shows; the Genesis game works it out.
 const SHOWN_OVERALL_COLUMN = 'Overall shown'
@@ -329,6 +336,9 @@ const teams: CsvTable = {
       const shownOverall =
         team.shownOverall !== undefined && given(SHOWN_OVERALL_COLUMN) ? sheet.int(row, SHOWN_OVERALL_COLUMN, 0, 255) : team.shownOverall
       team = { ...team, names, teamBytes, palette, shownOverall }
+      OLD_RATING_COLUMNS.forEach(([column, i]) => {
+        if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
+      })
       TEAM_RATING_COLUMNS.forEach((column, i) => {
         if (given(column)) team = setTeamRating(team, i, sheet.int(row, column, 0, 15))
       })
