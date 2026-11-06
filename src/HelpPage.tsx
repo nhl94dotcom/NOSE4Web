@@ -1326,9 +1326,11 @@ export function HelpPage() {
           game keeps them elsewhere and in other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
-          <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,
-          so there is no room to spare. Room comes only from making something shorter, such as a stadium name or a
-          player's name, or from a league ROM that already has some. The top bar shows how much there is.
+          <b>Space:</b> the teams must all stay in one 32 KB part of the ROM (a bank), and in the original game they
+          fill the place the game gives them. The editor also uses the unused room at the end of that bank: about
+          1.7 KB in the original game, enough for some 70 more players, and about 9.8 KB in the 32-team ROM. Teams
+          stay where the game has them while they fit, and those at the end move into that room when they no longer
+          do, and back again if they fit once more. The top bar shows how much room there is in all.
         </li>
         <li>
           <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt from the disassembly with another number of teams, such as

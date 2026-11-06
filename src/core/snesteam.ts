@@ -18,7 +18,11 @@ import type { Player, Team, TeamLayout } from './team'
 //   ....  four names: location, initials, name, stadium
 // The team colours are kept apart from the blocks; see snes.ts.
 // The team table holds each block's address as a word, its bank and a zero.
-// The game looks for every block in the one bank, so they must stay there.
+// The game looks for every block in the one bank, so they must stay there,
+// but anywhere in it: it keeps only the word of each address and takes the
+// bank from the table's. Teams that no longer fit where the game has them go
+// into the unused room at the end of that bank (the original game has 1.7 KB
+// there, the 32-team builds about 9.8 KB).
 const TEAM_BYTES_OFFSET = 0x0e
 const OVERALL_OFFSET = 0x12
 const GOALIE_BYTES_OFFSET = 0x13
@@ -29,6 +33,11 @@ const PLAYER_ATTRIBUTE_BYTES = 8
 const ROSTER_END_SIZE = 2
 const NAME_COUNT = 4
 const TABLE_ENTRY = 4
+const BANK_SIZE = 0x8000
+// Unused room counts as room for teams only in a run this long, and some of
+// its start is left alone, in case the data before it ends in $FF bytes.
+const MIN_OVERFLOW = 256
+const OVERFLOW_MARGIN = 16
 
 const isFree = (bytes: Uint8Array) => bytes.every((byte) => byte === 0xff)
 const isFreeAfterRoster = (bytes: Uint8Array) =>
@@ -115,13 +124,27 @@ export function parseSnesTeams(rom: Uint8Array, game: GameConfig): { teams: Team
 
   const teams: Team[] = new Array(game.teamCount)
   let next = pointers[fileOrder[0]]
+  const bankEnd = next - (next % BANK_SIZE) + BANK_SIZE
+  // Where the first run of blocks ends and a second, in the bank's unused room, starts.
+  let mainEnd = -1
+  let overflowStart = -1
   for (const index of fileOrder) {
-    if (pointers[index] < next || !isFree(rom.subarray(next, pointers[index]))) {
-      throw new Error('The team data is not stored as one continuous run, so it cannot be edited safely.')
-    }
-    const { team, end } = parseTeam(rom, game, pointers[index])
+    const p = pointers[index]
+    const gapIsFree = p >= next && isFree(rom.subarray(next, p))
+    if (p >= next && !gapIsFree && mainEnd < 0 && p < bankEnd) [mainEnd, overflowStart] = [next, p]
+    else if (!gapIsFree) throw new Error('The team data is not stored as one continuous run, so it cannot be edited safely.')
+    const { team, end } = parseTeam(rom, game, p)
     teams[index] = team
     next = end
+  }
+  let overflow: { start: number; end: number } | undefined
+  if (mainEnd >= 0) {
+    let end = next
+    while (end < bankEnd && rom[end] === 0xff) end++
+    overflow = { start: overflowStart, end }
+  } else {
+    mainEnd = next
+    overflow = unusedRoom(rom, mainEnd, bankEnd)
   }
   // Home strip then away strip, as for the Genesis game, where the ROM keeps them as the editor expects.
   const strips = snesStripTables(rom)
@@ -130,7 +153,67 @@ export function parseSnesTeams(rom: Uint8Array, game: GameConfig): { teams: Team
       Array.from({ length: STRIP_BYTES / 2 }, (_, i) => readU16LE(rom, table + team * STRIP_BYTES + i * 2))
     teams.forEach((team, i) => (team.palette = [...strip(strips.home, i), ...strip(strips.away, i)]))
   }
-  return { teams, layout: { start: pointers[fileOrder[0]], end: next, fileOrder, snes: true } }
+  return { teams, layout: { start: pointers[fileOrder[0]], end: mainEnd, fileOrder, snes: true, ...(overflow ? { overflow } : {}) } }
+}
+
+// The last run of unused bytes between `from` and the end of the bank, if long enough.
+function unusedRoom(rom: Uint8Array, from: number, bankEnd: number): { start: number; end: number } | undefined {
+  let end = Math.min(bankEnd, rom.length)
+  while (end > from) {
+    let start = end
+    while (start > from && rom[start - 1] === 0xff) start--
+    if (end - start >= MIN_OVERFLOW) return { start: start + OVERFLOW_MARGIN, end }
+    end = start - 1
+  }
+  return undefined
+}
+
+// How many free bytes each of `order`'s teams keeps so that together they fill
+// `room` (`fill`) or fit in it: a shortfall is taken from the free bytes,
+// working back from the last team, and spare room goes to the last. Null if
+// they do not fit.
+function fitFree(content: number[], free: number[], order: number[], room: number, fill: boolean): number[] | null {
+  const kept = free.slice()
+  let spare = room - order.reduce((sum, index) => sum + content[index] + kept[index], 0)
+  for (let i = order.length - 1; i >= 0 && spare < 0; i--) {
+    const taken = Math.min(kept[order[i]], -spare)
+    kept[order[i]] -= taken
+    spare += taken
+  }
+  if (spare < 0) return null
+  if (fill && order.length > 0) kept[order[order.length - 1]] += spare
+  return kept
+}
+
+// Where each team's block goes and how many free bytes it keeps. Teams stay
+// where the game has them while they fit; those last in ROM order that no
+// longer do go into the room at the end of the bank.
+function placeTeams(teams: Team[], layout: TeamLayout): { at: number[]; free: number[] } {
+  const content = teams.map(snesTeamContentSize)
+  const free = teams.map((team) => team.freeBytes)
+  const order = layout.fileOrder
+  const mainRoom = layout.end - layout.start
+  const place = (split: number, kept: number[]) => {
+    const at: number[] = []
+    let p = layout.start
+    order.forEach((index, i) => {
+      if (i === split) p = layout.overflow!.start
+      at[index] = p
+      p += content[index] + kept[index]
+    })
+    return { at, free: kept }
+  }
+  const all = fitFree(content, free, order, mainRoom, true)
+  if (all) return place(order.length, all)
+  const total = order.reduce((sum, index) => sum + content[index], 0)
+  const overflowRoom = layout.overflow ? layout.overflow.end - layout.overflow.start : 0
+  for (let split = order.length - 1; split > 0 && overflowRoom > 0; split--) {
+    const [main, rest] = [order.slice(0, split), order.slice(split)]
+    const kept = fitFree(content, free, main, mainRoom, true)
+    const keptRest = kept && fitFree(content, kept, rest, overflowRoom, false)
+    if (keptRest) return place(split, keptRest)
+  }
+  throw new Error(`The team data is ${total - mainRoom - overflowRoom} bytes too large to fit in the ROM.`)
 }
 
 // Bytes a team needs, not counting its free bytes.
@@ -172,9 +255,9 @@ function writeTeam(rom: Uint8Array, p: number, team: Team, freeBytes: number): n
   return o
 }
 
-// Rewrites every team block and the team table into `rom`, given how many
-// free bytes each team is to have.
-export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[], layout: TeamLayout, free: number[]): void {
+// Rewrites every team block and the team table into `rom`.
+export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[], layout: TeamLayout): void {
+  const { at, free } = placeTeams(teams, layout)
   const strips = snesStripTables(rom)
   if (strips) {
     teams.forEach((team, t) =>
@@ -182,11 +265,12 @@ export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[],
     )
   }
   const bank = rom[game.teamTableOffset + 2]
-  let p = layout.start
+  // Teams that were in the room at the end of the bank and are no longer leave it unused.
+  if (layout.overflow) rom.fill(0xff, layout.overflow.start, layout.overflow.end)
   for (const index of layout.fileOrder) {
-    const at = game.teamTableOffset + index * TABLE_ENTRY
-    writeU16LE(rom, at, loRomAddress(p))
-    rom[at + 2] = loRomBank(p, bank)
-    p = writeTeam(rom, p, teams[index], free[index])
+    const entry = game.teamTableOffset + index * TABLE_ENTRY
+    writeU16LE(rom, entry, loRomAddress(at[index]))
+    rom[entry + 2] = loRomBank(at[index], bank)
+    writeTeam(rom, at[index], teams[index], free[index])
   }
 }

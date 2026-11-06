@@ -114,6 +114,51 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(teamSpace(reopened.teams, reopened.layout).available).toBe(before.available)
       })
 
+      it('moves teams that no longer fit into the unused room at the end of their bank, and back again', () => {
+        const project = openRom(read(name))
+        const { layout } = project
+        expect(layout.overflow).toBeDefined()
+        const overflow = layout.overflow!
+        const bank = (offset: number) => Math.floor(offset / 0x8000)
+        expect([bank(overflow.start), bank(overflow.end - 1)]).toEqual([bank(layout.start), bank(layout.start)])
+        const space = teamSpace(project.teams, project.layout)
+        expect(space.available).toBe(layout.end - layout.start + overflow.end - overflow.start)
+
+        // More players for the first team in the ROM than the teams' room where the game has them can hold.
+        const first = layout.fileOrder[0]
+        const count = Math.ceil((layout.end - layout.start - space.used + 200) / 22)
+        const extra = Array.from({ length: count }, (_, i) => ({ ...project.teams[first].players.at(-1)!, name: `Extra Skater ${i + 1}`.slice(0, 14) }))
+        const teams = project.teams.map((t, i) => (i === first ? { ...t, players: [...t.players, ...extra] } : t))
+        expect(teamSpace(teams, layout).used).toBeGreaterThan(layout.end - layout.start)
+        const built = buildRom({ ...project, teams })
+        const reopened = openRom(built)
+        expect(reopened.teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
+        expect(reopened.teams.map((t) => t.names)).toEqual(teams.map((t) => t.names))
+        expect(reopened.teams.map((t) => t.lines)).toEqual(teams.map((t) => t.lines))
+        expect(reopened.layout.overflow!.end).toBe(overflow.end)
+        expect(teamSpace(reopened.teams, reopened.layout).available).toBe(space.available)
+        // Only the teams, their table, their bank's unused room and the checksum change.
+        const header = project.copierHeader?.length ?? 0
+        const file = read(name)
+        const table = project.game.teamTableOffset
+        const changedElsewhere = [...built.keys()].filter((i) => {
+          if (built[i] === file[i] || checksumBytes(header).includes(i)) return false
+          const o = i - header
+          return !(o >= layout.start && o < layout.end) && !(o >= overflow.start && o < overflow.end) && !(o >= table && o < table + project.teams.length * 4)
+        })
+        expect(changedElsewhere).toEqual([])
+        // The hacks still go in, none of them into the teams' bank.
+        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => !detectSnesHacks(reopened.bytes).unknown.includes(hack)).map((hack) => [hack, true]))
+        const hacked = applySnesHacks(reopened, hacks)
+        expect(hacked.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000)).toEqual(
+          reopened.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000),
+        )
+        expect(openRom(buildRom(hacked)).teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
+
+        // Taken out again, every team is back where the game had it.
+        expect(buildRom({ ...reopened, teams: project.teams })).toEqual(buildRom(project))
+      })
+
       it('says so when the rosters no longer fit', () => {
         const project = openRom(read(name))
         const { available, used } = teamSpace(project.teams, project.layout)

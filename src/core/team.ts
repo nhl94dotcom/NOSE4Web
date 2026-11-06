@@ -59,6 +59,9 @@ export interface TeamLayout {
   slots?: { at: number; size: number }[]
   // Whether the blocks are kept as the SNES game keeps them.
   snes?: boolean
+  // SNES only: unused room at the end of the teams' bank, where teams that no
+  // longer fit between start and end go.
+  overflow?: { start: number; end: number }
 }
 
 // A team's name with its league, where a ROM has several leagues and the
@@ -208,7 +211,8 @@ export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; av
     return { used: layout.slots[team].size - spare[team], available: layout.slots[team].size, team }
   }
   const used = teams.reduce((sum, team) => sum + teamContentSize(team, layout), 0)
-  return { used, available: layout.end - layout.start }
+  const overflow = layout.overflow ? layout.overflow.end - layout.overflow.start : 0
+  return { used, available: layout.end - layout.start + overflow }
 }
 
 // Decides how many free bytes each team gets so the blocks exactly fill the
@@ -282,8 +286,8 @@ export function writeTeams(rom: Uint8Array, game: GameConfig, teams: Team[], lay
     })
     return
   }
+  if (layout.snes) return writeSnesTeams(rom, game, teams, layout)
   const free = allocateFreeBytes(teams, layout)
-  if (layout.snes) return writeSnesTeams(rom, game, teams, layout, free)
   let p = layout.start
   for (const index of layout.fileOrder) {
     writeU32(rom, game.teamTableOffset + index * 4, p)

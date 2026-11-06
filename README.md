@@ -69,7 +69,8 @@ That licence does not cover:
   found by the NHL94 Match Viewer project), the goalie's range and hold
   time, energy and stamina, the speed burst, stopping and turning, and a
   real-time clock
-- NHL '94 for the SNES too: rosters, lines, team names and ratings, team
+- NHL '94 for the SNES too: rosters (with the unused room at the end of
+  the teams' bank as more room for them), lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,
   team logos and centre ice logos as PNG images, the main menu's starting
   choices, and the disassembly's hacks, among them the fix for the SNES hot and cold
