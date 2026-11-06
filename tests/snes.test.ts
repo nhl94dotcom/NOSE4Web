@@ -34,6 +34,7 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { resetSettingsPart, resetTeamPart, settingsPartChanged } from '../src/core/reset'
 import { menuOptions } from '../src/core/settings'
 import { SNES_MENU_CAPTIONS } from '../src/core/snesmenu'
+import { drawSnesRink, snesRinkRowsUsed } from '../src/core/snesrink'
 import { buildPatch, buildRom, openRom, type RomProject } from '../src/core/rom'
 import { csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
 import { goalieCount, teamDisplayName, teamSpace } from '../src/core/team'
@@ -174,7 +175,28 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         for (const summary of teamSummaries(project)) expect(summary.startingGoalie).not.toBeNull()
         expect([project.graphicsSupported, project.game.settingsSupported, hacksSupported(project.game)]).toEqual([false, false, false])
         expect(nextExpansion(project)).toBeNull()
-        expect(project.rinkPalette).toEqual([])
+        expect(project.rinkPalette).toHaveLength(128)
+      })
+
+      it('draws the rink, and changes its colours and nothing else', () => {
+        const project = openRom(read(name))
+        const rink = drawSnesRink(project.bytes, null)!
+        expect([rink.width, rink.height]).toEqual([48 * 8, 113 * 8])
+        expect(snesRinkRowsUsed(project.bytes)).toEqual([0, 1, 2, 3])
+        const rinkPalette = project.rinkPalette.map((word, i) => (i === 17 ? 0x7c00 : i === 0x50 + 3 ? 0x001f : word))
+        const edited = { ...project, rinkPalette }
+        const [before, after] = [buildRom(project), buildRom(edited)]
+        const header = project.copierHeader?.length ?? 0
+        const changed = [...after.keys()].filter((i) => after[i] !== before[i] && !checksumBytes(header).includes(i))
+        expect(changed.length).toBeLessThanOrEqual(4)
+        expect(openRom(after).rinkPalette).toEqual(rinkPalette)
+        expect(compareProjects(project, edited).find((section) => section.heading === 'Rink colours')?.changes).toEqual(['2 colours changed.'])
+        // The centre ice logos are shown, and imported, in the rink's colours as edited.
+        if (snesPicturesSupported(project.bytes, project.teams.length)) {
+          const ice = snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, 0, rinkPalette)
+          if (!ice.ownColours) expect(ice.palette[0x53]).toBe(0x001f)
+        }
+        expect(openProjectFile(openRom(read(name)), saveProjectFile(edited, project)).project.rinkPalette).toEqual(rinkPalette)
       })
 
       it("sets the main menu's starting choices, changing nothing else, and keeps them in a project file", () => {

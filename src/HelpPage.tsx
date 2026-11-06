@@ -1322,8 +1322,17 @@ export function HelpPage() {
           30-second periods hack adds a fourth period length to choose from.
         </li>
         <li>
-          <b>Not yet:</b> the rink, and the other game settings: the clock, rule messages and playoff draws. The SNES
-          game keeps them elsewhere and in other ways, so the editor leaves them exactly as they are.
+          <b>Rink colours:</b> the SNES rink has 128 colours in eight rows of 16, and the page draws the whole rink
+          from the ROM in them, with the home team's centre ice logo in its middle and the players on the benches in
+          the two teams' uniform colours (pick the teams above it). Rows 0 and 1 colour the ice, its lines, the
+          boards and the crowd; rows 5 and 6 are the centre ice colours every team's logo is drawn in, unless it has
+          its own; rows 4 and 7 are not drawn on the rink. Rows 2 and 3 are not offered, as the game puts the teams'
+          uniform colours there for every game. The game also uses some of these colours for its moving pictures,
+          so a change can show there too.
+        </li>
+        <li>
+          <b>Not yet:</b> the other game settings: the clock, rule messages and playoff draws. The SNES game keeps
+          them elsewhere and in other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM (a bank), and in the original game they

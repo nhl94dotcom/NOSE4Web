@@ -35,6 +35,7 @@ import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
+import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
 import './App.css'
@@ -300,7 +301,11 @@ export default function App() {
   function page(current: RomProject, opened: RomProject) {
     switch (selected) {
       case RINK:
-        return <RinkEditor palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+        return current.game.platform === 'snes' ? (
+          <SnesRinkEditor project={current} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+        ) : (
+          <RinkEditor palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+        )
       case SETTINGS:
         return (
           <SettingsEditor

@@ -77,7 +77,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
         const merged = made.colorsFound > 15 ? ` The image had ${made.colorsFound} colours; the logo can have 15, so the rest were matched to the nearest.` : ''
         apply({ ...edits, logos: { ...edits.logos, [team]: { picture: made.picture, palette: made.palette } } }, `Logo replaced.${merged}`)
       } else {
-        const picture = snesCentreIceFromImage(image.rgba, image.width, image.height, snesCentreIce(project.bytes, teams, edits, team))
+        const picture = snesCentreIceFromImage(image.rgba, image.width, image.height, snesCentreIce(project.bytes, teams, edits, team, project.rinkPalette))
         const others = snesCentreIceSharedWith(project.bytes, teams, team)
         const centreIce = { ...edits.centreIce, [team]: picture }
         for (const other of others) centreIce[other] = picture
@@ -99,7 +99,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
   }
 
   const logo = snesLogo(project.bytes, teams, edits, team)
-  const ice = snesCentreIce(project.bytes, teams, edits, team)
+  const ice = snesCentreIce(project.bytes, teams, edits, team, project.rinkPalette)
   const sharedColours = snesLogoColoursSharedWith(project.bytes, teams, team)
   const sharedIce = snesCentreIceSharedWith(project.bytes, teams, team)
   const pictures: { kind: Kind; title: string; picture: typeof logo; scale: number; note: string }[] = [

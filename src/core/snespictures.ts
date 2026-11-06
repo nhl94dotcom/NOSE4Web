@@ -482,15 +482,17 @@ const iceColours = (rom: Uint8Array, c: Contents) => Array.from({ length: ROWS *
 // A team's centre ice logo, the colours it is drawn in, and the rows of them
 // an imported one may use: in the SA-1 build a team with centre ice colours of
 // its own has them in row 5 and uses that row alone, as the title screen,
-// which draws the logo too, expects.
+// which draws the logo too, expects. `rink` is the rink's colours as edited,
+// where they have been.
 export function snesCentreIce(
   rom: Uint8Array,
   teamCount: number,
   edits: SnesPictureEdits,
   team: number,
+  rink?: number[],
 ): { picture: Picture; palette: number[]; rows: number[]; ownColours: boolean } {
   const c = need(rom, teamCount)
-  const palette = iceColours(rom, c)
+  const palette = rink?.length === ROWS * COLOURS ? rink.slice() : iceColours(rom, c)
   const own = c.iceOwn[team]
   if (own >= 0) for (let i = 1; i < COLOURS; i++) palette[ICE_ROWS[0] * COLOURS + i] = readU16LE(rom, own + i * 2)
   return { picture: edits.centreIce[team] ?? drawCentreIce(rom, c, team), palette, rows: own >= 0 ? [ICE_ROWS[0]] : ICE_ROWS, ownColours: own >= 0 }

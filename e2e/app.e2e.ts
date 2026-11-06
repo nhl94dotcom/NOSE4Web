@@ -1713,8 +1713,8 @@ test.describe('with the SNES game', () => {
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
-    await expect(page.locator('nav button')).toHaveCount(28 + 12)
-    for (const name of ['Rink colours', 'Picture files']) await expect(entry(page, name)).toHaveCount(0)
+    await expect(page.locator('nav button')).toHaveCount(28 + 13)
+    await expect(entry(page, 'Picture files')).toHaveCount(0)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 
     await team(page, 'Boston Bruins').click()
@@ -1733,6 +1733,14 @@ test.describe('with the SNES game', () => {
     await choice('Line Changes').selectOption({ label: 'Automatic' })
     await choice('Goalie').selectOption({ label: 'Manual' })
     await page.screenshot({ path: 'test-results/shots/snes-settings.png', fullPage: true })
+    // A rink colour, with the rink drawn from the ROM.
+    await entry(page, 'Rink colours').click()
+    await expect(page.getByLabel('Rink preview')).toBeVisible()
+    const rink = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Rink', exact: true }) })
+    await rink.locator('.swatch').nth(1).click()
+    await rink.getByLabel(/^Red/).fill('3')
+    await expect(rink.getByRole('button', { name: 'Reset rink colours' })).toBeEnabled()
+    await page.screenshot({ path: 'test-results/shots/snes-rink.png', fullPage: true })
     await entry(page, 'Hacks').click()
     await page.getByLabel('Hot and cold bug fix').selectOption('on')
     await page.getByRole('button', { name: 'Apply' }).click()
@@ -1746,6 +1754,7 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].palette[12] & 0x1f).toBe(31)
     expect(detectSnesHacks(rom.bytes).choices.hotColdFix).toBe(true)
     expect(rom.settings.menu.map((item) => item.value)).toEqual([0, 1, 10, 1, 0, 2, 1])
+    expect(rom.rinkPalette[1] & 0x1f).toBe(3)
   })
 
   test('exports a team logo, imports another in its place, and downloads the ROM with it', async ({ page }) => {
