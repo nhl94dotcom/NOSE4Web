@@ -215,6 +215,6 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
     const changes = compareTeam(after, before.teams[counterpart[i]], team, samePlatform, ratings)
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
-  // The SNES game's settings are not read, so there is nothing to compare them with.
+  // Teams matched by name are in other places, so the menus' team choices cannot be compared.
   return [...sections, ...(byName ? [] : compareSettings(before, after))]
 }

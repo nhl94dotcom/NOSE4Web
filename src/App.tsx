@@ -13,6 +13,7 @@ import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
 import { transferPlayers } from './core/roster'
 import { snesPreviewSprites } from './core/snes'
+import { hasSettings } from './core/settings'
 import { teamRatingsFor } from './core/teamratings'
 import { hasPpPkFix } from './core/ppfix'
 import { changeCount, changesSince } from './core/season'
@@ -497,7 +498,7 @@ export default function App() {
             </Fragment>
           ))}
           {project.rinkPalette.length > 0 && entry(RINK, 'Rink colours')}
-          {project.game.settingsSupported && entry(SETTINGS, 'Game settings')}
+          {hasSettings(project.game, project.settings) && entry(SETTINGS, 'Game settings')}
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}

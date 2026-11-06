@@ -13,7 +13,7 @@ import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
 import type { RomProject } from './rom'
 import type { Baseline } from './season'
 import { MAX_ROSTER } from './roster'
-import type { Settings } from './settings'
+import { hasSettings, type Settings } from './settings'
 import { teamDisplayName, type Team } from './team'
 import type { FreeAgent } from './trade'
 
@@ -102,7 +102,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     // Without the unused room each has in the ROM, which is the ROM's to say.
     teams: project.teams.map((team) => ({ ...team, freeBytes: undefined })),
     rinkPalette: project.rinkPalette,
-    settings: project.game.settingsSupported ? project.settings : null,
+    settings: hasSettings(project.game, project.settings) ? project.settings : null,
     pictures,
     menuPalettes: project.graphics.menuPalettes,
     freeAgents: project.freeAgents,
@@ -325,7 +325,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (file.expansions?.pictureSpace && project.graphicsSupported) project = expandPictureSpace(project)
 
   const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes }))
-  const settings = game.settingsSupported && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
+  const settings = hasSettings(game, project.settings) && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
   const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)
   // A season's starting point is kept if all of it can be read, and dropped if not.
@@ -342,7 +342,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
           name: started.name,
           startedAt: started.startedAt,
           teams: started.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes })),
-          settings: game.settingsSupported && started.settings ? mergeSettings(project.settings, started.settings, teams.length, []) : project.settings,
+          settings: hasSettings(game, project.settings) && started.settings ? mergeSettings(project.settings, started.settings, teams.length, []) : project.settings,
           rinkPalette: started.rinkPalette,
           freeAgents: (Array.isArray(started.freeAgents) ? started.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role)),
         }

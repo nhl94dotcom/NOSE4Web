@@ -71,7 +71,8 @@ That licence does not cover:
   real-time clock
 - NHL '94 for the SNES too: rosters, lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,
-  team logos and centre ice logos as PNG images, and the disassembly's hacks, among them the fix for the SNES hot and cold
+  team logos and centre ice logos as PNG images, the main menu's starting
+  choices, and the disassembly's hacks, among them the fix for the SNES hot and cold
   bug, with spreadsheets, project files, trades,
   checking and comparing, from the community's SNES disassembly,
   [NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault)
@@ -130,12 +131,13 @@ It can also:
 
 - NHL '94 for the SNES, the original game and league ROMs built on it:
   rosters, lines, team names, ratings and colours, the team overall the SNES
-  shows, team logos and centre ice logos, and hacks. Its rink and settings are
-  left alone so far.
+  shows, team logos and centre ice logos, the main menu's starting choices,
+  and hacks. Its rink and other settings are left alone so far.
 - SNES ROMs rebuilt with another number of teams or with their data in new
   places, such as one with all 32 of today's NHL teams, its later builds for
   the SA-1 chip among them: the editor follows the game's code to the teams,
-  colours and logos, and to the code the hacks change, which are put in with
+  colours, logos and menu (with the Fighting line these builds add), and to
+  the code the hacks change, which are put in with
   that ROM's addresses (all but the 30-second periods).
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.

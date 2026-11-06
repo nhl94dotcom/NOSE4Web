@@ -155,6 +155,12 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
   settings.menu.forEach((item, i) => writeU16(rom, defaults + i * 2, item.value))
 }
 
+// Whether the project has game settings to edit: all of them, or for the
+// SNES game only the main menu's starting choices.
+export function hasSettings(game: GameConfig, settings: Settings): boolean {
+  return game.settingsSupported || settings.menu.length > 0
+}
+
 // The choices to show for a menu item, taking edited period lengths into account.
 export function menuOptions(settings: Settings, game: GameConfig, index: number, teamNames: string[]): string[] {
   if (game.menuTeamItems.includes(index)) return teamNames

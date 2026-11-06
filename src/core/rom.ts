@@ -6,6 +6,7 @@ import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, splitSnesFile } from './snes'
+import { parseSnesMenu, writeSnesMenu } from './snesmenu'
 import { NO_SNES_PICTURE_EDITS, writeSnesPictures, type SnesPictureEdits } from './snespictures'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
@@ -115,7 +116,8 @@ function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array
     teams,
     layout,
     rinkPalette: [],
-    settings: NO_SETTINGS,
+    // Of the game settings, only the main menu's starting choices are read.
+    settings: { ...NO_SETTINGS, menu: parseSnesMenu(rom) },
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: false,
     snesPictures: NO_SNES_PICTURE_EDITS,
@@ -195,6 +197,7 @@ export function buildRom(project: RomProject): Uint8Array {
   writeTeams(rom, project.game, project.teams, project.layout)
   if (project.game.platform === 'snes') {
     writeSnesPictures(rom, project.teams.length, project.snesPictures ?? NO_SNES_PICTURE_EDITS)
+    writeSnesMenu(rom, project.settings.menu)
     fixSnesChecksum(rom)
     if (!project.copierHeader) return rom
     const file = new Uint8Array(project.copierHeader.length + rom.length)

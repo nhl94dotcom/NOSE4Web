@@ -153,10 +153,16 @@ const SETTINGS_PARTS: Record<SettingsPart, (keyof Settings)[]> = {
   playoffDraws: ['playoffDraws'],
 }
 
+// The menu's starting choices are its values: a hack can change what choices
+// a line has, which is no change to the settings.
+const menuValues = (settings: Settings) => settings.menu.map((item) => item.value)
+
 export function settingsPartChanged(settings: Settings, original: Settings, part: SettingsPart): boolean {
+  if (part === 'menu') return !same(menuValues(settings), menuValues(original))
   return SETTINGS_PARTS[part].some((key) => !same(settings[key], original[key]))
 }
 
 export function resetSettingsPart(settings: Settings, original: Settings, part: SettingsPart): Settings {
+  if (part === 'menu') return { ...settings, menu: settings.menu.map((item, i) => ({ ...item, value: original.menu[i]?.value ?? item.value })) }
   return { ...settings, ...Object.fromEntries(SETTINGS_PARTS[part].map((key) => [key, original[key]])) }
 }

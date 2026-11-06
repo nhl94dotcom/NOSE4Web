@@ -572,7 +572,11 @@ export function HelpPage() {
           the menu text, so change both.
         </li>
         <li>
-          <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts.
+          <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
+          the play mode, the two teams, the period length, penalties, line changes, goalie control, and on the
+          Genesis the players and user records. A league can set its usual game up so that nobody has to change the
+          menu before playing. For the SNES this is the only section; its 32-team builds add a Fighting line (On, Off
+          or After Whistle).
         </li>
         <li>
           <b>Rule messages</b>: the text shown for icing, penalties and so on, how long each stays on screen, and
@@ -1313,8 +1317,13 @@ export function HelpPage() {
           SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
         </li>
         <li>
-          <b>Not yet:</b> the rink and game settings. The SNES game keeps them elsewhere and in other ways, so the
-          editor leaves them exactly as they are.
+          <b>Game settings:</b> the main menu's starting choices, as for the Genesis, where the ROM has the game's
+          own menu code. In the playoff modes the game shows the Home line as Team and hides the Visitor line. The
+          30-second periods hack adds a fourth period length to choose from.
+        </li>
+        <li>
+          <b>Not yet:</b> the rink, and the other game settings: the clock, rule messages and playoff draws. The SNES
+          game keeps them elsewhere and in other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,

@@ -31,7 +31,9 @@ import { hacksSupported } from '../src/core/hacks'
 import { ALL_PARTS, importTeam } from '../src/core/importteam'
 import { teamSummaries } from '../src/core/league'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
-import { resetTeamPart } from '../src/core/reset'
+import { resetSettingsPart, resetTeamPart, settingsPartChanged } from '../src/core/reset'
+import { menuOptions } from '../src/core/settings'
+import { SNES_MENU_CAPTIONS } from '../src/core/snesmenu'
 import { buildPatch, buildRom, openRom, type RomProject } from '../src/core/rom'
 import { csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
 import { goalieCount, teamDisplayName, teamSpace } from '../src/core/team'
@@ -128,6 +130,26 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect([project.graphicsSupported, project.game.settingsSupported, hacksSupported(project.game)]).toEqual([false, false, false])
         expect(nextExpansion(project)).toBeNull()
         expect(project.rinkPalette).toEqual([])
+      })
+
+      it("sets the main menu's starting choices, changing nothing else, and keeps them in a project file", () => {
+        const project = openRom(read(name))
+        const { menu } = project.settings
+        expect(menu.map((item) => item.caption)).toEqual(SNES_MENU_CAPTIONS.slice(0, menu.length))
+        expect(menu.length).toBeGreaterThanOrEqual(7)
+        const teamNames = project.teams.map(teamDisplayName)
+        // Every line on its last choice.
+        const last = menu.map((item, i) => ({ ...item, value: menuOptions(project.settings, project.game, i, teamNames).length - 1 }))
+        const edited = { ...project, settings: { ...project.settings, menu: last } }
+        const [before, after] = [buildRom(project), buildRom(edited)]
+        const changed = [...after.keys()].filter((i) => after[i] !== before[i])
+        const header = project.copierHeader?.length ?? 0
+        expect(changed.filter((i) => !checksumBytes(header).includes(i)).length).toBeLessThanOrEqual(menu.length * 2)
+        expect(openRom(after).settings.menu).toEqual(last)
+        expect(compareProjects(project, edited).find((section) => section.heading === 'Main menu')?.changes).toHaveLength(last.filter((item, i) => item.value !== menu[i].value).length)
+        const reopened = openProjectFile(openRom(read(name)), saveProjectFile(edited, project)).project
+        expect(reopened.settings.menu).toEqual(last)
+        expect(resetSettingsPart(edited.settings, project.settings, 'menu')).toEqual(project.settings)
       })
 
       it('comes back the same from a full set of spreadsheet files and from a project file', () => {
@@ -341,6 +363,22 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)
+  })
+})
+
+describe.skipIf(!existsSync(path(STOCK)))("the original SNES game's main menu", () => {
+  it('starts on Montreal at home to Los Angeles, and gains a period length with the 30-second periods', () => {
+    const project = openRom(read(STOCK))
+    const choices = (p: RomProject) => p.settings.menu.map((item, i) => menuOptions(p.settings, p.game, i, p.teams.map(teamDisplayName))[item.value])
+    expect(choices(project)).toEqual(['Regular Season', 'Montreal Canadiens', 'Los Angeles Kings', '10 Minutes', 'Off', 'Off', 'Automatic'])
+    const hacked = applySnesHacks(project, { thirtySecondPeriods: true })
+    expect(hacked.settings.menu[3].options).toEqual(['5 Minutes', '10 Minutes', '20 Minutes', '30 Seconds'])
+    expect(settingsPartChanged(hacked.settings, project.settings, 'menu')).toBe(false)
+    const thirty = { ...hacked, settings: { ...hacked.settings, menu: hacked.settings.menu.map((item, i) => (i === 3 ? { ...item, value: 3 } : item)) } }
+    expect(checkProject(thirty).filter((finding) => finding.where === 'Main menu')).toEqual([])
+    // Without the hack the choice is not on offer.
+    const unhacked = applySnesHacks(thirty, { thirtySecondPeriods: false })
+    expect(checkProject(unhacked).filter((finding) => finding.where === 'Main menu')).toHaveLength(1)
   })
 })
 
