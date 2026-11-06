@@ -99,9 +99,12 @@ export function findCodeAll(rom: Uint8Array, pattern: string): { at: number; gro
   }
   const values = (at: number) => groups.map((group) => (group.size === 2 ? readU16LE(rom, at + group.at) : rom[at + group.at]))
   const matches: { at: number; groups: number[] }[] = []
-  for (let at = 0; at <= rom.length - bytes.length; at++) {
-    if (rom[at] !== bytes[0] || !bytes.every((byte, i) => byte === null || rom[at + i] === byte)) continue
-    matches.push({ at, groups: values(at) })
+  // Only where the pattern's first fixed byte is, which the browser finds quickly.
+  const key = bytes.findIndex((byte) => byte !== null)
+  const last = rom.length - bytes.length
+  for (let found = rom.indexOf(bytes[key]!, key); found >= 0 && found - key <= last; found = rom.indexOf(bytes[key]!, found + 1)) {
+    const at = found - key
+    if (bytes.every((byte, i) => byte === null || rom[at + i] === byte)) matches.push({ at, groups: values(at) })
   }
   return matches
 }
@@ -156,6 +159,14 @@ function stripLoader(rom: Uint8Array, side: 'home' | 'away'): { at: number; tabl
   const [, address, bank] = mine[0].groups
   const table = loRomOffset(bank, address)
   return address >= 0x8000 && table + STRIP_BYTES <= rom.length ? { at: mine[0].at, table } : null
+}
+
+// The address the game keeps the home team's number at: $1C98 in the
+// original game. The SA-1 build has moved all the variables near it by the
+// same amount, so this says where the others are too.
+export function snesHomeTeamAddress(rom: Uint8Array): number | null {
+  const teams = [...new Set(findCodeAll(rom, STRIP_LOADER).map((loader) => loader.groups[0]))].sort((a, b) => a - b)
+  return teams.length === 2 && teams[1] === teams[0] + 2 ? teams[0] : null
 }
 
 export function snesStripTables(rom: Uint8Array): { home: number; away: number } | null {

@@ -6,7 +6,7 @@ import type { RomProject } from './rom'
 import { menuOptions } from './settings'
 import { goalieCount, teamDisplayName, teamLabels, type Player, type Team } from './team'
 import { projectTeamRatings } from './ppfix'
-import { teamRatings } from './teamratings'
+import { teamRatings, type TeamRating } from './teamratings'
 
 // Describes, in plain sentences, how one project differs from another.
 // Teams are matched by their position in the ROM, players and line members by
@@ -100,7 +100,7 @@ function compareLines(project: RomProject, before: Team, after: Team, stayed: Ma
   })
 }
 
-function compareTeam(project: RomProject, before: Team, after: Team, sameGame: boolean): string[] {
+function compareTeam(project: RomProject, before: Team, after: Team, sameGame: boolean, ratings: TeamRating[]): string[] {
   const changes: string[] = []
   after.names.forEach((text, i) => {
     if (text !== before.names[i]) changes.push(`${NAME_LABELS[i]}: "${before.names[i]}" to "${text}".`)
@@ -120,7 +120,7 @@ function compareTeam(project: RomProject, before: Team, after: Team, sameGame: b
     changes.push(`Overall shown on the matchup screen: ${before.shownOverall} to ${after.shownOverall}.`)
   }
   const [ratedBefore, ratedAfter] = [teamRatings(before), teamRatings(after)]
-  projectTeamRatings(project).forEach((rating, i) => {
+  ratings.forEach((rating, i) => {
     if (ratedAfter[i] !== ratedBefore[i]) changes.push(`${rating.label} rating: ${ratedBefore[i]} to ${ratedAfter[i]}.`)
   })
   return changes
@@ -209,9 +209,10 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   }
 
   const labels = teamLabels(after.teams, after.game)
+  const ratings = projectTeamRatings(after)
   after.teams.forEach((team, i) => {
     if (counterpart[i] < 0) return
-    const changes = compareTeam(after, before.teams[counterpart[i]], team, samePlatform)
+    const changes = compareTeam(after, before.teams[counterpart[i]], team, samePlatform, ratings)
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
   // The SNES game's settings are not read, so there is nothing to compare them with.

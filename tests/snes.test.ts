@@ -250,27 +250,28 @@ describe.skipIf(!existsSync(path(STOCK)) || !existsSync(path(GENESIS)))('the SNE
 })
 
 describe.skipIf(names.length === 0)('SNES hacks', () => {
-  const allOn = Object.fromEntries(SNES_HACKS.map((hack) => [hack, true])) as SnesHackChoices
   const allOff = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
 
   names.forEach((name, n) => {
-    it(`are recognised in SNES ROM ${n + 1}, and go in and come out again, or are left alone where its code has moved`, () => {
+    it(`are recognised in SNES ROM ${n + 1}, and go in and come out again, wherever its code is`, () => {
       const project = openRom(read(name))
       const before = detectSnesHacks(project.bytes)
-      if (!snesCodeInPlace(project.bytes)) {
-        expect(before.unknown).toEqual(SNES_HACKS)
-        expect(() => applySnesHacks(project, { skipEaIntro: true })).toThrow(/other code/)
-        expect(applySnesHacks(project, {}).bytes).toEqual(project.bytes)
-        return
-      }
-      expect(before.unknown).toEqual([])
-      const on = applySnesHacks(project, allOn)
-      expect(detectSnesHacks(on.bytes).choices).toEqual(allOn)
+      // A ROM whose code has moved has every hack but the 30-second periods, whose menu data differs there.
+      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['thirtySecondPeriods'])
+      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => !before.unknown.includes(hack)).map((hack) => [hack, true]))
+      const on = applySnesHacks(project, wanted)
+      expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
       const reopened = openRom(buildRom(on))
-      expect(detectSnesHacks(reopened.bytes).choices).toEqual(allOn)
+      expect(detectSnesHacks(reopened.bytes).choices).toEqual({ ...allOff, ...wanted })
       expect(teamsOf(reopened)).toEqual(teamsOf(project))
       // Back to what it had, byte for byte.
       expect(applySnesHacks(on, before.choices).bytes).toEqual(project.bytes)
+      if (!before.unknown.includes('thirtySecondPeriods')) return
+      expect(() => applySnesHacks(project, { thirtySecondPeriods: true })).toThrow(/other code/)
+      // Where the code has moved, the call an intro skip takes out is found from the ROM as opened; a ROM opened
+      // with the skip in cannot have it taken out.
+      expect(() => applySnesHacks(reopened, { skipEaIntro: false })).toThrow(/cannot be taken out/)
+      expect(detectSnesHacks(applySnesHacks(reopened, { hotColdFix: false }).bytes).choices.hotColdFix).toBe(false)
     })
   })
 
@@ -332,10 +333,13 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     fixSnesChecksum(moved)
     const project = openRom(moved)
     expect(project.game.title).toBe("NHL '94 (SNES), 28 teams, rebuilt")
-    expect(project.game.notice).toMatch(/cannot be put in/)
+    expect(project.game.notice).toMatch(/found where this ROM has the code they change/)
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
-    expect(detectSnesHacks(moved).unknown).toEqual(SNES_HACKS)
+    // The hacks are found by the code around them; those that need to know where the game's variables are cannot
+    // be put in, as that is read from the colour loader changed here.
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'thirtySecondPeriods', 'noGoalPosts'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
+    expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)
   })
 })

@@ -1325,8 +1325,11 @@ export function HelpPage() {
           <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt from the disassembly with another number of teams, such as
           one with all 32 of today's NHL teams, and keep their teams and colours in new places; its later builds are
           for the SA-1 chip, which emulators and flash carts run. The editor finds them by following the game's own
-          code. Where the code has been moved too, as it is in that 32-team ROM,
-          the hacks are made for places that now hold other code, so the Hacks page does not offer them.
+          code. Where the code has been moved too, as it is in that 32-team ROM, the hacks are found by the code
+          around each of their places and made with that ROM's addresses, their new code going into unused room in
+          the same part of the ROM. The 30-second periods are not offered there, as the menu data they change is
+          different. Where a ROM was opened with an intro already skipped, the skip cannot be taken out, as the call
+          it replaced is not known.
         </li>
         <li>
           <b>Importing</b> a team from a Genesis ROM brings its names, roster and lines, but not its colours.{' '}
