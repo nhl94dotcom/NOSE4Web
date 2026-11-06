@@ -1,3 +1,4 @@
+import type { ColorFormat } from './core/color'
 import { pictureToImage, type Picture } from './core/graphics'
 
 // Turning image files into pixels and back, which only a browser can do.
@@ -20,13 +21,13 @@ export async function readImage(file: Blob): Promise<LoadedImage> {
 }
 
 // A picture as a PNG file, with colour 0 see-through.
-export async function pictureToPng(picture: Picture, palette: number[]): Promise<Uint8Array> {
+export async function pictureToPng(picture: Picture, palette: number[], format?: ColorFormat): Promise<Uint8Array> {
   const canvas = document.createElement('canvas')
   canvas.width = picture.width
   canvas.height = picture.height
   const context = canvas.getContext('2d')!
   const data = context.createImageData(picture.width, picture.height)
-  data.data.set(pictureToImage(picture, palette))
+  data.data.set(pictureToImage(picture, palette, format))
   context.putImageData(data, 0, 0)
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('The browser could not make a PNG file.')

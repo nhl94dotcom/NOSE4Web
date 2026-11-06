@@ -19,6 +19,13 @@ Capewell), ported from his program
 [smozROM](https://github.com/nhl94dotcom/smozROM) with his permission and
 under its licence, the GNU General Public License, version 3 or later.
 
+Its SNES editing is built on the community's SNES disassemblies:
+[NHL94SNES](https://github.com/abdulahmad/NHL94SNES) by **abdulahmad**, with
+**chaos**, **StaticEck**, **McMarkis** (Mhopkinsinc) and **Drezz**, and special
+thanks to **smozoma** and **kingraph**; and
+[NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault) by
+**McMarkis** (Mhopkinsinc), whose patches are the SNES hacks.
+
 ## Licence
 
 Copyright (C) 2026 Tickenest
@@ -64,7 +71,7 @@ That licence does not cover:
   real-time clock
 - NHL '94 for the SNES too: rosters, lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,
-  and the disassembly's hacks, among them the fix for the SNES hot and cold
+  team logos and centre ice logos as PNG images, and the disassembly's hacks, among them the fix for the SNES hot and cold
   bug, with spreadsheets, project files, trades,
   checking and comparing, from the community's SNES disassembly,
   [NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault)
@@ -123,11 +130,12 @@ It can also:
 
 - NHL '94 for the SNES, the original game and league ROMs built on it:
   rosters, lines, team names, ratings and colours, the team overall the SNES
-  shows, and hacks. Its rink, settings and pictures are left alone so far.
+  shows, team logos and centre ice logos, and hacks. Its rink and settings are
+  left alone so far.
 - SNES ROMs rebuilt with another number of teams or with their data in new
   places, such as one with all 32 of today's NHL teams: the editor follows the
   game's code to the teams and colours. Where the code itself has been moved,
-  the hacks are not offered.
+  the hacks are not offered, and its logos, kept differently, are left alone.
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
 SNES `.smc` and `.sfc` files can be opened, with or without a copier header,

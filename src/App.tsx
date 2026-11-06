@@ -33,6 +33,7 @@ import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
+import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
 import './App.css'
@@ -387,8 +388,10 @@ export default function App() {
                 .catch((e) => setError(e instanceof Error ? e.message : String(e)))
             }}
             footer={
-              current.graphicsSupported && (
+              current.graphicsSupported ? (
                 <GraphicsEditor project={current} team={selected} onChange={change} />
+              ) : (
+                current.game.platform === 'snes' && <SnesPicturesEditor project={current} team={selected} onChange={change} />
               )
             }
           />

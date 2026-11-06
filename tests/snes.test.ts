@@ -7,6 +7,21 @@ import { projectTeamRatings } from '../src/core/ppfix'
 import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, snesPreviewSprites, snesStripTables } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from '../src/core/sneshacks'
 import { checkProject } from '../src/core/check'
+import { pictureToImage, type Picture } from '../src/core/graphics'
+import { unpackHuffman } from '../src/core/huffman'
+import {
+  LOGO_SIZE,
+  logoFrame,
+  NO_SNES_PICTURE_EDITS,
+  snesCentreIce,
+  snesCentreIceFromImage,
+  snesLogo,
+  snesLogoFromImage,
+  SnesPictureRoomError,
+  snesPicturesSupported,
+  writeSnesPictures,
+  type SnesPictureEdits,
+} from '../src/core/snespictures'
 import { NHL94_SNES } from '../src/core/games'
 import { compareProjects } from '../src/core/compare'
 import { formatCsv } from '../src/core/csv'
@@ -335,5 +350,132 @@ describe.skipIf(!existsSync(path(STOCK)))('the SNES power play and penalty kill 
     expect(detectSnesHacks(fixed.bytes).choices.ppPkFix).toBe(true)
     expect(projectTeamRatings(fixed).map((rating) => rating.label).slice(2, 4)).toEqual(['Power play', 'Penalty kill'])
     expect(applySnesHacks(fixed, { ppPkFix: false }).bytes).toEqual(project.bytes)
+  })
+})
+
+describe.skipIf(names.length === 0)('SNES logos', () => {
+  const none = NO_SNES_PICTURE_EDITS
+  const samePicture = (a: Picture, b: Picture) => a.width === b.width && a.height === b.height && a.pixels.every((p, i) => p === b.pixels[i])
+  // The logo set is at $81:ABDE in the original game.
+  const LOGO_SET = 0xabde
+
+  names.forEach((name, n) => {
+    it(`are read in SNES ROM ${n + 1} where it keeps them as the original game does, and left alone where not`, () => {
+      const project = openRom(read(name))
+      const teams = project.teams.length
+      if (!snesPicturesSupported(project.bytes, teams)) {
+        expect(snesCodeInPlace(project.bytes)).toBe(false)
+        expect(() => writeSnesPictures(project.bytes.slice(), teams, { logos: { 0: snesLogo(read(STOCK), 28, none, 0) }, centreIce: {} })).toThrow(/cannot read/)
+        return
+      }
+      for (let team = 0; team < teams; team++) {
+        const logo = snesLogo(project.bytes, teams, none, team)
+        expect(logo.picture.pixels.some((p) => p > 0)).toBe(true)
+        expect(logo.palette).toHaveLength(16)
+        expect(snesCentreIce(project.bytes, teams, none, team).picture.pixels.some((p) => p > 0)).toBe(true)
+      }
+      // Every logo given back as it is: nothing in the ROM changes.
+      const all: SnesPictureEdits = { logos: {}, centreIce: {} }
+      for (let team = 0; team < teams; team++) {
+        all.logos[team] = snesLogo(project.bytes, teams, none, team)
+        all.centreIce[team] = snesCentreIce(project.bytes, teams, none, team).picture
+      }
+      const rom = project.bytes.slice()
+      writeSnesPictures(rom, teams, all)
+      expect(rom).toEqual(project.bytes)
+    })
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('replace a team’s logo and centre ice logo, which read back exactly and change nothing else', () => {
+    const project = openRom(read(STOCK))
+    const boston = snesLogo(project.bytes, 28, none, 1)
+    const bostonIce = snesCentreIce(project.bytes, 28, none, 1)
+    const edits: SnesPictureEdits = { logos: { 0: boston }, centreIce: { 0: bostonIce.picture } }
+    const reopened = openRom(buildRom({ ...project, snesPictures: edits }))
+    for (let team = 0; team < 28; team++) {
+      const want = team === 0 ? boston : snesLogo(project.bytes, 28, none, team)
+      const got = snesLogo(reopened.bytes, 28, none, team)
+      expect(samePicture(got.picture, want.picture)).toBe(true)
+      expect(got.palette.slice(1)).toEqual(want.palette.slice(1))
+      const ice = snesCentreIce(reopened.bytes, 28, none, team).picture
+      expect(samePicture(ice, team === 0 ? bostonIce.picture : snesCentreIce(project.bytes, 28, none, team).picture)).toBe(true)
+    }
+    expect(reopened.teams).toEqual(project.teams)
+    // The logos fit the room the game unpacks them into, and the place they were.
+    const set = unpackHuffman(reopened.bytes, LOGO_SET)
+    expect(set.data.length).toBeLessThanOrEqual(unpackHuffman(project.bytes, LOGO_SET).data.length)
+    expect(set.packedSize).toBeLessThanOrEqual(unpackHuffman(project.bytes, LOGO_SET).packedSize)
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('say so when the logos no longer fit the room the game unpacks them into', () => {
+    const project = openRom(read(STOCK))
+    const boston = snesLogo(project.bytes, 28, none, 1)
+    const edits: SnesPictureEdits = { logos: { 5: boston, 6: boston, 24: boston, 27: boston }, centreIce: {} }
+    expect(() => writeSnesPictures(project.bytes.slice(), 28, edits)).toThrow(SnesPictureRoomError)
+    expect(() => buildRom({ ...project, snesPictures: edits })).toThrow(/room/)
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('come from images: up to 15 colours of the logo’s own, and the rink’s colours for the centre ice', () => {
+    const project = openRom(read(STOCK))
+    const boston = snesLogo(project.bytes, 28, none, 1)
+    const image = pictureToImage(boston.picture, boston.palette, SNES_COLORS)
+    const made = snesLogoFromImage(image, LOGO_SIZE, LOGO_SIZE)
+    // The same picture, though its colours may be numbered differently.
+    const colour = (logo: { picture: Picture; palette: number[] }, i: number) =>
+      logo.picture.pixels[i] ? colorRgb(logo.palette[logo.picture.pixels[i]], SNES_COLORS).join() : 'none'
+    expect(made.picture.pixels.every((_, i) => colour(made, i) === colour(boston, i))).toBe(true)
+    expect(() => snesLogoFromImage(image, 48, 48)).toThrow(/56 by 56/)
+
+    const ice = snesCentreIce(project.bytes, 28, none, 3)
+    const back = snesCentreIceFromImage(pictureToImage(ice.picture, ice.palette, SNES_COLORS), ice.picture.width, ice.picture.height, ice)
+    const rgb = (word: number) => colorRgb(word, SNES_COLORS).join()
+    expect(back.pixels.every((p, i) => (p === 0 ? ice.picture.pixels[i] === 0 : rgb(ice.palette[p]) === rgb(ice.palette[ice.picture.pixels[i]])))).toBe(true)
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('lay a logo out as the game draws it: at most 36 tiles, sent in two runs', () => {
+    const project = openRom(read(STOCK))
+    const set = unpackHuffman(project.bytes, LOGO_SET).data
+    const frameAt = (f: number) => readU16LE(set, f * 4) | (readU16LE(set, f * 4 + 2) << 16)
+    for (let team = 0; team < 28; team++) {
+      const frame = logoFrame(snesLogo(project.bytes, 28, none, team).picture, set.slice(frameAt(team), frameAt(team + 1)))
+      const [pieces, tiles, first, second, tileData] = [frame[0], readU16LE(frame, 2), readU16LE(frame, 0x0c) / 32, readU16LE(frame, 0x0e) / 32, readU16LE(frame, 0x10)]
+      expect(tiles).toBeLessThanOrEqual(36)
+      expect(first + second).toBe(tiles)
+      expect(tileData).toBe(0x16 + pieces * 7)
+      expect(frame.length).toBe(tileData + tiles * 32)
+      // Every piece's tiles are among those sent.
+      const secondAt = Math.max(1, Math.ceil(first / 16)) * 16
+      const sent = (place: number) => place < first || (place >= secondAt && place < secondAt + second)
+      for (let p = 0; p < pieces; p++) {
+        const [place, big] = [frame[0x16 + p * 7 + 4], frame[0x16 + p * 7 + 6] === 0xff]
+        for (const offset of big ? [0, 1, 16, 17] : [0]) expect(sent(place + offset)).toBe(true)
+      }
+    }
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('move a centre ice logo that has grown to free space, and point the game at it', () => {
+    const project = openRom(read(STOCK))
+    const boston = snesCentreIce(project.bytes, 28, none, 1).picture
+    const rom = project.bytes.slice()
+    // Buffalo's is smaller than Boston's, so Boston's does not fit in its place.
+    writeSnesPictures(rom, 28, { logos: {}, centreIce: { 2: boston } })
+    expect(samePicture(snesCentreIce(rom, 28, none, 2).picture, boston)).toBe(true)
+    // The centre ice table is at $9C:83B7; Buffalo's tiles were at $9A:C... and are now elsewhere.
+    const entry = 0xe03b7 + 2 * 8
+    const before = readU16LE(project.bytes, entry) | (project.bytes[entry + 2] << 16)
+    const after = readU16LE(rom, entry) | (rom[entry + 2] << 16)
+    expect(after).not.toBe(before)
+    for (let team = 0; team < 28; team++) {
+      if (team !== 2) expect(samePicture(snesCentreIce(rom, 28, none, team).picture, snesCentreIce(project.bytes, 28, none, team).picture)).toBe(true)
+    }
+  })
+
+  it.skipIf(!existsSync(path(STOCK)))('are kept in a project file', () => {
+    const project = openRom(read(STOCK))
+    const boston = snesLogo(project.bytes, 28, none, 1)
+    const edited = { ...project, snesPictures: { logos: { 0: boston }, centreIce: { 2: snesCentreIce(project.bytes, 28, none, 1).picture } } }
+    const reopened = openProjectFile(openRom(read(STOCK)), saveProjectFile(edited, project, 'Set'))
+    expect(reopened.notes).toEqual([])
+    expect(buildRom(reopened.project)).toEqual(buildRom(edited))
   })
 })

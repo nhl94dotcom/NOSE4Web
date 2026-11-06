@@ -1289,8 +1289,19 @@ export function HelpPage() {
           A hack is only changed where the ROM has the original game's code or the hack's in its place.
         </li>
         <li>
-          <b>Not yet:</b> the rink, game settings, and logos and banners. The SNES game keeps them elsewhere and in
-          other ways, so the editor leaves them exactly as they are.
+          <b>Logos:</b> each team's logo, on the matchup, setup and player card screens, and its centre ice logo
+          are on the team page, to export as PNG images and import again. A team logo has 15 colours of its own,
+          taken from the image you import, and can be at most 36 tiles of 8 by 8 pixels. All the logos are unpacked
+          together into room the original logos fill, so a logo bigger than the one it replaces fits only where
+          others take less room; the editor lays out other logos more tightly, looking the same, where that helps.
+          A centre ice logo is drawn in the rink's colours, eight rows of 15 that every team shares, and each 8 by
+          8 tile of it is matched to the row that suits it best. One that has grown is moved to free space in the
+          ROM. The SNES game has no banners: its team blocks are plain colour with the name in letters. Logos in
+          ROMs rebuilt with more teams are kept differently and are left alone so far.
+        </li>
+        <li>
+          <b>Not yet:</b> the rink and game settings. The SNES game keeps them elsewhere and in other ways, so the
+          editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM, and in the original game they fill it,
@@ -1369,12 +1380,17 @@ export function HelpPage() {
         recorded games.
       </p>
       <p>
-        What the editor knows of the SNES game comes from{' '}
+        What the editor knows of the SNES game comes from the community's disassemblies of NHL '94 for the SNES:{' '}
+        <a href="https://github.com/abdulahmad/NHL94SNES" target="_blank" rel="noreferrer">
+          NHL94SNES
+        </a>{' '}
+        by abdulahmad, with chaos, StaticEck, McMarkis (Mhopkinsinc) and Drezz, and special thanks to smozoma and
+        kingraph; and{' '}
         <a href="https://github.com/Mhopkinsinc/NHL94SNESVault" target="_blank" rel="noreferrer">
           NHL94SNESVault
-        </a>
-        , the community's disassembly of NHL '94 for the SNES by Mhopkinsinc and its contributors, and the SNES
-        findings of the NHL94 Match Viewer project. The SNES hacks are that project's patches.
+        </a>{' '}
+        by McMarkis (Mhopkinsinc) and its contributors, whose patches are the SNES hacks; and from the SNES findings
+        of the NHL94 Match Viewer project.
       </p>
       <p>
         NOSE4Web is free software, released under the GNU General Public License, version 3 or later. It comes

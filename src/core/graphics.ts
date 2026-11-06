@@ -1,5 +1,5 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
-import { colorRgb, nearestColorWord } from './color'
+import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
 import type { GameConfig } from './games'
 import { claimSpace } from './space'
 
@@ -481,11 +481,11 @@ export function menuLogoFromImage(
 }
 
 // A picture as image data, four bytes per pixel, with colour 0 see-through.
-export function pictureToImage(picture: Picture, palette: number[]): Uint8ClampedArray {
+export function pictureToImage(picture: Picture, palette: number[], format = GENESIS_COLORS): Uint8ClampedArray {
   const rgba = new Uint8ClampedArray(picture.pixels.length * 4)
   picture.pixels.forEach((index, i) => {
     if (index === 0) return
-    rgba.set([...colorRgb(palette[index]), 255], i * 4)
+    rgba.set([...colorRgb(palette[index], format), 255], i * 4)
   })
   return rgba
 }

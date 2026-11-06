@@ -6,6 +6,7 @@
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from './sneshacks'
+import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
@@ -42,6 +43,11 @@ interface ProjectFile {
   hacks?: HackChoices
   // The same for an SNES ROM.
   snesHacks?: SnesHackChoices
+  // An SNES ROM's replaced logos.
+  snesPictures?: {
+    logos: Record<string, { pixels: string; palette: number[] }>
+    centreIce: Record<string, { width: number; height: number; pixels: string }>
+  }
   baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
 }
 
@@ -103,6 +109,14 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     leagueRules: project.leagueRules,
     hacks: hackState(project)?.choices,
     snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
+    snesPictures: project.snesPictures && {
+      logos: Object.fromEntries(
+        Object.entries(project.snesPictures.logos).map(([team, logo]) => [team, { pixels: pack(logo.picture.pixels), palette: logo.palette }]),
+      ),
+      centreIce: Object.fromEntries(
+        Object.entries(project.snesPictures.centreIce).map(([team, picture]) => [team, { width: picture.width, height: picture.height, pixels: pack(picture.pixels) }]),
+      ),
+    },
     baseline: project.baseline,
   }
   return JSON.stringify(file)
@@ -365,5 +379,42 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   } else if (SET_NAMES.some((set) => Object.keys(file.pictures?.[set] ?? {}).length > 0)) {
     notes.push('The project has pictures, but this ROM keeps its pictures in a way the editor cannot read, so they were left out.')
   }
+  if (game.platform === 'snes') project = withSnesPictures(project, file.snesPictures, notes)
   return { project, name: typeof file.name === 'string' ? file.name : '', notes }
+}
+
+// An SNES project's logos, each kept where it is the right size and the
+// whole only where it fits the ROM.
+function withSnesPictures(project: RomProject, stored: ProjectFile['snesPictures'], notes: string[]): RomProject {
+  const entries = [...Object.entries(stored?.logos ?? {}), ...Object.entries(stored?.centreIce ?? {})]
+  if (entries.length === 0) return project
+  const teams = project.teams.length
+  if (!snesPicturesSupported(project.bytes, teams)) {
+    notes.push('The project has logos, but this ROM keeps its logos in a way the editor cannot read, so they were left out.')
+    return project
+  }
+  const edits: SnesPictureEdits = { logos: {}, centreIce: {} }
+  let skipped = 0
+  const team = (key: string) => (Number.isInteger(Number(key)) && Number(key) >= 0 && Number(key) < teams ? Number(key) : -1)
+  for (const [key, logo] of Object.entries(stored?.logos ?? {})) {
+    const pixels = typeof logo?.pixels === 'string' ? unpack(logo.pixels) : null
+    if (team(key) >= 0 && pixels?.length === LOGO_SIZE * LOGO_SIZE && pixels.every((p) => p < 16) && isNumbers(logo.palette, 16, 0xffff)) {
+      edits.logos[team(key)] = { picture: { width: LOGO_SIZE, height: LOGO_SIZE, pixels }, palette: logo.palette }
+    } else skipped++
+  }
+  for (const [key, picture] of Object.entries(stored?.centreIce ?? {})) {
+    const like = team(key) >= 0 ? snesCentreIce(project.bytes, teams, NO_SNES_PICTURE_EDITS, team(key)).picture : null
+    const pixels = typeof picture?.pixels === 'string' ? unpack(picture.pixels) : null
+    if (like && pixels && picture.width === like.width && picture.height === like.height && pixels.length === like.pixels.length && pixels.every((p) => p < 128)) {
+      edits.centreIce[team(key)] = { width: like.width, height: like.height, pixels }
+    } else skipped++
+  }
+  if (skipped > 0) notes.push(`${skipped} of the project's logos do not fit this ROM, and were left out.`)
+  try {
+    writeSnesPictures(project.bytes.slice(), teams, edits)
+    return { ...project, snesPictures: edits }
+  } catch (e) {
+    notes.push(`The project's logos were left out: ${e instanceof Error ? e.message : String(e)}`)
+    return project
+  }
 }

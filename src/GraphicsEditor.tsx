@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ColorFormat } from './core/color'
 import {
   bannerColors,
   expandPictureSpace,
@@ -37,17 +38,18 @@ interface PictureViewProps {
   picture: Picture
   palette: number[]
   scale: number
+  format?: ColorFormat
 }
 
-function PictureView({ picture, palette, scale }: PictureViewProps) {
+export function PictureView({ picture, palette, scale, format }: PictureViewProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
     if (!context) return
     const data = context.createImageData(picture.width, picture.height)
-    data.data.set(pictureToImage(picture, palette))
+    data.data.set(pictureToImage(picture, palette, format))
     context.putImageData(data, 0, 0)
-  }, [picture, palette])
+  }, [picture, palette, format])
   return (
     <canvas
       ref={canvas}

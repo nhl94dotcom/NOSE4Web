@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { detectSnesHacks } from '../src/core/sneshacks'
+import { NO_SNES_PICTURE_EDITS, snesLogo } from '../src/core/snespictures'
 import { createZip, readZip } from '../src/core/zip'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
@@ -1695,5 +1696,28 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].shownOverall).toBe(88)
     expect(rom.teams[1].palette[12] & 0x1f).toBe(31)
     expect(detectSnesHacks(rom.bytes).choices.hotColdFix).toBe(true)
+  })
+
+  test('exports a team logo, imports another in its place, and downloads the ROM with it', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
+    await expect(logos.locator('canvas.preview')).toHaveCount(2)
+    await logos.screenshot({ path: 'test-results/shots/snes-logos.png' })
+    const exported = await downloadFrom(page, logos.getByRole('button', { name: 'Export PNG' }).first())
+    expect(exported.suggestedFilename()).toBe('Boston_Bruins_logo.png')
+    const png = readFileSync(await exported.path())
+
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await logos.getByLabel('Import team logo').setInputFiles({ name: 'boston.png', mimeType: 'image/png', buffer: png })
+    await expect(logos.getByText('Logo replaced.')).toBeVisible()
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    const original = readRom(new Uint8Array(readFileSync(snesPath)))
+    const [got, want] = [snesLogo(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 0), snesLogo(original.bytes, 28, NO_SNES_PICTURE_EDITS, 1)]
+    expect(Array.from(got.picture.pixels).map((p) => (p ? got.palette[p] & 0x7fff : -1))).toEqual(
+      Array.from(want.picture.pixels).map((p) => (p ? want.palette[p] & 0x7fff : -1)),
+    )
   })
 })

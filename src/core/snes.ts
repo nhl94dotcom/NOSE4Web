@@ -71,30 +71,33 @@ export function snesChecksum(rom: Uint8Array): number {
 // places (one with all 32 of today's teams, for example), so the editor finds
 // the tables it edits by the game's code that loads them, wherever that is.
 // The code is all in the first 32 banks. `pattern` is the code as hex, with
-// a group for each part that varies, (..) for a byte and (....) for a word,
-// low byte first; it must be found exactly once.
+// a group for each part wanted, (..) for a byte and (....) for a word, low
+// byte first, and .. for a byte that may be anything. Where the code is in
+// several places, as when several routines load the same table, they must
+// all give the same values; the first place is returned.
 const CODE_BANKS = 0x20 * BANK_SIZE
 
-function findCode(rom: Uint8Array, pattern: string): { at: number; groups: number[] } | null {
+export function findCode(rom: Uint8Array, pattern: string): { at: number; groups: number[] } | null {
   // Each byte of the pattern, null where it varies, and where each group starts and how long it is.
   const bytes: (number | null)[] = []
   const groups: { at: number; size: number }[] = []
-  for (const [, fixed, group] of pattern.matchAll(/([0-9a-f]{2})|\(((?:\.\.)+)\)/g)) {
+  for (const [, fixed, group] of pattern.matchAll(/([0-9a-f]{2})|\(((?:\.\.)+)\)|\.\./g)) {
     if (fixed) bytes.push(parseInt(fixed, 16))
-    else {
+    else if (group) {
       groups.push({ at: bytes.length, size: group.length / 2 })
       for (let i = 0; i < group.length / 2; i++) bytes.push(null)
-    }
+    } else bytes.push(null)
   }
+  const values = (at: number) => groups.map((group) => (group.size === 2 ? readU16LE(rom, at + group.at) : rom[at + group.at]))
   const end = Math.min(rom.length, CODE_BANKS) - bytes.length
-  let found = -1
+  let found: { at: number; groups: number[] } | null = null
   for (let at = 0; at <= end; at++) {
     if (rom[at] !== bytes[0] || !bytes.every((byte, i) => byte === null || rom[at + i] === byte)) continue
-    if (found >= 0) return null
-    found = at
+    const here = values(at)
+    if (!found) found = { at, groups: here }
+    else if (here.some((value, i) => value !== found!.groups[i])) return null
   }
-  if (found < 0) return null
-  return { at: found, groups: groups.map((group) => (group.size === 2 ? readU16LE(rom, found + group.at) : rom[found + group.at])) }
+  return found
 }
 
 // ------------------------------------------------------------- team table
@@ -160,9 +163,11 @@ export function snesCodeInPlace(rom: Uint8Array): boolean {
 // each frame's place, as a distance from the table; a frame is a 22-byte
 // header, 7 bytes for each sprite (x, y, first tile, flags, size), and its
 // tiles, 32 bytes each in the SNES's planar 4-bit form. The game puts the
-// tiles in video memory in two rows of 16, which a sprite's tile numbers
-// count in, from the header's size of the first row. From the disassembly's
-// notes on sprite frames.
+// tiles in video memory in rows of 16, which a sprite's tile numbers count
+// in, in two parts: the first from tile 0, as many as the header's +$0C
+// says, and the rest from the row after the first part ends. A player's
+// first part is a row at most; a team logo's can be more. From the
+// disassembly's notes on sprite frames.
 const FRAME_TABLE = 0x10000
 const FRAME_HEADER = 0x16
 const SPRITE_ENTRY = 7
@@ -188,10 +193,16 @@ function tilePixel(rom: Uint8Array, tile: number, x: number, y: number): number 
 export function snesSpriteFrame(rom: Uint8Array, id: number): SpriteImage | null {
   if (id < 1 || id > readU16LE(rom, FRAME_TABLE) / 4) return null
   const entry = FRAME_TABLE + (id - 1) * 4
-  const frame = (readU16LE(rom, entry + 2) + 2) * BANK_SIZE + readU16LE(rom, entry)
+  return drawSpriteFrame(rom, (readU16LE(rom, entry + 2) + 2) * BANK_SIZE + readU16LE(rom, entry))
+}
+
+// The frame at `frame` in `rom`, which may also be a sprite set unpacked from
+// the ROM, such as the team logos.
+export function drawSpriteFrame(rom: Uint8Array, frame: number): SpriteImage | null {
   if (frame + FRAME_HEADER > rom.length || !(rom[frame + 1] & INLINE_TILES)) return null
   const count = rom[frame]
-  const firstRow = readU16LE(rom, frame + 0x0c) / 32
+  const firstPart = readU16LE(rom, frame + 0x0c) / 32
+  const secondPartAt = Math.max(1, Math.ceil(firstPart / 16)) * 16
   const tiles = frame + FRAME_HEADER + count * SPRITE_ENTRY
   const signed = (o: number) => (readU16LE(rom, o) ^ 0x8000) - 0x8000
 
@@ -205,7 +216,7 @@ export function snesSpriteFrame(rom: Uint8Array, id: number): SpriteImage | null
         const fx = flags & 0x40 ? size - 1 - x : x
         const fy = flags & 0x80 ? size - 1 - y : y
         const place = first + (fx >> 3) + (fy >> 3) * 16
-        const tile = tiles + (place < 16 ? place : firstRow + place - 16) * 32
+        const tile = tiles + (place < secondPartAt ? place : firstPart + place - secondPartAt) * 32
         if (tile + 32 > rom.length) return null
         const colour = tilePixel(rom, tile, fx & 7, fy & 7)
         if (colour) dots.push([left + x, top + y, colour])

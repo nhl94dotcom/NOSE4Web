@@ -6,6 +6,7 @@ import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, splitSnesFile } from './snes'
+import { NO_SNES_PICTURE_EDITS, writeSnesPictures, type SnesPictureEdits } from './snespictures'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
 
@@ -43,6 +44,8 @@ export interface RomProject {
   // pictures in the way the editor can read.
   graphics: GraphicsEdits
   graphicsSupported: boolean
+  // The SNES game's team pictures the user has replaced; see snespictures.ts.
+  snesPictures?: SnesPictureEdits
   // Players the user is holding who are on no team. They are part of the
   // work, but are not written to the ROM.
   freeAgents: FreeAgent[]
@@ -115,6 +118,7 @@ function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array
     settings: NO_SETTINGS,
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: false,
+    snesPictures: NO_SNES_PICTURE_EDITS,
     freeAgents: [],
     leagueRules: NO_LEAGUE_RULES,
     baseline: null,
@@ -190,6 +194,7 @@ export function buildRom(project: RomProject): Uint8Array {
   const rom = project.bytes.slice()
   writeTeams(rom, project.game, project.teams, project.layout)
   if (project.game.platform === 'snes') {
+    writeSnesPictures(rom, project.teams.length, project.snesPictures ?? NO_SNES_PICTURE_EDITS)
     fixSnesChecksum(rom)
     if (!project.copierHeader) return rom
     const file = new Uint8Array(project.copierHeader.length + rom.length)
