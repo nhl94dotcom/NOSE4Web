@@ -1294,8 +1294,8 @@ export function HelpPage() {
           taken from the image you import, and can be at most 36 tiles of 8 by 8 pixels. All the logos are unpacked
           together into room the original logos fill, so a logo bigger than the one it replaces fits only where
           others take less room; the editor lays out other logos more tightly, looking the same, where that helps.
-          A centre ice logo is drawn in the rink's colours, eight rows of 15 that every team shares, and each 8 by
-          8 tile of it is matched to the row that suits it best. One that has grown is moved to free space in the
+          A centre ice logo is drawn in the rink's colours, two rows of 15 that every team shares, faded as if seen
+          through the ice, and each 8 by 8 tile of it is matched to the row that suits it best. One that has grown is moved to free space in the
           ROM. The SNES game has no banners: its team blocks are plain colour with the name in letters. Logos in
           ROMs rebuilt with more teams are kept differently and are left alone so far.
         </li>

@@ -397,16 +397,23 @@ export function snesLogoFromImage(
 // ------------------------------------------------------------- centre ice
 
 // A centre ice logo's tiles keep a pixel to a nibble, its colour number, the
-// left pixel in the high nibble. Each tile of its map is drawn in one of the
-// rink's eight rows of colours, which every team shares; a picture of it
-// holds the row and the colour of each pixel as row * 16 + colour, with
-// colour 0, see-through, as 0 whatever its row. As NHL94SNESVault's
-// TileViewer reads them.
+// left pixel in the high nibble, as NHL94SNESVault's TileViewer reads them.
+// Each tile of its map gives a row of the rink's colours, which every team
+// shares; the game's BuildRinkMap adds $1400 to each map word as it puts the
+// logo on the rink, so the tile is drawn five rows on: the logos use rows 0
+// and 1 of their maps, drawn in rows 5 and 6, the colours seen through the
+// ice. A picture of it holds the row drawn and the colour of each pixel as
+// row * 16 + colour, with colour 0, see-through, as 0 whatever its row.
 const MAP_HEADER = 6
 const TILE_NUMBER = 0x3ff
 const PALETTE_SHIFT = 10
 const PALETTE_BITS = 7 << PALETTE_SHIFT
 const ROWS = 8
+const DRAWN_ROWS_ON = 5
+const drawnRow = (mapRow: number) => (mapRow + DRAWN_ROWS_ON) % ROWS
+const mapRow = (drawn: number) => (drawn - DRAWN_ROWS_ON + ROWS) % ROWS
+// The rows a centre ice logo is drawn in, which an imported one may use.
+const ICE_ROWS = [drawnRow(0), drawnRow(1)]
 
 interface IceMap {
   width: number
@@ -433,7 +440,7 @@ function drawCentreIce(rom: Uint8Array, c: Contents, team: number): Picture {
   const picture = { width: map.width * 8, height: map.height * 8, pixels: new Uint8Array(map.width * 8 * map.height * 8) }
   map.words.forEach((word, cell) => {
     const tile = (word & TILE_NUMBER) * TILE
-    const row = (word & PALETTE_BITS) >> PALETTE_SHIFT
+    const row = drawnRow((word & PALETTE_BITS) >> PALETTE_SHIFT)
     const [cx, cy] = [(cell % map.width) * 8, Math.floor(cell / map.width) * 8]
     for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 8; x++) {
@@ -465,7 +472,7 @@ function iceTilesFor(picture: Picture, map: IceMap): { tiles: Uint8Array; words:
   const words = map.words.map((_, cell) => {
     const [cx, cy] = [(cell % map.width) * 8, Math.floor(cell / map.width) * 8]
     let text = ''
-    let row = 0
+    let row = ICE_ROWS[0]
     for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 8; x++) {
         const value = picture.pixels[(cy + y) * picture.width + cx + x]
@@ -476,7 +483,7 @@ function iceTilesFor(picture: Picture, map: IceMap): { tiles: Uint8Array; words:
     if (text === tiles[0]) return 0
     let index = tiles.indexOf(text)
     if (index < 0) index = tiles.push(text) - 1
-    return index | (row << PALETTE_SHIFT) | flags
+    return index | (mapRow(row) << PALETTE_SHIFT) | flags
   })
   const bytes = new Uint8Array(tiles.length * TILE)
   tiles.forEach((text, t) => {
@@ -485,9 +492,9 @@ function iceTilesFor(picture: Picture, map: IceMap): { tiles: Uint8Array; words:
   return { tiles: bytes, words }
 }
 
-// A centre ice logo from an image. Each 8 x 8 tile is drawn in the row of the
-// rink's colours that matches it best, and its pixels in the nearest of that
-// row's colours.
+// A centre ice logo from an image. Each 8 x 8 tile is drawn in whichever of
+// the two rows of centre ice colours matches it best, and its pixels in the
+// nearest of that row's colours.
 export function snesCentreIceFromImage(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
@@ -510,9 +517,9 @@ export function snesCentreIceFromImage(
       const cell: number[] = []
       for (let y = top; y < top + 8; y++) for (let x = left; x < left + 8; x++) if (rgba[(y * width + x) * 4 + 3] >= 128) cell.push(y * width + x)
       if (cell.length === 0) continue
-      let bestRow = 0
+      let bestRow = ICE_ROWS[0]
       let bestTotal = Infinity
-      for (let row = 0; row < ROWS; row++) {
+      for (const row of ICE_ROWS) {
         const total = cell.reduce((sum, i) => sum + distance(nearest(row, i), i), 0)
         if (total < bestTotal) [bestRow, bestTotal] = [row, total]
       }

@@ -453,6 +453,23 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
     }
   })
 
+  it.skipIf(!existsSync(path(STOCK)))('draw a centre ice logo in the rows of colours the game draws it in', () => {
+    const project = openRom(read(STOCK))
+    // The most used colour of each logo, as red, green and blue.
+    const main = (team: number) => {
+      const { picture, palette } = snesCentreIce(project.bytes, 28, none, team)
+      const counts = new Map<number, number>()
+      for (const p of picture.pixels) if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
+      const top = [...counts].sort((a, b) => b[1] - a[1])[0][0]
+      return { row: Math.floor(top / 16), rgb: colorRgb(palette[top], SNES_COLORS) }
+    }
+    // Detroit's map uses row 0 and Boston's row 1; the game draws them five rows on.
+    const detroit = main(6)
+    expect(detroit.row).toBe(5)
+    expect(detroit.rgb[0]).toBeGreaterThan(detroit.rgb[1] + 40)
+    expect(main(1).row).toBe(6)
+  })
+
   it.skipIf(!existsSync(path(STOCK)))('move a centre ice logo that has grown to free space, and point the game at it', () => {
     const project = openRom(read(STOCK))
     const boston = snesCentreIce(project.bytes, 28, none, 1).picture
