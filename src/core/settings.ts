@@ -164,6 +164,10 @@ export function hasSettings(game: GameConfig, settings: Settings): boolean {
 // The choices to show for a menu item, taking edited period lengths into account.
 export function menuOptions(settings: Settings, game: GameConfig, index: number, teamNames: string[]): string[] {
   if (game.menuTeamItems.includes(index)) return teamNames
-  if (index === game.menuPeriodLengthItem) return settings.periodLengths.map((period) => period.text)
+  // As many as the menu offers, where it says (the SNES game offers three of its four).
+  if (index === game.menuPeriodLengthItem && settings.periodLengths.length > 0) {
+    const offered = settings.menu[index]?.options?.length ?? settings.periodLengths.length
+    return settings.periodLengths.slice(0, offered).map((period) => period.text)
+  }
   return settings.menu[index].options ?? []
 }

@@ -89,3 +89,21 @@ export function writeSnesMenu(rom: Uint8Array, menu: MenuItem[]): void {
   if (!at || at.values.length !== menu.length) return
   menu.forEach((item, line) => writeU16(rom, at.values[line], item.value))
 }
+
+// Where `count` texts of a line's list of choices are, each a length word and
+// the text, or none where they are not found. The Period line's list has a
+// fourth, 30 seconds, after the three the menu offers.
+export function snesChoiceTextPlaces(rom: Uint8Array, line: number, count: number): number[] {
+  const texts = findCode(rom, CHOICE_TEXTS)
+  if (!texts) return []
+  const table = loRomOffset(texts.groups[0], texts.groups[1])
+  const places: number[] = []
+  let at = table + readU16(rom, table + line * 2)
+  for (let i = 0; i < count; i++) {
+    const size = readU16(rom, at)
+    if (size < 3 || size > 40 || at + size > rom.length) return []
+    places.push(at)
+    at += size
+  }
+  return places
+}

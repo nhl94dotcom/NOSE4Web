@@ -114,7 +114,13 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
             <tbody>
               {settings.periodLengths.map((period, i) => (
                 <tr key={i}>
-                  <td>{i < 3 ? `Period length, choice ${i + 1}` : 'Period length, fourth entry'}</td>
+                  <td>
+                    {i < 3
+                      ? `Period length, choice ${i + 1}`
+                      : game.platform === 'snes'
+                        ? 'Period length, fourth (offered by the 30-second periods hack)'
+                        : 'Period length, fourth entry'}
+                  </td>
                   <td>
                     {secondsInput(period.seconds, (seconds) =>
                       onChange({ ...settings, periodLengths: replace(settings.periodLengths, i, { ...period, seconds }) }),
@@ -139,7 +145,10 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
               </tr>
             </tbody>
           </table>
-          <p className="note">The menu text does not update itself when you change the seconds.</p>
+          <p className="note">
+            The menu text does not update itself when you change the seconds.
+            {game.platform === 'snes' && ' The SNES game plays overtime this long in the regular season; in the playoffs an overtime period is as long as the others.'}
+          </p>
         </section>
       )}
 

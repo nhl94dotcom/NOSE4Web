@@ -133,8 +133,8 @@ It can also:
 - NHL '94 for the SNES, the original game and league ROMs built on it:
   rosters, lines, team names, ratings and colours, the team overall the SNES
   shows, team logos and centre ice logos, the rink's colours (on the rink
-  drawn from the ROM), the main menu's starting choices, and hacks. Its other
-  settings are left alone so far.
+  drawn from the ROM), the game settings (clock, penalty messages, playoff
+  draws and the main menu's starting choices), and hacks.
 - SNES ROMs rebuilt with another number of teams or with their data in new
   places, such as one with all 32 of today's NHL teams, its later builds for
   the SA-1 chip among them: the editor follows the game's code to the teams,

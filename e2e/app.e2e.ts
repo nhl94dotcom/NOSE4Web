@@ -1725,9 +1725,9 @@ test.describe('with the SNES game', () => {
     await home.screenshot({ path: 'test-results/shots/snes-colours.png' })
     await home.locator('.swatch').nth(12).click()
     await home.getByLabel(/^Red/).fill('31')
-    // The main menu's starting choices, and only those of the game settings.
+    // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices'])
+    await expect(page.locator('main h2')).toHaveText(['Clock', 'Main menu starting choices', 'Rule messages', 'Playoff draws'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })

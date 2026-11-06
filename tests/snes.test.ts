@@ -219,6 +219,37 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(resetSettingsPart(edited.settings, project.settings, 'menu')).toEqual(project.settings)
       })
 
+      it('edits the clock, the penalty messages and the playoff draws, and keeps them in a project file', () => {
+        const project = openRom(read(name))
+        const { settings } = project
+        expect(settings.periodLengths.map((period) => period.seconds)).toEqual([300, 600, 1200, 30])
+        expect(settings.playoffDraws).toHaveLength(32)
+        expect(settings.rules.map((rule) => rule.text)).toContain('Charging')
+        const charging = settings.rules.findIndex((rule) => rule.text === 'Charging')
+        const edited = {
+          ...project,
+          settings: {
+            ...settings,
+            periodLengths: settings.periodLengths.map((period, i) => ({ ...period, seconds: [120, 240, 480, 45][i], text: i === 2 ? '15 Minutes' : period.text })),
+            overtimeSeconds: 180,
+            shootoutSeconds: 40,
+            rules: settings.rules.map((rule, i) => (i === charging ? { ...rule, text: 'Charge', penaltyMinutes: 3, delay: 6 } : rule)),
+            playoffDraws: settings.playoffDraws.map((draw, d) => (d === 0 ? [draw[1], draw[0], ...draw.slice(2)] : draw)),
+          },
+        }
+        const reopened = openRom(buildRom(edited))
+        // The menu reads its period texts from the same place, so it offers the edited one.
+        const values = (menu: { value: number }[]) => menu.map((item) => item.value)
+        expect({ ...reopened.settings, menu: [] }).toEqual({ ...edited.settings, menu: [] })
+        expect(values(reopened.settings.menu)).toEqual(values(settings.menu))
+        expect(reopened.settings.menu[3].options?.[2]).toBe('15 Minutes')
+        expect(reopened.teams.map((t) => t.players)).toEqual(project.teams.map((t) => t.players))
+        expect(compareProjects(project, edited).map((section) => section.heading)).toEqual(['Clock', 'Rule messages', 'Playoff draws'])
+        // The menu offers the edited text.
+        expect(menuOptions(edited.settings, edited.game, 3, [])[2]).toBe('15 Minutes')
+        expect({ ...openProjectFile(openRom(read(name)), saveProjectFile(edited, project)).project.settings, menu: [] }).toEqual({ ...edited.settings, menu: [] })
+      })
+
       it('comes back the same from a full set of spreadsheet files and from a project file', () => {
         const project = openRom(read(name))
         const files = tablesFor(project.game).map((table) => ({ name: csvFileName('Set', table), text: formatCsv(table.rows(project)) }))
@@ -446,6 +477,17 @@ describe.skipIf(!existsSync(path(STOCK)))("the original SNES game's main menu", 
     // Without the hack the choice is not on offer.
     const unhacked = applySnesHacks(thirty, { thirtySecondPeriods: false })
     expect(checkProject(unhacked).filter((finding) => finding.where === 'Main menu')).toHaveLength(1)
+  })
+
+  it('shows the one-minute penalties in the penalty messages, and keeps them when the ROM is built', () => {
+    const project = openRom(read(STOCK))
+    const minutes = (p: RomProject) => p.settings.rules.filter((rule) => rule.text === 'Charging').map((rule) => rule.penaltyMinutes)
+    expect(minutes(project)).toEqual([2])
+    const hacked = applySnesHacks(project, { oneMinutePenalties: true })
+    expect(minutes(hacked)).toEqual([1])
+    const built = openRom(buildRom(hacked))
+    expect(detectSnesHacks(built.bytes).choices.oneMinutePenalties).toBe(true)
+    expect(minutes(built)).toEqual([1])
   })
 })
 

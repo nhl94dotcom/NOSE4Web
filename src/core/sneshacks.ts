@@ -1,6 +1,6 @@
 import type { RomProject } from './rom'
 import { findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
-import { refreshSnesMenu } from './snesmenu'
+import { refreshSnesSettings } from './snessettings'
 
 // Hacks for NHL '94 on the SNES, from the community's disassembly,
 // NHL94SNESVault (github.com/Mhopkinsinc/NHL94SNESVault), whose patches were
@@ -324,8 +324,8 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       rom.set(bytes, place.at)
     }
   }
-  // The 30-second periods add a choice to the menu's Period line.
-  return { ...project, bytes: rom, settings: { ...project.settings, menu: refreshSnesMenu(rom, project.settings.menu) } }
+  // The 30-second periods add a choice to the menu's Period line, and the one-minute penalties change their lengths.
+  return { ...project, bytes: rom, settings: refreshSnesSettings(project.bytes, rom, project.settings) }
 }
 
 // How the hacks in one SNES ROM differ from those in another.

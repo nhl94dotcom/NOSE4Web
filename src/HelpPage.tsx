@@ -575,7 +575,7 @@ export function HelpPage() {
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
           the play mode, the two teams, the period length, penalties, line changes, goalie control, and on the
           Genesis the players and user records. A league can set its usual game up so that nobody has to change the
-          menu before playing. For the SNES this is the only section; its 32-team builds add a Fighting line (On, Off
+          menu before playing. The SNES 32-team builds add a Fighting line (On, Off
           or After Whistle).
         </li>
         <li>
@@ -1317,9 +1317,14 @@ export function HelpPage() {
           SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
         </li>
         <li>
-          <b>Game settings:</b> the main menu's starting choices, as for the Genesis, where the ROM has the game's
-          own menu code. In the playoff modes the game shows the Home line as Team and hides the Visitor line. The
-          30-second periods hack adds a fourth period length to choose from.
+          <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, the penalty and
+          stoppage messages, and the 32 playoff draws, each found by the game code that reads it. The clock's fourth
+          period length, 30 seconds, is offered on the menu by the 30-second periods hack. Overtime in the regular
+          season is 5 minutes; in the playoffs an overtime period is as long as the others. In the playoff modes the
+          menu shows the Home line as Team and hides the Visitor line. The penalty minutes are the length of each
+          penalty, which the one-minute penalties hack changes. A message's text cannot be longer than the room the
+          game gives it, and a shorter one is filled out with spaces. In a draw the game takes the 16 teams in the
+          order its playoff tree has them.
         </li>
         <li>
           <b>Rink colours:</b> the SNES rink has 128 colours in eight rows of 16, and the page draws the whole rink
@@ -1329,10 +1334,6 @@ export function HelpPage() {
           its own; rows 4 and 7 are not drawn on the rink. Rows 2 and 3 are not offered, as the game puts the teams'
           uniform colours there for every game. The game also uses some of these colours for its moving pictures,
           so a change can show there too.
-        </li>
-        <li>
-          <b>Not yet:</b> the other game settings: the clock, rule messages and playoff draws. The SNES game keeps
-          them elsewhere and in other ways, so the editor leaves them exactly as they are.
         </li>
         <li>
           <b>Space:</b> the teams must all stay in one 32 KB part of the ROM (a bank), and in the original game they

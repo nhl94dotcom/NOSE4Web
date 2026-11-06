@@ -249,10 +249,12 @@ export const NHL94_SNES: GameConfig = {
   checksumCallOffset: 0,
   teamTableOffset: 0xe25e7,
   teamNameRedirects: [],
-  // Only the main menu's starting choices are read (see snesmenu.ts).
+  // Its settings are read in their own way (see snessettings.ts).
   settingsSupported: false,
   menuTeamItems: [1, 2],
-  menuPeriodLengthItem: -1,
+  menuPeriodLengthItem: 3,
+  // The game's playoff tree takes a draw's teams in this order.
+  playoffSlotLabels: Array.from({ length: 16 }, (_, i) => String(i + 1)),
   overallIsEstimate: false,
   stripColorsKnown: false,
   stripColorLabels: [
@@ -261,8 +263,7 @@ export const NHL94_SNES: GameConfig = {
   ],
   notice:
     "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names, team ratings, " +
-    "colours and logos, the rink's colours, the main menu's starting choices, and put in the hacks on the Hacks " +
-    'page. Its other game settings are kept in ways the editor does not follow yet, and are left alone. SNES ' +
+    "colours and logos, the rink's colours and the game settings, and put in the hacks on the Hacks page. SNES " +
     'editing is new, so keep a copy of the file you opened.',
   playoffDrawPointerOffsets: [],
   playoffDrawCount: 0,
@@ -291,9 +292,9 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
       ? NHL94_SNES.notice
       : `This ROM is NHL '94 for the SNES, rebuilt with ${table.count} teams and the game's code in new places. ` +
         "The editor can change its rosters, lines, team names, team ratings, colours and logos, the rink's " +
-        "colours, the main menu's starting choices, and put in the hacks on the Hacks page, found where this ROM " +
-        'has the code they change; the 30-second periods are not offered. Its other game settings are left alone. ' +
-        'SNES editing is new, so keep a copy of the file you opened.',
+        'colours and the game settings, and put in the hacks on the Hacks page, found where this ROM has the code ' +
+        'they change; the 30-second periods are not offered. SNES editing is new, so keep a copy of the file you ' +
+        'opened.',
   }
   snesVariants.set(key, config)
   return config
