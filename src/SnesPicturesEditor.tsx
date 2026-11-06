@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SNES_COLORS } from './core/color'
+import { pictureToImage } from './core/graphics'
 import type { RomProject } from './core/rom'
 import {
   LOGO_SIZE,
@@ -77,14 +78,38 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
         const merged = made.colorsFound > 15 ? ` The image had ${made.colorsFound} colours; the logo can have 15, so the rest were matched to the nearest.` : ''
         apply({ ...edits, logos: { ...edits.logos, [team]: { picture: made.picture, palette: made.palette } } }, `Logo replaced.${merged}`)
       } else {
-        const picture = snesCentreIceFromImage(image.rgba, image.width, image.height, snesCentreIce(project.bytes, teams, edits, team, project.rinkPalette))
-        const others = snesCentreIceSharedWith(project.bytes, teams, team)
-        const centreIce = { ...edits.centreIce, [team]: picture }
-        for (const other of others) centreIce[other] = picture
-        apply({ ...edits, centreIce }, `Centre ice logo replaced${others.length > 0 ? ` for ${names([team, ...others])}` : ''}.`)
+        const { centreIce, replaced } = withCentreIce(team, image.rgba, image.width, image.height)
+        apply({ ...edits, centreIce }, `Centre ice logo replaced${replaced.length > 1 ? ` for ${names(replaced)}` : ''}.`)
       }
     } catch (e) {
       setNotice(e instanceof Error ? e.message : `${file.name} could not be used.`)
+      setFailed(true)
+    }
+  }
+
+  // The centre ice logos with `to`'s made from an image, matched to the
+  // colours `to`'s is drawn in, and the teams that share it given it too.
+  function withCentreIce(to: number, rgba: Uint8Array | Uint8ClampedArray, width: number, height: number) {
+    const picture = snesCentreIceFromImage(rgba, width, height, snesCentreIce(project.bytes, teams, edits, to, project.rinkPalette))
+    const replaced = [to, ...snesCentreIceSharedWith(project.bytes, teams, to)]
+    const centreIce = { ...edits.centreIce }
+    for (const other of replaced) centreIce[other] = picture
+    return { centreIce, replaced }
+  }
+
+  // This team's logo given to another: the team logo as it is, with its colours,
+  // and the centre ice logo as it looks, matched to the colours the other's is drawn in.
+  function copyTo(to: number, kind: Kind) {
+    try {
+      if (kind === 'logo') {
+        apply({ ...edits, logos: { ...edits.logos, [to]: { picture: logo.picture, palette: logo.palette } } }, `Logo copied to ${names([to])}.`)
+      } else {
+        const rgba = pictureToImage(ice.picture, ice.palette, SNES_COLORS)
+        const { centreIce, replaced } = withCentreIce(to, rgba, ice.picture.width, ice.picture.height)
+        apply({ ...edits, centreIce }, `Centre ice logo copied to ${names(replaced)}.`)
+      }
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : 'The logo could not be copied.')
       setFailed(true)
     }
   }
@@ -175,6 +200,24 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
                 />
               </label>{' '}
               <ResetButton what="picture" changed={kind === 'logo' ? team in edits.logos : team in edits.centreIce} onReset={() => reset(kind)} />
+            </p>
+            <p>
+              <select
+                aria-label={`Copy ${title.toLowerCase()} to`}
+                value=""
+                onChange={(e) => {
+                  if (e.target.value !== '') copyTo(Number(e.target.value), kind)
+                }}
+              >
+                <option value="">Copy to another team…</option>
+                {project.teams.map((other, t) =>
+                  t === team ? null : (
+                    <option key={t} value={t}>
+                      {teamDisplayName(other)}
+                    </option>
+                  ),
+                )}
+              </select>
             </p>
             <p className="note">{note}</p>
           </div>

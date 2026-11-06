@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { detectSnesHacks } from '../src/core/sneshacks'
-import { NO_SNES_PICTURE_EDITS, snesLogo } from '../src/core/snespictures'
+import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
 import { createZip, readZip } from '../src/core/zip'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
@@ -1778,5 +1778,23 @@ test.describe('with the SNES game', () => {
     expect(Array.from(got.picture.pixels).map((p) => (p ? got.palette[p] & 0x7fff : -1))).toEqual(
       Array.from(want.picture.pixels).map((p) => (p ? want.palette[p] & 0x7fff : -1)),
     )
+  })
+
+  test("copies a team's logo and centre ice logo to another team", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
+    await logos.getByLabel('Copy team logo to').selectOption({ label: 'Chicago Blackhawks' })
+    await expect(logos.getByText('Logo copied to Chicago Blackhawks.')).toBeVisible()
+    await logos.getByLabel('Copy centre ice logo to').selectOption({ label: 'Anaheim Mighty Ducks' })
+    await expect(logos.getByText(/^Centre ice logo copied to Anaheim Mighty Ducks/)).toBeVisible()
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    const colours = (picture: { picture: { pixels: Uint8Array }; palette: number[] }) =>
+      Array.from(picture.picture.pixels).map((p) => (p ? picture.palette[p] & 0x7fff : -1))
+    const chicago = rom.teams.findIndex((t) => t.names[2] === 'Blackhawks')
+    expect(colours(snesLogo(rom.bytes, 28, NO_SNES_PICTURE_EDITS, chicago))).toEqual(colours(snesLogo(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 1)))
+    expect(colours(snesCentreIce(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 0))).toEqual(colours(snesCentreIce(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 1)))
   })
 })

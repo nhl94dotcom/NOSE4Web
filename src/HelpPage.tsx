@@ -1304,7 +1304,8 @@ export function HelpPage() {
         </li>
         <li>
           <b>Logos:</b> each team's logo, on the matchup, setup and player card screens, and its centre ice logo
-          are on the team page, to export as PNG images and import again. A team logo has 15 colours of its own,
+          are on the team page, to export as PNG images and import again, or to copy to another team (a centre ice
+          logo is matched to the colours the other team's is drawn in). A team logo has 15 colours of its own,
           taken from the image you import, and can be at most 36 tiles of 8 by 8 pixels. All the logos are unpacked
           together into room the original logos fill, so a logo bigger than the one it replaces fits only where
           others take less room; the editor lays out other logos more tightly, looking the same, where that helps.
