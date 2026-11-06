@@ -123,8 +123,10 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
       picture: ice,
       scale: 4,
       note:
-        'Drawn on the ice of the home team’s rink in the rink’s own colours, faded as if seen through the ice and the ' +
-        'same for every team, so an imported picture is matched to those.' +
+        (ice.ownColours
+          ? 'Drawn on the ice of the home team’s rink in 15 colours of the team’s own, faded as if seen through the ice, so an imported picture is matched to those.'
+          : 'Drawn on the ice of the home team’s rink in the rink’s own colours, faded as if seen through the ice and the ' +
+            'same for every team, so an imported picture is matched to those.') +
         (sharedIce.length > 0 ? ` The same logo as ${names(sharedIce)}'s, so replacing it replaces theirs too.` : ''),
     },
   ]

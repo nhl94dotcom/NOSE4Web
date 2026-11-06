@@ -340,6 +340,17 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
   })
 })
 
+describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM with the SA-1 chip', () => {
+  it('opens, as the 32-team build is one', () => {
+    const rom = read(STOCK)
+    // The header's map mode: $23 for an SA-1 cartridge, $30 for the original game.
+    rom[0x7fd5] = 0x23
+    const project = openRom(rom)
+    expect(project.teams).toHaveLength(28)
+    expect(buildRom(project)[0x7fd5]).toBe(0x23)
+  })
+})
+
 describe.skipIf(!existsSync(path(STOCK)))('the SNES power play and penalty kill fix', () => {
   it('rewrites the two in the same 32 bytes, with the branches to them, and the editor names them to match', () => {
     const project = openRom(read(STOCK))
@@ -373,7 +384,15 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
         const logo = snesLogo(project.bytes, teams, none, team)
         expect(logo.picture.pixels.some((p) => p > 0)).toBe(true)
         expect(logo.palette).toHaveLength(16)
-        expect(snesCentreIce(project.bytes, teams, none, team).picture.pixels.some((p) => p > 0)).toBe(true)
+        const ice = snesCentreIce(project.bytes, teams, none, team)
+        expect(ice.picture.pixels.some((p) => p > 0)).toBe(true)
+        // A team with centre ice colours of its own keeps to them; its logo comes back from an image in them.
+        if (ice.ownColours) {
+          expect(ice.rows).toEqual([5])
+          const back = snesCentreIceFromImage(pictureToImage(ice.picture, ice.palette, SNES_COLORS), ice.picture.width, ice.picture.height, ice)
+          const rgb = (p: number) => (p ? colorRgb(ice.palette[p], SNES_COLORS).join() : 'none')
+          expect(back.pixels.every((p, i) => rgb(p) === rgb(ice.picture.pixels[i]))).toBe(true)
+        }
       }
       // Every logo given back as it is: nothing in the ROM changes.
       const all: SnesPictureEdits = { logos: {}, centreIce: {} }

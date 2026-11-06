@@ -133,9 +133,10 @@ It can also:
   shows, team logos and centre ice logos, and hacks. Its rink and settings are
   left alone so far.
 - SNES ROMs rebuilt with another number of teams or with their data in new
-  places, such as one with all 32 of today's NHL teams: the editor follows the
-  game's code to the teams, colours and logos. Where the code itself has been
-  moved, the hacks are not offered.
+  places, such as one with all 32 of today's NHL teams, its later builds for
+  the SA-1 chip among them: the editor follows the game's code to the teams,
+  colours and logos. Where the code itself has been moved, the hacks are not
+  offered.
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
 SNES `.smc` and `.sfc` files can be opened, with or without a copier header,

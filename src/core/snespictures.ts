@@ -39,8 +39,11 @@ export const NO_SNES_PICTURE_EDITS: SnesPictureEdits = { logos: {}, centreIce: {
 // LOGO_SET_LOADER fills; in a rebuilt ROM the set in the ROM itself.
 const LOGO_SOURCE = 'a9(..)008512a9(....)8510a90024'
 const LOGO_SET_LOADER = 'a9(..)00850ea9(....)850ca97f008512a90078851022'
-const LOGO_PALETTE_LOADER = '0a0aaabf....9c850ebf(....)(..)850ca0..00a2100022'
-const CENTRE_ICE_LOADER = 'ad981c0a0a0aaabf(....)(..)850cbf....9c850ea97f008512a900008510'
+const LOGO_PALETTE_LOADER = '0a0aaabf......850ebf(....)(..)850ca0..00a2100022'
+const CENTRE_ICE_LOADER = 'ad....0a0a0aaabf(....)(..)850cbf......850ea97f008512a900008510'
+// The SA-1 build's: each team's own centre ice colours (IcePalettes) and
+// whether it has them (IceTitleColours, 16 bytes a team, the first 0 for no).
+const ICE_COLOUR_LOADER = 'ad....0a0a0a0aaabf(....)(..)29ff00f0..8a0aaaa9..00850ea9....850ca00200bf(....)(..)'
 const RINK_PALETTE_LOADER = 'a2fe00bf(....)(..)9f'
 
 const COLOURS = 16
@@ -107,6 +110,9 @@ interface Contents {
   palettes: number[]
   iceTiles: number[]
   iceMaps: number[]
+  // In the SA-1 build, where each team's own centre ice colours are, for a
+  // team that has them; -1 for one drawn in the rink's.
+  iceOwn: number[]
 }
 
 // Read once for each ROM the project holds. A ROM being written to is read
@@ -131,7 +137,13 @@ function read(rom: Uint8Array, teamCount: number, remember = true): Contents | n
         palettes.every((p) => p >= 0 && p + COLOURS * 2 <= rom.length) &&
         iceTiles.every((p) => p >= 0 && (isHuffman(rom, p) || isLz(rom, p))) &&
         iceMaps.every((p) => p >= 0 && p + 6 <= rom.length)
-      if (ok) found = { tables, frames, frameAt, set, palettes, iceTiles, iceMaps }
+      const own = findCode(rom, ICE_COLOUR_LOADER)
+      const iceOwn = Array.from({ length: teamCount }, (_, t) => {
+        if (!own || own.groups[0] < 0x8000 || own.groups[2] < 0x8002) return -1
+        const flag = loRomOffset(own.groups[1], own.groups[0]) + t * COLOURS
+        return rom[flag] ? loRomOffset(own.groups[3], own.groups[2] - 2) + t * COLOURS * 2 : -1
+      })
+      if (ok) found = { tables, frames, frameAt, set, palettes, iceTiles, iceMaps, iceOwn }
     }
   } catch (e) {
     if (!(e instanceof HuffmanError || e instanceof LzError)) throw e
@@ -467,9 +479,21 @@ function readIceMap(rom: Uint8Array, at: number): IceMap {
 // The rink's colours, all eight rows.
 const iceColours = (rom: Uint8Array, c: Contents) => Array.from({ length: ROWS * COLOURS }, (_, i) => readU16LE(rom, c.tables.rinkPalette + i * 2))
 
-export function snesCentreIce(rom: Uint8Array, teamCount: number, edits: SnesPictureEdits, team: number): { picture: Picture; palette: number[] } {
+// A team's centre ice logo, the colours it is drawn in, and the rows of them
+// an imported one may use: in the SA-1 build a team with centre ice colours of
+// its own has them in row 5 and uses that row alone, as the title screen,
+// which draws the logo too, expects.
+export function snesCentreIce(
+  rom: Uint8Array,
+  teamCount: number,
+  edits: SnesPictureEdits,
+  team: number,
+): { picture: Picture; palette: number[]; rows: number[]; ownColours: boolean } {
   const c = need(rom, teamCount)
-  return { picture: edits.centreIce[team] ?? drawCentreIce(rom, c, team), palette: iceColours(rom, c) }
+  const palette = iceColours(rom, c)
+  const own = c.iceOwn[team]
+  if (own >= 0) for (let i = 1; i < COLOURS; i++) palette[ICE_ROWS[0] * COLOURS + i] = readU16LE(rom, own + i * 2)
+  return { picture: edits.centreIce[team] ?? drawCentreIce(rom, c, team), palette, rows: own >= 0 ? [ICE_ROWS[0]] : ICE_ROWS, ownColours: own >= 0 }
 }
 
 function drawCentreIce(rom: Uint8Array, c: Contents, team: number): Picture {
@@ -537,7 +561,7 @@ export function snesCentreIceFromImage(
   rgba: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
-  like: { picture: Picture; palette: number[] },
+  like: { picture: Picture; palette: number[]; rows?: number[] },
 ): Picture {
   if (width !== like.picture.width || height !== like.picture.height) {
     throw new Error(`The centre ice logo is imported as a picture of ${like.picture.width} by ${like.picture.height}; this one is ${width} by ${height}.`)
@@ -555,9 +579,10 @@ export function snesCentreIceFromImage(
       const cell: number[] = []
       for (let y = top; y < top + 8; y++) for (let x = left; x < left + 8; x++) if (rgba[(y * width + x) * 4 + 3] >= 128) cell.push(y * width + x)
       if (cell.length === 0) continue
-      let bestRow = ICE_ROWS[0]
+      const rows = like.rows ?? ICE_ROWS
+      let bestRow = rows[0]
       let bestTotal = Infinity
-      for (const row of ICE_ROWS) {
+      for (const row of rows) {
         const total = cell.reduce((sum, i) => sum + distance(nearest(row, i), i), 0)
         if (total < bestTotal) [bestRow, bestTotal] = [row, total]
       }

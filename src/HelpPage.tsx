@@ -1309,7 +1309,8 @@ export function HelpPage() {
           ROM. The SNES game has no banners: its team blocks are plain colour with the name in letters. ROMs
           rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
-          centre ice logos may be packed another way, which the editor reads and writes too.
+          centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the
+          SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
         </li>
         <li>
           <b>Not yet:</b> the rink and game settings. The SNES game keeps them elsewhere and in other ways, so the
@@ -1322,8 +1323,9 @@ export function HelpPage() {
         </li>
         <li>
           <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt from the disassembly with another number of teams, such as
-          one with all 32 of today's NHL teams, and keep their teams and colours in new places. The editor finds
-          them by following the game's own code. Where the code has been moved too, as it is in that 32-team ROM,
+          one with all 32 of today's NHL teams, and keep their teams and colours in new places; its later builds are
+          for the SA-1 chip, which emulators and flash carts run. The editor finds them by following the game's own
+          code. Where the code has been moved too, as it is in that 32-team ROM,
           the hacks are made for places that now hold other code, so the Hacks page does not offer them.
         </li>
         <li>

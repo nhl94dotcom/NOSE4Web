@@ -6,14 +6,16 @@ import { readAscii, readU16LE, writeU16LE } from './bytes'
 // The ROM is "LoROM": the game sees it in 32 KB banks, bank $80 at its start,
 // each at addresses $8000 to $FFFF. Some copies start with a 512-byte header
 // added by old copier devices, which the editor keeps but leaves out of
-// every place it names in the ROM.
+// every place it names in the ROM. The 32-team build of NHL94SNES-SA1 is an
+// SA-1 cartridge, which maps its first 2 MB the same way.
 
 const COPIER_HEADER = 512
 // The game's own header, at the end of the first bank.
 const HEADER_AT = 0x7fc0
 const TITLE = "NHL '94"
 const MAP_MODE_AT = HEADER_AT + 0x15
-const LOROM_FAST = 0x30
+// LoROM at the fast speed, as the original game is, and SA-1.
+const MAP_MODES = [0x30, 0x23]
 const INVERSE_CHECKSUM_AT = HEADER_AT + 0x1c
 const CHECKSUM_AT = HEADER_AT + 0x1e
 const BANK_SIZE = 0x8000
@@ -22,7 +24,7 @@ function hasTitle(file: Uint8Array, start: number): boolean {
   return (
     file.length >= start + HEADER_AT + 0x20 &&
     readAscii(file, start + HEADER_AT, TITLE.length) === TITLE &&
-    file[start + MAP_MODE_AT] === LOROM_FAST
+    MAP_MODES.includes(file[start + MAP_MODE_AT])
   )
 }
 
@@ -70,14 +72,21 @@ export function snesChecksum(rom: Uint8Array): number {
 // Some ROMs are rebuilt from the disassembly with their code and data in new
 // places (one with all 32 of today's teams, for example), so the editor finds
 // the tables it edits by the game's code that loads them, wherever that is.
-// The code is all in the first 32 banks. `pattern` is the code as hex, with
-// a group for each part wanted, (..) for a byte and (....) for a word, low
-// byte first, and .. for a byte that may be anything. Where the code is in
-// several places, as when several routines load the same table, they must
-// all give the same values; the first place is returned.
-const CODE_BANKS = 0x20 * BANK_SIZE
+// `pattern` is the code as hex, with a group for each part wanted, (..) for a
+// byte and (....) for a word, low byte first, and .. for a byte that may be
+// anything. Where the code is in several places, as when several routines
+// load the same table, they must all give the same values; the first place
+// is returned. The whole ROM is searched, as rebuilt ROMs have code in their
+// added banks.
 
 export function findCode(rom: Uint8Array, pattern: string): { at: number; groups: number[] } | null {
+  const all = findCodeAll(rom, pattern)
+  if (all.length === 0 || all.some((match) => match.groups.some((value, i) => value !== all[0].groups[i]))) return null
+  return all[0]
+}
+
+// Every place the code is, in ROM order.
+export function findCodeAll(rom: Uint8Array, pattern: string): { at: number; groups: number[] }[] {
   // Each byte of the pattern, null where it varies, and where each group starts and how long it is.
   const bytes: (number | null)[] = []
   const groups: { at: number; size: number }[] = []
@@ -89,15 +98,12 @@ export function findCode(rom: Uint8Array, pattern: string): { at: number; groups
     } else bytes.push(null)
   }
   const values = (at: number) => groups.map((group) => (group.size === 2 ? readU16LE(rom, at + group.at) : rom[at + group.at]))
-  const end = Math.min(rom.length, CODE_BANKS) - bytes.length
-  let found: { at: number; groups: number[] } | null = null
-  for (let at = 0; at <= end; at++) {
+  const matches: { at: number; groups: number[] }[] = []
+  for (let at = 0; at <= rom.length - bytes.length; at++) {
     if (rom[at] !== bytes[0] || !bytes.every((byte, i) => byte === null || rom[at + i] === byte)) continue
-    const here = values(at)
-    if (!found) found = { at, groups: here }
-    else if (here.some((value, i) => value !== found!.groups[i])) return null
+    matches.push({ at, groups: values(at) })
   }
-  return found
+  return matches
 }
 
 // ------------------------------------------------------------- team table
@@ -129,22 +135,27 @@ export function findSnesTeamTable(rom: Uint8Array): { offset: number; count: num
 // Each team has two strips of 16 colours: the home team's, which is white,
 // and the visitors', which is dark. They are kept in two tables of 32 bytes a
 // team, in team order, apart from the team data. The game's code that loads
-// them takes the home or visiting team's number ($1C98 or $1C9A), times 32,
-// and adds the table's address (ADC #address, then LDA #bank), so the tables
-// are found wherever a ROM has them; one whose loader has been changed some
-// other way has its colours left alone.
-const STRIP_LOADERS = { home: 'ad981c0a0a0a0a0a1869(....)850ca9(..)00', away: 'ad9a1c0a0a0a0a0a1869(....)850ca9(..)00' }
+// them takes the home or visiting team's number ($1C98 or $1C9A in the
+// original game; the SA-1 build keeps them elsewhere, two bytes apart as
+// ever), times 32, and adds the table's address (ADC #address, then LDA
+// #bank), so the tables are found wherever a ROM has them; one whose loader
+// has been changed some other way has its colours left alone.
+const STRIP_LOADER = 'ad(....)0a0a0a0a0a1869(....)850ca9(..)00'
 export const STRIP_BYTES = 32
 // Where the original game's code has the home loader, $9F:B91C. A ROM that
 // has it there keeps its code where the original game does.
 const ORIGINAL_HOME_LOADER = 0xfb91c
 
-function stripLoader(rom: Uint8Array, side: keyof typeof STRIP_LOADERS): { at: number; table: number } | null {
-  const loader = findCode(rom, STRIP_LOADERS[side])
-  if (!loader) return null
-  const [address, bank] = loader.groups
+function stripLoader(rom: Uint8Array, side: 'home' | 'away'): { at: number; table: number } | null {
+  // The two loaders, by the team number each reads: the home team's first.
+  const loaders = findCodeAll(rom, STRIP_LOADER)
+  const teams = [...new Set(loaders.map((loader) => loader.groups[0]))].sort((a, b) => a - b)
+  if (teams.length !== 2 || teams[1] !== teams[0] + 2) return null
+  const mine = loaders.filter((loader) => loader.groups[0] === teams[side === 'home' ? 0 : 1])
+  if (mine.some((loader) => loader.groups[1] !== mine[0].groups[1] || loader.groups[2] !== mine[0].groups[2])) return null
+  const [, address, bank] = mine[0].groups
   const table = loRomOffset(bank, address)
-  return address >= 0x8000 && table + STRIP_BYTES <= rom.length ? { at: loader.at, table } : null
+  return address >= 0x8000 && table + STRIP_BYTES <= rom.length ? { at: mine[0].at, table } : null
 }
 
 export function snesStripTables(rom: Uint8Array): { home: number; away: number } | null {
