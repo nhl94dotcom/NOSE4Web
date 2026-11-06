@@ -2,7 +2,8 @@ import { readU16LE, writeU16LE } from './bytes'
 import { colorRgb, nearestColorWord, SNES_COLORS } from './color'
 import type { Picture } from './graphics'
 import { HuffmanError, isHuffman, packHuffman, unpackHuffman } from './huffman'
-import { findCode, loRomAddress, loRomBank, loRomOffset } from './snes'
+import { isLz, LzError, packLz, unpackLz } from './lz'
+import { findCode, findSnesTeamTable, loRomAddress, loRomBank, loRomOffset } from './snes'
 
 // The SNES game's team pictures: each team's logo, shown on the matchup,
 // setup and player card screens, and its centre ice logo. What the editor
@@ -20,8 +21,11 @@ import { findCode, loRomAddress, loRomBank, loRomOffset } from './snes'
 //   bits a pixel) and the map, from a table of two long addresses for each
 //   team. It is drawn in colours of the rink.
 //
-// ROMs rebuilt with more teams keep them otherwise, which the editor does not
-// read yet.
+// ROMs rebuilt with more teams (NHL94SNES-SA1's 2 MB build) keep the logo
+// frames unpacked in the ROM, which the game draws from in place, through a
+// table of 32-bit distances from the table; their own logos are in free banks
+// and some teams share another's. Their centre ice logos may be packed in the
+// game's LZ format instead (see lz.ts).
 
 export interface SnesPictureEdits {
   logos: Record<number, { picture: Picture; palette: number[] }>
@@ -30,7 +34,10 @@ export interface SnesPictureEdits {
 
 export const NO_SNES_PICTURE_EDITS: SnesPictureEdits = { logos: {}, centreIce: {} }
 
-// The code that loads each table; see findCode.
+// The code that loads each table; see findCode. The logos are drawn from
+// the set at LOGO_SOURCE: in the original game a buffer in work memory, which
+// LOGO_SET_LOADER fills; in a rebuilt ROM the set in the ROM itself.
+const LOGO_SOURCE = 'a9(..)008512a9(....)8510a90024'
 const LOGO_SET_LOADER = 'a9(..)00850ea9(....)850ca97f008512a90078851022'
 const LOGO_PALETTE_LOADER = '0a0aaabf....9c850ebf(....)(..)850ca0..00a2100022'
 const CENTRE_ICE_LOADER = 'ad981c0a0a0aaabf(....)(..)850cbf....9c850ea97f008512a900008510'
@@ -57,6 +64,9 @@ const VRAM_ROW = 16
 
 interface Tables {
   logoSet: number
+  // Where the game reads the set: in work memory, unpacked from logoSet, or
+  // in the ROM at this address, the set being at logoSet.
+  logoSetInRom: number | null
   logoPalettes: number
   centreIce: number
   rinkPalette: number
@@ -65,7 +75,9 @@ interface Tables {
 const long = (rom: Uint8Array, at: number) => loRomOffset(rom[at + 2], readU16LE(rom, at))
 
 function findTables(rom: Uint8Array): Tables | null {
-  const set = findCode(rom, LOGO_SET_LOADER)
+  const source = findCode(rom, LOGO_SOURCE)
+  const inRom = source !== null && source.groups[0] !== 0x7e && source.groups[0] !== 0x7f && source.groups[1] >= 0x8000
+  const set = inRom ? source : findCode(rom, LOGO_SET_LOADER)
   const palettes = findCode(rom, LOGO_PALETTE_LOADER)
   const ice = findCode(rom, CENTRE_ICE_LOADER)
   const rink = findCode(rom, RINK_PALETTE_LOADER)
@@ -73,17 +85,24 @@ function findTables(rom: Uint8Array): Tables | null {
   const at = (bank: number, address: number) => (address >= 0x8000 ? loRomOffset(bank, address) : -1)
   const tables = {
     logoSet: at(set.groups[0], set.groups[1]),
+    logoSetInRom: inRom ? (set.groups[0] << 16) | set.groups[1] : null,
     logoPalettes: at(palettes.groups[1], palettes.groups[0]),
     centreIce: at(ice.groups[1], ice.groups[0]),
     rinkPalette: at(rink.groups[1], rink.groups[0]),
   }
-  return Object.values(tables).every((offset) => offset >= 0 && offset < rom.length) ? tables : null
+  const places = [tables.logoSet, tables.logoPalettes, tables.centreIce, tables.rinkPalette]
+  return places.every((offset) => offset >= 0 && offset < rom.length) ? tables : null
 }
 
 // What a ROM's pictures are, read once for each ROM.
 interface Contents {
   tables: Tables
-  set: Uint8Array
+  // Where the logo frames are: the set unpacked from the ROM, or the ROM
+  // itself; and where in it each team's frame is.
+  frames: Uint8Array
+  frameAt: number[]
+  // The unpacked set, for the original game's way.
+  set: Uint8Array | null
   // Where each team's palette is, and each team's centre ice tiles and map.
   palettes: number[]
   iceTiles: number[]
@@ -99,20 +118,23 @@ function read(rom: Uint8Array, teamCount: number, remember = true): Contents | n
   let found: Contents | null = null
   try {
     const tables = findTables(rom)
-    if (tables && isHuffman(rom, tables.logoSet)) {
-      const set = unpackHuffman(rom, tables.logoSet).data
+    const set = tables && tables.logoSetInRom === null && isHuffman(rom, tables.logoSet) ? unpackHuffman(rom, tables.logoSet).data : null
+    if (tables && (set || tables.logoSetInRom !== null)) {
+      const frames = set ?? rom
+      const frameAt = Array.from({ length: teamCount }, (_, t) => (set ? setFrameAt(set, t) : romFrameAt(rom, tables, t)))
       const palettes = Array.from({ length: teamCount }, (_, t) => long(rom, tables.logoPalettes + t * 4))
       const iceTiles = Array.from({ length: teamCount }, (_, t) => long(rom, tables.centreIce + t * 8))
       const iceMaps = Array.from({ length: teamCount }, (_, t) => long(rom, tables.centreIce + t * 8 + 4))
       const ok =
-        frameCount(set) >= teamCount &&
+        (!set || frameCount(set) >= teamCount) &&
+        frameAt.every((p) => p >= 0 && p + FRAME_HEADER <= frames.length && frames[p + 1] & 0x80 && p + frameLength(frames, p) <= frames.length) &&
         palettes.every((p) => p >= 0 && p + COLOURS * 2 <= rom.length) &&
-        iceTiles.every((p) => isHuffman(rom, p)) &&
+        iceTiles.every((p) => p >= 0 && (isHuffman(rom, p) || isLz(rom, p))) &&
         iceMaps.every((p) => p >= 0 && p + 6 <= rom.length)
-      if (ok) found = { tables, set, palettes, iceTiles, iceMaps }
+      if (ok) found = { tables, frames, frameAt, set, palettes, iceTiles, iceMaps }
     }
   } catch (e) {
-    if (!(e instanceof HuffmanError)) throw e
+    if (!(e instanceof HuffmanError || e instanceof LzError)) throw e
   }
   if (remember) contents.set(rom, found)
   return found
@@ -120,6 +142,13 @@ function read(rom: Uint8Array, teamCount: number, remember = true): Contents | n
 
 export function snesPicturesSupported(rom: Uint8Array, teamCount: number): boolean {
   return read(rom, teamCount) !== null
+}
+
+// Where a rebuilt ROM keeps its table of logo frames, which the game draws
+// from in place; null for the original game's packed logos.
+export function snesLogoTable(rom: Uint8Array, teamCount: number): number | null {
+  const c = read(rom, teamCount)
+  return c && !c.set ? c.tables.logoSet : null
 }
 
 function need(rom: Uint8Array, teamCount: number, remember = true): Contents {
@@ -131,7 +160,15 @@ function need(rom: Uint8Array, teamCount: number, remember = true): Contents {
 // ------------------------------------------------------------------ logos
 
 const frameCount = (set: Uint8Array) => readU16LE(set, 0) / 4
-const frameAt = (set: Uint8Array, frame: number) => readU16LE(set, frame * 4) | (readU16LE(set, frame * 4 + 2) << 16)
+const setFrameAt = (set: Uint8Array, frame: number) => readU16LE(set, frame * 4) | (readU16LE(set, frame * 4 + 2) << 16)
+// In a rebuilt ROM: the table's address plus the team's distance, as a long address.
+const distanceOf = (rom: Uint8Array, tables: Tables, team: number) => (readU16LE(rom, tables.logoSet + team * 4) | (readU16LE(rom, tables.logoSet + team * 4 + 2) << 16)) >>> 0
+function romFrameAt(rom: Uint8Array, tables: Tables, team: number): number {
+  const address = (tables.logoSetInRom! + distanceOf(rom, tables, team)) & 0xffffff
+  return (address & 0xffff) >= 0x8000 ? loRomOffset(address >> 16, address & 0xffff) : -1
+}
+// A frame's header, pieces and tiles.
+const frameLength = (data: Uint8Array, p: number) => readU16LE(data, p + 0x10) + readU16LE(data, p + 2) * TILE
 const signed = (data: Uint8Array, at: number) => (readU16LE(data, at) ^ 0x8000) - 0x8000
 
 function tilePixel(data: Uint8Array, tile: number, x: number, y: number): number {
@@ -141,10 +178,9 @@ function tilePixel(data: Uint8Array, tile: number, x: number, y: number): number
   return ((data[low] >> bit) & 1) | (((data[low + 1] >> bit) & 1) << 1) | (((data[high] >> bit) & 1) << 2) | (((data[high + 1] >> bit) & 1) << 3)
 }
 
-// Frame `frame` of the set as a picture of LOGO_SIZE, placed as the game places it.
-function drawLogo(set: Uint8Array, frame: number): Picture {
+// The frame at `p` as a picture of LOGO_SIZE, placed as the game places it.
+function drawLogo(set: Uint8Array, p: number): Picture {
   const picture = { width: LOGO_SIZE, height: LOGO_SIZE, pixels: new Uint8Array(LOGO_SIZE * LOGO_SIZE) }
-  const p = frameAt(set, frame)
   const count = set[p]
   const firstPart = readU16LE(set, p + 0x0c) / TILE
   const secondPartAt = Math.max(1, Math.ceil(firstPart / VRAM_ROW)) * VRAM_ROW
@@ -175,7 +211,7 @@ export function snesLogo(rom: Uint8Array, teamCount: number, edits: SnesPictureE
   const edited = edits.logos[team]
   if (edited) return edited
   const c = need(rom, teamCount)
-  return { picture: drawLogo(c.set, team), palette: readColours(rom, c.palettes[team]) }
+  return { picture: drawLogo(c.frames, c.frameAt[team]), palette: readColours(rom, c.palettes[team]) }
 }
 
 // The other teams whose logo colours are kept in the same place as `team`'s.
@@ -342,7 +378,7 @@ function layOut(at: (x: number, y: number) => number, opaque: [number, number][]
 }
 
 const framesOf = (set: Uint8Array): Uint8Array[] =>
-  Array.from({ length: frameCount(set) }, (_, f) => set.slice(frameAt(set, f), f + 1 < frameCount(set) ? frameAt(set, f + 1) : set.length))
+  Array.from({ length: frameCount(set) }, (_, f) => set.slice(setFrameAt(set, f), f + 1 < frameCount(set) ? setFrameAt(set, f + 1) : set.length))
 
 // A set from its frames.
 function joinSet(frames: Uint8Array[]): Uint8Array {
@@ -404,6 +440,8 @@ export function snesLogoFromImage(
 // and 1 of their maps, drawn in rows 5 and 6, the colours seen through the
 // ice. A picture of it holds the row drawn and the colour of each pixel as
 // row * 16 + colour, with colour 0, see-through, as 0 whatever its row.
+const unpackPicture = (rom: Uint8Array, at: number) => (isLz(rom, at) ? unpackLz(rom, at) : unpackHuffman(rom, at))
+
 const MAP_HEADER = 6
 const TILE_NUMBER = 0x3ff
 const PALETTE_SHIFT = 10
@@ -436,7 +474,7 @@ export function snesCentreIce(rom: Uint8Array, teamCount: number, edits: SnesPic
 
 function drawCentreIce(rom: Uint8Array, c: Contents, team: number): Picture {
   const map = readIceMap(rom, c.iceMaps[team])
-  const tiles = unpackHuffman(rom, c.iceTiles[team]).data
+  const tiles = unpackPicture(rom, c.iceTiles[team]).data
   const picture = { width: map.width * 8, height: map.height * 8, pixels: new Uint8Array(map.width * 8 * map.height * 8) }
   map.words.forEach((word, cell) => {
     const tile = (word & TILE_NUMBER) * TILE
@@ -557,11 +595,16 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
     // editor; where that does not fit, other logos the editor lays out in
     // fewer bytes than the original are laid out again too, looking the same,
     // until it does.
-    const original = framesOf(c.set)
+    if (!c.set) {
+      writeRomLogos(rom, c, edits, logoTeams)
+      return writeIce(rom, c, edits, iceTeams)
+    }
+    const unpacked = c.set
+    const original = framesOf(unpacked)
     const frames: Uint8Array[] = original.slice()
     // A logo the same as the ROM's keeps the ROM's frame.
     for (const team of logoTeams) {
-      if (!samePixels(edits.logos[team].picture, drawLogo(c.set, team))) frames[team] = logoFrame(edits.logos[team].picture, original[team])
+      if (!samePixels(edits.logos[team].picture, drawLogo(unpacked, c.frameAt[team]))) frames[team] = logoFrame(edits.logos[team].picture, original[team])
     }
     // Where only colours changed, the set is left exactly as it was.
     if (frames.some((frame, f) => frame !== original[f])) {
@@ -569,10 +612,10 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
       const room = roomAt(rom, c.tables.logoSet, packedSize)
       let set = joinSet(frames)
       let packed = packHuffman(set)
-      const fits = () => set.length <= c.set.length && packed.length <= room && sameBank(c.tables.logoSet, packed.length)
+      const fits = () => set.length <= unpacked.length && packed.length <= room && sameBank(c.tables.logoSet, packed.length)
       if (!fits()) {
         const smaller = original
-          .map((frame, f) => ({ f, frame: frames[f] !== frame || f >= teamCount ? frame : logoFrame(drawLogo(c.set, f), frame) }))
+          .map((frame, f) => ({ f, frame: frames[f] !== frame || f >= teamCount ? frame : logoFrame(drawLogo(unpacked, setFrameAt(unpacked, f)), frame) }))
           .filter(({ f, frame }) => frame.length < original[f].length)
           .sort((a, b) => original[b.f].length - b.frame.length - (original[a.f].length - a.frame.length))
         for (const { f, frame } of smaller) {
@@ -582,9 +625,9 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
           if (fits()) break
         }
       }
-      if (set.length > c.set.length) {
+      if (set.length > unpacked.length) {
         throw new SnesPictureRoomError(
-          `The logos need ${set.length - c.set.length} more bytes than the game has room for when it unpacks them. ` +
+          `The logos need ${set.length - unpacked.length} more bytes than the game has room for when it unpacks them. ` +
             'A logo with more of it see-through, or with parts that repeat, takes less room.',
         )
       }
@@ -596,14 +639,68 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
       rom.fill(0xff, c.tables.logoSet, c.tables.logoSet + packedSize)
       rom.set(packed, c.tables.logoSet)
     }
-    for (const team of logoTeams) {
-      edits.logos[team].palette.forEach((word, i) => writeU16LE(rom, c.palettes[team] + i * 2, i === 0 ? readU16LE(rom, c.palettes[team]) : word))
+    writeLogoColours(rom, c, edits, logoTeams)
+  }
+  writeIce(rom, c, edits, iceTeams)
+}
+
+// A team's logo colours, where they are, or, where another team shares them,
+// in free space of its own.
+function writeLogoColours(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, teams: number[]): void {
+  for (const team of teams) {
+    const at = c.palettes[team]
+    const colours = edits.logos[team].palette.map((word, i) => (i === 0 ? readU16LE(rom, at) : word))
+    if (colours.every((word, i) => word === readU16LE(rom, at + i * 2))) continue
+    const shared = c.palettes.some((other, t) => t !== team && other === at)
+    const to = shared ? freeSpace(rom, COLOURS * 2, keptBanks(rom)) : at
+    if (to < 0) throw new SnesPictureRoomError('The logo’s colours are shared with another team, and the ROM has no free space for colours of its own.')
+    colours.forEach((word, i) => writeU16LE(rom, to + i * 2, word))
+    if (shared) pointTo(rom, c.tables.logoPalettes + team * 4, to)
+  }
+}
+
+// A long address in a table: its word and bank.
+function pointTo(rom: Uint8Array, entry: number, to: number): void {
+  writeU16LE(rom, entry, loRomAddress(to))
+  rom[entry + 2] = loRomBank(to, rom[entry + 2] | 0x80)
+}
+
+// A rebuilt ROM's logos: each frame where it is if it fits there and no other
+// team draws it; otherwise in free space, with the team's distance set to it.
+function writeRomLogos(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, teams: number[]): void {
+  for (const team of teams) {
+    const p = c.frameAt[team]
+    const length = frameLength(rom, p)
+    if (samePixels(edits.logos[team].picture, drawLogo(rom, p))) continue
+    const frame = logoFrame(edits.logos[team].picture, rom.slice(p, p + length))
+    const shared = c.frameAt.some((other, t) => t !== team && other === p)
+    if (!shared) rom.fill(0xff, p, p + length)
+    const to = !shared && frame.length <= length ? p : freeSpace(rom, frame.length, keptBanks(rom))
+    if (to < 0) throw new SnesPictureRoomError('The ROM has no free space for the logo.')
+    rom.set(frame, to)
+    if (to !== p) {
+      const address = (loRomBank(to, 0x80) << 16) | loRomAddress(to)
+      const distance = (address - c.tables.logoSetInRom! + 0x1000000) & 0xffffff
+      writeU16LE(rom, c.tables.logoSet + team * 4, distance & 0xffff)
+      writeU16LE(rom, c.tables.logoSet + team * 4 + 2, distance >> 16)
     }
   }
+  writeLogoColours(rom, c, edits, teams)
+}
 
-  // Each centre ice logo is packed on its own, and must fit where it is,
-  // with no more tiles than the game has room for after the rink's.
-  const most = Math.max(...c.iceTiles.map((p) => unpackHuffman(rom, p).data.length / TILE))
+// The banks the editor keeps its pictures out of: those whose free space the
+// SNES hacks use, and those of the team data, whose room is the rosters'.
+function keptBanks(rom: Uint8Array): number[] {
+  const table = findSnesTeamTable(rom)
+  const teams = table ? [table.offset >> 15, rom[table.offset + 2] & 0x7f] : []
+  return [...KEPT_BANKS, ...teams.map((bank) => bank | 0x80)]
+}
+
+// Each centre ice logo is packed on its own, in the way the ROM packs it,
+// with no more tiles than the game has room for after the rink's.
+function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeams: number[]): void {
+  if (iceTeams.length === 0) return
+  const most = Math.max(...c.iceTiles.map((p) => unpackPicture(rom, p).data.length / TILE))
   const written = new Set<number>()
   for (const team of iceTeams) {
     const at = c.iceTiles[team]
@@ -616,12 +713,12 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
         `The centre ice logo needs ${tiles.length / TILE} different tiles; the game has room for ${most}. A plainer logo, or one with repeated parts, needs fewer.`,
       )
     }
-    const packed = packHuffman(tiles)
-    const { packedSize } = unpackHuffman(rom, at)
+    const packed = isLz(rom, at) ? packLz(tiles) : packHuffman(tiles)
+    const { packedSize } = unpackPicture(rom, at)
     rom.fill(0xff, at, at + packedSize)
     // Where it was, if it fits there; otherwise in free space, with the
     // table pointed there for every team that has this logo.
-    const to = packed.length <= roomAt(rom, at, 0) && sameBank(at, packed.length) ? at : freeSpace(rom, packed.length)
+    const to = packed.length <= roomAt(rom, at, 0) && sameBank(at, packed.length) ? at : freeSpace(rom, packed.length, keptBanks(rom))
     if (to < 0) {
       throw new SnesPictureRoomError(
         `The centre ice logo needs ${packed.length - packedSize} more bytes than it had, and the ROM has no free space that big. A plainer logo takes less room.`,
@@ -644,10 +741,10 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
 const FREE_RUN = 0x100
 const KEPT_BANKS = [0x9b, 0x9c, 0x9e, 0x9f]
 
-function freeSpace(rom: Uint8Array, size: number): number {
+function freeSpace(rom: Uint8Array, size: number, kept: number[]): number {
   let best: { start: number; end: number } | null = null
   for (let bank = 0; bank * 0x8000 < rom.length; bank++) {
-    if (KEPT_BANKS.includes(bank | 0x80)) continue
+    if (kept.includes(bank | 0x80)) continue
     const end = Math.min(rom.length, (bank + 1) * 0x8000)
     let start = -1
     for (let i = bank * 0x8000; i <= end; i++) {

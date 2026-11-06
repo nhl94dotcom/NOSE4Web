@@ -17,6 +17,7 @@ import {
   snesCentreIceFromImage,
   snesLogo,
   snesLogoFromImage,
+  snesLogoTable,
   SnesPictureRoomError,
   snesPicturesSupported,
   writeSnesPictures,
@@ -383,6 +384,38 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
       const rom = project.bytes.slice()
       writeSnesPictures(rom, teams, all)
       expect(rom).toEqual(project.bytes)
+    })
+
+    it(`replace logos in SNES ROM ${n + 1} where it keeps them unpacked in the ROM, moving them to free space as they need`, () => {
+      const project = openRom(read(name))
+      const teams = project.teams.length
+      const table = snesLogoTable(project.bytes, teams)
+      if (table === null) return
+      // Team 1's logo onto team 0, and the last team's onto the next six, with team 1's centre ice onto team 0.
+      const edits: SnesPictureEdits = { logos: { 0: snesLogo(project.bytes, teams, none, 1) }, centreIce: {} }
+      for (let team = 2; team < 8; team++) edits.logos[team] = snesLogo(project.bytes, teams, none, teams - 1)
+      const ice = snesCentreIce(project.bytes, teams, none, 1).picture
+      if (ice.width === snesCentreIce(project.bytes, teams, none, 0).picture.width) edits.centreIce[0] = ice
+      const reopened = openRom(buildRom({ ...project, snesPictures: edits }))
+      for (let team = 0; team < teams; team++) {
+        const want = edits.logos[team] ?? snesLogo(project.bytes, teams, none, team)
+        const got = snesLogo(reopened.bytes, teams, none, team)
+        expect(samePicture(got.picture, want.picture)).toBe(true)
+        expect(got.palette.slice(1)).toEqual(want.palette.slice(1))
+        const wantIce = edits.centreIce[team] ?? snesCentreIce(project.bytes, teams, none, team).picture
+        expect(samePicture(snesCentreIce(reopened.bytes, teams, none, team).picture, wantIce)).toBe(true)
+      }
+      expect(teamsOf(reopened)).toEqual(teamsOf(project))
+
+      // A logo two teams draw: replacing one team's leaves the other's alone.
+      const sharing = project.bytes.slice()
+      sharing.copyWithin(table, table + 4, table + 8)
+      const shared = snesLogo(sharing, teams, none, 1)
+      expect(samePicture(snesLogo(sharing, teams, none, 0).picture, shared.picture)).toBe(true)
+      const changed = sharing.slice()
+      writeSnesPictures(changed, teams, { logos: { 0: snesLogo(project.bytes, teams, none, 2) }, centreIce: {} })
+      expect(samePicture(snesLogo(changed, teams, none, 0).picture, snesLogo(project.bytes, teams, none, 2).picture)).toBe(true)
+      expect(samePicture(snesLogo(changed, teams, none, 1).picture, shared.picture)).toBe(true)
     })
   })
 

@@ -10,6 +10,7 @@ import {
   snesLogo,
   snesLogoColoursSharedWith,
   snesLogoFromImage,
+  snesLogoTable,
   snesPicturesSupported,
   writeSnesPictures,
   type SnesPictureEdits,
@@ -41,8 +42,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
       <section>
         <h2>Logos</h2>
         <p className="note">
-          This ROM keeps its logos in a way the editor cannot read yet, as ROMs rebuilt with more teams do, so they are
-          left exactly as they are.
+          This ROM keeps its logos in a way the editor cannot read, so they are left exactly as they are.
         </p>
       </section>
     )
@@ -110,8 +110,11 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
       scale: 3,
       note:
         `Shown on the matchup, setup and player card screens, in 15 colours of its own taken from the image you ` +
-        `import. It can be at most 36 tiles of 8 by 8 pixels, and all the logos together must fit the room the game ` +
-        `unpacks them into, which the original logos fill: a bigger logo fits where others give up room.` +
+        `import. It can be at most 36 tiles of 8 by 8 pixels` +
+        (snesLogoTable(project.bytes, teams) !== null
+          ? '; one bigger than the one it replaces goes into free space in the ROM.'
+          : ', and all the logos together must fit the room the game unpacks them into, which the original logos ' +
+            'fill: a bigger logo fits where others give up room.') +
         (sharedColours.length > 0 ? ` Its colours are shared with ${names(sharedColours)}.` : ''),
     },
     {
