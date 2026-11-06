@@ -1,5 +1,6 @@
 import type { RomProject } from './rom'
 import { findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
+import { snesPeriodCountPlace } from './snesmenu'
 import { refreshSnesSettings } from './snessettings'
 
 // Hacks for NHL '94 on the SNES, from the community's disassembly,
@@ -110,8 +111,7 @@ const hexBytes = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match
 // in other places, calling routines and reading variables at other
 // addresses. There each hack's places are found by the code around them,
 // and its bytes made with that ROM's addresses; new code goes into room
-// left unused in the same bank. The 30-second periods are not offered there:
-// the menu data around them differs.
+// left unused in the same bank.
 
 // A place in the ROM (an offset in it) and its two contents; the original is
 // null where a hack in the ROM has lost it.
@@ -229,6 +229,11 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const clock = withNewCode(rom, site, (to) => bytesOf('4C', word(to)), hexBytes('29FF00'), code)
     if (!clock) return null
     return [...minors.map((at) => ({ at: at + 6, original: hexBytes('02'), hacked: hexBytes('01') })), ...clock]
+  },
+  // The menu's Period line, found through setoptions' table of choice counts.
+  thirtySecondPeriods: (rom) => {
+    const at = snesPeriodCountPlace(rom)
+    return at < 0 ? null : [{ at, original: hexBytes('0300'), hacked: hexBytes('0400') }]
   },
   noInterference: (rom) => {
     const found = only(rom, '38e91f00' + '....' + 'bd....890040d0b5a9140038fd....22')

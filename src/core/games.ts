@@ -293,8 +293,7 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
       : `This ROM is NHL '94 for the SNES, rebuilt with ${table.count} teams and the game's code in new places. ` +
         "The editor can change its rosters, lines, team names, team ratings, colours and logos, the rink's " +
         'colours and the game settings, and put in the hacks on the Hacks page, found where this ROM has the code ' +
-        'they change; the 30-second periods are not offered. SNES editing is new, so keep a copy of the file you ' +
-        'opened.',
+        'they change. SNES editing is new, so keep a copy of the file you opened.',
   }
   snesVariants.set(key, config)
   return config

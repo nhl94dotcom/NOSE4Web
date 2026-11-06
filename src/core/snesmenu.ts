@@ -107,3 +107,11 @@ export function snesChoiceTextPlaces(rom: Uint8Array, line: number, count: numbe
   }
   return places
 }
+
+// Where the Period line's choice count is (a word: 3, or 4 with the
+// 30-second periods hack), where its list has the fourth text to show.
+export function snesPeriodCountPlace(rom: Uint8Array): number {
+  const counts = findCode(rom, CHOICE_COUNTS)
+  if (!counts || snesChoiceTextPlaces(rom, 3, 4).length !== 4) return -1
+  return loRomOffset(counts.groups[0], counts.groups[1]) + 3 * 2
+}

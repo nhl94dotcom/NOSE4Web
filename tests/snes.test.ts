@@ -376,18 +376,19 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
     it(`are recognised in SNES ROM ${n + 1}, and go in and come out again, wherever its code is`, () => {
       const project = openRom(read(name))
       const before = detectSnesHacks(project.bytes)
-      // A ROM whose code has moved has every hack but the 30-second periods, whose menu data differs there.
-      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['thirtySecondPeriods'])
+      // Every hack is found, wherever the ROM's code is.
+      expect(before.unknown).toEqual([])
       const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => !before.unknown.includes(hack)).map((hack) => [hack, true]))
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
+      // The 30-second periods offer a fourth period length on the menu.
+      expect(on.settings.menu[3].options).toEqual(['5 Minutes', '10 Minutes', '20 Minutes', '30 Seconds'])
       const reopened = openRom(buildRom(on))
       expect(detectSnesHacks(reopened.bytes).choices).toEqual({ ...allOff, ...wanted })
       expect(teamsOf(reopened)).toEqual(teamsOf(project))
       // Back to what it had, byte for byte.
       expect(applySnesHacks(on, before.choices).bytes).toEqual(project.bytes)
-      if (!before.unknown.includes('thirtySecondPeriods')) return
-      expect(() => applySnesHacks(project, { thirtySecondPeriods: true })).toThrow(/other code/)
+      if (snesCodeInPlace(project.bytes)) return
       // Where the code has moved, the call an intro skip takes out is found from the ROM as opened; a ROM opened
       // with the skip in cannot have it taken out.
       expect(() => applySnesHacks(reopened, { skipEaIntro: false })).toThrow(/cannot be taken out/)
@@ -457,7 +458,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
     // The hacks are found by the code around them; those that need to know where the game's variables are cannot
     // be put in, as that is read from the colour loader changed here.
-    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'thirtySecondPeriods', 'noGoalPosts'])
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)
