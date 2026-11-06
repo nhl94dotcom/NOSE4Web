@@ -276,6 +276,37 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(entry(page, 'Check ROM')).toHaveText('Check ROM')
   })
 
+  test('rates each line and the team, and keeps the ratings up to date as the team changes', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Montreal Canadiens').click()
+    const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+    const overall = async () => Number((await lines.getByText(/^Overall /).textContent())!.replace('Overall ', ''))
+    const rating = (l: number) => lines.locator('tbody tr').nth(l).locator('td').last()
+    const before = await overall()
+    expect(before).toBeGreaterThan(40)
+    await expect(rating(1)).toHaveText(/^\d+\.\d$/)
+    await expect(rating(1)).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
+
+    // Sc1's centre swapped for the last player on the roster: the line and the team change at once.
+    const sc1 = await rating(1).textContent()
+    const last = String(await lines.locator('tbody tr').nth(1).locator('select').nth(4).locator('option').last().getAttribute('value'))
+    await lines.locator('tbody tr').nth(1).locator('select').nth(4).selectOption(last)
+    await expect(rating(1)).not.toHaveText(sc1!)
+    await expect.poll(overall).not.toBe(before)
+
+    // So does a change to a player's ratings: every skater's Speed at its lowest.
+    const changed = await overall()
+    for (const row of await rows(page, 'Skaters').all()) await row.locator('select.attribute').nth(2).selectOption({ index: 0 })
+    await expect.poll(overall).toBeLessThan(changed)
+
+    // And the League page shows the same overall.
+    const now = await overall()
+    await entry(page, 'League').click()
+    const table = page.locator('main table').last()
+    const montreal = table.locator('tbody tr').filter({ hasText: 'Montreal Canadiens' })
+    await expect(montreal.locator('td').nth(1)).toHaveText(now.toFixed(1))
+  })
+
   test('changes ticked players with quick edit keys', async ({ page }) => {
     await openRom(page)
     const row = rows(page, 'Skaters').first()
@@ -653,7 +684,7 @@ test.describe('with the NHL 94 ROM', () => {
     const table = page.locator('main table').last()
     await expect(table.locator('tbody tr')).toHaveCount(28)
     await expect(table.locator('tfoot')).toContainText('League average')
-    const firstLine = () => table.locator('tbody tr td:nth-child(2)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    const firstLine = () => table.locator('tbody tr td:nth-child(3)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
     await table.getByRole('button', { name: /^First line/ }).click()
     const down = await firstLine()
     expect(down).toEqual([...down].sort((a, b) => b - a))
@@ -667,9 +698,9 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByLabel(/Show every line/).check()
     for (const label of ['Sc1', 'Sc2', 'Chk', 'PP1', 'PP2', 'PK1', 'PK2']) await expect(table.getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible()
     await table.getByRole('button', { name: /^Sc2/ }).click()
-    const sc2 = await table.locator('tbody tr td:nth-child(4)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    const sc2 = await table.locator('tbody tr td:nth-child(5)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
     expect(sc2).toEqual([...sc2].sort((x, y) => y - x))
-    await expect(table.locator('tbody tr td:nth-child(4)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
+    await expect(table.locator('tbody tr td:nth-child(5)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
     await page.screenshot({ path: 'test-results/shots/league_lines.png', fullPage: true })
 
     await found.first().getByRole('button', { name: 'Los Angeles Kings' }).click()
@@ -809,7 +840,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await entry(page, 'League').click()
     await expect(page.locator('main table').last().locator('tbody tr')).toHaveCount(28)
-    await expect(page.locator('main table').last().locator('tbody tr td:nth-child(2)').first()).not.toHaveText('–')
+    await expect(page.locator('main table').last().locator('tbody tr td:nth-child(3)').first()).not.toHaveText('–')
 
     // The download opens again with the empty positions as they were.
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))

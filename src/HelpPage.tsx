@@ -405,6 +405,12 @@ export function HelpPage() {
         Sc1 is used instead and NLC not at all.
       </p>
       <p>
+        Each line's <b>Rating</b> is the average overall of its five skaters; point at it to see its forwards and its
+        defence pair apart. The team's <b>Overall</b>, above the lines, is the average of every skater on the Sc1, Sc2
+        and Chk lines, each counted once however many of them he is on, and of the NLC goalie: the team as it plays
+        with line changes. They change as you change the lines or the players.
+      </p>
+      <p>
         The game expects the first goalie on the roster in the G column, no goalie in a skater's position, and no
         player twice on one line. The editor does not stop you breaking these, so check them in the game if you do.
       </p>
@@ -756,7 +762,8 @@ export function HelpPage() {
           team. <b>First line</b> is the five skaters on the NLC line, the one that plays when line changes are
           off, and <b>Its goalie</b> is that line's goalie; for a league that plays without line changes these two
           numbers are the team. The rest cover the whole roster. Click a heading to sort by it. Numbers well above
-          or below the league average are coloured, to pick out stacked and thin teams. For a league that plays
+          or below the league average are coloured, to pick out stacked and thin teams. <b>Overall</b> is the team's
+          overall from its page: every skater on the Sc1, Sc2 and Chk lines once, and the NLC goalie. For a league that plays
           with line changes, <b>Show every line</b> adds a column for each of the other lines (the scoring and
           checking lines, and the power play and penalty kill units), each the average of its five skaters; point
           at a number to see its forwards and its defence pair apart.

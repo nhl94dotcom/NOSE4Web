@@ -7,6 +7,7 @@ import { colorFormat } from './core/color'
 import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
+import { lineupRatings } from './core/league'
 import { overallRating } from './core/rating'
 import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
 import {
@@ -146,6 +147,14 @@ export function TeamEditor(props: Props) {
 
   const [tickedLines, setTickedLines] = useState<number[]>([])
   const [lineNotice, setLineNotice] = useState('')
+
+  // Each line's rating and the team's overall, as the League page has them.
+  const lineup = lineupRatings(team, game, emptySlots)
+  const rated = (value: number | null) => (value === null ? '–' : value.toFixed(1))
+  const lineSplit = (l: number) => {
+    const line = lineup.lines[l]
+    return line && `Forwards ${rated(line.forwards)}, defence ${rated(line.defence)}`
+  }
 
   async function copyTickedLines() {
     await writeClipboard(copyLines(team, tickedLines))
@@ -668,13 +677,24 @@ export function TeamEditor(props: Props) {
             you know the ROM uses them. Only the NLC line is played.
           </p>
         )}
+        <p>
+          <strong>Overall {rated(lineup.overall)}</strong>{' '}
+          <span className="note">
+            Every skater on the {game.lineLabels.filter((label) => ['Sc1', 'Sc2', 'Chk'].includes(label)).join(', ') || game.lineLabels[0]}{' '}
+            lines counted once, and the {game.lineLabels[0]} goalie: the team as it plays with line changes. Each line's
+            rating is its five skaters; point at one to see its forwards and defence apart.
+          </span>
+        </p>
         {narrow ? (
           <div className="cards">
             {team.lines.map((line, l) => (
               <div key={l} className="card open">
                 <div className="card-head">
                   {lineTick(l)}
-                  <strong>{game.lineLabels[l]}</strong>
+                  <strong>{game.lineLabels[l]}</strong>{' '}
+                  <span className="note" title={lineSplit(l)}>
+                    Rating {rated(lineup.lines[l]?.skaters ?? null)}
+                  </span>
                 </div>
                 <div className="card-body">
                   {game.linePositionLabels.map((label, slot) => (
@@ -697,6 +717,7 @@ export function TeamEditor(props: Props) {
                   {game.linePositionLabels.map((label) => (
                     <th key={label}>{label}</th>
                   ))}
+                  <th title="Average overall of the line's skaters">Rating</th>
                 </tr>
               </thead>
               <tbody>
@@ -707,6 +728,7 @@ export function TeamEditor(props: Props) {
                     {game.linePositionLabels.map((_, slot) => (
                       <td key={slot}>{lineBox(l, slot, line)}</td>
                     ))}
+                    <td title={lineSplit(l)}>{rated(lineup.lines[l]?.skaters ?? null)}</td>
                   </tr>
                 ))}
               </tbody>

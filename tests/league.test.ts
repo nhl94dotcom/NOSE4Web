@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { applyBulk, bulkAttributes, bulkValues, previewBulk, type BulkChange } from '../src/core/bulk'
 import { banner, bannerColors, menuLogo, menuLogoPalette, pictureToImage, rinkLogo, expandPictureSpace } from '../src/core/graphics'
 import { ALL_PARTS, importTeam } from '../src/core/importteam'
-import { findPlayers, leagueAverages, leaguePlayers, lineAverages, teamSummaries } from '../src/core/league'
+import { findPlayers, leagueAverages, leaguePlayers, lineAverages, lineupRatings, teamSummaries } from '../src/core/league'
+import { emptyLineSlots } from '../src/core/lines'
 import { overallRating } from '../src/core/rating'
 import { changeReport, reportIsEmpty, reportText } from '../src/core/report'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
@@ -89,6 +90,25 @@ describe.skipIf(!hasRom)('looking across the league', () => {
     const averages = lineAverages(summaries)
     expect(averages).toHaveLength(project.game.lineLabels.length)
     expect(averages[2]).toBeCloseTo(mean(summaries.map((s) => s.lines[2].skaters!)))
+  })
+
+  it("gives each team an overall: every skater on Sc1, Sc2 and Chk once, and the first line's goalie", () => {
+    const project = setup()
+    const team = project.teams[MONTREAL]
+    const overall = (position: number) => overallRating(team.players[position - 1].attributes, position <= goalieCount(team))
+    const even = ['Sc1', 'Sc2', 'Chk'].map((label) => project.game.lineLabels.indexOf(label))
+    const skaters = [...new Set(even.flatMap((l) => team.lines[l].slice(1, 6)))]
+    const want = (skaters.reduce((sum, p) => sum + overall(p), 0) + overall(team.lines[0][0])) / (skaters.length + 1)
+    const summary = teamSummaries(project)[MONTREAL]
+    expect(summary.overall).toBeCloseTo(want)
+    expect(lineupRatings(team, project.game, emptyLineSlots(project.teams)).overall).toBe(summary.overall)
+    // A player on two lines counts once: putting Sc1's centre on Sc2 too changes Sc2's rating, not twice over.
+    const centre = team.lines[even[0]][4]
+    const doubled = { ...team, lines: team.lines.map((l, i) => (i === even[1] ? l.map((v, slot) => (slot === 4 ? centre : v)) : l)) }
+    const after = lineupRatings(doubled, project.game, emptyLineSlots(project.teams))
+    const left = [...new Set(even.flatMap((l) => doubled.lines[l].slice(1, 6)))]
+    expect(after.overall).toBeCloseTo((left.reduce((sum, p) => sum + overall(p), 0) + overall(team.lines[0][0])) / (left.length + 1))
+    expect(leagueAverages(teamSummaries(project)).overall).not.toBeNull()
   })
 })
 

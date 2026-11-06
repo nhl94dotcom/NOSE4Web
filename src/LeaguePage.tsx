@@ -5,6 +5,12 @@ import type { RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 
 const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: number }[] = [
+  {
+    key: 'overall',
+    label: 'Overall',
+    title: "Average overall of every skater on the Sc1, Sc2 and Chk lines, each counted once, and the first line's goalie: the team as it plays with line changes",
+    decimals: 1,
+  },
   { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
   { key: 'startingGoalie', label: 'Its goalie', title: 'Overall of the goalie on the first line', decimals: 0 },
   { key: 'skaters', label: 'Skaters', title: 'Average overall of every skater on the roster', decimals: 1 },
@@ -17,7 +23,7 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
 ]
 
 // More than this far from the league average is marked as standing out.
-const STANDS_OUT = { startingSkaters: 4, startingGoalie: 8, skaters: 4, forwards: 4, defence: 4, bestGoalie: 8 } as Partial<Record<SummaryColumn, number>>
+const STANDS_OUT = { overall: 4, startingSkaters: 4, startingGoalie: 8, skaters: 4, forwards: 4, defence: 4, bestGoalie: 8 } as Partial<Record<SummaryColumn, number>>
 const LINE_STANDS_OUT = 4
 
 // A column of the table: how to read it from a team's summary, its league
@@ -74,7 +80,9 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
     standsOut: LINE_STANDS_OUT,
     cellTitle: (summary) => split(summary, i + 1),
   }))
-  const columns = everyLine ? [summaryColumns[0], ...lineColumns, ...summaryColumns.slice(1)] : summaryColumns
+  // The line columns follow the first line's.
+  const firstLine = summaryColumns.findIndex((column) => column.id === 'startingSkaters') + 1
+  const columns = everyLine ? [...summaryColumns.slice(0, firstLine), ...lineColumns, ...summaryColumns.slice(firstLine)] : summaryColumns
 
   const sortBy = columns.find((column) => column.id === sort.key)
   const sorted = summaries.slice().sort((a, b) => {

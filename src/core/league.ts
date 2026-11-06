@@ -1,5 +1,6 @@
 // Views across every team at once: finding players, and how the teams compare.
 
+import type { GameConfig } from './games'
 import { emptyLineSlots } from './lines'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
@@ -43,6 +44,8 @@ export function findPlayers(project: RomProject, text: string): LeaguePlayer[] {
 
 export interface TeamSummary {
   team: number
+  // The team as it plays with line changes: see LineupRatings.
+  overall: number | null
   players: number
   goalies: number
   // Average overall of the skaters on the first line, which is the whole
@@ -74,6 +77,48 @@ const FORWARD_SLOTS = [3, 4, 5]
 
 const average = (values: number[]) => (values.length === 0 ? null : values.reduce((sum, v) => sum + v, 0) / values.length)
 const SKATER_SLOTS = [1, 2, 3, 4, 5]
+// The lines a team plays at even strength with line changes on.
+const EVEN_STRENGTH = ['Sc1', 'Sc2', 'Chk']
+
+export interface LineupRatings {
+  // For each line, as in TeamSummary.
+  lines: LineRating[]
+  // The goalie of the first line.
+  goalie: number | null
+  // The average overall of every skater on the even strength lines (Sc1,
+  // Sc2 and Chk), each counted once however many of them he is on, and of
+  // the first line's goalie, as one more. Where a ROM has no such lines, the
+  // first line's skaters and its goalie.
+  overall: number | null
+}
+
+// A team's line ratings and overall. `empty` is the positions on each line
+// the ROM leaves empty on every team (see emptyLineSlots).
+export function lineupRatings(team: Team, game: GameConfig, empty: boolean[][]): LineupRatings {
+  const goalies = goalieCount(team)
+  const overallAt = (position: number) => {
+    const player = team.players[position - 1]
+    return player ? overallRating(player.attributes, position <= goalies, game) : null
+  }
+  // A line slot holds a roster position from 1. A skater put in goal, or a
+  // goalie skating, is rated as what the roster says they are. Slots a ROM
+  // leaves empty are not counted; a line missing someone else has no rating.
+  const filled = (l: number, slots: number[]) => slots.filter((slot) => !((team.lines[l] ?? [])[slot] === 0 && empty[l]?.[slot]))
+  const rate = (l: number, slots: number[]) => {
+    const wanted = filled(l, slots)
+    const rated = wanted.map((slot) => overallAt((team.lines[l] ?? [])[slot])).filter((v): v is number => v !== null)
+    return rated.length === wanted.length ? average(rated) : null
+  }
+  const lines = team.lines.map((_, l) => ({ skaters: rate(l, SKATER_SLOTS), forwards: rate(l, FORWARD_SLOTS), defence: rate(l, DEFENCE_SLOTS) }))
+  const goalie = overallAt((team.lines[0] ?? [])[0])
+
+  const even = EVEN_STRENGTH.map((label) => game.lineLabels.indexOf(label)).filter((l) => l >= 0 && l < team.lines.length)
+  const playing = even.length > 0 ? even : [0]
+  const positions = new Set(playing.flatMap((l) => filled(l, SKATER_SLOTS).map((slot) => team.lines[l][slot])))
+  const skaters = [...positions].map(overallAt)
+  const overall = goalie === null || skaters.some((v) => v === null) ? null : average([...(skaters as number[]), goalie])
+  return { lines, goalie, overall }
+}
 
 export function teamSummaries(project: RomProject): TeamSummary[] {
   const everyone = leaguePlayers(project)
@@ -81,22 +126,14 @@ export function teamSummaries(project: RomProject): TeamSummary[] {
   return project.teams.map((team, t) => {
     const roster = everyone.filter((p) => p.team === t)
     const overalls = (role: Role) => roster.filter((p) => p.role === role).map((p) => p.overall)
-    // A line slot holds a roster position from 1. A skater put in goal, or a
-    // goalie skating, is rated as what the roster says they are. Slots a ROM
-    // leaves empty are not counted; a line missing someone else has no rating.
-    const rate = (l: number, slots: number[]) => {
-      const line = team.lines[l] ?? []
-      const filled = slots.filter((slot) => !(line[slot] === 0 && empty[l]?.[slot]))
-      const rated = filled.map((slot) => roster[line[slot] - 1]?.overall ?? null).filter((v): v is number => v !== null)
-      return rated.length === filled.length ? average(rated) : null
-    }
-    const lines = team.lines.map((_, l) => ({ skaters: rate(l, SKATER_SLOTS), forwards: rate(l, FORWARD_SLOTS), defence: rate(l, DEFENCE_SLOTS) }))
+    const { lines, goalie, overall } = lineupRatings(team, project.game, empty)
     return {
       team: t,
+      overall,
       players: team.players.length,
       goalies: goalieCount(team),
       startingSkaters: lines[0]?.skaters ?? null,
-      startingGoalie: roster[(team.lines[0] ?? [])[0] - 1]?.overall ?? null,
+      startingGoalie: goalie,
       forwards: average(overalls('F')),
       defence: average(overalls('D')),
       skaters: average([...overalls('F'), ...overalls('D')]),
@@ -119,6 +156,7 @@ export function lineAverages(summaries: TeamSummary[]): (number | null)[] {
 export function leagueAverages(summaries: TeamSummary[]): Record<SummaryColumn, number | null> {
   const column = (key: SummaryColumn) => average(summaries.map((s) => s[key]).filter((v): v is number => v !== null))
   return {
+    overall: column('overall'),
     players: column('players'),
     goalies: column('goalies'),
     startingSkaters: column('startingSkaters'),
