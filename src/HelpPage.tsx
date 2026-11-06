@@ -756,7 +756,10 @@ export function HelpPage() {
           team. <b>First line</b> is the five skaters on the NLC line, the one that plays when line changes are
           off, and <b>Its goalie</b> is that line's goalie; for a league that plays without line changes these two
           numbers are the team. The rest cover the whole roster. Click a heading to sort by it. Numbers well above
-          or below the league average are coloured, to pick out stacked and thin teams.
+          or below the league average are coloured, to pick out stacked and thin teams. For a league that plays
+          with line changes, <b>Show every line</b> adds a column for each of the other lines (the scoring and
+          checking lines, and the power play and penalty kill units), each the average of its five skaters; point
+          at a number to see its forwards and its defence pair apart.
         </li>
       </ul>
 

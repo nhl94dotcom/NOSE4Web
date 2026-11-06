@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
-import { findPlayers, leagueAverages, teamSummaries, type SummaryColumn } from './core/league'
+import { findPlayers, leagueAverages, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
 import type { RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 
@@ -18,6 +18,20 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
 
 // More than this far from the league average is marked as standing out.
 const STANDS_OUT = { startingSkaters: 4, startingGoalie: 8, skaters: 4, forwards: 4, defence: 4, bestGoalie: 8 } as Partial<Record<SummaryColumn, number>>
+const LINE_STANDS_OUT = 4
+
+// A column of the table: how to read it from a team's summary, its league
+// average, how far from that stands out, and what a cell says on hover.
+interface Column {
+  id: string
+  label: string
+  title: string
+  decimals: number
+  value: (summary: TeamSummary) => number | null
+  average: number | null
+  standsOut?: number
+  cellTitle?: (summary: TeamSummary) => string | undefined
+}
 
 const SEARCH_LIMIT = 200
 
@@ -28,21 +42,48 @@ interface Props {
 
 export function LeaguePage({ project, onGoToTeam }: Props) {
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<{ key: SummaryColumn | 'team'; down: boolean }>({ key: 'team', down: false })
+  const [sort, setSort] = useState<{ key: string; down: boolean }>({ key: 'team', down: false })
+  const [everyLine, setEveryLine] = useState(false)
   const summaries = useMemo(() => teamSummaries(project), [project])
   const averages = useMemo(() => leagueAverages(summaries), [summaries])
+  const linesAverage = useMemo(() => lineAverages(summaries), [summaries])
   const found = useMemo(() => findPlayers(project, search), [project, search])
   const names = teamLabels(project.teams, project.game)
 
+  const number = (value: number | null, decimals: number) => (value === null ? '–' : value.toFixed(decimals))
+  const split = (summary: TeamSummary, line: number) => {
+    const rating = summary.lines[line]
+    return rating && `Forwards ${number(rating.forwards, 1)}, defence ${number(rating.defence, 1)}`
+  }
+  const summaryColumns: Column[] = COLUMNS.map((column) => ({
+    ...column,
+    id: column.key,
+    value: (summary) => summary[column.key],
+    average: averages[column.key],
+    standsOut: STANDS_OUT[column.key],
+    cellTitle: column.key === 'startingSkaters' ? (summary) => split(summary, 0) : undefined,
+  }))
+  // Every line after the first, for leagues that play with line changes.
+  const lineColumns: Column[] = project.game.lineLabels.slice(1).map((label, i) => ({
+    id: `line${i + 1}`,
+    label,
+    title: `Average overall of the skaters on the ${label} line. Point at a number to see its forwards and defence apart.`,
+    decimals: 1,
+    value: (summary) => summary.lines[i + 1]?.skaters ?? null,
+    average: linesAverage[i + 1] ?? null,
+    standsOut: LINE_STANDS_OUT,
+    cellTitle: (summary) => split(summary, i + 1),
+  }))
+  const columns = everyLine ? [summaryColumns[0], ...lineColumns, ...summaryColumns.slice(1)] : summaryColumns
+
+  const sortBy = columns.find((column) => column.id === sort.key)
   const sorted = summaries.slice().sort((a, b) => {
-    if (sort.key === 'team') return a.team - b.team
-    const [x, y] = [a[sort.key] ?? -Infinity, b[sort.key] ?? -Infinity]
+    if (!sortBy) return a.team - b.team
+    const [x, y] = [sortBy.value(a) ?? -Infinity, sortBy.value(b) ?? -Infinity]
     return (sort.down ? y - x : x - y) || a.team - b.team
   })
-  const number = (value: number | null, decimals: number) => (value === null ? '–' : value.toFixed(decimals))
-  const mark = (key: SummaryColumn, value: number | null) => {
-    const limit = STANDS_OUT[key]
-    const average = averages[key]
+  const mark = (column: Column, value: number | null) => {
+    const { standsOut: limit, average } = column
     if (limit === undefined || value === null || average === null) return undefined
     return value - average > limit ? 'high' : average - value > limit ? 'low' : undefined
   }
@@ -106,6 +147,12 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
           Numbers well above the league average are marked <span className="high">like this</span> and those well
           below <span className="low">like this</span>.
         </p>
+        <p>
+          <label>
+            <input type="checkbox" checked={everyLine} onChange={(e) => setEveryLine(e.target.checked)} /> Show every line,
+            for leagues that play with line changes
+          </label>
+        </p>
         <div className="scroll">
         <table>
           <thead>
@@ -115,14 +162,14 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
                   Team
                 </button>
               </th>
-              {COLUMNS.map((column) => (
-                <th key={column.key} title={column.title}>
+              {columns.map((column) => (
+                <th key={column.id} title={column.title}>
                   <button
                     className="link"
-                    onClick={() => setSort({ key: column.key, down: sort.key === column.key ? !sort.down : true })}
+                    onClick={() => setSort({ key: column.id, down: sort.key === column.id ? !sort.down : true })}
                   >
                     {column.label}
-                    {sort.key === column.key && (sort.down ? ' ▼' : ' ▲')}
+                    {sort.key === column.id && (sort.down ? ' ▼' : ' ▲')}
                   </button>
                 </th>
               ))}
@@ -136,9 +183,9 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
                     {names[summary.team]}
                   </button>
                 </td>
-                {COLUMNS.map((column) => (
-                  <td key={column.key} className={mark(column.key, summary[column.key])}>
-                    {number(summary[column.key], column.decimals)}
+                {columns.map((column) => (
+                  <td key={column.id} className={mark(column, column.value(summary))} title={column.cellTitle?.(summary)}>
+                    {number(column.value(summary), column.decimals)}
                   </td>
                 ))}
               </tr>
@@ -147,8 +194,8 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
           <tfoot>
             <tr>
               <th className="pin">League average</th>
-              {COLUMNS.map((column) => (
-                <th key={column.key}>{number(averages[column.key], 1)}</th>
+              {columns.map((column) => (
+                <th key={column.id}>{number(column.average, 1)}</th>
               ))}
             </tr>
           </tfoot>

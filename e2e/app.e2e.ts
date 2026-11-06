@@ -662,6 +662,16 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await firstLine()).toEqual([...down].reverse())
     await page.screenshot({ path: 'test-results/shots/league.png', fullPage: true })
 
+    // Every line, for leagues with line changes, sorts like the rest and says what makes it up.
+    await expect(table.getByRole('button', { name: /^PK2/ })).toHaveCount(0)
+    await page.getByLabel(/Show every line/).check()
+    for (const label of ['Sc1', 'Sc2', 'Chk', 'PP1', 'PP2', 'PK1', 'PK2']) await expect(table.getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible()
+    await table.getByRole('button', { name: /^Sc2/ }).click()
+    const sc2 = await table.locator('tbody tr td:nth-child(4)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    expect(sc2).toEqual([...sc2].sort((x, y) => y - x))
+    await expect(table.locator('tbody tr td:nth-child(4)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
+    await page.screenshot({ path: 'test-results/shots/league_lines.png', fullPage: true })
+
     await found.first().getByRole('button', { name: 'Los Angeles Kings' }).click()
     await expect(page.locator('input.name[value="Wayne Gretzky"]')).toHaveCount(1)
   })

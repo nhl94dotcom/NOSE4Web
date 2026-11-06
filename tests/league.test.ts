@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { applyBulk, bulkAttributes, bulkValues, previewBulk, type BulkChange } from '../src/core/bulk'
 import { banner, bannerColors, menuLogo, menuLogoPalette, pictureToImage, rinkLogo, expandPictureSpace } from '../src/core/graphics'
 import { ALL_PARTS, importTeam } from '../src/core/importteam'
-import { findPlayers, leagueAverages, leaguePlayers, teamSummaries } from '../src/core/league'
+import { findPlayers, leagueAverages, leaguePlayers, lineAverages, teamSummaries } from '../src/core/league'
 import { overallRating } from '../src/core/rating'
 import { changeReport, reportIsEmpty, reportText } from '../src/core/report'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
@@ -69,6 +69,26 @@ describe.skipIf(!hasRom)('looking across the league', () => {
     const after = teamSummaries({ ...project, teams: project.teams.map((t, i) => (i === MONTREAL ? swapped : t)) })[MONTREAL]
     expect(after.startingSkaters).not.toBe(summary.startingSkaters)
     expect(after.skaters).toBe(summary.skaters)
+  })
+
+  it('rates every line, its forwards and its defence pair, for leagues with line changes', () => {
+    const project = setup()
+    const summaries = teamSummaries(project)
+    const team = project.teams[MONTREAL]
+    const summary = summaries[MONTREAL]
+    const overall = (position: number) => overallRating(team.players[position - 1].attributes, position <= goalieCount(team))
+    const mean = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length
+    expect(summary.lines).toHaveLength(project.game.lineLabels.length)
+    expect(summary.lines[0].skaters).toBe(summary.startingSkaters)
+    team.lines.forEach((line, l) => {
+      const rating = summary.lines[l]
+      expect(rating.defence).toBeCloseTo(mean([1, 2].map((slot) => overall(line[slot]))))
+      expect(rating.forwards).toBeCloseTo(mean([3, 4, 5].map((slot) => overall(line[slot]))))
+      expect(rating.skaters).toBeCloseTo((rating.defence! * 2 + rating.forwards! * 3) / 5)
+    })
+    const averages = lineAverages(summaries)
+    expect(averages).toHaveLength(project.game.lineLabels.length)
+    expect(averages[2]).toBeCloseTo(mean(summaries.map((s) => s.lines[2].skaters!)))
   })
 })
 
