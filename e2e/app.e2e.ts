@@ -31,6 +31,9 @@ async function downloadFrom(page: Page, button: Locator): Promise<Download> {
   return download
 }
 
+// The League page's table of every team.
+const leagueTable = (page: Page) => page.locator('section').filter({ has: page.getByRole('heading', { name: 'How the teams compare' }) }).locator('table')
+
 test.describe('without a ROM', () => {
   test('shows the welcome screen and the help', async ({ page }) => {
     await page.goto('/')
@@ -302,9 +305,41 @@ test.describe('with the NHL 94 ROM', () => {
     // And the League page shows the same overall.
     const now = await overall()
     await entry(page, 'League').click()
-    const table = page.locator('main table').last()
+    const table = leagueTable(page)
     const montreal = table.locator('tbody tr').filter({ hasText: 'Montreal Canadiens' })
     await expect(montreal.locator('td').nth(1)).toHaveText(now.toFixed(1))
+  })
+
+  test('puts two teams side by side, and shows how balanced the league is', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'League').click()
+    const matchup = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Two teams side by side' }) })
+    await page.getByLabel('First team to compare').selectOption({ label: 'Montreal Canadiens' })
+    await page.getByLabel('Second team to compare').selectOption({ label: 'Los Angeles Kings' })
+    await expect(matchup.locator('thead')).toContainText('Montreal Canadiens')
+    await expect(matchup.locator('thead')).toContainText('Los Angeles Kings')
+    // Overall, every line, the goalie, the forwards, the defence and the best goalie.
+    await expect(matchup.locator('tbody tr')).toHaveCount(1 + 8 + 4)
+    const overallRow = matchup.locator('tbody tr').first().locator('td')
+    const [montreal, kings, difference] = await overallRow.allTextContents()
+    expect(Number(difference)).toBeCloseTo(Number(montreal) - Number(kings), 1)
+    // The same overall as the table of every team.
+    await expect(leagueTable(page).locator('tbody tr').filter({ hasText: 'Montreal Canadiens' }).locator('td').nth(1)).toHaveText(montreal)
+
+    const balance = page.locator('section').filter({ has: page.getByRole('heading', { name: 'League balance' }) })
+    await expect(balance.getByText(/^Average \d+\.\d; the best team is \d+\.\d above the weakest; standard deviation \d+\.\d\./)).toBeVisible()
+    const ratings = await balance.locator('tbody tr td:nth-child(2)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    // The two All-Star teams are left out unless asked for.
+    expect(ratings).toHaveLength(26)
+    expect(ratings).toEqual([...ratings].sort((a, b) => b - a))
+    await expect(balance.getByRole('button', { name: 'All Stars East' })).toHaveCount(0)
+    await expect(balance.locator('td.high').first()).toBeVisible()
+    await expect(balance.locator('td.low').first()).toBeVisible()
+    await page.getByLabel('Measured by').selectOption({ label: 'First line (without line changes)' })
+    await page.getByLabel('Count the All-Star teams').check()
+    await expect(balance.locator('tbody tr')).toHaveCount(28)
+    await matchup.screenshot({ path: 'test-results/shots/league-matchup.png' })
+    await balance.screenshot({ path: 'test-results/shots/league-balance.png' })
   })
 
   test('changes ticked players with quick edit keys', async ({ page }) => {
@@ -681,7 +716,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(found.first()).toContainText('Wayne Gretzky')
     await expect(found.first()).toContainText('Los Angeles Kings')
 
-    const table = page.locator('main table').last()
+    const table = leagueTable(page)
     await expect(table.locator('tbody tr')).toHaveCount(28)
     await expect(table.locator('tfoot')).toContainText('League average')
     const firstLine = () => table.locator('tbody tr td:nth-child(3)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
@@ -839,8 +874,8 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/fewer-skaters.png', fullPage: true })
 
     await entry(page, 'League').click()
-    await expect(page.locator('main table').last().locator('tbody tr')).toHaveCount(28)
-    await expect(page.locator('main table').last().locator('tbody tr td:nth-child(3)').first()).not.toHaveText('–')
+    await expect(leagueTable(page).locator('tbody tr')).toHaveCount(28)
+    await expect(leagueTable(page).locator('tbody tr td:nth-child(3)').first()).not.toHaveText('–')
 
     // The download opens again with the empty positions as they were.
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))

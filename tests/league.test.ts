@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { applyBulk, bulkAttributes, bulkValues, previewBulk, type BulkChange } from '../src/core/bulk'
 import { banner, bannerColors, menuLogo, menuLogoPalette, pictureToImage, rinkLogo, expandPictureSpace } from '../src/core/graphics'
 import { ALL_PARTS, importTeam } from '../src/core/importteam'
-import { findPlayers, leagueAverages, leaguePlayers, lineAverages, lineupRatings, teamSummaries } from '../src/core/league'
+import { findPlayers, leagueAverages, leagueBalance, leaguePlayers, lineAverages, lineupRatings, teamSummaries, type TeamSummary } from '../src/core/league'
 import { emptyLineSlots } from '../src/core/lines'
 import { overallRating } from '../src/core/rating'
 import { changeReport, reportIsEmpty, reportText } from '../src/core/report'
@@ -315,5 +315,24 @@ describe.skipIf(!hasRom || !hasLeague)('importing between the original game and 
     const stockAgain = openRom(buildRom(expandTeamSpace(back.project)))
     expect(stockAgain.teams[BOSTON].players).toEqual(league.teams[3].players)
     expect(banner(stockAgain, 'game', BOSTON)).toEqual(banner(league, 'game', 3))
+  })
+})
+
+describe('league balance', () => {
+  const summary = (team: number, overall: number | null) => ({ team, overall }) as unknown as TeamSummary
+  it('ranks the teams and says how far each is from the average', () => {
+    const balance = leagueBalance([summary(0, 60), summary(1, 70), summary(2, null), summary(3, 80)], 'overall')!
+    expect(balance.average).toBe(70)
+    expect(balance.spread).toBe(20)
+    expect(balance.deviation).toBeCloseTo(Math.sqrt(200 / 3))
+    expect(balance.ranked.map((r) => r.team)).toEqual([3, 1, 0])
+    expect(balance.ranked.map((r) => r.fromAverage)).toEqual([10, 0, -10])
+    expect(balance.ranked[0].deviations).toBeCloseTo(10 / Math.sqrt(200 / 3))
+  })
+  it('needs two teams with the rating', () => {
+    expect(leagueBalance([summary(0, 60), summary(1, null)], 'overall')).toBeNull()
+  })
+  it('gives every team no distance where all are level', () => {
+    expect(leagueBalance([summary(0, 65), summary(1, 65)], 'overall')!.ranked.map((r) => r.deviations)).toEqual([0, 0])
   })
 })

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
-import { findPlayers, leagueAverages, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
+import { findPlayers, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
 import type { RomProject } from './core/rom'
-import { teamLabels } from './core/team'
+import { teamDisplayName, teamLabels } from './core/team'
 
 const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: number }[] = [
   {
@@ -41,6 +41,13 @@ interface Column {
 
 const SEARCH_LIMIT = 200
 
+// The ratings the league's balance can be measured by.
+const BALANCE_BY: { key: SummaryColumn; label: string }[] = [
+  { key: 'overall', label: 'Overall (with line changes)' },
+  { key: 'startingSkaters', label: 'First line (without line changes)' },
+  { key: 'skaters', label: 'All skaters' },
+]
+
 interface Props {
   project: RomProject
   onGoToTeam: (team: number) => void
@@ -50,10 +57,19 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<{ key: string; down: boolean }>({ key: 'team', down: false })
   const [everyLine, setEveryLine] = useState(false)
+  const [pair, setPair] = useState<[number, number]>([0, Math.min(1, project.teams.length - 1)])
+  const [balanceBy, setBalanceBy] = useState<SummaryColumn>('overall')
+  const [withAllStars, setWithAllStars] = useState(false)
   const summaries = useMemo(() => teamSummaries(project), [project])
   const averages = useMemo(() => leagueAverages(summaries), [summaries])
   const linesAverage = useMemo(() => lineAverages(summaries), [summaries])
   const found = useMemo(() => findPlayers(project, search), [project, search])
+  // The original games' All-Star teams are far above the rest; leagues that keep them do not play them.
+  const allStars = useMemo(() => project.teams.flatMap((team, t) => (/\ball[ -]?stars?\b/i.test(teamDisplayName(team)) ? [t] : [])), [project.teams])
+  const balance = useMemo(
+    () => leagueBalance(withAllStars ? summaries : summaries.filter((s) => !allStars.includes(s.team)), balanceBy),
+    [summaries, balanceBy, allStars, withAllStars],
+  )
   const names = teamLabels(project.teams, project.game)
 
   const number = (value: number | null, decimals: number) => (value === null ? '–' : value.toFixed(decimals))
@@ -210,6 +226,170 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
         </table>
         </div>
       </section>
+
+      <Matchup project={project} summaries={summaries} names={names} pair={pair} onPair={setPair} onGoToTeam={onGoToTeam} />
+
+      <section>
+        <h3>League balance</h3>
+        <p>
+          <label>
+            Measured by{' '}
+            <select value={balanceBy} onChange={(e) => setBalanceBy(e.target.value as SummaryColumn)}>
+              {BALANCE_BY.map((by) => (
+                <option key={by.key} value={by.key}>
+                  {by.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {allStars.length > 0 && (
+            <>
+              {' '}
+              <label>
+                <input type="checkbox" checked={withAllStars} onChange={(e) => setWithAllStars(e.target.checked)} /> Count the
+                All-Star teams
+              </label>
+            </>
+          )}
+        </p>
+        {balance ? (
+          <>
+            <p>
+              Average <b>{balance.average.toFixed(1)}</b>; the best team is <b>{balance.spread.toFixed(1)}</b> above the
+              weakest; standard deviation <b>{balance.deviation.toFixed(1)}</b>.{' '}
+              <span className="note">
+                The smaller these two are, the more even the league. Teams more than one standard deviation from the
+                average are marked.
+              </span>
+            </p>
+            <div className="scroll">
+              <table className="balance">
+                <thead>
+                  <tr>
+                    <th className="pin">Team</th>
+                    <th>Rating</th>
+                    <th>From average</th>
+                    <th aria-hidden="true" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {balance.ranked.map((entry, _, ranked) => {
+                    const widest = Math.max(Math.abs(ranked[0].fromAverage), Math.abs(ranked[ranked.length - 1].fromAverage), 0.1)
+                    const share = (Math.abs(entry.fromAverage) / widest) * 50
+                    const marked = entry.deviations > 1 ? 'high' : entry.deviations < -1 ? 'low' : undefined
+                    return (
+                      <tr key={entry.team}>
+                        <td className="team-name pin">
+                          <button className="link" onClick={() => onGoToTeam(entry.team)}>
+                            {names[entry.team]}
+                          </button>
+                        </td>
+                        <td className={marked}>{entry.value.toFixed(1)}</td>
+                        <td className={marked}>{(entry.fromAverage >= 0 ? '+' : '') + entry.fromAverage.toFixed(1)}</td>
+                        <td aria-hidden="true">
+                          <div className="bar-track">
+                            <div
+                              className={`bar ${entry.fromAverage >= 0 ? 'above' : 'below'}`}
+                              style={entry.fromAverage >= 0 ? { left: '50%', width: `${share}%` } : { right: '50%', width: `${share}%` }}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p className="note">Fewer than two teams have this rating.</p>
+        )}
+      </section>
     </main>
+  )
+}
+
+interface MatchupProps {
+  project: RomProject
+  summaries: TeamSummary[]
+  names: string[]
+  pair: [number, number]
+  onPair: (pair: [number, number]) => void
+  onGoToTeam: (team: number) => void
+}
+
+// Two teams' ratings next to each other: for a playoff series, or a trade's
+// effect on the balance between two teams.
+function Matchup({ project, summaries, names, pair, onPair, onGoToTeam }: MatchupProps) {
+  const [a, b] = pair.map((t) => summaries[Math.min(t, summaries.length - 1)])
+  const rows: { label: string; title: string; value: (s: TeamSummary) => number | null; decimals: number }[] = [
+    { label: 'Overall', title: COLUMNS[0].title, value: (s) => s.overall, decimals: 1 },
+    ...project.game.lineLabels.map((label, l) => ({
+      label: `${label} line`,
+      title: `Average overall of the skaters on the ${label} line`,
+      value: (s: TeamSummary) => s.lines[l]?.skaters ?? null,
+      decimals: 1,
+    })),
+    { label: 'Goalie', title: 'Overall of the goalie on the first line', value: (s) => s.startingGoalie, decimals: 0 },
+    { label: 'Forwards', title: 'Average overall of every forward on the roster', value: (s) => s.forwards, decimals: 1 },
+    { label: 'Defence', title: 'Average overall of every defenceman on the roster', value: (s) => s.defence, decimals: 1 },
+    { label: 'Best goalie', title: 'Highest overall among the goalies', value: (s) => s.bestGoalie, decimals: 0 },
+  ]
+  const pick = (side: 0 | 1) => (
+    <select
+      aria-label={side === 0 ? 'First team to compare' : 'Second team to compare'}
+      value={pair[side]}
+      onChange={(e) => onPair(side === 0 ? [Number(e.target.value), pair[1]] : [pair[0], Number(e.target.value)])}
+    >
+      {names.map((name, t) => (
+        <option key={t} value={t}>
+          {name}
+        </option>
+      ))}
+    </select>
+  )
+  const text = (value: number | null, decimals: number) => (value === null ? '–' : value.toFixed(decimals))
+  return (
+    <section>
+      <h3>Two teams side by side</h3>
+      <p>
+        {pick(0)} against {pick(1)}
+      </p>
+      <div className="scroll">
+        <table className="matchup">
+          <thead>
+            <tr>
+              <th className="pin" />
+              {[a, b].map((s, i) => (
+                <th key={i}>
+                  <button className="link" onClick={() => onGoToTeam(s.team)}>
+                    {names[s.team]}
+                  </button>
+                </th>
+              ))}
+              <th title="The first team's rating less the second's">Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const [x, y] = [row.value(a), row.value(b)]
+              const difference = x === null || y === null ? null : x - y
+              const ahead = (mine: number | null, theirs: number | null) => (mine !== null && theirs !== null && mine > theirs ? 'high' : undefined)
+              return (
+                <tr key={row.label}>
+                  <th className="pin" title={row.title}>
+                    {row.label}
+                  </th>
+                  <td className={ahead(x, y)}>{text(x, row.decimals)}</td>
+                  <td className={ahead(y, x)}>{text(y, row.decimals)}</td>
+                  <td>{difference === null ? '–' : (difference > 0 ? '+' : '') + difference.toFixed(1)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="note">The higher of the two in each row is marked. Lines are rated by their skaters.</p>
+    </section>
   )
 }

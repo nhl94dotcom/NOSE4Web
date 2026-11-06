@@ -99,8 +99,9 @@ It can also:
   your league sets itself: roster sizes, rating caps, nobody on two teams
 - describe the differences between two ROMs, with a summary of player moves
   and rating changes to post for a league
-- find a player on any team, compare the teams' ratings side by side, and
-  change one attribute for many players at once
+- find a player on any team, compare the teams' ratings (every line too),
+  put two teams side by side, see how balanced the league is, and change one
+  attribute for many players at once
 - bring a team in from another ROM, or copy one team's colours and pictures to
   another
 - reset any one part of a team to how it was in the ROM you opened

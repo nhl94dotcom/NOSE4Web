@@ -772,6 +772,18 @@ export function HelpPage() {
           checking lines, and the power play and penalty kill units), each the average of its five skaters; point
           at a number to see its forwards and its defence pair apart.
         </li>
+        <li>
+          <b>Two teams side by side</b> puts any two teams' ratings next to each other: the overall, every line,
+          the starting goalie, the forwards, the defence and the best goalie, with the higher of each marked and the
+          difference between them. Use it to preview a playoff series, or to see what a trade did to two teams.
+        </li>
+        <li>
+          <b>League balance</b> ranks the teams by one rating (the overall, the first line for a league without line
+          changes, or all the skaters), with each team's distance from the league average drawn as a bar. Above it
+          are the average, how far the best team is above the weakest, and the standard deviation: the smaller these
+          are, the more even the league. Teams more than one standard deviation from the average are marked. The
+          original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
+        </li>
       </ul>
 
       <h3 id="help-trade">Trades and free agents</h3>

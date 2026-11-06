@@ -168,3 +168,39 @@ export function leagueAverages(summaries: TeamSummary[]): Record<SummaryColumn, 
     size: column('size'),
   }
 }
+
+export interface BalanceEntry {
+  team: number
+  value: number
+  // How far from the league average, and in standard deviations.
+  fromAverage: number
+  deviations: number
+}
+
+export interface LeagueBalance {
+  average: number
+  // The population standard deviation of the teams' values.
+  deviation: number
+  // The highest value less the lowest.
+  spread: number
+  // Highest first; teams without a value are left out.
+  ranked: BalanceEntry[]
+}
+
+// How evenly one rating is spread over the teams, or null where fewer than
+// two teams have it.
+export function leagueBalance(summaries: TeamSummary[], key: SummaryColumn): LeagueBalance | null {
+  const rated = summaries.flatMap((s) => (s[key] === null ? [] : [{ team: s.team, value: s[key] as number }]))
+  if (rated.length < 2) return null
+  const mean = rated.reduce((sum, r) => sum + r.value, 0) / rated.length
+  const deviation = Math.sqrt(rated.reduce((sum, r) => sum + (r.value - mean) ** 2, 0) / rated.length)
+  const values = rated.map((r) => r.value)
+  return {
+    average: mean,
+    deviation,
+    spread: Math.max(...values) - Math.min(...values),
+    ranked: rated
+      .map((r) => ({ ...r, fromAverage: r.value - mean, deviations: deviation === 0 ? 0 : (r.value - mean) / deviation }))
+      .sort((a, b) => b.value - a.value || a.team - b.team),
+  }
+}

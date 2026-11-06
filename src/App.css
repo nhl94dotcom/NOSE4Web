@@ -668,3 +668,25 @@ button:disabled {
     max-width: 100%;
   }
 }
+
+/* League balance: each team's distance from the average as a bar either side of the middle. */
+.bar-track {
+  position: relative;
+  width: 10rem;
+  height: 0.8rem;
+  background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat;
+}
+
+.bar {
+  position: absolute;
+  top: 0.1rem;
+  bottom: 0.1rem;
+}
+
+.bar.above {
+  background: #2da44e;
+}
+
+.bar.below {
+  background: #d1242f;
+}
