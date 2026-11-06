@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { readU16LE } from '../src/core/bytes'
 import { colorRgb, SNES_COLORS } from '../src/core/color'
 import { projectTeamRatings } from '../src/core/ppfix'
-import { snesPreviewSprites } from '../src/core/snes'
+import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, snesPreviewSprites, snesStripTables } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from '../src/core/sneshacks'
 import { checkProject } from '../src/core/check'
+import { NHL94_SNES } from '../src/core/games'
 import { compareProjects } from '../src/core/compare'
 import { formatCsv } from '../src/core/csv'
 import { nextExpansion } from '../src/core/expand'
@@ -50,7 +51,11 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         const file = read(name)
         const project = openRom(file)
         expect(project.game.platform).toBe('snes')
-        expect(project.teams).toHaveLength(28)
+        expect(project.teams).toHaveLength(findSnesTeamTable(project.bytes)!.count)
+        // The colours are found, wherever the ROM keeps them.
+        expect(snesStripTables(project.bytes)).not.toBeNull()
+        for (const team of project.teams) expect(team.palette).toHaveLength(32)
+        expect(snesPreviewSprites(project.bytes)).toHaveLength(3)
         const headerSize = project.copierHeader?.length ?? 0
         const rebuilt = buildRom(project)
         expect(rebuilt.length).toBe(file.length)
@@ -160,6 +165,9 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
 describe.skipIf(!existsSync(path(STOCK)))('the original SNES game', () => {
   it('reads its teams, players, lines and ratings', () => {
     const project = openRom(read(STOCK))
+    expect(project.game).toBe(NHL94_SNES)
+    expect(project.teams).toHaveLength(28)
+    expect(snesCodeInPlace(project.bytes)).toBe(true)
     expect(project.copierHeader).toBeNull()
     expect(project.teams.map(teamDisplayName).slice(0, 3)).toEqual(['Anaheim Mighty Ducks', 'Boston Bruins', 'Buffalo Sabres'])
     expect(project.teams[26].names).toEqual(['All Stars East', 'ASE', '', 'Madison Square Garden'])
@@ -230,9 +238,15 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
   const allOff = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
 
   names.forEach((name, n) => {
-    it(`are recognised in SNES ROM ${n + 1}, and go in and come out again`, () => {
+    it(`are recognised in SNES ROM ${n + 1}, and go in and come out again, or are left alone where its code has moved`, () => {
       const project = openRom(read(name))
       const before = detectSnesHacks(project.bytes)
+      if (!snesCodeInPlace(project.bytes)) {
+        expect(before.unknown).toEqual(SNES_HACKS)
+        expect(() => applySnesHacks(project, { skipEaIntro: true })).toThrow(/other code/)
+        expect(applySnesHacks(project, {}).bytes).toEqual(project.bytes)
+        return
+      }
       expect(before.unknown).toEqual([])
       const on = applySnesHacks(project, allOn)
       expect(detectSnesHacks(on.bytes).choices).toEqual(allOn)
@@ -269,6 +283,44 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
     expect(detectSnesHacks(other).unknown).toEqual(['hotColdFix'])
     expect(() => applySnesHacks(odd, { hotColdFix: true })).toThrow(/other code/)
     expect(applySnesHacks(odd, { skipEaIntro: true }).bytes[0xffb40]).toBe(0x00)
+  })
+})
+
+describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from the original', () => {
+  // Made from the original: its team table moved to free space at the end of
+  // the ROM with two more entries, and its code moved, as far as the editor
+  // can tell, by changing the home colour loader's first instruction.
+  function rebuilt(): Uint8Array {
+    const rom = read(STOCK)
+    const original = findSnesTeamTable(rom)!
+    const table = 0xff000
+    rom.copyWithin(table, original.offset, original.offset + original.count * 4)
+    // Two more teams, copies of the first two.
+    rom.copyWithin(table + original.count * 4, original.offset, original.offset + 8)
+    rom.fill(0, table + (original.count + 2) * 4, table + (original.count + 3) * 4)
+    // The table loader, LDA #$9F STA $8F LDA #$F000 STA $8D: bank $9F holds $FF000.
+    const loader = Buffer.from(rom).indexOf(Buffer.from('0a0aa8a99c00858fa9e7a5858d', 'hex'))
+    rom.set([0x9f, 0x00, 0x85, 0x8f, 0xa9, 0x00, 0xf0], loader + 4)
+    return rom
+  }
+
+  it('finds the team table and the teams through the game code, and keeps the hacks out where its code has moved', () => {
+    const rom = rebuilt()
+    // The copies share their blocks with the first two teams, which the editor cannot keep apart.
+    expect(findSnesTeamTable(rom)).toEqual({ offset: 0xff000, count: 30 })
+    expect(() => openRom(rom)).toThrow(/continuous|unexpected/)
+
+    // A ROM with the original's table and its code moved.
+    const moved = read(STOCK)
+    moved[0xfb91c] = 0xae
+    fixSnesChecksum(moved)
+    const project = openRom(moved)
+    expect(project.game.title).toBe("NHL '94 (SNES), 28 teams, rebuilt")
+    expect(project.game.notice).toMatch(/cannot be put in/)
+    expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
+    expect(detectSnesHacks(moved).unknown).toEqual(SNES_HACKS)
+    expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
+    expect(buildRom(project)).toEqual(moved)
   })
 })
 

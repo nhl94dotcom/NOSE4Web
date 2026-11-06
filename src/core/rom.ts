@@ -1,11 +1,11 @@
 import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { findGame, NHL94_SNES, type GameConfig } from './games'
+import { findGame, snesGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
 import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
-import { fixSnesChecksum, splitSnesFile } from './snes'
+import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, splitSnesFile } from './snes'
 import { parseTeams, writeTeams, type Team, type TeamLayout } from './team'
 import type { FreeAgent } from './trade'
 
@@ -100,7 +100,9 @@ function disableSelfCheck(rom: Uint8Array, game: GameConfig): void {
 }
 
 function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array | null): RomProject {
-  const game = NHL94_SNES
+  const table = findSnesTeamTable(rom)
+  if (!table) throw new Error("This SNES ROM's team table could not be found, so this ROM is not supported.")
+  const game = snesGame(table, snesCodeInPlace(rom))
   const { teams, layout } = parseTeams(rom, game)
   return {
     game,

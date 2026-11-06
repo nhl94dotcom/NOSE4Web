@@ -1298,9 +1298,15 @@ export function HelpPage() {
           player's name, or from a league ROM that already has some. The top bar shows how much there is.
         </li>
         <li>
+          <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt from the disassembly with another number of teams, such as
+          one with all 32 of today's NHL teams, and keep their teams and colours in new places. The editor finds
+          them by following the game's own code. Where the code has been moved too, as it is in that 32-team ROM,
+          the hacks are made for places that now hold other code, so the Hacks page does not offer them.
+        </li>
+        <li>
           <b>Importing</b> a team from a Genesis ROM brings its names, roster and lines, but not its colours.{' '}
           <b>Comparing</b> a Genesis ROM with an SNES one matches the teams by name, since the two games keep them in
-          different orders.
+          different orders, as does comparing two SNES ROMs with different sets of teams.
         </li>
         <li>
           Some copies of the ROM start with a 512-byte header from old copier devices. It is kept, so the file you

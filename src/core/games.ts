@@ -266,6 +266,33 @@ export const NHL94_SNES: GameConfig = {
   goalieAttributeKinds: NHL94.goalieAttributeKinds.map((kind) => (kind === 'rating' ? 'snesRating' : kind)),
 }
 
+// An SNES ROM with its team table somewhere else or another number of teams,
+// such as one rebuilt from the disassembly with all 32 of today's teams.
+// Where its code has been moved too, the hacks cannot be put in.
+const snesVariants = new Map<string, GameConfig>()
+
+export function snesGame(table: { offset: number; count: number }, codeInPlace: boolean): GameConfig {
+  if (table.offset === NHL94_SNES.teamTableOffset && table.count === NHL94_SNES.teamCount && codeInPlace) return NHL94_SNES
+  const key = `${table.offset}:${table.count}:${codeInPlace}`
+  const known = snesVariants.get(key)
+  if (known) return known
+  const config: GameConfig = {
+    ...NHL94_SNES,
+    productCode: `${NHL94_SNES.productCode} ${table.count}${codeInPlace ? '' : ' rebuilt'}`,
+    title: `NHL '94 (SNES), ${table.count} teams${codeInPlace ? '' : ', rebuilt'}`,
+    teamTableOffset: table.offset,
+    teamCount: table.count,
+    notice: codeInPlace
+      ? NHL94_SNES.notice
+      : `This ROM is NHL '94 for the SNES, rebuilt with ${table.count} teams and the game's code in new places. ` +
+        'The editor can change its rosters, lines, team names, team ratings and colours. The hacks on the Hacks ' +
+        'page are made for the original layout, so they cannot be put in. Its rink, game settings and pictures are ' +
+        'left alone. SNES editing is new, so keep a copy of the file you opened.',
+  }
+  snesVariants.set(key, config)
+  return config
+}
+
 export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO, NHL94_SNES].map((game) => game.title)
 
 // ---------------------------------------------------------- product codes

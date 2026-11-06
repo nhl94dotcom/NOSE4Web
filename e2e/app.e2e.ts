@@ -1477,8 +1477,10 @@ test.describe('with the NHL 94 ROM', () => {
 // project). Each is opened and walked through every page, to catch anything
 // that breaks the editor on a ROM unlike the original game.
 const localPath = resolve(process.cwd(), 'tests', 'local.json')
-const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
-const hackRoms = [local.league30Rom, ...(local.otherRoms ?? [])]
+const local: { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[] } = existsSync(localPath)
+  ? JSON.parse(readFileSync(localPath, 'utf8'))
+  : {}
+const hackRoms = [local.league30Rom, ...(local.otherRoms ?? []), ...(local.snesRoms ?? [])]
   .filter((name): name is string => !!name)
   .map((name) => resolve(process.cwd(), '..', name))
   .filter((path) => existsSync(path))
@@ -1494,8 +1496,9 @@ test.describe('with the hacked ROMs on this computer', () => {
       page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
 
       const rom = readRom(new Uint8Array(readFileSync(path)))
+      const snes = rom.game.platform === 'snes'
       await page.goto('/')
-      await romPicker(page).setInputFiles({ name: `hack_${n + 1}.bin`, mimeType: 'application/octet-stream', buffer: readFileSync(path) })
+      await romPicker(page).setInputFiles({ name: `hack_${n + 1}.${snes ? 'smc' : 'bin'}`, mimeType: 'application/octet-stream', buffer: readFileSync(path) })
       await expect(page.locator('nav button').first()).toBeVisible()
       await expect(page.locator('header')).toContainText(rom.game.title)
       // Every team is listed, and nothing about the ROM as it stands is a problem.
@@ -1514,16 +1517,21 @@ test.describe('with the hacked ROMs on this computer', () => {
         await expect(page.locator('main h2').first()).toBeVisible()
         if ((await pages.nth(i).textContent()) === 'League') await page.screenshot({ path: `${shot}_league.png` })
       }
-      await page.locator('nav button').first().click()
-      await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
-      await page.screenshot({ path: `${shot}_pictures.png` })
+      if (!snes) {
+        await page.locator('nav button').first().click()
+        await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
+        await page.screenshot({ path: `${shot}_pictures.png` })
+      }
 
-      // An edit, and the ROM still downloads and opens with it.
+      // An edit, and the ROM still downloads and opens with it. An SNES ROM
+      // may have no room to spare, so there the name keeps its length.
       await page.locator('nav button').first().click()
-      await nameOf(rows(page, 'Skaters').first()).fill('Test Player')
+      const length = (await nameOf(rows(page, 'Skaters').first()).inputValue()).length
+      const name = snes ? 'Test Player'.padEnd(length, 'x').slice(0, length) : 'Test Player'
+      await nameOf(rows(page, 'Skaters').first()).fill(name)
       const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
       const again = readRom(new Uint8Array(readFileSync(await download.path())))
-      expect(again.teams[0].players.some((player) => player.name === 'Test Player')).toBe(true)
+      expect(again.teams[0].players.some((player) => player.name === name)).toBe(true)
       expect(again.teams.slice(1).map((team) => team.players)).toEqual(rom.teams.slice(1).map((team) => team.players))
       expect(errors).toEqual([])
     })

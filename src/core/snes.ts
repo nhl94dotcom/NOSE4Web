@@ -66,27 +66,93 @@ export function snesChecksum(rom: Uint8Array): number {
   return readU16LE(rom, CHECKSUM_AT)
 }
 
+// ------------------------------------------------------------ finding data
+// Some ROMs are rebuilt from the disassembly with their code and data in new
+// places (one with all 32 of today's teams, for example), so the editor finds
+// the tables it edits by the game's code that loads them, wherever that is.
+// The code is all in the first 32 banks. `pattern` is the code as hex, with
+// a group for each part that varies, (..) for a byte and (....) for a word,
+// low byte first; it must be found exactly once.
+const CODE_BANKS = 0x20 * BANK_SIZE
+
+function findCode(rom: Uint8Array, pattern: string): { at: number; groups: number[] } | null {
+  // Each byte of the pattern, null where it varies, and where each group starts and how long it is.
+  const bytes: (number | null)[] = []
+  const groups: { at: number; size: number }[] = []
+  for (const [, fixed, group] of pattern.matchAll(/([0-9a-f]{2})|\(((?:\.\.)+)\)/g)) {
+    if (fixed) bytes.push(parseInt(fixed, 16))
+    else {
+      groups.push({ at: bytes.length, size: group.length / 2 })
+      for (let i = 0; i < group.length / 2; i++) bytes.push(null)
+    }
+  }
+  const end = Math.min(rom.length, CODE_BANKS) - bytes.length
+  let found = -1
+  for (let at = 0; at <= end; at++) {
+    if (rom[at] !== bytes[0] || !bytes.every((byte, i) => byte === null || rom[at + i] === byte)) continue
+    if (found >= 0) return null
+    found = at
+  }
+  if (found < 0) return null
+  return { at: found, groups: groups.map((group) => (group.size === 2 ? readU16LE(rom, found + group.at) : rom[found + group.at])) }
+}
+
+// ------------------------------------------------------------- team table
+// The game finds a team's block from a table of its address, bank and a zero,
+// one entry a team in team number order. Its code loads the table as LDA
+// #bank, STA $8F, LDA #address, STA $8D, then reads the entry for team A * 4.
+// The table ends where an entry stops looking like one; in the original game
+// the first team block follows it. The original's is at $9C:A5E7, 28 teams.
+const TEAM_TABLE_LOADER = '0a0aa8a9(..)00858fa9(....)858db78d858da0040018778d'
+const MAX_TEAMS = 64
+
+export function findSnesTeamTable(rom: Uint8Array): { offset: number; count: number } | null {
+  const loader = findCode(rom, TEAM_TABLE_LOADER)
+  if (!loader) return null
+  const [bank, address] = loader.groups
+  const offset = loRomOffset(bank, address)
+  if (address < 0x8000 || offset >= rom.length) return null
+  const entryBank = rom[offset + 2]
+  let count = 0
+  while (count < MAX_TEAMS) {
+    const at = offset + count * 4
+    if (at + 4 > rom.length || readU16LE(rom, at) < 0x8000 || rom[at + 2] !== entryBank || rom[at + 3] !== 0) break
+    count++
+  }
+  return count > 0 ? { offset, count } : null
+}
+
 // ------------------------------------------------------------ team colours
 // Each team has two strips of 16 colours: the home team's, which is white,
 // and the visitors', which is dark. They are kept in two tables of 32 bytes a
 // team, in team order, apart from the team data. The game's code that loads
-// them holds each table's address (ADC #address, then LDA #bank), so a ROM
-// that has moved the tables is followed there; one whose loader has been
-// changed some other way has its colours left alone.
-const OP_ADC = 0x69
-const OP_LDA = 0xa9
-const STRIP_LOADERS = { home: { address: 0x9fb925, bank: 0x9fb92a }, away: { address: 0x9fb95a, bank: 0x9fb95f } }
+// them takes the home or visiting team's number ($1C98 or $1C9A), times 32,
+// and adds the table's address (ADC #address, then LDA #bank), so the tables
+// are found wherever a ROM has them; one whose loader has been changed some
+// other way has its colours left alone.
+const STRIP_LOADERS = { home: 'ad981c0a0a0a0a0a1869(....)850ca9(..)00', away: 'ad9a1c0a0a0a0a0a1869(....)850ca9(..)00' }
 export const STRIP_BYTES = 32
+// Where the original game's code has the home loader, $9F:B91C. A ROM that
+// has it there keeps its code where the original game does.
+const ORIGINAL_HOME_LOADER = 0xfb91c
+
+function stripLoader(rom: Uint8Array, side: keyof typeof STRIP_LOADERS): { at: number; table: number } | null {
+  const loader = findCode(rom, STRIP_LOADERS[side])
+  if (!loader) return null
+  const [address, bank] = loader.groups
+  const table = loRomOffset(bank, address)
+  return address >= 0x8000 && table + STRIP_BYTES <= rom.length ? { at: loader.at, table } : null
+}
 
 export function snesStripTables(rom: Uint8Array): { home: number; away: number } | null {
-  const table = ({ address, bank }: { address: number; bank: number }) => {
-    const [a, b] = [loRomOffset(0x9f, address & 0xffff), loRomOffset(0x9f, bank & 0xffff)]
-    if (rom[a] !== OP_ADC || rom[b] !== OP_LDA) return null
-    const at = loRomOffset(rom[b + 1], readU16LE(rom, a + 1))
-    return at >= 0 && at + STRIP_BYTES <= rom.length ? at : null
-  }
-  const [home, away] = [table(STRIP_LOADERS.home), table(STRIP_LOADERS.away)]
-  return home !== null && away !== null ? { home, away } : null
+  const [home, away] = [stripLoader(rom, 'home'), stripLoader(rom, 'away')]
+  return home && away ? { home: home.table, away: away.table } : null
+}
+
+// Whether the game's code is where the original game has it, as it is in the
+// original and in ROMs patched in place. The hacks are only put in where it is.
+export function snesCodeInPlace(rom: Uint8Array): boolean {
+  return stripLoader(rom, 'home')?.at === ORIGINAL_HOME_LOADER
 }
 
 // ---------------------------------------------------------- player sprites
@@ -98,7 +164,6 @@ export function snesStripTables(rom: Uint8Array): { home: number; away: number }
 // count in, from the header's size of the first row. From the disassembly's
 // notes on sprite frames.
 const FRAME_TABLE = 0x10000
-const FRAME_COUNT = 976
 const FRAME_HEADER = 0x16
 const SPRITE_ENTRY = 7
 const INLINE_TILES = 0x80
@@ -118,8 +183,10 @@ function tilePixel(rom: Uint8Array, tile: number, x: number, y: number): number 
 }
 
 // Frame `id` (counted from 1), or null where it cannot be drawn on its own.
+// The first frame follows the table, so its place says how many there are:
+// 976 in the original game.
 export function snesSpriteFrame(rom: Uint8Array, id: number): SpriteImage | null {
-  if (id < 1 || id > FRAME_COUNT) return null
+  if (id < 1 || id > readU16LE(rom, FRAME_TABLE) / 4) return null
   const entry = FRAME_TABLE + (id - 1) * 4
   const frame = (readU16LE(rom, entry + 2) + 2) * BANK_SIZE + readU16LE(rom, entry)
   if (frame + FRAME_HEADER > rom.length || !(rom[frame + 1] & INLINE_TILES)) return null

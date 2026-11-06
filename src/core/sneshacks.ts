@@ -1,5 +1,5 @@
 import type { RomProject } from './rom'
-import { loRomOffset } from './snes'
+import { loRomOffset, snesCodeInPlace } from './snes'
 
 // Hacks for NHL '94 on the SNES, from the community's disassembly,
 // NHL94SNESVault (github.com/Mhopkinsinc/NHL94SNESVault), whose patches were
@@ -109,11 +109,18 @@ const holds = (rom: Uint8Array, site: Site, which: 'original' | 'hacked') => {
   return at + expected.length <= rom.length && expected.every((byte, i) => rom[at + i] === byte)
 }
 
+// In a ROM whose code has been moved, every hack's place holds something
+// else, even where its bytes happen to match.
 export function detectSnesHacks(rom: Uint8Array): SnesHackState {
+  const inPlace = snesCodeInPlace(rom)
   const unknown: SnesHack[] = []
   const choices = Object.fromEntries(
     SNES_HACKS.map((hack) => {
       const sites = SITES[hack]
+      if (!inPlace) {
+        unknown.push(hack)
+        return [hack, false]
+      }
       if (sites.every((site) => holds(rom, site, 'original'))) return [hack, false]
       if (sites.every((site) => holds(rom, site, 'hacked'))) return [hack, true]
       unknown.push(hack)
