@@ -593,7 +593,8 @@ export function HelpPage() {
 
       <h3 id="help-picturefiles">Picture files</h3>
       <p>
-        <b>Picture files</b> handles every team's logos and banners at once, as the spreadsheet files do the rest.
+        <b>Picture files</b> handles every team's logos, banners and player photos at once, as the spreadsheet
+        files do the rest.
         <b> Export all pictures</b> saves them as PNG files in one zip, named with the Name box at the top.
         <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for.
       </p>
@@ -613,6 +614,14 @@ export function HelpPage() {
           are matched by their place in the list.
         </li>
         <li>A picture several teams share is in the zip once, under the first of those teams.</li>
+        <li>
+          Player photos are in the zip too, in a <code>photos</code> folder with a folder for each team, such as{' '}
+          <code>photos/02_Boston_Bruins/Cam_Neely.png</code>: one file for each player with a photo of his own.
+          Each goes back to the player of its name on that team, wherever he now is on the roster, so a set of
+          photos carries to next season's ROM. A photo may be any size, as when imported on the team page. On the
+          Genesis a player who is not among the featured players is added to them. On the SNES, Picture files
+          holds only the photos.
+        </li>
         <li>
           Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
           order. Each file then goes to the team named in it, wherever that team is in this ROM, and a file whose

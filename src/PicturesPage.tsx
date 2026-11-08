@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { importPictureSet, pictureKinds, pictureSet, pictureTitle, type PictureSetResult } from './core/pictureset'
+import { anyPhotos, identifyPhotoFile, importPhotoSet, photoSet } from './core/photoset'
 import type { RomProject } from './core/rom'
 import { createZip, isZip, readZip } from './core/zip'
 import { download } from './download'
@@ -21,8 +22,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
   const [result, setResult] = useState<PictureSetResult | null>(null)
   // Whether files go to the team named in them, or to the team at their number.
   const [byName, setByName] = useState(false)
-  const kinds = pictureKinds(project)
-  const set = pictureSet(project)
+  const logos = project.graphicsSupported
+  const kinds = logos ? pictureKinds(project) : []
+  const set = logos ? pictureSet(project) : []
+  const photos = photoSet(project)
 
   async function exportAll() {
     setBusy(true)
@@ -30,6 +33,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
     try {
       const files = []
       for (const entry of set) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette) })
+      for (const entry of photos) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette, entry.format) })
       download(createZip(files), `${setName}_pictures.zip`, 'application/zip')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -65,9 +69,25 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           unreadable.push(`${file.name}: could not be read as an image.`)
         }
       }
-      const imported = importPictureSet(project, images, { byName })
-      if (imported.replaced.length > 0) onChange(imported.project)
-      setResult({ ...imported, problems: [...unreadable, ...imported.problems] })
+      // Photos are in a folder of their own; the rest are logos and banners.
+      const photoFiles = images.filter((image) => identifyPhotoFile(image.name))
+      const pictureFiles = images.filter((image) => !identifyPhotoFile(image.name))
+      const pictures = logos
+        ? importPictureSet(project, pictureFiles, { byName })
+        : {
+            project,
+            replaced: [],
+            unchanged: 0,
+            problems: pictureFiles.map((file) => `${file.name}: this ROM's logos and banners are not in picture files.`),
+          }
+      const faces = importPhotoSet(pictures.project, photoFiles, byName)
+      if (pictures.replaced.length + faces.replaced.length > 0) onChange(faces.project)
+      setResult({
+        project: faces.project,
+        replaced: [...pictures.replaced, ...faces.replaced.map((title) => `${title} (photo)`)],
+        unchanged: pictures.unchanged + faces.unchanged,
+        problems: [...unreadable, ...pictures.problems, ...faces.problems],
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -78,8 +98,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
     <main className="team help">
       <h2>Picture files</h2>
       <p className="note">
-        Every team's logos and banners as PNG files in one zip, the way the spreadsheet files hold everything else.
-        Use it to carry artwork to next season's ROM, to edit many pictures in one sitting, or to keep a copy.
+        Every team's {logos ? 'logos and banners' : ''}
+        {logos && anyPhotos(project) ? ', and ' : ''}
+        {anyPhotos(project) ? "the players' own photos" : ''} as PNG files in one zip, the way the spreadsheet files hold everything else. Use it to
+        carry artwork to next season's ROM, to edit many pictures in one sitting, or to keep a copy.
       </p>
       <section>
         <h3>Export</h3>
@@ -88,9 +110,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
             Export all pictures
           </button>{' '}
           <span className="note">
-            {count(set.length, 'picture')} in {setName}_pictures.zip:{' '}
-            {kinds.map((kind) => pictureTitle(project, kind).toLowerCase()).join(', ')} for each team. One that
-            several teams share is in it once.
+            {count(set.length + photos.length, 'picture')} in {setName}_pictures.zip
+            {kinds.length > 0 && `: ${kinds.map((kind) => pictureTitle(project, kind).toLowerCase()).join(', ')} for each team. One that several teams share is in it once`}
+            {photos.length > 0 && `. ${count(photos.length, 'player photo')} in its photos folder, a folder for each team and a file for each player with a photo of his own, named after him`}
+            .
           </span>
         </p>
       </section>
@@ -128,7 +151,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           A file is matched to its team and picture by its name, such as 03_Buffalo_Sabres_menu_logo.png: the number at
           the start is the team's place in the list, and the end says which picture. The team name in the middle is
           only for you. Files showing what the editor has already are skipped, so only pictures you changed are
-          replaced. Each must be the same size as the picture it replaces.
+          replaced. Each must be the same size as the picture it replaces. A player photo, in the photos folder,
+          goes to the player of its name on the team of its folder, wherever he is on the roster; it may be any
+          size, as when imported on the team page. A Genesis player with no photo in the featured players is
+          added to them.
         </p>
         {busy && <p>Working…</p>}
         {error && <p className="error">{error}</p>}

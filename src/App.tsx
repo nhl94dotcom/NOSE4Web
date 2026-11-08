@@ -27,6 +27,7 @@ import { SnesPhotosEditor } from './SnesPhotosEditor'
 import { SnesScoreLogoEditor } from './SnesScoreLogoEditor'
 import { snesScoreLogosSupported } from './core/snesscorelogos'
 import { snesPhotosSupported } from './core/snesphotos'
+import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { HacksPage } from './HacksPage'
 import { hacksSupported, withHacksOf } from './core/hacks'
@@ -525,7 +526,7 @@ export default function App() {
           {entry(IMPORT_TEAM, 'Import a team')}
           {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
           {entry(CSV, 'Spreadsheet files')}
-          {project.graphicsSupported && entry(PICTURES, 'Picture files')}
+          {(project.graphicsSupported || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(CHANGES, changes > 0 ? `Changes (${changes})` : 'Changes')}
