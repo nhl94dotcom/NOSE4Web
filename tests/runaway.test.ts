@@ -88,3 +88,23 @@ describe.skipIf(!existsSync(romPath))('the runaway speed fix in the ROM', () => 
     ).toBe(true)
   })
 })
+
+describe.skipIf(!existsSync(romPath))('the penalty shot table fix', () => {
+  it('gives each foul its own penalty shot form, and comes out again', () => {
+    const rom = new Uint8Array(readFileSync(romPath))
+    // PenShotPenalties: a word for each penalty number (a word offset), its penalty shot form or -1.
+    const table = (r: Uint8Array) => Array.from({ length: 24 }, (_, i) => readU16(r, 0x1913a + i * 2))
+    const formOf = (r: Uint8Array, penalty: number) => table(r)[penalty / 2]
+    const hacked = hackRom(rom, { ...NO_HACKS, penaltyShotTableFix: true })
+    // Charging $16, slashing $18, roughing $1A, cross-checking $1C, hooking $1E, tripping $20, interference $22, holding $24.
+    const own: [number, number][] = [[0x16, 0x38], [0x18, 0x3c], [0x1a, 0x36], [0x1c, 0x3a], [0x1e, 0x2e], [0x20, 0x30], [0x22, 0x34]]
+    for (const [penalty, form] of own) expect(formOf(hacked, penalty)).toBe(form)
+    expect(formOf(hacked, 0x24)).toBe(0xffff)
+    expect(formOf(hacked, 0x14)).toBe(0xffff)
+    // The original's: each one place early.
+    expect(formOf(rom, 0x16)).toBe(0x3c)
+    expect(formOf(rom, 0x22)).toBe(0xffff)
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, penaltyShotTableFix: true }, unknown: [] })
+    expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
+  })
+})

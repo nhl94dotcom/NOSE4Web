@@ -80,6 +80,8 @@ export interface HackChoices {
   faceoffFix: boolean
   // Stops a skater keeping the gliding a pass receiver or a fall gets.
   runawayFix: boolean
+  // Gives each foul on a breakaway its own penalty shot, where the original reads the next one.
+  penaltyShotTableFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -117,6 +119,7 @@ export type HackPart =
   | 'passFix'
   | 'faceoffFix'
   | 'runawayFix'
+  | 'penaltyShotTableFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -150,6 +153,7 @@ export const NO_HACKS: HackChoices = {
   passFix: false,
   faceoffFix: false,
   runawayFix: false,
+  penaltyShotTableFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -719,6 +723,19 @@ const runawayFix: Part<boolean> = {
   },
 }
 
+// The penalty shot table. A foul on a breakaway becomes a penalty shot
+// through PenShotPenalties, a word for each penalty number giving its
+// penalty shot form, but the entries sit one word early: charging is given
+// slashing's penalty shot, slashing roughing's, roughing cross-checking's,
+// cross-checking hooking's, hooking tripping's, tripping interference's, and
+// interference none. The fix moves them to their own penalties. Holding stays
+// without one, as the game has no penalty shot form of it.
+const penaltyShotTableFix = switchPart(
+  0x1914e,
+  bytes('0038 003C 0036 003A 002E 0030 0034 FFFF'),
+  bytes('FFFF 0038 003C 0036 003A 002E 0030 0034'),
+)
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -889,6 +906,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
+    penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -943,6 +961,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
     ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
     ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
+    ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1047,6 +1066,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   passFix: 'Rocket pass fix',
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
+  penaltyShotTableFix: 'Penalty shot table fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1076,6 +1096,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   passFix: 'passFix',
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
+  penaltyShotTableFix: 'penaltyShotTableFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',
