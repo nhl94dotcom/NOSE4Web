@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { rinkLogo } from '../src/core/graphics'
 import { buildRom, openRom as readRom } from '../src/core/rom'
-import { detectSnesHacks } from '../src/core/sneshacks'
+import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
+import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
 import { createZip, readZip } from '../src/core/zip'
 
@@ -1480,6 +1481,22 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Away rating')).toHaveValue('3')
   })
 
+  test("copies another ROM's hacks, to apply them here", async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    await entry(page, 'Hacks').click()
+    // A league ROM as the editor makes one: opened, hacked and downloaded.
+    const league = buildRom(applyHacks(readRom(new Uint8Array(readFileSync(romPath))), { ...NO_HACKS, passFix: true, faceoffFix: true, goalieHold: 300 }))
+    await main.getByLabel('Copy hacks from another ROM').setInputFiles({ name: 'league.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(league) })
+    await expect(main.getByText("Set to league.bin's hacks.")).toBeVisible()
+    await expect(main.locator('.outcome li')).toHaveText(['Rocket pass fix: off to on.', 'Faceoff spot fix: off to on.', 'Goalie hold time: 2.33 seconds to 5 seconds.'])
+    await expect(main.getByLabel('Goalie hold time')).toHaveValue('5')
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(main.getByText('Done: 3 changes to the game. Undo puts it back.')).toBeVisible()
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    expect(detectHacks(rom.bytes).choices).toMatchObject({ passFix: true, faceoffFix: true, goalieHold: 300 })
+  })
+
   test('changes how the game plays from the Hacks page', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')
@@ -1804,6 +1821,20 @@ const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
 
 test.describe('with the SNES game', () => {
   test.skip(!existsSync(snesPath), 'needs ../NHL94.smc')
+
+  test("copies another SNES ROM's hacks", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    const main = page.locator('main')
+    await entry(page, 'Hacks').click()
+    const league = applySnesHacks(readRom(new Uint8Array(readFileSync(snesPath))), { hotColdFix: true, faceoffFix: true })
+    await main.getByLabel('Copy hacks from another ROM').setInputFiles({ name: 'league.smc', mimeType: 'application/octet-stream', buffer: Buffer.from(buildRom(league)) })
+    await expect(main.locator('.outcome li')).toHaveText(['Hot and cold bug fix: off to on.', 'Faceoff spot fix: off to on.'])
+    await expect(main.getByLabel('Faceoff spot fix')).toHaveValue('on')
+    // A Genesis ROM is not taken.
+    await main.getByLabel('Copy hacks from another ROM').setInputFiles(romPath)
+    await expect(main.getByText(/is NHL 94.*not an SNES ROM/)).toBeVisible()
+  })
 
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')

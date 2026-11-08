@@ -1,6 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
-import { applySnesHacks, detectSnesHacks, SNES_HACK_TITLES, SNES_HACKS, type SnesHack, type SnesHackChoices } from './core/sneshacks'
+import { CopyHacksButton } from './CopyHacksButton'
+import {
+  applySnesHacks,
+  detectSnesHacks,
+  SNES_HACK_TITLES,
+  SNES_HACKS,
+  snesHacksCopiedFrom,
+  type SnesHack,
+  type SnesHackChoices,
+} from './core/sneshacks'
 
 interface Props {
   project: RomProject
@@ -58,6 +67,8 @@ export function SnesHacksPage({ project, onChange }: Props) {
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  // What could not be copied from another ROM's hacks, if they were.
+  const [notCopied, setNotCopied] = useState<string[]>([])
   const changed = SNES_HACKS.filter((hack) => wanted[hack] !== state.choices[hack])
 
   function apply() {
@@ -118,11 +129,53 @@ export function SnesHacksPage({ project, onChange }: Props) {
           <button disabled={changed.length === 0} onClick={apply}>
             Apply
           </button>{' '}
-          <button disabled={changed.length === 0} onClick={() => setDraft({ rom: project.bytes, choices: state.choices })}>
+          <button
+            disabled={changed.length === 0}
+            onClick={() => {
+              setDraft({ rom: project.bytes, choices: state.choices })
+              setNotCopied([])
+            }}
+          >
             Set back to what the ROM has
           </button>{' '}
+          <CopyHacksButton
+            onRom={(other, fileName) => {
+              if (other.game.platform !== 'snes') {
+                setError(`${fileName} is ${other.game.title}, not an SNES ROM.`)
+                return
+              }
+              const copied = snesHacksCopiedFrom(state, detectSnesHacks(other.bytes))
+              setDraft({ rom: project.bytes, choices: copied.choices })
+              setNotCopied(copied.notCopied)
+              setNotice(`Set to ${fileName}'s hacks. Check the choices above and press Apply.`)
+              setError('')
+            }}
+            onError={(message) => setError(message)}
+          />{' '}
           <span className="note">{notice}</span>
         </p>
+        {changed.length > 0 && (
+          <div className="outcome">
+            <p>Applying will make these changes to the game:</p>
+            <ul>
+              {changed.map((hack) => (
+                <li key={hack}>
+                  {SNES_HACK_TITLES[hack]}: {state.choices[hack] ? 'on' : 'off'} to {wanted[hack] ? 'on' : 'off'}.
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {notCopied.length > 0 && (
+          <div className="note">
+            <p>Left as this ROM has them:</p>
+            <ul>
+              {notCopied.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
       </section>
     </main>

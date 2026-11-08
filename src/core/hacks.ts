@@ -1104,6 +1104,32 @@ export function sameHacks(a: HackChoices, b: HackChoices): boolean {
   return (Object.keys(NO_HACKS) as (keyof HackChoices)[]).every((key) => a[key] === b[key])
 }
 
+// This ROM's choices set to another ROM's hacks, for a league that wants
+// the same in every ROM. A part either ROM's code is not recognised in keeps
+// this ROM's choice, as does an earlier version of a hack (the simpler weight
+// fix, the earlier bodycheck statistics, the all-240 checking fix) that this
+// ROM does not have, since those can be kept but not made afresh. Each part
+// left so, where the other ROM has something different, is named.
+export function hacksCopiedFrom(current: HackState, other: HackState): { choices: HackChoices; notCopied: string[] } {
+  const choices = { ...current.choices }
+  const notCopied: string[] = []
+  const earlier = (key: keyof HackChoices, value: unknown) =>
+    (key === 'weightFix' && value === 'simple') || (key === 'bodychecks' && value === 'earlier') || (key === 'checkFix' && value === 'all240')
+  for (const key of Object.keys(NO_HACKS) as (keyof HackChoices)[]) {
+    const value = other.choices[key]
+    if (value === current.choices[key]) continue
+    const part = HACK_PARTS[key]
+    if (other.unknown.includes(part) || current.unknown.includes(part)) {
+      notCopied.push(`${HACK_TITLES[key]}: one of the two ROMs has code here the editor does not know.`)
+    } else if (earlier(key, value)) {
+      notCopied.push(`${HACK_TITLES[key]}: the other ROM has ${hackValueText(key, other.choices)}, which can be kept but not put into another ROM.`)
+    } else {
+      ;(choices as Record<string, unknown>)[key] = value
+    }
+  }
+  return { choices, notCopied }
+}
+
 // A rating on one scale as the nearest on the other. Six is to fifteen as the
 // game counts them: a rating is worth five times itself on the ice on the
 // old scale and twice itself on the new.

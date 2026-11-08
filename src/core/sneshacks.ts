@@ -423,6 +423,23 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   return { ...project, bytes: rom, settings: refreshSnesSettings(project.bytes, rom, project.settings) }
 }
 
+// This ROM's choices set to another SNES ROM's hacks. A hack either ROM has
+// other code in place of keeps this ROM's choice, and is named where the other
+// ROM's differs.
+export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState): { choices: SnesHackChoices; notCopied: string[] } {
+  const choices = { ...current.choices }
+  const notCopied: string[] = []
+  for (const hack of SNES_HACKS) {
+    if (other.choices[hack] === current.choices[hack]) continue
+    if (other.unknown.includes(hack) || current.unknown.includes(hack)) {
+      notCopied.push(`${SNES_HACK_TITLES[hack]}: one of the two ROMs has other code in its place.`)
+    } else {
+      choices[hack] = other.choices[hack]
+    }
+  }
+  return { choices, notCopied }
+}
+
 // How the hacks in one SNES ROM differ from those in another.
 export function snesHackDifferences(before: Uint8Array, after: Uint8Array): string[] {
   const [was, now] = [detectSnesHacks(before), detectSnesHacks(after)]

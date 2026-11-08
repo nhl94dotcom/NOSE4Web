@@ -124,6 +124,8 @@ It can also:
 - copy players, lines and playoff draws between teams, or between two ROMs
   open in separate tabs
 - save your changes as an IPS patch, so they can be shared without the ROM
+- set a ROM's hacks to match another ROM's, for a league that wants the same
+  hacks in all its ROMs
 
 ## Supported ROMs
 

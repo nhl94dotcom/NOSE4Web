@@ -9,6 +9,8 @@ import {
   HACK_RANGES,
   HACK_TITLES,
   hackChanges,
+  hacksCopiedFrom,
+  hacksSupported,
   holdSeconds,
   NO_HACKS,
   sameHacks,
@@ -21,6 +23,7 @@ import {
   type WeightFix,
 } from './core/hacks'
 import type { RomProject } from './core/rom'
+import { CopyHacksButton } from './CopyHacksButton'
 
 interface Props {
   project: RomProject
@@ -110,6 +113,8 @@ export function HacksPage({ project, onChange }: Props) {
   const [setBack, setSetBack] = useState(0)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  // What could not be copied from another ROM's hacks, if they were.
+  const [notCopied, setNotCopied] = useState<string[]>([])
 
   // smozROM's code for "Edit Lines matches players" with 0 to 15 ratings looks
   // mistaken, so that pairing can be kept where a ROM has it but not made.
@@ -579,12 +584,37 @@ export function HacksPage({ project, onChange }: Props) {
           <button disabled={sameHacks(wanted, state.choices)} onClick={() => {
               set(state.choices)
               setSetBack(setBack + 1)
+              setNotCopied([])
             }}
           >
             Set back to what the ROM has
           </button>{' '}
+          <CopyHacksButton
+            onRom={(other, fileName) => {
+              if (!hacksSupported(other.game)) {
+                setError(`${fileName} is ${other.game.title}, whose hacks this page cannot read.`)
+                return
+              }
+              const copied = hacksCopiedFrom(state, detectHacks(other.bytes))
+              set(copied.choices)
+              setSetBack(setBack + 1)
+              setNotCopied(copied.notCopied)
+              setNotice(`Set to ${fileName}'s hacks. Check the list above and press Apply.`)
+            }}
+            onError={(message) => setError(message)}
+          />{' '}
           <span className="note">{notice}</span>
         </p>
+        {notCopied.length > 0 && (
+          <div className="note">
+            <p>Left as this ROM has them:</p>
+            <ul>
+              {notCopied.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
       </section>
     </main>

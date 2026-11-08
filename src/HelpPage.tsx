@@ -897,6 +897,13 @@ export function HelpPage() {
         <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
         takes it all back.
       </p>
+      <p>
+        <b>Copy hacks from another ROM…</b>, beside Apply, sets every choice on the page to what another ROM has, for
+        a league that wants the same hacks in all its ROMs (Genesis to Genesis, SNES to SNES). The other ROM is only
+        read. The list above Apply then shows what would change; press Apply to make it so. A hack either ROM has code
+        of its own in place of, or an earlier version of a hack that cannot be put in afresh, is left as this ROM has
+        it, and listed below the buttons.
+      </p>
       <ul>
         <li>
           <b>Weight bug fix:</b> smozoma's fix, from smozROM. The NHL94 Match Viewer project has since found that it
