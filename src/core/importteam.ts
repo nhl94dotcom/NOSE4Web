@@ -22,7 +22,8 @@ import { convertWeight, isRating, weightBase, type AttributeKind } from './attri
 import { NHL94 } from './games'
 import { importPhotos } from './photoimport'
 import { snesBlockColours, withSnesBlockColours } from './snesblockcolours'
-import { hackState, narrowRating, widenRating } from './hacks'
+import { HACK_PARTS, hackState, narrowRating, widenRating } from './hacks'
+import { detectSnesHacks } from './sneshacks'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
 import { goalieCount, teamDisplayName } from './team'
@@ -75,6 +76,21 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       lines: team.lines.map((line, l) => (source.lines[l] ? [...source.lines[l].slice(0, 7), ...line.slice(7)] : line)),
     }
     notes.push(`Roster and lines brought in: ${source.players.length} players.`)
+    // The power play and penalty kill fix changes which half of the team's
+    // second rating byte the game reads for each. Where one ROM has it and
+    // the other not, the halves are swapped, so the team plays as it did.
+    const [theirFix, ourFix] = [ppPkFixed(other), ppPkFixed(project)]
+    if (theirFix !== null && ourFix !== null && theirFix !== ourFix) {
+      const [first, second, third] = team.teamBytes
+      team = { ...team, teamBytes: [first, ((second & 0x0f) << 4) | (second >> 4), third] }
+      notes.push(
+        `The other ROM ${theirFix ? 'has' : 'does not have'} the power play and penalty kill fix and this one ${ourFix ? 'does' : 'does not'}, so the team's power play and penalty kill ratings were swapped to play as they did.`,
+      )
+    } else if ((theirFix === null || ourFix === null) && other.game.productCode !== project.game.productCode) {
+      notes.push(
+        "NOSE4Web cannot tell whether one of the two ROMs has the power play and penalty kill fix, which changes how those two ratings are read, so they came across as stored: check them.",
+      )
+    }
     // Where the two ROMs are set up for different eras' weights, each player
     // keeps as near as can be the pounds he weighed.
     const [theirs, ours] = [weightBase(other.game.playerAttributeKinds[0]), weightBase(project.game.playerAttributeKinds[0])]
@@ -198,4 +214,15 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
     }
   }
   return next
+}
+
+// Whether a ROM has the power play and penalty kill fix, or null where it has other code there.
+function ppPkFixed(project: RomProject): boolean | null {
+  if (project.game.platform === 'snes') {
+    const state = detectSnesHacks(project.bytes)
+    return state.unknown.includes('ppPkFix') ? null : state.choices.ppPkFix
+  }
+  const state = hackState(project)
+  if (!state) return null
+  return state.unknown.includes(HACK_PARTS.ppPkFix) ? null : state.choices.ppPkFix
 }

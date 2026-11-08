@@ -1263,6 +1263,11 @@ export function HelpPage() {
       <ul>
         <li>The roster and lines come together, because lines name players by their place on the roster.</li>
         <li>
+          The team's six ratings come with the roster. Where only one of the two ROMs has the power play and penalty
+          kill fix, which changes how the game reads those two ratings, they are swapped so that the team plays as it
+          did; the notes say so.
+        </li>
+        <li>
           The two ROMs can be different kinds, such as the original game and the 30-team ROM. The teams do not have
           to be in the same place in both.
         </li>

@@ -64,3 +64,33 @@ describe.skipIf(!both)('a Classic team brought into the 32-team build', () => {
     expect(() => snesCentreIceFromImage(new Uint8Array(80 * 64 * 4), 80, 64, ours)).toThrow('no more of them (36)')
   })
 })
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('the power play and penalty kill ratings, imported', () => {
+  it('swaps their halves where only one of the two ROMs has the fix, so the team plays as it did', async () => {
+    const { applySnesHacks } = await import('../src/core/sneshacks')
+    const plain = open('NHL94.smc')
+    const fixed = applySnesHacks(open('NHL94.smc'), { ppPkFix: true })
+    const before = plain.teams[11].teamBytes
+    const swap = (byte: number) => ((byte & 0x0f) << 4) | (byte >> 4)
+    const into = importTeam(fixed, plain, 11, 11, { names: false, roster: true, colours: false, pictures: false })
+    expect(into.project.teams[11].teamBytes).toEqual([before[0], swap(before[1]), before[2]])
+    expect(into.notes.some((note) => note.includes('were swapped to play as they did'))).toBe(true)
+    // Both alike: as stored.
+    const same = importTeam(plain, plain, 11, 4, { names: false, roster: true, colours: false, pictures: false })
+    expect(same.project.teams[4].teamBytes).toEqual(before)
+    expect(same.notes.some((note) => note.includes('power play and penalty kill'))).toBe(false)
+  })
+})
+
+describe.skipIf(!existsSync(path('nhl94.bin')))('the power play and penalty kill ratings, imported on the Genesis', () => {
+  it('swaps their halves where only one of the two ROMs has the fix', async () => {
+    const { applyHacks, hackState } = await import('../src/core/hacks')
+    const plain = open('nhl94.bin')
+    const fixed = applyHacks(open('nhl94.bin'), { ...hackState(plain)!.choices, ppPkFix: true })
+    const before = plain.teams[11].teamBytes
+    const into = importTeam(fixed, plain, 11, 11, { names: false, roster: true, colours: false, pictures: false })
+    expect(into.project.teams[11].teamBytes).toEqual([before[0], ((before[1] & 0x0f) << 4) | (before[1] >> 4), before[2]])
+    const back = importTeam(plain, fixed, 11, 11, { names: false, roster: true, colours: false, pictures: false })
+    expect(back.project.teams[11].teamBytes).toEqual(fixed.teams[11].teamBytes.map((byte, i) => (i === 1 ? ((byte & 0x0f) << 4) | (byte >> 4) : byte)))
+  })
+})
