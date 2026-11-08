@@ -1033,10 +1033,11 @@ export function HelpPage() {
         <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
           NHL rules have them. Only since the 2007–08 season has the NHL required every faceoff to be on one of the
-          nine dots; before that faceoffs did not always take place on the dots (a puck that left the ice, for
-          instance, was faced off where it was last played), and the game follows that older way. It puts a faceoff
-          on a dot only when play stops past the hash marks; anywhere else it is held where the puck was, often in
-          open ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most
+          nine dots. Before that, in the NHL's words when it made the change, a puck that left the ice could cause
+          "the faceoff to occur on unmarked ice, parallel to the dot nearest the place where the puck departed", and
+          the game follows that older way: it puts a faceoff on a dot only when play stops past the hash marks, and
+          anywhere else moves it across the ice to the line of the nearest dots but holds it where it was along the
+          ice, often in open ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most
           after penalties. With the fix every faceoff is on one of the nine dots, as today's rules have it: after a goal at
           centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise,
           past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone
