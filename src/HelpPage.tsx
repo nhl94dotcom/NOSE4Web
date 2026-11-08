@@ -906,13 +906,16 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Weight bug fix:</b> smozoma's fix, from smozROM. The NHL94 Match Viewer project has since found that it
-          rests on a misreading: the original formula is the physical one, where the heavier checker does better,
-          and the only bug is an overflow for a checker a person controls. The fix swaps the weights round, so the
-          computer's checkers then do better the lighter they are, and counts both players' checking ratings. It is
-          kept for league ROMs that have it; for the weight bug itself the checking fix is the better choice. If you
-          use it, keep checking ratings about where the original's are: most forwards 2 or 3 out of 6, most
-          defencemen 2 to 4, very few players 5 or 6.
+          <b>Weight bug and C-then-B fix</b>, the fix for the weight bug: the game judges a check one way when a
+          person controls the checker at the moment of contact and another when the computer does, and works the
+          person's way out in a single byte that overflows. That overflow is the weight bug: a light skater you
+          control knocks down anyone two or more weight steps heavier. Pressing C and then B hands the checker to the
+          computer just before contact, the C-then-B check. The fix, found by the NHL94 Match Viewer project, judges
+          every check the computer's way, which never overflows, so it fixes both: the heavier checker does better,
+          and switching away gains nothing. A person's checks against players his own weight or lighter get easier
+          than they were. Leave smozoma's legacy weight bug fix off with it. An earlier version of this fix, still
+          recognised in ROMs that have it, judged every check the person's way, which gave the computer's checkers
+          the weight bug too.
         </li>
         <li>
           <b>Second-assist bug fix:</b> gives the assist the original game leaves out when two players pass back
@@ -1092,17 +1095,6 @@ export function HelpPage() {
           goals, 3 of 218 recorded.
         </li>
         <li>
-          <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
-          checker at the moment of contact and another when the computer does, and works the person's way out in a
-          single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
-          two or more weight steps heavier. Pressing C and then B hands the checker to the computer just before
-          contact, the C-then-B check. The fix, found by the NHL94 Match Viewer project, judges every check the
-          computer's way, which never overflows, so it fixes both: the heavier checker does better, and switching
-          away gains nothing. A person's checks against players his own weight or lighter get easier than they were.
-          Leave the weight bug fix off with it. An earlier version of this fix, still recognised in ROMs that have it,
-          judged every check the person's way, which gave the computer's checkers the weight bug too.
-        </li>
-        <li>
           <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
           game. 0 means no whistle.
         </li>
@@ -1133,6 +1125,21 @@ export function HelpPage() {
           the original game's run two and a half times as fast. Periods then last as long as they say, so set
           shorter ones in Game settings. People who have played this way report that the penalty clock can skip
           now and then.
+        </li>
+      </ul>
+      <p>
+        <b>Legacy hacks</b>, at the foot of the page, are kept for league ROMs that already have them; a better fix
+        has replaced each one.
+      </p>
+      <ul>
+        <li>
+          <b>smozoma's weight bug fix (legacy):</b> smozoma's fix, from smozROM. The NHL94 Match Viewer project has
+          since found that it rests on a misreading: the original formula is the physical one, where the heavier
+          checker does better, and the only bug is an overflow for a checker a person controls. The fix swaps the
+          weights round, so the computer's checkers then do better the lighter they are, and counts both players'
+          checking ratings. For the weight bug, use the weight bug and C-then-B fix instead. If a league keeps this
+          one, keep checking ratings about where the original's are: most forwards 2 or 3 out of 6, most defencemen
+          2 to 4, very few players 5 or 6.
         </li>
       </ul>
       <p>
@@ -1546,7 +1553,7 @@ export function HelpPage() {
         AverageRangersFan.
       </p>
       <p>
-        What the ratings do in play, what the team ratings do, the checking fix, the rocket pass, and the Aggression and comeback bonus bugs come from
+        What the ratings do in play, what the team ratings do, the weight bug and C-then-B fix, the rocket pass, and the Aggression and comeback bonus bugs come from
         the{' '}
         <a href="https://github.com/nhl94dotcom/NHL94MatchViewer" target="_blank" rel="noreferrer">
           NHL94 Match Viewer

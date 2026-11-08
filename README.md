@@ -61,15 +61,15 @@ That licence does not cover:
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on
 - Rink colours
-- Hacks to the game itself, from smozoma's smozROM: the weight bug fix, the
-  second-assist fix, bodycheck and plus-minus statistics, the improved three
-  stars, 0 to 15 ratings, the hot and cold bonuses, and the base weight for
-  another era
-- Hacks to how the game plays, from findings on the NHL94 forums: the
-  checking fix (which fixes both the weight bug and the C-then-B check, as
-  found by the NHL94 Match Viewer project), the goalie's range and hold
-  time, energy and stamina, the speed burst, stopping and turning, and a
-  real-time clock
+- Hacks to the game itself, from smozoma's smozROM: the second-assist fix,
+  bodycheck and plus-minus statistics, the improved three stars, 0 to 15
+  ratings, the hot and cold bonuses, the base weight for another era, and
+  smozoma's weight bug fix, kept as a legacy hack for league ROMs that have it
+- Hacks to how the game plays, from findings on the NHL94 forums: the weight
+  bug and C-then-B fix (the fix for the weight bug, which fixes the C-then-B
+  check too, as found by the NHL94 Match Viewer project), the goalie's range
+  and hold time, energy and stamina, the speed burst, stopping and turning,
+  and a real-time clock
 - NHL '94 for the SNES too: rosters (with the unused room at the end of
   the teams' bank as more room for them), lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,

@@ -1535,7 +1535,10 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Hacks').click()
     await expect(main.getByText('Nothing is set to change.')).toBeVisible()
     await expect(apply).toBeDisabled()
-    await expect(main.getByLabel('Weight bug fix')).toHaveValue('off')
+    await expect(main.getByLabel("smozoma's weight bug fix (legacy)")).toHaveValue('off')
+    // The fix for the weight bug comes first; smozoma's is kept at the foot of the page.
+    await expect(main.locator('section').filter({ has: page.getByRole('heading', { name: 'Fixes' }) }).locator('.hack b').first()).toHaveText('Weight bug and C-then-B fix')
+    await expect(main.locator('section').filter({ has: page.getByRole('heading', { name: 'Legacy hacks' }) }).getByLabel("smozoma's weight bug fix (legacy)")).toBeVisible()
     await expect(main.getByLabel('Base weight')).toHaveValue('140')
 
     await main.getByLabel('Second-assist bug fix').selectOption('on')

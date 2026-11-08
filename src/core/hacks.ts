@@ -1189,7 +1189,7 @@ export function withHacksOf(opened: RomProject, project: RomProject): RomProject
 // ------------------------------------------------------------------ wording
 
 export const HACK_TITLES: Record<keyof HackChoices, string> = {
-  weightFix: 'Weight bug fix',
+  weightFix: "smozoma's weight bug fix (legacy)",
   bodychecks: 'Bodycheck statistics',
   secondAssist: 'Second-assist bug fix',
   plusMinus: 'Plus-minus statistic',
@@ -1197,7 +1197,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   bonuses: 'Hot and cold bonuses',
   threeStars: 'Three stars',
   baseWeight: 'Base weight',
-  checkFix: 'Checking fix',
+  checkFix: 'Weight bug and C-then-B fix',
   aggressionFix: 'Aggression bug fix',
   ppPkFix: 'Power play and penalty kill fix',
   comebackFix: 'Comeback bonus fix',

@@ -187,28 +187,6 @@ export function HacksPage({ project, onChange }: Props) {
       <section>
         <h3>Fixes</h3>
         {hack(
-          'weightFix',
-          <select aria-label={HACK_TITLES.weightFix} disabled={unknown('weightFix')} value={wanted.weightFix} onChange={(e) => set({ weightFix: e.target.value as WeightFix })}>
-            <option value="off">Off</option>
-            {state.choices.weightFix === 'simple' && <option value="simple">Keep this ROM's earlier, simpler fix</option>}
-            <option value="on">On</option>
-          </select>,
-          <>
-            smozoma's fix for the weight bug, from smozROM. The NHL94 Match Viewer project has since found that it
-            rests on a misreading of the game's code: the original formula is the physical one, where the heavier
-            checker does better, and the only bug is an overflow for a checker a person controls. This fix swaps the
-            weights round, so the computer's checkers then do better the lighter they are, and counts both players'
-            checking ratings. For the weight bug itself, the checking fix below is the better choice. This one is
-            kept for league ROMs that have it.
-            {state.choices.weightFix === 'simple' && ' This ROM has an earlier fix, which swaps the weights and leaves checking ratings out of it.'}
-          </>,
-        )}
-        {hack(
-          'secondAssist',
-          onOff('secondAssist'),
-          'When two players pass back and forth and then one scores, the original game gives no assist to the player who passed to them. This gives it.',
-        )}
-        {hack(
           'checkFix',
           <select aria-label={HACK_TITLES.checkFix} disabled={unknown('checkFix')} value={wanted.checkFix} onChange={(e) => set({ checkFix: e.target.value as CheckFix })}>
             <option value="off">Off</option>
@@ -216,17 +194,22 @@ export function HacksPage({ project, onChange }: Props) {
             {state.choices.checkFix === 'all240' && <option value="all240">Keep this ROM's earlier fix: everyone checks as a person</option>}
           </select>,
           <>
-            The original game judges a check one way when a person controls the checker at the moment of contact and
+            <b>The fix for the weight bug.</b> The original game judges a check one way when a person controls the checker at the moment of contact and
             another when the computer does, and works the person's way out in a single byte that overflows. That
             overflow is the weight bug: a light skater you control knocks down anyone two or more weight steps heavier,
             and a heavy one struggles. Pressing C to charge and then B to switch away hands the checker to the computer
             just before he hits, the C-then-B check. This fix, found by the NHL94 Match Viewer project, judges every
             check the computer's way, which never overflows: the heavier checker does better, as it should, and
             switching away gains nothing. Your checks get easier than they were against players your own weight or
-            lighter. Leave the weight bug fix above off with it.
+            lighter. Leave smozoma's legacy weight bug fix, under Legacy hacks below, off with it.
             {state.choices.checkFix === 'all240' &&
               " This ROM has the editor's earlier C-then-B fix, which judges every check the person's way, so the computer's checkers get the weight bug too."}
           </>,
+        )}
+        {hack(
+          'secondAssist',
+          onOff('secondAssist'),
+          'When two players pass back and forth and then one scores, the original game gives no assist to the player who passed to them. This gives it.',
         )}
         {hack(
           'aggressionFix',
@@ -540,6 +523,28 @@ export function HacksPage({ project, onChange }: Props) {
       </section>
 
       <section>
+        <h3>Legacy hacks</h3>
+        <p className="note">Kept for league ROMs that already have them. A better fix has replaced each one, so leave them off in a new ROM.</p>
+        {hack(
+          'weightFix',
+          <select aria-label={HACK_TITLES.weightFix} disabled={unknown('weightFix')} value={wanted.weightFix} onChange={(e) => set({ weightFix: e.target.value as WeightFix })}>
+            <option value="off">Off</option>
+            {state.choices.weightFix === 'simple' && <option value="simple">Keep this ROM's earlier, simpler fix</option>}
+            <option value="on">On</option>
+          </select>,
+          <>
+            smozoma's fix for the weight bug, from smozROM. The NHL94 Match Viewer project has since found that it
+            rests on a misreading of the game's code: the original formula is the physical one, where the heavier
+            checker does better, and the only bug is an overflow for a checker a person controls. This fix swaps the
+            weights round, so the computer's checkers then do better the lighter they are, and counts both players'
+            checking ratings. It is kept for league ROMs that have it; for the weight bug, use the weight bug and
+            C-then-B fix at the top of Fixes instead, and leave this off.
+            {state.choices.weightFix === 'simple' && ' This ROM has an earlier fix, which swaps the weights and leaves checking ratings out of it.'}
+          </>,
+        )}
+      </section>
+
+      <section>
         <h3>Apply</h3>
         {changes.length === 0 ? (
           <p>Nothing is set to change.</p>
@@ -561,13 +566,14 @@ export function HacksPage({ project, onChange }: Props) {
             {reweighed && <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>}
             {wanted.checkFix === 'all120' && wanted.weightFix !== 'off' && (
               <p>
-                The checking fix and the weight bug fix should not go together: with the checking fix there is no
-                overflow left to fix, and the weight bug fix would then have every checker do better the lighter he is.
+                The weight bug and C-then-B fix and smozoma's legacy weight bug fix should not go together: with the
+                first there is no overflow left to fix, and the legacy fix would then have every checker do better the
+                lighter he is.
               </p>
             )}
             {wanted.weightFix === 'on' && state.choices.weightFix !== 'on' && (
               <p>
-                The weight bug fix is balanced for the original game's players. Keep checking ratings about where the
+                smozoma's legacy weight bug fix is balanced for the original game's players. Keep checking ratings about where the
                 original's are, or checking becomes too easy or too hard: most forwards 2 or 3 out of 6 (4 to 8 out of
                 15), most defencemen 2 to 4 (4 to 11), and very few players 5 or 6 (12 to 15).
               </p>

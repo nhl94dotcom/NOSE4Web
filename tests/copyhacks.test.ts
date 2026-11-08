@@ -17,7 +17,7 @@ describe('copying hacks from another ROM', () => {
     const { choices, notCopied } = hacksCopiedFrom(current, other)
     expect(choices).toEqual({ ...NO_HACKS, passFix: true, faceoffFix: true })
     expect(notCopied).toHaveLength(3)
-    expect(notCopied.join(' ')).toMatch(/Weight bug fix: the other ROM has the earlier, simpler fix/)
+    expect(notCopied.join(' ')).toMatch(/smozoma's weight bug fix \(legacy\): the other ROM has the earlier, simpler fix/)
     // An earlier version this ROM has too is kept.
     expect(hacksCopiedFrom({ choices: { ...NO_HACKS, weightFix: 'simple' }, unknown: [] }, { choices: { ...NO_HACKS, weightFix: 'simple' }, unknown: [] }).choices.weightFix).toBe('simple')
 

@@ -504,7 +504,7 @@ describe.skipIf(!hasRom)('the checking fix', () => {
     // Only the doubling to 240 goes: asl.w #1,d0 becomes a NOP.
     expect(Buffer.from(fixed.bytes.subarray(0x13d6c, 0x13d72)).toString('hex')).toBe('670000044e71')
     expect(detectHacks(fixed.bytes).choices.checkFix).toBe('all120')
-    expect(hackChanges(choices, detectHacks(fixed.bytes).choices)).toEqual(['Checking fix: off to everyone checks as the computer.'])
+    expect(hackChanges(choices, detectHacks(fixed.bytes).choices)).toEqual(['Weight bug and C-then-B fix: off to everyone checks as the computer.'])
 
     // The earlier fix, every check from 240, is still recognised.
     const earlier = applyHacks(opened, { ...choices, checkFix: 'all240' })
