@@ -23,7 +23,7 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc', 'nhl94snes_2026.sfc']) {
       const picture = colourPhotoFromImage(rgba, 64, 64, snesPhotoRgbs(project, 0))
       expect(picture.pixels[0]).toBe(0)
       expect(picture.pixels[47 * 48 + 47]).not.toBe(0)
-      for (const slot of [0, before.findIndex((photo) => photo.shared > 0)].filter((slot) => slot >= 0)) {
+      for (const slot of [0, before.findIndex((photo) => photo.generic)].filter((slot) => slot >= 0)) {
         const done = withSnesPhoto(project, 0, slot, picture)
         expect(done.bytes.length).toBe(project.bytes.length)
         const reopened = snesTeamPhotos(openRom(buildRom(done)), 0)
@@ -36,7 +36,15 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc', 'nhl94snes_2026.sfc']) {
       }
     })
 
-    it('swaps two places’ photos', () => {
+    it("tells the stand-in pictures from a player's own photo that another place shows too", () => {
+    const project = open()
+    const photos = snesTeamPhotos(project, 1)
+    expect(photos.filter((photo) => photo.generic).every((photo) => photo.shared >= 8)).toBe(true)
+    const shared = photos.filter((photo) => !photo.generic && photo.shared > 0)
+    for (const photo of shared) expect(photo.sharedWith.every((other) => other.team !== 1 || other.slot !== photos.indexOf(photo))).toBe(true)
+  })
+
+  it('swaps two places’ photos', () => {
       const project = open()
       const before = snesTeamPhotos(project, 2)
       const after = snesTeamPhotos(withSnesPhotosSwapped(project, 2, 0, 4), 2)

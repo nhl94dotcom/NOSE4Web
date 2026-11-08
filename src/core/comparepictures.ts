@@ -92,7 +92,7 @@ function photoLooks(project: RomProject, team: number): { looks: Map<string, str
     const palette = snesPhotoPalette(project, team)
     const looks = new Map<string, string>()
     snesTeamPhotos(project, team).forEach((photo, slot) => {
-      if (slot < players.length && photo.shared === 0) looks.set(players[slot].name, look(photo.picture, palette, SNES_COLORS))
+      if (slot < players.length && !photo.generic) looks.set(players[slot].name, look(photo.picture, palette, SNES_COLORS))
     })
     return { looks, featured: [] }
   }

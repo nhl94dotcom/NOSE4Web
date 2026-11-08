@@ -98,9 +98,18 @@ export function snesPhotoPalette(project: RomProject, team: number): number[] {
 
 export interface SnesPhoto {
   picture: Picture
-  // Shared with other places, here or on other teams: a generic picture.
+  // How many other places, here or on other teams, show the same picture.
   shared: number
+  // Those places, by team and roster place.
+  sharedWith: { team: number; slot: number }[]
+  // One of the game's stand-in pictures for players with no photo of their
+  // own, which many places share; a player's own photo is shown in one place
+  // or a few (his team's, and an All Stars team's).
+  generic: boolean
 }
+
+// More places than this showing one picture make it a stand-in.
+const OWN_PHOTO_MOST_USES = 8
 
 export function snesTeamPhotos(project: RomProject, team: number): SnesPhoto[] {
   const layout = need(project)
@@ -119,7 +128,8 @@ export function snesTeamPhotos(project: RomProject, team: number): SnesPhoto[] {
         }
       }
     }
-    return { picture, shared: all.filter((other) => other === at).length - 1 }
+    const sharedWith = all.flatMap((other, i) => (other === at && i !== team * SNES_PHOTO_SLOTS + slot ? [{ team: Math.floor(i / SNES_PHOTO_SLOTS), slot: i % SNES_PHOTO_SLOTS }] : []))
+    return { picture, shared: sharedWith.length, sharedWith, generic: sharedWith.length >= OWN_PHOTO_MOST_USES }
   })
 }
 

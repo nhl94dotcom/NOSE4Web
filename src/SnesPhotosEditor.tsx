@@ -129,8 +129,18 @@ export function SnesPhotosEditor({ project, team, onChange }: Props) {
                   )}
                 </select>
               </p>
-              {photo.shared > 0 && (
-                <p className="note">A generic picture, shared with {photo.shared} other places. Importing or drawing gives this player his own.</p>
+              {photo.generic ? (
+                <p className="note">A stand-in picture, shared by {photo.shared} other places with no photo of their own. Importing or drawing gives this player his own.</p>
+              ) : (
+                photo.shared > 0 && (
+                  <p className="note">
+                    His own photo, also shown for{' '}
+                    {photo.sharedWith
+                      .map((other) => `${teamDisplayName(project.teams[other.team])}'s ${project.teams[other.team].players[other.slot]?.name ?? `place ${other.slot + 1}`}`)
+                      .join(', ')}
+                    . Importing or drawing changes it here only.
+                  </p>
+                )
               )}
             </div>
           )

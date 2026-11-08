@@ -33,7 +33,7 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     snesTeamPhotos(classic, 1)
       .slice(0, want.length)
       .forEach((photo, slot) => {
-        if (photo.shared === 0) expect(got[slot]).toEqual(want[slot])
+        if (!photo.generic) expect(got[slot]).toEqual(want[slot])
       })
   })
 })

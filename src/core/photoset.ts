@@ -1,4 +1,4 @@
-import { GENESIS_COLORS, SNES_COLORS, type ColorFormat } from './color'
+import { colorRgb, GENESIS_COLORS, SNES_COLORS, type ColorFormat } from './color'
 import type { Picture } from './graphics'
 import { colourPhotoFromImage, photoFromImage, photoPalette, photosSupported, teamPhotos, withPhoto, withPhotoAdded } from './photos'
 import type { RomProject } from './rom'
@@ -32,7 +32,7 @@ export function photoSet(project: RomProject): { name: string; picture: Picture;
     if (project.game.platform === 'snes') {
       const palette = snesPhotoPalette(project, t)
       return snesTeamPhotos(project, t).flatMap((photo, slot) => {
-        const name = slot < team.players.length && photo.shared === 0 ? file(slot) : null
+        const name = slot < team.players.length && !photo.generic ? file(slot) : null
         return name ? [{ name, picture: photo.picture, palette, format: SNES_COLORS }] : []
       })
     }
@@ -58,7 +58,11 @@ export interface PhotoSetResult {
   problems: string[]
 }
 
-const samePixels = (a: Picture, b: Picture) => a.pixels.every((p, i) => p === b.pixels[i])
+// Whether two pictures in the same colours look the same: a palette may hold
+// one colour twice (the All Stars teams' photo colours do), so the colour
+// numbers may differ where the picture does not.
+const sameLook = (a: Picture, b: Picture, rgbs: number[][]) =>
+  a.pixels.every((p, i) => p === b.pixels[i] || (p !== 0 && b.pixels[i] !== 0 && rgbs[p].join() === rgbs[b.pixels[i]].join()))
 
 export function importPhotoSet(
   project: RomProject,
@@ -91,7 +95,7 @@ export function importPhotoSet(
       if (project.game.platform === 'snes') {
         const picture = colourPhotoFromImage(file.rgba, file.width, file.height, snesPhotoRgbs(before, team))
         const current = snesTeamPhotos(before, team)[slot]
-        if (current.shared === 0 && samePixels(current.picture, picture)) {
+        if (!current.generic && sameLook(current.picture, picture, snesPhotoRgbs(before, team))) {
           result.unchanged++
           continue
         }
@@ -100,7 +104,7 @@ export function importPhotoSet(
         const picture = photoFromImage(file.rgba, file.width, file.height, photoPalette(before))
         let photos = teamPhotos(before, team)
         let index = photos.findIndex((photo) => photo.slot === slot)
-        if (index >= 0 && !photos[index].generic && samePixels(photos[index].picture, picture)) {
+        if (index >= 0 && !photos[index].generic && sameLook(photos[index].picture, picture, photoPalette(before).map((word) => colorRgb(word)))) {
           result.unchanged++
           continue
         }

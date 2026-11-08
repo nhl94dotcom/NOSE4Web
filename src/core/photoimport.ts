@@ -62,11 +62,11 @@ function importSnes(project: RomProject, other: RomProject, from: number, to: nu
   next = withSnesPhotoRow(
     next,
     to,
-    row.map((address, slot) => (slot < players && theirs[slot].shared > 0 ? ((uses.get(key(address)) ?? 0) > 1 ? address : generic) : address)),
+    row.map((address, slot) => (slot < players && theirs[slot].generic ? ((uses.get(key(address)) ?? 0) > 1 ? address : generic) : address)),
   )
   let copied = 0
   theirs.forEach((photo, slot) => {
-    if (slot >= players || photo.shared > 0) return
+    if (slot >= players || photo.generic) return
     next = withSnesPhoto(next, to, slot, photo.picture)
     copied++
   })

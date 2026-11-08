@@ -13,7 +13,7 @@ import {
   withoutSnesScoreLogo,
   withSnesScoreLogo,
 } from './core/snesscorelogos'
-import { canAddScoreLogos, hasAddedScoreLogos, withScoreLogosAdded, withScoreLogosTakenOut } from './core/snesscorecode'
+import { canAddScoreLogos, hasAddedScoreLogos, scoreLogoFromTeamLogo, withScoreLogosAdded, withScoreLogosTakenOut } from './core/snesscorecode'
 import { teamDisplayName } from './core/team'
 import { download } from './download'
 import { PictureView } from './GraphicsEditor'
@@ -36,6 +36,9 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
   const [drawing, setDrawing] = useState(false)
   const logo = snesScoreLogo(project, team)
   const name = teamDisplayName(project.teams[team])
+  // The team's place name, as in "Show Boston's letters instead".
+  const place = project.teams[team].names[0]?.trim() || name
+  const letters = project.teams[team].names[1]?.trim()
   const shared = logo?.sharedWith.map((other) => teamDisplayName(project.teams[other])) ?? []
 
   function act(change: () => RomProject, message: string) {
@@ -120,10 +123,13 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
             <button
               onClick={() => {
                 setDrawing(false)
-                act(() => withoutSnesScoreLogo(project, team), `${name} now shows its letters in the score box. Undo brings the logo back.`)
+                act(
+                  () => withoutSnesScoreLogo(project, team),
+                  `${name} now shows its letters${letters ? `, ${letters},` : ''} in the score box; every other team keeps its logo. Undo brings this one back.`,
+                )
               }}
             >
-              Show the letters instead
+              Show {place}'s letters instead
             </button>
           </p>
           {shared.length > 0 && <p className="note">Shared with {shared.join(', ')}: a change gives this team its own.</p>}
@@ -131,14 +137,24 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
       ) : (
         <p>
           <button
-            onClick={() => {
-              const blank = blankScoreLogo()
-              act(() => withSnesScoreLogo(project, team, blank.picture, blank.palette), `${name} has a score logo now, still empty: import or draw it.`)
-            }}
+            onClick={() =>
+              act(() => {
+                // Made from its team logo, as when score logos are added; blank if it has none to make it from.
+                let made = blankScoreLogo()
+                try {
+                  made = scoreLogoFromTeamLogo(project, team)
+                } catch {
+                  // blank
+                }
+                return withSnesScoreLogo(project, team, made.picture, made.palette)
+              }, `${name} has a score logo again, made from its team logo. Import or draw another if you like.`)
+            }
           >
-            Give {name} a score logo
+            Give {place} a score logo
           </button>{' '}
-          <span className="note">It shows its letters in the score box.</span>
+          <span className="note">
+            {place} shows its letters{letters ? ` (${letters})` : ''} in the score box; the other teams are as they are.
+          </span>
         </p>
       )}
       {drawing && logo && (
@@ -186,7 +202,7 @@ export function AddScoreLogos({ project, onChange }: { project: RomProject; onCh
             }
           }}
         >
-          Add score logos to this ROM
+          Add score logos for every team
         </button>
       </p>
       {problem && <p className="error">{problem}</p>}

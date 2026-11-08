@@ -364,6 +364,7 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
   const [cols, rows] = [Math.max(1, Math.round(w / scale)), Math.max(1, Math.round(h / scale))]
   const [ox, oy] = [Math.floor((SCORE_LOGO.width - cols) / 2), Math.floor((SCORE_LOGO_ROWS - rows) / 2)]
   const rgb = bigPalette.map((colour) => colorRgb(colour, SNES_COLORS))
+  const inBetween = inBetweenShades(big, rgb)
   // Each pixel of the small logo: its colour, where at least half of what it covers is drawn.
   const cells: (number[] | null)[] = []
   for (let y = 0; y < rows; y++) {
@@ -385,10 +386,14 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
         cells.push(null)
         continue
       }
-      // Of the colours there, the one nearest their mix: never a blend, but the mix decides.
+      // Of the colours there, the one nearest their mix: never a blend, but the
+      // mix decides. The logo's in-between shades are left out where there is
+      // another, so a stripe of red and white reads red and white, not pink.
       const mix = [0, 1, 2].map((k) => [...uses].reduce((sum, [p, n]) => sum + rgb[p][k] * n, 0) / drawn)
       const distance = (p: number) => rgb[p].reduce((sum, v, k) => sum + (v - mix[k]) ** 2, 0)
-      cells.push(rgb[[...uses.keys()].sort((a, b) => distance(a) - distance(b))[0]])
+      const main = [...uses.keys()].filter((p) => !inBetween.has(p))
+      const choices = main.length > 0 ? main : [...uses.keys()]
+      cells.push(rgb[choices.sort((a, b) => distance(a) - distance(b))[0]])
     }
   }
   // Its own colours: the most used, matched to what the console can show.
@@ -418,4 +423,28 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
     }
   }
   return { picture: { ...SCORE_LOGO, pixels }, palette }
+}
+
+// The colours of a logo that are shades between two others it uses more,
+// drawn where those meet, as Detroit's pinks between its red and white:
+// near the line between the two in colour, a fifth to four fifths along.
+function inBetweenShades(picture: Picture, rgb: number[][]): Set<number> {
+  const counts = new Map<number, number>()
+  for (const p of picture.pixels) if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
+  const used = [...counts.keys()]
+  const shades = new Set<number>()
+  for (const c of used) {
+    for (const a of used) {
+      for (const b of used) {
+        if (a >= b || a === c || b === c || counts.get(a)! <= counts.get(c)! || counts.get(b)! <= counts.get(c)!) continue
+        const ab = [0, 1, 2].map((k) => rgb[b][k] - rgb[a][k])
+        const length = ab.reduce((sum, v) => sum + v * v, 0)
+        if (length === 0) continue
+        const t = [0, 1, 2].reduce((sum, k) => sum + (rgb[c][k] - rgb[a][k]) * ab[k], 0) / length
+        const off = Math.sqrt([0, 1, 2].reduce((sum, k) => sum + (rgb[a][k] + t * ab[k] - rgb[c][k]) ** 2, 0))
+        if (t >= 0.2 && t <= 0.8 && off <= 48) shades.add(c)
+      }
+    }
+  }
+  return shades
 }

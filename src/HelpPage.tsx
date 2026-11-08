@@ -1579,9 +1579,10 @@ export function HelpPage() {
           play, where the original game prints the team's three letters. Where a ROM has them, the team page has a{' '}
           <b>Score logo</b> section: export it, import one (24 pixels wide and 16 high, or 13, the logo without the
           gap under it), or draw it, in the box's black, its white ring and 10 colours of its own taken from the
-          image. <b>Show the letters instead</b> takes a team's score logo away; a team without one can be given
-          one. The original game has no score logos, but the editor can add them to it, and to ROMs laid out like
-          it: <b>Add score logos to this ROM</b>, on any team's page, puts in McMarkis's code, adapted with his
+          image. Each team's buttons act on that team only: <b>Show Boston's letters instead</b> (with the team's own
+          name) has it print its letters, as the original game does, while every other team keeps its logo; then{' '}
+          <b>Give Boston a score logo</b> makes it one again from its team logo. The original game has no score logos, but the editor can add them to it, and to ROMs laid out like
+          it: <b>Add score logos for every team</b>, on any team's page, puts in McMarkis's code, adapted with his
           permission, and gives every team a score logo made from its team logo, to touch up or replace. The
           power play box in the clock shows the logo too. <b>Take score logos out of this ROM</b> puts the ROM back
           as it was. The horizontal scoreboard keeps its name banners.
