@@ -994,6 +994,16 @@ export function HelpPage() {
           where it is meant for the second; the fix puts it in the second.
         </li>
         <li>
+          <b>Rocket pass fix</b> (in with the fixes, Genesis only): a pass to a teammate is aimed at where he will
+          be and timed to meet him there. The game counts that time in whole eighths of a second, rounded down, so a
+          meeting due in 1.9 eighths is made in 1 and the pass goes nearly twice as fast as the Passing rating
+          allows; and for a teammate skating away close by it can take the wrong one of two answers and make the
+          pass in an eighth. The NHL94 Match Viewer project measured the first. The fix counts the time in 64ths of
+          a second and takes the right answer. Replaying 2,535 passes from 29 recorded games, none went more than
+          1.23 times its speed with it, where 69 reached rocket speed without. Lift is unchanged. The SNES game sets
+          pass speed another way and never had the bug.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
@@ -1432,7 +1442,7 @@ export function HelpPage() {
         AverageRangersFan.
       </p>
       <p>
-        What the ratings do in play, what the team ratings do, the checking fix, and the Aggression and comeback bonus bugs come from
+        What the ratings do in play, what the team ratings do, the checking fix, the rocket pass, and the Aggression and comeback bonus bugs come from
         the{' '}
         <a href="https://github.com/nhl94dotcom/NHL94MatchViewer" target="_blank" rel="noreferrer">
           NHL94 Match Viewer

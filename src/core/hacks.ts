@@ -13,6 +13,7 @@
 // AverageRangersFan: see "play" below. The Aggression and comeback bonus
 // fixes are the editor's own, to bugs found by the NHL94 Match Viewer project
 // in the disassembly at github.com/abdulahmad/NHL94Genesis: see "more fixes".
+// So is the rocket pass fix, to a bug the Match Viewer project measured.
 //
 // Each hack is looked for by the exact bytes it leaves, and a ROM whose code
 // at a hack's places is neither the original game's nor the hack's is left
@@ -70,6 +71,9 @@ export interface HackChoices {
   // Gives the comeback bonus in the second half of the third period, where
   // the original game gives it in the first.
   comebackFix: boolean
+  // Times a pass to a teammate in 64ths of a second, where the original game
+  // rounds down to eighths and so sometimes sends it twice as fast.
+  passFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -104,6 +108,7 @@ export type HackPart =
   | 'aggressionFix'
   | 'ppPkFix'
   | 'comebackFix'
+  | 'passFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -134,6 +139,7 @@ export const NO_HACKS: HackChoices = {
   aggressionFix: false,
   ppPkFix: false,
   comebackFix: false,
+  passFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -562,6 +568,53 @@ const aggressionFix = switchPart(0x15d78, bytes('1743 0073 022B 000F 0073'), byt
 // the rest. Overtime is not affected: both teams have it throughout.
 const comebackFix = switchPart(0x15b70, bytes('6E00 0026'), bytes('6D00 0026'))
 
+// The rocket pass. passtoa0 aims a pass at where the receiver will be: it
+// solves for the time the puck meets him, in eighths of a second (1 to 24),
+// and sets the puck's speed to cover the distance in that time. The division
+// rounds toward zero, so a meeting due in 1.9 eighths is made in 1, at nearly
+// twice the pass's speed; and a time just below 0, the wrong one of the two
+// the sum has, rounds to 0 and is taken, so a pass to a skater going away
+// close by is made in an eighth instead of five. The fix works the time out
+// in 64ths of a second, from the same division's remainder, and takes a time
+// as below 0 when it is, so it tries the other. What uses the time is changed
+// to match: the receiver's wait and the puck's no-touch time (eighths x 8
+// - 10, now 64ths - 10), where he will be (x t / 2, now / 16) and the speed
+// (/ 120 t, now / 15 t). The lift stays in whole eighths, and the time keeps
+// the game's limits of an eighth and 3 seconds. Replaying the 2,535 targeted
+// passes of 29 recorded games, none then goes more than 1.23 times its pass
+// speed, where the original sends 345 over 1.3 times and 69 over 27,000.
+const PASS_HOOK: Hook = {
+  at: 0xbf40,
+  original: bytes('3400 4440 9444 48C2 85C5 5ACB FFF4 6600 0004 5242 B47C 0018 6300 0004 7418 11C2 B776 B47C 000C 6D00 0008 11FC 000C B776'),
+}
+export const PASS_CODE = bytes('3400 4440 9444 48C2 85C5 4A42 6B0E 6612 2202 4841 4A41 670A BB41 6A06 51CB FFE2 6022 B47C 0018 641C 2002 4840 48C0 E780 81C5 6A02 7000 E742 D440 B47C 0008 6408 7408 6004 343C 00C0 3002 E648 B07C 000C 6302 700C 11C0 B776 4E75')
+const PASS_EDITS = [
+  { at: 0xbf70, original: bytes('3002 E740 0440 000A'), hacked: bytes('3002 4E71 0440 000A') },
+  { at: 0xbf88, original: bytes('E280'), hacked: bytes('E880') },
+  { at: 0xbf98, original: bytes('E281'), hacked: bytes('E881') },
+  { at: 0xbfa6, original: bytes('C4FC 0078'), hacked: bytes('C4FC 000F') },
+]
+
+const passFix: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, PASS_HOOK.at, PASS_HOOK.original) && PASS_EDITS.every((edit) => is(rom, edit.at, edit.original))) return false
+    if (hooked(rom, PASS_HOOK, PASS_CODE) !== null && PASS_EDITS.every((edit) => is(rom, edit.at, edit.hacked))) return true
+    return undefined
+  },
+  remove(rom) {
+    const target = hooked(rom, PASS_HOOK, PASS_CODE)
+    if (target === null) return
+    erase(rom, target, PASS_CODE.length)
+    rom.set(PASS_HOOK.original, PASS_HOOK.at)
+    for (const edit of PASS_EDITS) rom.set(edit.original, edit.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    hook(work, PASS_HOOK, PASS_CODE)
+    for (const edit of PASS_EDITS) work.rom.set(edit.hacked, edit.at)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -729,6 +782,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     aggressionFix: found('aggressionFix', aggressionFix.detect(rom), NO_HACKS.aggressionFix),
     ppPkFix: found('ppPkFix', ppPkFix.detect(rom), NO_HACKS.ppPkFix),
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
+    passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -780,6 +834,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['speedBurst', () => speedBurst.remove(work.rom), () => speedBurst.apply(work, wanted.speedBurst)],
     ['turnRate', () => turnRate.remove(work.rom), () => turnRate.apply(work, wanted.turnRate)],
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
+    ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -881,6 +936,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   aggressionFix: 'Aggression bug fix',
   ppPkFix: 'Power play and penalty kill fix',
   comebackFix: 'Comeback bonus fix',
+  passFix: 'Rocket pass fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -907,6 +963,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   aggressionFix: 'aggressionFix',
   ppPkFix: 'ppPkFix',
   comebackFix: 'comebackFix',
+  passFix: 'passFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

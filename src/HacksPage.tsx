@@ -148,7 +148,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -254,6 +254,22 @@ export function HacksPage({ project, onChange }: Props) {
             readily its computer players shoot. The original game checks the clock the wrong way round, so the boost
             comes in the first half of the period and goes for the second. This gives it in the second half, as
             meant. Overtime is unchanged: both teams have it throughout.
+          </>,
+        )}
+        {hack(
+          'passFix',
+          onOff('passFix'),
+          <>
+            A pass to a teammate is aimed at where he will be, and timed to get there. The original game counts that
+            time in whole eighths of a second, rounded down, so now and then a pass goes nearly twice as fast as the
+            passer's rating allows: the rocket pass, mostly to a teammate skating towards the passer 17 to 23 feet
+            away. It also sometimes takes the wrong one of two answers for a teammate skating away close by, and fires
+            the puck at him in an eighth of a second. This counts the time in 64ths of a second and takes the right
+            answer, so every pass goes at the speed its Passing rating sets. Replaying 2,535 passes from 29 recorded
+            games, no pass went more than 1.23 times its speed with the fix, where 69 reached rocket speed without
+            it. How high a pass lifts is unchanged. Passing will feel different to players used to the rocket pass,
+            and a receiver catches more of the passes that used to bounce off his stick. Found and measured by the
+            NHL94 Match Viewer project.
           </>,
         )}
       </section>
