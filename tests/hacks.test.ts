@@ -255,6 +255,37 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     }
   })
 
+  it('makes every hack at once, reads them all back and takes them all out', () => {
+    const opened = openRom(stock())
+    const all: HackChoices = {
+      ...FULL,
+      checkFix: 'all120',
+      aggressionFix: true,
+      ppPkFix: true,
+      comebackFix: true,
+      passFix: true,
+      faceoffFix: true,
+      runawayFix: true,
+      penaltyShotTableFix: true,
+      penaltyShotFixes: true,
+      goaliePullFix: true,
+      blindRingFix: true,
+      goalieHold: 300,
+      goalieWidth: 40,
+      goalieOut: 224,
+      goalieLine: 144,
+      stamina: true,
+      energyDrain: 65,
+      energyRecovery: 6,
+      speedBurst: 24,
+      turnRate: 300,
+      realTime: true,
+    }
+    const hacked = applyHacks(opened, all)
+    expect(detectHacks(hacked.bytes)).toEqual({ choices: all, unknown: [] })
+    expect(Buffer.compare(applyHacks(hacked, NO_HACKS).bytes, opened.bytes)).toBe(0)
+  })
+
   it('calls the code it adds from the right places, at even addresses in unused room', () => {
     const opened = openRom(stock())
     const hacked = applyHacks(opened, FULL).bytes
