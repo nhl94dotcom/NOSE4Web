@@ -7,7 +7,7 @@ import { pictureToImage } from '../src/core/graphics'
 import { importTeam } from '../src/core/importteam'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesBlockColours } from '../src/core/snesblockcolours'
-import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage } from '../src/core/snespictures'
+import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
@@ -53,6 +53,13 @@ describe.skipIf(!both)('a Classic team brought into the 32-team build', () => {
     const now = snesCentreIce(reopened.bytes, reopened.teams.length, NO_SNES_PICTURE_EDITS, 11, reopened.rinkPalette)
     expect([now.picture.width, now.picture.height]).toEqual([64, 32])
     expect(Buffer.from(now.picture.pixels).equals(Buffer.from(picture.pixels))).toBe(true)
+    // In the team's own centre ice colours, those the Classic logo shows: it looks as it does there.
+    const own = centreIceInOwnColours(theirs.picture, theirs.palette)
+    const bytes = project.bytes.slice()
+    expect(withSnesCentreIceColours(bytes, project.teams.length, 11, own.colours)).toBe(true)
+    const coloured = openRom(buildRom({ ...project, bytes, snesPictures: { logos: {}, centreIce: { 11: own.picture } } }))
+    const look = (ice: { picture: { pixels: Uint8Array }; palette: number[] }) => Array.from(ice.picture.pixels, (v) => (v ? ice.palette[v] & 0x7fff : -1))
+    expect(look(snesCentreIce(coloured.bytes, coloured.teams.length, NO_SNES_PICTURE_EDITS, 11, coloured.rinkPalette))).toEqual(look(theirs))
     // Too many squares for the room is refused.
     expect(() => snesCentreIceFromImage(new Uint8Array(80 * 64 * 4), 80, 64, ours)).toThrow('no more of them (36)')
   })

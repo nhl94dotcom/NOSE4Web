@@ -612,6 +612,40 @@ function iceTilesFor(picture: Picture, map: IceMap): { tiles: Uint8Array; words:
   return { tiles: bytes, words }
 }
 
+// Where the SA-1 build gives a team centre ice colours of its own (row 5 of
+// the rink's while its logo is drawn, colours 1 to 15), sets them. False for
+// a team drawn in the rink's colours.
+export function withSnesCentreIceColours(rom: Uint8Array, teamCount: number, team: number, colours: number[]): boolean {
+  const c = need(rom, teamCount, false)
+  const own = c.iceOwn[team]
+  if (own < 0) return false
+  for (let i = 1; i < COLOURS; i++) writeU16LE(rom, own + i * 2, colours[i] ?? 0)
+  return true
+}
+
+// A centre ice logo drawn in the rink's colours (as the original game's are),
+// made for a team with colours of its own: those it shows, up to 15, become
+// the team's (the rest matched to the nearest), and each pixel takes the one
+// it showed. Returns the picture and the colours to set.
+export function centreIceInOwnColours(picture: Picture, palette: number[]): { picture: Picture; colours: number[] } {
+  const counts = new Map<number, number>()
+  for (const p of picture.pixels) if (p) counts.set(palette[p] & 0x7fff, (counts.get(palette[p] & 0x7fff) ?? 0) + 1)
+  const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, COLOURS - 1).map(([word]) => word)
+  const rgb = chosen.map((word) => colorRgb(word, SNES_COLORS))
+  const slotOf = (word: number) => {
+    const exact = chosen.indexOf(word)
+    if (exact >= 0) return exact + 1
+    const [r, g, b] = colorRgb(word, SNES_COLORS)
+    let best = 0
+    rgb.forEach((c, k) => {
+      if ((c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2 < (rgb[best][0] - r) ** 2 + (rgb[best][1] - g) ** 2 + (rgb[best][2] - b) ** 2) best = k
+    })
+    return best + 1
+  }
+  const pixels = Uint8Array.from(picture.pixels, (p) => (p ? ICE_ROWS[0] * COLOURS + slotOf(palette[p] & 0x7fff) : 0))
+  return { picture: { width: picture.width, height: picture.height, pixels }, colours: [0, ...chosen] }
+}
+
 // A centre ice logo from an image. Each 8 x 8 tile is drawn in whichever of
 // the two rows of centre ice colours matches it best, and its pixels in the
 // nearest of that row's colours.
