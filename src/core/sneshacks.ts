@@ -39,7 +39,8 @@ const hex24 = (value: number) => hex16(value & 0xffff) + ((value >> 16) & 0xff).
 // Faceoffs off the dots, as on the Genesis (see hacks.ts): Stop4Pen takes a
 // raw spot and puts it on a dot only past the hash marks. The fix replaces
 // that step with the NHL rules: a goal at centre; a penalty (codes $14 to
-// $2E on the SNES) in the offending team's own end, at the dot on the side of
+// $2E on the SNES, but not $16, an injury from a hit with no penalty) in the
+// offending team's own end, at the dot on the side of
 // the puck; anything else past a blue line at that end's dot on the puck's
 // side, and in the neutral zone at the nearest neutral dot. limitfo runs as
 // before. The stoppage is the newest entry in PenBuf, not the one a0 points
@@ -53,12 +54,12 @@ const faceoffOriginal = (fox: number, foy: number) =>
   `A9BAFF 85A5 A5A9 38 E95AFF 1013 A932FF 85A9 A94600 85A5 A5C5 1005 A9BAFF 85A5 A5A5 8F${hex24(fox)} A5A9 8F${hex24(foy)}`
 const faceoffCall = (to: number) => `20${hex16(to)} 80${(FACEOFF_REGION - 5).toString(16)} ${'EA'.repeat(FACEOFF_REGION - 5)}`
 const faceoffCode = (penBuf: number, pfgoal: number, fox: number, foy: number) =>
-  `A00000 B9${hex16(penBuf)} F004 C8 C8 80F7 C00000 F02F 88 88 B9${hex16(penBuf)} 29FF00 C90E00 F054 C91400 901D C92F00 B018 ` +
-  `B9${hex16(penBuf)} EB 297F00 0A A8 A9CE00 85A9 B9${hex16(pfgoal)} F005 A932FF 85A9 A5A5 3005 A94600 8003 A9BAFF 85A5 ` +
+  `A00000 B9${hex16(penBuf)} F004 C8 C8 80F7 C00000 F034 88 88 B9${hex16(penBuf)} 29FF00 C90E00 F059 C91400 9022 C92F00 B01D ` +
+  `C91600 F018 B9${hex16(penBuf)} EB 297F00 0A A8 A9CE00 85A9 B9${hex16(pfgoal)} F005 A932FF 85A9 A5A5 3005 A94600 8003 A9BAFF 85A5 ` +
   `A5A9 300F C95900 9005 A9CE00 8012 A94100 800D C9A8FF B005 A932FF 8003 A9BFFF 85A9 8004 64A5 64A9 A5A5 8F${hex24(fox)} ` +
   `A5A9 8F${hex24(foy)} 60`
 // Where the new code keeps fox's address, to find it in a ROM that has the hack.
-const FACEOFF_FOX_AT = 0x79
+const FACEOFF_FOX_AT = 0x7e
 // PenBuf in the original game; it moves with the game's other variables.
 const PEN_BUF = 0x15de
 const minutes = (at: number): Site => ({ at, original: '02', hacked: '01' })

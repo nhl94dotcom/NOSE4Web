@@ -17,9 +17,10 @@ const s16 = (v: number) => ((v & 0xffff) ^ 0x8000) - 0x8000
 // Where the faceoff should be: a goal at centre; a penalty in the offending
 // team's own end; past a blue line that end's dot, else the nearest neutral
 // dot; x at the dot on the side of the raw x.
-function meant(code: number, x: number, y: number, ownEndBottom: boolean, penalties: [number, number]): [number, number] {
+// `injury` is the stoppage for an injury from a hit with no penalty, which is not one.
+function meant(code: number, x: number, y: number, ownEndBottom: boolean, penalties: [number, number], injury: number): [number, number] {
   if (code === 0x0e) return [0, 0]
-  if (code >= penalties[0] && code <= penalties[1]) y = ownEndBottom ? -206 : 206
+  if (code >= penalties[0] && code <= penalties[1] && code !== injury) y = ownEndBottom ? -206 : 206
   const fx = x < 0 ? -70 : 70
   const fy = y > 88 ? 206 : y < -88 ? -206 : y < 0 ? -65 : 65
   return [fx, fy]
@@ -194,7 +195,7 @@ describe('the faceoff spot fix, Genesis', () => {
       // Some with older entries before the newest, which the fix must not go by.
       const older: [number, number][] = i % 3 === 0 ? [[0x16, 5], [0x0a, 2]] : []
       const out = runGenesis(FACEOFF_CODE, t.x, t.y, t.code, t.player, t.bottom, older)
-      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x12, 0x2a]))
+      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x12, 0x2a], 0x14))
       // It leaves the registers the game uses afterwards as they were.
       expect([out.d[2], out.d[3], out.a[0], out.a[1], out.a[7]]).toEqual([0x1234, 0x5678, ENTRY, 0xabcd, 0xffff8000])
     })
@@ -204,6 +205,8 @@ describe('the faceoff spot fix, Genesis', () => {
     // FallDown adds roughing ($12) for player 4 and goes into Stop4Pen with a0 elsewhere.
     expect(runGenesis(FACEOFF_CODE, 20, 30, 0x12, 4, true)).toMatchObject({ fox: 70, foy: -206 })
     expect(runGenesis(FACEOFF_CODE, -20, 30, 0x12, 4, false)).toMatchObject({ fox: -70, foy: 206 })
+    // An injury from a hit with no penalty ($14) is faced off by the zone rule: Match Viewer's example.
+    expect(runGenesis(FACEOFF_CODE, 64, -76, 0x14, 4, false)).toMatchObject({ fox: 70, foy: -65 })
     // An empty PenBuf is an ordinary whistle.
     expect(runGenesis(FACEOFF_CODE, -20, 30, 0, 4, false)).toMatchObject({ fox: -70, foy: 65 })
   })
@@ -356,7 +359,7 @@ describe('the faceoff spot fix, SNES', () => {
     cases().forEach((t, i) => {
       const older: [number, number][] = i % 3 === 0 ? [[0x18, 5], [0x0a, 2]] : []
       const out = runSnes(code, t.x, t.y, t.code, t.player, t.bottom, older)
-      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x14, 0x2e]))
+      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x14, 0x2e], 0x16))
       expect(out.a0).toBe(PEN_ENTRY)
     })
   })
