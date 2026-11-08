@@ -55,6 +55,20 @@ describe.skipIf(!hasRom)('NHL 94 base ROM', () => {
     expect(unexpected).toEqual([])
   })
 
+  it('clears only the self-check routine, keeping what another tool put after it', () => {
+    const routine = readU32(original, 0x302)
+    const opened = openRom(original).bytes
+    // The routine is cleared to an endless loop, as before.
+    expect(readU16(opened, routine)).toBe(0x60fe)
+    expect([...opened.subarray(routine + 2, routine + 0x50)].every((b) => b === 0xff)).toBe(true)
+    // Code past its end mark is left alone.
+    const withCode = original.slice()
+    withCode.set([0x4e, 0x75, 0x12, 0x34], routine + 0x60)
+    const kept = openRom(withCode).bytes
+    expect([...kept.subarray(routine + 0x60, routine + 0x64)]).toEqual([0x4e, 0x75, 0x12, 0x34])
+    expect(Buffer.compare(kept.subarray(0, routine + 0x60), opened.subarray(0, routine + 0x60))).toBe(0)
+  })
+
   it('writes a header checksum that matches the ROM contents', () => {
     const built = buildRom(openRom(original))
     let sum = 0

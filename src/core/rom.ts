@@ -27,6 +27,8 @@ const OP_NOP = 0x4e71
 const OP_LOOP = 0x60fe
 const OP_MOVEA_A1 = 0x227c
 const CHECKSUM_ROUTINE_START = 0x700091c8
+// The most bytes the self-check routine may have, its end mark included.
+const SELF_CHECK_MOST = 0x100
 
 export interface RomProject {
   game: GameConfig
@@ -99,9 +101,16 @@ function disableSelfCheck(rom: Uint8Array, game: GameConfig): void {
   if (instruction !== OP_JSR || routine + 4 > rom.length || readU32(rom, routine) !== CHECKSUM_ROUTINE_START) {
     throw new Error('The ROM\'s self-check code is not where it is expected, so this ROM is not supported.')
   }
+  // The routine ends in an endless loop (bra.s *), 80 bytes in in the original
+  // game. Only the routine is cleared, so that anything after it is kept.
+  let end = routine + 2
+  while (end + 2 <= rom.length && end < routine + SELF_CHECK_MOST && readU16(rom, end) !== OP_LOOP) end += 2
+  if (end >= routine + SELF_CHECK_MOST || end + 2 > rom.length) {
+    throw new Error('The ROM\'s self-check code is not as expected, so this ROM is not supported.')
+  }
   for (let i = 0; i < 3; i++) writeU16(rom, call + i * 2, OP_NOP)
   writeU16(rom, routine, OP_LOOP)
-  rom.fill(0xff, routine + 2)
+  rom.fill(0xff, routine + 2, end + 2)
 }
 
 function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array | null): RomProject {
