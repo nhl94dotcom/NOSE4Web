@@ -1885,18 +1885,17 @@ test.describe('with the SNES game', () => {
     // The recommended fixes leave the faceoff spot fix as it was set.
     await main.getByRole('button', { name: 'Set back to what the ROM has' }).click()
     await main.getByRole('button', { name: 'Turn on the recommended fixes' }).click()
+    // Nor the hot and cold and Y button fixes, which leagues may not want.
     await expect(main.locator('.outcome li')).toHaveText([
-      'Hot and cold bug fix: off to on.',
       'Power play and penalty kill fix: off to on.',
       'Penalty shot fixes: off to on.',
       'Extra attacker fix: off to on.',
-      'Y button fix: off to on.',
       'Comeback bonus fix: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Hot and cold bug fix**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Y button fix**',
+      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**',
     )
   })
 

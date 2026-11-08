@@ -27,7 +27,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
       Before each game the SNES makes every player a little hot or cold in each rating, but a bug turns every cold
       value into a large one, so about half of every player's ratings play at the maximum, 15, whatever they are in the
       ROM. This fixes it, so that hot and cold move a rating by a point or so either way and the ratings you set are
-      the ones that play. It changes how every game plays, so try it before a league uses it.
+      the ones that play. It changes how every game plays, so try it before a league uses it: without the bug every player plays lower than players are used to, so it suits a league whose ratings are set higher. It is not among the recommended fixes.
     </>
   ),
   ppPkFix: (
@@ -51,7 +51,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   extraAttackerFix:
     "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced from the line, so the line has one skater too few. With the fix the two swap, as they do for any other move within the line. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
   yButtonFix:
-    'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.)',
+    'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.) Players are used to the original, so it is not among the recommended fixes.',
   comebackFix:
     'A team tied or behind late in the third period is meant to get a bonus (+2 Offensive Awareness, +2 Checking and more passing and shooting), but the clock test is the wrong way round, so it comes in the first half of the period and not the second. This makes it come when it should. Overtime is not affected. As on the Genesis; found by the NHL94 Match Viewer project and tested in the game.',
   awarenessFix:

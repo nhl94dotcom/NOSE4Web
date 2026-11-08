@@ -901,9 +901,11 @@ export function HelpPage() {
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
         that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, Aggression,
         power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, with
-        smozoma's legacy weight bug fix taken out; on the SNES the hot and cold,
-        power play and penalty kill, comeback bonus, penalty shot, extra attacker and Y button fixes. It leaves the faceoff spot fix (a choice between eras) and
-        the options as they are. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts a list of
+        smozoma's legacy weight bug fix taken out; on the SNES the power play and
+        penalty kill, comeback bonus, penalty shot and extra attacker fixes. It leaves the faceoff spot fix (a choice
+        between eras), the options, and two fixes leagues may not want as they are: the SNES hot and cold bug fix,
+        which makes every player play lower than players are used to, and the SNES Y button fix, a habit people
+        expect. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts a list of
         what this ROM has, everything that differs from the original game, on the clipboard as a Discord post, for
         a league's owners, and shows it below the button.
       </p>
