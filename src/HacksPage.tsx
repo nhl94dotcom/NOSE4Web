@@ -294,12 +294,13 @@ export function HacksPage({ project, onChange }: Props) {
           <>
             Now and then a skater you control shoots off far past top speed and slides out of control for a second or
             two, usually racing back on defence. The game lets a computer skater about to take a pass glide onto it,
-            and lets one knocked into the boards slide, by almost turning off how quickly he slows down. Two ways leave
-            that on: taking a skater over while a pass is coming to him, and getting up after a fall into the boards.
-            He then barely slows, each speed burst stacks on the last, and he runs away. This turns the gliding off in
-            both places, so he skates normally once he is yours or back on his feet. Computer skaters still glide onto
-            passes, and one-timers are unchanged. Taking over a skater with a pass coming, you now steer him onto it
-            yourself. Found by the NHL94 Match Viewer project.
+            and lets one knocked into the boards slide, by almost turning off how quickly he slows down. Three ways
+            leave that on: taking a skater over while a pass is coming to him, getting up after a fall into the boards,
+            and a one-timer that misses the puck. He then barely slows, each speed burst stacks on the last, and he
+            runs away. This turns the gliding off in all three places, so he skates normally once he is yours, back on
+            his feet, or done with the one-timer. Computer skaters still glide onto passes, and a one-timer still glides
+            while it is being taken. Taking over a skater with a pass coming, you now steer him onto it yourself.
+            Found by the NHL94 Match Viewer project, which recorded the runaways.
           </>,
         )}
       </section>

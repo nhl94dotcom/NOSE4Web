@@ -2,14 +2,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readU16, readU32 } from '../src/core/bytes'
-import { detectHacks, hackRom, NO_HACKS, RUNAWAY_CODE } from '../src/core/hacks'
+import { detectHacks, hackRom, NO_HACKS, RUNAWAY_CODE, RUNAWAY_ONETIMER_CODE } from '../src/core/hacks'
 
 const PFLAGS = 0x62
 const PFLAGS3 = 0x64
 
 // Runs the new code for a player whose flags are given, decoding the three
 // instructions it uses from their bit fields: bclr #n,d16(a3), beq.s and rts.
-function run(pflags: number, pflags3: number): { pflags: number; pflags3: number } {
+function run(pflags: number, pflags3: number, code = RUNAWAY_CODE): { pflags: number; pflags3: number } {
   const memory = new Map<number, number>([
     [PFLAGS, pflags],
     [PFLAGS3, pflags3],
@@ -17,11 +17,11 @@ function run(pflags: number, pflags3: number): { pflags: number; pflags3: number
   let z = false
   let pc = 0
   for (let steps = 0; steps < 20; steps++) {
-    const op = readU16(RUNAWAY_CODE, pc)
+    const op = readU16(code, pc)
     if (op === 0x4e75) return { pflags: memory.get(PFLAGS)!, pflags3: memory.get(PFLAGS3)! }
     if ((op & 0xffc0) === 0x0880 && ((op >> 3) & 7) === 5 && (op & 7) === 3) {
-      const bit = readU16(RUNAWAY_CODE, pc + 2) & 7
-      const at = readU16(RUNAWAY_CODE, pc + 4)
+      const bit = readU16(code, pc + 2) & 7
+      const at = readU16(code, pc + 4)
       const value = memory.get(at) ?? 0
       z = ((value >> bit) & 1) === 0
       memory.set(at, value & ~(1 << bit))
@@ -45,6 +45,12 @@ describe('the runaway speed fix', () => {
     // The other flags are left alone.
     expect(run(0b1111_1111, 0b1111_1111)).toEqual({ pflags: 0b1111_1110, pflags3: 0b1101_1111 })
   })
+
+  it('clears the gliding flag as a one-timer ends, with the one-timer flag', () => {
+    // A missed one-timer: pf3onetimer (bit 3) and the leftover pfdoff both cleared, nothing else.
+    expect(run(0b0000_0001, 0b0000_1000, RUNAWAY_ONETIMER_CODE)).toEqual({ pflags: 0, pflags3: 0 })
+    expect(run(0b1111_1111, 0b1111_1111, RUNAWAY_ONETIMER_CODE)).toEqual({ pflags: 0b1111_1110, pflags3: 0b1111_0111 })
+  })
 })
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
@@ -65,11 +71,20 @@ describe.skipIf(!existsSync(romPath))('the runaway speed fix in the ROM', () => 
     expect(Buffer.from(hacked.subarray(target, target + RUNAWAY_CODE.length))).toEqual(Buffer.from(RUNAWAY_CODE))
     // The code after the hook is the game's own: btst #0,d1.
     expect(readU16(hacked, 0xaf7c)).toBe(0x0801)
+    // EndOneTimer: movem.l d0/a0,-(sp), then the call, then its own bclr #pfalock.
+    expect(readU16(hacked, 0xfeff0)).toBe(0x48e7)
+    expect(readU16(hacked, 0xfeff4)).toBe(0x4eb9)
+    const oneTimer = readU32(hacked, 0xfeff6)
+    expect(Buffer.from(hacked.subarray(oneTimer, oneTimer + RUNAWAY_ONETIMER_CODE.length))).toEqual(Buffer.from(RUNAWAY_ONETIMER_CODE))
+    expect(Buffer.from(hacked.subarray(0xfeffa, 0xff000)).toString('hex')).toBe('08ab00050062')
     expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, runawayFix: true }, unknown: [] })
     expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
     // Nothing else in the game's own code changes.
     const changed: number[] = []
-    for (let i = 0; i < rom.length; i++) if (hacked[i] !== rom[i] && (i < target || i >= target + RUNAWAY_CODE.length)) changed.push(i)
-    expect(changed.every((i) => (i >= 0xeba0 && i < 0xeba2) || (i >= 0xaf76 && i < 0xaf7c) || i === 0x18e || i === 0x18f)).toBe(true)
+    const added = (i: number) => (i >= target && i < target + RUNAWAY_CODE.length) || (i >= oneTimer && i < oneTimer + RUNAWAY_ONETIMER_CODE.length)
+    for (let i = 0; i < rom.length; i++) if (hacked[i] !== rom[i] && !added(i)) changed.push(i)
+    expect(
+      changed.every((i) => (i >= 0xeba0 && i < 0xeba2) || (i >= 0xaf76 && i < 0xaf7c) || (i >= 0xfeff4 && i < 0xfeffa) || i === 0x18e || i === 0x18f),
+    ).toBe(true)
   })
 })

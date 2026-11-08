@@ -673,36 +673,48 @@ const faceoffFix: Part<boolean> = {
 // the game sets it for a computer skater about to take a pass, so he glides
 // onto it, and for one knocked into the boards or the bench, so he slides. It
 // is meant to be cleared when he touches the puck or is given other work, but
-// two ways leave it on (Match Viewer's GENESIS_MECHANICS 3.4): asspassrec
-// ends for a skater a person has taken over through a branch straight to
-// assexit, past its own exit that clears the flag; and getting up from a fall
-// never clears it. A person's skater then barely slows, each speed burst
-// stacks on the last, and he can shoot off at twice top speed. The fix points
-// that branch at asspassrec's own exit, and makes the end of a fall animation
-// (where the game clears pf3fall) clear pfdoff too, only when a fall is
-// ending. A one-timer is untouched: it takes the skater over through its own
-// job, and the flag goes when his stick meets the puck, as before.
+// three ways leave it on (Match Viewer's GENESIS_MECHANICS 3.4 and its
+// recorded runaways): asspassrec ends for a skater a person has taken over
+// through a branch straight to assexit, past its own exit that clears the
+// flag; getting up from a fall never clears it; and a one-timer that misses
+// the puck never reaches puckstick, which is what clears it for one that
+// hits. A person's skater then barely slows, each speed burst stacks on the
+// last, and he can shoot off at twice top speed. The fix points that branch
+// at asspassrec's own exit; makes the end of a fall animation (where the game
+// clears pf3fall) clear pfdoff too, only when a fall is ending; and makes
+// EndOneTimer, which ends every one-timer after the shot or the miss, clear
+// it with the one-timer's own flag. During a one-timer the skater still
+// glides, as before.
 const RUNAWAY_EXIT = { at: 0xeba0, original: bytes('1AA6'), hacked: bytes('00C8') }
 const RUNAWAY_FALL_HOOK: Hook = { at: 0xaf76, original: bytes('08AB 0005 0064') }
 // bclr #pf3fall,pflags3(a3); beq.s done; bclr #pfdoff,pflags(a3); done: rts
 export const RUNAWAY_CODE = bytes('08AB 0005 0064 6706 08AB 0000 0062 4E75')
+// EndOneTimer's first: bclr #pf3onetimer,pflags3(a3), and then bclr #pfdoff,pflags(a3).
+const RUNAWAY_ONETIMER_HOOK: Hook = { at: 0xfeff4, original: bytes('08AB 0003 0064') }
+export const RUNAWAY_ONETIMER_CODE = bytes('08AB 0003 0064 08AB 0000 0062 4E75')
+const runawayHooks: [Hook, Uint8Array][] = [
+  [RUNAWAY_FALL_HOOK, RUNAWAY_CODE],
+  [RUNAWAY_ONETIMER_HOOK, RUNAWAY_ONETIMER_CODE],
+]
 
 const runawayFix: Part<boolean> = {
   detect(rom) {
-    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.original) && is(rom, RUNAWAY_FALL_HOOK.at, RUNAWAY_FALL_HOOK.original)) return false
-    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked) && hooked(rom, RUNAWAY_FALL_HOOK, RUNAWAY_CODE) !== null) return true
+    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.original) && runawayHooks.every(([h]) => is(rom, h.at, h.original))) return false
+    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked) && runawayHooks.every(([h, code]) => hooked(rom, h, code) !== null)) return true
     return undefined
   },
   remove(rom) {
-    const target = hooked(rom, RUNAWAY_FALL_HOOK, RUNAWAY_CODE)
-    if (target === null || !is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked)) return
-    erase(rom, target, RUNAWAY_CODE.length)
-    rom.set(RUNAWAY_FALL_HOOK.original, RUNAWAY_FALL_HOOK.at)
+    const targets = runawayHooks.map(([h, code]) => hooked(rom, h, code))
+    if (targets.some((target) => target === null) || !is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked)) return
+    runawayHooks.forEach(([h, code], i) => {
+      erase(rom, targets[i]!, code.length)
+      rom.set(h.original, h.at)
+    })
     rom.set(RUNAWAY_EXIT.original, RUNAWAY_EXIT.at)
   },
   apply(work, value) {
     if (!value) return
-    hook(work, RUNAWAY_FALL_HOOK, RUNAWAY_CODE)
+    for (const [h, code] of runawayHooks) hook(work, h, code)
     work.rom.set(RUNAWAY_EXIT.hacked, RUNAWAY_EXIT.at)
   },
 }

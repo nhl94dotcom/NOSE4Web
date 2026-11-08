@@ -1049,10 +1049,11 @@ export function HelpPage() {
           <b>Runaway speed fix</b> (in with the fixes, Genesis only): now and then a skater you control shoots off
           at up to twice top speed and slides out of control for a second or two. The game nearly turns off how
           quickly a skater slows down to let a computer skater glide onto a pass and a skater knocked into the boards
-          slide, and two ways leave that on: taking a skater over while a pass is coming to him, and getting up from
-          a fall into the boards. Each speed burst then stacks on the last. The fix turns the gliding off in both
-          places. Computer skaters still glide onto passes, one-timers are unchanged, and a skater you take over with
-          a pass coming is now steered onto it by you. The NHL94 Match Viewer project found the cause and recorded
+          slide, and three ways leave that on: taking a skater over while a pass is coming to him, getting up from a
+          fall into the boards, and a one-timer that misses the puck (about 8 a game in recorded games). Each speed
+          burst then stacks on the last. The fix turns the gliding off in all three places. Computer skaters still
+          glide onto passes, a one-timer still glides while it is being taken, and a skater you take over with a
+          pass coming is now steered onto it by you. The NHL94 Match Viewer project found the cause and recorded
           the runaways. The SNES game already clears it.
         </li>
         <li>
