@@ -71,6 +71,14 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis player photos', () => {
     expect([1, 2].every((i) => same(teamPhotos(reopened, 0)[i].picture, picture))).toBe(true)
   })
 
+  it('refuses a new photo in a full 2 MB ROM, saying why, rather than growing it past the save memory', () => {
+    const project = withPhoto(stock(), 0, 1, drawn(() => 1))
+    expect(project.bytes.length).toBe(0x100000)
+    const full = { ...project, bytes: new Uint8Array(0x200000).fill(1) }
+    full.bytes.set(project.bytes)
+    expect(() => withPhoto(full, 0, 2, drawn(() => 2))).toThrow('It is 2 MB, the largest a ROM can be while the game can still save its records')
+  })
+
   it('rewrites a photo with a map of its own, storing each different tile once', () => {
     const project = stock()
     const layout = photoLayout(project.bytes, project.teams.length)!

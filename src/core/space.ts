@@ -11,6 +11,22 @@ const UNUSED = 0xff
 // taken for room by the other.
 const GAP = 4
 
+// The largest a ROM may grow to. The game keeps its save memory (records,
+// settings) at $200001, just past 2 MB, and reads and writes it there
+// directly; in a larger ROM the console reads the ROM there instead, so saves
+// stop working, unless the game is changed to switch the save memory in
+// through the cartridge's mapper ($A130F1) around each use, as EVO does. (The
+// disassembly's docs/EXPANDING_THE_ROM.md.) Until NOSE4Web can make that
+// change, a ROM grows to 2 MB and no further.
+export const LARGEST_ROM = 0x200000
+
+// Said where a ROM has no room left because it is as large as it may be.
+export function fullRomReason(rom: Uint8Array): string {
+  return rom.length >= LARGEST_ROM
+    ? ' It is 2 MB, the largest a ROM can be while the game can still save its records, which it keeps just past 2 MB.'
+    : ''
+}
+
 // Room for `size` bytes at the end of the ROM: a copy of the ROM, made larger
 // if it has to be, and where in it the room starts. Null if there is no room
 // and the file cannot grow. Code a hack adds goes after the end mark, which
@@ -26,7 +42,7 @@ export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { r
   const at = marked ? last - 1 : last + 1 + ((last + 1) % 2) + GAP
   const needed = at + size + (marked ? 2 : 0)
   let length = rom.length
-  if (needed > length) length = length === 0x80000 || length === 0x100000 ? length * 2 : length === 0x200000 ? 0x300000 : 0
+  if (needed > length) length = (length === 0x80000 || length === 0x100000) && length * 2 <= LARGEST_ROM ? length * 2 : 0
   if (needed > length) return null
   const grown = new Uint8Array(length).fill(UNUSED)
   grown.set(rom)

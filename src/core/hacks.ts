@@ -26,7 +26,7 @@ import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './b
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
-import { claimSpace } from './space'
+import { claimSpace, fullRomReason } from './space'
 import { goalieCount, type Player, type Team } from './team'
 import type { FreeAgent } from './trade'
 
@@ -250,7 +250,7 @@ function writeHook(rom: Uint8Array, hook: Hook, target: number): void {
 // apart, and does not move NOSE's end mark.
 function place(work: Work, code: Uint8Array): number {
   const claimed = claimSpace(work.rom, code.length, true)
-  if (!claimed) throw new HackError('There is no room left in this ROM for the code this needs.')
+  if (!claimed) throw new HackError(`There is no room left in this ROM for the code this needs.${fullRomReason(work.rom)}`)
   work.rom = claimed.rom
   work.rom.set(code, claimed.at)
   return claimed.at

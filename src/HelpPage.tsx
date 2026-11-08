@@ -146,6 +146,12 @@ export function HelpPage() {
         Neither can be undone except by opening the ROM again. ROMs that already keep their teams elsewhere, such as
         the 30-team hack, do not offer the button and usually have plenty of room already.
       </p>
+      <p>
+        A Genesis ROM never grows past 2 MB in the editor. The game keeps its saved records just past 2 MB, and in a
+        larger ROM the console finds the ROM there instead, so saving would stop working. A ROM that is full at 2 MB
+        says so when something needs more room (more roster space, room for logos, a hack's code or a new player
+        photo), and nothing is changed.
+      </p>
 
       <h3 id="help-teams">Teams</h3>
       <p>The top of a team's page has:</p>

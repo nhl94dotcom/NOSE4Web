@@ -188,6 +188,8 @@ describe.skipIf(!hasRom)('room at the end of a ROM that a hack program has used'
   it('says when there is no room and the file cannot grow', () => {
     const full = new Uint8Array(0x300000).fill(1)
     expect(claimSpace(full, 16)).toBeNull()
+    // A full 2 MB ROM does not grow past the save memory at $200001.
+    expect(claimSpace(new Uint8Array(0x200000).fill(1), 16)).toBeNull()
     const odd = new Uint8Array(1000).fill(1)
     expect(claimSpace(odd, 16)).toBeNull()
     const grows = claimSpace(new Uint8Array(0x100000).fill(1), 16)!

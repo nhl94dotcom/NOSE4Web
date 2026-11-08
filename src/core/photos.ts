@@ -2,7 +2,7 @@ import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { colorRgb } from './color'
 import type { Picture } from './graphics'
 import type { RomProject } from './rom'
-import { claimSpace } from './space'
+import { claimSpace, fullRomReason } from './space'
 
 // Player photos on the Genesis: the pictures on the player cards of the game
 // setup screen and on the matchup screens. (From the disassembly,
@@ -297,7 +297,7 @@ function writeList(rom: Uint8Array, layout: PhotoLayout, team: number, entries: 
     return rom
   }
   const claimed = claimSpace(rom, bytes.length)
-  if (!claimed) throw new Error('This ROM has no room left for a longer list of photos.')
+  if (!claimed) throw new Error(`This ROM has no room left for a longer list of photos.${fullRomReason(rom)}`)
   claimed.rom.set(bytes, claimed.at)
   writeU32(claimed.rom, layout.tableAt + team * 4, claimed.at)
   return claimed.rom
@@ -329,7 +329,7 @@ export function withPhoto(project: RomProject, team: number, index: number, pict
   }
   const block = newBlock(picture)
   const claimed = claimSpace(rom, block.length)
-  if (!claimed) throw new Error('This ROM has no room left for another photo.')
+  if (!claimed) throw new Error(`This ROM has no room left for another photo.${fullRomReason(rom)}`)
   claimed.rom.set(block, claimed.at)
   const entries = layout.lists[team].entries.map((other, i) => (i === index ? { ...other, at: claimed.at } : other))
   return withBytes(project, writeList(claimed.rom, layout, team, entries))
