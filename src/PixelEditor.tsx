@@ -278,7 +278,7 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
           {limitShown && <p className={limitShown.over ? 'error' : 'note'}>{limitShown.text}</p>}
           {problem && (
             <p className="error" role="alert">
-              Not changed: {problem}
+              Edit rejected: {problem}
             </p>
           )}
         </div>

@@ -475,7 +475,7 @@ export function HelpPage() {
         <li>
           Each stroke goes into your work when you let go of the mouse, so <b>Undo</b> takes back one stroke at a
           time. A stroke that makes the picture need more room than the game has is not kept: the editor says{' '}
-          <b>Not changed</b>, and why, beside the picture.
+          <b>Edit rejected</b>, and why, beside the picture.
         </li>
       </ul>
       <p>Or change a picture in another program:</p>

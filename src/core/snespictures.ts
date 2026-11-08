@@ -283,9 +283,9 @@ export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
   const tiles = [...first, ...second]
   if (tiles.length > MOST_TILES) {
     throw new Error(
-      `This logo needs ${tiles.length} different squares of 8 by 8 pixels, and a logo may have ${MOST_TILES}. ` +
-        `Empty squares cost nothing, nor does a square that is an exact copy of another, even flipped. ` +
-        `Erase ${tiles.length - MOST_TILES} or more squares near the edge, or make some squares copies of others.`,
+      `A logo may have at most ${MOST_TILES} different squares of 8 by 8 pixels, and this would make it ${tiles.length}. ` +
+        'Empty squares and exact copies of another square, even flipped, do not count. ' +
+        'To make room, erase a square or two near the edge, or make some squares copies of others.',
     )
   }
 
@@ -792,9 +792,9 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
     if (tiles.length / TILE > most) {
       const needed = tiles.length / TILE - 1
       throw new SnesPictureRoomError(
-        `This centre ice logo needs ${needed} different squares of 8 by 8 pixels, and the game has room for ${most - 1}. ` +
-          'Empty squares cost nothing, nor does a square that is an exact copy of another (not flipped). ' +
-          `Erase ${needed - (most - 1)} or more squares, or make some squares copies of others.`,
+        `A centre ice logo may have at most ${most - 1} different squares of 8 by 8 pixels in this ROM, and this would make it ${needed}. ` +
+          'Empty squares and exact copies of another square do not count (flipped ones do). ' +
+          'To make room, erase a square or two, or make some squares copies of others.',
       )
     }
     const packed = isLz(rom, at) ? packLz(tiles) : packHuffman(tiles)

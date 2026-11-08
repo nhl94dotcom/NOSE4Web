@@ -1899,7 +1899,7 @@ test.describe('with the SNES game', () => {
     await dot(29, 28)
     // A dot far out in a corner makes the logo bigger than the original game has room for, and is refused.
     await dot(0, 0)
-    await expect(editor.getByRole('alert')).toContainText('Not changed:')
+    await expect(editor.getByRole('alert')).toContainText('Edit rejected:')
     // A colour of its own changed in the editor.
     await editor.locator('.swatch').nth(2).click()
     await editor.getByLabel(/^Red/).fill('31')
