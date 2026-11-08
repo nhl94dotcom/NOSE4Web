@@ -1058,10 +1058,10 @@ export function HelpPage() {
         </li>
         <li>
           <b>Penalty shot table fix</b> (in with the fixes, Genesis only): a foul on a skater on a breakaway can give
-          a penalty shot, but the game looks each foul up one place too far along its table, so the shot is called
-          for the wrong foul (charging shows as slashing, slashing as roughing, and so on) and interference never
-          gives one. The fix puts each foul with its own penalty shot. Holding still gives none: the game has no
-          penalty shot for it.
+          a penalty shot, but the game looks each foul up one place too far along its table, so every penalty shot
+          is called and recorded for the wrong foul (charging as slashing, slashing as roughing, and so on). The fix
+          gives each foul its own penalty shot. Which fouls give penalty shots does not change: holding has no
+          penalty shot in the game, and interference is never called on the puck carrier.
         </li>
         <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the

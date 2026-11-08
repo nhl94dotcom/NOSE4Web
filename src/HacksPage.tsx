@@ -308,9 +308,11 @@ export function HacksPage({ project, onChange }: Props) {
           onOff('penaltyShotTableFix'),
           <>
             A foul on a skater on a breakaway can give a penalty shot. The original game looks each foul up one place
-            too far along its table, so the penalty shot is called for the wrong foul: charging is shown as slashing,
-            slashing as roughing, and so on, and interference never gives a penalty shot at all. This puts each foul
-            with its own penalty shot. Holding still gives none, as the game has no penalty shot for it.
+            too far along its table, so every penalty shot is called for the wrong foul: charging is announced and
+            recorded as slashing, slashing as roughing, and so on, and a breakaway hooking or tripping is called as
+            the next foul along. This gives each foul its own penalty shot. Which fouls give penalty shots does not
+            change: holding gives none, as the game has no penalty shot for it, and interference is never called on
+            the puck carrier.
           </>,
         )}
       </section>

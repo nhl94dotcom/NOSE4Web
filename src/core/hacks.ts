@@ -728,8 +728,11 @@ const runawayFix: Part<boolean> = {
 // penalty shot form, but the entries sit one word early: charging is given
 // slashing's penalty shot, slashing roughing's, roughing cross-checking's,
 // cross-checking hooking's, hooking tripping's, tripping interference's, and
-// interference none. The fix moves them to their own penalties. Holding stays
-// without one, as the game has no penalty shot form of it.
+// interference and holding none. The fix moves them to their own penalties,
+// so each penalty shot is named for its foul. Which fouls give one does not
+// change: holding has no penalty shot form, and interference never goes
+// through PenShotChk (it is called on a player without the puck).
+// (Match Viewer's reading of PenShotChk and its callers agrees.)
 const penaltyShotTableFix = switchPart(
   0x1914e,
   bytes('0038 003C 0036 003A 002E 0030 0034 FFFF'),
