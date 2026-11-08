@@ -1031,6 +1031,17 @@ export function HelpPage() {
           pass speed another way and never had the bug.
         </li>
         <li>
+          <b>Faceoff spot fix</b> (in with the fixes, and on the SNES Hacks page too): the game puts a faceoff on a
+          dot only when play stops past the hash marks; anywhere else it is held where the puck was, often in open
+          ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most after
+          penalties. With the fix every faceoff is on one of the nine dots, as the NHL rules have it: after a goal at
+          centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise,
+          past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone
+          dot (a goalie whistled for holding the puck out there too). A puck shot out of play is faced off by where
+          the player who last touched it stood. When both teams take penalties the faceoff still moves out to the
+          neutral zone, as before.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
@@ -1357,7 +1368,7 @@ export function HelpPage() {
           <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
           cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
           penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
-          penalty kill fix, as for the Genesis. Most worth knowing is the{' '}
+          penalty kill fix and faceoff spot fix, as for the Genesis. Most worth knowing is the{' '}
           <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the
           maximum each game, whatever they are in the ROM, and the fix makes the ratings you set the ones that play.
           A hack is only changed where the ROM has the original game's code or the hack's in its place.

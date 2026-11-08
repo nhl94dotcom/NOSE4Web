@@ -13,7 +13,8 @@
 // AverageRangersFan: see "play" below. The Aggression and comeback bonus
 // fixes are the editor's own, to bugs found by the NHL94 Match Viewer project
 // in the disassembly at github.com/abdulahmad/NHL94Genesis: see "more fixes".
-// So is the rocket pass fix, to a bug the Match Viewer project measured.
+// So are the rocket pass fix, to a bug the Match Viewer project measured, and
+// the faceoff spot fix, to rules it set out from the NHL rulebook.
 //
 // Each hack is looked for by the exact bytes it leaves, and a ROM whose code
 // at a hack's places is neither the original game's nor the hack's is left
@@ -74,6 +75,8 @@ export interface HackChoices {
   // Times a pass to a teammate in 64ths of a second, where the original game
   // rounds down to eighths and so sometimes sends it twice as fast.
   passFix: boolean
+  // Holds every faceoff on one of the nine dots, as the NHL rules place them.
+  faceoffFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -109,6 +112,7 @@ export type HackPart =
   | 'ppPkFix'
   | 'comebackFix'
   | 'passFix'
+  | 'faceoffFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -140,6 +144,7 @@ export const NO_HACKS: HackChoices = {
   ppPkFix: false,
   comebackFix: false,
   passFix: false,
+  faceoffFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -615,6 +620,43 @@ const passFix: Part<boolean> = {
   },
 }
 
+// Faceoffs off the dots. Every stoppage goes through Stop4Pen, which takes a
+// raw spot (centre for a goal, where the last player to touch the puck stood
+// for a puck out of play, the icing team's end for icing, the puck for the
+// rest) and then only puts it on a dot when it is past the hash marks; short
+// of them it is held where it is, so a whistle in the neutral zone or the
+// near part of an end zone, and every penalty, is faced off off the dots (27
+// of 222 faceoffs in the recorded games, 20 of them after penalties). The fix
+// replaces that step, as the NHL rules have it (Match Viewer's
+// FACEOFF_PLACEMENT.md): a goal at centre; a penalty (codes $12 to $2A) in
+// the offending team's own end, on the side the puck was; anything else past a
+// blue line at that end's dot on the puck's side, and in the neutral zone at
+// the nearest neutral dot. limitfo then runs as before. The team's own end is
+// the one its pfgoal flag says, as the icing rule reads it.
+const FACEOFF_HOOK: Hook = {
+  at: 0x12504,
+  original: bytes(
+    '48A7 C000 B07C 0046 6D00 0006 303C 0046 B07C FFBA 6E00 0006 303C FFBA B27C 00A6 6D00 0012 323C 00CE 303C 0046 4A57 6A00 0004 4440 B27C FF5A 6E00 0012 323C FF32 303C 0046 4A57 6A00 0004 4440 31C0 BF94 31C1 BF96 584F',
+  ),
+}
+export const FACEOFF_CODE = bytes('0C28000EFFFE 6762 0C280012FFFE 652E 0C28002BFFFE 6426 2F09 327CB04A 4241 1228FFFF 0241007F EF41 083100071062 225F 6606 323C00CE 6004 323CFF32 4A40 6B04 7046 6002 70BA B27C0058 6E12 B27CFFA8 6D12 4A41 6B04 7241 600E 72BF 600A 323C00CE 6004 323CFF32 31C0BF94 31C1BF96 4E75')
+
+const faceoffFix: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, FACEOFF_HOOK.at, FACEOFF_HOOK.original)) return false
+    return hooked(rom, FACEOFF_HOOK, FACEOFF_CODE) === null ? undefined : true
+  },
+  remove(rom) {
+    const target = hooked(rom, FACEOFF_HOOK, FACEOFF_CODE)
+    if (target === null) return
+    erase(rom, target, FACEOFF_CODE.length)
+    rom.set(FACEOFF_HOOK.original, FACEOFF_HOOK.at)
+  },
+  apply(work, value) {
+    if (value) hook(work, FACEOFF_HOOK, FACEOFF_CODE)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -783,6 +825,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     ppPkFix: found('ppPkFix', ppPkFix.detect(rom), NO_HACKS.ppPkFix),
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
+    faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -835,6 +878,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['turnRate', () => turnRate.remove(work.rom), () => turnRate.apply(work, wanted.turnRate)],
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
     ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
+    ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -937,6 +981,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   ppPkFix: 'Power play and penalty kill fix',
   comebackFix: 'Comeback bonus fix',
   passFix: 'Rocket pass fix',
+  faceoffFix: 'Faceoff spot fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -964,6 +1009,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   ppPkFix: 'ppPkFix',
   comebackFix: 'comebackFix',
   passFix: 'passFix',
+  faceoffFix: 'faceoffFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

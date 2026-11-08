@@ -148,7 +148,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -270,6 +270,20 @@ export function HacksPage({ project, onChange }: Props) {
             it. How high a pass lifts is unchanged. Passing will feel different to players used to the rocket pass,
             and a receiver catches more of the passes that used to bounce off his stick. Found and measured by the
             NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'faceoffFix',
+          onOff('faceoffFix'),
+          <>
+            The original game puts a faceoff on a dot only when play stops past the hash marks; anywhere else it is
+            held where the puck was, often in the open ice between the dots. In recorded games that was 1 faceoff in 8,
+            most of them after penalties. This holds every faceoff on one of the nine dots, as the NHL rules do: after
+            a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was;
+            otherwise, past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest
+            neutral-zone dot. A puck shot out of play is faced off by where the player who last touched it stood. When
+            both teams take penalties the faceoff still moves out to the neutral zone, as before. Worked out with the
+            NHL94 Match Viewer project, from the NHL rulebook.
           </>,
         )}
       </section>

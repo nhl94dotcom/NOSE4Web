@@ -23,6 +23,7 @@ export type SnesHack =
   | 'noGoalPosts'
   | 'skipEaIntro'
   | 'skipPucksIntro'
+  | 'faceoffFix'
 
 interface Site {
   // The game's address.
@@ -32,9 +33,35 @@ interface Site {
 }
 
 const free = (count: number) => 'FF'.repeat(count)
+const hex16 = (value: number) => [value & 0xff, value >> 8].map((b) => b.toString(16).padStart(2, '0')).join('')
+const hex24 = (value: number) => hex16(value & 0xffff) + ((value >> 16) & 0xff).toString(16).padStart(2, '0')
+
+// Faceoffs off the dots, as on the Genesis (see hacks.ts): Stop4Pen takes a
+// raw spot and puts it on a dot only past the hash marks. The fix replaces
+// that step with the NHL rules: a goal at centre; a penalty (codes $14 to
+// $2E on the SNES) in the offending team's own end, at the dot on the side of
+// the puck; anything else past a blue line at that end's dot on the puck's
+// side, and in the neutral zone at the nearest neutral dot. limitfo runs as
+// before. The 94 bytes from the raw spot to the call of limitfo become a call
+// to the new code and a jump to that call. Stop4Pen keeps d0, d1 and a0 at
+// $A5, $A9 and $89 in the direct page in every build; pfgoal (the player's
+// end) and the faceoff spot fox / foy move with the build.
+const FACEOFF_REGION = 94
+const faceoffOriginal = (fox: number, foy: number) =>
+  'A5A5 85C5 38 E94600 3005 A94600 85A5 A5A5 38 E9BAFF 1005 A9BAFF 85A5 A5A9 38 E9A600 3013 A9CE00 85A9 A94600 85A5 A5C5 1005 ' +
+  `A9BAFF 85A5 A5A9 38 E95AFF 1013 A932FF 85A9 A94600 85A5 A5C5 1005 A9BAFF 85A5 A5A5 8F${hex24(fox)} A5A9 8F${hex24(foy)}`
+const faceoffCall = (to: number) => `20${hex16(to)} 80${(FACEOFF_REGION - 5).toString(16)} ${'EA'.repeat(FACEOFF_REGION - 5)}`
+const faceoffCode = (pfgoal: number, fox: number, foy: number) =>
+  'C689 C689 B289 E689 E689 29FF00 C90E00 F054 C91400 901F C92F00 B01A C689 B289 E689 297F00 0A A8 A9CE00 85A9 ' +
+  `B9${hex16(pfgoal)} F005 A932FF 85A9 A5A5 3005 A94600 8003 A9BAFF 85A5 A5A9 300F C95900 9005 A9CE00 8012 A94100 800D ` +
+  `C9A8FF B005 A932FF 8003 A9BFFF 85A9 A5A5 8F${hex24(fox)} A5A9 8F${hex24(foy)} 60`
+// Where the new code keeps fox's address, to find it in a ROM that has the hack.
+const FACEOFF_FOX_AT = 0x69
 const minutes = (at: number): Site => ({ at, original: '02', hacked: '01' })
 
-const SITES: Record<SnesHack, Site[]> = {
+// Places by the original game's addresses. A hack not listed is always found
+// by the code around it (see RELOCATED), as in a ROM whose code has moved.
+const SITES: Partial<Record<SnesHack, Site[]>> = {
   // The game divides each player's hot or cold value by four with an unsigned
   // shift, so a cold value becomes a large one and puts the rating at the
   // maximum. The fix divides it keeping its sign.
@@ -81,7 +108,19 @@ const SITES: Record<SnesHack, Site[]> = {
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
 }
 
-export const SNES_HACKS = Object.keys(SITES) as SnesHack[]
+export const SNES_HACKS: SnesHack[] = [
+  'hotColdFix',
+  'ppPkFix',
+  'defenceControl',
+  'oneMinutePenalties',
+  'thirtySecondPeriods',
+  'noInterference',
+  'noPenaltyShots',
+  'noGoalPosts',
+  'skipEaIntro',
+  'skipPucksIntro',
+  'faceoffFix',
+]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   hotColdFix: 'Hot and cold bug fix',
@@ -94,6 +133,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   noGoalPosts: 'No goal posts',
   skipEaIntro: 'Skip the EA intro',
   skipPucksIntro: 'Skip the flying pucks intro',
+  faceoffFix: 'Faceoff spot fix',
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -253,6 +293,21 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // back, the call is taken from the ROM as it was opened where it is not here.
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
+  // Found by the icing rule just before it, which reads pfgoal.
+  faceoffFix: (rom) => {
+    const found = only(rom, 'a9580285a9b9....f005a9a8fd85a9')
+    if (found < 0) return null
+    const site = found + 15
+    const pfgoal = readU16(rom, found + 6)
+    const isIn = rom[site] === 0x20 && rom[site + 3] === 0x80
+    // fox and foy: where the game's code stores them, or where the new code does.
+    const from = isIn ? loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1)) + FACEOFF_FOX_AT : site + 85
+    const fox = rom[from] | (rom[from + 1] << 8) | (rom[from + 2] << 16)
+    const foy = fox + 2
+    const original = hexBytes(faceoffOriginal(fox, foy))
+    if (!isIn && !same(rom, site, original)) return null
+    return withNewCode(rom, site, (to) => hexBytes(faceoffCall(to)), original, hexBytes(faceoffCode(pfgoal, fox, foy)))
+  },
 }
 
 function intro(rom: Uint8Array, source: Uint8Array | null, before: string, after: string): Placed[] | null {
@@ -267,8 +322,9 @@ function intro(rom: Uint8Array, source: Uint8Array | null, before: string, after
 
 // Each hack's places in `rom`, or null where it cannot be found there.
 function placesOf(rom: Uint8Array, hack: SnesHack, source: Uint8Array | null, inPlace = snesCodeInPlace(rom)): Placed[] | null {
-  if (inPlace) {
-    return SITES[hack].map((site) => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) }))
+  const sites = SITES[hack]
+  if (inPlace && sites) {
+    return sites.map((site) => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) }))
   }
   return RELOCATED[hack]?.(rom, source) ?? null
 }
@@ -346,4 +402,9 @@ export function snesHackDifferences(before: Uint8Array, after: Uint8Array): stri
 // whose code has moved, whatever the ROM.
 export function relocatedSnesHack(rom: Uint8Array, hack: SnesHack): { at: number; original: Uint8Array | null; hacked: Uint8Array }[] | null {
   return RELOCATED[hack]?.(rom, null) ?? null
+}
+
+// For tests: the faceoff spot fix's new code, for these addresses.
+export function snesFaceoffCode(pfgoal: number, fox: number, foy: number): Uint8Array {
+  return hexBytes(faceoffCode(pfgoal, fox, foy))
 }
