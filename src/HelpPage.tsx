@@ -1427,8 +1427,9 @@ export function HelpPage() {
           penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
           penalty kill fix and faceoff spot fix, as for the Genesis, and penalty shot fixes (a penalty shot whistled dead
           because the net was knocked off, or because the loose puck stood still for two seconds, is no longer taken
-          again); NHL94SNESVault's extra attacker fix (Edit Lines no longer loses a line's extra attacker; for ROMs
-          laid out as the original game); and a Y button fix: a skater knocked down, falling into the boards, being
+          again); NHL94SNESVault's extra attacker fix (in Edit Lines, picking a line's extra attacker for one of
+          its positions swaps the two, where the original game puts him in both and drops the player he replaced; for
+          ROMs laid out as the original game); and a Y button fix: a skater knocked down, falling into the boards, being
           held or in any other move that locks him can no longer hook or hold with Y, as no other button works then
           either (NHL94SNESVault's own fix covers only the ordinary knockdown). Most worth knowing is the{' '}
           <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the

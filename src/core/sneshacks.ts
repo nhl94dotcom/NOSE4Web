@@ -114,8 +114,10 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   noGoalPosts: [{ at: 0x9e9230, original: 'ADF90D', hacked: '4C0F92' }],
   skipEaIntro: [{ at: 0x9f8289, original: '2236F49F', hacked: 'EAEAEAEA' }],
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
-  // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: moving players
-  // in Edit Lines can leave a line without its extra attacker. Edit Lines'
+  // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: in Edit Lines,
+  // picking a line's extra attacker for one of its positions puts him in both
+  // and drops the player he replaced, since the game's own swap checks look at
+  // neighbouring places only (Match Viewer tested it in the game). Edit Lines'
   // test of the line position (cmp #1) becomes a call to the Vault's code,
   // which finds the player moved among the line's places, the extra attacker's
   // too, and puts him back, then makes that test. Its code uses the original

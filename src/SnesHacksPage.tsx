@@ -44,7 +44,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   skipEaIntro: 'Starts the game without the EA logo.',
   skipPucksIntro: 'Starts the game without the flying pucks.',
   extraAttackerFix:
-    "Moving players around in Edit Lines can leave a line without its extra attacker. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
+    "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced from the line, so the line has one skater too few. With the fix the two swap, as they do for any other move within the line. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
   yButtonFix:
     'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.)',
   penaltyShotFixes:
