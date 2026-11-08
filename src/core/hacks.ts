@@ -625,7 +625,7 @@ const passFix: Part<boolean> = {
 // for a puck out of play, the icing team's end for icing, the puck for the
 // rest) and then only puts it on a dot when it is past the hash marks; short
 // of them it is held where it is, so a whistle in the neutral zone or the
-// near part of an end zone, and every penalty, is faced off off the dots (27
+// near part of an end zone, and most penalties, are faced off off the dots (27
 // of 222 faceoffs in the recorded games, 20 of them after penalties). The fix
 // replaces that step, as the NHL rules have it (Match Viewer's
 // FACEOFF_PLACEMENT.md): a goal at centre; a penalty (codes $12 to $2A) in
