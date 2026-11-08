@@ -74,3 +74,43 @@ describe('the SNES comeback bonus fix and awareness option', () => {
     })
   }
 })
+
+// Match Viewer's places: the shift of the touches (a2touchpuck), puckstick's
+// .t1x and its jump to .3, and ChkShotStat.
+const snesStats: [string, number, number, number, number][] = [
+  ['NHL94.smc', 0xf4549, 0xf7714, 0xf768b, 0xf213],
+  ['nhl94_2026.sfc', 0xf45b1, 0xf7797, 0xf770e, 0xf296],
+  ['nhl94snes_2026.sfc', 0xf4591, 0xf7766, 0xf76dd, 0xf265],
+]
+
+describe('the SNES second-assist fix and stick deflections option', () => {
+  for (const [name, shift, t1x, dot3, chkShotStat] of snesStats) {
+    it.skipIf(!existsSync(path(name)))(`are at the places Match Viewer gives, in ${name === 'NHL94.smc' ? 'the original' : 'a 2026'} ROM`, () => {
+      const project = openRom(new Uint8Array(readFileSync(path(name))))
+      const rom = project.bytes
+      expect(detectSnesHacks(rom).choices).toMatchObject({ secondAssist: false, stickShots: false })
+      const hacked = applySnesHacks(project, { secondAssist: true, stickShots: true }).bytes
+      const call = (at: number) => 0xf0000 + hacked[at + 1] + (hacked[at + 2] << 8) - 0x8000
+      const low = name === 'nhl94_2026.sfc' ? 0x77 : 0x17
+      // The shift becomes a call to it with the test, and the rest of the 12 bytes do nothing.
+      expect(hacked[shift]).toBe(0x20)
+      expect([...hacked.slice(shift + 3, shift + 12)]).toEqual(Array(9).fill(0xea))
+      const assist = call(shift)
+      expect([...hacked.slice(assist, assist + 7)]).toEqual([0xa5, 0xa5, 0xd9, 0x9e, low, 0xf0, 0x06])
+      expect([...hacked.slice(assist + 7, assist + 19)]).toEqual([...rom.slice(shift, shift + 12)])
+      expect(hacked[assist + 19]).toBe(0x60)
+      // .t1x's jump goes to code that counts a goalie's shot, then on to .3.
+      const jump = t1x + 8
+      expect(rom[jump]).toBe(0x4c)
+      expect(call(jump)).not.toBe(dot3)
+      const stick = call(jump)
+      expect([...hacked.slice(stick, stick + 13)]).toEqual([
+        0xb9, rom[t1x - 14], rom[t1x - 13], 0xd0, 0x04, 0x22, chkShotStat & 0xff, chkShotStat >> 8, 0x9e, 0x4c, rom[jump + 1], rom[jump + 2], hacked[stick + 12],
+      ])
+      expect(0xf0000 + rom[jump + 1] + (rom[jump + 2] << 8) - 0x8000).toBe(dot3)
+      expect(detectSnesHacks(hacked).choices).toMatchObject({ secondAssist: true, stickShots: true })
+      const back = applySnesHacks({ ...project, bytes: hacked }, { secondAssist: false, stickShots: false })
+      expect(Buffer.compare(back.bytes, rom)).toBe(0)
+    })
+  }
+})

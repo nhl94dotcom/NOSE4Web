@@ -939,16 +939,17 @@ export function HelpPage() {
           the weight bug too.
         </li>
         <li>
-          <b>Second-assist bug fix:</b> gives the assist the original game leaves out when two players pass back
-          and forth before a goal.
+          <b>Second-assist bug fix</b> (Genesis and SNES): gives the assist the original game leaves out when two
+          players pass back and forth before a goal.
         </li>
         <li>
-          <b>Count stick deflections as shots</b> (with the statistics, Genesis only): a hard low shot the goalie
+          <b>Count stick deflections as shots</b> (with the statistics, Genesis and SNES): a hard low shot the goalie
           deflects with his stick is not counted as a shot on goal in the original game, only a catch or a body save
           is, so shots along the ice go missing from the totals, more of them for the team attacking down the screen.
           With this on a hard low shot his stick knocks away counts once, for the shooter and his team and against
           the goalie, as one his stick catches already does: about 2 more shots on goal a game in recorded league
-          games. Only the statistics change.
+          games. Only the statistics change. On the SNES the goalie's stick and glove knock away hard high shots
+          too, and those count as well; how many more a game is still to be measured there.
         </li>
         <li>
           <b>Bodycheck statistics:</b> counts each player's checks and shows them in Player Stats as Chk, in place
@@ -1474,8 +1475,8 @@ export function HelpPage() {
           <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
           cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
           penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
-          penalty kill fix, comeback bonus fix, faceoff spot fix and computer forwards' awareness option, as for the
-          Genesis, and penalty shot fixes (a penalty shot whistled dead
+          penalty kill fix, comeback bonus fix, faceoff spot fix, computer forwards' awareness option, second-assist
+          bug fix and the option to count stick deflections as shots, as for the Genesis, and penalty shot fixes (a penalty shot whistled dead
           because the net was knocked off, or because the loose puck stood still for two seconds, is no longer taken
           again); NHL94SNESVault's extra attacker fix (in Edit Lines, picking a line's extra attacker for one of
           its positions swaps the two, where the original game puts him in both and drops the player he replaced; for

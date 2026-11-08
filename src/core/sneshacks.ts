@@ -30,6 +30,8 @@ export type SnesHack =
   | 'yButtonFix'
   | 'comebackFix'
   | 'awarenessFix'
+  | 'secondAssist'
+  | 'stickShots'
 
 interface Site {
   // The game's address.
@@ -148,6 +150,8 @@ export const SNES_HACKS: SnesHack[] = [
   'yButtonFix',
   'comebackFix',
   'awarenessFix',
+  'secondAssist',
+  'stickShots',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -167,6 +171,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   yButtonFix: 'Y button fix',
   comebackFix: 'Comeback bonus fix',
   awarenessFix: "Computer forwards' awareness fix",
+  secondAssist: 'Second-assist bug fix',
+  stickShots: 'Count stick deflections as shots',
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -347,6 +353,54 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     if (sites.some((found) => found < 0 || (rom[found + 7] !== 0x43 && rom[found + 7] !== 0x23))) return null
     return sites.map((found) => ({ at: found + 7, original: hexBytes('43'), hacked: hexBytes('23') }))
   },
+  // The second assist (bug 1), as on the Genesis: a2touchpuck shifts a team's
+  // last touches down (tmtouch2 to tmtouch3, tmtouch1 to tmtouch2) with no
+  // check, then drops the third if the new toucher is it too. So in C, A, B,
+  // A, with A scoring, B has the only assist. The fix keeps tmtouch3 where the
+  // new toucher is tmtouch2 already, as the Genesis fix does: the 12 bytes of
+  // the shift become a call to the shift with that test. The SNES has no
+  // other shift. Found by the bra .3 before it and the code after, which
+  // stores d0 (the toucher) in tmtouch1 and compares it with tmtouch3.
+  // (Match Viewer's reading.)
+  secondAssist: (rom) => {
+    const found = only(rom, '800c' + '..'.repeat(12) + 'a5..99....d9....d006a9ffff99')
+    if (found < 0) return null
+    const site = found + 2
+    const d0 = rom[site + 13]
+    const [t1, t3] = [word(readU16(rom, site + 15)), word(readU16(rom, site + 18))]
+    const t2 = word(readU16(rom, site + 15) + 4)
+    const original = bytesOf('B9', t2, '99', t3, 'B9', t1, '99', t2)
+    const call = (to: number) => bytesOf('20', word(to), 'EA'.repeat(9))
+    if (!same(rom, site, original) && !(rom[site] === 0x20 && same(rom, site + 3, hexBytes('EA'.repeat(9))))) return null
+    const code = bytesOf('A5', d0, 'D9', t2, 'F006', original, '60')
+    return withNewCode(rom, site, call, original, code)
+  },
+  // Stick deflections (bug 34), as on the Genesis but wider: in puckstick, a
+  // puck too fast for the goalie to catch takes .t1x (nopuck 8) to .3, which
+  // plays the sound, has him touch it and deflects it, and never counts the
+  // shot (ChkShotStat). That is a hard shot off his stick, low or high, or
+  // his glove. The fix points .t1x's jmp .3 at new code: for a goalie
+  // (position 0) it calls ChkShotStat first, which counts a shot only while
+  // the puck is a shot (sf2shot) and the clock runs, and clears sf2shot so it
+  // counts once; then it goes on to .3. Y is the player there. Found by the
+  // tests before .t1x (lda position,x; beq .t1x; lda d2; cmp #$25; bcc), and
+  // ChkShotStat by its start. (Match Viewer's reading and hook.)
+  stickShots: (rom) => {
+    const found = only(rom, 'bd....f0..a5..c9250090034c....a4..a9080099....4c....')
+    const shot = only(rom, 'a900101c....d0034c....ad....f0034c....a58d48a58f48')
+    if (found < 0 || shot < 0) return null
+    const site = found + 23
+    const position = word(readU16(rom, found + 1))
+    const bank = loRomBank(site, 0x80)
+    const target = loRomOffset(bank, readU16(rom, site + 1))
+    // .3 starts lda #3, jsl PuckSfx; or the jump is to the new code, which ends jmp .3.
+    const head = bytesOf('B9', position, 'D004 22')
+    const dot3 = same(rom, target, hexBytes('A90300 22')) ? readU16(rom, site + 1) : same(rom, target, head) ? readU16(rom, target + 10) : -1
+    if (dot3 < 0) return null
+    const original = bytesOf('4C', word(dot3))
+    const code = bytesOf(head, word(loRomAddress(shot)), loRomBank(shot, 0x80), '4C', word(dot3))
+    return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), original, code)
+  },
   // Holdplayer: lda position,x; beq; lda pfalock,x; beq .t1; lda SPA,x; cmp #SPAburst; bne .t1; rtl.
   yButtonFix: (rom) => {
     const found = only(rom, 'bd....f00dbd....f009bd....c9....' + '....' + '6b')
@@ -485,8 +539,8 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'defenceControl',
-  'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // What this ROM has, as a Discord post for a league's owners. The extra
