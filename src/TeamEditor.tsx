@@ -451,6 +451,15 @@ export function TeamEditor(props: Props) {
 
   return (
     <main className="team">
+      {game.credit && (
+        <p className="notice">
+          This ROM is <b>{game.credit.rom}</b>, made by <b>{game.credit.author}</b>. Its home is{' '}
+          <a href={game.credit.url} target="_blank" rel="noopener noreferrer">
+            {game.credit.author}'s post on the NHL94 forum
+          </a>
+          , with the latest version and its notes.
+        </p>
+      )}
       {game.notice && <p className="notice">{game.notice}</p>}
       {fewerSkaters && (
         <p className="notice">

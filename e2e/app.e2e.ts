@@ -1957,6 +1957,8 @@ test.describe('with a 32-team SNES build', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snes32Path)
     await team(page, 'Boston Bruins').click()
+    // Its maker is credited, with a link to its forum post.
+    await expect(page.getByRole('link', { name: "McMarkis's post on the NHL94 forum" })).toHaveAttribute('href', /forum\.nhl94\.com.*40498/)
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Score logo' }) })
     await expect(section.locator('canvas.preview')).toBeVisible()
     await section.screenshot({ path: 'test-results/shots/score-logo.png' })

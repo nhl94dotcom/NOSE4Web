@@ -1450,6 +1450,11 @@ export function HelpPage() {
         is used in them. Roster edits to one of these ROMs have been checked in the game. A team's page has a
         notice at the top when the ROM is one of these.
       </p>
+      <p>
+        Where a ROM is someone's own release, the notice names it and its maker, with a link to its official post on
+        the NHL94 forum: NHL 94 EVO by AdamCatalyst, and the SNES NHL 94: 32 Team + 60 FPS + Fighting by McMarkis.
+        That is where to find the latest version and its notes.
+      </p>
       <ul>
         <li>
           <b>NHL 94: EVO</b> rebuilds much of the game, and the editor supports part of it: rosters, lines, team

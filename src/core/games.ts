@@ -45,6 +45,9 @@ export interface GameConfig {
   // Shown at the top of every team's page: what is different about editing
   // this kind of ROM. Empty for the original game.
   notice: string
+  // A hack's own name, its maker, and its official forum post, shown with
+  // the notice to credit them (as McMarkis suggested).
+  credit?: { rom: string; author: string; url: string }
   // Leagues the team list is divided into, in order, where a hack has several.
   teamGroups: { name: string; teams: number }[]
   // Places in the game's code that hold the address of the playoff draw tables.
@@ -221,6 +224,7 @@ export const NHL94_EVO: GameConfig = {
     'Ovr here is a plain average for comparing players, not the number the game shows; and what the three goalie ' +
     'values marked G7, G9 and G10 stand for is not known to the editor. Each team has its own fixed room in the ROM. ' +
     'Editing this ROM has been tested less than editing the original game, so keep a copy of the file you opened.',
+  credit: { rom: 'NHL 94 EVO', author: 'AdamCatalyst', url: 'https://forum.nhl94.com/index.php?/topic/40320-nhl-94-evo/' },
   teamGroups: [
     { name: 'NHL', teams: 32 },
     { name: 'International', teams: 6 },
@@ -294,6 +298,15 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
         "The editor can change its rosters, lines, team names, team ratings, colours and logos, the rink's " +
         'colours and the game settings, and put in the hacks on the Hacks page, found where this ROM has the code ' +
         'they change. SNES editing is new, so keep a copy of the file you opened.',
+    // The rebuilt 32-team ROM is McMarkis's, in its 2 MB and SA-1 builds.
+    credit:
+      !codeInPlace && table.count === 32
+        ? {
+            rom: 'SNES NHL 94: 32 Team + 60 FPS + Fighting',
+            author: 'McMarkis',
+            url: 'https://forum.nhl94.com/index.php?/topic/40498-snes-nhl-27-fighting-60-fps/',
+          }
+        : undefined,
   }
   snesVariants.set(key, config)
   return config
