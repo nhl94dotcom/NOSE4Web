@@ -471,7 +471,7 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
 
 // The fixes a league can take without choosing anything, each tested in the
 // game; the faceoff spot fix, a choice between eras, is left as it is.
-export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['hotColdFix', 'ppPkFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']
+export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['hotColdFix', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']
 
 // `choices` with the recommended fixes on, except where this ROM has other code.
 export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {

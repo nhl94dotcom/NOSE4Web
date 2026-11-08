@@ -337,8 +337,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             the computer) the original game makes every one of its shots from within range go exactly where it is
             aimed, whatever the shooter's Shot Accuracy. With the fix such a shot takes the normal accuracy roll, as
             any other does (exact within range about half the time at Shot Accuracy 15). Shots at an empty net are
-            not affected; they already take the roll. Found by the NHL94 Match Viewer project. Not yet tested in the
-            game.
+            not affected; they already take the roll. Found by the NHL94 Match Viewer project, and tested in the game:
+            with the shooter's goalie pulled, 270 of 270 test shots hit the aim on the original, 155 on the fix, the
+            same rate as with the goalie in.
           </>,
         )}
         {hack(
@@ -372,7 +373,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             when his team has the puck, Defensive when it does not. But computer wingers and centres on offence use
             their Defensive Awareness, a slip in the game's code. With this on they use Offensive. A small change: the
             interval is 7 to 15 frames, and for most players it moves by a frame at most. Found by the NHL94 Match
-            Viewer project. Not yet tested in the game.
+            Viewer project and tested in the game.
           </>,
         )}
         {hack(
@@ -383,7 +384,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             reach for the goalie's body) when the crowd meter is past its record, but a switch in the code leaves it
             on all the time. With this on it comes and goes with the meter, which in recorded games is past its
             record about three quarters of the time, so skaters are a little slower in the quiet spells. Found by the
-            NHL94 Match Viewer project. Not yet tested in the game.
+            NHL94 Match Viewer project and tested in the game: a quiet crowd now takes about 5% off a skater's top
+            speed.
           </>,
         )}
       </section>

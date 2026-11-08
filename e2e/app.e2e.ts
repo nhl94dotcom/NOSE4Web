@@ -1515,6 +1515,7 @@ test.describe('with the NHL 94 ROM', () => {
       'Runaway speed fix: off to on.',
       'Penalty shot table fix: off to on.',
       'Penalty shot fixes: off to on.',
+      'Pulled-goalie sniping fix: off to on.',
     ])
     await expect(main.getByRole('button', { name: 'Turn on the recommended fixes' })).toBeDisabled()
     await main.getByLabel('Goalie hold time').fill('5')
@@ -1533,6 +1534,7 @@ test.describe('with the NHL 94 ROM', () => {
         '- **Runaway speed fix**',
         '- **Penalty shot table fix**',
         '- **Penalty shot fixes**',
+        '- **Pulled-goalie sniping fix**',
         '- **Goalie hold time**: 5 seconds (the original game has 2.33 seconds)',
       ].join('\n'),
     )
@@ -1891,11 +1893,12 @@ test.describe('with the SNES game', () => {
       'Penalty shot fixes: off to on.',
       'Extra attacker fix: off to on.',
       'Y button fix: off to on.',
+      'Comeback bonus fix: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Hot and cold bug fix**\n- **Power play and penalty kill fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Y button fix**',
+      '**Hacks in NHL94**\n- **Hot and cold bug fix**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Y button fix**',
     )
   })
 

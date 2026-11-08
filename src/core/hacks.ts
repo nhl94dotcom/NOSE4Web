@@ -1185,6 +1185,7 @@ export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   runawayFix: true,
   penaltyShotTableFix: true,
   penaltyShotFixes: true,
+  snipingFix: true,
 }
 
 // `choices` with the recommended fixes, except where this ROM's code is not known.

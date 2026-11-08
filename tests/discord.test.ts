@@ -13,7 +13,7 @@ describe('the recommended fixes', () => {
 
     const off = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
     const snes = withRecommendedSnesFixes(off, ['extraAttackerFix'])
-    expect(SNES_HACKS.filter((hack) => snes[hack])).toEqual(RECOMMENDED_SNES_FIXES.filter((hack) => hack !== 'extraAttackerFix'))
+    expect(SNES_HACKS.filter((hack) => snes[hack]).sort()).toEqual(RECOMMENDED_SNES_FIXES.filter((hack) => hack !== 'extraAttackerFix').sort())
   })
 })
 

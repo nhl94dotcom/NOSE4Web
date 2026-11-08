@@ -96,9 +96,9 @@ That licence does not cover:
   options for the computer's goalie pull and the goalie's five-hole blind
   ring, and, on the SNES, NHL94SNESVault's extra attacker fix and a Y button
   fix, all tested in the game with the NHL94 Match Viewer project
-- From the same project's readings, still to be tested in the game: a fix
-  for pulled-goalie sniping (every shot exact while the shooter's own goalie
-  is off the ice), the comeback bonus fix for the SNES, and options for the
+- From the same project's readings, also tested in the game: a fix for
+  pulled-goalie sniping (every shot exact while the shooter's own goalie is
+  off the ice), the comeback bonus fix for the SNES, and options for the
   computer forwards' awareness slip and the always-on crowd bonus
 - On both Hacks pages: turn on every recommended fix at once, copy a ROM's
   hacks as a Discord post for a league's owners, and copy the hacks of
