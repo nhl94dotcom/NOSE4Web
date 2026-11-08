@@ -347,8 +347,8 @@ export function withScoreLogosTakenOut(project: RomProject): RomProject {
 }
 
 // A team's score logo made from its team logo: the logo's drawn part fitted
-// into 22 by 11 pixels, keeping its shape, each pixel the average of what it
-// covers; its most used colours, up to ten, as its own; a white ring round
+// into 22 by 11 pixels, keeping its shape, each pixel the colour of what it
+// covers nearest their mix; its most used colours, up to ten, as its own; a white ring round
 // it and the box's black elsewhere, as McMarkis's are.
 export function scoreLogoFromTeamLogo(project: RomProject, team: number): { picture: Picture; palette: number[] } {
   const { picture: big, palette: bigPalette } = snesLogo(project.bytes, project.teams.length, project.snesPictures ?? { logos: {}, centreIce: {} }, team)
@@ -368,7 +368,9 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
   const cells: (number[] | null)[] = []
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      const sum = [0, 0, 0]
+      // The colours of what it covers: an average of them would blend a
+      // logo's colours (Boston's black and gold made olive).
+      const uses = new Map<number, number>()
       let [drawn, count] = [0, 0]
       for (let sy = Math.floor(y * scale); sy < Math.max(Math.floor(y * scale) + 1, Math.floor((y + 1) * scale)); sy++) {
         for (let sx = Math.floor(x * scale); sx < Math.max(Math.floor(x * scale) + 1, Math.floor((x + 1) * scale)); sx++) {
@@ -376,10 +378,17 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
           const p = sx < w && sy < h ? big.pixels[(top + sy) * big.width + left + sx] : 0
           if (!p) continue
           drawn++
-          rgb[p].forEach((v, k) => (sum[k] += v))
+          uses.set(p, (uses.get(p) ?? 0) + 1)
         }
       }
-      cells.push(drawn * 2 >= count ? sum.map((v) => v / drawn) : null)
+      if (drawn * 2 < count) {
+        cells.push(null)
+        continue
+      }
+      // Of the colours there, the one nearest their mix: never a blend, but the mix decides.
+      const mix = [0, 1, 2].map((k) => [...uses].reduce((sum, [p, n]) => sum + rgb[p][k] * n, 0) / drawn)
+      const distance = (p: number) => rgb[p].reduce((sum, v, k) => sum + (v - mix[k]) ** 2, 0)
+      cells.push(rgb[[...uses.keys()].sort((a, b) => distance(a) - distance(b))[0]])
     }
   }
   // Its own colours: the most used, matched to what the console can show.
