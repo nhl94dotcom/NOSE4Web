@@ -197,6 +197,10 @@ function drawLogo(set: Uint8Array, p: number): Picture {
   const firstPart = readU16LE(set, p + 0x0c) / TILE
   const secondPartAt = Math.max(1, Math.ceil(firstPart / VRAM_ROW)) * VRAM_ROW
   const tiles = p + readU16LE(set, p + 0x10)
+  // The game puts the pieces in the sprite table in order, and an earlier
+  // sprite is in front (Match Viewer): where two pieces overlap, the first
+  // with a colour there is what shows.
+  const drawn = new Uint8Array(LOGO_SIZE * LOGO_SIZE)
   for (let s = 0; s < count; s++) {
     const q = p + FRAME_HEADER + s * PIECE
     const [left, top, first, flags] = [signed(set, q), signed(set, q + 2), set[q + 4], set[q + 5]]
@@ -209,7 +213,10 @@ function drawLogo(set: Uint8Array, p: number): Picture {
         const tile = tiles + (place < secondPartAt ? place : firstPart + place - secondPartAt) * TILE
         const colour = tile + TILE <= set.length ? tilePixel(set, tile, fx & 7, fy & 7) : 0
         const [px, py] = [left + x + LOGO_ORIGIN, top + y + LOGO_ORIGIN]
-        if (colour && px >= 0 && py >= 0 && px < LOGO_SIZE && py < LOGO_SIZE) picture.pixels[py * LOGO_SIZE + px] = colour
+        if (colour && px >= 0 && py >= 0 && px < LOGO_SIZE && py < LOGO_SIZE && !drawn[py * LOGO_SIZE + px]) {
+          picture.pixels[py * LOGO_SIZE + px] = colour
+          drawn[py * LOGO_SIZE + px] = 1
+        }
       }
     }
   }
