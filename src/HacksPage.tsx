@@ -403,8 +403,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             A hard low shot that comes off the goalie's stick is a save on the ice, but the original game does not count
             it as a shot on goal: only a catch or a save with his body counts. So shots along the ice go missing from
             the totals, and a team attacking down the screen, where more shots are aimed that way, is credited with
-            about 6% fewer. With this on, a stick deflection of a shot counts as a shot on goal for the shooter and his
-            team and against the goalie, once: about 4 more shots on goal a game in recorded league games. Only the
+            about 6% fewer. With this on, a hard low shot the goalie's stick knocks away counts as a shot on goal for
+            the shooter and his team and against the goalie, once, as one his stick catches already does: about 2 more
+            shots on goal a game in recorded league games. Only the
             statistics change; play, the crowd and everything else are as before. Found, built and tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
