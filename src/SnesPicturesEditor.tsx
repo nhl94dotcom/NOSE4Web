@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { backgroundNote, withSeeThroughBackground } from './core/background'
 import { colorRgb, SNES_COLORS } from './core/color'
 import { pictureToImage, type Picture } from './core/graphics'
 import { squaresInBestRow } from './core/paint'
@@ -39,9 +40,16 @@ interface Props {
 // The SNES game's team logo and centre ice logo, exported and imported as
 // PNG images. See core/snespictures.ts.
 export function SnesPicturesEditor({ project, team, onChange }: Props) {
-  const [notice, setNotice] = useState('')
+  const [notice, setNoticeOnly] = useState('')
   const [failed, setFailed] = useState(false)
   const [drawing, setDrawing] = useState<Kind | null>(null)
+  // The image just imported with its background made see-through, to import again as it was.
+  const [cleared, setCleared] = useState<{ file: File; kind: Kind; team: number } | null>(null)
+  // A new notice is about something else.
+  const setNotice = (text: string) => {
+    setNoticeOnly(text)
+    setCleared(null)
+  }
   const teams = project.teams.length
   const edits = project.snesPictures ?? NO_SNES_PICTURE_EDITS
   // The rink without a centre ice logo, for showing one on it as it is drawn.
@@ -68,19 +76,22 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
   const names = (others: number[]) => others.map((other) => teamDisplayName(project.teams[other])).join(', ')
 
   // Takes the edits if they can be written into the ROM; the logos share limited room.
-  function apply(next: SnesPictureEdits, message: string) {
+  // `hint` is said whether or not the edits fit.
+  function apply(next: SnesPictureEdits, message: string, hint = '') {
     try {
       writeSnesPictures(project.bytes.slice(), teams, next)
       onChange({ ...project, snesPictures: next })
-      setNotice(message)
+      setNotice(message + hint)
       setFailed(false)
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e))
+      setNotice((e instanceof Error ? e.message : String(e)) + hint)
       setFailed(true)
     }
   }
 
-  async function importPicture(file: File, kind: Kind) {
+  // `keepBackground` imports an image with no see-through pixels as it is,
+  // rather than with the background around the logo made see-through.
+  async function importPicture(file: File, kind: Kind, keepBackground = false) {
     try {
       let image
       try {
@@ -88,14 +99,18 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
       } catch {
         throw new Error(`${file.name} could not be read as an image.`)
       }
+      const clear = keepBackground ? null : withSeeThroughBackground(image)
+      const hint = backgroundNote(image, clear?.colour ?? null)
+      if (clear) image = clear.image
       if (kind === 'logo') {
         const made = snesLogoFromImage(image.rgba, image.width, image.height)
         const merged = made.colorsFound > 15 ? ` The image had ${made.colorsFound} colours; the logo can have 15, so the rest were matched to the nearest.` : ''
-        apply({ ...edits, logos: { ...edits.logos, [team]: { picture: made.picture, palette: made.palette } } }, `Logo replaced.${merged}`)
+        apply({ ...edits, logos: { ...edits.logos, [team]: { picture: made.picture, palette: made.palette } } }, `Logo replaced.${merged}`, hint)
       } else {
         const { centreIce, replaced } = withCentreIce(team, image.rgba, image.width, image.height)
-        apply({ ...edits, centreIce }, `Centre ice logo replaced${replaced.length > 1 ? ` for ${names(replaced)}` : ''}.`)
+        apply({ ...edits, centreIce }, `Centre ice logo replaced${replaced.length > 1 ? ` for ${names(replaced)}` : ''}.`, hint)
       }
+      if (clear) setCleared({ file, kind, team })
     } catch (e) {
       setNotice(e instanceof Error ? e.message : `${file.name} could not be used.`)
       setFailed(true)
@@ -179,7 +194,17 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
         Export a logo, change it in any image editor, and import it again at the same size ({LOGO_SIZE} by {LOGO_SIZE}{' '}
         for the team logo). See-through areas stay see-through.
       </p>
-      {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {notice && (
+        <p className={failed ? 'error' : 'note'}>
+          {notice}
+          {cleared?.team === team && (
+            <>
+              {' '}
+              <button onClick={() => void importPicture(cleared.file, cleared.kind, true)}>Import it with its background instead</button>
+            </>
+          )}
+        </p>
+      )}
       <div className="pictures">
         {pictures.map(({ kind, title, picture, scale, note }) => (
           <div key={kind} className="picture">

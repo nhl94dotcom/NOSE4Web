@@ -285,7 +285,9 @@ export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
     throw new Error(
       `A logo may have at most ${MOST_TILES} different squares of 8 by 8 pixels, and this would make it ${tiles.length}. ` +
         'Empty squares and exact copies of another square, even flipped, do not count. ' +
-        'To make room, erase a square or two near the edge, or make some squares copies of others.',
+        'To make room, erase a square or two near the edge, or make some squares copies of others. ' +
+        `A detailed picture that fills all ${LOGO_SIZE} by ${LOGO_SIZE} pixels has ${(LOGO_SIZE / 8) ** 2} squares: ` +
+        `shrink it to about ${LOGO_SIZE - 8} by ${LOGO_SIZE - 8} with see-through around it, and plain areas of one colour repeat squares.`,
     )
   }
 

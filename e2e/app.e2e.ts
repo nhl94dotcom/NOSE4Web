@@ -2006,6 +2006,36 @@ test.describe('with the SNES game', () => {
     )
   })
 
+  test('makes the white background of a logo saved by MS Paint see-through, or keeps it on request', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
+    // A red disc on solid white, filling 56 by 56.
+    const url = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 56
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, 56, 56)
+      context.fillStyle = '#c00000'
+      context.beginPath()
+      context.arc(28, 28, 20, 0, Math.PI * 2)
+      context.fill()
+      return canvas.toDataURL('image/png')
+    })
+    const file = { name: 'paint.png', mimeType: 'image/png', buffer: Buffer.from(url.split(',')[1], 'base64') }
+    await logos.getByLabel('Import team logo').setInputFiles(file)
+    await expect(logos.getByText(/Logo replaced\..*the white around the logo was made see-through/)).toBeVisible()
+    const corner = () =>
+      logos.locator('canvas.preview').first().evaluate((canvas: HTMLCanvasElement) => Array.from(canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data))
+    expect((await corner())[3]).toBe(0)
+    await logos.getByRole('button', { name: 'Import it with its background instead' }).click()
+    await expect(logos.getByText(/Logo replaced\..*no see-through pixels, so the game will show the logo as a solid box/)).toBeVisible()
+    await expect(logos.getByRole('button', { name: 'Import it with its background instead' })).toBeHidden()
+    expect((await corner()).slice(0, 3)).toEqual([0xff, 0xff, 0xff])
+  })
+
   test("draws a team logo and a centre ice logo, counting the logo's tiles", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)

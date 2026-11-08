@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { backgroundNote, withSeeThroughBackground } from './core/background'
 import type { ColorFormat } from './core/color'
 import {
   bannerColors,
@@ -85,7 +86,14 @@ interface Props {
 }
 
 export function GraphicsEditor({ project, team, onChange }: Props) {
-  const [notice, setNotice] = useState('')
+  const [notice, setNoticeOnly] = useState('')
+  // The logo just imported with its background made see-through, to import again as it was.
+  const [cleared, setCleared] = useState<{ file: File; kind: PictureKind; team: number } | null>(null)
+  // A new notice is about something else.
+  const setNotice = (text: string) => {
+    setNoticeOnly(text)
+    setCleared(null)
+  }
   // The picture being drawn, if one is.
   const [drawing, setDrawing] = useState<PictureKind | null>(null)
   const [failed, setFailed] = useState(false)
@@ -100,15 +108,16 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
 
   // Applies a replacement if it can be written into the ROM. Pictures share
   // limited room, so some replacements do not fit.
-  function apply(graphics: GraphicsEdits, message: string) {
+  // `background` is said whether or not the replacement fits.
+  function apply(graphics: GraphicsEdits, message: string, background = '') {
     try {
       writeGraphics(project.bytes.slice(), project.game, graphics)
       onChange({ ...project, graphics })
-      setNotice(message)
+      setNotice(message + background)
       setFailed(false)
     } catch (e) {
       const hint = e instanceof NoRoomError && moreRoom ? ` Or click "${roomButton}" below.` : ''
-      setNotice((e instanceof Error ? e.message : String(e)) + hint)
+      setNotice((e instanceof Error ? e.message : String(e)) + hint + background)
       setFailed(true)
     }
   }
@@ -121,7 +130,10 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const everyTeam = (kind: PictureKind) => pictureSharedWith(project, team, kind).length === project.teams.length
   const replacedText = (kind: PictureKind) => `${pictureTitle(project, kind)} replaced${everyTeam(kind) ? ' for every team' : ''}.`
 
-  async function importPicture(file: File, kind: PictureKind) {
+  // A logo, unlike a banner, has see-through room around it. `keepBackground`
+  // imports a logo with no see-through pixels as it is, rather than with the
+  // background around it made see-through.
+  async function importPicture(file: File, kind: PictureKind, keepBackground = false) {
     try {
       let image
       try {
@@ -129,8 +141,12 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
       } catch {
         throw new Error(`${file.name} could not be read as an image.`)
       }
-      const made = withPictureFromImage(project, team, kind, image)
-      apply(made.graphics, `${replacedText(kind)} ${made.note}`.trim())
+      const logo = kind === 'rinkLogo' || kind === 'menuLogo'
+      const clear = logo && !keepBackground ? withSeeThroughBackground(image) : null
+      const background = logo ? backgroundNote(image, clear?.colour ?? null) : ''
+      const made = withPictureFromImage(project, team, kind, clear?.image ?? image)
+      apply(made.graphics, `${replacedText(kind)} ${made.note}`.trim(), background)
+      if (clear) setCleared({ file, kind, team })
     } catch (e) {
       fail(e, `${file.name} could not be used.`)
     }
@@ -209,7 +225,17 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         the nearest the picture is allowed to use, and see-through areas stay see-through. To move every team's
         pictures at once, use Picture files in the list on the left.
       </p>
-      {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {notice && (
+        <p className={failed ? 'error' : 'note'}>
+          {notice}
+          {cleared?.team === team && (
+            <>
+              {' '}
+              <button onClick={() => void importPicture(cleared.file, cleared.kind, true)}>Import it with its background instead</button>
+            </>
+          )}
+        </p>
+      )}
       <div className="pictures">
         {kinds.map((kind) => {
           const { picture, palette } = currentPicture(project, team, kind)

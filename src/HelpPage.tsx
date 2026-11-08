@@ -495,6 +495,11 @@ export function HelpPage() {
         </li>
         <li>See-through parts of your image stay see-through, showing the ice or the menu behind.</li>
         <li>
+          A logo saved with a solid background (MS Paint cannot save a see-through one, and nor can a JPEG) has the background
+          around it made see-through when you import it, on both platforms: the colour in its four corners, where it reaches
+          the edge. Press <b>Import it with its background instead</b> to keep the background. Banners are left as they are.
+        </li>
+        <li>
           The <b>centre-ice logo</b> is drawn with the team's 16 home colours, the same ones the players wear. Every
           pixel is matched to the nearest of them, so set the home colours first.
         </li>
