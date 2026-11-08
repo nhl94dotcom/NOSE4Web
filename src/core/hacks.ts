@@ -89,6 +89,12 @@ export interface HackChoices {
   goaliePullFix: boolean
   // Lets a goalie's body play a loose puck 8 to 14 units from his blade, where nothing touches it in the original.
   blindRingFix: boolean
+  // A shot with the shooter's own goalie off the ice takes the normal accuracy roll, not always exact.
+  snipingFix: boolean
+  // Computer wingers and centres on offence time their decisions by Offensive Awareness, not Defensive.
+  awarenessFix: boolean
+  // The crowd's +2 Agility and Speed come only when the crowd meter is past its record, not always.
+  crowdFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -130,6 +136,9 @@ export type HackPart =
   | 'penaltyShotFixes'
   | 'goaliePullFix'
   | 'blindRingFix'
+  | 'snipingFix'
+  | 'awarenessFix'
+  | 'crowdFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -167,6 +176,9 @@ export const NO_HACKS: HackChoices = {
   penaltyShotFixes: false,
   goaliePullFix: false,
   blindRingFix: false,
+  snipingFix: false,
+  awarenessFix: false,
+  crowdFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -843,6 +855,53 @@ const blindRingFix: Part<boolean> = {
   },
 }
 
+// Pulled-goalie sniping (bug 13 in the known bugs list). doshot makes a shot
+// from within 200 exact, where it is aimed, whenever ReadGoaliePulled finds
+// the shooting team's own goalie off the ice: on a delayed penalty, or a
+// late pull by a person or by the computer. The fix takes out that bmi.w
+// .perf, so such a shot takes the normal accuracy roll (exact within 200 with
+// chance (ShA + 1) / (ShA + 16)). An empty net at the other end already takes
+// the roll; ReadGoaliePulled's other callers, which only make the computer's
+// skaters think again sooner, are left. (Match Viewer's reading of doshot.)
+const snipingFix = switchPart(0xc422, bytes('6B00 0084'), bytes('4E71 4E71'))
+
+// Two parts that are in or out together.
+function bothParts(a: Part<boolean>, b: Part<boolean>): Part<boolean> {
+  return {
+    detect: (rom) => {
+      const [x, y] = [a.detect(rom), b.detect(rom)]
+      return x === y ? x : undefined
+    },
+    remove: (rom) => {
+      a.remove(rom)
+      b.remove(rom)
+    },
+    apply: (work, value) => {
+      a.apply(work, value)
+      b.apply(work, value)
+    },
+  }
+}
+
+// The awareness slip (bug 20). Each job that steers a computer skater
+// reloads the timer for his next decision from his awareness: the offence
+// jobs from Offensive Awareness (aioff, $6A), the defence jobs from Defensive
+// (aidef, $6B), but the winger's and the centre's offence jobs (asswingo,
+// asscentero) load aidef. The option makes them load aioff. A small change:
+// the timer runs 7 to 15 frames, and over the original rosters it moves by a
+// frame at most for most skaters. (Match Viewer's reading of the eight reloads.)
+const awarenessFix = bothParts(switchPart(0xd0e1, bytes('6B'), bytes('6A')), switchPart(0xd2d9, bytes('6B'), bytes('6A')))
+
+// The crowd bonus (bug 21). When the crowd meter is past its record
+// (sflags7 bit 6) skaters get +2 Agility and +2 Speed in skating, a
+// boost for the chaser of the puck, more reach for the goalie's body and a
+// person's poke trip with penalties off; but every test checks sflags8 bit 1
+// first, which SetSflags8Bit1 always sets (it starts with a bra.w past its
+// own bclr), so the bonus is on all the time. Two nops in place of that bra
+// make it follow the meter, which in the recordings is past its record about
+// 73% of live play. (Match Viewer's reading.)
+const crowdFix = switchPart(0xfef66, bytes('6000 000C'), bytes('4E71 4E71'))
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -1017,6 +1076,9 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltyShotFixes: found('penaltyShotFixes', penaltyShotFixes.detect(rom), NO_HACKS.penaltyShotFixes),
     goaliePullFix: found('goaliePullFix', goaliePullFix.detect(rom), NO_HACKS.goaliePullFix),
     blindRingFix: found('blindRingFix', blindRingFix.detect(rom), NO_HACKS.blindRingFix),
+    snipingFix: found('snipingFix', snipingFix.detect(rom), NO_HACKS.snipingFix),
+    awarenessFix: found('awarenessFix', awarenessFix.detect(rom), NO_HACKS.awarenessFix),
+    crowdFix: found('crowdFix', crowdFix.detect(rom), NO_HACKS.crowdFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -1075,6 +1137,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltyShotFixes', () => penaltyShotFixes.remove(work.rom), () => penaltyShotFixes.apply(work, wanted.penaltyShotFixes)],
     ['goaliePullFix', () => goaliePullFix.remove(work.rom), () => goaliePullFix.apply(work, wanted.goaliePullFix)],
     ['blindRingFix', () => blindRingFix.remove(work.rom), () => blindRingFix.apply(work, wanted.blindRingFix)],
+    ['snipingFix', () => snipingFix.remove(work.rom), () => snipingFix.apply(work, wanted.snipingFix)],
+    ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
+    ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1134,7 +1199,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
-  'penaltyShotTableFix', 'penaltyShotFixes', 'goaliePullFix', 'blindRingFix', 'bodychecks', 'plusMinus', 'threeStars',
+  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
 ]
@@ -1263,6 +1328,9 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltyShotFixes: 'Penalty shot fixes',
   goaliePullFix: 'Computer goalie pull fix',
   blindRingFix: 'Close the five-hole blind ring',
+  snipingFix: 'Pulled-goalie sniping fix',
+  awarenessFix: "Computer forwards' awareness fix",
+  crowdFix: 'Crowd bonus fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1296,6 +1364,9 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltyShotFixes: 'penaltyShotFixes',
   goaliePullFix: 'goaliePullFix',
   blindRingFix: 'blindRingFix',
+  snipingFix: 'snipingFix',
+  awarenessFix: 'awarenessFix',
+  crowdFix: 'crowdFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

@@ -28,6 +28,8 @@ export type SnesHack =
   | 'penaltyShotFixes'
   | 'extraAttackerFix'
   | 'yButtonFix'
+  | 'comebackFix'
+  | 'awarenessFix'
 
 interface Site {
   // The game's address.
@@ -144,6 +146,8 @@ export const SNES_HACKS: SnesHack[] = [
   'penaltyShotFixes',
   'extraAttackerFix',
   'yButtonFix',
+  'comebackFix',
+  'awarenessFix',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -161,6 +165,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   penaltyShotFixes: 'Penalty shot fixes',
   extraAttackerFix: 'Extra attacker fix',
   yButtonFix: 'Y button fix',
+  comebackFix: 'Comeback bonus fix',
+  awarenessFix: "Computer forwards' awareness fix",
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -321,6 +327,26 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
   penaltyShotFixes: (rom) => penaltyShotFixes(rom),
+  // The comeback bonus (bug 25), as on the Genesis: setplayer works out half
+  // the period less the clock, then beq .2 and bpl .6, which skips the bonus in
+  // the second half of the third period where it should skip it in the first.
+  // The fix makes the bpl a bmi. Exactly half still gets it. (Match Viewer.)
+  comebackFix: (rom) => {
+    const found = only(rom, 'a5a538ed....f002....ad....38')
+    if (found < 0 || (rom[found + 8] !== 0x10 && rom[found + 8] !== 0x30)) return null
+    return [{ at: found + 8, original: hexBytes('10'), hacked: hexBytes('30') }]
+  },
+  // The awareness slip (bug 20), as on the Genesis: the winger's and the
+  // centre's offence jobs (asswingo, asscentero) reload the decision timer with
+  // adc aidef,x where the other offence jobs use aioff. The fix makes both
+  // aioff: the operand's low byte $43 becomes $23. Each is found by the jump
+  // to it (the same in every build). The defence jobs, which jump to theirs
+  // the same way, keep aidef. (Match Viewer's reading of the reloads.)
+  awarenessFix: (rom) => {
+    const sites = ['30034c2d85187d', '30034c798b187d'].map((pattern) => only(rom, pattern))
+    if (sites.some((found) => found < 0 || (rom[found + 7] !== 0x43 && rom[found + 7] !== 0x23))) return null
+    return sites.map((found) => ({ at: found + 7, original: hexBytes('43'), hacked: hexBytes('23') }))
+  },
   // Holdplayer: lda position,x; beq; lda pfalock,x; beq .t1; lda SPA,x; cmp #SPAburst; bne .t1; rtl.
   yButtonFix: (rom) => {
     const found = only(rom, 'bd....f00dbd....f009bd....c9....' + '....' + '6b')
@@ -456,7 +482,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'defenceControl',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'defenceControl',
   'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
 ]
 

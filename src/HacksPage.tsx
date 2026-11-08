@@ -158,7 +158,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -330,6 +330,18 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'snipingFix',
+          onOff('snipingFix'),
+          <>
+            Whenever a team's own goalie is off the ice (on a delayed penalty, or pulled late in a game by a person or
+            the computer) the original game makes every one of its shots from within range go exactly where it is
+            aimed, whatever the shooter's Shot Accuracy. With the fix such a shot takes the normal accuracy roll, as
+            any other does (exact within range about half the time at Shot Accuracy 15). Shots at an empty net are
+            not affected; they already take the roll. Found by the NHL94 Match Viewer project. Not yet tested in the
+            game.
+          </>,
+        )}
+        {hack(
           'goaliePullFix',
           onOff('goaliePullFix'),
           <>
@@ -337,8 +349,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             is exactly two goals behind: never when one goal down, which looks like a slip in the game's code (its own
             note says "more than 2"). With this on it pulls him when one or two goals behind, as a real coach would.
             This changes how the computer plays late in close games. While its goalie is out, the computer's shots
-            within range go exactly where they are aimed, as anyone's do with the goalie pulled. Found by the NHL94
-            Match Viewer project.
+            within range go exactly where they are aimed, as anyone's do with the goalie pulled, unless the
+            pulled-goalie sniping fix is on too. Found by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -350,6 +362,28 @@ export function HacksPage({ project, name, onChange }: Props) {
             it slides through his legs. With this on, his body plays such a puck as it would anywhere else. It is a
             small change overall (about 0.3% fewer expected goals over 928 recorded shots), but it falls on five-hole
             goals, 3 of 218 in the recordings. Measured by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'awarenessFix',
+          onOff('awarenessFix'),
+          <>
+            An option. A computer skater decides what to do next at intervals set by his awareness: Offensive Awareness
+            when his team has the puck, Defensive when it does not. But computer wingers and centres on offence use
+            their Defensive Awareness, a slip in the game's code. With this on they use Offensive. A small change: the
+            interval is 7 to 15 frames, and for most players it moves by a frame at most. Found by the NHL94 Match
+            Viewer project. Not yet tested in the game.
+          </>,
+        )}
+        {hack(
+          'crowdFix',
+          onOff('crowdFix'),
+          <>
+            An option. The game gives skaters a crowd bonus (+2 Agility and +2 Speed, a boost chasing the puck, more
+            reach for the goalie's body) when the crowd meter is past its record, but a switch in the code leaves it
+            on all the time. With this on it comes and goes with the meter, which in recorded games is past its
+            record about three quarters of the time, so skaters are a little slower in the quiet spells. Found by the
+            NHL94 Match Viewer project. Not yet tested in the game.
           </>,
         )}
       </section>

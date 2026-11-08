@@ -52,6 +52,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced from the line, so the line has one skater too few. With the fix the two swap, as they do for any other move within the line. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
   yButtonFix:
     'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.)',
+  comebackFix:
+    'A team tied or behind late in the third period is meant to get a bonus (+2 Offensive Awareness, +2 Checking and more passing and shooting), but the clock test is the wrong way round, so it comes in the first half of the period and not the second. This makes it come when it should. Overtime is not affected. As on the Genesis; found by the NHL94 Match Viewer project. Not yet tested in the game.',
+  awarenessFix:
+    "An option. A computer skater decides what to do next at intervals set by his awareness: Offensive Awareness when his team has the puck, Defensive when it does not. But computer wingers and centres on offence use their Defensive Awareness, a slip in the game's code. With this on they use Offensive. A small change. As on the Genesis; found by the NHL94 Match Viewer project. Not yet tested in the game.",
   penaltyShotFixes:
     'A penalty shot whistled dead because the net was knocked off, or because the loose puck stopped moving for two seconds, is taken all over again, from the side, as the original game leaves it pending. With the fix those whistles end the penalty shot, as a goal or the puck hitting the boards does, and play goes on to a faceoff.',
   faceoffFix:
@@ -59,7 +63,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
-  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix'] },
+  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix'] },
   { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]

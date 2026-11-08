@@ -1095,7 +1095,25 @@ export function HelpPage() {
           the computer pulls its goalie only when exactly two goals behind, never one, though the game's own note says
           it should be "more than 2" that stops it. With the fix it pulls him when one or two behind. It changes how
           the computer plays late in close games; while its goalie is out its shots within range go exactly where they
-          are aimed, as anyone's do with the goalie pulled.
+          are aimed, as anyone's do with the goalie pulled, unless the pulled-goalie sniping fix is on too.
+        </li>
+        <li>
+          <b>Pulled-goalie sniping fix</b> (in with the fixes, Genesis only): whenever a team's own goalie is off the
+          ice, on a delayed penalty or pulled late in a game, the original game makes every one of its shots from
+          within range go exactly where it is aimed. With the fix such a shot takes the normal accuracy roll. Shots at
+          an empty net already do. The SNES does not have this bug.
+        </li>
+        <li>
+          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; an option): a computer skater
+          decides what to do next at intervals set by his Offensive Awareness when his team has the puck and his
+          Defensive when it has not, but wingers and centres on offence use their Defensive. With this on they use
+          Offensive. A small change, a frame or so for most players.
+        </li>
+        <li>
+          <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's bonus to skaters (+2 Agility
+          and +2 Speed and more) is meant to come when the crowd meter is past its record, but a switch in the code
+          leaves it on all the time. With this on it follows the meter, which in recorded games is past its record
+          about three quarters of the time.
         </li>
         <li>
           <b>Close the five-hole blind ring</b> (with the fixes, Genesis only; an option, a matter of taste): in the
@@ -1435,7 +1453,8 @@ export function HelpPage() {
           <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
           cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
           penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
-          penalty kill fix and faceoff spot fix, as for the Genesis, and penalty shot fixes (a penalty shot whistled dead
+          penalty kill fix, comeback bonus fix, faceoff spot fix and computer forwards' awareness option, as for the
+          Genesis, and penalty shot fixes (a penalty shot whistled dead
           because the net was knocked off, or because the loose puck stood still for two seconds, is no longer taken
           again); NHL94SNESVault's extra attacker fix (in Edit Lines, picking a line's extra attacker for one of
           its positions swaps the two, where the original game puts him in both and drops the player he replaced; for
