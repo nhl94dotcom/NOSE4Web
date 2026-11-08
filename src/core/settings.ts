@@ -1,5 +1,6 @@
 import { readAscii, readU16, readU32, writeAscii, writeU16 } from './bytes'
 import type { GameConfig } from './games'
+import { parseMenuTeams, writeMenuTeams, type MenuTeams } from './menuteams'
 
 // Game-wide data outside the team blocks: playoff draws, on-screen rule
 // messages, clock lengths and the main menu's starting choices. Unlike names
@@ -41,6 +42,8 @@ export interface Settings {
   overtimeSeconds: number
   shootoutSeconds: number
   menu: MenuItem[]
+  // How many of the teams the menu offers, where the editor finds that.
+  menuTeams: MenuTeams | null
 }
 
 function readFixedText(rom: Uint8Array, o: number): FixedText {
@@ -102,7 +105,7 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
 }
 
 // For ROMs whose settings are not where the editor can find them.
-export const NO_SETTINGS: Settings = { playoffDraws: [], rules: [], periodLengths: [], overtimeSeconds: 0, shootoutSeconds: 0, menu: [] }
+export const NO_SETTINGS: Settings = { playoffDraws: [], rules: [], periodLengths: [], overtimeSeconds: 0, shootoutSeconds: 0, menu: [], menuTeams: null }
 
 export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
   const playoffs = readU32(rom, game.playoffDrawPointerOffsets[0])
@@ -129,6 +132,7 @@ export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
     overtimeSeconds: readU16(rom, game.overtimeSecondsOffset),
     shootoutSeconds: readU16(rom, game.shootoutSecondsOffset),
     menu: parseMenu(rom, game),
+    menuTeams: parseMenuTeams(rom, game),
   }
 }
 
@@ -153,6 +157,7 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
 
   const defaults = menuAddresses(rom, game).defaults
   settings.menu.forEach((item, i) => writeU16(rom, defaults + i * 2, item.value))
+  writeMenuTeams(rom, game, settings.menuTeams, settings.playoffDraws)
 }
 
 // Whether the project has game settings to edit: all of them, or for the

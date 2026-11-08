@@ -86,7 +86,8 @@ That licence does not cover:
   read the two team ratings from the wrong halves of their byte, and the fix
   makes them read the rosters as they were written
 - Playoff draws, on-screen rule messages, period, overtime and shootout
-  lengths, and the main menu's starting choices
+  lengths, the main menu's starting choices, and how many teams the menu
+  offers, for a league smaller than the ROM (Genesis and SNES)
 
 It can also:
 

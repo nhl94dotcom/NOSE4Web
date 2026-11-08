@@ -108,6 +108,13 @@ export function snesChoiceTextPlaces(rom: Uint8Array, line: number, count: numbe
   return places
 }
 
+// Where setoptions' table of how many choices each line has is (a word a
+// line), or -1 where it is not found.
+export function snesChoiceCountsPlace(rom: Uint8Array): number {
+  const counts = findCode(rom, CHOICE_COUNTS)
+  return counts ? loRomOffset(counts.groups[0], counts.groups[1]) : -1
+}
+
 // Where the Period line's choice count is (a word: 3, or 4 with the
 // 30-second periods hack), where its list has the fourth text to show.
 export function snesPeriodCountPlace(rom: Uint8Array): number {

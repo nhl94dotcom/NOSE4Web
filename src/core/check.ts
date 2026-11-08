@@ -3,6 +3,7 @@ import { colorRgb } from './color'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
+import { teamsMissingFromDraws } from './menuteams'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
 
@@ -163,6 +164,37 @@ export function checkProject(project: RomProject): Finding[] {
       findings.push({ level: 'problem', where: 'Main menu', message: `"${item.caption}" starts on a choice that does not exist.` })
     }
   })
+
+  if (settings.menuTeams) {
+    const { offered } = settings.menuTeams
+    game.menuTeamItems.forEach((i) => {
+      const item = settings.menu[i]
+      if (item && item.value >= offered && item.value < teams.length) {
+        findings.push({
+          level: 'note',
+          where: 'Main menu',
+          message: `"${item.caption}" starts on ${names[item.value]}, which is not among the ${offered} teams the menu offers. The game shows it when switched on, but cannot go back to it.`,
+        })
+      }
+    })
+    const missing = teamsMissingFromDraws(offered, settings.playoffDraws)
+    if (missing.length > 0) {
+      const one = missing.length === 1
+      findings.push({
+        level: 'note',
+        where: 'Playoff draws',
+        message: `${missing.map((team) => names[team]).join(', ')} ${one ? 'is' : 'are'} in none of the playoff draws. Starting new playoffs with ${one ? 'it' : 'one of them'} freezes the game.`,
+      })
+    }
+    const outside = settings.playoffDraws.flatMap((draw, d) => (draw.some((team) => team >= offered && team < teams.length) ? [d + 1] : []))
+    if (offered < teams.length && outside.length > 0) {
+      findings.push({
+        level: 'note',
+        where: 'Playoff draws',
+        message: `${plural(outside.length, 'draw')} ${outside.length === 1 ? 'has' : 'have'} teams the menu does not offer, who would play in those playoffs: ${outside.length === settings.playoffDraws.length ? 'every draw' : `draw ${outside.join(', ')}`}. "Fill the draws with the league's teams" on the Game settings page fixes this.`,
+      })
+    }
+  }
 
   return [...findings, ...checkLeagueRules(project)]
 }

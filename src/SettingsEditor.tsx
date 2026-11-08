@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { copyDraws, pasteDraws } from './core/clipboard'
 import type { GameConfig } from './core/games'
+import { isAllStarTeam } from './core/league'
+import { FEWEST_MENU_TEAMS, leagueDraws } from './core/menuteams'
 import { MAX_SECONDS, menuOptions, type FixedText, type Settings } from './core/settings'
 import { resetSettingsPart, settingsPartChanged } from './core/reset'
 import { ResetButton } from './ResetButton'
@@ -87,6 +89,23 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
     )
   }
 
+  // Fewer teams in the menu: a team line that starts on a team no longer offered starts on the last one.
+  function setTeamsInMenu(offered: number) {
+    const menu = settings.menu.map((item, i) => (game.menuTeamItems.includes(i) && item.value >= offered ? { ...item, value: offered - 1 } : item))
+    onChange({ ...settings, menu, menuTeams: { offered } })
+  }
+
+  // The teams the league's playoff draws are made of: those the menu offers, less the All-Stars.
+  const offered = settings.menuTeams?.offered ?? teamNames.length
+  const leagueTeams = teamNames.slice(0, offered).flatMap((name, t) => (isAllStarTeam(name) ? [] : [t]))
+  const slots = settings.playoffDraws[0]?.length ?? 0
+  const canFillDraws = settings.menuTeams !== null && offered < teamNames.length && slots > 0 && leagueTeams.length >= slots
+
+  function fillDraws() {
+    onChange({ ...settings, playoffDraws: leagueDraws(leagueTeams, settings.playoffDraws.length, slots) })
+    setNotice(`Every draw now has only the first ${leagueTeams.length} teams.`)
+  }
+
   const duplicateDraws = settings.playoffDraws
     .map((draw, i) => (new Set(draw).size < draw.length ? i + 1 : 0))
     .filter((n) => n > 0)
@@ -161,10 +180,36 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
             onReset={() => onChange(resetSettingsPart(settings, original, 'menu'))}
           />
         </p>
+        {settings.menuTeams && (
+          <p>
+            <label>
+              Teams in the menu{' '}
+              <input
+                className="seconds"
+                type="number"
+                min={FEWEST_MENU_TEAMS}
+                max={teamNames.length}
+                value={settings.menuTeams.offered}
+                onChange={(e) =>
+                  setTeamsInMenu(Math.min(teamNames.length, Math.max(FEWEST_MENU_TEAMS, Math.floor(Number(e.target.value)) || FEWEST_MENU_TEAMS)))
+                }
+              />
+            </label>{' '}
+            <span className="note">
+              of {teamNames.length}. The menu offers only the first so many teams in the team list, for a league smaller
+              than the ROM: put the league's teams first. The teams after them stay in the ROM. The demo and new playoffs
+              keep to these teams too, and with 18 or more so do the other scores of the day.
+            </span>
+          </p>
+        )}
         <table className="left">
           <tbody>
             {settings.menu.map((item, i) => {
-              const options = menuOptions(settings, game, i, teamNames)
+              const all = menuOptions(settings, game, i, teamNames)
+              // A team line offers only the teams in the menu, and the team it starts on.
+              const teamLine = game.menuTeamItems.includes(i)
+              const options = teamLine ? all.slice(0, offered) : all
+              const past = teamLine && item.value >= offered && item.value < all.length
               return (
                 <tr key={i}>
                   <td>{item.caption}</td>
@@ -176,7 +221,8 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
                         onChange({ ...settings, menu: replace(settings.menu, i, { ...item, value: Number(e.target.value) }) })
                       }
                     >
-                      {item.value >= options.length && <option value={item.value}>Invalid ({item.value})</option>}
+                      {past && <option value={item.value}>{all[item.value]} (not offered)</option>}
+                      {!past && item.value >= options.length && <option value={item.value}>Invalid ({item.value})</option>}
                       {options.map((option, o) => (
                         <option key={o} value={o}>
                           {option}
@@ -255,6 +301,13 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
             <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked()}>
               Paste over ticked
             </button>{' '}
+            {canFillDraws && (
+              <>
+                <button onClick={fillDraws} title={`Make ${settings.playoffDraws.length} new draws from the teams in the menu, each team in at least one`}>
+                  Fill the draws with the league's teams
+                </button>{' '}
+              </>
+            )}
             <ResetButton
               what="playoff draws"
               changed={settingsPartChanged(settings, original, 'playoffDraws')}

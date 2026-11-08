@@ -1767,6 +1767,11 @@ test.describe('with the SNES game', () => {
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })
     await choice('Goalie').selectOption({ label: 'Manual' })
+    // A league of 20: the menu offers the first 20 teams, and the playoff draws are made of them.
+    await page.getByLabel('Teams in the menu').fill('20')
+    await expect(choice('Home').locator('option')).toHaveCount(20)
+    await page.getByRole('button', { name: "Fill the draws with the league's teams" }).click()
+    await expect(page.getByText('Every draw now has only the first 20 teams.')).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/snes-settings.png', fullPage: true })
     // A rink colour, with the rink drawn from the ROM.
     await entry(page, 'Rink colours').click()
@@ -1788,6 +1793,8 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].shownOverall).toBe(88)
     expect(rom.teams[1].palette[12] & 0x1f).toBe(31)
     expect(detectSnesHacks(rom.bytes).choices.hotColdFix).toBe(true)
+    expect(rom.settings.menuTeams).toEqual({ offered: 20 })
+    expect(rom.settings.playoffDraws.flat().every((t) => t < 20)).toBe(true)
     expect(rom.settings.menu.map((item) => item.value)).toEqual([0, 1, 10, 1, 0, 2, 1])
     expect(rom.rinkPalette[1] & 0x1f).toBe(3)
   })

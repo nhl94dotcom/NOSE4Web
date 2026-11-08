@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
-import { findPlayers, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
+import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
 
@@ -65,7 +65,7 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
   const linesAverage = useMemo(() => lineAverages(summaries), [summaries])
   const found = useMemo(() => findPlayers(project, search), [project, search])
   // The original games' All-Star teams are far above the rest; leagues that keep them do not play them.
-  const allStars = useMemo(() => project.teams.flatMap((team, t) => (/\ball[ -]?stars?\b/i.test(teamDisplayName(team)) ? [t] : [])), [project.teams])
+  const allStars = useMemo(() => project.teams.flatMap((team, t) => (isAllStarTeam(teamDisplayName(team)) ? [t] : [])), [project.teams])
   const balance = useMemo(
     () => leagueBalance(withAllStars ? summaries : summaries.filter((s) => !allStars.includes(s.team)), balanceBy),
     [summaries, balanceBy, allStars, withAllStars],

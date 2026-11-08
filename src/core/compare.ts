@@ -149,13 +149,14 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const item = project.settings.menu[i]
     return menuOptions(project.settings, project.game, i, project.teams.map(teamDisplayName))[item.value] ?? `choice ${item.value + 1}`
   }
-  add(
-    'Main menu',
-    now.menu.flatMap((item, i) => {
+  const offered = old.menuTeams && now.menuTeams && old.menuTeams.offered !== now.menuTeams.offered
+  add('Main menu', [
+    ...(offered ? [`Teams in the menu: ${old.menuTeams!.offered} to ${now.menuTeams!.offered}.`] : []),
+    ...now.menu.flatMap((item, i) => {
       if (!old.menu[i] || choice(before, i) === choice(after, i)) return []
       return [`${item.caption}: ${choice(before, i)} to ${choice(after, i)}.`]
     }),
-  )
+  ])
 
   add(
     'Rule messages',

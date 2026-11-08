@@ -579,13 +579,22 @@ export function HelpPage() {
           or After Whistle).
         </li>
         <li>
+          <b>Teams in the menu</b>: for a league smaller than the ROM. The menu offers only the first so many teams
+          in the team list, so put the league's teams first; the rest stay in the ROM. The game also keeps to them
+          when it picks two teams after the demo and for new playoffs, and, with 18 teams or more, for the other
+          scores of the day. A team line that starts on a team past them moves to the last one offered.
+        </li>
+        <li>
           <b>Rule messages</b>: the text shown for icing, penalties and so on, how long each stays on screen, and
           the penalty minutes. A message cannot be longer than the space the game gives it. Several appear more than
           once because the game keeps separate copies for different situations.
         </li>
         <li>
           <b>Playoff draws</b>: the game picks one of these at random when a new playoff starts. Each lists 16 teams
-          in seeding order. A warning appears if a team is in one draw twice.
+          in seeding order. A warning appears if a team is in one draw twice. With fewer teams in the menu than in
+          the ROM, <b>Fill the draws with the league's teams</b> makes new draws from the teams the menu offers
+          (leaving out All-Star teams), each of them in at least one draw. It needs at least 16 teams. New playoffs
+          freeze the game when started with a team that no draw has, so <b>Check ROM</b> says so.
         </li>
       </ul>
 
@@ -1070,8 +1079,10 @@ export function HelpPage() {
         </li>
         <li>
           <b>Unusual, and worth a look</b>: a line without the first goalie in goal, a player twice on one line, two
-          players sharing a jersey number, an attribute outside its normal range, a name with no space, or a team
-          twice in one playoff draw.
+          players sharing a jersey number, an attribute outside its normal range, a name with no space, a team
+          twice in one playoff draw, a team the menu offers that no playoff draw has (starting new playoffs with it
+          freezes the game), playoff draws with teams the menu does not offer, or a menu team line starting on a
+          team the menu does not offer.
         </li>
       </ul>
       <p>

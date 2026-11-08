@@ -3,6 +3,7 @@
 // ROM, it puts that work back. It moves work between computers, keeps a copy
 // of a season as it stood, and passes changes to someone with their own ROM.
 
+import { FEWEST_MENU_TEAMS } from './menuteams'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from './sneshacks'
@@ -188,7 +189,13 @@ function mergeSettings(base: Settings, from: Settings, teamCount: number, notes:
     overtimeSeconds: number(from.overtimeSeconds, base.overtimeSeconds),
     shootoutSeconds: number(from.shootoutSeconds, base.shootoutSeconds),
     menu: base.menu.map((item, i) => ({ ...item, value: number(from.menu[i]?.value, item.value) })),
+    menuTeams: base.menuTeams && { offered: teamsOffered(from.menuTeams?.offered, base.menuTeams.offered, teamCount) },
   }
+}
+
+// A file's number of teams in the menu, where the ROM has as many teams.
+function teamsOffered(value: unknown, old: number, teamCount: number): number {
+  return Number.isInteger(value) && (value as number) >= FEWEST_MENU_TEAMS && (value as number) <= teamCount ? (value as number) : old
 }
 
 export interface ProjectFileOptions {

@@ -117,7 +117,7 @@ function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array
     teams,
     layout,
     rinkPalette: readSnesRinkPalette(rom),
-    settings: parseSnesSettings(rom),
+    settings: parseSnesSettings(rom, game),
     graphics: NO_GRAPHICS_EDITS,
     graphicsSupported: false,
     snesPictures: NO_SNES_PICTURE_EDITS,
@@ -197,7 +197,7 @@ export function buildRom(project: RomProject): Uint8Array {
   writeTeams(rom, project.game, project.teams, project.layout)
   if (project.game.platform === 'snes') {
     writeSnesPictures(rom, project.teams.length, project.snesPictures ?? NO_SNES_PICTURE_EDITS)
-    writeSnesSettings(rom, project.settings)
+    writeSnesSettings(rom, project.game, project.settings)
     writeSnesRinkPalette(rom, project.rinkPalette)
     fixSnesChecksum(rom)
     if (!project.copierHeader) return rom

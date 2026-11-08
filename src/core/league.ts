@@ -204,3 +204,8 @@ export function leagueBalance(summaries: TeamSummary[], key: SummaryColumn): Lea
       .sort((a, b) => b.value - a.value || a.team - b.team),
   }
 }
+
+// Whether a team is one of the game's All-Star teams, by its name.
+export function isAllStarTeam(name: string): boolean {
+  return /\ball[ -]?stars?\b/i.test(name)
+}

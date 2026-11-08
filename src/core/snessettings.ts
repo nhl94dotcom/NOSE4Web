@@ -1,4 +1,6 @@
 import { readU16LE, writeU16LE } from './bytes'
+import type { GameConfig } from './games'
+import { parseMenuTeams, writeMenuTeams } from './menuteams'
 import type { FixedText, PeriodLength, Rule, Settings } from './settings'
 import { findCode, loRomOffset } from './snes'
 import { parseSnesMenu, refreshSnesMenu, snesChoiceTextPlaces, writeSnesMenu } from './snesmenu'
@@ -74,7 +76,7 @@ function places(rom: Uint8Array): Places {
   }
 }
 
-export function parseSnesSettings(rom: Uint8Array): Settings {
+export function parseSnesSettings(rom: Uint8Array, game: GameConfig): Settings {
   const at = places(rom)
   const periodLengths: PeriodLength[] =
     at.periods && at.clock
@@ -93,10 +95,11 @@ export function parseSnesSettings(rom: Uint8Array): Settings {
     overtimeSeconds: periodLengths.length > 0 ? readU16LE(rom, at.clock!.overtime) : 0,
     shootoutSeconds: periodLengths.length > 0 ? readU16LE(rom, at.clock!.shootout) : 0,
     menu: parseSnesMenu(rom),
+    menuTeams: parseMenuTeams(rom, game),
   }
 }
 
-export function writeSnesSettings(rom: Uint8Array, settings: Settings): void {
+export function writeSnesSettings(rom: Uint8Array, game: GameConfig, settings: Settings): void {
   const at = places(rom)
   if (at.periods && at.clock && settings.periodLengths.length === PERIOD_LENGTHS) {
     settings.periodLengths.forEach((period, i) => {
@@ -116,6 +119,7 @@ export function writeSnesSettings(rom: Uint8Array, settings: Settings): void {
     settings.playoffDraws.forEach((draw, d) => rom.set(draw.slice(0, PLAYOFF_SLOTS), at.playoffs! + d * PLAYOFF_SLOTS))
   }
   writeSnesMenu(rom, settings.menu)
+  writeMenuTeams(rom, game, settings.menuTeams, settings.playoffDraws)
 }
 
 // The settings once a hack has changed the ROM from `before` to `after`: the

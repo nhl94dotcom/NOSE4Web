@@ -1,3 +1,4 @@
+import { FEWEST_MENU_TEAMS } from './menuteams'
 import type { GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
@@ -576,6 +577,8 @@ const clock: CsvTable = {
   },
 }
 
+const TEAMS_IN_MENU = 'Teams in the menu'
+
 const menu: CsvTable = {
   id: 'menu',
   title: 'Main menu',
@@ -585,6 +588,7 @@ const menu: CsvTable = {
     const { settings, game } = project
     const names = project.teams.map(teamDisplayName)
     const rows: Cell[][] = [['Item', 'Choice']]
+    if (settings.menuTeams) rows.push([TEAMS_IN_MENU, settings.menuTeams.offered])
     settings.menu.forEach((item, i) => {
       rows.push([item.caption, choiceCell(menuOptions(settings, game, i, names), item.value)])
     })
@@ -596,13 +600,16 @@ const menu: CsvTable = {
     const { settings, game } = project
     const names = project.teams.map(teamDisplayName)
     const items = settings.menu.slice()
+    let menuTeams = settings.menuTeams
+    const captions = [...items.map((item) => item.caption), ...(menuTeams ? [TEAMS_IN_MENU] : [])]
     for (let row = 0; row < sheet.rowCount; row++) {
-      const index = sheet.choice(row, 'Item', items.map((item) => item.caption))
-      items[index] = { ...items[index], value: sheet.choice(row, 'Choice', menuOptions(settings, game, index, names)) }
+      const index = sheet.choice(row, 'Item', captions)
+      if (index === items.length) menuTeams = { offered: sheet.int(row, 'Choice', FEWEST_MENU_TEAMS, names.length) }
+      else items[index] = { ...items[index], value: sheet.choice(row, 'Choice', menuOptions({ ...settings, menuTeams }, game, index, names)) }
     }
     sheet.finish()
     return {
-      project: { ...project, settings: { ...settings, menu: items } },
+      project: { ...project, settings: { ...settings, menu: items, menuTeams } },
       summary: `Updated ${plural(sheet.rowCount, 'menu item')}.`,
       warnings: [],
     }
