@@ -39,8 +39,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
-  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'faceoffFix'] },
+  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'faceoffFix'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 

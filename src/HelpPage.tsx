@@ -1031,7 +1031,7 @@ export function HelpPage() {
           pass speed another way and never had the bug.
         </li>
         <li>
-          <b>Faceoff spot fix</b> (in with the fixes, and on the SNES Hacks page too): the game puts a faceoff on a
+          <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): the game puts a faceoff on a
           dot only when play stops past the hash marks; anywhere else it is held where the puck was, often in open
           ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most after
           penalties. With the fix every faceoff is on one of the nine dots, as the NHL rules have it: after a goal at
