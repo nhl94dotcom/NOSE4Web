@@ -1515,6 +1515,7 @@ test.describe('with the NHL 94 ROM', () => {
       'Runaway speed fix: off to on.',
       'Penalty shot table fix: off to on.',
       'Penalty shot fixes: off to on.',
+      'Count stick deflections as shots: off to on.',
     ])
     await expect(main.getByRole('button', { name: 'Turn on the recommended fixes' })).toBeDisabled()
     await main.getByLabel('Goalie hold time').fill('5')
@@ -1533,6 +1534,7 @@ test.describe('with the NHL 94 ROM', () => {
         '- **Runaway speed fix**',
         '- **Penalty shot table fix**',
         '- **Penalty shot fixes**',
+        '- **Count stick deflections as shots**',
         '- **Goalie hold time**: 5 seconds (the original game has 2.33 seconds)',
       ].join('\n'),
     )

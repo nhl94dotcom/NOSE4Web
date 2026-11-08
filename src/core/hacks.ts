@@ -1231,6 +1231,7 @@ export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   runawayFix: true,
   penaltyShotTableFix: true,
   penaltyShotFixes: true,
+  stickShots: true,
 }
 
 // `choices` with the recommended fixes, except where this ROM's code is not known.
@@ -1245,7 +1246,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
-  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'bodychecks', 'stickShots', 'plusMinus', 'threeStars',
+  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
 ]
