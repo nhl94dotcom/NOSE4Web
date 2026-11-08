@@ -60,6 +60,17 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis player photos', () => {
     expect(same(teamPhotos(given, 13)[1].picture, teamPhotos(project, 13)[1].picture)).toBe(true)
   })
 
+  it('grows the original 1 MB ROM to 2 MB once its unused end is full, losing nothing', () => {
+    let project = stock()
+    const picture = drawn((x) => x % 8)
+    project = withPhoto(project, 0, 1, picture)
+    expect(project.bytes.length).toBe(0x100000)
+    project = withPhoto(project, 0, 2, picture)
+    expect(project.bytes.length).toBe(0x200000)
+    const reopened = openRom(buildRom(project))
+    expect([1, 2].every((i) => same(teamPhotos(reopened, 0)[i].picture, picture))).toBe(true)
+  })
+
   it('rewrites a photo with a map of its own, storing each different tile once', () => {
     const project = stock()
     const layout = photoLayout(project.bytes, project.teams.length)!

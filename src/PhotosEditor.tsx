@@ -45,13 +45,23 @@ export function PhotosEditor({ project, team, onChange }: Props) {
 
   function act(change: () => RomProject, message: string) {
     try {
-      onChange(change())
-      setNotice(message)
+      const next = change()
+      onChange(next)
+      // New photos go at the end of the ROM, which grows when it is full.
+      const grew = next.bytes.length > project.bytes.length ? ` The ROM grew to ${next.bytes.length / 0x100000} MB to make room for it.` : ''
+      setNotice(message + grew)
       setFailed(false)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e))
       setFailed(true)
     }
+  }
+
+  // A photo moved in the list; the one being drawn stays the one being drawn.
+  function move(index: number, to: number) {
+    act(() => withPhotoMoved(project, team, index, to), `${playerName(photos[index].slot)} moved ${to < index ? 'up' : 'down'}.`)
+    if (drawing === index) setDrawing(to)
+    else if (drawing === to) setDrawing(index)
   }
 
   async function importPhoto(file: File, index: number) {
@@ -145,13 +155,13 @@ export function PhotosEditor({ project, team, onChange }: Props) {
                 </button>
               </p>
               <p>
-                <button aria-label={`Move photo ${index + 1} up`} disabled={index === 0} onClick={() => act(() => withPhotoMoved(project, team, index, index - 1), `${name} moved up.`)}>
+                <button aria-label={`Move photo ${index + 1} up`} disabled={index === 0} onClick={() => move(index, index - 1)}>
                   ↑
                 </button>{' '}
                 <button
                   aria-label={`Move photo ${index + 1} down`}
                   disabled={index === photos.length - 1}
-                  onClick={() => act(() => withPhotoMoved(project, team, index, index + 1), `${name} moved down.`)}
+                  onClick={() => move(index, index + 1)}
                 >
                   ↓
                 </button>{' '}

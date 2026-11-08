@@ -274,6 +274,15 @@ test.describe('with the NHL 94 ROM', () => {
     const exported = await downloadFrom(page, photos.nth(1).getByRole('button', { name: 'Export PNG' }))
     expect(exported.suggestedFilename()).toMatch(/^Anaheim_Mighty_Ducks_.+_photo\.png$/)
 
+    // Moved up while being drawn, it is still the one being drawn.
+    const drawn = (await photos.nth(1).locator('strong').textContent())!.replace(/^\d+\. /, '')
+    await photos.nth(1).getByRole('button', { name: 'Draw…' }).click()
+    await expect(section.getByRole('heading', { name: `Drawing the photo of ${drawn}` })).toBeVisible()
+    await section.getByRole('button', { name: 'Move photo 2 up' }).click()
+    await expect(section.getByRole('heading', { name: `Drawing the photo of ${drawn}` })).toBeVisible()
+    await section.getByRole('button', { name: 'Move photo 1 down' }).click()
+    await expect(section.getByRole('heading', { name: `Drawing the photo of ${drawn}` })).toBeVisible()
+
     // Who it is for, and a seventh player added.
     const who = section.getByLabel('Photo 2 is for')
     const other = await who.locator('option').nth(4).getAttribute('value')

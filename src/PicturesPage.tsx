@@ -20,6 +20,8 @@ export function PicturesPage({ project, setName, onChange }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<PictureSetResult | null>(null)
+  // The ROM's new size in MB, where new photos made it grow.
+  const [grew, setGrew] = useState(0)
   // Whether files go to the team named in them, or to the team at their number.
   const [byName, setByName] = useState(false)
   const logos = project.graphicsSupported
@@ -82,6 +84,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           }
       const faces = importPhotoSet(pictures.project, photoFiles, byName)
       if (pictures.replaced.length + faces.replaced.length > 0) onChange(faces.project)
+      setGrew(faces.project.bytes.length > project.bytes.length ? faces.project.bytes.length / 0x100000 : 0)
       setResult({
         project: faces.project,
         replaced: [...pictures.replaced, ...faces.replaced.map((title) => `${title} (photo)`)],
@@ -165,6 +168,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
               there already.
               {result.problems.length > 0 && ` ${count(result.problems.length, 'file')} could not be used.`}
               {result.replaced.length > 0 && ' Undo takes the import back.'}
+              {grew > 0 && ` The ROM grew to ${grew} MB to make room for the new photos.`}
             </p>
             {result.problems.length > 0 && (
               <ul className="error">

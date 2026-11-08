@@ -36,8 +36,15 @@ export function useProjectHistory() {
       setHistory((h) => {
         const current = h.entries[h.index]
         if (!current) return h
-        // Photos follow players the edit moved; see photofollow.ts.
-        const value = photosFollowPlayers(current, typeof next === 'function' ? next(current) : next)
+        // Photos follow players the edit moved; see photofollow.ts. Where they
+        // cannot (a ROM with no room left to move a list), they stay by place.
+        const edited = typeof next === 'function' ? next(current) : next
+        let value = edited
+        try {
+          value = photosFollowPlayers(current, edited)
+        } catch {
+          value = edited
+        }
         if (value === current) return h
         const now = Date.now()
         const atEnd = h.index === h.entries.length - 1

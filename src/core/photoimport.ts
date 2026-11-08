@@ -39,7 +39,10 @@ function importGenesis(project: RomProject, other: RomProject, from: number, to:
   })
   let next = withPhotoEntries(project, to, entries)
   for (const { index, at } of own) next = withPhoto(next, to, index, photoPicture(other.bytes, theirs, at))
-  notes.push(`Player photos brought in: ${entries.length} featured players, ${own.length} with photos of their own.`)
+  notes.push(
+    `Player photos brought in: ${entries.length} featured players, ${own.length} with photos of their own.` +
+      (next.bytes.length > project.bytes.length ? ` The ROM grew to ${next.bytes.length / 0x100000} MB to make room for them.` : ''),
+  )
   return next
 }
 
