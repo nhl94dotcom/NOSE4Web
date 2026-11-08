@@ -157,10 +157,18 @@ export function withSnesScoreLogo(project: RomProject, team: number, picture: Pi
 }
 
 // `team` shown by its letters, as in the original game. Its tiles and
-// colours stay in the ROM, unused; Undo brings the logo back.
+// colours are freed; Undo brings the logo back.
 export function withoutSnesScoreLogo(project: RomProject, team: number): RomProject {
   const table = need(project)
   const rom = project.bytes.slice()
+  const own = entry(rom, table, team)
+  // Its tiles and colours are freed, where no other team shares them.
+  if (own) {
+    for (const [part, size] of [['tiles', TILES * TILE], ['colours', COLOURS * 2]] as const) {
+      const shared = project.teams.some((_, other) => other !== team && entry(rom, table, other)?.[part] === own[part])
+      if (!shared) rom.fill(0xff, own[part], own[part] + size)
+    }
+  }
   rom.fill(0, table + team * ENTRY, table + (team + 1) * ENTRY)
   return { ...project, bytes: rom }
 }

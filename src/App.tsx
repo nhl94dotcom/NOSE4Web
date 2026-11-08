@@ -24,7 +24,7 @@ import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
 import { PhotosEditor } from './PhotosEditor'
 import { SnesPhotosEditor } from './SnesPhotosEditor'
-import { SnesScoreLogoEditor } from './SnesScoreLogoEditor'
+import { AddScoreLogos, SnesScoreLogoEditor } from './SnesScoreLogoEditor'
 import { snesScoreLogosSupported } from './core/snesscorelogos'
 import { snesPhotosSupported } from './core/snesphotos'
 import { anyPhotos } from './core/photoset'
@@ -410,7 +410,11 @@ export default function App() {
                 current.game.platform === 'snes' && (
                   <>
                     <SnesPicturesEditor project={current} team={selected} onChange={change} />
-                    {snesScoreLogosSupported(current) && <SnesScoreLogoEditor project={current} team={selected} onChange={change} />}
+                    {snesScoreLogosSupported(current) ? (
+                      <SnesScoreLogoEditor project={current} team={selected} onChange={change} />
+                    ) : (
+                      <AddScoreLogos project={current} onChange={change} />
+                    )}
                     {snesPhotosSupported(current) && <SnesPhotosEditor project={current} team={selected} onChange={change} />}
                   </>
                 )

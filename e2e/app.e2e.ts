@@ -2129,6 +2129,24 @@ test.describe('with the SNES game', () => {
     expect((await corner()).slice(0, 3)).toEqual([0xff, 0xff, 0xff])
   })
 
+  test('adds score logos to the original game, and takes them out again', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Score logo' }) })
+    await section.getByRole('button', { name: 'Add score logos to this ROM' }).click()
+    await expect(section.locator('canvas.preview')).toBeVisible()
+    await expect(section.getByText("NOSE4Web added them to this ROM, with McMarkis's code")).toBeVisible()
+    await section.screenshot({ path: 'test-results/shots/score-logo-added.png' })
+    // Downloaded and opened again, they are there.
+    const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
+    await romPicker(page).setInputFiles({ name: 'logos.smc', mimeType: 'application/octet-stream', buffer: rom })
+    await team(page, 'Boston Bruins').click()
+    await expect(section.locator('canvas.preview')).toBeVisible()
+    await section.getByRole('button', { name: 'Take score logos out of this ROM' }).click()
+    await expect(section.getByRole('button', { name: 'Add score logos to this ROM' })).toBeVisible()
+  })
+
   test("replaces a player's photo and swaps two players' photos", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)

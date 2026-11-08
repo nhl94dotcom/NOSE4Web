@@ -13,6 +13,7 @@ import {
   withoutSnesScoreLogo,
   withSnesScoreLogo,
 } from './core/snesscorelogos'
+import { canAddScoreLogos, hasAddedScoreLogos, withScoreLogosAdded, withScoreLogosTakenOut } from './core/snesscorecode'
 import { teamDisplayName } from './core/team'
 import { download } from './download'
 import { PictureView } from './GraphicsEditor'
@@ -67,7 +68,21 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
         This ROM shows a small logo for each team in the score box during play, where the original game prints the team's three letters. It is{' '}
         {SCORE_LOGO.width} by {SCORE_LOGO.height} pixels, the logo in the top {SCORE_LOGO_ROWS} rows, on the box's black with a ring, in {OWN.length} colours of
         its own. A team without one shows its letters.
+        {hasAddedScoreLogos(project) &&
+          " NOSE4Web added them to this ROM, with McMarkis's code from his 32-team build; they can be taken out again, which puts the ROM back as it was."}
       </p>
+      {hasAddedScoreLogos(project) && (
+        <p>
+          <button
+            onClick={() => {
+              setDrawing(false)
+              act(() => withScoreLogosTakenOut(project), 'Score logos taken out: every team shows its letters again. Undo puts them back.')
+            }}
+          >
+            Take score logos out of this ROM
+          </button>
+        </p>
+      )}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       {logo ? (
         <div className="picture">
@@ -144,6 +159,37 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
           />
         </>
       )}
+    </section>
+  )
+}
+
+// For a ROM laid out as the original game, which has no score logos: they can be added.
+export function AddScoreLogos({ project, onChange }: { project: RomProject; onChange: (project: RomProject) => void }) {
+  const [problem, setProblem] = useState('')
+  if (!canAddScoreLogos(project)) return null
+  return (
+    <section>
+      <h2>Score logo</h2>
+      <p className="note">
+        The original game prints each team's three letters in the score box during play. McMarkis's 32-team build shows a small logo instead, and
+        NOSE4Web can add that to this ROM, with his code: every team gets a score logo made from its team logo, which you can then import or draw
+        anew, or take away to show the team's letters. It can be taken out again, which puts the ROM back as it was.
+      </p>
+      <p>
+        <button
+          onClick={() => {
+            try {
+              onChange(withScoreLogosAdded(project))
+              setProblem('')
+            } catch (e) {
+              setProblem(e instanceof Error ? e.message : String(e))
+            }
+          }}
+        >
+          Add score logos to this ROM
+        </button>
+      </p>
+      {problem && <p className="error">{problem}</p>}
     </section>
   )
 }

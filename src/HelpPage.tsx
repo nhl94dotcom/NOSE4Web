@@ -1575,7 +1575,11 @@ export function HelpPage() {
           <b>Score logo</b> section: export it, import one (24 pixels wide and 16 high, or 13, the logo without the
           gap under it), or draw it, in the box's black, its white ring and 10 colours of its own taken from the
           image. <b>Show the letters instead</b> takes a team's score logo away; a team without one can be given
-          one. The original game has no score logos, and the editor cannot add them to it yet.
+          one. The original game has no score logos, but the editor can add them to it, and to ROMs laid out like
+          it: <b>Add score logos to this ROM</b>, on any team's page, puts in McMarkis's code, adapted with his
+          permission, and gives every team a score logo made from its team logo, to touch up or replace. The
+          power play box in the clock shows the logo too. <b>Take score logos out of this ROM</b> puts the ROM back
+          as it was. The horizontal scoreboard keeps its name banners.
         </li>
         <li>
           <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, how many teams the
