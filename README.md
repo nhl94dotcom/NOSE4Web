@@ -103,8 +103,8 @@ That licence does not cover:
 - An option to count a goalie's stick deflections as shots on goal, which the
   Genesis leaves out of the statistics (from the same project)
 - On both Hacks pages: turn on every recommended fix at once, copy a ROM's
-  hacks as a Discord post for a league's owners, and copy the hacks of
-  another ROM
+  hacks as a Discord post for a league's owners, download a hack sheet that
+  explains each of them in plain words, and copy the hacks of another ROM
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, the main menu's starting choices, and how many teams the menu
   offers, for a league smaller than the ROM (Genesis and SNES)

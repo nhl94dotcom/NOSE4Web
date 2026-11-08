@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { writeClipboard } from './clipboard'
+import { download } from './download'
 
 interface Props {
   // Sets the page's choices to the recommended fixes; false where they are all set already.
   onRecommended: (() => void) | false
   // What this ROM has, as a post for a league's Discord.
   discordText: () => string
+  // The same, explained for a league's owners, as a page of its own.
+  sheet: () => string
+  // Starts the name of the sheet's file.
+  name: string
 }
 
-// The two buttons at the top of a Hacks page.
-export function HackShortcuts({ onRecommended, discordText }: Props) {
+// The buttons at the top of a Hacks page.
+export function HackShortcuts({ onRecommended, discordText, sheet, name }: Props) {
   const [notice, setNotice] = useState('')
   // Once copied, the post stays shown, kept up to date with the ROM.
   const [shown, setShown] = useState(false)
@@ -35,6 +40,14 @@ export function HackShortcuts({ onRecommended, discordText }: Props) {
           }}
         >
           Copy this ROM's hacks for Discord
+        </button>{' '}
+        <button
+          onClick={() => {
+            download(sheet(), `${name}_hacks.html`, 'text/html')
+            setNotice("Downloaded. The page explains each of this ROM's hacks for your league's owners; open it to read or print it, or share the file.")
+          }}
+        >
+          Download hack sheet
         </button>{' '}
         <span className="note">{notice || (onRecommended ? '' : 'Every recommended fix is set.')}</span>
       </p>

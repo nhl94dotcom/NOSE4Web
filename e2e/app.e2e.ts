@@ -1543,6 +1543,14 @@ test.describe('with the NHL 94 ROM', () => {
         '- **Goalie hold time**: 5 seconds (the original game has 2.33 seconds)',
       ].join('\n'),
     )
+    // The hack sheet explains the same hacks for the league's owners.
+    const sheet = await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))
+    expect(sheet.suggestedFilename()).toBe('nhl94_hacks.html')
+    const html = readFileSync(await sheet.path(), 'utf8')
+    expect(html).toContain('<title>Hacks in nhl94</title>')
+    expect(html).toContain('<h2>Bug fixes</h2>')
+    expect(html).toContain('no more &quot;rocket passes&quot;')
+    expect(html).toContain("A goalie may hold the puck 5 seconds before the whistle, longer than the original game's 2.33.")
     // Undone, the post follows the ROM.
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue('**Hacks in nhl94**\nNone: it plays as the original game.')
@@ -1904,6 +1912,9 @@ test.describe('with the SNES game', () => {
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
       '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**',
     )
+    const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
+    expect(sheet).toContain("NHL '94 for the SNES.")
+    expect(sheet).toContain("<dt>Extra attacker fix</dt><dd>In Edit Lines, picking a line's extra attacker")
   })
 
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
