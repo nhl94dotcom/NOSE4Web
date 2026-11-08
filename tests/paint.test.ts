@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { menuLogo, menuLogoPalette, rinkLogo, type Picture } from '../src/core/graphics'
-import { fillPoints, flipped, linePoints, mirrored, oneRowPerSquare, paint, rectanglePoints, samePicture, shifted } from '../src/core/paint'
+import { fillPoints, flipped, linePoints, mirrored, oneRowPerSquare, paint, rectanglePoints, samePicture, shifted, squaresInOneRow } from '../src/core/paint'
 import { ownColours, paintableColours, withPainted } from '../src/core/pictureset'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesLogoTiles } from '../src/core/snespictures'
@@ -45,6 +45,12 @@ describe('drawing on a picture', () => {
     picture = oneRowPerSquare(picture, [[2, 2]], 0x64)
     expect([picture.pixels[0], picture.pixels[1], picture.pixels[2 * 16 + 2], picture.pixels[9]]).toEqual([0x63, 0x63, 0x64, 0x53])
     expect(oneRowPerSquare(picture, [[0, 0]], 0)).toBe(picture)
+    // A move brings a pixel of row 5 into a square of row 6: the square goes to the row most of it is in.
+    let moved = paint(blank(16, 8), [[7, 0]], 0x52)
+    moved = paint(moved, [[8, 0], [9, 0], [8, 1]], 0x63)
+    moved = squaresInOneRow(shifted(moved, 1, 0))
+    expect([moved.pixels[8], moved.pixels[9], moved.pixels[10], moved.pixels[16 + 9]]).toEqual([0x62, 0x63, 0x63, 0x63])
+    expect(squaresInOneRow(blank(8, 8)).pixels.every((p) => p === 0)).toBe(true)
   })
 
   it('counts the tiles an SNES logo takes, a repeated tile once', () => {

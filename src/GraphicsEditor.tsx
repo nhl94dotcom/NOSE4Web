@@ -233,7 +233,15 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                 >
                   Export PNG
                 </button>{' '}
-                <button hidden={!editable} aria-pressed={drawing === kind} onClick={() => setDrawing(drawing === kind ? null : kind)}>
+                <button
+                  hidden={!editable}
+                  aria-pressed={drawing === kind}
+                  onClick={() => {
+                    setDrawing(drawing === kind ? null : kind)
+                    setNotice('')
+                    setFailed(false)
+                  }}
+                >
                   Draw…
                 </button>{' '}
                 <label className="button" hidden={!editable}>
@@ -296,6 +304,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                   ? { slots: ownColours(drawing), onChange: (next) => apply(withPainted(project, team, drawing, picture, next), '') }
                   : undefined
               }
+              problem={failed ? notice : undefined}
               onCommit={(next) => apply(withPainted(project, team, drawing, next, palette), '')}
               onClose={() => setDrawing(null)}
             />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { colorRgb, cssColor, GENESIS_COLORS, type ColorFormat } from './core/color'
 import type { Picture } from './core/graphics'
 import {
@@ -45,13 +45,17 @@ export interface PixelEditorProps {
   limit?: (picture: Picture) => { text: string; over: boolean } | null
   // Anything a stroke changes besides its own pixels (see oneRowPerSquare).
   afterStroke?: (picture: Picture, points: Point[], colour: number) => Picture
+  // The same for a change to the whole picture: a flip or a move (see squaresInOneRow).
+  tidy?: (picture: Picture) => Picture
+  // Why the last change was refused, if it was.
+  problem?: string
   // The picture shown where the game shows it.
   context?: (picture: Picture) => ReactNode
   onCommit: (picture: Picture) => void
   onClose: () => void
 }
 
-export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, context, onCommit, onClose }: PixelEditorProps) {
+export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, tidy, problem, context, onCommit, onClose }: PixelEditorProps) {
   const [tool, setTool] = useState<Tool>('pencil')
   const [colour, setColour] = useState(colours[0] ?? 1)
   const [zoom, setZoom] = useState(picture.width > 64 ? 6 : 8)
@@ -59,7 +63,9 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
   const [mirror, setMirror] = useState(false)
   // The picture as drawn so far in a stroke, and where the stroke began and last was.
   const [draft, setDraft] = useState<Picture | null>(null)
-  const stroke = useRef<{ start: Point; last: Point; base: Picture; points: Point[] } | null>(null)
+  // The stroke in hand. Its picture is kept here as well as in `draft`, so letting go
+  // hands on the last of it even before the screen has caught up.
+  const stroke = useRef<{ start: Point; last: Point; base: Picture; points: Point[]; drawn: Picture } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const shown = draft ?? picture
   const painted = tool === 'eraser' ? 0 : colour
@@ -105,6 +111,11 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
   const commit = (next: Picture) => {
     if (!samePicture(next, picture)) onCommit(next)
   }
+  const commitWhole = (next: Picture) => commit(tidy ? tidy(next) : next)
+  const show = (next: Picture) => {
+    if (stroke.current) stroke.current.drawn = next
+    setDraft(next)
+  }
 
   function down(event: React.PointerEvent<HTMLCanvasElement>) {
     if (event.button !== 0) return
@@ -120,8 +131,9 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
       return
     }
     event.currentTarget.setPointerCapture(event.pointerId)
-    stroke.current = { start: point, last: point, base: picture, points: [point] }
-    setDraft(painting(picture, [point], painted))
+    const first = painting(picture, [point], painted)
+    stroke.current = { start: point, last: point, base: picture, points: [point], drawn: first }
+    setDraft(first)
   }
 
   function move(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -132,22 +144,26 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     if (tool === 'pencil' || tool === 'eraser') {
       current.points.push(...linePoints(current.last, point).slice(1))
       current.last = point
-      setDraft(painting(current.base, current.points, painted))
+      show(painting(current.base, current.points, painted))
     } else {
       current.last = point
       const shape = tool === 'line' ? linePoints(current.start, point) : rectanglePoints(current.start, point, tool === 'box')
-      setDraft(painting(current.base, shape, painted))
+      show(painting(current.base, shape, painted))
     }
   }
 
   function up() {
-    if (!stroke.current) return
+    const current = stroke.current
+    if (!current) return
     stroke.current = null
-    if (draft) commit(draft)
+    commit(current.drawn)
     setDraft(null)
   }
 
-  const limitShown = limit?.(shown) ?? null
+  // Working the limit out can take a while (an SNES logo's layout), so it
+  // follows the drawing a moment behind rather than holding it up.
+  const behind = useDeferredValue(shown)
+  const limitShown = useMemo(() => limit?.(behind) ?? null, [limit, behind])
   // Past 16 a colour is in a row of 16: the SNES centre ice logo's.
   const name = (value: number) => (palette.length > 16 ? `Row ${value >> 4} colour ${value & 15}` : `Colour ${value}`)
   const swatch = (value: number) => (
@@ -200,19 +216,19 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
             ))}
           </select>
         </label>{' '}
-        <button onClick={() => commit(flipped(picture, true))}>Flip left to right</button>{' '}
-        <button onClick={() => commit(flipped(picture, false))}>Flip upside down</button>{' '}
+        <button onClick={() => commitWhole(flipped(picture, true))}>Flip left to right</button>{' '}
+        <button onClick={() => commitWhole(flipped(picture, false))}>Flip upside down</button>{' '}
         <span role="group" aria-label="Move the picture">
-          <button aria-label="Move left" title="Move the picture one pixel left" onClick={() => commit(shifted(picture, -1, 0))}>
+          <button aria-label="Move left" title="Move the picture one pixel left" onClick={() => commitWhole(shifted(picture, -1, 0))}>
             ←
           </button>
-          <button aria-label="Move right" title="Move the picture one pixel right" onClick={() => commit(shifted(picture, 1, 0))}>
+          <button aria-label="Move right" title="Move the picture one pixel right" onClick={() => commitWhole(shifted(picture, 1, 0))}>
             →
           </button>
-          <button aria-label="Move up" title="Move the picture one pixel up" onClick={() => commit(shifted(picture, 0, -1))}>
+          <button aria-label="Move up" title="Move the picture one pixel up" onClick={() => commitWhole(shifted(picture, 0, -1))}>
             ↑
           </button>
-          <button aria-label="Move down" title="Move the picture one pixel down" onClick={() => commit(shifted(picture, 0, 1))}>
+          <button aria-label="Move down" title="Move the picture one pixel down" onClick={() => commitWhole(shifted(picture, 0, 1))}>
             ↓
           </button>
         </span>
@@ -248,6 +264,11 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
           <SmallView picture={shown} palette={palette} format={format} />
           {context?.(shown)}
           {limitShown && <p className={limitShown.over ? 'error' : 'note'}>{limitShown.text}</p>}
+          {problem && (
+            <p className="error" role="alert">
+              Not changed: {problem}
+            </p>
+          )}
         </div>
       </div>
       {editable && editable.slots.length > 0 && (

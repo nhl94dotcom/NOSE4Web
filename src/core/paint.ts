@@ -123,3 +123,27 @@ export function oneRowPerSquare(picture: Picture, points: Point[], colour: numbe
   }
   return { ...picture, pixels }
 }
+
+// The same, for a change to the whole picture (a move can bring two rows into
+// one square): each square's pixels go to the row most of them are in.
+export function squaresInOneRow(picture: Picture): Picture {
+  const pixels = picture.pixels.slice()
+  for (let sy = 0; sy < picture.height; sy += 8) {
+    for (let sx = 0; sx < picture.width; sx += 8) {
+      const counts = new Map<number, number>()
+      const square: number[] = []
+      for (let y = sy; y < Math.min(picture.height, sy + 8); y++) {
+        for (let x = sx; x < Math.min(picture.width, sx + 8); x++) {
+          const i = y * picture.width + x
+          if (pixels[i] === 0) continue
+          square.push(i)
+          counts.set(pixels[i] >> 4, (counts.get(pixels[i] >> 4) ?? 0) + 1)
+        }
+      }
+      if (counts.size < 2) continue
+      const row = [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]
+      for (const i of square) pixels[i] = row * 16 + (pixels[i] & 15)
+    }
+  }
+  return { ...picture, pixels }
+}

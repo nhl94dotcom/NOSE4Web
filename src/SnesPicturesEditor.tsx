@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { SNES_COLORS } from './core/color'
 import { pictureToImage, type Picture } from './core/graphics'
-import { oneRowPerSquare } from './core/paint'
+import { oneRowPerSquare, squaresInOneRow } from './core/paint'
 import type { RomProject } from './core/rom'
 import { drawSnesRink, snesCentreIcePlace, withSnesCentreIce } from './core/snesrink'
 import {
@@ -192,7 +192,14 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
               >
                 Export PNG
               </button>{' '}
-              <button aria-pressed={drawing === kind} onClick={() => setDrawing(drawing === kind ? null : kind)}>
+              <button
+                aria-pressed={drawing === kind}
+                onClick={() => {
+                  setDrawing(drawing === kind ? null : kind)
+                  setNotice('')
+                  setFailed(false)
+                }}
+              >
                 Draw…
               </button>{' '}
               <label className="button">
@@ -248,14 +255,8 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
               slots: FIFTEEN,
               onChange: (palette) => apply({ ...edits, logos: { ...edits.logos, [team]: { picture: logo.picture, palette } } }, ''),
             }}
-            limit={(picture) => {
-              const used = snesLogoTiles(picture)
-              if (!used) return { text: 'The logo is empty; it needs at least one pixel.', over: true }
-              return {
-                text: `${used.tiles} of the ${used.most} tiles of 8 by 8 a logo can have.${used.tiles > used.most ? ' Leave more of it see-through, or repeat parts of it: a tile used again, even mirrored, costs nothing.' : ''}`,
-                over: used.tiles > used.most,
-              }
-            }}
+            limit={logoLimit}
+            problem={failed ? notice : undefined}
             onCommit={(picture) => apply({ ...edits, logos: { ...edits.logos, [team]: { picture, palette: logo.palette } } }, '')}
             onClose={() => setDrawing(null)}
           />
@@ -278,6 +279,8 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
             format={SNES_COLORS}
             colours={ice.rows.flatMap((row) => FIFTEEN.map((c) => row * 16 + c))}
             afterStroke={oneRowPerSquare}
+            tidy={squaresInOneRow}
+            problem={failed ? notice : undefined}
             context={(picture) => (rink ? <RinkMiddle rink={rink} logo={picture} palette={ice.palette} /> : null)}
             onCommit={(picture) => {
               const centreIce = { ...edits.centreIce }
@@ -293,6 +296,16 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
 }
 
 const FIFTEEN = Array.from({ length: 15 }, (_, i) => i + 1)
+
+// A team logo's tiles against the most it may have.
+function logoLimit(picture: Picture): { text: string; over: boolean } {
+  const used = snesLogoTiles(picture)
+  if (!used) return { text: 'The logo is empty; it needs at least one pixel.', over: true }
+  return {
+    text: `${used.tiles} of the ${used.most} tiles of 8 by 8 a logo can have.${used.tiles > used.most ? ' Leave more of it see-through, or repeat parts of it: a tile used again, even mirrored, costs nothing.' : ''}`,
+    over: used.tiles > used.most,
+  }
+}
 const BACKDROP = 128
 
 // The middle of the rink with a centre ice logo on it.
