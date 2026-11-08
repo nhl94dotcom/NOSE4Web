@@ -1916,13 +1916,15 @@ test.describe('with the SNES game', () => {
       'Penalty shot fixes: off to on.',
       'Extra attacker fix: off to on.',
       'Comeback bonus fix: off to on.',
+      'Second-assist bug fix: off to on.',
+      'Count stick deflections as shots: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
-    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Bug fixes__\n- \*\*Power play and penalty kill fix\*\*: /)
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Bug fixes__\n- \*\*Second-assist bug fix\*\*: .*\n- \*\*Power play and penalty kill fix\*\*: /)
     await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**',
+      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**',
     )
     const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
     expect(sheet).toContain("NHL '94 for the SNES.")
