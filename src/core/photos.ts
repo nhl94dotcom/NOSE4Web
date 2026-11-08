@@ -357,6 +357,11 @@ export function withPhotoRemoved(project: RomProject, team: number, index: numbe
   return withEntries(project, team, (entries) => entries.filter((_, i) => i !== index))
 }
 
+// `team`'s list set to `entries` as they are.
+export function withPhotoEntries(project: RomProject, team: number, entries: PhotoEntry[]): RomProject {
+  return withEntries(project, team, () => entries)
+}
+
 // A new entry for the player in `slot`, with the generic picture the game
 // gives a goalie or a skater with none.
 export function withPhotoAdded(project: RomProject, team: number, slot: number, goalie: boolean): RomProject {

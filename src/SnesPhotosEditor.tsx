@@ -62,8 +62,8 @@ export function SnesPhotosEditor({ project, team, onChange }: Props) {
     <section>
       <h2>Player photos</h2>
       <p className="note">
-        Each player's photo, on the player cards and the matchup screens. A photo is for a place on the roster, so after moving players, swap the photos
-        to match. A photo is {PHOTO_SIZE} by {PHOTO_SIZE} pixels in the team's 15 photo colours, which all its photos share (see-through where the card shows
+        Each player's photo, on the player cards and the matchup screens. Photos follow their players when players are moved, traded or reordered here;
+        Swap with puts right a ROM whose photos are on the wrong players. A photo is {PHOTO_SIZE} by {PHOTO_SIZE} pixels in the team's 15 photo colours, which all its photos share (see-through where the card shows
         through); an imported image of any size is cropped to the square in its middle, shrunk, and shaded to those colours.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}

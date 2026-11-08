@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { photosFollowPlayers } from './core/photofollow'
 import type { RomProject } from './core/rom'
 
 // Undo and redo. Every edit produces a new project object and leaves the old
@@ -35,7 +36,8 @@ export function useProjectHistory() {
       setHistory((h) => {
         const current = h.entries[h.index]
         if (!current) return h
-        const value = typeof next === 'function' ? next(current) : next
+        // Photos follow players the edit moved; see photofollow.ts.
+        const value = photosFollowPlayers(current, typeof next === 'function' ? next(current) : next)
         if (value === current) return h
         const now = Date.now()
         const atEnd = h.index === h.entries.length - 1

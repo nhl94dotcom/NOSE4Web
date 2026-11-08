@@ -162,6 +162,37 @@ export function withSnesPhoto(project: RomProject, team: number, slot: number, p
   return { ...project, bytes: rom }
 }
 
+// A team's 16 photo colours set, where they are if no other team shares
+// them, else in free space with the team pointed there.
+export function withSnesPhotoPalette(project: RomProject, team: number, palette: number[]): RomProject {
+  const layout = need(project)
+  const rom = project.bytes.slice()
+  const at = long(rom, layout.palettes + team * 4)
+  const shared = project.teams.some((_, other) => other !== team && long(rom, layout.palettes + other * 4) === at)
+  const to = shared ? freeSpace(rom, COLOURS * 2, keptBanks(rom)) : at
+  if (to < 0) throw new Error('The ROM has no free space left for these photo colours.')
+  palette.forEach((word, i) => writeU16LE(rom, to + i * 2, word))
+  writeU16LE(rom, layout.palettes + team * 4, loRomAddress(to))
+  rom[layout.palettes + team * 4 + 2] = loRomBank(to, rom[layout.palettes + team * 4 + 2])
+  return { ...project, bytes: rom }
+}
+
+// The photo addresses of a team's 26 places, as they are in the table (3 bytes each).
+export function snesPhotoRow(project: RomProject, team: number): Uint8Array[] {
+  const layout = need(project)
+  return Array.from({ length: SNES_PHOTO_SLOTS }, (_, slot) => {
+    const at = layout.table + (team * SNES_PHOTO_SLOTS + slot) * 4
+    return project.bytes.slice(at, at + 3)
+  })
+}
+
+export function withSnesPhotoRow(project: RomProject, team: number, row: Uint8Array[]): RomProject {
+  const layout = need(project)
+  const rom = project.bytes.slice()
+  row.forEach((address, slot) => rom.set(address, layout.table + (team * SNES_PHOTO_SLOTS + slot) * 4))
+  return { ...project, bytes: rom }
+}
+
 // The photos of two places on a team swapped, for after moving players.
 export function withSnesPhotosSwapped(project: RomProject, team: number, a: number, b: number): RomProject {
   const layout = need(project)

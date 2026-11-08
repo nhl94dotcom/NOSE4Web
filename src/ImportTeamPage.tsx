@@ -8,6 +8,7 @@ const PARTS: { key: keyof ImportParts; label: string }[] = [
   { key: 'roster', label: 'Roster and lines' },
   { key: 'colours', label: 'Home and away colours' },
   { key: 'pictures', label: 'Logos, banners and banner colours' },
+  { key: 'photos', label: 'Player photos (with the roster)' },
 ]
 
 interface Other {
@@ -128,7 +129,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
               <label key={part.key} className="choice">
                 <input
                   type="checkbox"
-                  checked={parts[part.key]}
+                  checked={parts[part.key] ?? false}
                   onChange={(e) => setParts({ ...parts, [part.key]: e.target.checked })}
                 />{' '}
                 {part.label}

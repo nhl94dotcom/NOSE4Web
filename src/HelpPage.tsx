@@ -555,9 +555,12 @@ export function HelpPage() {
           import or draw one, added at the end of the ROM; the others keep theirs.
         </li>
         <li>
-          Each photo is for a place on the roster, chosen in its list, not for a player by name. After moving
-          players, check who each photo is for. Check ROM warns of a setup screen card for a place past the end
-          of the roster.
+          The game ties each photo to a place on the roster, not to a player by name, but in the editor photos
+          follow their players: when you move, trade, let go or reorder players, each takes his photo along (on
+          the Genesis his place among the featured players; one who leaves a team is replaced there only while it
+          needs six). <b>Import a team</b> brings a team's photos with its roster, under <b>Player photos</b>.
+          ROMs edited elsewhere may have photos on the wrong players: choose who each is for in its list. Check
+          ROM notes a setup screen card for a place past the end of the roster.
         </li>
         <li>
           The arrows change the order, which matters for the setup screen's first six. <b>Add a photo for…</b>
@@ -568,8 +571,10 @@ export function HelpPage() {
         On the SNES every player has a photo, shown on the player cards and the matchup screens: one for each place
         on the roster. Those without one of their own share generic goalie and skater pictures, coloured in the
         team's colours. A team's photos all share its 15 photo colours, so an imported image is shaded to them;
-        see-through parts show the card behind. <b>Swap with…</b> swaps two players' photos, for after moving
-        players. A new photo goes where the old one was if it fits, or else into free space in the ROM.
+        see-through parts show the card behind. Photos follow their players here as on the Genesis; one traded
+        to another team is drawn in that team's photo colours. <b>Swap with…</b> swaps two players' photos, to put
+        right a ROM whose photos are on the wrong players. Importing a team with its photos brings its photo
+        colours too. A new photo goes where the old one was if it fits, or else into free space in the ROM.
       </p>
 
       <p>

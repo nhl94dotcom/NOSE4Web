@@ -85,8 +85,8 @@ export function PhotosEditor({ project, team, onChange }: Props) {
       <p className="note">
         The team setup screen shows the first {FEWEST_PHOTOS} of these players' cards in turn, so a team keeps at least {FEWEST_PHOTOS}. The matchup screens
         show the photo of any player listed here, and a generic picture for everyone else. A photo is {PHOTO_SIZE} by {PHOTO_SIZE} pixels in eight shades
-        of the game's photo colours; an imported image of any size is cropped to the square in its middle, shrunk, and shaded to them. A photo follows
-        its place on the roster, so after moving players, check who each one is for.
+        of the game's photo colours; an imported image of any size is cropped to the square in its middle, shrunk, and shaded to them. Photos follow
+        their players when players are moved, traded, let go or reordered here.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <div className="pictures">

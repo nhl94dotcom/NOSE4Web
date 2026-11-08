@@ -20,6 +20,7 @@ import {
 } from './graphics'
 import { convertWeight, isRating, weightBase, type AttributeKind } from './attributes'
 import { NHL94 } from './games'
+import { importPhotos } from './photoimport'
 import { hackState, narrowRating, widenRating } from './hacks'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
@@ -31,9 +32,11 @@ export interface ImportParts {
   roster: boolean
   colours: boolean
   pictures: boolean
+  // Player photos, which come only with the roster: a photo is for a place on it.
+  photos?: boolean
 }
 
-export const ALL_PARTS: ImportParts = { names: true, roster: true, colours: true, pictures: true }
+export const ALL_PARTS: ImportParts = { names: true, roster: true, colours: true, pictures: true, photos: true }
 
 // Colours 5 and up of a menu logo's 16 are its own; see graphics.ts.
 const LOGO_OWN_COLORS_FROM = 5
@@ -111,6 +114,10 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
     } else {
       next = importPictures(next, other, from, to, notes)
     }
+  }
+  if (parts.photos) {
+    if (parts.roster) next = importPhotos(next, other, from, to, notes)
+    else notes.push('Player photos were left alone: they come only with the roster, since each is for a place on it.')
   }
   return { project: next, notes }
 }
