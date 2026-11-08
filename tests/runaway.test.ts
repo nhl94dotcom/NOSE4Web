@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readU16, readU32 } from '../src/core/bytes'
-import { detectHacks, hackRom, NO_HACKS, RUNAWAY_CODE, RUNAWAY_ONETIMER_CODE } from '../src/core/hacks'
+import { detectHacks, hackRom, NO_HACKS, RING_CODE, RUNAWAY_CODE, RUNAWAY_ONETIMER_CODE } from '../src/core/hacks'
 
 const PFLAGS = 0x62
 const PFLAGS3 = 0x64
@@ -146,5 +146,87 @@ describe.skipIf(!existsSync(romPath))('the computer goalie pull fix', () => {
     const leaves = (behind: number, fixed: boolean) => (fixed ? behind <= 0 || behind > 2 : behind < 0 || behind !== 2)
     expect([-1, 0, 1, 2, 3].map((b) => leaves(b, false))).toEqual([true, true, true, false, true])
     expect([-1, 0, 1, 2, 3].map((b) => leaves(b, true))).toEqual([true, true, false, false, true])
+  })
+})
+
+// Runs the blind ring code: whether it calls puckstick, and whether it leaves Z set (go on to the body test).
+function ring(position: number, puckc: number, highlight: boolean, distanceSquared: number): { stick: boolean; body: boolean } {
+  let [n, z, c] = [false, false, false]
+  let stick = false
+  let pc = 0
+  for (let steps = 0; steps < 40; steps++) {
+    const op = readU16(RING_CODE, pc)
+    if (op === 0x4a6a) {
+      z = position === 0
+      n = position < 0
+      pc += 4
+    } else if (op === 0x4a78) {
+      z = puckc === 0
+      n = puckc < 0
+      pc += 4
+    } else if (op === 0x0838) {
+      expect(readU16(RING_CODE, pc + 2)).toBe(4)
+      expect(readU16(RING_CODE, pc + 4)).toBe(0xc2ea)
+      z = !highlight
+      pc += 6
+    } else if (op === 0x0c80) {
+      const value = readU32(RING_CODE, pc + 2)
+      z = distanceSquared === value
+      c = distanceSquared < value
+      n = distanceSquared - value < 0
+      pc += 6
+    } else if ((op & 0xff00) === 0x6600 || (op & 0xff00) === 0x6a00 || (op & 0xff00) === 0x6300) {
+      const taken = (op & 0xff00) === 0x6600 ? !z : (op & 0xff00) === 0x6a00 ? !n : c || z
+      pc += 2
+      if (taken) pc += op & 0xff
+    } else if (op === 0x003c) {
+      z = (readU16(RING_CODE, pc + 2) & 4) !== 0 || z
+      pc += 4
+    } else if (op === 0x023c) {
+      if ((readU16(RING_CODE, pc + 2) & 4) === 0) z = false
+      pc += 4
+    } else if (op === 0x4eb9) {
+      expect(readU32(RING_CODE, pc + 2)).toBe(0x150e4)
+      stick = true
+      z = true // whatever puckstick leaves, the code must clear Z after it
+      pc += 6
+    } else if (op === 0x4e75) {
+      return { stick, body: z }
+    } else throw new Error(`opcode ${op.toString(16)}`)
+  }
+  throw new Error('runs away')
+}
+
+describe('the blind ring option', () => {
+  it("sends a loose puck 8 to 14 from a goalie's blade to the body test, and everything else to puckstick as before", () => {
+    // The ring: a goalie, a loose puck, past 8 units ($40 squared).
+    expect(ring(0, -1, false, 0x41)).toEqual({ stick: false, body: true })
+    expect(ring(0, -1, false, 0xc4)).toEqual({ stick: false, body: true })
+    // As before: within 8, a skater, a puck someone carries, the "goalie lets it in" mode.
+    expect(ring(0, -1, false, 0x40)).toEqual({ stick: true, body: false })
+    expect(ring(4, -1, false, 0x90)).toEqual({ stick: true, body: false })
+    expect(ring(0, 3, false, 0x90)).toEqual({ stick: true, body: false })
+    expect(ring(0, 0, false, 0x90)).toEqual({ stick: true, body: false })
+    expect(ring(0, -1, true, 0x90)).toEqual({ stick: true, body: false })
+  })
+})
+
+describe.skipIf(!existsSync(romPath))('the blind ring option in the ROM', () => {
+  it('calls the new code in place of bsr puckstick / bra .exit, and comes out again', () => {
+    const rom = new Uint8Array(readFileSync(romPath))
+    // cmp.l d1,d0; bhi.w .chkbody; bsr.w puckstick; bra.w .exit; .chkbody: tst.w position(a2)
+    expect(Buffer.from(rom.subarray(0x14ec2, 0x14ed4)).toString('hex')).toBe('b0816200000a6100021a600000544a6a0034')
+    expect(0x14eca + readU16(rom, 0x14eca)).toBe(0x150e4)
+    const exit = 0x14ece + readU16(rom, 0x14ece)
+    const hacked = hackRom(rom, { ...NO_HACKS, blindRingFix: true })
+    expect(readU16(hacked, 0x14ec8)).toBe(0x4eb9)
+    const target = readU32(hacked, 0x14eca)
+    expect(Buffer.from(hacked.subarray(target, target + RING_CODE.length))).toEqual(Buffer.from(RING_CODE))
+    // bne.s .exit, to where bra.w .exit went; then the body test, as before.
+    expect(readU16(hacked, 0x14ece) >> 8).toBe(0x66)
+    expect(0x14ed0 + (readU16(hacked, 0x14ece) & 0xff)).toBe(exit)
+    expect(readU16(hacked, 0x14ed0)).toBe(0x4a6a)
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, blindRingFix: true }, unknown: [] })
+    expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
   })
 })

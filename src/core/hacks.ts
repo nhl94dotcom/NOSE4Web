@@ -86,6 +86,8 @@ export interface HackChoices {
   penaltyShotFixes: boolean
   // The computer pulls its goalie late when one or two goals behind, not only when exactly two.
   goaliePullFix: boolean
+  // Lets a goalie's body play a loose puck 8 to 14 units from his blade, where nothing touches it in the original.
+  blindRingFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -126,6 +128,7 @@ export type HackPart =
   | 'penaltyShotTableFix'
   | 'penaltyShotFixes'
   | 'goaliePullFix'
+  | 'blindRingFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -162,6 +165,7 @@ export const NO_HACKS: HackChoices = {
   penaltyShotTableFix: false,
   penaltyShotFixes: false,
   goaliePullFix: false,
+  blindRingFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -799,6 +803,45 @@ const penaltyShotFixes: Part<boolean> = {
 // and bgt if more than two behind.
 const goaliePullFix = switchPart(0xf758, bytes('6B00 5D0A B07C 0002 6600 5D02'), bytes('6F00 5D0A B07C 0002 6E00 5D02'))
 
+// The goalie's blind ring (Match Viewer's GENESIS_SHOOTING). checkpuckcoll
+// hands a puck within a stick's reach (14 units) to puckstick and then skips
+// the body test, but for a goalie and a loose puck puckstick does nothing past
+// 8 units from his blade. So between 8 and 14 nothing touches the puck, and
+// the butterfly and some kick saves put his blade 10 to 13 to the side, his
+// middle in that ring: five-hole goals. The option sends that case on to the
+// body test (puckgoalie) instead; everything else calls puckstick as before,
+// the "goalie lets it in" mode (gmhl) included. bsr.w puckstick / bra.w .exit
+// become a call to the code below and bne.s .exit: it returns Z set for the
+// body test, clear for the exit. Over 928 recorded shots it changes expected
+// goals by about -0.3%; 3 of 218 recorded goals were five-hole goals.
+const RING_AT = 0x14ec8
+const RING_ORIGINAL = bytes('6100 021A 6000 0054')
+// tst.w position(a2); bne .stick; tst.w (puckc).w; bpl .stick; btst #gmhl,(gmode).w; bne .stick;
+// cmpi.l #$40,d0; bls .stick; ori #4,ccr; rts; .stick: jsr puckstick; andi #$FB,ccr; rts
+export const RING_CODE = bytes('4A6A 0034 661C 4A78 B7AA 6A16 0838 0004 C2EA 660E 0C80 0000 0040 6306 003C 0004 4E75 4EB9 0001 50E4 023C 00FB 4E75')
+const ringTarget = (rom: Uint8Array) =>
+  readU16(rom, RING_AT) === OP_JSR && readU16(rom, RING_AT + 6) === 0x6652 && is(rom, readU32(rom, RING_AT + 2), RING_CODE) ? readU32(rom, RING_AT + 2) : null
+
+const blindRingFix: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, RING_AT, RING_ORIGINAL)) return false
+    return ringTarget(rom) === null ? undefined : true
+  },
+  remove(rom) {
+    const target = ringTarget(rom)
+    if (target === null) return
+    erase(rom, target, RING_CODE.length)
+    rom.set(RING_ORIGINAL, RING_AT)
+  },
+  apply(work, value) {
+    if (!value) return
+    const target = place(work, RING_CODE)
+    writeU16(work.rom, RING_AT, OP_JSR)
+    writeU32(work.rom, RING_AT + 2, target)
+    writeU16(work.rom, RING_AT + 6, 0x6652)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -972,6 +1015,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
     penaltyShotFixes: found('penaltyShotFixes', penaltyShotFixes.detect(rom), NO_HACKS.penaltyShotFixes),
     goaliePullFix: found('goaliePullFix', goaliePullFix.detect(rom), NO_HACKS.goaliePullFix),
+    blindRingFix: found('blindRingFix', blindRingFix.detect(rom), NO_HACKS.blindRingFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -1029,6 +1073,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
     ['penaltyShotFixes', () => penaltyShotFixes.remove(work.rom), () => penaltyShotFixes.apply(work, wanted.penaltyShotFixes)],
     ['goaliePullFix', () => goaliePullFix.remove(work.rom), () => goaliePullFix.apply(work, wanted.goaliePullFix)],
+    ['blindRingFix', () => blindRingFix.remove(work.rom), () => blindRingFix.apply(work, wanted.blindRingFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1136,6 +1181,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltyShotTableFix: 'Penalty shot table fix',
   penaltyShotFixes: 'Penalty shot fixes',
   goaliePullFix: 'Computer goalie pull fix',
+  blindRingFix: 'Close the five-hole blind ring',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1168,6 +1214,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltyShotTableFix: 'penaltyShotTableFix',
   penaltyShotFixes: 'penaltyShotFixes',
   goaliePullFix: 'goaliePullFix',
+  blindRingFix: 'blindRingFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

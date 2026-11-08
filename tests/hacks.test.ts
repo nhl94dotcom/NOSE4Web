@@ -234,6 +234,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { penaltyShotTableFix: true },
       { penaltyShotFixes: true },
       { goaliePullFix: true },
+      { blindRingFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },

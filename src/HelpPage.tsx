@@ -1078,6 +1078,13 @@ export function HelpPage() {
           are aimed, as anyone's do with the goalie pulled.
         </li>
         <li>
+          <b>Close the five-hole blind ring</b> (with the fixes, Genesis only; an option, a matter of taste): in the
+          butterfly and some kick saves a goalie's stick moves aside, and a flat puck 8 to 14 units from his blade
+          touches neither stick nor body, so it slides through his legs. With this on his body plays it as anywhere
+          else. Small overall (about 0.3% fewer expected goals in Match Viewer's recordings) but it falls on five-hole
+          goals, 3 of 218 recorded.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
