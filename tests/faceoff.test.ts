@@ -39,12 +39,12 @@ function cases(): { code: number; x: number; y: number; bottom: boolean; player:
   const ys = [0, 1, -1, 64, 65, 88, 89, -88, -89, 165, 166, -166, 600, -600, 206, -206]
   const xs = [0, 1, -1, 70, -70, 130, -130]
   const out: { code: number; x: number; y: number; bottom: boolean; player: number }[] = []
-  for (let code = 2; code <= 0x40; code += 2) {
+  for (let code = 0; code <= 0x40; code += 2) {
     for (const y of ys) for (const x of xs) out.push({ code, x, y, bottom: (x + y) % 3 === 0, player: (code / 2) % 12 })
   }
   for (let i = 0; i < 3000; i++) {
     out.push({
-      code: 2 * Math.floor(random() * 32),
+      code: 2 * Math.floor(random() * 33),
       x: Math.floor(random() * 400) - 200,
       y: Math.floor(random() * 1400) - 700,
       bottom: random() < 0.5,
@@ -58,15 +58,24 @@ function cases(): { code: number; x: number; y: number; bottom: boolean; player:
 
 const FOX = 0xffffbf94
 const SORT_CORDS = 0xffffb04a
-const ENTRY = 0xffffc3a6
+const PEN_BUF = 0xffffc3a4
+// Where a0 points: not into PenBuf, as after a roughing call from a hit.
+const ENTRY = 0xffff9000
 
-function runGenesis(code: Uint8Array, d0: number, d1: number, entryCode: number, player: number, ownEndBottom: boolean) {
+// `entries` are older PenBuf entries before the newest, [code, player].
+function runGenesis(code: Uint8Array, d0: number, d1: number, entryCode: number, player: number, ownEndBottom: boolean, entries: [number, number][] = []) {
   const memory = new Map<number, number>()
   const byte = (at: number) => memory.get(at >>> 0) ?? 0
   const setByte = (at: number, v: number) => memory.set(at >>> 0, v & 0xff)
-  // The PenBuf entry before a0, and the player's pflags byte with its pfgoal bit (7).
-  setByte(ENTRY - 2, entryCode)
-  setByte(ENTRY - 1, player)
+  // PenBuf, the newest entry last (none at all for code 0), and the player's pflags byte with its pfgoal bit (7).
+  const all = entryCode === 0 ? [] : [...entries, [entryCode, player]]
+  all.forEach(([c, p], i) => {
+    setByte(PEN_BUF + i * 2, c)
+    setByte(PEN_BUF + i * 2 + 1, p)
+  })
+  // Whatever a0 points after, which the fix must not go by.
+  setByte(ENTRY - 2, 0x1a)
+  setByte(ENTRY - 1, 3)
   setByte(SORT_CORDS + (player & 0x7f) * 128 + 0x62, ownEndBottom ? 0x80 : 0x00)
   const d = [d0 & 0xffff, d1 & 0xffff, 0x1234, 0x5678, 0, 0, 0, 0]
   const a = [ENTRY, 0xabcd, 0, 0, 0, 0, 0, 0xffff8000]
@@ -101,7 +110,19 @@ function runGenesis(code: Uint8Array, d0: number, d1: number, entryCode: number,
     const reg = op & 7
     const high = (op >> 9) & 7
     if (op === 0x4e75) return { x: s16(d[0]), y: s16(d[1]), fox: s16((byte(FOX) << 8) | byte(FOX + 1)), foy: s16((byte(FOX + 2) << 8) | byte(FOX + 3)), d, a }
-    if ((op & 0xfff8) === 0x0c28) {
+    if ((op & 0xfff8) === 0x0c10) {
+      // cmpi.b #imm,(An)
+      const immediate = word(pc) & 0xff
+      pc += 2
+      compare(byte(a[reg]), immediate, 8)
+    } else if ((op & 0xfff8) === 0x4a50 || (op & 0xfff8) === 0x4a58) {
+      // tst.w (An) / tst.w (An)+
+      nz(s16((byte(a[reg]) << 8) | byte(a[reg] + 1)))
+      if ((op & 0xfff8) === 0x4a58) a[reg] = (a[reg] + 2) >>> 0
+    } else if ((op & 0xf1f8) === 0x5148) {
+      // subq.w #n,An
+      a[reg] = (a[reg] - (high === 0 ? 8 : high)) >>> 0
+    } else if ((op & 0xfff8) === 0x0c28) {
       // cmpi.b #imm,d16(An)
       const immediate = word(pc) & 0xff
       const at2 = (a[reg] + s16(word(pc + 2))) >>> 0
@@ -169,19 +190,22 @@ function runGenesis(code: Uint8Array, d0: number, d1: number, entryCode: number,
 
 describe('the faceoff spot fix, Genesis', () => {
   it('puts every faceoff on the dot the rules give', () => {
-    for (const t of cases()) {
-      const out = runGenesis(FACEOFF_CODE, t.x, t.y, t.code, t.player, t.bottom)
-      const want = meant(t.code, t.code === 0x0e ? 0 : t.x, t.code === 0x0e ? 0 : t.y, t.bottom, [0x12, 0x2a])
-      const raw = t.code === 0x0e ? [0, 0] : [t.x, t.y]
-      if (t.code === 0x0e) {
-        const goal = runGenesis(FACEOFF_CODE, 0, 0, 0x0e, t.player, t.bottom)
-        expect([goal.fox, goal.foy]).toEqual([0, 0])
-        continue
-      }
-      expect([out.fox, out.foy], JSON.stringify({ ...t, raw })).toEqual(want)
+    cases().forEach((t, i) => {
+      // Some with older entries before the newest, which the fix must not go by.
+      const older: [number, number][] = i % 3 === 0 ? [[0x16, 5], [0x0a, 2]] : []
+      const out = runGenesis(FACEOFF_CODE, t.x, t.y, t.code, t.player, t.bottom, older)
+      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x12, 0x2a]))
       // It leaves the registers the game uses afterwards as they were.
       expect([out.d[2], out.d[3], out.a[0], out.a[1], out.a[7]]).toEqual([0x1234, 0x5678, ENTRY, 0xabcd, 0xffff8000])
-    }
+    })
+  })
+
+  it('reads a roughing call from a hit by its PenBuf entry, wherever a0 points', () => {
+    // FallDown adds roughing ($12) for player 4 and goes into Stop4Pen with a0 elsewhere.
+    expect(runGenesis(FACEOFF_CODE, 20, 30, 0x12, 4, true)).toMatchObject({ fox: 70, foy: -206 })
+    expect(runGenesis(FACEOFF_CODE, -20, 30, 0x12, 4, false)).toMatchObject({ fox: -70, foy: 206 })
+    // An empty PenBuf is an ordinary whistle.
+    expect(runGenesis(FACEOFF_CODE, -20, 30, 0, 4, false)).toMatchObject({ fox: -70, foy: 65 })
   })
 })
 
@@ -190,9 +214,10 @@ describe('the faceoff spot fix, Genesis', () => {
 const DP = { d0: 0xa5, d1: 0xa9, a0: 0x89 }
 const PFGOAL = 0x14c3
 const SNES_FOX = 0x7e3136
-const PEN_ENTRY = 0x15e2
+const SNES_PEN_BUF = 0x15de
+const PEN_ENTRY = 0x0002
 
-function runSnes(code: Uint8Array, x: number, y: number, entryCode: number, player: number, ownEndBottom: boolean) {
+function runSnes(code: Uint8Array, x: number, y: number, entryCode: number, player: number, ownEndBottom: boolean, entries: [number, number][] = []) {
   const memory = new Map<number, number>()
   const byte = (at: number) => memory.get(at) ?? 0
   const w = (at: number) => byte(at) | (byte(at + 1) << 8)
@@ -202,10 +227,13 @@ function runSnes(code: Uint8Array, x: number, y: number, entryCode: number, play
   }
   setW(DP.d0, x)
   setW(DP.d1, y)
+  // a0 as a roughing call from a hit leaves it (the hitter's team offset), and PenBuf, the newest entry last.
   setW(DP.a0, PEN_ENTRY)
-  memory.set(PEN_ENTRY - 2, entryCode)
-  memory.set(PEN_ENTRY - 1, player)
-  memory.set(PEN_ENTRY, 0x77) // the next entry, which a word read at a0 - 1 takes as its high byte
+  const all = entryCode === 0 ? [] : [...entries, [entryCode, player]]
+  all.forEach(([c1, p1], i) => {
+    memory.set(SNES_PEN_BUF + i * 2, c1)
+    memory.set(SNES_PEN_BUF + i * 2 + 1, p1)
+  })
   setW(PFGOAL + (player & 0x7f) * 2, ownEndBottom ? 1 : 0)
   let [acc, yReg, n, z, c] = [0, 0x4242, false, false, false]
   const flags = (value: number) => {
@@ -255,6 +283,32 @@ function runSnes(code: Uint8Array, x: number, y: number, entryCode: number, play
         flags((acc - imm) & 0xffff)
         pc += 3
         break
+      case 0xa0:
+        yReg = imm
+        flags(yReg)
+        pc += 3
+        break
+      case 0xc0:
+        c = yReg >= imm
+        flags((yReg - imm) & 0xffff)
+        pc += 3
+        break
+      case 0xc8:
+      case 0x88:
+        yReg = (yReg + (op === 0xc8 ? 1 : -1)) & 0xffff
+        flags(yReg)
+        pc += 1
+        break
+      case 0xeb:
+        acc = ((acc >> 8) | (acc << 8)) & 0xffff
+        n = (acc & 0x80) !== 0
+        z = (acc & 0xff) === 0
+        pc += 1
+        break
+      case 0x64:
+        setW(dp, 0)
+        pc += 2
+        break
       case 0x0a:
         c = (acc & 0x8000) !== 0
         acc = (acc << 1) & 0xffff
@@ -298,13 +352,13 @@ function runSnes(code: Uint8Array, x: number, y: number, entryCode: number, play
 
 describe('the faceoff spot fix, SNES', () => {
   it('puts every faceoff on the dot the rules give', () => {
-    const code = snesFaceoffCode(PFGOAL, SNES_FOX, SNES_FOX + 2)
-    for (const t of cases()) {
-      const raw = t.code === 0x0e ? [0, 0] : [t.x, t.y]
-      const out = runSnes(code, raw[0], raw[1], t.code, t.player, t.bottom)
-      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, raw[0], raw[1], t.bottom, [0x14, 0x2e]))
+    const code = snesFaceoffCode(SNES_PEN_BUF, PFGOAL, SNES_FOX, SNES_FOX + 2)
+    cases().forEach((t, i) => {
+      const older: [number, number][] = i % 3 === 0 ? [[0x18, 5], [0x0a, 2]] : []
+      const out = runSnes(code, t.x, t.y, t.code, t.player, t.bottom, older)
+      expect([out.fox, out.foy], JSON.stringify(t)).toEqual(meant(t.code, t.x, t.y, t.bottom, [0x14, 0x2e]))
       expect(out.a0).toBe(PEN_ENTRY)
-    }
+    })
   })
 })
 
@@ -355,6 +409,6 @@ describe.skipIf(snesNames.length === 0)('the faceoff spot fix in SNES ROMs', () 
     const project = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
     const [call, code] = relocatedSnesHack(project.bytes, 'faceoffFix')!
     expect(call.at).toBe(loRomOffset(0x9e, 0xb326))
-    expect(Buffer.from(code.hacked)).toEqual(Buffer.from(snesFaceoffCode(PFGOAL, SNES_FOX, SNES_FOX + 2)))
+    expect(Buffer.from(code.hacked)).toEqual(Buffer.from(snesFaceoffCode(SNES_PEN_BUF, PFGOAL, SNES_FOX, SNES_FOX + 2)))
   })
 })

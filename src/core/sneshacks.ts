@@ -42,21 +42,25 @@ const hex24 = (value: number) => hex16(value & 0xffff) + ((value >> 16) & 0xff).
 // $2E on the SNES) in the offending team's own end, at the dot on the side of
 // the puck; anything else past a blue line at that end's dot on the puck's
 // side, and in the neutral zone at the nearest neutral dot. limitfo runs as
-// before. The 94 bytes from the raw spot to the call of limitfo become a call
+// before. The stoppage is the newest entry in PenBuf, not the one a0 points
+// after, which a roughing call from a hit (FallDown) leaves elsewhere. The 94 bytes from the raw spot to the call of limitfo become a call
 // to the new code and a jump to that call. Stop4Pen keeps d0, d1 and a0 at
-// $A5, $A9 and $89 in the direct page in every build; pfgoal (the player's
-// end) and the faceoff spot fox / foy move with the build.
+// $A5 and $A9 in the direct page in every build; PenBuf, pfgoal (the
+// player's end) and the faceoff spot fox / foy move with the build.
 const FACEOFF_REGION = 94
 const faceoffOriginal = (fox: number, foy: number) =>
   'A5A5 85C5 38 E94600 3005 A94600 85A5 A5A5 38 E9BAFF 1005 A9BAFF 85A5 A5A9 38 E9A600 3013 A9CE00 85A9 A94600 85A5 A5C5 1005 ' +
   `A9BAFF 85A5 A5A9 38 E95AFF 1013 A932FF 85A9 A94600 85A5 A5C5 1005 A9BAFF 85A5 A5A5 8F${hex24(fox)} A5A9 8F${hex24(foy)}`
 const faceoffCall = (to: number) => `20${hex16(to)} 80${(FACEOFF_REGION - 5).toString(16)} ${'EA'.repeat(FACEOFF_REGION - 5)}`
-const faceoffCode = (pfgoal: number, fox: number, foy: number) =>
-  'C689 C689 B289 E689 E689 29FF00 C90E00 F054 C91400 901F C92F00 B01A C689 B289 E689 297F00 0A A8 A9CE00 85A9 ' +
-  `B9${hex16(pfgoal)} F005 A932FF 85A9 A5A5 3005 A94600 8003 A9BAFF 85A5 A5A9 300F C95900 9005 A9CE00 8012 A94100 800D ` +
-  `C9A8FF B005 A932FF 8003 A9BFFF 85A9 A5A5 8F${hex24(fox)} A5A9 8F${hex24(foy)} 60`
+const faceoffCode = (penBuf: number, pfgoal: number, fox: number, foy: number) =>
+  `A00000 B9${hex16(penBuf)} F004 C8 C8 80F7 C00000 F02F 88 88 B9${hex16(penBuf)} 29FF00 C90E00 F054 C91400 901D C92F00 B018 ` +
+  `B9${hex16(penBuf)} EB 297F00 0A A8 A9CE00 85A9 B9${hex16(pfgoal)} F005 A932FF 85A9 A5A5 3005 A94600 8003 A9BAFF 85A5 ` +
+  `A5A9 300F C95900 9005 A9CE00 8012 A94100 800D C9A8FF B005 A932FF 8003 A9BFFF 85A9 8004 64A5 64A9 A5A5 8F${hex24(fox)} ` +
+  `A5A9 8F${hex24(foy)} 60`
 // Where the new code keeps fox's address, to find it in a ROM that has the hack.
-const FACEOFF_FOX_AT = 0x69
+const FACEOFF_FOX_AT = 0x79
+// PenBuf in the original game; it moves with the game's other variables.
+const PEN_BUF = 0x15de
 const minutes = (at: number): Site => ({ at, original: '02', hacked: '01' })
 
 // Places by the original game's addresses. A hack not listed is always found
@@ -296,7 +300,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // Found by the icing rule just before it, which reads pfgoal.
   faceoffFix: (rom) => {
     const found = only(rom, 'a9580285a9b9....f005a9a8fd85a9')
-    if (found < 0) return null
+    const moved = shift(rom)
+    if (found < 0 || moved === null) return null
     const site = found + 15
     const pfgoal = readU16(rom, found + 6)
     const isIn = rom[site] === 0x20 && rom[site + 3] === 0x80
@@ -306,7 +311,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const foy = fox + 2
     const original = hexBytes(faceoffOriginal(fox, foy))
     if (!isIn && !same(rom, site, original)) return null
-    return withNewCode(rom, site, (to) => hexBytes(faceoffCall(to)), original, hexBytes(faceoffCode(pfgoal, fox, foy)))
+    return withNewCode(rom, site, (to) => hexBytes(faceoffCall(to)), original, hexBytes(faceoffCode(PEN_BUF + moved, pfgoal, fox, foy)))
   },
 }
 
@@ -405,6 +410,6 @@ export function relocatedSnesHack(rom: Uint8Array, hack: SnesHack): { at: number
 }
 
 // For tests: the faceoff spot fix's new code, for these addresses.
-export function snesFaceoffCode(pfgoal: number, fox: number, foy: number): Uint8Array {
-  return hexBytes(faceoffCode(pfgoal, fox, foy))
+export function snesFaceoffCode(penBuf: number, pfgoal: number, fox: number, foy: number): Uint8Array {
+  return hexBytes(faceoffCode(penBuf, pfgoal, fox, foy))
 }

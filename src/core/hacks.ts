@@ -632,14 +632,19 @@ const passFix: Part<boolean> = {
 // the offending team's own end, on the side the puck was; anything else past a
 // blue line at that end's dot on the puck's side, and in the neutral zone at
 // the nearest neutral dot. limitfo then runs as before. The team's own end is
-// the one its pfgoal flag says, as the icing rule reads it.
+// the one its pfgoal flag says, as the icing rule reads it. The stoppage is
+// the newest entry in PenBuf (at $FFC3A4, filled from the start and emptied
+// from the end), not the one a0 points after: a roughing call from a hit
+// (FallDown) adds its entry and goes straight into Stop4Pen without pointing
+// a0 at it, as the Match Viewer project found. A goal's centre is set here,
+// not taken from the raw spot, which a0 decides.
 const FACEOFF_HOOK: Hook = {
   at: 0x12504,
   original: bytes(
     '48A7 C000 B07C 0046 6D00 0006 303C 0046 B07C FFBA 6E00 0006 303C FFBA B27C 00A6 6D00 0012 323C 00CE 303C 0046 4A57 6A00 0004 4440 B27C FF5A 6E00 0012 323C FF32 303C 0046 4A57 6A00 0004 4440 31C0 BF94 31C1 BF96 584F',
   ),
 }
-export const FACEOFF_CODE = bytes('0C28000EFFFE 6762 0C280012FFFE 652E 0C28002BFFFE 6426 2F09 327CB04A 4241 1228FFFF 0241007F EF41 083100071062 225F 6606 323C00CE 6004 323CFF32 4A40 6B04 7046 6002 70BA B27C0058 6E12 B27CFFA8 6D12 4A41 6B04 7241 600E 72BF 600A 323C00CE 6004 323CFF32 31C0BF94 31C1BF96 4E75')
+export const FACEOFF_CODE = bytes('2F09 327CC3A4 4A51 673A 4A59 66FC 5949 0C11000E 675C 0C110012 6528 0C11002B 6422 4241 12290001 0241007F EF41 327CB04A 083100071062 6606 323C00CE 6004 323CFF32 4A40 6B04 7046 6002 70BA B27C0058 6E12 B27CFFA8 6D12 4A41 6B04 7241 6014 72BF 6010 323C00CE 600A 323CFF32 6004 7000 7200 31C0BF94 31C1BF96 225F 4E75')
 
 const faceoffFix: Part<boolean> = {
   detect(rom) {
