@@ -230,6 +230,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { comebackFix: true },
       { passFix: true },
       { faceoffFix: true },
+      { runawayFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },

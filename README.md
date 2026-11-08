@@ -85,7 +85,8 @@ That licence does not cover:
   down, going nearly twice as fast as it should); a faceoff spot option, for
   the Genesis and the SNES, that holds every faceoff on one of the nine dots as
   the NHL has since 2007 (the game, like the rules of its day, often faces off
-  where play stopped); and an explanation of what every rating does in play
+  where play stopped); a fix for the runaway skater, who now and then shoots
+  off at twice top speed; and an explanation of what every rating does in play
   from the same project
 - A power play and penalty kill fix, for the Genesis and the SNES: the games
   read the two team ratings from the wrong halves of their byte, and the fix

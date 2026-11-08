@@ -13,8 +13,9 @@
 // AverageRangersFan: see "play" below. The Aggression and comeback bonus
 // fixes are the editor's own, to bugs found by the NHL94 Match Viewer project
 // in the disassembly at github.com/abdulahmad/NHL94Genesis: see "more fixes".
-// So are the rocket pass fix, to a bug the Match Viewer project measured, and
-// the faceoff spot fix, to rules it set out from the NHL rulebook.
+// So are the rocket pass fix, to a bug the Match Viewer project measured, the
+// faceoff spot fix, to rules it set out from the NHL rulebook, and the
+// runaway speed fix, to a bug it found.
 //
 // Each hack is looked for by the exact bytes it leaves, and a ROM whose code
 // at a hack's places is neither the original game's nor the hack's is left
@@ -77,6 +78,8 @@ export interface HackChoices {
   passFix: boolean
   // Holds every faceoff on one of the nine dots, as the NHL rules place them.
   faceoffFix: boolean
+  // Stops a skater keeping the gliding a pass receiver or a fall gets.
+  runawayFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -113,6 +116,7 @@ export type HackPart =
   | 'comebackFix'
   | 'passFix'
   | 'faceoffFix'
+  | 'runawayFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -145,6 +149,7 @@ export const NO_HACKS: HackChoices = {
   comebackFix: false,
   passFix: false,
   faceoffFix: false,
+  runawayFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -663,6 +668,45 @@ const faceoffFix: Part<boolean> = {
   },
 }
 
+// Runaway speed. A skater's pfdoff flag (pflags bit 0) makes him slow by
+// 1/512 of his speed a frame instead of 1/64, nearly as little as the puck:
+// the game sets it for a computer skater about to take a pass, so he glides
+// onto it, and for one knocked into the boards or the bench, so he slides. It
+// is meant to be cleared when he touches the puck or is given other work, but
+// two ways leave it on (Match Viewer's GENESIS_MECHANICS 3.4): asspassrec
+// ends for a skater a person has taken over through a branch straight to
+// assexit, past its own exit that clears the flag; and getting up from a fall
+// never clears it. A person's skater then barely slows, each speed burst
+// stacks on the last, and he can shoot off at twice top speed. The fix points
+// that branch at asspassrec's own exit, and makes the end of a fall animation
+// (where the game clears pf3fall) clear pfdoff too, only when a fall is
+// ending. A one-timer is untouched: it takes the skater over through its own
+// job, and the flag goes when his stick meets the puck, as before.
+const RUNAWAY_EXIT = { at: 0xeba0, original: bytes('1AA6'), hacked: bytes('00C8') }
+const RUNAWAY_FALL_HOOK: Hook = { at: 0xaf76, original: bytes('08AB 0005 0064') }
+// bclr #pf3fall,pflags3(a3); beq.s done; bclr #pfdoff,pflags(a3); done: rts
+export const RUNAWAY_CODE = bytes('08AB 0005 0064 6706 08AB 0000 0062 4E75')
+
+const runawayFix: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.original) && is(rom, RUNAWAY_FALL_HOOK.at, RUNAWAY_FALL_HOOK.original)) return false
+    if (is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked) && hooked(rom, RUNAWAY_FALL_HOOK, RUNAWAY_CODE) !== null) return true
+    return undefined
+  },
+  remove(rom) {
+    const target = hooked(rom, RUNAWAY_FALL_HOOK, RUNAWAY_CODE)
+    if (target === null || !is(rom, RUNAWAY_EXIT.at, RUNAWAY_EXIT.hacked)) return
+    erase(rom, target, RUNAWAY_CODE.length)
+    rom.set(RUNAWAY_FALL_HOOK.original, RUNAWAY_FALL_HOOK.at)
+    rom.set(RUNAWAY_EXIT.original, RUNAWAY_EXIT.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    hook(work, RUNAWAY_FALL_HOOK, RUNAWAY_CODE)
+    work.rom.set(RUNAWAY_EXIT.hacked, RUNAWAY_EXIT.at)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -832,6 +876,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
+    runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -885,6 +930,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
     ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
     ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
+    ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -988,6 +1034,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   comebackFix: 'Comeback bonus fix',
   passFix: 'Rocket pass fix',
   faceoffFix: 'Faceoff spot fix',
+  runawayFix: 'Runaway speed fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1016,6 +1063,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   comebackFix: 'comebackFix',
   passFix: 'passFix',
   faceoffFix: 'faceoffFix',
+  runawayFix: 'runawayFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

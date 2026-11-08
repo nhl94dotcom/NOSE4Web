@@ -148,7 +148,7 @@ export function HacksPage({ project, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -286,6 +286,20 @@ export function HacksPage({ project, onChange }: Props) {
             is faced off by where the player who last touched it stood. When both teams take penalties the faceoff
             still moves out to the neutral zone. Leave it off to keep the game's own 1990s-style faceoffs. Worked out
             with the NHL94 Match Viewer project, from today's NHL rulebook.
+          </>,
+        )}
+        {hack(
+          'runawayFix',
+          onOff('runawayFix'),
+          <>
+            Now and then a skater you control shoots off far past top speed and slides out of control for a second or
+            two, usually racing back on defence. The game lets a computer skater about to take a pass glide onto it,
+            and lets one knocked into the boards slide, by almost turning off how quickly he slows down. Two ways leave
+            that on: taking a skater over while a pass is coming to him, and getting up after a fall into the boards.
+            He then barely slows, each speed burst stacks on the last, and he runs away. This turns the gliding off in
+            both places, so he skates normally once he is yours or back on his feet. Computer skaters still glide onto
+            passes, and one-timers are unchanged. Taking over a skater with a pass coming, you now steer him onto it
+            yourself. Found by the NHL94 Match Viewer project.
           </>,
         )}
       </section>

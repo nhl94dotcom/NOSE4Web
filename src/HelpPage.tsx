@@ -1046,6 +1046,16 @@ export function HelpPage() {
           neutral zone, as before. Leave it off for the game's own faceoffs, closer to the rules of its day.
         </li>
         <li>
+          <b>Runaway speed fix</b> (in with the fixes, Genesis only): now and then a skater you control shoots off
+          at up to twice top speed and slides out of control for a second or two. The game nearly turns off how
+          quickly a skater slows down to let a computer skater glide onto a pass and a skater knocked into the boards
+          slide, and two ways leave that on: taking a skater over while a pass is coming to him, and getting up from
+          a fall into the boards. Each speed burst then stacks on the last. The fix turns the gliding off in both
+          places. Computer skaters still glide onto passes, one-timers are unchanged, and a skater you take over with
+          a pass coming is now steered onto it by you. The NHL94 Match Viewer project found the cause and recorded
+          the runaways. The SNES game already clears it.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
