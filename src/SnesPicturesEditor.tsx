@@ -301,9 +301,18 @@ const FIFTEEN = Array.from({ length: 15 }, (_, i) => i + 1)
 function logoLimit(picture: Picture): { text: string; over: boolean } {
   const used = snesLogoTiles(picture)
   if (!used) return { text: 'The logo is empty; it needs at least one pixel.', over: true }
+  // The game builds a logo from squares of 8 by 8 pixels (the darker grid lines), at most 36 different ones.
+  if (used.tiles <= used.most) {
+    return { text: `Uses ${used.tiles} of the ${used.most} squares of 8 by 8 pixels a logo may have.`, over: false }
+  }
+  const extra = used.tiles - used.most
   return {
-    text: `${used.tiles} of the ${used.most} tiles of 8 by 8 a logo can have.${used.tiles > used.most ? ' Leave more of it see-through, or repeat parts of it: a tile used again, even mirrored, costs nothing.' : ''}`,
-    over: used.tiles > used.most,
+    text:
+      `Too detailed by ${extra} ${extra === 1 ? 'square' : 'squares'}: the game builds a logo from squares of 8 by 8 pixels ` +
+      `(the darker grid lines), and this one needs ${used.tiles} different squares where it may have ${used.most}. ` +
+      'An empty square costs nothing, nor does a square that is an exact copy of another, even flipped. ' +
+      'This stroke will not be kept: to make room, first erase a square or two near the edge.',
+    over: true,
   }
 }
 const BACKDROP = 128

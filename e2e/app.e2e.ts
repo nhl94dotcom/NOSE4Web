@@ -1889,7 +1889,7 @@ test.describe('with the SNES game', () => {
     const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
     await logos.locator('.picture').nth(0).getByRole('button', { name: 'Draw…' }).click()
     const editor = logos.getByRole('group', { name: 'Draw the team logo' })
-    await expect(editor.getByText(/^\d+ of the 36 tiles of 8 by 8/)).toBeVisible()
+    await expect(editor.getByText(/^Uses \d+ of the 36 squares of 8 by 8 pixels/)).toBeVisible()
     const canvas = editor.getByLabel('Team logo, drawn large')
     const dot = async (x: number, y: number) =>
       canvas.click({ position: { x: ((x + 0.5) * Number(await canvas.getAttribute('width'))) / 56, y: ((y + 0.5) * Number(await canvas.getAttribute('height'))) / 56 } })

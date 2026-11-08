@@ -1376,7 +1376,8 @@ export function HelpPage() {
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the
           SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
           Both logos can also be drawn in the editor (see Logos and banners): the team logo with its 15 colours
-          changeable as you go and a count of its tiles against the 36 it may have, and the centre ice logo shown on
+          changeable as you go, and a count of the squares of 8 by 8 pixels it uses against the 36 different ones it may
+          have (an empty square, or one that is an exact copy of another, even flipped, costs nothing), and the centre ice logo shown on
           the rink as you draw. Each 8 by 8 square of a centre ice logo is drawn in one row of colours, so painting
           a colour from the other row moves the rest of that square to it.
         </li>
