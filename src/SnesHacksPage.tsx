@@ -34,6 +34,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   noGoalPosts: 'A puck that reaches the net between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'Starts the game without the EA logo.',
   skipPucksIntro: 'Starts the game without the flying pucks.',
+  extraAttackerFix:
+    "Moving players around in Edit Lines can leave a line without its extra attacker. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
+  yButtonFix:
+    'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.)',
   penaltyShotFixes:
     'A penalty shot whistled dead because the net was knocked off, or because the loose puck stopped moving for two seconds, is taken all over again, from the side, as the original game leaves it pending. With the fix those whistles end the penalty shot, as a goal or the puck hitting the boards does, and play goes on to a faceoff.',
   faceoffFix:
@@ -41,7 +45,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
-  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'faceoffFix', 'penaltyShotFixes'] },
+  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix'] },
   { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]

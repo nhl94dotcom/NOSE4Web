@@ -25,6 +25,8 @@ export type SnesHack =
   | 'skipPucksIntro'
   | 'faceoffFix'
   | 'penaltyShotFixes'
+  | 'extraAttackerFix'
+  | 'yButtonFix'
 
 interface Site {
   // The game's address.
@@ -112,6 +114,16 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   noGoalPosts: [{ at: 0x9e9230, original: 'ADF90D', hacked: '4C0F92' }],
   skipEaIntro: [{ at: 0x9f8289, original: '2236F49F', hacked: 'EAEAEAEA' }],
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
+  // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: moving players
+  // in Edit Lines can leave a line without its extra attacker. Edit Lines'
+  // test of the line position (cmp #1) becomes a call to the Vault's code,
+  // which finds the player moved among the line's places, the extra attacker's
+  // too, and puts him back, then makes that test. Its code uses the original
+  // game's work memory, so it is offered only in ROMs laid out as the original.
+  extraAttackerFix: [
+    { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
+    { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
+  ],
 }
 
 export const SNES_HACKS: SnesHack[] = [
@@ -127,6 +139,8 @@ export const SNES_HACKS: SnesHack[] = [
   'skipPucksIntro',
   'faceoffFix',
   'penaltyShotFixes',
+  'extraAttackerFix',
+  'yButtonFix',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -142,6 +156,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   skipPucksIntro: 'Skip the flying pucks intro',
   faceoffFix: 'Faceoff spot fix',
   penaltyShotFixes: 'Penalty shot fixes',
+  extraAttackerFix: 'Extra attacker fix',
+  yButtonFix: 'Y button fix',
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -302,6 +318,14 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
   penaltyShotFixes: (rom) => penaltyShotFixes(rom),
+  // Holdplayer: lda position,x; beq; lda pfalock,x; beq .t1; lda SPA,x; cmp #SPAburst; bne .t1; rtl.
+  yButtonFix: (rom) => {
+    const found = only(rom, 'bd....f00dbd....f009bd....c9....' + '....' + '6b')
+    if (found < 0) return null
+    const at = found + 16
+    if (rom[at] === 0xd0 && rom[at + 1] === 0x01) return [{ at, original: hexBytes('D001'), hacked: hexBytes('EAEA') }]
+    return rom[at] === 0xea && rom[at + 1] === 0xea ? [{ at, original: hexBytes('D001'), hacked: hexBytes('EAEA') }] : null
+  },
   // Found by the icing rule just before it, which reads pfgoal.
   faceoffFix: (rom) => {
     const found = only(rom, 'a9580285a9b9....f005a9a8fd85a9')
@@ -467,6 +491,16 @@ function penaltyShotFixes(rom: Uint8Array): Placed[] | null {
     { at: room, original: unused(NET_CODE_SIZE + STILL_CODE_SIZE), hacked: bytesOf(netCode, stillCode) },
   ]
 }
+
+// The Y button (hook or hold) works for a player locked in an animation, a
+// knocked-down one among them, where the game's other buttons do nothing
+// while he is locked (doinput tests pfalock for them, not before Y). Holdplayer
+// lets a locked player through unless his animation is the speed burst; the
+// fix makes it leave for any locked animation, as the other buttons do, by
+// turning the branch that skips its rtl into two nops. NHL94SNESVault's
+// YButtonBugFix stops it only where pfalock holds 1 (an ordinary knockdown);
+// pfalock holds the animation for a fall into the boards or the bench, or a
+// player being held, so this covers those too.
 
 // For tests: the faceoff spot fix's new code, for these addresses.
 export function snesFaceoffCode(penBuf: number, pfgoal: number, fox: number, foy: number): Uint8Array {
