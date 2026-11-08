@@ -82,10 +82,11 @@ That licence does not cover:
   [NHL94 Match Viewer](https://github.com/nhl94dotcom/NHL94MatchViewer)
   project: Aggression wrapping round, the comeback bonus coming at the wrong
   time, and the rocket pass (a pass timed in whole eighths of a second, rounded
-  down, going nearly twice as fast as it should); a faceoff spot fix, for the
-  Genesis and the SNES, that holds every faceoff on one of the nine dots as
-  the NHL rules place them; and an explanation of what every rating does in play from the same
-  project
+  down, going nearly twice as fast as it should); a faceoff spot option, for
+  the Genesis and the SNES, that holds every faceoff on one of the nine dots as
+  the NHL has since 2007 (the game, like the rules of its day, often faces off
+  where play stopped); and an explanation of what every rating does in play
+  from the same project
 - A power play and penalty kill fix, for the Genesis and the SNES: the games
   read the two team ratings from the wrong halves of their byte, and the fix
   makes them read the rosters as they were written

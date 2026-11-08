@@ -35,7 +35,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   skipEaIntro: 'Starts the game without the EA logo.',
   skipPucksIntro: 'Starts the game without the flying pucks.',
   faceoffFix:
-    "Holds every faceoff on one of the nine dots, as the NHL rules do. The original game puts one on a dot only when play stops past the hash marks, so a whistle in the open ice, and most penalties, are faced off where the puck was. With the fix: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Worked out with the NHL94 Match Viewer project, from the NHL rulebook.",
+    "Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine dots; before that a faceoff was often held where play stopped, and the game follows that older way, putting one on a dot only when play stops past the hash marks. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Leave it off to keep the game's own 1990s-style faceoffs. Worked out with the NHL94 Match Viewer project, from today's NHL rulebook.",
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [

@@ -276,14 +276,16 @@ export function HacksPage({ project, onChange }: Props) {
           'faceoffFix',
           onOff('faceoffFix'),
           <>
-            The original game puts a faceoff on a dot only when play stops past the hash marks; anywhere else it is
-            held where the puck was, often in the open ice between the dots. In recorded games that was 1 faceoff in 8,
-            most of them after penalties. This holds every faceoff on one of the nine dots, as the NHL rules do: after
-            a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was;
-            otherwise, past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest
-            neutral-zone dot. A puck shot out of play is faced off by where the player who last touched it stood. When
-            both teams take penalties the faceoff still moves out to the neutral zone, as before. Worked out with the
-            NHL94 Match Viewer project, from the NHL rulebook.
+            Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine
+            dots; before that a faceoff was often held where play stopped, and the game follows that older way. It
+            puts a faceoff on a dot only when play stops past the hash marks, and anywhere else holds it where the puck
+            was, often in the open ice between the dots: 1 faceoff in 8 in recorded games, most of them after
+            penalties. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the
+            offending team's own end, at the dot on the side the puck was; otherwise, past a blue line, at that end's
+            dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. A puck shot out of play
+            is faced off by where the player who last touched it stood. When both teams take penalties the faceoff
+            still moves out to the neutral zone. Leave it off to keep the game's own 1990s-style faceoffs. Worked out
+            with the NHL94 Match Viewer project, from today's NHL rulebook.
           </>,
         )}
       </section>

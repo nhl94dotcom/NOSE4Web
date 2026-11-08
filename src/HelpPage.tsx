@@ -1031,15 +1031,18 @@ export function HelpPage() {
           pass speed another way and never had the bug.
         </li>
         <li>
-          <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): the game puts a faceoff on a
-          dot only when play stops past the hash marks; anywhere else it is held where the puck was, often in open
-          ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most after
-          penalties. With the fix every faceoff is on one of the nine dots, as the NHL rules have it: after a goal at
+          <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
+          NHL rules have them. Only since the 2007–08 season has the NHL required every faceoff to be on one of the
+          nine dots; before that faceoffs did not always take place on the dots (a puck that left the ice, for
+          instance, was faced off where it was last played), and the game follows that older way. It puts a faceoff
+          on a dot only when play stops past the hash marks; anywhere else it is held where the puck was, often in
+          open ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most
+          after penalties. With the fix every faceoff is on one of the nine dots, as today's rules have it: after a goal at
           centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise,
           past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone
           dot (a goalie whistled for holding the puck out there too). A puck shot out of play is faced off by where
           the player who last touched it stood. When both teams take penalties the faceoff still moves out to the
-          neutral zone, as before.
+          neutral zone, as before. Leave it off for the game's own faceoffs, closer to the rules of its day.
         </li>
         <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
