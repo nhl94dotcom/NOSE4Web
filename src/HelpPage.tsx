@@ -934,6 +934,13 @@ export function HelpPage() {
           and forth before a goal.
         </li>
         <li>
+          <b>Count stick deflections as shots</b> (with the statistics, Genesis only): a hard low shot the goalie
+          deflects with his stick is not counted as a shot on goal in the original game, only a catch or a body save
+          is, so shots along the ice go missing from the totals, more of them for the team attacking down the screen.
+          With this on a stick deflection counts once, for the shooter and his team and against the goalie. Only the
+          statistics change.
+        </li>
+        <li>
           <b>Bodycheck statistics:</b> counts each player's checks and shows them in Player Stats as Chk, in place
           of penalty minutes.
         </li>

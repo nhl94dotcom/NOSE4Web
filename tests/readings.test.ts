@@ -36,6 +36,22 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
   })
 })
 
+describe.skipIf(!existsSync(path('nhl94.bin')))('counting stick deflections as shots', () => {
+  it("calls Match Viewer's code, byte for byte, from the deflection", () => {
+    const before = new Uint8Array(readFileSync(path('nhl94.bin')))
+    expect(hex(before, 0x151d6, 8)).toBe('6100af6660000528')
+    const after = hackRom(before, { ...NO_HACKS, stickShots: true })
+    expect(hex(after, 0x151d6, 2)).toBe('4eb9')
+    expect(hex(after, 0x151dc, 2)).toBe('4e71')
+    const at = (after[0x151d8] << 24) | (after[0x151d9] << 16) | (after[0x151da] << 8) | after[0x151db]
+    expect(hex(after, at, 62)).toBe(
+      '4a6a0034662a08380000c2ea662208380004c2ea661a08b80004c2ee6712487a001048e7c0703038bed84ef900012fd04eb90001013e588f4ef900015704',
+    )
+    expect(detectHacks(after)).toEqual({ choices: { ...NO_HACKS, stickShots: true }, unknown: [] })
+    expect(Buffer.compare(hackRom(after, NO_HACKS), before)).toBe(0)
+  })
+})
+
 const snes: [string, number, number[]][] = [
   ['NHL94.smc', 0xfcffb, [0xf04a0, 0xf0ace]],
   ['nhl94_2026.sfc', 0xfd10b, [0xf04a0, 0xf0ace]],

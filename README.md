@@ -100,6 +100,8 @@ That licence does not cover:
   bonus fix for the SNES, and options for pulled-goalie sniping (every shot
   exact while the shooter's own goalie is off the ice), the computer
   forwards' awareness slip and the always-on crowd bonus
+- An option to count a goalie's stick deflections as shots on goal, which the
+  Genesis leaves out of the statistics (from the same project)
 - On both Hacks pages: turn on every recommended fix at once, copy a ROM's
   hacks as a Discord post for a league's owners, and copy the hacks of
   another ROM

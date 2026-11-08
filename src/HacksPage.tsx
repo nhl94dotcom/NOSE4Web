@@ -158,7 +158,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -392,6 +392,18 @@ export function HacksPage({ project, name, onChange }: Props) {
 
       <section>
         <h3>Statistics</h3>
+        {hack(
+          'stickShots',
+          onOff('stickShots'),
+          <>
+            A hard low shot that comes off the goalie's stick is a save on the ice, but the original game does not count
+            it as a shot on goal: only a catch or a save with his body counts. So shots along the ice go missing from
+            the totals, and a team attacking down the screen, where more shots are aimed that way, is credited with
+            about 6% fewer. With this on, a stick deflection of a shot counts as a shot on goal for the shooter and his
+            team and against the goalie, once. Only the statistics change; play, the crowd and everything else are as
+            before. Found, built and tested in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
         {hack(
           'bodychecks',
           <select aria-label={HACK_TITLES.bodychecks} disabled={unknown('bodychecks')} value={wanted.bodychecks} onChange={(e) => set({ bodychecks: e.target.value as Bodychecks })}>

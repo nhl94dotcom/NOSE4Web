@@ -95,6 +95,8 @@ export interface HackChoices {
   awarenessFix: boolean
   // The crowd's +2 Agility and Speed come only when the crowd meter is past its record, not always.
   crowdFix: boolean
+  // A goalie's stick deflection counts as a shot on goal, as a catch or a body save does.
+  stickShots: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -139,6 +141,7 @@ export type HackPart =
   | 'snipingFix'
   | 'awarenessFix'
   | 'crowdFix'
+  | 'stickShots'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -179,6 +182,7 @@ export const NO_HACKS: HackChoices = {
   snipingFix: false,
   awarenessFix: false,
   crowdFix: false,
+  stickShots: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -904,6 +908,44 @@ const awarenessFix = bothParts(switchPart(0xd0e1, bytes('6B'), bytes('6A')), swi
 // 73% of live play. (Match Viewer's reading.)
 const crowdFix = switchPart(0xfef66, bytes('6000 000C'), bytes('4E71 4E71'))
 
+// Stick deflections as shots on goal (Match Viewer's GENESIS_SHOOTING 4.7). A
+// loose puck faster than a goalie's stick can catch goes to puckstick's .stdef,
+// which plays the sound and deflects it, and never counts the shot: only a
+// catch or a body touch reaches ChkShotStat. So shots along the ice go
+// missing from the totals, more of them for a team attacking down the screen.
+// The option counts a goalie's stick deflection while the shot flag
+// (sflags2 sf2shot) stands, with the clock running and not in a highlight.
+// It clears the flag, so the shot counts once, and enters ChkShotStat at
+// .addShot with the shooter (shotplayer) in d0 and its own stack frame,
+// past .Cwdupdate, so the crowd meter, which play reads, is left as it was:
+// statistics only. bsr.w a2touchpuck / bra.w deflect at $151D6 becomes a
+// call to the code below, which ends with both. (Match Viewer built and
+// tested it: over 1,200 shots, each changed by at most one shot on goal, and
+// play the same.)
+const STICK_HOOK: Hook = { at: 0x151d6, original: bytes('6100 AF66 6000 0528') }
+// tst.w position(a2); bne .touch; btst #0,(sflags).w; bne .touch; btst #4,(sflags).w; bne .touch;
+// bclr #sf2shot,(sflags2).w; beq .touch; pea .touch(pc); movem.l d0-d1/a1-a3,-(sp);
+// move.w (shotplayer).w,d0; jmp .addShot; .touch: jsr a2touchpuck; addq.l #4,sp; jmp deflect
+export const STICK_CODE = bytes(
+  '4A6A 0034 662A 0838 0000 C2EA 6622 0838 0004 C2EA 661A 08B8 0004 C2EE 6712 487A 0010 48E7 C070 3038 BED8 4EF9 0001 2FD0 4EB9 0001 013E 588F 4EF9 0001 5704',
+)
+
+const stickShots: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, STICK_HOOK.at, STICK_HOOK.original)) return false
+    return hooked(rom, STICK_HOOK, STICK_CODE) === null ? undefined : true
+  },
+  remove(rom) {
+    const target = hooked(rom, STICK_HOOK, STICK_CODE)
+    if (target === null) return
+    erase(rom, target, STICK_CODE.length)
+    rom.set(STICK_HOOK.original, STICK_HOOK.at)
+  },
+  apply(work, value) {
+    if (value) hook(work, STICK_HOOK, STICK_CODE)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -1081,6 +1123,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     snipingFix: found('snipingFix', snipingFix.detect(rom), NO_HACKS.snipingFix),
     awarenessFix: found('awarenessFix', awarenessFix.detect(rom), NO_HACKS.awarenessFix),
     crowdFix: found('crowdFix', crowdFix.detect(rom), NO_HACKS.crowdFix),
+    stickShots: found('stickShots', stickShots.detect(rom), NO_HACKS.stickShots),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -1142,6 +1185,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['snipingFix', () => snipingFix.remove(work.rom), () => snipingFix.apply(work, wanted.snipingFix)],
     ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
+    ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1201,7 +1245,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
-  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'bodychecks', 'plusMinus', 'threeStars',
+  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'bodychecks', 'stickShots', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
 ]
@@ -1333,6 +1377,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   snipingFix: 'Pulled-goalie sniping fix',
   awarenessFix: "Computer forwards' awareness fix",
   crowdFix: 'Crowd bonus fix',
+  stickShots: 'Count stick deflections as shots',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1369,6 +1414,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   snipingFix: 'snipingFix',
   awarenessFix: 'awarenessFix',
   crowdFix: 'crowdFix',
+  stickShots: 'stickShots',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',
