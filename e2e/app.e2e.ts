@@ -1936,6 +1936,37 @@ test.describe('at different window widths', () => {
   })
 })
 
+// A 32-team SNES build, with score box logos.
+const snes32Path = resolve(process.cwd(), '..', 'nhl94_2026.sfc')
+
+test.describe('with a 32-team SNES build', () => {
+  test.skip(!existsSync(snes32Path), 'needs ../nhl94_2026.sfc')
+
+  test('replaces a score logo, shows the letters instead, and gives one back', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snes32Path)
+    await team(page, 'Boston Bruins').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Score logo' }) })
+    await expect(section.locator('canvas.preview')).toBeVisible()
+    await section.screenshot({ path: 'test-results/shots/score-logo.png' })
+    const exported = await downloadFrom(page, section.getByRole('button', { name: 'Export PNG' }))
+    expect(exported.suggestedFilename()).toBe('Boston_Bruins_score_logo.png')
+    const png = readFileSync(await exported.path())
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([24, 16])
+
+    await team(page, 'Buffalo Sabres').click()
+    await section.getByLabel('Import score logo').setInputFiles({ name: 'boston.png', mimeType: 'image/png', buffer: png })
+    await expect(section.getByText('Score logo replaced.')).toBeVisible()
+    await section.getByRole('button', { name: 'Show the letters instead' }).click()
+    await expect(section.getByText('now shows its letters in the score box')).toBeVisible()
+    await expect(section.locator('canvas.preview')).toBeHidden()
+    await section.getByRole('button', { name: /^Give .* a score logo$/ }).click()
+    await expect(section.locator('canvas.preview')).toBeVisible()
+    await section.getByRole('button', { name: 'Draw…' }).click()
+    await expect(section.getByRole('heading', { name: 'Drawing the score logo' })).toBeVisible()
+  })
+})
+
 // The original SNES game, named NHL94.smc, in the folder above the project.
 const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
 

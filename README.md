@@ -60,6 +60,8 @@ That licence does not cover:
 - Player photos: import any image as a player's photo, or draw it; on the
   Genesis, choose which players are featured on the team setup and matchup
   screens, and on the SNES swap two players' photos
+- The score box's team logos of the 32-team SNES builds: import, draw, or
+  show the team's letters instead
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on

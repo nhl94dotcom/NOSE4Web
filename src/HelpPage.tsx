@@ -1549,6 +1549,14 @@ export function HelpPage() {
           rather than changing the rest of the square.
         </li>
         <li>
+          <b>Score logos:</b> McMarkis's 32-team builds show a small logo for each team in the score box during
+          play, where the original game prints the team's three letters. Where a ROM has them, the team page has a{' '}
+          <b>Score logo</b> section: export it, import one (24 pixels wide and 16 high, or 13, the logo without the
+          gap under it), or draw it, in the box's black, its white ring and 10 colours of its own taken from the
+          image. <b>Show the letters instead</b> takes a team's score logo away; a team without one can be given
+          one. The original game has no score logos, and the editor cannot add them to it yet.
+        </li>
+        <li>
           <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, how many teams the
           menu offers, the penalty and stoppage messages, and the 32 playoff draws, each found by the game code that
           reads it. The clock's fourth
