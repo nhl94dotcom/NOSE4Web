@@ -300,6 +300,11 @@ test.describe('with the NHL 94 ROM', () => {
     for (let y = 2; y <= 5; y++) expect([pixel(3, y), pixel(46, y)]).toEqual([3, 3])
     expect([pixel(11, 20), pixel(38, 20)]).toEqual([0, 0])
     for (let y = 0; y < 32; y++) expect(pixel(0, y)).toBe(0)
+
+    // The Changes page lists the drawn logo.
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (1)')
+    await entry(page, /^Changes/).click()
+    await expect(page.locator('main').getByText('Centre-ice logo changed.')).toBeVisible()
   })
 
   test('copies a player to another team', async ({ page }) => {

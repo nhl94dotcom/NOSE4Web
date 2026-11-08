@@ -1322,7 +1322,9 @@ export function HelpPage() {
       </p>
       <p>
         Because players are matched by name, a renamed player reads as one leaving and another arriving in the
-        summary. Logos and banners are not compared.
+        summary. Each team's logos and banners are compared too, a line for each one that differs (its pixels, and
+        a menu logo's or an SNES team logo's own colours); colours a picture shares with the team are among the
+        team's colours. The Changes page lists a logo or banner you have drawn or imported the same way.
       </p>
 
       <h3 id="help-download">Downloading your work</h3>

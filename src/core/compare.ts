@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
 import { snesHackDifferences } from './sneshacks'
 import { overallRating } from './rating'
@@ -214,6 +215,8 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   after.teams.forEach((team, i) => {
     if (counterpart[i] < 0) return
     const changes = compareTeam(after, before.teams[counterpart[i]], team, samePlatform, ratings)
+    // Logos and banners, decoded only where they can have changed.
+    if (samePlatform && picturesMayDiffer(before, after, i)) changes.push(...pictureDifferences(before, counterpart[i], after, i))
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
   // Teams matched by name are in other places, so the menus' team choices cannot be compared.
