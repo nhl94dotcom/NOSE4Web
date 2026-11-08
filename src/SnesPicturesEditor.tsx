@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { colorRgb, SNES_COLORS } from './core/color'
 import { pictureToImage, type Picture } from './core/graphics'
 import { squaresInBestRow } from './core/paint'
@@ -9,6 +9,8 @@ import {
   NO_SNES_PICTURE_EDITS,
   snesCentreIce,
   snesCentreIceFromImage,
+  snesCentreIceMostSquares,
+  snesCentreIceSquares,
   snesCentreIceSharedWith,
   snesLogo,
   snesLogoColoursSharedWith,
@@ -44,6 +46,12 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
   const edits = project.snesPictures ?? NO_SNES_PICTURE_EDITS
   // The rink without a centre ice logo, for showing one on it as it is drawn.
   const rink = useMemo(() => (drawing === 'centreIce' ? drawSnesRink(project.bytes, null) : null), [project.bytes, drawing])
+  // The most different squares a centre ice logo may use in this ROM.
+  const iceMost = useMemo(
+    () => (drawing === 'centreIce' && snesPicturesSupported(project.bytes, teams) ? snesCentreIceMostSquares(project.bytes, teams) : 0),
+    [project.bytes, teams, drawing],
+  )
+  const iceLimit = useCallback((picture: Picture) => iceSquaresLimit(picture, iceMost), [iceMost])
 
   if (!snesPicturesSupported(project.bytes, teams)) {
     return (
@@ -283,6 +291,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
               squaresInBestRow(picture, iceRgb, ice.rows, points, colour === 0 ? undefined : colour >> 4)
             }
             tidy={(picture) => squaresInBestRow(picture, iceRgb, ice.rows)}
+            limit={iceLimit}
             problem={failed ? notice : undefined}
             context={(picture) => (rink ? <RinkMiddle rink={rink} logo={picture} palette={ice.palette} /> : null)}
             onCommit={(picture) => {
@@ -299,6 +308,21 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
 }
 
 const FIFTEEN = Array.from({ length: 15 }, (_, i) => i + 1)
+
+// A centre ice logo's squares against the most the game has room for.
+function iceSquaresLimit(picture: Picture, most: number): { text: string; over: boolean } {
+  const { squares } = snesCentreIceSquares(picture, most)
+  if (squares <= most) return { text: `Uses ${squares} of the ${most} different squares of 8 by 8 pixels the game has room for.`, over: false }
+  const extra = squares - most
+  return {
+    text:
+      `Too detailed by ${extra} ${extra === 1 ? 'square' : 'squares'}: the game builds the logo from squares of 8 by 8 pixels ` +
+      `(the darker grid lines), and this one needs ${squares} different squares where it has room for ${most}. ` +
+      'An empty square costs nothing, nor does a square that is an exact copy of another (not flipped). ' +
+      'This stroke will not be kept: to make room, first erase a square or two.',
+    over: true,
+  }
+}
 
 // A team logo's tiles against the most it may have.
 function logoLimit(picture: Picture): { text: string; over: boolean } {

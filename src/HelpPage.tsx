@@ -469,12 +469,13 @@ export function HelpPage() {
         <li>
           The colours to paint with are only those the picture can use: the home colours for the centre-ice logo,
           the banner colours for a menu banner, and for the menu logo white, black and its nine own colours, which
-          can be changed right there. The grid marks every pixel, and darker lines the 8 by 8 tiles the game is
-          made of.
+          can be changed right there. The grid marks every pixel, and its darker lines the squares of 8 by 8 pixels
+          the game builds every picture from.
         </li>
         <li>
           Each stroke goes into your work when you let go of the mouse, so <b>Undo</b> takes back one stroke at a
-          time. A stroke that makes the picture too big for the room the game has is refused, with the reason.
+          time. A stroke that makes the picture need more room than the game has is not kept: the editor says{' '}
+          <b>Not changed</b>, and why, beside the picture.
         </li>
       </ul>
       <p>Or change a picture in another program:</p>
@@ -508,11 +509,11 @@ export function HelpPage() {
         <li>The <b>in-game banner</b> uses 16 colours that every team shares.</li>
       </ul>
       <p>
-        The game stores each picture as 8 by 8 pixel tiles and keeps only one copy of tiles that are the same, so
-        plain areas and repeated shapes take less room than fine detail. The room is limited and shared: in the
-        original game, the menu logos of all teams have space for only about eleven more tiles between them, and the
-        banners have none to spare beyond what the replaced banner frees. If a picture does not fit, the editor says
-        so and changes nothing.
+        The game builds each picture from squares of 8 by 8 pixels and keeps only one copy of squares that are the
+        same, so empty areas, plain areas and repeated shapes take less room than fine detail. The room is limited
+        and shared: in the original game, the menu logos of all teams have space for only about eleven more squares
+        between them, and the banners have none to spare beyond what the replaced banner frees. If a picture does
+        not fit, the editor says by how much and changes nothing.
       </p>
       <p>
         When that happens, <b>Give logos and banners more room</b>, below the pictures, moves the menu logos and both
@@ -1365,25 +1366,31 @@ export function HelpPage() {
           <b>Logos:</b> each team's logo, on the matchup, setup and player card screens, and its centre ice logo
           are on the team page, to export as PNG images and import again, or to copy to another team (a centre ice
           logo is matched to the colours the other team's is drawn in). A team logo has 15 colours of its own,
-          taken from the image you import, and can be at most 36 tiles of 8 by 8 pixels. All the logos are unpacked
+          taken from the image you import, and can use at most 36 different squares of 8 by 8 pixels (an empty
+          square, or one that is an exact copy of another, even flipped, costs nothing). All the logos are unpacked
           together into room the original logos fill, so a logo bigger than the one it replaces fits only where
           others take less room; the editor lays out other logos more tightly, looking the same, where that helps.
           A centre ice logo is drawn in the rink's colours, two rows of 15 that every team shares, faded as if seen
-          through the ice, and each 8 by 8 tile of it is matched to the row that suits it best. One that has grown is moved to free space in the
+          through the ice, and each square of 8 by 8 pixels of it is matched to the row that suits it best. Its
+          different squares (exact copies cost nothing, but flipped ones do here) can be no more than the game has room
+          for: as many as the largest original logo uses. One that has grown is moved to free space in the
           ROM. The SNES game has no banners: its team blocks are plain colour with the name in letters. ROMs
           rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the
           SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
-          Both logos can also be drawn in the editor (see Logos and banners): the team logo with its 15 colours
-          changeable as you go, and a count of the squares of 8 by 8 pixels it uses against the 36 different ones it may
-          have (an empty square, or one that is an exact copy of another, even flipped, costs nothing), and the centre ice logo shown on
-          the rink as you draw. Each 8 by 8 square of a centre ice logo is drawn in one row of colours, so painting
-          a colour from the other row moves the rest of that square to it.
+          Both logos can also be drawn in the editor (see Logos and banners). Each shows, as you draw, how many
+          different squares it uses against the most it may have, and says plainly when a stroke would take it over.
+          The team logo's 15 colours can be changed as you go. The centre ice logo is shown on the rink as you draw,
+          and its colours are listed by row, with the rows it uses marked: paint with those for exact colours. Where
+          a stroke puts a colour from the other row into a square, the square takes whichever row shows it best, and
+          its pixels the nearest colours in that row, so a small touch-up in the other row gets the nearest match
+          rather than changing the rest of the square.
         </li>
         <li>
-          <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, the penalty and
-          stoppage messages, and the 32 playoff draws, each found by the game code that reads it. The clock's fourth
+          <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, how many teams the
+          menu offers, the penalty and stoppage messages, and the 32 playoff draws, each found by the game code that
+          reads it. The clock's fourth
           period length, 30 seconds, is offered on the menu by the 30-second periods hack. Overtime in the regular
           season is 5 minutes; in the playoffs an overtime period is as long as the others. In the playoff modes the
           menu shows the Home line as Team and hides the Visitor line. The penalty minutes are the length of each

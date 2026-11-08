@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { menuLogo, menuLogoPalette, rinkLogo, type Picture } from '../src/core/graphics'
 import { fillPoints, flipped, linePoints, mirrored, paint, rectanglePoints, samePicture, shifted, squaresInBestRow } from '../src/core/paint'
 import { colorRgb, SNES_COLORS } from '../src/core/color'
-import { NO_SNES_PICTURE_EDITS, snesCentreIce } from '../src/core/snespictures'
+import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceMostSquares, snesCentreIceSquares } from '../src/core/snespictures'
 import { ownColours, paintableColours, withPainted } from '../src/core/pictureset'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesLogoTiles } from '../src/core/snespictures'
@@ -97,6 +97,18 @@ describe.skipIf(!existsSync(snesPath))('drawing on an SNES centre ice logo', () 
     const changed = Array.from(after.pixels).flatMap((v, i) => (v !== before.pixels[i] ? [i] : []))
     expect(changed).toEqual([middle[1] * before.width + middle[0]])
     expect(after.pixels[changed[0]] >> 4).toBe(6)
+  })
+
+  it('counts the squares of every original centre ice logo within the room the game has', () => {
+    const project = openRom(new Uint8Array(readFileSync(snesPath)))
+    const most = snesCentreIceMostSquares(project.bytes, project.teams.length)
+    const counts = project.teams.map(
+      (_, t) => snesCentreIceSquares(snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, t).picture, most).squares,
+    )
+    expect(Math.max(...counts)).toBe(most)
+    // Empty squares are not counted, and a square that repeats is counted once.
+    const plain = paint(blank(64, 32), rectanglePoints([0, 0], [63, 15], true), 0x51)
+    expect(snesCentreIceSquares(plain, most).squares).toBe(1)
   })
 })
 

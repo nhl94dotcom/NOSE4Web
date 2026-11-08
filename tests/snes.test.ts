@@ -616,7 +616,7 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
     const boston = snesLogo(project.bytes, 28, none, 1)
     const edits: SnesPictureEdits = { logos: { 5: boston, 6: boston, 24: boston, 27: boston }, centreIce: {} }
     expect(() => writeSnesPictures(project.bytes.slice(), 28, edits)).toThrow(SnesPictureRoomError)
-    expect(() => buildRom({ ...project, snesPictures: edits })).toThrow(/room/)
+    expect(() => buildRom({ ...project, snesPictures: edits })).toThrow(/logos share one space in the game's memory, which the original logos fill/)
   })
 
   it.skipIf(!existsSync(path(STOCK)))('come from images: up to 15 colours of the logo’s own, and the rink’s colours for the centre ice', () => {

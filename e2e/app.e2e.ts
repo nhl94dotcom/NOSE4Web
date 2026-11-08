@@ -220,7 +220,7 @@ test.describe('with the NHL 94 ROM', () => {
     })
     const busyBanner = { name: 'busy.png', mimeType: 'image/png', buffer: Buffer.from(busy.split(',')[1], 'base64') }
     await pictures.nth(2).locator('input[type=file]').setInputFiles(busyBanner)
-    await expect(section.getByText(/The menu banners need \d+ more tiles/)).toBeVisible()
+    await expect(section.getByText(/The menu banners share room for a set number of different squares of 8 by 8 pixels, and this change needs \d+ more/)).toBeVisible()
     await section.getByRole('button', { name: 'Give logos and banners more room (ROM grows to 2 MB)' }).click()
     await expect(section.getByText('now have room for any replacement')).toBeVisible()
     await pictures.nth(2).locator('input[type=file]').setInputFiles(busyBanner)
@@ -1014,7 +1014,7 @@ test.describe('with the NHL 94 ROM', () => {
     // Too much new lettering for the packed ROM, until the pictures are given room.
     await section.getByRole('button', { name: 'Use for all 2' }).click()
     const done = section.getByText('Lettered the menu banner and the in-game banner "BRUINS".')
-    const noRoom = section.getByText(/more tiles than the ROM has room for/)
+    const noRoom = section.getByText(/banners share room for a set number of different squares/)
     await expect(done.or(noRoom)).toBeVisible()
     // New lettering may not fit the packed ROM until the pictures are given room.
     if (await noRoom.isVisible()) {
@@ -1908,6 +1908,7 @@ test.describe('with the SNES game', () => {
     await logos.locator('.picture').nth(1).getByRole('button', { name: 'Draw…' }).click()
     const ice = logos.getByRole('group', { name: 'Draw the centre ice logo' })
     await expect(ice.getByText('On the rink:')).toBeVisible()
+    await expect(ice.getByText(/^Uses \d+ of the \d+ different squares of 8 by 8 pixels the game has room for\.$/)).toBeVisible()
     const iceCanvas = ice.getByLabel('Centre ice logo, drawn large')
     await ice.getByRole('button', { name: 'Filled rectangle' }).click()
     await ice.getByRole('button', { name: 'Row 5 colour 1', exact: true }).click()

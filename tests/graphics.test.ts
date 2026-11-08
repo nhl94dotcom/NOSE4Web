@@ -217,7 +217,7 @@ describe.skipIf(!base)('team pictures in NHL 94', () => {
   it('refuses menu logos that cannot all fit', () => {
     const project = openRom(base!)
     const menuLogos = Object.fromEntries(project.teams.map((_, team) => [team, noise(48, 48, [5, 6, 7, 8], 10 + team)]))
-    expect(() => buildRom({ ...project, graphics: { ...project.graphics, menuLogos } })).toThrow(/menu logos need \d+ more bytes/)
+    expect(() => buildRom({ ...project, graphics: { ...project.graphics, menuLogos } })).toThrow(/menu logos share a space of their own in this ROM, and with this change they need \d+ bytes more/)
   })
 
   it('replaces banners, and refuses lettering there is no room for', () => {
@@ -236,7 +236,7 @@ describe.skipIf(!base)('team pictures in NHL 94', () => {
 
     const busy = Object.fromEntries([0, 1, 2, 3, 4, 5].map((team) => [team, noise(88, 16, [1, 2, 5, 6], 40 + team)]))
     expect(() => buildRom({ ...project, graphics: { ...project.graphics, menuBanners: busy } })).toThrow(
-      /The menu banners need \d+ more tiles/,
+      /The menu banners share room for a set number of different squares of 8 by 8 pixels, and this change needs \d+ more/,
     )
   })
 
@@ -383,7 +383,7 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
     // One team alone cannot have a different banner while there is room for only one.
     expect(() =>
       buildRom({ ...project, graphics: { ...project.graphics, visitorBanners: { 3: away } } }),
-    ).toThrow('more tiles than the ROM has room for')
+    ).toThrow(/banners share room for a set number of different squares/)
   })
 
   // The game draws the visitor's menu banner from the visitor's tiles, but

@@ -257,7 +257,11 @@ function bestLayout(picture: Picture): { best: Layout; box: [number, number, num
       if (layout && (!best || layout.bytes < best.bytes)) best = layout
     }
   }
-  if (!best) throw new Error('The logo could not be laid out for the game.')
+  if (!best) {
+    throw new Error(
+      'The editor could not arrange this logo the way the game stores logos. Moving it a pixel with the arrows, or changing a square or two, usually helps.',
+    )
+  }
   return { best, box: [minX, maxX, minY, maxY] }
 }
 
@@ -278,7 +282,11 @@ export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
   const { pieces, first, second } = best
   const tiles = [...first, ...second]
   if (tiles.length > MOST_TILES) {
-    throw new Error(`The logo needs ${tiles.length} different tiles of 8 by 8 pixels; it can have at most ${MOST_TILES}. Leave more of it see-through.`)
+    throw new Error(
+      `This logo needs ${tiles.length} different squares of 8 by 8 pixels, and a logo may have ${MOST_TILES}. ` +
+        `Empty squares cost nothing, nor does a square that is an exact copy of another, even flipped. ` +
+        `Erase ${tiles.length - MOST_TILES} or more squares near the edge, or make some squares copies of others.`,
+    )
   }
 
   const frame = new Uint8Array(best.bytes)
@@ -539,6 +547,27 @@ function drawCentreIce(rom: Uint8Array, c: Contents, team: number): Picture {
 
 const samePixels = (a: Picture, b: Picture) => a.width === b.width && a.height === b.height && a.pixels.every((pixel, i) => pixel === b.pixels[i])
 
+// How many different squares of 8 by 8 a centre ice logo uses, not counting
+// empty ones, against the most the game has room for (its largest logo's).
+// A square is the same as another when its colour numbers are, whatever row.
+export function snesCentreIceSquares(picture: Picture, most: number): { squares: number; most: number } {
+  const seen = new Set<string>()
+  for (let top = 0; top < picture.height; top += 8) {
+    for (let left = 0; left < picture.width; left += 8) {
+      let text = ''
+      for (let y = top; y < top + 8; y++) for (let x = left; x < left + 8; x++) text += (picture.pixels[y * picture.width + x] % COLOURS).toString(16)
+      if (/[^0]/.test(text)) seen.add(text)
+    }
+  }
+  return { squares: seen.size, most }
+}
+
+// The most different squares (not counting empty ones) a centre ice logo may use in this ROM.
+export function snesCentreIceMostSquares(rom: Uint8Array, teamCount: number): number {
+  const c = need(rom, teamCount)
+  return Math.max(...c.iceTiles.map((p) => unpackPicture(rom, p).data.length / TILE)) - 1
+}
+
 // The other teams whose centre ice logo is the same one as `team`'s.
 export function snesCentreIceSharedWith(rom: Uint8Array, teamCount: number, team: number): number[] {
   const c = need(rom, teamCount)
@@ -671,14 +700,17 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
         }
       }
       if (set.length > unpacked.length) {
+        const over = set.length - unpacked.length
         throw new SnesPictureRoomError(
-          `The logos need ${set.length - unpacked.length} more bytes than the game has room for when it unpacks them. ` +
-            'A logo with more of it see-through, or with parts that repeat, takes less room.',
+          `All the teams' logos share one space in the game's memory, which the original logos fill, and with this change ` +
+            `they need ${over} bytes more than it holds: about ${Math.ceil(over / TILE)} ${Math.ceil(over / TILE) === 1 ? 'square' : 'squares'} of 8 by 8 pixels. ` +
+            'Make this logo, or another team’s, use fewer different squares: leave more of it see-through, or repeat squares.',
         )
       }
       if (!fits()) {
         throw new SnesPictureRoomError(
-          `The logos need ${packed.length - room} more bytes than the ROM has for them. Logos with plainer areas and fewer colours take less room.`,
+          `The logos are kept packed in a space of their own in this ROM, which is full, and this change needs ${packed.length - room} bytes more. ` +
+            'Plain areas of one colour pack smallest: fewer colours and less fine detail make a logo take less room.',
         )
       }
       rom.fill(0xff, c.tables.logoSet, c.tables.logoSet + packedSize)
@@ -698,7 +730,11 @@ function writeLogoColours(rom: Uint8Array, c: Contents, edits: SnesPictureEdits,
     if (colours.every((word, i) => word === readU16LE(rom, at + i * 2))) continue
     const shared = c.palettes.some((other, t) => t !== team && other === at)
     const to = shared ? freeSpace(rom, COLOURS * 2, keptBanks(rom)) : at
-    if (to < 0) throw new SnesPictureRoomError('The logo’s colours are shared with another team, and the ROM has no free space for colours of its own.')
+    if (to < 0) {
+      throw new SnesPictureRoomError(
+        'This logo’s colours are shared with another team, so changing them needs a copy of its own, and the ROM has no free space left for one.',
+      )
+    }
     colours.forEach((word, i) => writeU16LE(rom, to + i * 2, word))
     if (shared) pointTo(rom, c.tables.logoPalettes + team * 4, to)
   }
@@ -721,7 +757,7 @@ function writeRomLogos(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, te
     const shared = c.frameAt.some((other, t) => t !== team && other === p)
     if (!shared) rom.fill(0xff, p, p + length)
     const to = !shared && frame.length <= length ? p : freeSpace(rom, frame.length, keptBanks(rom))
-    if (to < 0) throw new SnesPictureRoomError('The ROM has no free space for the logo.')
+    if (to < 0) throw new SnesPictureRoomError('The logo has grown, and the ROM has no free space left for it. Make it use fewer different squares of 8 by 8 pixels.')
     rom.set(frame, to)
     if (to !== p) {
       const address = (loRomBank(to, 0x80) << 16) | loRomAddress(to)
@@ -754,8 +790,11 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
     const map = readIceMap(rom, c.iceMaps[team])
     const { tiles, words } = iceTilesFor(edits.centreIce[team], map)
     if (tiles.length / TILE > most) {
+      const needed = tiles.length / TILE - 1
       throw new SnesPictureRoomError(
-        `The centre ice logo needs ${tiles.length / TILE} different tiles; the game has room for ${most}. A plainer logo, or one with repeated parts, needs fewer.`,
+        `This centre ice logo needs ${needed} different squares of 8 by 8 pixels, and the game has room for ${most - 1}. ` +
+          'Empty squares cost nothing, nor does a square that is an exact copy of another (not flipped). ' +
+          `Erase ${needed - (most - 1)} or more squares, or make some squares copies of others.`,
       )
     }
     const packed = isLz(rom, at) ? packLz(tiles) : packHuffman(tiles)
@@ -766,7 +805,8 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
     const to = packed.length <= roomAt(rom, at, 0) && sameBank(at, packed.length) ? at : freeSpace(rom, packed.length, keptBanks(rom))
     if (to < 0) {
       throw new SnesPictureRoomError(
-        `The centre ice logo needs ${packed.length - packedSize} more bytes than it had, and the ROM has no free space that big. A plainer logo takes less room.`,
+        `This centre ice logo needs ${packed.length - packedSize} bytes more than it had, and the ROM has no free space left that big. ` +
+          'Plain areas of one colour pack smallest: fewer colours and less fine detail make it take less room.',
       )
     }
     rom.set(packed, to)

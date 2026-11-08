@@ -563,8 +563,8 @@ function writeMenuLogos(rom: Uint8Array, game: GameConfig, blocks: Block[], edit
   const needed = [...contents.values()].reduce((sum, bytes) => sum + bytes.length, 0)
   if (needed > end - start) {
     throw new NoRoomError(
-      `The menu logos need ${needed - (end - start)} more bytes than the ROM has for them. ` +
-        'Logos with plainer areas and fewer fine details take less room.',
+      `The menu logos share a space of their own in this ROM, and with this change they need ${needed - (end - start)} bytes more than it holds. ` +
+        'Plain areas of one colour and less fine detail make a logo take less room.',
     )
   }
   const movedTo = new Map<number, number>()
@@ -594,9 +594,10 @@ function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Pi
   // Each block keeps its size and layout, so nothing that points into it moves.
   const capacity = Math.min(...blocks.map((block) => block.capacity))
   if (tiles[0].length > capacity) {
+    const over = tiles[0].length - capacity
     throw new NoRoomError(
-      `The ${name} banners need ${tiles[0].length - capacity} more tiles than the ROM has room for. ` +
-        'Lettering that repeats shapes, and banners that share them, take less room.',
+      `The ${name} banners share room for a set number of different squares of 8 by 8 pixels, and this change needs ${over} more ${over === 1 ? 'square' : 'squares'}. ` +
+        'A square that is an exact copy of another, in any team’s banner, costs nothing extra: lettering that repeats shapes takes less room.',
     )
   }
   blocks.forEach((block, i) => {
