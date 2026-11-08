@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { SNES_COLORS } from './core/color'
+import { colorRgb, SNES_COLORS } from './core/color'
 import { pictureToImage, type Picture } from './core/graphics'
-import { oneRowPerSquare, squaresInOneRow } from './core/paint'
+import { squaresInBestRow } from './core/paint'
 import type { RomProject } from './core/rom'
 import { drawSnesRink, snesCentreIcePlace, withSnesCentreIce } from './core/snesrink'
 import {
@@ -134,6 +134,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
   const ice = snesCentreIce(project.bytes, teams, edits, team, project.rinkPalette)
   const sharedColours = snesLogoColoursSharedWith(project.bytes, teams, team)
   const sharedIce = snesCentreIceSharedWith(project.bytes, teams, team)
+  const iceRgb = ice.palette.map((word) => colorRgb(word, SNES_COLORS))
   const pictures: { kind: Kind; title: string; picture: typeof logo; scale: number; note: string }[] = [
     {
       kind: 'logo',
@@ -268,7 +269,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
           <p className="note">
             {ice.ownColours ? 'In the team’s own centre ice colours.' : 'In the rink’s centre ice colours, which are changed on the Rink colours page.'}{' '}
             {ice.rows.length > 1 &&
-              'Each square of 8 by 8 is drawn in one row of colours: painting a colour from the other row moves the rest of that square to it.'}
+              'The game draws each square of 8 by 8 in one row of colours or the other. Where a stroke mixes the two in a square, the square takes whichever row shows it best, and its pixels the nearest colours in that row: paint with the row the logo already uses for exact colours.'}
             {sharedIce.length > 0 && ` The same logo as ${names(sharedIce)}'s, so it changes for them too.`}
           </p>
           <PixelEditor
@@ -278,8 +279,10 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
             palette={ice.palette}
             format={SNES_COLORS}
             colours={ice.rows.flatMap((row) => FIFTEEN.map((c) => row * 16 + c))}
-            afterStroke={oneRowPerSquare}
-            tidy={squaresInOneRow}
+            afterStroke={(picture, points, colour) =>
+              squaresInBestRow(picture, iceRgb, ice.rows, points, colour === 0 ? undefined : colour >> 4)
+            }
+            tidy={(picture) => squaresInBestRow(picture, iceRgb, ice.rows)}
             problem={failed ? notice : undefined}
             context={(picture) => (rink ? <RinkMiddle rink={rink} logo={picture} palette={ice.palette} /> : null)}
             onCommit={(picture) => {

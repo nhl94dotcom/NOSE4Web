@@ -43,9 +43,9 @@ export interface PixelEditorProps {
   editable?: { slots: number[]; onChange: (palette: number[]) => void }
   // What the game's limits make of the picture, shown as it is drawn.
   limit?: (picture: Picture) => { text: string; over: boolean } | null
-  // Anything a stroke changes besides its own pixels (see oneRowPerSquare).
+  // Anything a stroke changes besides its own pixels (see squaresInBestRow).
   afterStroke?: (picture: Picture, points: Point[], colour: number) => Picture
-  // The same for a change to the whole picture: a flip or a move (see squaresInOneRow).
+  // The same for a change to the whole picture: a flip or a move.
   tidy?: (picture: Picture) => Picture
   // Why the last change was refused, if it was.
   problem?: string
@@ -164,6 +164,8 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
   // follows the drawing a moment behind rather than holding it up.
   const behind = useDeferredValue(shown)
   const limitShown = useMemo(() => limit?.(behind) ?? null, [limit, behind])
+  // The rows of 16 colours the picture uses now, where it has rows.
+  const rowsUsed = new Set(Array.from(picture.pixels).flatMap((value) => (value ? [value >> 4] : [])))
   // Past 16 a colour is in a row of 16: the SNES centre ice logo's.
   const name = (value: number) => (palette.length > 16 ? `Row ${value >> 4} colour ${value & 15}` : `Colour ${value}`)
   const swatch = (value: number) => (
@@ -241,7 +243,17 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
           title="See-through (the eraser)"
           onClick={() => setTool('eraser')}
         />
-        {colours.map(swatch)}
+        {palette.length > 16
+          ? rowsOf(colours).map((row) => (
+              <span key={row} className="paint-row" role="group" aria-label={`Row ${row}`}>
+                <span className="note">
+                  Row {row}
+                  {rowsUsed.has(row) ? ' (the logo uses it)' : ''}:
+                </span>
+                {colours.filter((value) => value >> 4 === row).map(swatch)}
+              </span>
+            ))
+          : colours.map(swatch)}
       </div>
       <div className="paint-area">
         <div className="paint-canvas checkered">
@@ -308,3 +320,5 @@ function SmallView({ picture, palette, format }: { picture: Picture; palette: nu
   }, [picture, palette, format])
   return <canvas ref={canvas} className="preview checkered" width={picture.width} height={picture.height} style={{ width: picture.width * 2 }} aria-label="Actual size" />
 }
+
+const rowsOf = (colours: number[]) => [...new Set(colours.map((value) => value >> 4))]

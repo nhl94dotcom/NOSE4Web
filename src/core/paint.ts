@@ -104,45 +104,41 @@ export function samePicture(a: Picture, b: Picture): boolean {
 }
 
 // For pictures whose every 8 x 8 square is drawn in one row of 16 colours
-// (the SNES centre ice logo, whose pixels are row * 16 + colour): the other
-// pixels of each square these points touch are moved to the row painted, each
-// keeping its colour number.
-export function oneRowPerSquare(picture: Picture, points: Point[], colour: number): Picture {
-  if (colour === 0) return picture
-  const row = colour >> 4
-  const pixels = picture.pixels.slice()
-  const squares = new Set(points.filter((point) => inside(picture, point)).map(([x, y]) => `${x >> 3},${y >> 3}`))
-  for (const key of squares) {
-    const [sx, sy] = key.split(',').map(Number)
-    for (let y = sy * 8; y < Math.min(picture.height, sy * 8 + 8); y++) {
-      for (let x = sx * 8; x < Math.min(picture.width, sx * 8 + 8); x++) {
-        const value = pixels[y * picture.width + x]
-        if (value !== 0) pixels[y * picture.width + x] = row * 16 + (value & 15)
-      }
-    }
+// (the SNES centre ice logo, whose pixels are row * 16 + colour). Where a
+// square holds colours of more than one row, as a stroke or a move can leave
+// it, it is put in whichever of `rows` shows it best: the row whose colours
+// are nearest its pixels, all told, and each pixel then takes the nearest
+// colour in that row, keeping its own where it is already in it. A tie goes
+// to `prefer`, the row painted with. `rgb` gives each colour number's red,
+// green and blue. With `only`, just the squares those points are in.
+export function squaresInBestRow(picture: Picture, rgb: number[][], rows: number[], only?: Point[], prefer?: number): Picture {
+  const distance = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+  const nearest = (value: number, row: number) => {
+    if (value >> 4 === row) return value
+    let best = row * 16 + 1
+    for (let c = 2; c < 16; c++) if (distance(rgb[row * 16 + c], rgb[value]) < distance(rgb[best], rgb[value])) best = row * 16 + c
+    return best
   }
-  return { ...picture, pixels }
-}
-
-// The same, for a change to the whole picture (a move can bring two rows into
-// one square): each square's pixels go to the row most of them are in.
-export function squaresInOneRow(picture: Picture): Picture {
+  const squares =
+    only === undefined
+      ? null
+      : new Set(only.filter((point) => inside(picture, point)).map(([x, y]) => `${x >> 3},${y >> 3}`))
   const pixels = picture.pixels.slice()
   for (let sy = 0; sy < picture.height; sy += 8) {
     for (let sx = 0; sx < picture.width; sx += 8) {
-      const counts = new Map<number, number>()
+      if (squares && !squares.has(`${sx >> 3},${sy >> 3}`)) continue
       const square: number[] = []
       for (let y = sy; y < Math.min(picture.height, sy + 8); y++) {
-        for (let x = sx; x < Math.min(picture.width, sx + 8); x++) {
-          const i = y * picture.width + x
-          if (pixels[i] === 0) continue
-          square.push(i)
-          counts.set(pixels[i] >> 4, (counts.get(pixels[i] >> 4) ?? 0) + 1)
-        }
+        for (let x = sx; x < Math.min(picture.width, sx + 8); x++) if (pixels[y * picture.width + x] !== 0) square.push(y * picture.width + x)
       }
-      if (counts.size < 2) continue
-      const row = [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]
-      for (const i of square) pixels[i] = row * 16 + (pixels[i] & 15)
+      if (new Set(square.map((i) => pixels[i] >> 4)).size < 2) continue
+      let bestRow = rows[0]
+      let bestCost = Infinity
+      for (const row of rows) {
+        const cost = square.reduce((sum, i) => sum + distance(rgb[nearest(pixels[i], row)], rgb[pixels[i]]), 0)
+        if (cost < bestCost || (cost === bestCost && row === prefer)) [bestRow, bestCost] = [row, cost]
+      }
+      for (const i of square) pixels[i] = nearest(pixels[i], bestRow)
     }
   }
   return { ...picture, pixels }

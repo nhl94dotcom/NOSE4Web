@@ -749,3 +749,11 @@ button:disabled {
 .paint-side {
   max-width: 16rem;
 }
+
+.paint-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+}

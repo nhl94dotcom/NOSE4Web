@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { menuLogo, menuLogoPalette, rinkLogo, type Picture } from '../src/core/graphics'
-import { fillPoints, flipped, linePoints, mirrored, oneRowPerSquare, paint, rectanglePoints, samePicture, shifted, squaresInOneRow } from '../src/core/paint'
+import { fillPoints, flipped, linePoints, mirrored, paint, rectanglePoints, samePicture, shifted, squaresInBestRow } from '../src/core/paint'
+import { colorRgb, SNES_COLORS } from '../src/core/color'
+import { NO_SNES_PICTURE_EDITS, snesCentreIce } from '../src/core/snespictures'
 import { ownColours, paintableColours, withPainted } from '../src/core/pictureset'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesLogoTiles } from '../src/core/snespictures'
@@ -39,18 +41,30 @@ describe('drawing on a picture', () => {
     expect(samePicture(picture, blank(4, 2))).toBe(false)
   })
 
-  it('keeps each 8 by 8 square of a centre ice logo in one row of colours', () => {
-    let picture = paint(blank(16, 8), [[0, 0], [1, 0], [9, 0]], 0x53)
-    picture = paint(picture, [[2, 2]], 0x64)
-    picture = oneRowPerSquare(picture, [[2, 2]], 0x64)
-    expect([picture.pixels[0], picture.pixels[1], picture.pixels[2 * 16 + 2], picture.pixels[9]]).toEqual([0x63, 0x63, 0x64, 0x53])
-    expect(oneRowPerSquare(picture, [[0, 0]], 0)).toBe(picture)
-    // A move brings a pixel of row 5 into a square of row 6: the square goes to the row most of it is in.
-    let moved = paint(blank(16, 8), [[7, 0]], 0x52)
-    moved = paint(moved, [[8, 0], [9, 0], [8, 1]], 0x63)
-    moved = squaresInOneRow(shifted(moved, 1, 0))
-    expect([moved.pixels[8], moved.pixels[9], moved.pixels[10], moved.pixels[16 + 9]]).toEqual([0x62, 0x63, 0x63, 0x63])
-    expect(squaresInOneRow(blank(8, 8)).pixels.every((p) => p === 0)).toBe(true)
+  it('puts each 8 by 8 square of a centre ice logo in the row of colours that shows it best', () => {
+    // Two rows of greys, the second in the opposite order and each 8 lighter, so neither row has the other's.
+    const rgb: number[][] = Array.from({ length: 128 }, () => [0, 0, 0])
+    for (let c = 1; c < 16; c++) {
+      rgb[0x50 + c] = [c * 16, c * 16, c * 16]
+      rgb[0x60 + c] = Array(3).fill((16 - c) * 16 + 8)
+    }
+    // A square drawn in row 6, with one dot of row 5 painted in: it stays in row 6, the rest untouched,
+    // and the dot takes row 6's colour that looks the same (row 5 colour 3 is row 6 colour 13).
+    const square = paint(blank(8, 8), rectanglePoints([0, 0], [7, 7], true), 0x62)
+    const dotted = squaresInBestRow(paint(square, [[3, 3]], 0x53), rgb, [5, 6], [[3, 3]], 5)
+    expect(dotted.pixels[3 * 8 + 3]).toBe(0x6d)
+    expect(Array.from(dotted.pixels).filter((v) => v === 0x62)).toHaveLength(63)
+    // Painted all over in row 5, it goes to row 5, exactly.
+    const covered = squaresInBestRow(paint(square, rectanglePoints([0, 0], [7, 6], true), 0x54), rgb, [5, 6], [[0, 0]], 5)
+    expect(covered.pixels[0]).toBe(0x54)
+    expect(covered.pixels[7 * 8]).toBe(0x5e) // the last row's colour 2 of row 6 as row 5 shows it
+    // Squares not touched, and squares in one row, are left alone; so is an empty picture.
+    const two = paint(paint(blank(16, 8), [[0, 0]], 0x51), [[1, 0], [9, 0]], 0x62)
+    const tidied = squaresInBestRow(two, rgb, [5, 6], [[9, 0]], 6)
+    expect(tidied.pixels[9]).toBe(0x62)
+    expect([tidied.pixels[0], tidied.pixels[1]]).toEqual([0x51, 0x62])
+    expect(new Set(squaresInBestRow(two, rgb, [5, 6]).pixels.subarray(0, 2)).size).toBe(2)
+    expect(squaresInBestRow(blank(8, 8), rgb, [5, 6]).pixels.every((p) => p === 0)).toBe(true)
   })
 
   it('counts the tiles an SNES logo takes, a repeated tile once', () => {
@@ -65,6 +79,24 @@ describe('drawing on a picture', () => {
     })
     const used = snesLogoTiles(busy)!
     expect(used.tiles).toBeGreaterThan(used.most)
+  })
+})
+
+const snesPath = fileURLToPath(new URL('../../NHL94.smc', import.meta.url))
+
+describe.skipIf(!existsSync(snesPath))('drawing on an SNES centre ice logo', () => {
+  it("leaves the rest of Boston's logo as it was when a dot is painted in the other row's colours", () => {
+    const project = openRom(new Uint8Array(readFileSync(snesPath)))
+    const ice = snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, 1, project.rinkPalette)
+    const rgb = ice.palette.map((word) => colorRgb(word, SNES_COLORS))
+    const middle: [number, number] = [32, 16]
+    const before = ice.picture
+    expect(before.pixels[middle[1] * before.width + middle[0]] >> 4).toBe(6)
+    // Row 5 colour 5, a brick red, where row 6 colour 5 is gold.
+    const after = squaresInBestRow(paint(before, [middle], 0x55), rgb, ice.rows, [middle], 5)
+    const changed = Array.from(after.pixels).flatMap((v, i) => (v !== before.pixels[i] ? [i] : []))
+    expect(changed).toEqual([middle[1] * before.width + middle[0]])
+    expect(after.pixels[changed[0]] >> 4).toBe(6)
   })
 })
 
