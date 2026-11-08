@@ -84,6 +84,8 @@ export interface HackChoices {
   penaltyShotTableFix: boolean
   // Ends a penalty shot cleanly after an outside whistle, and lets the puck hit things in one.
   penaltyShotFixes: boolean
+  // The computer pulls its goalie late when one or two goals behind, not only when exactly two.
+  goaliePullFix: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -123,6 +125,7 @@ export type HackPart =
   | 'runawayFix'
   | 'penaltyShotTableFix'
   | 'penaltyShotFixes'
+  | 'goaliePullFix'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -158,6 +161,7 @@ export const NO_HACKS: HackChoices = {
   runawayFix: false,
   penaltyShotTableFix: false,
   penaltyShotFixes: false,
+  goaliePullFix: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -785,6 +789,16 @@ const penaltyShotFixes: Part<boolean> = {
   },
 }
 
+// The computer's goalie pull. CPgoalie pulls the computer's goalie in the
+// last minute of the third period, for a faceoff out of its own end, when it
+// is behind: d0 = the other team's score less its own; bmi leaves if it
+// leads, then cmp #2 / bne leaves unless it is exactly two behind, though the
+// comment says "exit if behind by more than 2". So it never pulls him when one
+// goal down (found by the Match Viewer project). bgt alone would let a tie
+// through (0 passes the bmi), so both change: ble leaves if leading or tied,
+// and bgt if more than two behind.
+const goaliePullFix = switchPart(0xf758, bytes('6B00 5D0A B07C 0002 6600 5D02'), bytes('6F00 5D0A B07C 0002 6E00 5D02'))
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -957,6 +971,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
     penaltyShotFixes: found('penaltyShotFixes', penaltyShotFixes.detect(rom), NO_HACKS.penaltyShotFixes),
+    goaliePullFix: found('goaliePullFix', goaliePullFix.detect(rom), NO_HACKS.goaliePullFix),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -1013,6 +1028,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
     ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
     ['penaltyShotFixes', () => penaltyShotFixes.remove(work.rom), () => penaltyShotFixes.apply(work, wanted.penaltyShotFixes)],
+    ['goaliePullFix', () => goaliePullFix.remove(work.rom), () => goaliePullFix.apply(work, wanted.goaliePullFix)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1119,6 +1135,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
   penaltyShotFixes: 'Penalty shot fixes',
+  goaliePullFix: 'Computer goalie pull fix',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1150,6 +1167,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',
   penaltyShotFixes: 'penaltyShotFixes',
+  goaliePullFix: 'goaliePullFix',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

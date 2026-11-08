@@ -129,3 +129,22 @@ describe.skipIf(!existsSync(romPath))('the penalty shot fixes', () => {
     expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
   })
 })
+
+describe.skipIf(!existsSync(romPath))('the computer goalie pull fix', () => {
+  it('turns bmi into ble and bne into bgt in CPgoalie, and comes out again', () => {
+    const rom = new Uint8Array(readFileSync(romPath))
+    // cmpi.w #2,(gsp).w ... move.w tmscore(a1),d0; sub.w tmscore(a2),d0; bmi.w; cmp.w #2,d0; bne.w; cmpi.w #60,(gameclock).w
+    expect(Buffer.from(rom.subarray(0xf758, 0xf768)).toString('hex')).toBe('6b005d0ab07c000266005d020c78003c')
+    const hacked = hackRom(rom, { ...NO_HACKS, goaliePullFix: true })
+    expect(Buffer.from(hacked.subarray(0xf758, 0xf764)).toString('hex')).toBe('6f005d0ab07c00026e005d02')
+    // Both still branch to the same place: rtss2.
+    expect(readU16(hacked, 0xf75a)).toBe(readU16(rom, 0xf75a))
+    expect(readU16(hacked, 0xf762)).toBe(readU16(rom, 0xf762))
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, goaliePullFix: true }, unknown: [] })
+    expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
+    // What each score difference does: leave (no pull) or go on, before and after.
+    const leaves = (behind: number, fixed: boolean) => (fixed ? behind <= 0 || behind > 2 : behind < 0 || behind !== 2)
+    expect([-1, 0, 1, 2, 3].map((b) => leaves(b, false))).toEqual([true, true, true, false, true])
+    expect([-1, 0, 1, 2, 3].map((b) => leaves(b, true))).toEqual([true, true, false, false, true])
+  })
+})

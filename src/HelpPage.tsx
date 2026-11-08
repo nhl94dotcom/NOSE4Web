@@ -1071,6 +1071,13 @@ export function HelpPage() {
           net and the boards; with the fix it plays normally. Shootouts are unaffected.
         </li>
         <li>
+          <b>Computer goalie pull fix</b> (in with the fixes, Genesis only): in the last minute of the third period
+          the computer pulls its goalie only when exactly two goals behind, never one, though the game's own note says
+          it should be "more than 2" that stops it. With the fix it pulls him when one or two behind. It changes how
+          the computer plays late in close games; while its goalie is out its shots within range go exactly where they
+          are aimed, as anyone's do with the goalie pulled.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone
