@@ -765,3 +765,7 @@ button:disabled {
   font-family: ui-monospace, monospace;
   font-size: 0.85rem;
 }
+
+.discord-message {
+  margin: 0.5rem 0;
+}

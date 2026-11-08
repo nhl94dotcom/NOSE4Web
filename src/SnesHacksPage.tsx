@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
-import { hackSheetHtml, snesHackSheet } from './core/hacksheet'
+import { hackSheetDiscord, hackSheetHtml, snesHackSheet } from './core/hacksheet'
 import {
   applySnesHacks,
   detectSnesHacks,
@@ -114,6 +114,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
           })
         }
         discordText={() => snesHacksForDiscord(project.bytes, name)}
+        discordMessages={() => hackSheetDiscord(snesHackSheet(project.bytes, name))}
         sheet={() => hackSheetHtml(snesHackSheet(project.bytes, name))}
         name={name}
       />

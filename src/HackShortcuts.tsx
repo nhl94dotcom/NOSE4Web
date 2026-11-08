@@ -5,8 +5,10 @@ import { download } from './download'
 interface Props {
   // Sets the page's choices to the recommended fixes; false where they are all set already.
   onRecommended: (() => void) | false
-  // What this ROM has, as a post for a league's Discord.
+  // What this ROM has, as a short post for a league's Discord.
   discordText: () => string
+  // The same, each hack explained, as Discord messages to paste one after another.
+  discordMessages: () => string[]
   // The same, explained for a league's owners, as a page of its own.
   sheet: () => string
   // Starts the name of the sheet's file.
@@ -14,11 +16,22 @@ interface Props {
 }
 
 // The buttons at the top of a Hacks page.
-export function HackShortcuts({ onRecommended, discordText, sheet, name }: Props) {
+export function HackShortcuts({ onRecommended, discordText, discordMessages, sheet, name }: Props) {
   const [notice, setNotice] = useState('')
+  // Each hack explained, or the names only.
+  const [explain, setExplain] = useState(true)
   // Once copied, the post stays shown, kept up to date with the ROM.
   const [shown, setShown] = useState(false)
-  const text = shown ? discordText() : ''
+  const messages = () => (explain ? discordMessages() : [discordText()])
+  const shownMessages = shown ? messages() : []
+  const copy = (all: string[], i: number) => {
+    void writeClipboard(all[i])
+    setNotice(
+      all.length === 1
+        ? "Copied. Paste it into your league's Discord; the text is below too."
+        : `Copied message ${i + 1} of ${all.length}. Paste it into your league's Discord, then copy the next one below.`,
+    )
+  }
   return (
     <>
       <p>
@@ -34,13 +47,15 @@ export function HackShortcuts({ onRecommended, discordText, sheet, name }: Props
         </button>{' '}
         <button
           onClick={() => {
-            void writeClipboard(discordText())
+            copy(messages(), 0)
             setShown(true)
-            setNotice("Copied. Paste it into your league's Discord; the text is below too.")
           }}
         >
           Copy this ROM's hacks for Discord
         </button>{' '}
+        <label>
+          <input type="checkbox" checked={explain} onChange={(e) => setExplain(e.target.checked)} /> explain each hack
+        </label>{' '}
         <button
           onClick={() => {
             download(sheet(), `${name}_hacks.html`, 'text/html')
@@ -51,7 +66,22 @@ export function HackShortcuts({ onRecommended, discordText, sheet, name }: Props
         </button>{' '}
         <span className="note">{notice || (onRecommended ? '' : 'Every recommended fix is set.')}</span>
       </p>
-      {shown && <textarea className="discord-text" aria-label="This ROM's hacks for Discord" readOnly value={text} rows={Math.min(16, text.split('\n').length + 1)} />}
+      {shownMessages.map((text, i) => (
+        <div key={i} className="discord-message">
+          {shownMessages.length > 1 && (
+            <button onClick={() => copy(shownMessages, i)}>
+              Copy message {i + 1} of {shownMessages.length}
+            </button>
+          )}
+          <textarea
+            className="discord-text"
+            aria-label={shownMessages.length > 1 ? `This ROM's hacks for Discord, message ${i + 1}` : "This ROM's hacks for Discord"}
+            readOnly
+            value={text}
+            rows={Math.min(16, text.split('\n').length + 1)}
+          />
+        </div>
+      ))}
     </>
   )
 }

@@ -905,9 +905,11 @@ export function HelpPage() {
         penalty kill, comeback bonus, penalty shot and extra attacker fixes. It leaves the faceoff spot fix (a choice
         between eras), the options, and two fixes leagues may not want as they are: the SNES hot and cold bug fix,
         which makes every player play lower than players are used to, and the SNES Y button fix, a habit people
-        expect. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts a list of
-        what this ROM has, everything that differs from the original game, on the clipboard as a Discord post, for
-        a league's owners, and shows it below the button. <b>Download hack sheet</b> saves a page of its own
+        expect. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts what this
+        ROM has, everything that differs from the original game, on the clipboard as a Discord post for a
+        league's owners, each hack explained in plain words, and shows it below the button. Discord takes at most
+        2,000 characters a message, so a long list comes as several messages, each with its own copy button, to
+        paste one after another. Untick <b>explain each hack</b> for a short list of the names only. <b>Download hack sheet</b> saves a page of its own
         explaining, in plain words for the owners, what each of those hacks means for how the game plays, to open,
         print or share.
       </p>

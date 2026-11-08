@@ -1525,7 +1525,17 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByRole('button', { name: 'Turn on the recommended fixes' })).toBeDisabled()
     await main.getByLabel('Goalie hold time').fill('5')
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    // Each hack explained, as messages Discord takes.
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
+    const messages = main.locator('textarea.discord-text')
+    await expect(messages.first()).toHaveValue(/^\*\*Hacks in nhl94\*\* \(NHL '94 for the Genesis\)\n/)
+    const texts = await messages.evaluateAll((areas) => areas.map((area) => (area as HTMLTextAreaElement).value))
+    for (const text of texts) expect(text.length).toBeLessThanOrEqual(2000)
+    const explained = texts.join('\n')
+    expect(explained).toContain('- **Rocket pass fix**: Passes travel at their proper speed')
+    expect(explained).toContain('- **Goalie hold time**: A goalie may hold the puck 5 seconds before the whistle')
+    // Or the names only.
+    await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
       [
         '**Hacks in nhl94**',
@@ -1909,6 +1919,8 @@ test.describe('with the SNES game', () => {
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Bug fixes__\n- \*\*Power play and penalty kill fix\*\*: /)
+    await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
       '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**',
     )

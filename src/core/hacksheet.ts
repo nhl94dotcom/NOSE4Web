@@ -189,3 +189,36 @@ ${unread}
 </html>
 `
 }
+
+// Discord takes at most 2,000 characters a message; this leaves room for the part count.
+const DISCORD_MOST = 1900
+
+// The sheet as Discord messages, ready to paste one after another: each under
+// Discord's limit, split only between lines, a section's heading repeated
+// where it goes on into the next message.
+export function hackSheetDiscord(sheet: HackSheet): string[] {
+  const head = [`**Hacks in ${sheet.name}** (${sheet.game})`, 'Everything not listed plays as the original game does.']
+  if (sheet.sections.length === 0) return [`**Hacks in ${sheet.name}** (${sheet.game})\nNone: it plays as the original game.`]
+  const messages: string[][] = [head.slice()]
+  const size = (lines: string[]) => lines.join('\n').length
+  for (const section of sheet.sections) {
+    const heading = `\n__${section.heading}__`
+    let first = true
+    for (const item of section.items) {
+      const line = `- **${item.title}**: ${item.text}`
+      const current = messages[messages.length - 1]
+      const adding = first ? [heading, line] : [line]
+      if (size([...current, ...adding]) > DISCORD_MOST) messages.push([`__${section.heading}__${first ? '' : ' (continued)'}`, line])
+      else current.push(...adding)
+      first = false
+    }
+  }
+  if (sheet.unread.length > 0) {
+    const line = `\nAlso changed, in code NOSE4Web does not know: ${sheet.unread.join(', ')}.`
+    const current = messages[messages.length - 1]
+    if (size([...current, line]) > DISCORD_MOST) messages.push([line.trim()])
+    else current.push(line)
+  }
+  const texts = messages.map((lines) => lines.join('\n'))
+  return texts.length === 1 ? texts : texts.map((text, i) => `${text}\n(${i + 1}/${texts.length})`)
+}
