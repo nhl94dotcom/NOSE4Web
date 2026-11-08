@@ -1561,7 +1561,12 @@ export function HelpPage() {
           through the ice, and each square of 8 by 8 pixels of it is matched to the row that suits it best. Its
           different squares (exact copies cost nothing, but flipped ones do here) can be no more than the game has room
           for: as many as the largest original logo uses. One that has grown is moved to free space in the
-          ROM. The SNES game has no banners: its team blocks are plain colour with the name in letters. ROMs
+          ROM. A centre ice logo may also be another size, in whole squares, if it has no more squares than the one it
+          replaces (64 by 32 for 48 by 48, say): the game takes its size from it and centres it. The SNES game has no
+          picture banners: a team's block is plain colour, its own block colours, with a name in letters, its{' '}
+          <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the playoff
+          bracket. It follows the place name while the two are the same, and can be shortened on the team page; all
+          the banner names share a little room, and Check ROM says if they need more. Import a team brings both. ROMs
           rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the

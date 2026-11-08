@@ -6,6 +6,7 @@ import { NO_LEAGUE_RULES, type LeagueRules } from './leaguerules'
 import type { Baseline } from './season'
 import { NO_SETTINGS, parseSettings, writeSettings, type Settings } from './settings'
 import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, splitSnesFile } from './snes'
+import { readSnesPlaceNames } from './snesplacenames'
 import { parseSnesSettings, writeSnesSettings } from './snessettings'
 import { readSnesRinkPalette, writeSnesRinkPalette } from './snesrink'
 import { NO_SNES_PICTURE_EDITS, writeSnesPictures, type SnesPictureEdits } from './snespictures'
@@ -118,6 +119,7 @@ function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array
   if (!table) throw new Error("This SNES ROM's team table could not be found, so this ROM is not supported.")
   const game = snesGame(table, snesCodeInPlace(rom))
   const { teams, layout } = parseTeams(rom, game)
+  readSnesPlaceNames(rom, teams.length)?.forEach((name, i) => (teams[i].placeName = name))
   return {
     game,
     source: file.slice(),

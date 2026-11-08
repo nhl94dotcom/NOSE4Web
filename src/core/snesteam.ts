@@ -1,6 +1,7 @@
 import { readSnesText, readU16LE, snesTextSize, writeSnesText, writeU16LE } from './bytes'
 import type { GameConfig } from './games'
 import { loRomAddress, loRomBank, loRomOffset, snesStripTables, STRIP_BYTES } from './snes'
+import { writeSnesPlaceNames } from './snesplacenames'
 import type { Player, Team, TeamLayout } from './team'
 
 // A team block in the SNES game, in order. It holds what a Genesis block
@@ -264,6 +265,8 @@ export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[],
       team.palette.forEach((word, i) => writeU16LE(rom, (i < 16 ? strips.home : strips.away) + t * STRIP_BYTES + (i % 16) * 2, word)),
     )
   }
+  // The names on the team banners, where every team has one and they fit; Check ROM says when they do not.
+  if (teams.every((team) => team.placeName !== undefined)) writeSnesPlaceNames(rom, teams.map((team) => team.placeName!))
   const bank = rom[game.teamTableOffset + 2]
   // Teams that were in the room at the end of the bank and are no longer leave it unused.
   if (layout.overflow) rom.fill(0xff, layout.overflow.start, layout.overflow.end)

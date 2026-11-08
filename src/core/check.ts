@@ -5,6 +5,7 @@ import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
 import { FEWEST_PHOTOS, photoLayout } from './photos'
+import { snesPlaceNameRoom } from './snesplacenames'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
 
@@ -163,6 +164,16 @@ export function checkProject(project: RomProject): Finding[] {
   teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, findings))
   checkStrips(project, labels, findings)
   checkPhotos(project, labels, findings)
+  if (project.game.platform === 'snes' && teams.every((team) => team.placeName !== undefined)) {
+    const room = snesPlaceNameRoom(project.bytes, teams.map((team) => team.placeName!))
+    if (room && room.used > room.room) {
+      findings.push({
+        level: 'problem',
+        where: 'Banner names',
+        message: `The names on the team banners need ${room.used - room.room} bytes more than the ROM has room for, so they are not written: shorten some under Banner name on the team pages.`,
+      })
+    }
+  }
 
   settings.playoffDraws.forEach((draw, d) => {
     const where = `Playoff draw ${d + 1}`

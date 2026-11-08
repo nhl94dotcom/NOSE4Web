@@ -331,7 +331,10 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   }
   if (file.expansions?.pictureSpace && project.graphicsSupported) project = expandPictureSpace(project)
 
-  const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes }))
+  // A banner name from the file where it has a usable one, else the ROM's (files saved before there were any).
+  const placeName = (stored: StoredTeam, i: number) =>
+    project.teams[i].placeName === undefined ? undefined : typeof stored.placeName === 'string' ? stored.placeName : project.teams[i].placeName
+  const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes, placeName: placeName(team, i) }))
   const settings = hasSettings(game, project.settings) && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
   const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)

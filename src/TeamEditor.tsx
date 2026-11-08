@@ -482,12 +482,21 @@ export function TeamEditor(props: Props) {
               {label}
               <input
                 value={team.names[i]}
-                onChange={(e) =>
-                  onChange({ ...team, names: team.names.map((n, j) => (j === i ? cleanText(e.target.value) : n)) })
-                }
+                onChange={(e) => {
+                  const text = cleanText(e.target.value)
+                  // The SNES banner name follows the place name while the two are the same.
+                  const placeName = i === 0 && team.placeName === team.names[0] ? text : team.placeName
+                  onChange({ ...team, names: team.names.map((n, j) => (j === i ? text : n)), placeName })
+                }}
               />
             </label>
           ))}
+          {team.placeName !== undefined && (
+            <label title="The name the game shows on the team's banners and in the playoff bracket. It follows the place name while the two are the same; shorten it here where it is too long for a banner.">
+              Banner name
+              <input value={team.placeName} onChange={(e) => onChange({ ...team, placeName: cleanText(e.target.value) })} />
+            </label>
+          )}
         </div>
         <div className="fields">
           <label>

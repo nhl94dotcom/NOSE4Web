@@ -45,6 +45,9 @@ export interface Team {
   players: Player[]
   // Location, initials, name, stadium.
   names: string[]
+  // The SNES game's name on the team's banners and in the playoff bracket,
+  // kept apart from its own names (see snesplacenames.ts).
+  placeName?: string
 }
 
 // Where the team data sits in the ROM, so it can be written back to the same place.

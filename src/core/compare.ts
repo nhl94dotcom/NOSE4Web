@@ -106,6 +106,9 @@ function compareTeam(project: RomProject, before: Team, after: Team, sameGame: b
   after.names.forEach((text, i) => {
     if (text !== before.names[i]) changes.push(`${NAME_LABELS[i]}: "${before.names[i]}" to "${text}".`)
   })
+  if (before.placeName !== undefined && after.placeName !== undefined && before.placeName !== after.placeName) {
+    changes.push(`Banner name: "${before.placeName}" to "${after.placeName}".`)
+  }
   const stayed = comparePlayers(project, before, after, changes)
   compareLines(project, before, after, stayed, changes)
 

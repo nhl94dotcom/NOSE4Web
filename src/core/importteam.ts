@@ -21,6 +21,7 @@ import {
 import { convertWeight, isRating, weightBase, type AttributeKind } from './attributes'
 import { NHL94 } from './games'
 import { importPhotos } from './photoimport'
+import { snesBlockColours, withSnesBlockColours } from './snesblockcolours'
 import { hackState, narrowRating, widenRating } from './hacks'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
@@ -55,7 +56,8 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
   const notes: string[] = []
 
   if (parts.names) {
-    team = { ...team, names: source.names }
+    // On the SNES the banner name comes too, between ROMs that keep one.
+    team = { ...team, names: source.names, placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName }
     notes.push('Names brought in.')
   }
   if (parts.roster) {
@@ -67,6 +69,8 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       defense: source.defense,
       goalieNibbles: source.goalieNibbles,
       teamBytes: source.teamBytes,
+      // The SNES game's overall rating as it shows it, kept with the team, goes with the players it rates.
+      shownOverall: team.shownOverall !== undefined && source.shownOverall !== undefined ? source.shownOverall : team.shownOverall,
       // A line keeps its last, unused byte; its seven positions come across.
       lines: team.lines.map((line, l) => (source.lines[l] ? [...source.lines[l].slice(0, 7), ...line.slice(7)] : line)),
     }
@@ -107,6 +111,18 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
     notes.push('Home and away colours brought in.')
   }
   let next: RomProject = { ...project, teams: project.teams.map((t, i) => (i === to ? team : t)) }
+  // On the SNES the team's block, its name banner, has colours of its own, which come with its strips.
+  if (parts.colours && project.game.platform === 'snes' && other.game.platform === 'snes') {
+    const block = snesBlockColours(other, from)
+    if (block && snesBlockColours(next, to)) {
+      try {
+        next = withSnesBlockColours(next, to, block)
+        notes.push('Its name banner colours brought in.')
+      } catch (e) {
+        notes.push(`Its name banner colours were left alone: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+  }
 
   if (parts.pictures) {
     if (!project.graphicsSupported || !other.graphicsSupported) {

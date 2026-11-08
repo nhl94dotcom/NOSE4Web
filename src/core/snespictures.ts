@@ -621,8 +621,14 @@ export function snesCentreIceFromImage(
   height: number,
   like: { picture: Picture; palette: number[]; rows?: number[] },
 ): Picture {
-  if (width !== like.picture.width || height !== like.picture.height) {
-    throw new Error(`The centre ice logo is imported as a picture of ${like.picture.width} by ${like.picture.height}; this one is ${width} by ${height}.`)
+  // Another size fits where its squares are no more than the map has room
+  // for: the game takes a logo's size from its map, and centres it.
+  const cells = (w: number, h: number) => (w / 8) * (h / 8)
+  const sameSize = width === like.picture.width && height === like.picture.height
+  if (!sameSize && (width % 8 !== 0 || height % 8 !== 0 || cells(width, height) > cells(like.picture.width, like.picture.height))) {
+    throw new Error(
+      `The centre ice logo is imported as a picture of ${like.picture.width} by ${like.picture.height}, or another size in whole squares of 8 by 8 with no more of them (${cells(like.picture.width, like.picture.height)}); this one is ${width} by ${height}.`,
+    )
   }
   const rgb = like.palette.map((word) => colorRgb(word, SNES_COLORS))
   const distance = (k: number, i: number) => (rgb[k][0] - rgba[i * 4]) ** 2 + (rgb[k][1] - rgba[i * 4 + 1]) ** 2 + (rgb[k][2] - rgba[i * 4 + 2]) ** 2
@@ -796,8 +802,14 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
     const at = c.iceTiles[team]
     if (written.has(at) || samePixels(edits.centreIce[team], drawCentreIce(rom, c, team))) continue
     written.add(at)
-    const map = readIceMap(rom, c.iceMaps[team])
-    const { tiles, words } = iceTilesFor(edits.centreIce[team], map)
+    const old = readIceMap(rom, c.iceMaps[team])
+    const picture = edits.centreIce[team]
+    const [width, height] = [picture.width / 8, picture.height / 8]
+    if (width * height > old.width * old.height) throw new SnesPictureRoomError('This centre ice logo has more squares than its map has room for.')
+    // The same map, or one of the picture's size with the same tile flags.
+    const flags = old.words.find((word) => word !== 0) ?? 0
+    const map = width === old.width && height === old.height ? old : { width, height, words: new Array(width * height).fill(flags) }
+    const { tiles, words } = iceTilesFor(picture, map)
     if (tiles.length / TILE > most) {
       const needed = tiles.length / TILE - 1
       throw new SnesPictureRoomError(
@@ -824,6 +836,9 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
       writeU16LE(rom, c.tables.centreIce + other * 8, loRomAddress(to))
       rom[c.tables.centreIce + other * 8 + 2] = loRomBank(to, rom[c.tables.centreIce + other * 8 + 2])
     })
+    // A logo of another size gives the map its size; the game centres it by that.
+    writeU16LE(rom, c.iceMaps[team], map.width)
+    writeU16LE(rom, c.iceMaps[team] + 2, map.height)
     words.forEach((word, i) => writeU16LE(rom, c.iceMaps[team] + MAP_HEADER + i * 2, word))
   }
 }
