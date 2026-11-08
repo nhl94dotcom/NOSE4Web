@@ -904,11 +904,11 @@ export function HelpPage() {
       </p>
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
-        the league has chosen: on the Genesis the weight bug and C-then-B fix, second-assist, Aggression,
+        that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, Aggression,
         power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, and
         counting stick deflections as shots, with smozoma's legacy weight bug fix taken out; on the SNES the power play and
         penalty kill, comeback bonus, penalty shot, extra attacker and second-assist fixes and counting stick
-        deflections as shots (these last two still awaiting their test in the game). It leaves the faceoff spot fix (a choice
+        deflections as shots. It leaves the faceoff spot fix (a choice
         between eras), the options, and two fixes leagues may not want as they are: the SNES hot and cold bug fix,
         which makes every player play lower than players are used to, and the SNES Y button fix, a habit people
         expect. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts what this
@@ -950,7 +950,8 @@ export function HelpPage() {
           With this on a hard low shot his stick knocks away counts once, for the shooter and his team and against
           the goalie, as one his stick catches already does: about 2 more shots on goal a game in recorded league
           games. Only the statistics change. On the SNES the goalie's stick and glove knock away hard high shots
-          too, and those count as well; how many more a game is still to be measured there.
+          too, and those count as well: up to about 4 more shots on goal a game there (Match Viewer, from recorded
+          games).
         </li>
         <li>
           <b>Bodycheck statistics:</b> counts each player's checks and shows them in Player Stats as Chk, in place

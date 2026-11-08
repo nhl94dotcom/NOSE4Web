@@ -112,7 +112,7 @@ const SNES: Record<SnesHack, string> = {
     "Every faceoff is on one of the nine dots, as in today's NHL: at centre after a goal, in the offending team's end after a penalty, and otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral dot.",
   awarenessFix: 'Computer forwards on offence react by their Offensive Awareness, as intended, not their Defensive.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
-  stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does.",
+  stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does: up to about 4 more a game.",
   defenceControl: 'Defence control is on for both teams from the start of every game.',
   oneMinutePenalties: 'Minor penalties last one minute instead of two.',
   thirtySecondPeriods: 'The main menu also offers 30-second periods.',

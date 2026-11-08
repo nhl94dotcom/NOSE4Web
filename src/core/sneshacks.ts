@@ -361,7 +361,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the shift become a call to the shift with that test. The SNES has no
   // other shift. Found by the bra .3 before it and the code after, which
   // stores d0 (the toucher) in tmtouch1 and compares it with tmtouch3.
-  // (Match Viewer's reading.)
+  // (Match Viewer's reading, tested in the game in all three builds.)
   secondAssist: (rom) => {
     const found = only(rom, '800c' + '..'.repeat(12) + 'a5..99....d9....d006a9ffff99')
     if (found < 0) return null
@@ -384,7 +384,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the puck is a shot (sf2shot) and the clock runs, and clears sf2shot so it
   // counts once; then it goes on to .3. Y is the player there. Found by the
   // tests before .t1x (lda position,x; beq .t1x; lda d2; cmp #$25; bcc), and
-  // ChkShotStat by its start. (Match Viewer's reading and hook.)
+  // ChkShotStat by its start. (Match Viewer's reading and hook, tested in the
+  // game: every changed shot one more on goal, none counted twice.)
   stickShots: (rom) => {
     const found = only(rom, 'bd....f0..a5..c9250090034c....a4..a9080099....4c....')
     const shot = only(rom, 'a900101c....d0034c....ad....f0034c....a58d48a58f48')
@@ -524,8 +525,7 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
 }
 
 // The fixes a league can take without choosing anything, each tested in the
-// game but the second-assist fix and stick deflections, which the league chose
-// ahead of their test, as their Genesis versions are recommended. Left as they are: the faceoff spot fix, a choice between eras; the
+// game. Left as they are: the faceoff spot fix, a choice between eras; the
 // hot and cold bug fix, since without the bug every player plays lower than
 // leagues are used to (it suits rosters whose ratings are set higher); and
 // the Y button fix, a habit players expect.
