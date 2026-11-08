@@ -546,12 +546,13 @@ const SNES_PAGE_ORDER: SnesHack[] = [
 
 // What this ROM has, as a Discord post for a league's owners. The extra
 // attacker fix is not offered where the code has moved, so it is not missed there.
-export function snesHacksForDiscord(rom: Uint8Array, name: string): string {
+// `extra`: more lines for the post, such as its pictures (hacksheet.ts).
+export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string[] = []): string {
   const { choices, unknown } = detectSnesHacks(rom)
   const inPlace = snesCodeInPlace(rom)
   const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => `- **${SNES_HACK_TITLES[hack]}**`)
   const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || hack !== 'extraAttackerFix')).map((hack) => SNES_HACK_TITLES[hack])
-  return discordPost(name, lines, unread)
+  return discordPost(name, [...lines, ...extra], unread)
 }
 
 // How the hacks in one SNES ROM differ from those in another.

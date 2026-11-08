@@ -971,7 +971,7 @@ export function HelpPage() {
         2,000 characters a message, so a long list comes as several messages, each with its own copy button, to
         paste one after another. Untick <b>explain each hack</b> for a short list of the names only. <b>Download hack sheet</b> saves a page of its own
         explaining, in plain words for the owners, what each of those hacks means for how the game plays, to open,
-        print or share.
+        print or share. Where the ROM has score box logos, the post and the sheet say so too, under Pictures.
       </p>
       <p>
         <b>Copy hacks from another ROM…</b>, beside Apply, sets every choice on the page to what another ROM has, for

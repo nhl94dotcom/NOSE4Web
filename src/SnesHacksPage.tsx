@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
-import { hackSheetDiscord, hackSheetHtml, snesHackSheet } from './core/hacksheet'
+import { hackSheetDiscord, hackSheetHtml, pictureItems, snesHackSheet, withPictures } from './core/hacksheet'
 import {
   applySnesHacks,
   detectSnesHacks,
@@ -118,9 +118,9 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             setError('')
           })
         }
-        discordText={() => snesHacksForDiscord(project.bytes, name)}
-        discordMessages={() => hackSheetDiscord(snesHackSheet(project.bytes, name))}
-        sheet={() => hackSheetHtml(snesHackSheet(project.bytes, name))}
+        discordText={() => snesHacksForDiscord(project.bytes, name, pictureItems(project).map((item) => `- **${item.title}**`))}
+        discordMessages={() => hackSheetDiscord(withPictures(snesHackSheet(project.bytes, name), project))}
+        sheet={() => hackSheetHtml(withPictures(snesHackSheet(project.bytes, name), project))}
         name={name}
       />
       {GROUPS.map((group) => (

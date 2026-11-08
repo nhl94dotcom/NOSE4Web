@@ -1,6 +1,8 @@
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState } from './hacks'
 import { snesCodeInPlace } from './snes'
 import { detectSnesHacks, SNES_HACK_TITLES, type SnesHack } from './sneshacks'
+import type { RomProject } from './rom'
+import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
 
 // A page for a league's owners: what each hack in the league's ROM means for
 // how the game plays, in plain words. Only what differs from the original
@@ -224,4 +226,33 @@ export function hackSheetDiscord(sheet: HackSheet): string[] {
   }
   const texts = messages.map((lines) => lines.join('\n'))
   return texts.length === 1 ? texts : texts.map((text, i) => `${text}\n(${i + 1}/${texts.length})`)
+}
+
+// ------------------------------------------------------------- pictures
+
+// What a league's owners see differently in the ROM's pictures: score box
+// logos where the game would print letters. (Player photos are not counted:
+// the original game has them too, and the editor cannot tell the game's own
+// from new ones.)
+export function pictureItems(project: RomProject): { title: string; text: string }[] {
+  const items: { title: string; text: string }[] = []
+  const teams = project.teams.length
+  if (snesScoreLogosSupported(project)) {
+    const count = project.teams.filter((_, team) => snesScoreLogo(project, team) !== null).length
+    if (count > 0) {
+      items.push({
+        title: 'Score box logos',
+        text:
+          `${count === teams ? 'Each team shows' : `${count} of the ${teams} teams show`} a small logo in the score box, and in the clock box on a power play, where the original game prints its three letters` +
+          (count === teams ? '.' : '; the rest show their letters.'),
+      })
+    }
+  }
+  return items
+}
+
+// A sheet with its Pictures section, where the ROM has anything to say there.
+export function withPictures(sheet: HackSheet, project: RomProject): HackSheet {
+  const items = pictureItems(project)
+  return items.length === 0 ? sheet : { ...sheet, sections: [...sheet.sections, { heading: 'Pictures', items }] }
 }

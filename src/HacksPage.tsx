@@ -27,7 +27,7 @@ import {
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
-import { genesisHackSheet, hackSheetDiscord, hackSheetHtml } from './core/hacksheet'
+import { genesisHackSheet, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
 interface Props {
   project: RomProject
@@ -197,9 +197,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             setSetBack(setBack + 1)
           })
         }
-        discordText={() => hacksForDiscord(state, name)}
-        discordMessages={() => hackSheetDiscord(genesisHackSheet(state, name))}
-        sheet={() => hackSheetHtml(genesisHackSheet(state, name))}
+        discordText={() => hacksForDiscord(state, name, pictureItems(project).map((item) => `- **${item.title}**`))}
+        discordMessages={() => hackSheetDiscord(withPictures(genesisHackSheet(state, name), project))}
+        sheet={() => hackSheetHtml(withPictures(genesisHackSheet(state, name), project))}
         name={name}
       />
 

@@ -1253,7 +1253,8 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
 // differs from the original game, and what the editor cannot read.
-export function hacksForDiscord(state: HackState, name: string): string {
+// `extra`: more lines for the post, such as its pictures (hacksheet.ts).
+export function hacksForDiscord(state: HackState, name: string, extra: string[] = []): string {
   const lines: string[] = []
   const unread: string[] = []
   for (const key of PAGE_ORDER) {
@@ -1268,7 +1269,7 @@ export function hacksForDiscord(state: HackState, name: string): string {
     else if (typeof value === 'number' && key !== 'speedBurst') lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)} (the original game has ${hackValueText(key, NO_HACKS)})`)
     else lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)}`)
   }
-  return discordPost(name, lines, unread)
+  return discordPost(name, [...lines, ...extra], unread)
 }
 
 // This ROM's choices set to another ROM's hacks, for a league that wants

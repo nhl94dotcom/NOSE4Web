@@ -1,6 +1,8 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { HACK_TITLES, NO_HACKS, type HackChoices } from '../src/core/hacks'
-import { genesisHackSheet, hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
+import { genesisHackSheet, hackSheetDiscord, hackSheetHtml, snesHackSheet } from '../src/core/hacksheet'
 
 describe('the hack sheet', () => {
   it('explains every hack that differs from the original, and only those', () => {
@@ -57,5 +59,25 @@ describe('the hack sheet for Discord', () => {
     expect(hackSheetDiscord(genesisHackSheet({ choices: NO_HACKS, unknown: [] }, 'stock'))).toEqual([
       "**Hacks in stock** (NHL '94 for the Genesis)\nNone: it plays as the original game.",
     ])
+  })
+})
+
+describe('the pictures on a hack sheet', () => {
+  const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
+  it.skipIf(!existsSync(path('NHL94.smc')))('names the score box logos, and nothing for the original game', async () => {
+    const { openRom } = await import('../src/core/rom')
+    const { withScoreLogosAdded } = await import('../src/core/snesscorecode')
+    const { withoutSnesScoreLogo } = await import('../src/core/snesscorelogos')
+    const { pictureItems, withPictures } = await import('../src/core/hacksheet')
+    const project = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
+    expect(pictureItems(project)).toEqual([])
+    const added = withScoreLogosAdded(project)
+    expect(pictureItems(added)[0]).toEqual({
+      title: 'Score box logos',
+      text: 'Each team shows a small logo in the score box, and in the clock box on a power play, where the original game prints its three letters.',
+    })
+    expect(pictureItems(withoutSnesScoreLogo(added, 9))[0].text).toMatch(/^27 of the 28 teams show a small logo .*; the rest show their letters\.$/)
+    const sheet = withPictures(snesHackSheet(added.bytes, 'league'), added)
+    expect(sheet.sections.at(-1)!.heading).toBe('Pictures')
   })
 })
