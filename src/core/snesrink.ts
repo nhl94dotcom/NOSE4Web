@@ -127,14 +127,25 @@ export function drawSnesRink(rom: Uint8Array, centreIce: Picture | null): Pictur
       }
     }
   })
-  if (centreIce) {
-    const [logoWidth, logoHeight] = [centreIce.width / 8, centreIce.height / 8]
-    const start = (LOGO_PLACE - MAP_HEADER - logoWidth - (logoHeight >= 6 ? MAP_ROW_BYTES : 0)) >> 1
-    const [left, top] = [(start % rink.width) * 8, Math.floor(start / rink.width) * 8]
-    for (let y = 0; y < centreIce.height && top + y < picture.height; y++) {
-      for (let x = 0; x < centreIce.width && left + x < width; x++) {
-        picture.pixels[(top + y) * width + left + x] = centreIce.pixels[y * centreIce.width + x]
-      }
+  return centreIce ? withSnesCentreIce(picture, centreIce) : picture
+}
+
+// Where on the rink a centre ice logo goes, in pixels from its top left.
+export function snesCentreIcePlace(rink: Picture, centreIce: Picture): { left: number; top: number } {
+  const [logoWidth, logoHeight] = [centreIce.width / 8, centreIce.height / 8]
+  const start = (LOGO_PLACE - MAP_HEADER - logoWidth - (logoHeight >= 6 ? MAP_ROW_BYTES : 0)) >> 1
+  return { left: (start % (rink.width / 8)) * 8, top: Math.floor(start / (rink.width / 8)) * 8 }
+}
+
+// The rink drawn by drawSnesRink, with a centre ice logo pasted in. Quicker
+// than drawing it afresh, for a logo that changes as it is drawn.
+export function withSnesCentreIce(rink: Picture, centreIce: Picture): Picture {
+  const { width } = rink
+  const picture = { ...rink, pixels: rink.pixels.slice() }
+  const { left, top } = snesCentreIcePlace(rink, centreIce)
+  for (let y = 0; y < centreIce.height && top + y < picture.height; y++) {
+    for (let x = 0; x < centreIce.width && left + x < width; x++) {
+      picture.pixels[(top + y) * width + left + x] = centreIce.pixels[y * centreIce.width + x]
     }
   }
   return picture

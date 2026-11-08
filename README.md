@@ -53,8 +53,9 @@ That licence does not cover:
 ## What it edits
 
 - Team names, and each team's home and away colours with a live preview
-- Team logos and banners, by exporting and importing PNG images one at a time
-  or every team's at once as a zip, and banners lettered for you in the game's
+- Team logos and banners, drawn pixel by pixel in the editor in the colours
+  the game allows, or by exporting and importing PNG images one at a time or
+  every team's at once as a zip, and banners lettered for you in the game's
   own style
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit

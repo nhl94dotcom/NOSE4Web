@@ -240,7 +240,8 @@ export function snesLogoColoursSharedWith(rom: Uint8Array, teamCount: number, te
 // comes out smallest. It may use at most 36 tiles, as many as the largest of
 // the original logos. `like` is the frame it replaces, whose last two header
 // words, which the editor does not know the use of, are kept.
-export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
+// The smallest layout of a logo, and the box its pixels fill.
+function bestLayout(picture: Picture): { best: Layout; box: [number, number, number, number] } {
   const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < picture.width && y < picture.height ? picture.pixels[y * picture.width + x] : 0)
   const opaque: [number, number][] = []
   for (let y = 0; y < picture.height; y++) for (let x = 0; x < picture.width; x++) if (at(x, y)) opaque.push([x, y])
@@ -257,6 +258,23 @@ export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
     }
   }
   if (!best) throw new Error('The logo could not be laid out for the game.')
+  return { best, box: [minX, maxX, minY, maxY] }
+}
+
+// How many different tiles of 8 by 8 a logo takes, laid out as the game
+// will have it, against the most it may have; null for an empty logo.
+export function snesLogoTiles(picture: Picture): { tiles: number; most: number } | null {
+  try {
+    const { best } = bestLayout(picture)
+    return { tiles: best.first.length + best.second.length, most: MOST_TILES }
+  } catch {
+    return null
+  }
+}
+
+export function logoFrame(picture: Picture, like: Uint8Array): Uint8Array {
+  const { best, box } = bestLayout(picture)
+  const [minX, maxX, minY, maxY] = box
   const { pieces, first, second } = best
   const tiles = [...first, ...second]
   if (tiles.length > MOST_TILES) {

@@ -7,6 +7,7 @@ import {
   bannersEditable,
   bannersSupported,
   LOGO_COLORS,
+  LOGO_FIRST_COLOR,
   menuLogo,
   menuLogoFromImage,
   menuLogoPalette,
@@ -18,6 +19,7 @@ import {
   rinkLogoSharedWith,
   visitorBannersApart,
   withBanner,
+  withMenuLogo,
   withRinkLogo,
   writeGraphics,
   type BannerKind,
@@ -78,6 +80,29 @@ export function currentPicture(project: RomProject, team: number, kind: PictureK
   if (bannerKind) return { picture: banner(project, bannerKind, team), palette: bannerPalette(project, bannerKind, team) }
   if (kind === 'menuLogo') return { picture: menuLogo(project, team), palette: menuLogoPalette(project, team) }
   return { picture: rinkLogo(project, team), palette: project.teams[team].palette.slice(0, 16) }
+}
+
+// The colours a picture may be painted in, by number. A menu logo has white
+// (5) and black (6), which every team shares, and nine of its own.
+export function paintableColours(kind: PictureKind): number[] {
+  if (kind === 'menuLogo') return [5, 6, ...Array.from({ length: LOGO_COLORS }, (_, i) => LOGO_FIRST_COLOR + i)]
+  return kind === 'menuBanner' || kind === 'visitorBanner' ? MENU_BANNER_COLORS : ALL_COLORS
+}
+
+// The colours of a picture that can be changed along with it: a menu
+// logo's own. The others' are the team's home colours, the banner colours
+// and the in-game banners' shared ones, changed where those are.
+export function ownColours(kind: PictureKind): number[] {
+  return kind === 'menuLogo' ? Array.from({ length: LOGO_COLORS }, (_, i) => LOGO_FIRST_COLOR + i) : []
+}
+
+// The edits with a team's picture replaced by one painted in the editor, and
+// for a menu logo its colours as `palette` has them.
+export function withPainted(project: RomProject, team: number, kind: PictureKind, picture: Picture, palette?: number[]): GraphicsEdits {
+  const bannerKind = BANNER_KINDS[kind]
+  if (bannerKind) return withBanner(project, bannerKind, team, picture)
+  if (kind === 'rinkLogo') return withRinkLogo(project, team, picture)
+  return withMenuLogo(project, team, picture, palette ?? menuLogoPalette(project, team))
 }
 
 export interface ImageData {

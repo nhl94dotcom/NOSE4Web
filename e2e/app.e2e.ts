@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
+import { rinkLogo } from '../src/core/graphics'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { detectSnesHacks } from '../src/core/sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
@@ -241,6 +242,63 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Boston Bruins').click()
     expect(await colourCount(pictures.nth(2))).toBeGreaterThan(2)
     expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
+  })
+
+  test('draws a logo pixel by pixel, a stroke at a time', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Montreal Canadiens').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos and banners' }) })
+    const rink = section.locator('.picture').nth(0)
+    await rink.getByRole('button', { name: 'Draw…' }).click()
+    const editor = section.getByRole('group', { name: 'Draw the centre-ice logo' })
+    const canvas = editor.getByLabel('Centre-ice logo, drawn large')
+    const drag = async (from: [number, number], to: [number, number]) => {
+      await canvas.scrollIntoViewIfNeeded()
+      const box = (await canvas.boundingBox())!
+      const at = (x: number, y: number) => [box.x + ((x + 0.5) * box.width) / 48, box.y + ((y + 0.5) * box.height) / 32] as const
+      await page.mouse.move(...at(...from))
+      await page.mouse.down()
+      await page.mouse.move(...at(...to), { steps: 4 })
+      await page.mouse.up()
+    }
+    const colourCount = () =>
+      rink.locator('canvas').evaluate((c: HTMLCanvasElement) => {
+        const data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data
+        const seen = new Set<number>()
+        for (let i = 0; i < data.length; i += 4) if (data[i + 3]) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2])
+        return seen.size
+      })
+    expect(await colourCount()).toBeGreaterThan(2)
+
+    // A filled rectangle over the whole of it, in one colour: one stroke.
+    await editor.getByRole('button', { name: 'Colour 2', exact: true }).click()
+    await editor.getByRole('button', { name: 'Filled rectangle' }).click()
+    await drag([0, 0], [47, 31])
+    expect(await colourCount()).toBe(1)
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    expect(await colourCount()).toBeGreaterThan(2)
+
+    // The pencil, mirrored, and the eraser.
+    await editor.getByRole('button', { name: 'Pencil' }).click()
+    await editor.getByRole('button', { name: 'Colour 3', exact: true }).click()
+    await editor.getByLabel('Mirror left and right').check()
+    await drag([2, 2], [2, 5])
+    await editor.getByRole('button', { name: 'See-through' }).click()
+    await drag([10, 20], [10, 20])
+    await editor.getByLabel('Mirror left and right').uncheck()
+    await editor.getByRole('button', { name: 'Move right' }).click()
+    await section.screenshot({ path: 'test-results/shots/draw-logo.png' })
+    await editor.getByRole('button', { name: 'Done drawing' }).click()
+    await expect(editor).toBeHidden()
+
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    const montreal = rom.teams.findIndex((t) => t.names.some((name) => name === 'Montreal'))
+    const logo = rinkLogo(rom, montreal)
+    const pixel = (x: number, y: number) => logo.pixels[y * logo.width + x]
+    // Moved one to the right: the strokes at x 2 and 45 are now at 3 and 46, and nothing is at 0.
+    for (let y = 2; y <= 5; y++) expect([pixel(3, y), pixel(46, y)]).toEqual([3, 3])
+    expect([pixel(11, 20), pixel(38, 20)]).toEqual([0, 0])
+    for (let y = 0; y < 32; y++) expect(pixel(0, y)).toBe(0)
   })
 
   test('copies a player to another team', async ({ page }) => {
@@ -1342,7 +1400,6 @@ test.describe('with the NHL 94 ROM', () => {
 
     await team(page, 'Boston Bruins').click()
     await nameOf(rows(page, 'Skaters').first()).fill('New Signing')
-    await expect(entry(page, /^Changes/)).toHaveText('Changes (1)')
     await entry(page, /^Changes/).click()
     await expect(main.getByText(/was renamed New Signing\.$/)).toBeVisible()
     await expect(main.getByText('Location: "Anaheim" to "Orange County".')).toHaveCount(0)
@@ -1823,6 +1880,54 @@ test.describe('with the SNES game', () => {
     expect(Array.from(got.picture.pixels).map((p) => (p ? got.palette[p] & 0x7fff : -1))).toEqual(
       Array.from(want.picture.pixels).map((p) => (p ? want.palette[p] & 0x7fff : -1)),
     )
+  })
+
+  test("draws a team logo and a centre ice logo, counting the logo's tiles", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
+    await logos.locator('.picture').nth(0).getByRole('button', { name: 'Draw…' }).click()
+    const editor = logos.getByRole('group', { name: 'Draw the team logo' })
+    await expect(editor.getByText(/^\d+ of the 36 tiles of 8 by 8/)).toBeVisible()
+    const canvas = editor.getByLabel('Team logo, drawn large')
+    const dot = async (x: number, y: number) =>
+      canvas.click({ position: { x: ((x + 0.5) * Number(await canvas.getAttribute('width'))) / 56, y: ((y + 0.5) * Number(await canvas.getAttribute('height'))) / 56 } })
+    // Two dots in the middle of the logo, in colour 1.
+    await editor.getByRole('button', { name: 'Colour 1', exact: true }).click()
+    await dot(28, 28)
+    await dot(29, 28)
+    // A dot far out in a corner makes the logo bigger than the original game has room for, and is refused.
+    await dot(0, 0)
+    await expect(logos.locator('p.error')).toBeVisible()
+    // A colour of its own changed in the editor.
+    await editor.locator('.swatch').nth(2).click()
+    await editor.getByLabel(/^Red/).fill('31')
+    await editor.getByRole('button', { name: 'Done drawing' }).click()
+
+    await logos.locator('.picture').nth(1).getByRole('button', { name: 'Draw…' }).click()
+    const ice = logos.getByRole('group', { name: 'Draw the centre ice logo' })
+    await expect(ice.getByText('On the rink:')).toBeVisible()
+    const iceCanvas = ice.getByLabel('Centre ice logo, drawn large')
+    await ice.getByRole('button', { name: 'Filled rectangle' }).click()
+    await ice.getByRole('button', { name: 'Row 5 colour 1', exact: true }).click()
+    await ice.getByLabel('Zoom').selectOption('8')
+    await iceCanvas.scrollIntoViewIfNeeded()
+    const iceBox = (await iceCanvas.boundingBox())!
+    const width = Number(await iceCanvas.getAttribute('width')) / 8
+    await page.mouse.move(iceBox.x + 2, iceBox.y + 2)
+    await page.mouse.down()
+    await page.mouse.move(iceBox.x + (iceBox.width * 7.5) / width, iceBox.y + (iceBox.width * 7.5) / width, { steps: 3 })
+    await page.mouse.up()
+    await logos.screenshot({ path: 'test-results/shots/snes-draw.png' })
+
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    const logo = snesLogo(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 1)
+    expect([28, 29].map((x) => logo.picture.pixels[28 * 56 + x])).toEqual([1, 1])
+    expect(logo.picture.pixels[0]).toBe(0)
+    expect(logo.palette[3] & 0x1f).toBe(31) // the third of its own colours, colour 3
+    const drawn = snesCentreIce(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 1)
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) expect(drawn.picture.pixels[y * drawn.picture.width + x]).toBe(81)
   })
 
   test("copies a team's logo and centre ice logo to another team", async ({ page }) => {

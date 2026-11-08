@@ -450,8 +450,34 @@ export function HelpPage() {
       <h3 id="help-pictures">Logos and banners</h3>
       <p>
         At the bottom of a team's page are its four pictures: the <b>centre-ice logo</b>, the <b>menu logo</b>, the{' '}
-        <b>menu banner</b> and the <b>in-game banner</b>. They are changed outside the editor:
+        <b>menu banner</b> and the <b>in-game banner</b>. Each can be drawn in the editor, or changed in another
+        program.
       </p>
+      <p>
+        <b>Draw…</b> opens the picture drawn large, to paint pixel by pixel in the colours the game gives it:
+      </p>
+      <ul>
+        <li>
+          <b>Pencil</b>, <b>Eraser</b> (back to see-through), <b>Fill</b> (the joined pixels of one colour),{' '}
+          <b>Pick a colour</b> (from the picture), <b>Line</b>, <b>Rectangle</b> and <b>Filled rectangle</b>. The
+          letters P, E, F, I, L, R and B choose them.
+        </li>
+        <li>
+          <b>Mirror left and right</b> paints each stroke on both sides, for a logo that is the same both ways.{' '}
+          <b>Flip</b> turns the whole picture over, and the arrows move it a pixel at a time.
+        </li>
+        <li>
+          The colours to paint with are only those the picture can use: the home colours for the centre-ice logo,
+          the banner colours for a menu banner, and for the menu logo white, black and its nine own colours, which
+          can be changed right there. The grid marks every pixel, and darker lines the 8 by 8 tiles the game is
+          made of.
+        </li>
+        <li>
+          Each stroke goes into your work when you let go of the mouse, so <b>Undo</b> takes back one stroke at a
+          time. A stroke that makes the picture too big for the room the game has is refused, with the reason.
+        </li>
+      </ul>
+      <p>Or change a picture in another program:</p>
       <ol>
         <li>
           Click <b>Export PNG</b> to save the picture as it is now.
@@ -1349,6 +1375,10 @@ export function HelpPage() {
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the
           SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
+          Both logos can also be drawn in the editor (see Logos and banners): the team logo with its 15 colours
+          changeable as you go and a count of its tiles against the 36 it may have, and the centre ice logo shown on
+          the rink as you draw. Each 8 by 8 square of a centre ice logo is drawn in one row of colours, so painting
+          a colour from the other row moves the rest of that square to it.
         </li>
         <li>
           <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, the penalty and

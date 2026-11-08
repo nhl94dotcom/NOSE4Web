@@ -19,10 +19,13 @@ import { importTeam } from './core/importteam'
 import { letterBanner, measureLettering } from './core/lettering'
 import {
   currentPicture,
+  ownColours,
+  paintableColours,
   pictureEditable,
   pictureKinds,
   pictureSharedWith,
   pictureTitle,
+  withPainted,
   withPictureFromImage,
   type PictureKind,
 } from './core/pictureset'
@@ -32,6 +35,7 @@ import { teamDisplayName, teamLabels } from './core/team'
 import { download } from './download'
 import { pictureToPng, readImage } from './images'
 import { PaletteEditor } from './Palette'
+import { PixelEditor } from './PixelEditor'
 import { ResetButton } from './ResetButton'
 
 interface PictureViewProps {
@@ -82,6 +86,8 @@ interface Props {
 
 export function GraphicsEditor({ project, team, onChange }: Props) {
   const [notice, setNotice] = useState('')
+  // The picture being drawn, if one is.
+  const [drawing, setDrawing] = useState<PictureKind | null>(null)
   const [failed, setFailed] = useState(false)
   const teamName = teamDisplayName(project.teams[team])
   const name = teamName.replace(/[^A-Za-z0-9]+/g, '_')
@@ -227,6 +233,9 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                 >
                   Export PNG
                 </button>{' '}
+                <button hidden={!editable} aria-pressed={drawing === kind} onClick={() => setDrawing(drawing === kind ? null : kind)}>
+                  Draw…
+                </button>{' '}
                 <label className="button" hidden={!editable}>
                   Import…
                   <input
@@ -259,6 +268,40 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
           )
         })}
       </div>
+      {drawing && kinds.includes(drawing) && pictureEditable(project, drawing) && (() => {
+        const { picture, palette } = currentPicture(project, team, drawing)
+        const shared = pictureSharedWith(project, team, drawing).filter((other) => other !== team)
+        return (
+          <>
+            <h3>Drawing the {pictureTitle(project, drawing).toLowerCase()}</h3>
+            <p className="note">
+              {drawing === 'rinkLogo'
+                ? 'In the home colours, which are changed above.'
+                : drawing === 'menuLogo'
+                  ? 'In white, black and nine colours of its own, which you can change below.'
+                  : drawing === 'gameBanner'
+                    ? 'In the colours every team shares for these.'
+                    : 'In the banner colours, which are changed below.'}
+              {shared.length > 0 &&
+                ` It is shared with ${everyTeam(drawing) ? 'every team' : shared.map((other) => teamDisplayName(project.teams[other])).join(', ')}, so it changes for ${shared.length === 1 ? 'that team' : 'them'} too.`}
+            </p>
+            <PixelEditor
+              key={`${team}-${drawing}`}
+              title={pictureTitle(project, drawing)}
+              picture={picture}
+              palette={palette}
+              colours={paintableColours(drawing)}
+              editable={
+                ownColours(drawing).length > 0
+                  ? { slots: ownColours(drawing), onChange: (next) => apply(withPainted(project, team, drawing, picture, next), '') }
+                  : undefined
+              }
+              onCommit={(next) => apply(withPainted(project, team, drawing, next, palette), '')}
+              onClose={() => setDrawing(null)}
+            />
+          </>
+        )
+      })()}
       {moreRoom && (
         <p>
           <button

@@ -690,3 +690,62 @@ button:disabled {
 .bar.below {
   background: #d1242f;
 }
+
+/* The logo editor: tools, colours, the picture drawn large and as it is in the game. */
+.pixel-editor {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin: 0.6rem 0 1.2rem;
+}
+
+.paint-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  margin: 0.3rem 0;
+}
+
+.paint-tools button.chosen,
+.paint-swatch.chosen {
+  outline: 3px solid var(--accent, #0969da);
+  outline-offset: 1px;
+}
+
+.paint-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.4rem 0;
+}
+
+.paint-swatch {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.paint-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.paint-canvas {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--line);
+  line-height: 0;
+}
+
+.paint-canvas canvas {
+  display: block;
+}
+
+.paint-side {
+  max-width: 16rem;
+}

@@ -42,7 +42,7 @@ const LOGO_FIXED_COLORS = [
   { slot: 5, word: WHITE },
   { slot: 6, word: BLACK },
 ]
-const LOGO_FIRST_COLOR = 7
+export const LOGO_FIRST_COLOR = 7
 // How many colours of its own a menu logo has, besides white and black.
 export const LOGO_COLORS = 16 - LOGO_FIRST_COLOR
 
@@ -405,6 +405,20 @@ export function menuLogoPalette(project: Source, team: number): number[] {
   if (edited && project.graphics.menuLogos[team]) return edited.slice(0, 16)
   const at = layout(project.bytes, project.game).menuLogoColorsAt + team * LOGO_COLOR_BYTES
   return Array.from({ length: 16 }, (_, i) => readU16(project.bytes, at + i * 2))
+}
+
+// A menu logo with its colours, `logoPalette` being its 16 as menuLogoPalette
+// gives them: its own colours go into both halves of the team's menu colours,
+// and white and black stay as every team has them.
+export function withMenuLogo(project: Source, team: number, picture: Picture, logoPalette: number[]): GraphicsEdits {
+  const palette = (project.graphics.menuLogos[team] && project.graphics.menuPalettes[team]?.slice()) || menuLogoStart(project, team)
+  for (let i = LOGO_FIRST_COLOR; i < 16; i++) palette[i] = palette[16 + i] = logoPalette[i]
+  for (const { slot, word } of LOGO_FIXED_COLORS) palette[slot] = palette[16 + slot] = word
+  return {
+    ...project.graphics,
+    menuLogos: { ...project.graphics.menuLogos, [team]: picture },
+    menuPalettes: { ...project.graphics.menuPalettes, [team]: palette },
+  }
 }
 
 // A team's menu colours as an imported logo should start from them.

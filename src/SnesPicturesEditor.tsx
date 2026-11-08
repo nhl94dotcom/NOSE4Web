@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SNES_COLORS } from './core/color'
-import { pictureToImage } from './core/graphics'
+import { pictureToImage, type Picture } from './core/graphics'
+import { oneRowPerSquare } from './core/paint'
 import type { RomProject } from './core/rom'
+import { drawSnesRink, snesCentreIcePlace, withSnesCentreIce } from './core/snesrink'
 import {
   LOGO_SIZE,
   NO_SNES_PICTURE_EDITS,
@@ -12,6 +14,7 @@ import {
   snesLogoColoursSharedWith,
   snesLogoFromImage,
   snesLogoTable,
+  snesLogoTiles,
   snesPicturesSupported,
   writeSnesPictures,
   type SnesPictureEdits,
@@ -20,6 +23,7 @@ import { teamDisplayName } from './core/team'
 import { download } from './download'
 import { PictureView } from './GraphicsEditor'
 import { pictureToPng, readImage } from './images'
+import { PixelEditor } from './PixelEditor'
 import { ResetButton } from './ResetButton'
 
 type Kind = 'logo' | 'centreIce'
@@ -35,8 +39,11 @@ interface Props {
 export function SnesPicturesEditor({ project, team, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
+  const [drawing, setDrawing] = useState<Kind | null>(null)
   const teams = project.teams.length
   const edits = project.snesPictures ?? NO_SNES_PICTURE_EDITS
+  // The rink without a centre ice logo, for showing one on it as it is drawn.
+  const rink = useMemo(() => (drawing === 'centreIce' ? drawSnesRink(project.bytes, null) : null), [project.bytes, drawing])
 
   if (!snesPicturesSupported(project.bytes, teams)) {
     return (
@@ -185,6 +192,9 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
               >
                 Export PNG
               </button>{' '}
+              <button aria-pressed={drawing === kind} onClick={() => setDrawing(drawing === kind ? null : kind)}>
+                Draw…
+              </button>{' '}
               <label className="button">
                 Import…
                 <input
@@ -223,6 +233,87 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
           </div>
         ))}
       </div>
+      {drawing === 'logo' && (
+        <>
+          <h3>Drawing the team logo</h3>
+          <p className="note">In 15 colours of its own, which you can change below.{sharedColours.length > 0 && ` They are shared with ${names(sharedColours)}.`}</p>
+          <PixelEditor
+            key={`${team}-logo`}
+            title="Team logo"
+            picture={logo.picture}
+            palette={logo.palette}
+            format={SNES_COLORS}
+            colours={FIFTEEN}
+            editable={{
+              slots: FIFTEEN,
+              onChange: (palette) => apply({ ...edits, logos: { ...edits.logos, [team]: { picture: logo.picture, palette } } }, ''),
+            }}
+            limit={(picture) => {
+              const used = snesLogoTiles(picture)
+              if (!used) return { text: 'The logo is empty; it needs at least one pixel.', over: true }
+              return {
+                text: `${used.tiles} of the ${used.most} tiles of 8 by 8 a logo can have.${used.tiles > used.most ? ' Leave more of it see-through, or repeat parts of it: a tile used again, even mirrored, costs nothing.' : ''}`,
+                over: used.tiles > used.most,
+              }
+            }}
+            onCommit={(picture) => apply({ ...edits, logos: { ...edits.logos, [team]: { picture, palette: logo.palette } } }, '')}
+            onClose={() => setDrawing(null)}
+          />
+        </>
+      )}
+      {drawing === 'centreIce' && (
+        <>
+          <h3>Drawing the centre ice logo</h3>
+          <p className="note">
+            {ice.ownColours ? 'In the team’s own centre ice colours.' : 'In the rink’s centre ice colours, which are changed on the Rink colours page.'}{' '}
+            {ice.rows.length > 1 &&
+              'Each square of 8 by 8 is drawn in one row of colours: painting a colour from the other row moves the rest of that square to it.'}
+            {sharedIce.length > 0 && ` The same logo as ${names(sharedIce)}'s, so it changes for them too.`}
+          </p>
+          <PixelEditor
+            key={`${team}-ice`}
+            title="Centre ice logo"
+            picture={ice.picture}
+            palette={ice.palette}
+            format={SNES_COLORS}
+            colours={ice.rows.flatMap((row) => FIFTEEN.map((c) => row * 16 + c))}
+            afterStroke={oneRowPerSquare}
+            context={(picture) => (rink ? <RinkMiddle rink={rink} logo={picture} palette={ice.palette} /> : null)}
+            onCommit={(picture) => {
+              const centreIce = { ...edits.centreIce }
+              for (const other of [team, ...sharedIce]) centreIce[other] = picture
+              apply({ ...edits, centreIce }, '')
+            }}
+            onClose={() => setDrawing(null)}
+          />
+        </>
+      )}
     </section>
+  )
+}
+
+const FIFTEEN = Array.from({ length: 15 }, (_, i) => i + 1)
+const BACKDROP = 128
+
+// The middle of the rink with a centre ice logo on it.
+function RinkMiddle({ rink, logo, palette }: { rink: Picture; logo: Picture; palette: number[] }) {
+  const picture = useMemo(() => {
+    // The logo with some of the ice around it.
+    const whole = withSnesCentreIce(rink, logo)
+    const place = snesCentreIcePlace(rink, logo)
+    const margin = 32
+    const [left, top] = [Math.max(0, place.left - margin), Math.max(0, place.top - margin)]
+    const [width, height] = [Math.min(whole.width - left, logo.width + 2 * margin), Math.min(whole.height - top, logo.height + 2 * margin)]
+    const pixels = new Uint8Array(width * height)
+    for (let y = 0; y < height; y++) pixels.set(whole.pixels.subarray((top + y) * whole.width + left, (top + y) * whole.width + left + width), y * width)
+    // Where nothing is drawn the screen's backdrop, colour 0, shows: given a number of its own so it is not see-through.
+    return { width, height, pixels: pixels.map((value) => (value === 0 ? BACKDROP : value)) }
+  }, [rink, logo])
+  const colours = useMemo(() => [...palette.slice(0, BACKDROP), palette[0]], [palette])
+  return (
+    <>
+      <p className="note">On the rink:</p>
+      <PictureView picture={picture} palette={colours} scale={1} format={SNES_COLORS} />
+    </>
   )
 }
