@@ -30,6 +30,8 @@ export const SNES_PHOTO_SLOTS = 26
 const TILES = 36
 const TILE = 32
 const COLOURS = 16
+// More than a packed photo takes: 1,152 bytes unpacked, and a packing that never grows them by much.
+export const SNES_PHOTO_MOST_BYTES = 0x500
 
 // DrawPlayerPicture: clc; adc d0; asl; asl; tax; lda.l PlayerPhotoTable,x; sta p0; lda.l PlayerPhotoTable+2,x; sta p0+2.
 const PHOTO_TABLE_LOADER = '1865..0a0aaabf(....)(..)85..bf......85..'

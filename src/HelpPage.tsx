@@ -1372,7 +1372,8 @@ export function HelpPage() {
         <b>Compare ROMs</b> describes how what is in the editor differs from another ROM you choose, such as last
         season's. The other ROM is only read. Teams are matched by their place in the list, and players by name, so
         it reports players added, removed and renamed, changed numbers and attributes, line changes, and changes to
-        colours and game settings.
+        colours, logos and banners, player photos (by player, so a photo that followed its player is not counted),
+        the featured players, score logos and game settings.
       </p>
       <p>
         Above that detail is a summary <b>for the league</b>, which matches players by name across all teams

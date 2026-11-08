@@ -35,6 +35,8 @@ const ROW_BYTES = 3
 const TILE_BYTES = 8 * ROW_BYTES
 const HEADER_BYTES = 10
 const ENTRY_BYTES = 6
+// The most bytes a photo's block takes: its header, 36 tiles, and a palette and map of its own.
+export const PHOTO_BLOCK_MOST_BYTES = 10 + 36 * 24 + 0x80 + 4 + 72
 // The first colour of the eight, in a picture and in the palette's row.
 export const FIRST_SHADE = 5
 export const SHADES = 8

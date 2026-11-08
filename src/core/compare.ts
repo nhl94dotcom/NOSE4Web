@@ -1,5 +1,5 @@
 import { attributeText } from './attributes'
-import { pictureDifferences, picturesMayDiffer } from './comparepictures'
+import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
 import { snesHackDifferences } from './sneshacks'
 import { overallRating } from './rating'
@@ -217,6 +217,8 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
     const changes = compareTeam(after, before.teams[counterpart[i]], team, samePlatform, ratings)
     // Logos and banners, decoded only where they can have changed.
     if (samePlatform && picturesMayDiffer(before, after, i)) changes.push(...pictureDifferences(before, counterpart[i], after, i))
+    // Photos and score logos are in the ROM's bytes, and players may have moved.
+    if (samePlatform && (before.bytes !== after.bytes || before.teams !== after.teams)) changes.push(...photoDifferences(before, counterpart[i], after, i))
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
   // Teams matched by name are in other places, so the menus' team choices cannot be compared.

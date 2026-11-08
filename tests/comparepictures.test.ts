@@ -55,3 +55,34 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('comparing SNES logos', () => {
     expect(lines(compareProjects(before, after)).filter((line) => line.includes('logo'))).toEqual([expect.stringMatching(/: Team logo changed\.$/)])
   })
 })
+
+describe.skipIf(!existsSync(path('nhl94.bin')))('comparing Genesis player photos', () => {
+  it("names a player whose photo changed, and one added to the featured players", async () => {
+    const { teamPhotos, withPhoto, withPhotoAdded } = await import('../src/core/photos')
+    const before = openRom(new Uint8Array(readFileSync(path('nhl94.bin'))))
+    const picture = { width: 48, height: 48, pixels: new Uint8Array(48 * 48).fill(7) }
+    let after = withPhoto(before, 1, 0, picture)
+    const listed = teamPhotos(after, 1).map((photo) => photo.slot)
+    const slot = after.teams[1].players.findIndex((_, s) => !listed.includes(s))
+    after = withPhotoAdded(after, 1, slot, false)
+    const found = lines(compareProjects(before, after))
+    expect(found).toContain(`Boston Bruins: Photo of ${before.teams[1].players[0].name} changed.`)
+    expect(found).toContain(`Boston Bruins: ${before.teams[1].players[slot].name} added to the featured players.`)
+    expect(found.filter((line) => /photo|featured/i.test(line))).toHaveLength(2)
+  })
+})
+
+describe.skipIf(!existsSync(path('nhl94_2026.sfc')))('comparing SNES photos and score logos', () => {
+  it('names a changed photo and a score logo taken away', async () => {
+    const { withSnesPhoto } = await import('../src/core/snesphotos')
+    const { withoutSnesScoreLogo } = await import('../src/core/snesscorelogos')
+    const before = openRom(new Uint8Array(readFileSync(path('nhl94_2026.sfc'))))
+    const picture = { width: 48, height: 48, pixels: new Uint8Array(48 * 48).fill(3) }
+    const after = withoutSnesScoreLogo(withSnesPhoto(before, 1, 0, picture), 2)
+    const found = lines(compareProjects(before, after)).filter((line) => /photo|score logo/i.test(line))
+    expect(found).toEqual([
+      `Boston Bruins: Photo of ${before.teams[1].players[0].name} changed.`,
+      'Buffalo Sabres: Score logo taken away: the score box shows the letters.',
+    ])
+  })
+})
