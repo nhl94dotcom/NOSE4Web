@@ -900,8 +900,8 @@ export function HelpPage() {
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
         that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, Aggression,
-        power play and penalty kill, comeback bonus, rocket pass, runaway speed, both penalty shot fixes and the
-        pulled-goalie sniping fix, with smozoma's legacy weight bug fix taken out; on the SNES the hot and cold,
+        power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, with
+        smozoma's legacy weight bug fix taken out; on the SNES the hot and cold,
         power play and penalty kill, comeback bonus, penalty shot, extra attacker and Y button fixes. It leaves the faceoff spot fix (a choice between eras) and
         the options as they are. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts a list of
         what this ROM has, everything that differs from the original game, on the clipboard as a Discord post, for
@@ -1098,7 +1098,7 @@ export function HelpPage() {
           are aimed, as anyone's do with the goalie pulled, unless the pulled-goalie sniping fix is on too.
         </li>
         <li>
-          <b>Pulled-goalie sniping fix</b> (in with the fixes, Genesis only): whenever a team's own goalie is off the
+          <b>Pulled-goalie sniping fix</b> (in with the fixes, Genesis only; an option, a matter of taste, since some leagues like the sniping): whenever a team's own goalie is off the
           ice, on a delayed penalty or pulled late in a game, the original game makes every one of its shots from
           within range go exactly where it is aimed. With the fix such a shot takes the normal accuracy roll. Shots at
           an empty net already do. The SNES does not have this bug.

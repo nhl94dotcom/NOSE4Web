@@ -863,6 +863,8 @@ const blindRingFix: Part<boolean> = {
 // chance (ShA + 1) / (ShA + 16)). An empty net at the other end already takes
 // the roll; ReadGoaliePulled's other callers, which only make the computer's
 // skaters think again sooner, are left. (Match Viewer's reading of doshot.)
+// An option: some leagues like the pulled goalie's sniping, so it is not
+// among the recommended fixes.
 const snipingFix = switchPart(0xc422, bytes('6B00 0084'), bytes('4E71 4E71'))
 
 // Two parts that are in or out together.
@@ -1185,7 +1187,6 @@ export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   runawayFix: true,
   penaltyShotTableFix: true,
   penaltyShotFixes: true,
-  snipingFix: true,
 }
 
 // `choices` with the recommended fixes, except where this ROM's code is not known.

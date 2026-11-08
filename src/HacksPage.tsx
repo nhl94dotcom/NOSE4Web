@@ -333,7 +333,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           'snipingFix',
           onOff('snipingFix'),
           <>
-            Whenever a team's own goalie is off the ice (on a delayed penalty, or pulled late in a game by a person or
+            An option, a matter of taste: some leagues like it as it is. Whenever a team's own goalie is off the ice (on a delayed penalty, or pulled late in a game by a person or
             the computer) the original game makes every one of its shots from within range go exactly where it is
             aimed, whatever the shooter's Shot Accuracy. With the fix such a shot takes the normal accuracy roll, as
             any other does (exact within range about half the time at Shot Accuracy 15). Shots at an empty net are
