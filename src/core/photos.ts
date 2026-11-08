@@ -365,52 +365,68 @@ export function withPhotoAdded(project: RomProject, team: number, slot: number, 
 
 // ------------------------------------------------------------ images
 
-// A photo from an image of any size: the largest square in its middle, made
-// 48 by 48 and grey, in the eight greys, with the error of each pixel spread
-// to its neighbours (Floyd-Steinberg) so that shading stays smooth.
-// See-through pixels count as white.
-export function photoFromImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, palette: number[]): Picture {
+// The largest square in the middle of an image, made 48 by 48: each pixel the
+// average of those it covers, as red, green, blue and how solid (0 to 1).
+export function squareImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Float64Array {
   const side = Math.min(width, height)
   if (side === 0) throw new Error('The image is empty.')
   const [left, top] = [Math.floor((width - side) / 2), Math.floor((height - side) / 2)]
-  const grey = new Float64Array(PHOTO_SIZE * PHOTO_SIZE)
+  const out = new Float64Array(PHOTO_SIZE * PHOTO_SIZE * 4)
   const scale = side / PHOTO_SIZE
+  const span = (at: number, from: number) => [from + Math.floor(at * scale), from + Math.max(Math.floor(at * scale) + 1, Math.floor((at + 1) * scale))]
   for (let y = 0; y < PHOTO_SIZE; y++) {
     for (let x = 0; x < PHOTO_SIZE; x++) {
-      // The average of the image's pixels this one covers.
-      const [x0, x1] = [left + Math.floor(x * scale), left + Math.max(Math.floor(x * scale) + 1, Math.floor((x + 1) * scale))]
-      const [y0, y1] = [top + Math.floor(y * scale), top + Math.max(Math.floor(y * scale) + 1, Math.floor((y + 1) * scale))]
-      let [sum, count] = [0, 0]
+      const [x0, x1] = span(x, left)
+      const [y0, y1] = span(y, top)
+      const sum = [0, 0, 0, 0]
       for (let sy = y0; sy < y1; sy++) {
         for (let sx = x0; sx < x1; sx++) {
           const i = (sy * width + sx) * 4
           const alpha = rgba[i + 3] / 255
-          const luma = 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2]
-          sum += luma * alpha + 255 * (1 - alpha)
-          count++
+          for (let c = 0; c < 3; c++) sum[c] += rgba[i + c] * alpha
+          sum[3] += alpha
         }
       }
-      grey[y * PHOTO_SIZE + x] = sum / count
+      const count = (x1 - x0) * (y1 - y0)
+      const o = (y * PHOTO_SIZE + x) * 4
+      // Colour as seen where solid; how solid, on average.
+      for (let c = 0; c < 3; c++) out[o + c] = sum[3] > 0 ? sum[c] / sum[3] : 255
+      out[o + 3] = sum[3] / count
     }
   }
-  const shades = Array.from({ length: SHADES }, (_, k) => {
-    const [r, g, b] = colorRgb(palette[FIRST_SHADE + k])
-    return 0.299 * r + 0.587 * g + 0.114 * b
+  return out
+}
+
+// Each pixel of a 48 by 48 image (as squareImage gives it) matched to the
+// nearest of `choices`, with the difference spread to the pixels not yet
+// matched (Floyd-Steinberg), so that shading stays smooth. `value` is what a
+// pixel is compared by (one number or three); `alphaPixel` is what a mostly
+// see-through pixel becomes, or null to treat it as its colour on white.
+function dither(image: Float64Array, choices: { pixel: number; value: number[] }[], value: (rgb: number[]) => number[], alphaPixel: number | null): Picture {
+  const size = choices[0].value.length
+  const work = Array.from({ length: PHOTO_SIZE * PHOTO_SIZE }, (_, i) => {
+    const alpha = image[i * 4 + 3]
+    const rgb = [0, 1, 2].map((c) => (alphaPixel === null ? image[i * 4 + c] * alpha + 255 * (1 - alpha) : image[i * 4 + c]))
+    return value(rgb)
   })
   const pixels = new Uint8Array(PHOTO_SIZE * PHOTO_SIZE)
   for (let y = 0; y < PHOTO_SIZE; y++) {
     for (let x = 0; x < PHOTO_SIZE; x++) {
       const i = y * PHOTO_SIZE + x
-      const value = grey[i]
-      let best = 0
-      shades.forEach((shade, k) => {
-        if (Math.abs(shade - value) < Math.abs(shades[best] - value)) best = k
-      })
-      pixels[i] = FIRST_SHADE + best
-      const error = value - shades[best]
+      if (alphaPixel !== null && image[i * 4 + 3] < 0.5) {
+        pixels[i] = alphaPixel
+        continue
+      }
+      const here = work[i]
+      const distance = (choice: number[]) => choice.reduce((sum, v, k) => sum + (v - here[k]) ** 2, 0)
+      let best = choices[0]
+      for (const choice of choices) if (distance(choice.value) < distance(best.value)) best = choice
+      pixels[i] = best.pixel
+      const error = here.map((v, k) => v - best.value[k])
       const spread = (dx: number, dy: number, part: number) => {
         const [nx, ny] = [x + dx, y + dy]
-        if (nx >= 0 && nx < PHOTO_SIZE && ny < PHOTO_SIZE) grey[ny * PHOTO_SIZE + nx] += (error * part) / 16
+        if (nx < 0 || nx >= PHOTO_SIZE || ny >= PHOTO_SIZE) return
+        for (let k = 0; k < size; k++) work[ny * PHOTO_SIZE + nx][k] += (error[k] * part) / 16
       }
       spread(1, 0, 7)
       spread(-1, 1, 3)
@@ -419,4 +435,20 @@ export function photoFromImage(rgba: Uint8Array | Uint8ClampedArray, width: numb
     }
   }
   return { width: PHOTO_SIZE, height: PHOTO_SIZE, pixels }
+}
+
+const luma = ([r, g, b]: number[]) => [0.299 * r + 0.587 * g + 0.114 * b]
+
+// A Genesis photo from an image of any size: its middle square, made 48 by 48
+// and grey, in the eight shades. See-through pixels count as white.
+export function photoFromImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, palette: number[]): Picture {
+  const choices = Array.from({ length: SHADES }, (_, k) => ({ pixel: FIRST_SHADE + k, value: luma(colorRgb(palette[FIRST_SHADE + k])) }))
+  return dither(squareImage(rgba, width, height), choices, luma, null)
+}
+
+// An SNES photo the same way, in the colours 1 to 15 of the team's photo
+// colours, as they look; see-through pixels stay see-through (colour 0).
+export function colourPhotoFromImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, rgbs: number[][]): Picture {
+  const choices = rgbs.slice(1).map((rgb, k) => ({ pixel: k + 1, value: rgb }))
+  return dither(squareImage(rgba, width, height), choices, (rgb) => rgb, 0)
 }

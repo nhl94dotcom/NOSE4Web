@@ -648,13 +648,13 @@ export function snesCentreIceFromImage(
 export class SnesPictureRoomError extends Error {}
 
 // The room a packed block has: its own bytes and any unused ($FF) bytes after it.
-function roomAt(rom: Uint8Array, at: number, size: number): number {
+export function roomAt(rom: Uint8Array, at: number, size: number): number {
   let end = at + size
   while (end < rom.length && rom[end] === 0xff && loRomAddress(end) !== 0x8000) end++
   return end - at
 }
 
-function sameBank(at: number, size: number): boolean {
+export function sameBank(at: number, size: number): boolean {
   return Math.floor(at / 0x8000) === Math.floor((at + size - 1) / 0x8000)
 }
 
@@ -773,7 +773,7 @@ function writeRomLogos(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, te
 
 // The banks the editor keeps its pictures out of: those whose free space the
 // SNES hacks use, and those of the team data, whose room is the rosters'.
-function keptBanks(rom: Uint8Array): number[] {
+export function keptBanks(rom: Uint8Array): number[] {
   const table = findSnesTeamTable(rom)
   const teams = table ? [table.offset >> 15, rom[table.offset + 2] & 0x7f] : []
   return [...KEPT_BANKS, ...teams.map((bank) => bank | 0x80)]
@@ -828,7 +828,7 @@ function writeIce(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, iceTeam
 const FREE_RUN = 0x100
 const KEPT_BANKS = [0x9b, 0x9c, 0x9e, 0x9f]
 
-function freeSpace(rom: Uint8Array, size: number, kept: number[]): number {
+export function freeSpace(rom: Uint8Array, size: number, kept: number[]): number {
   let best: { start: number; end: number } | null = null
   for (let bank = 0; bank * 0x8000 < rom.length; bank++) {
     if (kept.includes(bank | 0x80)) continue

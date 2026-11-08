@@ -1,0 +1,158 @@
+import { useState } from 'react'
+import { SNES_COLORS } from './core/color'
+import { colourPhotoFromImage, PHOTO_SIZE } from './core/photos'
+import type { RomProject } from './core/rom'
+import { snesPhotoPalette, snesPhotoRgbs, snesTeamPhotos, withSnesPhoto, withSnesPhotosSwapped } from './core/snesphotos'
+import { goalieCount, teamDisplayName } from './core/team'
+import { download } from './download'
+import { PictureView } from './GraphicsEditor'
+import { pictureToPng, readImage } from './images'
+import { PixelEditor } from './PixelEditor'
+
+interface Props {
+  project: RomProject
+  team: number
+  onChange: (project: RomProject) => void
+}
+
+const COLOURS = Array.from({ length: 15 }, (_, i) => i + 1)
+const fileName = (text: string) => text.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+// An SNES team's player photos, one for each place on the roster. See core/snesphotos.ts.
+export function SnesPhotosEditor({ project, team, onChange }: Props) {
+  const [notice, setNotice] = useState('')
+  const [failed, setFailed] = useState(false)
+  const [drawing, setDrawing] = useState<number | null>(null)
+  const roster = project.teams[team]
+  const goalies = goalieCount(roster)
+  const photos = snesTeamPhotos(project, team).slice(0, roster.players.length)
+  const palette = snesPhotoPalette(project, team)
+  const teamName = teamDisplayName(roster)
+  const playerName = (slot: number) => roster.players[slot]?.name ?? `Place ${slot + 1}`
+
+  function act(change: () => RomProject, message: string) {
+    try {
+      onChange(change())
+      setNotice(message)
+      setFailed(false)
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e))
+      setFailed(true)
+    }
+  }
+
+  async function importPhoto(file: File, slot: number) {
+    try {
+      const image = await readImage(file)
+      const picture = colourPhotoFromImage(image.rgba, image.width, image.height, snesPhotoRgbs(project, team))
+      const resized = image.width !== PHOTO_SIZE || image.height !== PHOTO_SIZE
+      act(
+        () => withSnesPhoto(project, team, slot, picture),
+        `Photo of ${playerName(slot)} replaced.` +
+          (resized ? ` The image was ${image.width} by ${image.height}: its middle square was shrunk to ${PHOTO_SIZE} by ${PHOTO_SIZE}.` : '') +
+          " It is in the team's 15 photo colours, which all its photos share.",
+      )
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : `${file.name} could not be read as an image.`)
+      setFailed(true)
+    }
+  }
+
+  return (
+    <section>
+      <h2>Player photos</h2>
+      <p className="note">
+        Each player's photo, on the player cards and the matchup screens. A photo is for a place on the roster, so after moving players, swap the photos
+        to match. A photo is {PHOTO_SIZE} by {PHOTO_SIZE} pixels in the team's 15 photo colours, which all its photos share (see-through where the card shows
+        through); an imported image of any size is cropped to the square in its middle, shrunk, and shaded to those colours.
+      </p>
+      {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      <div className="pictures">
+        {photos.map((photo, slot) => {
+          const name = playerName(slot)
+          return (
+            <div key={slot} className="picture">
+              <strong>
+                {slot < goalies ? 'G ' : ''}
+                {name}
+              </strong>
+              <PictureView picture={photo.picture} palette={palette} scale={2} format={SNES_COLORS} />
+              <p>
+                <button
+                  onClick={() =>
+                    void pictureToPng(photo.picture, palette, SNES_COLORS)
+                      .then((png) => download(png, `${fileName(teamName)}_${fileName(name)}_photo.png`, 'image/png'))
+                      .catch((e) => {
+                        setNotice(e instanceof Error ? e.message : 'The photo could not be exported.')
+                        setFailed(true)
+                      })
+                  }
+                >
+                  Export PNG
+                </button>{' '}
+                <label className="button">
+                  Import…
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    aria-label={`Import the photo of ${name}`}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void importPhoto(file, slot)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>{' '}
+                <button aria-pressed={drawing === slot} onClick={() => setDrawing(drawing === slot ? null : slot)}>
+                  Draw…
+                </button>
+              </p>
+              <p>
+                <select
+                  aria-label={`Swap the photo of ${name} with`}
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value === '') return
+                    const other = Number(e.target.value)
+                    act(() => withSnesPhotosSwapped(project, team, slot, other), `The photos of ${name} and ${playerName(other)} swapped.`)
+                  }}
+                >
+                  <option value="">Swap with…</option>
+                  {roster.players.map((player, other) =>
+                    other === slot ? null : (
+                      <option key={other} value={other}>
+                        {other < goalies ? 'G ' : ''}
+                        {player.name}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </p>
+              {photo.shared > 0 && (
+                <p className="note">A generic picture, shared with {photo.shared} other places. Importing or drawing gives this player his own.</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {drawing !== null && photos[drawing] && (
+        <>
+          <h3>Drawing the photo of {playerName(drawing)}</h3>
+          <p className="note">In the team's photo colours. The eraser makes pixels see-through.</p>
+          <PixelEditor
+            key={`${team}-${drawing}`}
+            title={`Photo of ${playerName(drawing)}`}
+            picture={photos[drawing].picture}
+            palette={palette}
+            format={SNES_COLORS}
+            colours={COLOURS}
+            problem={failed ? notice : undefined}
+            onCommit={(picture) => act(() => withSnesPhoto(project, team, drawing, picture), '')}
+            onClose={() => setDrawing(null)}
+          />
+        </>
+      )}
+    </section>
+  )
+}

@@ -2086,6 +2086,41 @@ test.describe('with the SNES game', () => {
     expect((await corner()).slice(0, 3)).toEqual([0xff, 0xff, 0xff])
   })
 
+  test("replaces a player's photo and swaps two players' photos", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Player photos' }) })
+    const photos = section.locator('.picture')
+    await expect(photos.first()).toBeVisible()
+    await section.screenshot({ path: 'test-results/shots/snes-photos.png' })
+    const count = await photos.count()
+    expect(count).toBeGreaterThan(20)
+    const generic = photos.filter({ hasText: 'A generic picture' }).first()
+    const name = (await generic.locator('strong').textContent())!.replace(/^G /, '')
+    const url = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 80
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#d0a080'
+      context.fillRect(0, 0, 80, 80)
+      context.fillStyle = '#202020'
+      context.fillRect(20, 10, 40, 20)
+      return canvas.toDataURL('image/png')
+    })
+    await section.getByLabel(`Import the photo of ${name}`).setInputFiles({ name: 'face.png', mimeType: 'image/png', buffer: Buffer.from(url.split(',')[1], 'base64') })
+    await expect(section.getByText(`Photo of ${name} replaced. The image was 80 by 80`)).toBeVisible()
+    const card = photos.filter({ has: page.locator('strong', { hasText: new RegExp(`^(G )?${name}$`) }) })
+    await expect(card.getByText('A generic picture')).toBeHidden()
+    const picture = () => card.locator('canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())
+    const mine = await picture()
+    // Swapped with the first player, his photo moves there.
+    const first = (await photos.first().locator('strong').textContent())!.replace(/^G /, '')
+    await card.getByLabel(`Swap the photo of ${name} with`).selectOption({ label: `G ${first}` })
+    await expect(section.getByText(`The photos of ${name} and ${first} swapped.`)).toBeVisible()
+    expect(await photos.first().locator('canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).toBe(mine)
+  })
+
   test("draws a team logo and a centre ice logo, counting the logo's tiles", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
