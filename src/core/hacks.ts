@@ -82,6 +82,8 @@ export interface HackChoices {
   runawayFix: boolean
   // Gives each foul on a breakaway its own penalty shot, where the original reads the next one.
   penaltyShotTableFix: boolean
+  // Ends a penalty shot cleanly after an outside whistle, and lets the puck hit things in one.
+  penaltyShotFixes: boolean
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
@@ -120,6 +122,7 @@ export type HackPart =
   | 'faceoffFix'
   | 'runawayFix'
   | 'penaltyShotTableFix'
+  | 'penaltyShotFixes'
   | 'goalieHold'
   | 'goalieBox'
   | 'goalieLine'
@@ -154,6 +157,7 @@ export const NO_HACKS: HackChoices = {
   faceoffFix: false,
   runawayFix: false,
   penaltyShotTableFix: false,
+  penaltyShotFixes: false,
   goalieHold: 140,
   goalieWidth: 36,
   goalieOut: 231,
@@ -739,6 +743,48 @@ const penaltyShotTableFix = switchPart(
   bytes('FFFF 0038 003C 0036 003A 002E 0030 0034'),
 )
 
+// Two penalty shot bugs (Match Viewer's GENESIS_MECHANICS 10 and its reading
+// of the code). A penalty shot stopped by a whistle that is not one of its own
+// endings (the puck over the glass, the net knocked off) is taken again:
+// BA_PS_flags bit 3, "penalty shot pending", is cleared only by a goal, by the
+// shot's own end (EndPenaltyShotPlay) or when none can be set up, so after
+// that whistle InProgress finds it still set and starts another. puckshootout
+// clears bits 2, 4, 5 and 6 as each attempt starts; the fix clears bit 3 there
+// too, with one andi.b #$83 in place of the four bclr (the rest no-ops). Only
+// PenShotChk and InProgress read bit 3. And a puck that went over the glass
+// after the award whistle keeps its no-collision mode (pfnc, puck pflags at
+// $B7AC), which only a faceoff drop turns off, so the shot floats through the
+// net and the boards: the ghost puck. SetupPenaltyShot now turns it off,
+// through a call in place of its first two instructions after the movem.
+const PS_FLAGS_CLEAR = {
+  at: 0xed0e,
+  original: bytes('08B8 0002 C2F2 08B8 0004 C2F2 08B8 0005 C2F2 08B8 0006 C2F2'),
+  hacked: bytes('0238 0083 C2F2 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71'),
+}
+const PS_SETUP_HOOK: Hook = { at: 0x15930, original: bytes('366A 0022 7805') }
+// movea.w tmsort(a2),a3; moveq #5,d4; bclr #pfnc,(puck pflags).w; rts
+export const PS_SETUP_CODE = bytes('366A 0022 7805 08B8 0002 B7AC 4E75')
+
+const penaltyShotFixes: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, PS_FLAGS_CLEAR.at, PS_FLAGS_CLEAR.original) && is(rom, PS_SETUP_HOOK.at, PS_SETUP_HOOK.original)) return false
+    if (is(rom, PS_FLAGS_CLEAR.at, PS_FLAGS_CLEAR.hacked) && hooked(rom, PS_SETUP_HOOK, PS_SETUP_CODE) !== null) return true
+    return undefined
+  },
+  remove(rom) {
+    const target = hooked(rom, PS_SETUP_HOOK, PS_SETUP_CODE)
+    if (target === null || !is(rom, PS_FLAGS_CLEAR.at, PS_FLAGS_CLEAR.hacked)) return
+    erase(rom, target, PS_SETUP_CODE.length)
+    rom.set(PS_SETUP_HOOK.original, PS_SETUP_HOOK.at)
+    rom.set(PS_FLAGS_CLEAR.original, PS_FLAGS_CLEAR.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    hook(work, PS_SETUP_HOOK, PS_SETUP_CODE)
+    work.rom.set(PS_FLAGS_CLEAR.hacked, PS_FLAGS_CLEAR.at)
+  },
+}
+
 // A team's power play and penalty kill ratings share a byte. The original
 // data, and the community, have the power play in the high half, but the game
 // adds the low half on the power play and takes the high half off on the
@@ -910,6 +956,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
+    penaltyShotFixes: found('penaltyShotFixes', penaltyShotFixes.detect(rom), NO_HACKS.penaltyShotFixes),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
@@ -965,6 +1012,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
     ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
     ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
+    ['penaltyShotFixes', () => penaltyShotFixes.remove(work.rom), () => penaltyShotFixes.apply(work, wanted.penaltyShotFixes)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1070,6 +1118,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
+  penaltyShotFixes: 'Penalty shot fixes',
   goalieHold: 'Goalie hold time',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
@@ -1100,6 +1149,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',
+  penaltyShotFixes: 'penaltyShotFixes',
   goalieHold: 'goalieHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',

@@ -1064,6 +1064,13 @@ export function HelpPage() {
           penalty shot in the game, and interference is never called on the puck carrier.
         </li>
         <li>
+          <b>Penalty shot fixes</b> (in with the fixes, Genesis only): a penalty shot stopped by a whistle that is not
+          one of its own endings (the puck over the glass, the net knocked off) is taken all over again, as the game
+          still has it marked as pending; with the fix the game goes on to a faceoff. And a puck shot over the glass
+          just after the penalty shot is awarded can enter the shot unable to touch anything, floating through the
+          net and the boards; with the fix it plays normally. Shootouts are unaffected.
+        </li>
+        <li>
           <b>Checking fix</b> (in with the fixes): the game judges a check one way when a person controls the
           checker at the moment of contact and another when the computer does, and works the person's way out in a
           single byte that overflows. That overflow is the weight bug: a light skater you control knocks down anyone

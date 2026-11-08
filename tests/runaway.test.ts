@@ -108,3 +108,24 @@ describe.skipIf(!existsSync(romPath))('the penalty shot table fix', () => {
     expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
   })
 })
+
+describe.skipIf(!existsSync(romPath))('the penalty shot fixes', () => {
+  it('clears "penalty shot pending" as each attempt starts, turns the puck solid in the set-up, and comes out again', () => {
+    const rom = new Uint8Array(readFileSync(romPath))
+    const hacked = hackRom(rom, { ...NO_HACKS, penaltyShotFixes: true })
+    // puckshootout: andi.b #$83,(BA_PS_flags).w clears bits 2-6, where the original's four bclr cleared 2, 4, 5 and 6.
+    expect(Buffer.from(hacked.subarray(0xed0e, 0xed14)).toString('hex')).toBe('02380083c2f2')
+    for (let at = 0xed14; at < 0xed26; at += 2) expect(readU16(hacked, at)).toBe(0x4e71)
+    expect((~0x83 & 0xff).toString(2)).toBe('1111100')
+    // The next instruction is the game's own: bset #1,(sflags6).w.
+    expect(readU16(hacked, 0xed26)).toBe(0x08f8)
+    // SetupPenaltyShot: movem, then the call in place of movea.w tmsort(a2),a3 / moveq #5,d4, then its loop.
+    expect(readU16(hacked, 0x1592c)).toBe(0x48e7)
+    expect(readU16(hacked, 0x15930)).toBe(0x4eb9)
+    const target = readU32(hacked, 0x15932)
+    expect(Buffer.from(hacked.subarray(target, target + 14)).toString('hex')).toBe('366a0022780508b80002b7ac4e75')
+    expect(readU16(hacked, 0x15936)).toBe(0x302b)
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, penaltyShotFixes: true }, unknown: [] })
+    expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
+  })
+})
