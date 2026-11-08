@@ -24,6 +24,7 @@ export type SnesHack =
   | 'skipEaIntro'
   | 'skipPucksIntro'
   | 'faceoffFix'
+  | 'penaltyShotFixes'
 
 interface Site {
   // The game's address.
@@ -125,6 +126,7 @@ export const SNES_HACKS: SnesHack[] = [
   'skipEaIntro',
   'skipPucksIntro',
   'faceoffFix',
+  'penaltyShotFixes',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -139,6 +141,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   skipEaIntro: 'Skip the EA intro',
   skipPucksIntro: 'Skip the flying pucks intro',
   faceoffFix: 'Faceoff spot fix',
+  penaltyShotFixes: 'Penalty shot fixes',
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -298,6 +301,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // back, the call is taken from the ROM as it was opened where it is not here.
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
+  penaltyShotFixes: (rom) => penaltyShotFixes(rom),
   // Found by the icing rule just before it, which reads pfgoal.
   faceoffFix: (rom) => {
     const found = only(rom, 'a9580285a9b9....f005a9a8fd85a9')
@@ -408,6 +412,60 @@ export function snesHackDifferences(before: Uint8Array, after: Uint8Array): stri
 // whose code has moved, whatever the ROM.
 export function relocatedSnesHack(rom: Uint8Array, hack: SnesHack): { at: number; original: Uint8Array | null; hacked: Uint8Array }[] | null {
   return RELOCATED[hack]?.(rom, null) ?? null
+}
+
+// Penalty shots retaken (bug 27 in the known bugs list). Every other way a
+// penalty shot or shootout attempt ends calls EndPenaltyShotPlay (a goal, the
+// loose puck meeting the boards in wallcoll, the time limit, the puck caught
+// or carried back), but two whistles leave the shot pending, so the next
+// faceoff sets up another from where the shooter stands: checkgoalp's, when a
+// bursting player knocks the net off (the goalie-hold code), and pucknorm's
+// for a loose puck that has not moved for 2 seconds (out of play), found by
+// the Match Viewer project. The fix calls EndPenaltyShotPlay first at both,
+// which does nothing outside a penalty shot and keeps X, the player
+// AddPenalty2 is called on, then sets d0 again, as it uses it:
+//   checkgoalp:  lda #PenGhold; sta d0; jmp AddPenalty2   becomes  jmp net / nop x5
+//   pucknorm:    jsl AddPenalty2                          becomes  jsl still
+//   net:    jsl EndPenaltyShotPlay; lda #PenGhold; sta d0; jmp AddPenalty2
+//   still:  jsl EndPenaltyShotPlay; lda #PenOOP; sta d0; jml AddPenalty2
+// The two are put together in unused room in the bank of checkgoalp.
+const NET_BEFORE = '0c....ad....d0..68'
+const NET_WHISTLE = 'a9080085a54c'
+const STILL_BEFORE = 'a9060085a5ce....10..'
+const END_PENALTY_SHOT = 'ad....f0..ad....f0..da9c....a9ffff8d....a90a0085a522'
+const NET_CODE_SIZE = 12
+const STILL_CODE_SIZE = 13
+
+const hexOf = (bytes: Uint8Array) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+const long = (at: number) => bytesOf(word(loRomAddress(at)), loRomBank(at, 0x80))
+
+function penaltyShotFixes(rom: Uint8Array): Placed[] | null {
+  const ending = only(rom, END_PENALTY_SHOT)
+  if (ending < 0) return null
+  const endCall = bytesOf('22', long(ending))
+  // Only where the game itself calls it at that address.
+  if (findCodeAll(rom, hexOf(endCall)).length === 0) return null
+  const netOriginal = only(rom, NET_BEFORE + NET_WHISTLE + '....')
+  const netHooked = netOriginal < 0 ? only(rom, NET_BEFORE + '4c....eaeaeaeaea') : -1
+  const netFound = netOriginal >= 0 ? netOriginal : netHooked
+  const stillFound = only(rom, STILL_BEFORE + '22......80..')
+  if (netFound < 0 || stillFound < 0) return null
+  const net = netFound + NET_BEFORE.length / 2
+  const still = stillFound + STILL_BEFORE.length / 2
+  const isIn = netOriginal < 0
+  const bank = loRomBank(net, 0x80)
+  const room = isIn ? loRomOffset(bank, readU16(rom, net + 1)) : roomInBank(rom, net, NET_CODE_SIZE + STILL_CODE_SIZE)
+  if (room < 0) return null
+  // AddPenalty2, from the game's jmp or from the new code's.
+  const addPenalty = isIn ? readU16(rom, room + 10) : readU16(rom, net + 6)
+  const addPenaltyLong = bytesOf(word(addPenalty), bank)
+  const netCode = bytesOf(endCall, NET_WHISTLE, word(addPenalty))
+  const stillCode = bytesOf(endCall, 'a9060085a5', '5c', addPenaltyLong)
+  return [
+    { at: net, original: bytesOf(NET_WHISTLE, word(addPenalty)), hacked: bytesOf('4C', word(loRomAddress(room)), 'EAEAEAEAEA') },
+    { at: still, original: bytesOf('22', addPenaltyLong), hacked: bytesOf('22', long(room + NET_CODE_SIZE)) },
+    { at: room, original: unused(NET_CODE_SIZE + STILL_CODE_SIZE), hacked: bytesOf(netCode, stillCode) },
+  ]
 }
 
 // For tests: the faceoff spot fix's new code, for these addresses.

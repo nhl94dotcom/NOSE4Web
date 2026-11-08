@@ -1397,7 +1397,9 @@ export function HelpPage() {
           <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
           cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
           penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
-          penalty kill fix and faceoff spot fix, as for the Genesis. Most worth knowing is the{' '}
+          penalty kill fix and faceoff spot fix, as for the Genesis, and penalty shot fixes (a penalty shot whistled dead
+          because the net was knocked off, or because the loose puck stood still for two seconds, is no longer taken
+          again). Most worth knowing is the{' '}
           <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the
           maximum each game, whatever they are in the ROM, and the fix makes the ratings you set the ones that play.
           A hack is only changed where the ROM has the original game's code or the hack's in its place.
