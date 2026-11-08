@@ -1,4 +1,5 @@
 import type { RomProject } from './rom'
+import { discordPost } from './discord'
 import { findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
 import { snesPeriodCountPlace } from './snesmenu'
 import { refreshSnesSettings } from './snessettings'
@@ -440,6 +441,33 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
     }
   }
   return { choices, notCopied }
+}
+
+// The fixes a league can take without choosing anything, each tested in the
+// game; the faceoff spot fix, a choice between eras, is left as it is.
+export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['hotColdFix', 'ppPkFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']
+
+// `choices` with the recommended fixes on, except where this ROM has other code.
+export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {
+  const next = { ...choices }
+  for (const hack of RECOMMENDED_SNES_FIXES) if (!unknown.includes(hack)) next[hack] = true
+  return next
+}
+
+// The order the Hacks page has them in.
+const SNES_PAGE_ORDER: SnesHack[] = [
+  'hotColdFix', 'ppPkFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'defenceControl',
+  'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
+]
+
+// What this ROM has, as a Discord post for a league's owners. The extra
+// attacker fix is not offered where the code has moved, so it is not missed there.
+export function snesHacksForDiscord(rom: Uint8Array, name: string): string {
+  const { choices, unknown } = detectSnesHacks(rom)
+  const inPlace = snesCodeInPlace(rom)
+  const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => `- **${SNES_HACK_TITLES[hack]}**`)
+  const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || hack !== 'extraAttackerFix')).map((hack) => SNES_HACK_TITLES[hack])
+  return discordPost(name, lines, unread)
 }
 
 // How the hacks in one SNES ROM differ from those in another.

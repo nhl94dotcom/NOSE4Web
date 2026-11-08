@@ -757,3 +757,11 @@ button:disabled {
   gap: 0.3rem;
   width: 100%;
 }
+
+.discord-text {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}

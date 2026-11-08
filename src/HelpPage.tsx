@@ -898,6 +898,16 @@ export function HelpPage() {
         takes it all back.
       </p>
       <p>
+        <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
+        that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, Aggression,
+        power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, with
+        smozoma's legacy weight bug fix taken out; on the SNES the hot and cold, power play and penalty kill,
+        penalty shot, extra attacker and Y button fixes. It leaves the faceoff spot fix (a choice between eras) and
+        the options as they are. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts a list of
+        what this ROM has, everything that differs from the original game, on the clipboard as a Discord post, for
+        a league's owners, and shows it below the button.
+      </p>
+      <p>
         <b>Copy hacks from another ROM…</b>, beside Apply, sets every choice on the page to what another ROM has, for
         a league that wants the same hacks in all its ROMs (Genesis to Genesis, SNES to SNES). The other ROM is only
         read. The list above Apply then shows what would change; press Apply to make it so. A hack either ROM has code

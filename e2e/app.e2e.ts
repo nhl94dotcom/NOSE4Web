@@ -1497,6 +1497,50 @@ test.describe('with the NHL 94 ROM', () => {
     expect(detectHacks(rom.bytes).choices).toMatchObject({ passFix: true, faceoffFix: true, goalieHold: 300 })
   })
 
+  test('turns on the recommended fixes, and copies the hacks for Discord', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    await entry(page, 'Hacks').click()
+    await main.getByLabel('Faceoff spot fix').selectOption('on')
+    await main.getByRole('button', { name: 'Turn on the recommended fixes' }).click()
+    await expect(main.locator('.outcome li')).toHaveText([
+      'Second-assist bug fix: off to on.',
+      'Weight bug and C-then-B fix: off to everyone checks as the computer.',
+      'Aggression bug fix: off to on.',
+      'Power play and penalty kill fix: off to on.',
+      'Comeback bonus fix: off to on.',
+      'Rocket pass fix: off to on.',
+      // A choice made already is kept.
+      'Faceoff spot fix: off to on.',
+      'Runaway speed fix: off to on.',
+      'Penalty shot table fix: off to on.',
+      'Penalty shot fixes: off to on.',
+    ])
+    await expect(main.getByRole('button', { name: 'Turn on the recommended fixes' })).toBeDisabled()
+    await main.getByLabel('Goalie hold time').fill('5')
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
+      [
+        '**Hacks in nhl94**',
+        '- **Weight bug and C-then-B fix**',
+        '- **Second-assist bug fix**',
+        '- **Aggression bug fix**',
+        '- **Power play and penalty kill fix**',
+        '- **Comeback bonus fix**',
+        '- **Rocket pass fix**',
+        '- **Faceoff spot fix**',
+        '- **Runaway speed fix**',
+        '- **Penalty shot table fix**',
+        '- **Penalty shot fixes**',
+        '- **Goalie hold time**: 5 seconds (the original game has 2.33 seconds)',
+      ].join('\n'),
+    )
+    // Undone, the post follows the ROM.
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue('**Hacks in nhl94**\nNone: it plays as the original game.')
+  })
+
   test('changes how the game plays from the Hacks page', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')
@@ -1837,6 +1881,22 @@ test.describe('with the SNES game', () => {
     // A Genesis ROM is not taken.
     await main.getByLabel('Copy hacks from another ROM').setInputFiles(romPath)
     await expect(main.getByText(/is NHL 94.*not an SNES ROM/)).toBeVisible()
+
+    // The recommended fixes leave the faceoff spot fix as it was set.
+    await main.getByRole('button', { name: 'Set back to what the ROM has' }).click()
+    await main.getByRole('button', { name: 'Turn on the recommended fixes' }).click()
+    await expect(main.locator('.outcome li')).toHaveText([
+      'Hot and cold bug fix: off to on.',
+      'Power play and penalty kill fix: off to on.',
+      'Penalty shot fixes: off to on.',
+      'Extra attacker fix: off to on.',
+      'Y button fix: off to on.',
+    ])
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
+      '**Hacks in NHL94**\n- **Hot and cold bug fix**\n- **Power play and penalty kill fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Y button fix**',
+    )
   })
 
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {

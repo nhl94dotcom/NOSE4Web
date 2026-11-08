@@ -356,7 +356,7 @@ export default function App() {
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HACKS:
-        return current.game.platform === 'snes' ? <SnesHacksPage project={current} onChange={change} /> : <HacksPage project={current} onChange={change} />
+        return current.game.platform === 'snes' ? <SnesHacksPage project={current} name={name || 'rom'} onChange={change} /> : <HacksPage project={current} name={name || 'rom'} onChange={change} />
       case HELP:
         return <HelpPage />
       default:

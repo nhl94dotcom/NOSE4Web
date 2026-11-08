@@ -25,6 +25,7 @@ import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
+import { discordPost } from './discord'
 import { claimSpace } from './space'
 import { goalieCount, type Player, type Team } from './team'
 import type { FreeAgent } from './trade'
@@ -1102,6 +1103,60 @@ export function hackState(project: RomProject): HackState | null {
 
 export function sameHacks(a: HackChoices, b: HackChoices): boolean {
   return (Object.keys(NO_HACKS) as (keyof HackChoices)[]).every((key) => a[key] === b[key])
+}
+
+// The fixes a league can take without choosing anything: each is a bug fix
+// tested in the game. The faceoff spot fix (a choice between eras) and the
+// options are left as they are, and smozoma's legacy weight bug fix is taken
+// out, since it does not go with the weight bug and C-then-B fix.
+export const RECOMMENDED_FIXES: Partial<HackChoices> = {
+  checkFix: 'all120',
+  weightFix: 'off',
+  secondAssist: true,
+  aggressionFix: true,
+  ppPkFix: true,
+  comebackFix: true,
+  passFix: true,
+  runawayFix: true,
+  penaltyShotTableFix: true,
+  penaltyShotFixes: true,
+}
+
+// `choices` with the recommended fixes, except where this ROM's code is not known.
+export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]): HackChoices {
+  const next = { ...choices }
+  for (const [key, value] of Object.entries(RECOMMENDED_FIXES) as [keyof HackChoices, never][]) {
+    if (!unknown.includes(HACK_PARTS[key])) next[key] = value
+  }
+  return next
+}
+
+// The order the Hacks page has them in, smozoma's legacy fix last.
+const PAGE_ORDER: (keyof HackChoices)[] = [
+  'checkFix', 'secondAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
+  'penaltyShotTableFix', 'penaltyShotFixes', 'goaliePullFix', 'blindRingFix', 'bodychecks', 'plusMinus', 'threeStars',
+  'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
+]
+
+// What this ROM has, as a Discord post for a league's owners: each hack that
+// differs from the original game, and what the editor cannot read.
+export function hacksForDiscord(state: HackState, name: string): string {
+  const lines: string[] = []
+  const unread: string[] = []
+  for (const key of PAGE_ORDER) {
+    if (state.unknown.includes(HACK_PARTS[key])) {
+      if (!unread.includes(HACK_TITLES[key])) unread.push(HACK_TITLES[key])
+      continue
+    }
+    const value = state.choices[key]
+    if (value === NO_HACKS[key]) continue
+    if ((value === true && key !== 'wideRatings') || value === 'on' || (key === 'checkFix' && value === 'all120')) lines.push(`- **${HACK_TITLES[key]}**`)
+    // The original speed burst depends on how tired the player is, so there is no one number to give for it.
+    else if (typeof value === 'number' && key !== 'speedBurst') lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)} (the original game has ${hackValueText(key, NO_HACKS)})`)
+    else lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)}`)
+  }
+  return discordPost(name, lines, unread)
 }
 
 // This ROM's choices set to another ROM's hacks, for a league that wants

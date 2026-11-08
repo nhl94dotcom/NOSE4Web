@@ -1,18 +1,23 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
+import { HackShortcuts } from './HackShortcuts'
 import {
   applySnesHacks,
   detectSnesHacks,
   SNES_HACK_TITLES,
   SNES_HACKS,
   snesHacksCopiedFrom,
+  snesHacksForDiscord,
+  withRecommendedSnesFixes,
   type SnesHack,
   type SnesHackChoices,
 } from './core/sneshacks'
 
 interface Props {
   project: RomProject
+  // The ROM's name, for the Discord post.
+  name: string
   onChange: (project: RomProject) => void
 }
 
@@ -59,7 +64,9 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 
-export function SnesHacksPage({ project, onChange }: Props) {
+const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every((hack) => a[hack] === b[hack])
+
+export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
@@ -92,6 +99,17 @@ export function SnesHacksPage({ project, onChange }: Props) {
         . The page shows what this ROM has now. Change what you like and press Apply; nothing is changed until you do.
         Test a hacked ROM in a game before a league plays on it.
       </p>
+      <HackShortcuts
+        onRecommended={
+          !sameChoices(withRecommendedSnesFixes(wanted, state.unknown), wanted) &&
+          (() => {
+            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown) })
+            setNotice('')
+            setError('')
+          })
+        }
+        discordText={() => snesHacksForDiscord(project.bytes, name)}
+      />
       {GROUPS.map((group) => (
         <section key={group.title}>
           <h3>{group.title}</h3>

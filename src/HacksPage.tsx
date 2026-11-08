@@ -10,6 +10,8 @@ import {
   HACK_TITLES,
   hackChanges,
   hacksCopiedFrom,
+  hacksForDiscord,
+  withRecommendedFixes,
   hacksSupported,
   holdSeconds,
   NO_HACKS,
@@ -24,9 +26,12 @@ import {
 } from './core/hacks'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
+import { HackShortcuts } from './HackShortcuts'
 
 interface Props {
   project: RomProject
+  // The ROM's name, for the Discord post.
+  name: string
   onChange: (project: RomProject) => void
 }
 
@@ -102,7 +107,7 @@ function NumberBox({ label, value, range, perUnit, fresh, disabled, onChange }: 
   )
 }
 
-export function HacksPage({ project, onChange }: Props) {
+export function HacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
@@ -183,6 +188,16 @@ export function HacksPage({ project, onChange }: Props) {
         in Help. The page shows what this ROM has now. Change what you like and press
         Apply; nothing is changed until you do. Test a hacked ROM in a game before a league plays on it.
       </p>
+      <HackShortcuts
+        onRecommended={
+          !sameHacks(withRecommendedFixes(wanted, state.unknown), wanted) &&
+          (() => {
+            set(withRecommendedFixes(wanted, state.unknown))
+            setSetBack(setBack + 1)
+          })
+        }
+        discordText={() => hacksForDiscord(state, name)}
+      />
 
       <section>
         <h3>Fixes</h3>

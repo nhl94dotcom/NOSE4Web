@@ -91,6 +91,14 @@ That licence does not cover:
 - A power play and penalty kill fix, for the Genesis and the SNES: the games
   read the two team ratings from the wrong halves of their byte, and the fix
   makes them read the rosters as they were written
+- Penalty shot fixes (the right penalty shot for each foul, no retakes, no
+  ghost puck; on the SNES no retake after a knocked-off net or a still puck),
+  options for the computer's goalie pull and the goalie's five-hole blind
+  ring, and, on the SNES, NHL94SNESVault's extra attacker fix and a Y button
+  fix, all tested in the game with the NHL94 Match Viewer project
+- On both Hacks pages: turn on every recommended fix at once, copy a ROM's
+  hacks as a Discord post for a league's owners, and copy the hacks of
+  another ROM
 - Playoff draws, on-screen rule messages, period, overtime and shootout
   lengths, the main menu's starting choices, and how many teams the menu
   offers, for a league smaller than the ROM (Genesis and SNES)
