@@ -537,6 +537,33 @@ export function HelpPage() {
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
         for both. Logos and banners are not part of the spreadsheet files.
       </p>
+      <h3 id="help-photos">Player photos (Genesis)</h3>
+      <p>
+        Below the logos, <b>Player photos</b> lists the team's featured players. The team setup screen shows the
+        cards of the first six in turn, so a team always keeps at least six; the matchup screens show the photo of
+        any player in the list, and a generic goalie or skater picture for everyone else. In the original game some
+        teams have only generic pictures, and the 30-team ROM lists 26 players a team.
+      </p>
+      <ul>
+        <li>
+          <b>Import…</b> takes an image of any size: the square in its middle is shrunk to 48 by 48 and shaded in
+          the eight greys the game shows photos in (some hacks give them other colours). <b>Export PNG</b> saves a
+          photo, <b>Draw…</b> changes it pixel by pixel.
+        </li>
+        <li>
+          A player who has a generic picture, or one shared with another player, gets a photo of his own when you
+          import or draw one, added at the end of the ROM; the others keep theirs.
+        </li>
+        <li>
+          Each photo is for a place on the roster, chosen in its list, not for a player by name. After moving
+          players, check who each photo is for. Check ROM warns of a setup screen card for a place past the end
+          of the roster.
+        </li>
+        <li>
+          The arrows change the order, which matters for the setup screen's first six. <b>Add a photo for…</b>
+          adds a player, with the generic picture until you give him one. Undo takes any of it back.
+        </li>
+      </ul>
 
       <p>
         <b>Banner lettering</b> makes a banner for you. Type what it should read and choose which banner to use it
@@ -1440,8 +1467,8 @@ export function HelpPage() {
           removing a player, or changing the number of forwards, sets the defence count to fit the roster.
         </li>
         <li>
-          Team logos and banners can be replaced. Other graphics, such as player sprites, player photos and the title
-          screens, cannot.
+          Team logos and banners can be replaced, and on the Genesis player photos. Other graphics, such as player
+          sprites and the title screens, cannot.
         </li>
         <li>
           To let the game run a changed ROM, the editor switches off the game's check of its own contents, as NOSE

@@ -57,6 +57,8 @@ That licence does not cover:
   the game allows, or by exporting and importing PNG images one at a time or
   every team's at once as a zip, and banners lettered for you in the game's
   own style
+- Genesis player photos: import any image as a player's photo, draw it, and
+  choose which players are featured on the team setup and matchup screens
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on

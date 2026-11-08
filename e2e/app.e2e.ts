@@ -245,6 +245,54 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
   })
 
+  test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Player photos' }) })
+    const photos = section.locator('.picture')
+    await expect(photos).toHaveCount(6)
+    await section.screenshot({ path: 'test-results/shots/photos.png' })
+    await expect(photos.nth(1).getByText(/The generic picture/)).toBeVisible()
+
+    // An image of any size: a dark disc on white, 120 by 90.
+    const url = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 120
+      canvas.height = 90
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, 120, 90)
+      context.fillStyle = '#202020'
+      context.beginPath()
+      context.arc(60, 45, 30, 0, Math.PI * 2)
+      context.fill()
+      return canvas.toDataURL('image/png')
+    })
+    await section.getByLabel('Import photo 2').setInputFiles({ name: 'face.png', mimeType: 'image/png', buffer: Buffer.from(url.split(',')[1], 'base64') })
+    await expect(section.getByText(/replaced\. The image was 120 by 90: its middle square was shrunk to 48 by 48\./)).toBeVisible()
+    await expect(photos.nth(1).getByText(/The generic picture/)).toBeHidden()
+    const exported = await downloadFrom(page, photos.nth(1).getByRole('button', { name: 'Export PNG' }))
+    expect(exported.suggestedFilename()).toMatch(/^Anaheim_Mighty_Ducks_.+_photo\.png$/)
+
+    // Who it is for, and a seventh player added.
+    const who = section.getByLabel('Photo 2 is for')
+    const other = await who.locator('option').nth(4).getAttribute('value')
+    await who.selectOption(other!)
+    await expect(section.getByText(/Photo 2 is now for/)).toBeVisible()
+    await section.getByLabel('Add a photo for').selectOption({ index: 1 })
+    await expect(photos).toHaveCount(7)
+    await photos.nth(6).getByRole('button', { name: 'Remove' }).click()
+    await expect(photos).toHaveCount(6)
+    await expect(photos.first().getByRole('button', { name: 'Remove' })).toBeDisabled()
+
+    // Downloaded and opened again, the photo and its player are kept.
+    const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
+    await romPicker(page).setInputFiles({ name: 'photos.bin', mimeType: 'application/octet-stream', buffer: rom })
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(section.getByLabel('Photo 2 is for')).toHaveValue(other!)
+    await expect(photos.nth(1).getByText(/The generic picture/)).toBeHidden()
+  })
+
   test('draws a logo pixel by pixel, a stroke at a time', async ({ page }) => {
     await openRom(page)
     await team(page, 'Montreal Canadiens').click()

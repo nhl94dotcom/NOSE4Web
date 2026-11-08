@@ -22,6 +22,8 @@ import { rosterCardPng } from './rosterCard'
 import { teamDisplayName, teamLabels, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
+import { PhotosEditor } from './PhotosEditor'
+import { photosSupported } from './core/photos'
 import { HacksPage } from './HacksPage'
 import { hacksSupported, withHacksOf } from './core/hacks'
 import { HelpPage } from './HelpPage'
@@ -395,7 +397,10 @@ export default function App() {
             }}
             footer={
               current.graphicsSupported ? (
-                <GraphicsEditor project={current} team={selected} onChange={change} />
+                <>
+                  <GraphicsEditor project={current} team={selected} onChange={change} />
+                  {photosSupported(current) && <PhotosEditor project={current} team={selected} onChange={change} />}
+                </>
               ) : (
                 current.game.platform === 'snes' && <SnesPicturesEditor project={current} team={selected} onChange={change} />
               )

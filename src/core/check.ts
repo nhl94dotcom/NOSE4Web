@@ -4,6 +4,7 @@ import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
+import { FEWEST_PHOTOS, photoLayout } from './photos'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
 
@@ -115,6 +116,27 @@ function checkStrips(project: RomProject, labels: string[], findings: Finding[])
   })
 }
 
+// The setup screen shows the cards of a team's first six featured players.
+// One for a place past the end of the roster shows whatever follows the team
+// in the ROM for the card's name and numbers. (Later ones only go
+// unused: the matchup screen finds a player's photo by his place.)
+function checkPhotos(project: RomProject, labels: string[], findings: Finding[]): void {
+  if (project.game.platform === 'snes') return
+  const layout = photoLayout(project.bytes, project.teams.length)
+  layout?.lists.forEach((list, team) => {
+    const count = project.teams[team].players.length
+    const past = list.entries.slice(0, FEWEST_PHOTOS).flatMap((entry, i) => (entry.slot >= count ? [i + 1] : []))
+    if (past.length === 0) return
+    const one = past.length === 1
+    findings.push({
+      level: 'note',
+      where: labels[team],
+      team,
+      message: `${one ? 'Player photo' : 'Player photos'} ${past.join(', ')}, shown on the team setup screen, ${one ? 'is' : 'are'} for a place past the end of the roster, which has ${count} players. Choose who ${one ? 'it is' : 'they are'} for under Player photos.`,
+    })
+  })
+}
+
 export function checkProject(project: RomProject): Finding[] {
   const { game, teams, settings, layout } = project
   const findings: Finding[] = []
@@ -140,6 +162,7 @@ export function checkProject(project: RomProject): Finding[] {
   const emptySlots = emptyLineSlots(teams)
   teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, findings))
   checkStrips(project, labels, findings)
+  checkPhotos(project, labels, findings)
 
   settings.playoffDraws.forEach((draw, d) => {
     const where = `Playoff draw ${d + 1}`
