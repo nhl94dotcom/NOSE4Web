@@ -7,7 +7,7 @@ import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
-import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGE, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
+import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
@@ -309,7 +309,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     const amounts = Object.fromEntries(
       SNES_AMOUNTS.flatMap((hack) => {
         const value = file.snesHackAmounts?.[hack]
-        return typeof value === 'number' && Number.isInteger(value) && value >= SNES_AMOUNT_RANGE[0] && value <= SNES_AMOUNT_RANGE[1] ? [[hack, value]] : []
+        return typeof value === 'number' && Number.isInteger(value) && value >= SNES_AMOUNT_RANGES[hack][0] && value <= SNES_AMOUNT_RANGES[hack][1] ? [[hack, value]] : []
       }),
     ) as Partial<Record<SnesAmount, number>>
     const amountsDiffer = SNES_AMOUNTS.some((hack) => amounts[hack] !== undefined && amounts[hack] !== nowAmounts?.[hack])

@@ -14,18 +14,26 @@ import {
   withSnesHackChoice,
   RECOMMENDED_SNES_HIT_ENERGY,
   RECOMMENDED_SNES_HOLD_ENERGY,
-  SNES_AMOUNT_RANGE,
+  SNES_AMOUNT_RANGES,
+  RECOMMENDED_SNES_INJURY_BONUS,
   SNES_AMOUNTS,
   type SnesAmount,
   type SnesHack,
   type SnesHackChoices,
 } from './core/sneshacks'
 
-const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = { hitEnergy: RECOMMENDED_SNES_HIT_ENERGY, holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY }
+const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
+  hitEnergy: RECOMMENDED_SNES_HIT_ENERGY,
+  holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY,
+  injuryBonus: RECOMMENDED_SNES_INJURY_BONUS,
+}
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // An energy amount as units and as a share of full energy.
 const energyShare = (units: number) => (units === 0 ? 'Off: none taken.' : `${units} units, ${Math.round((units / FULL_ENERGY) * 1000) / 10}% of full energy.`)
+// The injury risk: what it adds to a hit that can injure, at most.
+const riskShare = (bonus: number) => (bonus === 0 ? 'Off.' : `Up to ${bonus * 5} impact after 5 knockdowns: about ${Math.round(((bonus * 5) / 300) * 100)} in 100 more on a hit that can injure.`)
+const amountText = (hack: SnesAmount, value: number) => (hack === 'injuryBonus' ? riskShare(value) : energyShare(value))
 
 interface Props {
   project: RomProject
@@ -87,6 +95,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game, where a hit costs the skater nothing. Only with line changes on, where the game's energy counts at all. Full energy is 4096 units; a burst of speed costs 204. Recommended: 204 (5%), what a burst costs, about 38 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) while the average skater is hardly touched; people hit about twice as often; half as much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to wear players down. A knockdown by the puck, or a bump that does not knock him down, costs nothing. As on the Genesis; read from the game's code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game, in the original and McMarkis's SA-1 build: each knockdown and hold takes its amount once, and nothing with line changes Off. As the game's own energy drain, Automatic line changes count as on here (on the Genesis they do not). Found by the code around it, so it goes into every build.",
   holdEnergy:
     'The same for a skater caught by a hold or hook (Y), once each time it catches him. Recommended: 102 (2.5%), half a knockdown\'s. Only with line changes on.',
+  injuryBonus:
+    "An option, the other half of the community idea: each knockdown a skater takes makes a later injury a little more likely, and half of it wears off at each intermission. 0 is the original game. Only the few hits that can injure in the original game are affected (a puck carrier knocked onto his back while facing straight up or down the ice, with the clock running), so injuries stay rare: the game rolls 0 to 298 against the hit's impact, and this adds the number to the impact for each knockdown the skater has taken this game, counting up to five. Recommended: 4, so a hit that can injure is at most about 7 in 100 more likely to. Knockdowns are counted with line changes on or off. For the original game and its 1 MB edits; the rebuilt builds keep their memory elsewhere. Read from the game's code by the NHL94 Match Viewer project; not yet tested in the game.",
   fourthPeriodOvertime:
     "An option. A regular-season game played on the menu's fourth period length gets 99 minutes of overtime, about as good as no limit, which can save a league a separate playoff ROM. The fourth length is the one the 30-second periods hack offers, so that turns on with this; set its length and menu text with the others on the Game settings page (for example 5:00, \"5 Minutes, 99 Min OT\"). The other lengths keep the Clock's overtime, and playoff overtime stays as long as a period, as in the original game. McMarkis's Genesis patch, made for the SNES as NOSE4Web's Genesis option has it. Found by the code that sets the clock, so it goes into every build.",
   faceoffFix:
@@ -104,7 +114,7 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
   { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 
@@ -113,7 +123,7 @@ const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every
 export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
-  const hadAmounts = state.amounts ?? { hitEnergy: 0, holdEnergy: 0 }
+  const hadAmounts: Record<SnesAmount, number> = state.amounts ?? { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0 }
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
   if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
@@ -178,12 +188,12 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                       type="number"
                       aria-label={SNES_HACK_TITLES[hack]}
                       disabled={unknown}
-                      min={SNES_AMOUNT_RANGE[0]}
-                      max={SNES_AMOUNT_RANGE[1]}
+                      min={SNES_AMOUNT_RANGES[hack][0]}
+                      max={SNES_AMOUNT_RANGES[hack][1]}
                       value={wantedAmounts[hack]}
-                      onChange={(e) => setAmount(hack, Math.max(SNES_AMOUNT_RANGE[0], Math.min(SNES_AMOUNT_RANGE[1], Math.round(Number(e.target.value) || 0))))}
+                      onChange={(e) => setAmount(hack, Math.max(SNES_AMOUNT_RANGES[hack][0], Math.min(SNES_AMOUNT_RANGES[hack][1], Math.round(Number(e.target.value) || 0))))}
                     />{' '}
-                    <span className="note">{energyShare(wantedAmounts[hack])}</span>{' '}
+                    <span className="note">{amountText(hack, wantedAmounts[hack])}</span>{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>
                       Use the recommended {RECOMMENDED_AMOUNTS[hack]}
                     </button>

@@ -170,13 +170,14 @@ const SNES: Record<SnesHack, string> = {
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
   holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',
+  injuryBonus: 'Each knockdown a skater takes makes a later hit a little more likely to injure him (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 
 const SNES_SECTIONS: [string, SnesHack[]][] = [
   ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
   ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
-  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy']],
+  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus']],
   ['Statistics', ['stickShots']],
   ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
 ]

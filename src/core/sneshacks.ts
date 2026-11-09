@@ -39,6 +39,7 @@ export type SnesHack =
   | 'fourthPeriodOvertime'
   | 'hitEnergy'
   | 'holdEnergy'
+  | 'injuryBonus'
 
 interface Site {
   // The game's address.
@@ -261,6 +262,7 @@ export const SNES_HACKS: SnesHack[] = [
   'fourthPeriodOvertime',
   'hitEnergy',
   'holdEnergy',
+  'injuryBonus',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -289,6 +291,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   fourthPeriodOvertime: '99-minute overtime on the fourth period length',
   hitEnergy: 'Energy lost when knocked down',
   holdEnergy: 'Energy lost when held or hooked',
+  injuryBonus: 'Injury risk added by each knockdown',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -398,28 +401,47 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus']
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
-export const SNES_AMOUNT_RANGE: [number, number] = [0, 1024]
+// Match Viewer's: +4 impact a knockdown on the SNES (its roll is out of 300, the Genesis's 160), up to 5 knockdowns.
+export const RECOMMENDED_SNES_INJURY_BONUS = 4
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 1024], holdEnergy: [0, 1024], injuryBonus: [0, 20] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
 const HIT_POSITION_AT = 58
 const HOLD_AMOUNT_AT = 25
 const HOLD_FLAIL_AT = 45
+// Where the injury block's pieces start, and the roll's bonus and impact operands in its piece.
+const INJURY_ROLL_AT = 49
+const INJURY_START_AT = 49 + 65
+const INJURY_PERIOD_AT = 49 + 65 + 26
+const INJURY_BONUS_AT = 36
+const INJURY_IMPACT_AT = 55
 
 // What the energy code needs from this ROM, all from the energy drain in
 // playeracc: lda.l OptLine / beq; ...; jsl getpde; lda d0; sec; sbc #33 ...
 // jml setpde. The direct-page a2 and d1 are read from getpde itself.
-function energyEnv(rom: Uint8Array): { optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number } | null {
+function energyEnv(
+  rom: Uint8Array,
+): { optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number; pnum: Uint8Array; pfteam: Uint8Array } | null {
   const drain = only(rom, 'af......f0..ad....293f00d0..22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......')
   if (drain < 0) return null
   const getpde = rom.slice(drain + 15, drain + 18)
   const at = loRomOffset(getpde[2], getpde[0] | (getpde[1] << 8))
   if (at < 0 || at + 19 > rom.length || rom[at] !== 0xbd || rom[at + 7] !== 0x85 || rom[at + 17] !== 0x85) return null
-  return { optLine: rom.slice(drain, drain + 4), getpde, setpde: rom.slice(drain + 42, drain + 45), a2: rom[at + 18], d0: rom[drain + 19], d1: rom[at + 8] }
+  return {
+    optLine: rom.slice(drain, drain + 4),
+    getpde,
+    setpde: rom.slice(drain + 42, drain + 45),
+    a2: rom[at + 18],
+    d0: rom[drain + 19],
+    d1: rom[at + 8],
+    pnum: rom.slice(at + 1, at + 3),
+    pfteam: rom.slice(at + 10, at + 12),
+  }
 }
 
 // The penalties whose length the one-minute penalties change, by the bytes
@@ -561,6 +583,59 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the beq went, with A reloaded from the direct-page copy the routine
   // compares (16-bit A and index, as there). Found by the code around it in
   // every build: the 2 MB ones have their RAM $6000 on.
+  // Injury risk from knockdowns, as NOSE4Web's Genesis option (the sites
+  // read by Match Viewer). A word a player at $7E:F034, 32 a team (free in
+  // every recorded game of the original and its 1 MB edits; not in the
+  // rebuilt builds, whose RAM is elsewhere). FallDown's .2, which every real
+  // fall reaches, has lda.w #$0078: that becomes jsr to code that adds 1 (to
+  // at most 255) for a skater (position,y) knocked down by a player (X below
+  // $18). The roll (lda #150 / jsl randoma8 / asl / ldy a2 / sec / sbc.w
+  // impact,y / bpl .23: an injury when the result is below 0) has its sbc
+  // become jsr to code that also takes off count x bonus, at most 5 x bonus,
+  // leaving the result and its flags for the bpl. StartGame's jsl
+  // restoreteams (its jsl clearTeamStats is defence control's site) and
+  // PeriodOver's first jsl forcefade go through code that clears, or halves,
+  // the counts first. The four pieces are one block in FallDown's bank.
+  injuryBonus: (rom, _source, amount) => {
+    const env = energyEnv(rom)
+    if (!env || !snesCodeInPlace(rom)) return null
+    const count = only(rom, 'a4..' + '......' + '99....bd....38f9....85..bd....38f9....85..22')
+    const roll = only(rom, 'a99600' + '22......0aa4..38' + '......' + '10..ad....d0..b9....')
+    const start = only(rom, 'a9....0c....' + '........' + '22......22......a9..00')
+    const period = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
+    if (count < 0 || roll < 0 || start < 0 || period < 0) return null
+    const sites = { count: count + 2, roll: roll + 11, start: start + 10, period }
+    const hooked = rom[sites.count] === 0x20
+    const block = hooked ? loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, sites.count + 1)) : -1
+    const position = word(readU16(rom, roll + 22))
+    const impact = word(readU16(rom, hooked ? block + INJURY_ROLL_AT + INJURY_IMPACT_AT : sites.roll + 1))
+    const restore = hooked ? rom.slice(block + INJURY_START_AT + 23, block + INJURY_START_AT + 26) : rom.slice(sites.start + 1, sites.start + 4)
+    const fade = hooked ? rom.slice(block + INJURY_PERIOD_AT + 25, block + INJURY_PERIOD_AT + 28) : rom.slice(sites.period + 1, sites.period + 4)
+    const bonus = amount ?? (hooked ? readU16(rom, block + INJURY_ROLL_AT + INJURY_BONUS_AT) : RECOMMENDED_SNES_INJURY_BONUS)
+    const table = '34F07E'
+    const ofY = bytesOf('B9', env.pnum, '29FF00 0A AA B9', env.pfteam, 'F006 8A 18 694000 AA')
+    const code = bytesOf(
+      // Count (49 bytes).
+      'DA B9', position, 'F026 E01800 B021', ofY, 'BF', table, 'C9FF00 B005 1A 9F', table, 'FA A97800 60',
+      // Roll (65 bytes).
+      '48 DA', ofY, 'BF', table, 'AA A90000 E00000 F007 18 69', word(bonus), 'CA 80F4 C9', word(bonus * 5), '9003 A9', word(bonus * 5),
+      'FA 48 A303 38 F9', impact, '38 E301 8303 68 68 60',
+      // Each game (26 bytes), and each intermission (28 bytes): the flags kept, 16-bit registers meanwhile.
+      '08 C230 48 DA A27E00 A90000 9F', table, 'CA CA 10F8 FA 68 28 5C', restore,
+      '08 C230 48 DA A27E00 BF', table, '4A 9F', table, 'CA CA 10F3 FA 68 28 5C', fade,
+    )
+    const at = hooked ? block : roomInBank(rom, sites.count, code.length)
+    if (at < 0) return null
+    const address = loRomAddress(at)
+    const long = (offset: number) => bytesOf('22', word(address + offset), 0x80 | Math.floor(at / 0x8000))
+    return [
+      { at: sites.count, original: hexBytes('A97800'), hacked: bytesOf('20', word(address)) },
+      { at, original: unused(code.length), hacked: code },
+      { at: sites.roll, original: bytesOf('F9', impact), hacked: bytesOf('20', word(address + INJURY_ROLL_AT)) },
+      { at: sites.start, original: bytesOf('22', restore), hacked: long(INJURY_START_AT) },
+      { at: sites.period, original: bytesOf('22', fade), hacked: long(INJURY_PERIOD_AT) },
+    ]
+  },
   // Energy lost to hits (a community idea; the sites read by Match Viewer),
   // as NOSE4Web's Genesis option. FallDown's .t2 (a real fall: X the
   // hitter, a2 the player hit) starts lda.w position,x / beq .2; the lda
@@ -736,7 +811,7 @@ function amountIn(rom: Uint8Array, hack: SnesAmount): number {
   const places = placesOf(rom, hack, null)
   if (!places || !places.every((place) => holds(rom, place, 'hacked'))) return 0
   const code = places[1]
-  return readU16(rom, code.at + (hack === 'hitEnergy' ? HIT_AMOUNT_AT : HOLD_AMOUNT_AT))
+  return readU16(rom, code.at + { hitEnergy: HIT_AMOUNT_AT, holdEnergy: HOLD_AMOUNT_AT, injuryBonus: INJURY_ROLL_AT + INJURY_BONUS_AT }[hack])
 }
 
 const holds = (rom: Uint8Array, place: Placed, which: 'original' | 'hacked') => {
@@ -794,8 +869,9 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   for (const hack of SNES_AMOUNTS) {
     const amount = amounts[hack]
     if (amount === undefined) continue
-    if (amount < SNES_AMOUNT_RANGE[0] || amount > SNES_AMOUNT_RANGE[1] || !Number.isInteger(amount)) {
-      throw new SnesHackError(`${SNES_HACK_TITLES[hack]} must be a whole number from ${SNES_AMOUNT_RANGE[0]} to ${SNES_AMOUNT_RANGE[1]}.`)
+    const [least, most] = SNES_AMOUNT_RANGES[hack]
+    if (amount < least || amount > most || !Number.isInteger(amount)) {
+      throw new SnesHackError(`${SNES_HACK_TITLES[hack]} must be a whole number from ${least} to ${most}.`)
     }
     wanted[hack] = amount > 0
   }
@@ -864,7 +940,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

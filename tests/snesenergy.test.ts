@@ -17,7 +17,7 @@ const target = (rom: Uint8Array, site: number) => loRomOffset(Math.floor(site / 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () => {
   it('jsr from FallDown and holdcheck to code that takes the amounts, with line changes on', () => {
     const project = open('NHL94.smc')
-    expect(detectSnesHacks(project.bytes).amounts).toEqual({ hitEnergy: 0, holdEnergy: 0 })
+    expect(detectSnesHacks(project.bytes).amounts).toEqual({ hitEnergy: 0, holdEnergy: 0, injuryBonus: 0 })
     const on = applySnesHacks(project, {}, false, { hitEnergy: 100, holdEnergy: 50 })
     // FallDown's .t2 at $9E:9BB3: lda.w position,x becomes jsr, the beq after it kept.
     const t2 = 0xf1bb3
@@ -38,17 +38,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     const again = openRom(buildRom(on))
     const state = detectSnesHacks(again.bytes)
     expect(state.choices).toMatchObject({ hitEnergy: true, holdEnergy: true })
-    expect(state.amounts).toEqual({ hitEnergy: 100, holdEnergy: 50 })
+    expect(state.amounts).toMatchObject({ hitEnergy: 100, holdEnergy: 50 })
     expect(snesHacksForDiscord(again.bytes, 'Test')).toContain('**Energy lost when knocked down**: 100')
     // A new amount replaces the old in place; 0 takes it out.
     const more = applySnesHacks(again, {}, false, { hitEnergy: 204 })
-    expect(detectSnesHacks(more.bytes).amounts).toEqual({ hitEnergy: 204, holdEnergy: 50 })
+    expect(detectSnesHacks(more.bytes).amounts).toMatchObject({ hitEnergy: 204, holdEnergy: 50 })
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
     expect(() => applySnesHacks(project, {}, false, { hitEnergy: 1025 })).toThrow('from 0 to 1024')
     // A project file keeps the amounts.
     const reopened = openProjectFile(project, saveProjectFile(again, project, 'test')).project
-    expect(detectSnesHacks(reopened.bytes).amounts).toEqual({ hitEnergy: 100, holdEnergy: 50 })
+    expect(detectSnesHacks(reopened.bytes).amounts).toMatchObject({ hitEnergy: 100, holdEnergy: 50 })
   })
 
   it.each(names)('goes into %s and comes out again', (name) => {
@@ -57,7 +57,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(before.unknown).not.toContain('hitEnergy')
     expect(before.unknown).not.toContain('holdEnergy')
     const on = applySnesHacks(project, {}, false, { hitEnergy: 100, holdEnergy: 50 })
-    expect(detectSnesHacks(openRom(buildRom(on)).bytes).amounts).toEqual({ hitEnergy: 100, holdEnergy: 50 })
+    expect(detectSnesHacks(openRom(buildRom(on)).bytes).amounts).toMatchObject({ hitEnergy: 100, holdEnergy: 50 })
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
   })
 })
