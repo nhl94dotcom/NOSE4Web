@@ -220,11 +220,13 @@ export function TeamEditor(props: Props) {
   // on defence, forwards up front and as the extra attacker (core/lines.ts). One
   // the ROM already has out of his role is kept, and shown as such.
   const roleWord = { goalie: 'goalie', defence: 'defence', forward: 'forward' }
-  // On the SNES the penalty-kill lines show four rows in the game's Edit
+  // On both systems the penalty-kill lines show four rows in the game's Edit
   // Lines; their RW place is hidden, but it is the skater a short-handed team
   // puts on when it pulls its goalie (SetPlList fills G, LD, RD, C, LW, RW,
-  // then the extra attacker, who so plays only at full strength; Match Viewer).
-  const hiddenRw = (l: number, slot: number) => game.platform === 'snes' && slot === 5 && PENALTY_KILL_LINES.includes(game.lineLabels[l])
+  // then the extra attacker, who so plays only at full strength; Match Viewer,
+  // in play on the SNES and from the Genesis code). Not in a ROM that puts
+  // fewer skaters on the ice, which plays only the first line.
+  const hiddenRw = (l: number, slot: number) => !fewerSkaters && slot === 5 && PENALTY_KILL_LINES.includes(game.lineLabels[l])
   const lineBox = (l: number, slot: number, line: number[]) => {
     const current = line[slot]
     const valid = current >= 1 && current <= team.players.length
@@ -743,7 +745,7 @@ export function TeamEditor(props: Props) {
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}
           </span>
         </p>
-        {game.platform === 'snes' && game.lineLabels.some((label) => PENALTY_KILL_LINES.includes(label)) && (
+        {!fewerSkaters && game.lineLabels.some((label) => PENALTY_KILL_LINES.includes(label)) && (
           <p className="note">
             On the {PENALTY_KILL_LINES.join(' and ')} lines the game's Edit Lines shows four rows. Their RW, shown with a dashed
             border here, is hidden there, but it is the skater who comes on when the team pulls its goalie while

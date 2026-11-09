@@ -595,6 +595,11 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Check ROM').click()
     await expect(page.getByText('Nothing to report.')).toBeVisible()
 
+    // The penalty-kill lines' RW, hidden in the game's Edit Lines, is the short-handed extra skater (Genesis too).
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(page.getByLabel('RW on line PK2')).toHaveClass('hidden-slot')
+    await expect(page.getByLabel('RW on line PP1')).not.toHaveClass('hidden-slot')
+
     // Anaheim's first line: left wing offers only forwards, and the centre
     // chosen for it swaps places with him rather than being on the line twice.
     await team(page, 'Anaheim Mighty Ducks').click()
@@ -1046,6 +1051,8 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(first.nth(5).locator('option:checked')).toHaveText('Empty')
     await expect(first.nth(4).locator('option:checked')).not.toHaveText('Empty')
     await expect(lines.getByText('Invalid')).toHaveCount(0)
+    // Only the first line is played, so the penalty-kill lines' RW is not marked.
+    await expect(page.locator('select.hidden-slot')).toHaveCount(0)
     // A position the ROM uses cannot be emptied; one it leaves empty can be filled and emptied again.
     await expect(first.nth(4).locator('option', { hasText: 'Empty' })).toHaveCount(0)
     // A defenceman not at RD already, which would move him.
