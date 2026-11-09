@@ -233,3 +233,22 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('a ROM whose teams each have the
     expect(() => openRom(rom)).toThrow('The team data is not stored as one continuous run')
   })
 })
+
+// McMarkis's rebuilt SNES ROMs name their release and link to its forum post:
+// the 32-team one, and the 28-team one with the original game's rosters.
+describe("McMarkis's SNES builds", () => {
+  const snes: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+  const rebuilt = (snes.snesRoms ?? [])
+    .filter((name) => existsSync(path(name)))
+    .map((name) => openRom(new Uint8Array(readFileSync(path(name)))))
+    .filter((project) => project.game.credit)
+  it.skipIf(rebuilt.length === 0)('are credited to the release with their number of teams', () => {
+    for (const project of rebuilt) {
+      const credit = project.game.credit!
+      expect(credit.author).toBe('McMarkis')
+      if (project.teams.length === 28) expect(credit).toMatchObject({ rom: 'SNES NHL 94: Fighting + 60 FPS', url: expect.stringContaining('40596') })
+      if (project.teams.length === 32) expect(credit).toMatchObject({ rom: 'SNES NHL 94: 32 Team + 60 FPS + Fighting', url: expect.stringContaining('40498') })
+    }
+    expect(rebuilt.some((project) => project.teams.length === 28)).toBe(true)
+  })
+})

@@ -1555,7 +1555,7 @@ export function HelpPage() {
       </p>
       <p>
         Where a ROM is someone's own release, the notice names it and its maker, with a link to its official post on
-        the NHL94 forum: NHL 94 EVO by AdamCatalyst, and the SNES NHL 94: 32 Team + 60 FPS + Fighting by McMarkis.
+        the NHL94 forum: NHL 94 EVO by AdamCatalyst, and McMarkis's SNES NHL 94: 32 Team + 60 FPS + Fighting and SNES NHL 94: Fighting + 60 FPS.
         That is where to find the latest version and its notes.
       </p>
       <ul>

@@ -299,15 +299,17 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
         'colours and the game settings, and put in the hacks on the Hacks page, found where this ROM has the code ' +
         'they change. SNES editing is new, so keep a copy of the file you opened.',
     // ROMs rebuilt with the game's code in new places are McMarkis's builds:
-    // his 32-team ROM (2 MB and SA-1), and the same with other teams, such as
-    // his own with the original game's rosters.
+    // his 32-team ROM (2 MB and SA-1), his 28-team one with the original
+    // game's rosters (SA-1), and the same with other teams.
     credit: codeInPlace
       ? undefined
-      : {
-          rom: table.count === 32 ? 'SNES NHL 94: 32 Team + 60 FPS + Fighting' : `a ${table.count}-team build of SNES NHL 94: 32 Team + 60 FPS + Fighting`,
-          author: 'McMarkis',
-          url: 'https://forum.nhl94.com/index.php?/topic/40498-snes-nhl-27-fighting-60-fps/',
-        },
+      : table.count === 28
+        ? { rom: 'SNES NHL 94: Fighting + 60 FPS', author: 'McMarkis', url: 'https://forum.nhl94.com/index.php?/topic/40596-snes-nhl-94-fighting-60-fps/' }
+        : {
+            rom: table.count === 32 ? 'SNES NHL 94: 32 Team + 60 FPS + Fighting' : `a ${table.count}-team build of SNES NHL 94: 32 Team + 60 FPS + Fighting`,
+            author: 'McMarkis',
+            url: 'https://forum.nhl94.com/index.php?/topic/40498-snes-nhl-27-fighting-60-fps/',
+          },
   }
   snesVariants.set(key, config)
   return config
