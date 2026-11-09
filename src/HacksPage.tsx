@@ -31,6 +31,8 @@ import {
   FULL_ENERGY,
   RECOMMENDED_HIT_ENERGY,
   RECOMMENDED_HOLD_ENERGY,
+  RECOMMENDED_INJURY_BONUS,
+  RECOMMENDED_INJURY_CAP,
 } from './core/hacks'
 import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
@@ -780,6 +782,36 @@ export function HacksPage({ project, name, onChange }: Props) {
           <button type="button" disabled={unknown('holdEnergy') || wanted.holdEnergy === RECOMMENDED_HOLD_ENERGY} onClick={() => set({ holdEnergy: RECOMMENDED_HOLD_ENERGY })}>
             Use the recommended {RECOMMENDED_HOLD_ENERGY}
           </button>,
+        )}
+        {hack(
+          'injuryBonus',
+          number('injuryBonus'),
+          <>
+            An option, the other half of the community idea: each knockdown a skater takes makes a later injury a little
+            more likely, and half of it wears off at each intermission. 0 is the original game. Only the few hits that can
+            injure in the original game are affected (a puck carrier knocked onto his back while facing straight up or down
+            the ice, with the clock running), so injuries stay rare: the game rolls 0 to 159 against the hit's impact, and
+            this adds the number to the impact for each knockdown the skater has taken this game, up to the most below.
+            Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}, so a hit that can injure
+            is at most about 6 in 100 more likely to. Knockdowns are counted with line changes on or off. Read from the
+            game's code by the NHL94 Match Viewer project; not yet tested in the game.
+          </>,
+          <button
+            type="button"
+            disabled={unknown('injuryBonus') || (wanted.injuryBonus === RECOMMENDED_INJURY_BONUS && wanted.injuryCap === RECOMMENDED_INJURY_CAP)}
+            onClick={() => set({ injuryBonus: RECOMMENDED_INJURY_BONUS, injuryCap: RECOMMENDED_INJURY_CAP })}
+          >
+            Use the recommended {RECOMMENDED_INJURY_BONUS} and {RECOMMENDED_INJURY_CAP}
+          </button>,
+        )}
+        {hack(
+          'injuryCap',
+          number('injuryCap'),
+          <>
+            The most the knockdowns can add to a hit's impact, however many he has taken: at {wanted.injuryCap}, about{' '}
+            {Math.round((wanted.injuryCap / 160) * 100)} in 100 more on a hit that can injure. Used only when the risk above
+            is more than 0.
+          </>,
         )}
         {hack(
           'goalieDelay',

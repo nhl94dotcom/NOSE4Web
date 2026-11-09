@@ -139,6 +139,9 @@ export interface HackChoices {
   // Energy a skater loses when knocked down, and when a hold or hook catches him (0 to $1000 is empty to full): 0 is the original game.
   hitEnergy: number
   holdEnergy: number
+  // Impact added to an eligible hit's injury roll for each knockdown the skater has taken (0 is the original game), and the most it adds.
+  injuryBonus: number
+  injuryCap: number
   // How fast the puck slows on the ice: it loses 1 / 2^n of its speed a frame, 9 in the original game.
   puckFriction: number
   // Which of the game's colour sets the puck is drawn in.
@@ -200,6 +203,8 @@ export type HackPart =
   | 'fourthPeriodOvertime'
   | 'hitEnergy'
   | 'holdEnergy'
+  | 'injuryBonus'
+  | 'injuryCap'
   | 'puckFriction'
   | 'puckColours'
   | 'netColours'
@@ -258,6 +263,8 @@ export const NO_HACKS: HackChoices = {
   fourthPeriodOvertime: 0,
   hitEnergy: 0,
   holdEnergy: 0,
+  injuryBonus: 0,
+  injuryCap: 10,
   puckFriction: 9,
   puckColours: 'rink',
   netColours: 'rink',
@@ -280,6 +287,8 @@ export const HACK_RANGES = {
   fourthPeriodOvertime: [0, 5999],
   hitEnergy: [0, 1024],
   holdEnergy: [0, 1024],
+  injuryBonus: [0, 10],
+  injuryCap: [1, 60],
   puckFriction: [1, 12],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
@@ -670,8 +679,185 @@ function amountPart(at: Hook, code: (amount: number) => Uint8Array, valueAt: num
     },
   }
 }
-const hitEnergy = amountPart(HIT_HOOK, hitCode, HIT_VALUE_AT)
 const holdEnergy = amountPart(HOLD_HOOK, holdCode, HOLD_VALUE_AT)
+
+// ------------------------------------------------ injury risk from knockdowns
+// The other half of the community idea, from Match Viewer's reading: each
+// knockdown a skater takes raises his chance of being injured by a later
+// hit, a little, up to a cap, and the count halves at every intermission.
+// An injury can only come from the few hits the original game already lets
+// injure (a carrier falling back while facing straight up or down the ice),
+// where FallDown rolls 0 to 159 against the hit's impact ($14428: move.l
+// #$A0,d0 / bsr randomd0 / cmp.w impact(a2),d0 / bgt.w .22): the bonus is
+// added to the impact there, so the chance rises by about bonus / 160.
+// - The counts: a byte a player, 32 a team, at $FFF000 (free in every
+//   recorded game, below the stack and above the plus-minus log at $FFDEF4).
+// - Counting: the knockdown hook at .cont2 also adds 1 for the skater
+//   knocked down (to at most 255), whatever the line changes.
+// - The roll: its 8 bytes become jsr / nop to code that adds count x bonus,
+//   capped, to impact before the same compare, and returns to .22 ($14494)
+//   for no injury.
+// - Each game: StartGame's jsr clearTeamStats ($778C) goes through code that
+//   clears the counts first.
+// - Each intermission: PeriodOver's addq #1,gsp / bchg #gmdir,gmode ($17236)
+//   become jsr / nop to code that halves every count, then does them.
+type Asm = (string | { label: string } | { branch: number; to: string })[]
+// Machine code from hex and short branches to labels in it.
+function assemble(parts: Asm): Uint8Array {
+  const sizes = parts.map((part) => (typeof part === 'string' ? bytes(part).length : 'label' in part ? 0 : 2))
+  const labels: Record<string, number> = {}
+  let at = 0
+  parts.forEach((part, i) => {
+    if (typeof part !== 'string' && 'label' in part) labels[part.label] = at
+    at += sizes[i]
+  })
+  const out = new Uint8Array(at)
+  at = 0
+  parts.forEach((part, i) => {
+    if (typeof part === 'string') out.set(bytes(part), at)
+    else if ('branch' in part) {
+      const distance = labels[part.to] - (at + 2)
+      if (distance <= 0 || distance > 127) throw new Error(`A short branch to ${part.to} cannot reach it.`)
+      out.set([part.branch, distance], at)
+    }
+    at += sizes[i]
+  })
+  return out
+}
+const BEQ = 0x67
+const BNE = 0x66
+const BGT = 0x6e
+const BCC = 0x64
+const BLS = 0x63
+// a0 = the count of player a2: $FFF000, plus 32 for the away team, plus his roster number (d1 used).
+const COUNT_OF_A2: Asm = ['7200 122A 0066 082A 0006 0062', { branch: BEQ, to: 'home' }, '0641 0020', { label: 'home' }, '41F8 F000 D0C1']
+
+// The knockdown hook's code when it counts: the energy part only for an amount.
+const countingHitCode = (amount: number) =>
+  assemble([
+    '48E7 E0F0 4A6A 0034',
+    { branch: BEQ, to: 'done' },
+    '0C6B 000B 0052',
+    { branch: BGT, to: 'done' },
+    ...COUNT_OF_A2,
+    '5210',
+    { branch: BCC, to: 'counted' },
+    '5310',
+    { label: 'counted' },
+    ...(amount > 0
+      ? ['4A78 D058', { branch: BNE, to: 'done' }, '0838 0004 C2FC', { branch: BNE, to: 'done' }, `264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A`]
+      : []),
+    { label: 'done' },
+    '4CDF 0F07 4A6B 0034',
+    { branch: BNE, to: 'return' },
+    '2EBC 0001 4150',
+    { label: 'return' },
+    '4E75',
+  ])
+const COUNTING_VALUE_AT = countingHitCode(0x1234).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
+
+// The knockdown hook: the energy amount, and whether it counts.
+interface HitHook {
+  energy: number
+  counting: boolean
+}
+const hitTarget = (rom: Uint8Array) => {
+  if (readU16(rom, HIT_HOOK.at) !== OP_JSR || readU16(rom, HIT_HOOK.at + 6) !== OP_NOP) return null
+  const to = readU32(rom, HIT_HOOK.at + 2)
+  return to < rom.length ? to : null
+}
+function readHitHook(rom: Uint8Array): (HitHook & { length: number }) | null {
+  const to = hitTarget(rom)
+  if (to === null) return null
+  const energy = (at: number) => (at + 2 <= rom.length ? readU16(rom, to + at) : 0)
+  for (const [code, value] of [
+    [hitCode(energy(HIT_VALUE_AT)), { energy: energy(HIT_VALUE_AT), counting: false }],
+    [countingHitCode(0), { energy: 0, counting: true }],
+    [countingHitCode(energy(COUNTING_VALUE_AT)), { energy: energy(COUNTING_VALUE_AT), counting: true }],
+  ] as const) {
+    if ((code !== countingHitCode(0) || value.energy === 0) && is(rom, to, code)) return { ...value, length: code.length }
+  }
+  return null
+}
+const hitHook: Part<HitHook> = {
+  detect(rom) {
+    if (is(rom, HIT_HOOK.at, HIT_HOOK.original)) return { energy: 0, counting: false }
+    const found = readHitHook(rom)
+    return found ? { energy: found.energy, counting: found.counting } : undefined
+  },
+  remove(rom) {
+    const found = readHitHook(rom)
+    if (!found) return
+    erase(rom, hitTarget(rom)!, found.length)
+    rom.set(HIT_HOOK.original, HIT_HOOK.at)
+  },
+  apply(work, value) {
+    if (value.counting) hook(work, HIT_HOOK, countingHitCode(value.energy))
+    else if (value.energy > 0) hook(work, HIT_HOOK, hitCode(value.energy))
+  },
+}
+
+const ROLL_HOOK: Hook = { at: 0x14432, original: bytes('B06A 0032 6E00 005C') }
+const rollCode = (bonus: number, cap: number) =>
+  assemble([
+    '48E7 6080',
+    ...COUNT_OF_A2,
+    `7400 1410 C4FC ${hex4(bonus)} 0C42 ${hex4(cap)}`,
+    { branch: BLS, to: 'capped' },
+    `343C ${hex4(cap)}`,
+    { label: 'capped' },
+    'D46A 0032 B042 4CDF 0106',
+    { branch: BGT, to: 'safe' },
+    '4E75',
+    { label: 'safe' },
+    '2EBC 0001 4494 4E75',
+  ])
+const ROLL_BONUS_AT = rollCode(0x1234, 0).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
+const ROLL_CAP_AT = rollCode(0, 0x1234).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
+const GAME_HOOK: Hook = { at: 0x778c, original: bytes('4EB9 0001 7102') }
+const GAME_CODE = bytes('48E7 8080 41F8 F000 703F 4218 51C8 FFFC 4CDF 0101 4EF9 0001 7102')
+const PERIOD_HOOK: Hook = { at: 0x17236, original: bytes('5278 C466 0878 0001 C2EA') }
+const PERIOD_CODE = bytes('48E7 C080 41F8 F000 703F 1210 E209 10C1 51C8 FFF8 4CDF 0103 5278 C466 0878 0001 C2EA 4E75')
+// The recommended bonus and cap (Match Viewer): +2 impact a knockdown, at most +10, so an eligible hit's
+// injury chance rises by at most about 6 points in 100.
+export const RECOMMENDED_INJURY_BONUS = 2
+export const RECOMMENDED_INJURY_CAP = 10
+
+interface InjuryRisk {
+  bonus: number
+  cap: number
+}
+const rollTarget = (rom: Uint8Array) => {
+  if (readU16(rom, ROLL_HOOK.at) !== OP_JSR || readU16(rom, ROLL_HOOK.at + 6) !== OP_NOP) return null
+  const to = readU32(rom, ROLL_HOOK.at + 2)
+  if (to + ROLL_CAP_AT + 2 > rom.length) return null
+  return is(rom, to, rollCode(readU16(rom, to + ROLL_BONUS_AT), readU16(rom, to + ROLL_CAP_AT))) ? to : null
+}
+const injuryRisk: Part<InjuryRisk> = {
+  detect(rom) {
+    const plain = [ROLL_HOOK, GAME_HOOK, PERIOD_HOOK].map((each) => is(rom, each.at, each.original))
+    if (plain.every(Boolean)) return { bonus: 0, cap: NO_HACKS.injuryCap }
+    const roll = rollTarget(rom)
+    if (roll === null || hooked(rom, GAME_HOOK, GAME_CODE) === null || hooked(rom, PERIOD_HOOK, PERIOD_CODE) === null) return undefined
+    return { bonus: readU16(rom, roll + ROLL_BONUS_AT), cap: readU16(rom, roll + ROLL_CAP_AT) }
+  },
+  remove(rom) {
+    const roll = rollTarget(rom)
+    const game = hooked(rom, GAME_HOOK, GAME_CODE)
+    const period = hooked(rom, PERIOD_HOOK, PERIOD_CODE)
+    if (roll === null || game === null || period === null) return
+    erase(rom, roll, rollCode(0, 0).length)
+    erase(rom, game, GAME_CODE.length)
+    erase(rom, period, PERIOD_CODE.length)
+    for (const each of [ROLL_HOOK, GAME_HOOK, PERIOD_HOOK]) rom.set(each.original, each.at)
+  },
+  apply(work, value) {
+    if (value.bonus <= 0) return
+    hook(work, ROLL_HOOK, rollCode(value.bonus, value.cap))
+    hook(work, GAME_HOOK, GAME_CODE)
+    hook(work, PERIOD_HOOK, PERIOD_CODE)
+  },
+}
 
 // ------------------------------------------------------ plus-minus statistic
 // Keeps each player's plus-minus where a save state can be read for it. The
@@ -1659,6 +1845,10 @@ export function detectHacks(rom: Uint8Array): HackState {
     return value ?? otherwise
   }
   const scale = found('ratings', ratings.detect(rom), { wide: NO_HACKS.wideRatings, bonuses: NO_HACKS.bonuses })
+  // The knockdown hook counts exactly when the injury risk is in.
+  const hit = hitHook.detect(rom)
+  const risk = injuryRisk.detect(rom)
+  const injury = risk && hit && hit.counting === risk.bonus > 0 ? risk : undefined
   const choices: HackChoices = {
     weightFix: found('weightFix', weightFix.detect(rom), NO_HACKS.weightFix),
     bodychecks: found('bodychecks', bodychecks.detect(rom), NO_HACKS.bodychecks),
@@ -1703,8 +1893,10 @@ export function detectHacks(rom: Uint8Array): HackState {
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
     introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
     fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
-    hitEnergy: found('hitEnergy', hitEnergy.detect(rom), NO_HACKS.hitEnergy),
+    hitEnergy: found('hitEnergy', hit?.energy, NO_HACKS.hitEnergy),
     holdEnergy: found('holdEnergy', holdEnergy.detect(rom), NO_HACKS.holdEnergy),
+    injuryBonus: found('injuryBonus', injury?.bonus, NO_HACKS.injuryBonus),
+    injuryCap: found('injuryCap', injury?.cap, NO_HACKS.injuryCap),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
@@ -1771,7 +1963,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
     ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
     ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
-    ['hitEnergy', () => hitEnergy.remove(work.rom), () => hitEnergy.apply(work, wanted.hitEnergy)],
+    ['hitEnergy', () => hitHook.remove(work.rom), () => hitHook.apply(work, { energy: wanted.hitEnergy, counting: wanted.injuryBonus > 0 })],
+    ['injuryBonus', () => injuryRisk.remove(work.rom), () => injuryRisk.apply(work, { bonus: wanted.injuryBonus, cap: wanted.injuryCap })],
     ['holdEnergy', () => holdEnergy.remove(work.rom), () => holdEnergy.apply(work, wanted.holdEnergy)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
@@ -1841,7 +2034,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1994,6 +2187,8 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   introWait: 'Intro screen wait',
   fourthPeriodOvertime: 'Fourth period length, with its own overtime',
   hitEnergy: 'Energy lost when knocked down',
+  injuryBonus: 'Injury risk added by each knockdown',
+  injuryCap: 'Most injury risk knockdowns can add',
   holdEnergy: 'Energy lost when held or hooked',
   puckFriction: 'Puck friction',
   puckColours: 'Puck colours',
@@ -2047,6 +2242,8 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   introWait: 'introWait',
   fourthPeriodOvertime: 'fourthPeriodOvertime',
   hitEnergy: 'hitEnergy',
+  injuryBonus: 'injuryBonus',
+  injuryCap: 'injuryCap',
   holdEnergy: 'holdEnergy',
   puckFriction: 'puckFriction',
   puckColours: 'puckColours',

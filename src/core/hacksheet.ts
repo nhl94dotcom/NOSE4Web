@@ -87,6 +87,9 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   noIcing: () => 'Icing is never called.',
   hitEnergy: (c) =>
     `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
+  injuryBonus: (c) =>
+    `Each knockdown a skater takes adds ${c.injuryBonus} to the impact of a later hit that can injure him (at most ${c.injuryCap}, about ${Math.round((c.injuryCap / 160) * 100)} in 100 more), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
+  injuryCap: (c) => `The injury risk knockdowns add is at most ${c.injuryCap} impact, about ${Math.round((c.injuryCap / 160) * 100)} in 100 more on a hit that can injure.`,
   holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   fourthPeriodOvertime: (c) =>
     `The menu offers a fourth period length, and a regular-season game on it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
@@ -121,7 +124,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'hitEnergy', 'holdEnergy']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
   ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]

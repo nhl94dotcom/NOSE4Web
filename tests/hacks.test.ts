@@ -276,6 +276,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { hitEnergy: 204 },
       { holdEnergy: 102 },
       { hitEnergy: 204, holdEnergy: 102 },
+      { injuryBonus: 2 },
+      { injuryBonus: 2, injuryCap: 12, hitEnergy: 204 },
     ]
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }
@@ -359,6 +361,42 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
     expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 1025 })).toThrow('from 0 to 1024')
+  })
+
+  it('counts knockdowns, adds them to the injury roll, clears them each game and halves them each intermission', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    expect(at(opened.bytes, 0x14428, 18)).toBe('203c000000a06100cc56b06a00326e00005c')
+    expect(at(opened.bytes, 0x778c, 6)).toBe('4eb900017102')
+    expect(at(opened.bytes, 0x17236, 10)).toBe('5278c46608780001c2ea')
+    const hacked = applyHacks(opened, { ...NO_HACKS, injuryBonus: 2, injuryCap: 10 }).bytes
+    // a0 = $FFF000 + 32 for the away team + roster number, used by the count and the roll.
+    const countOfA2 = '7200122a0066082a000600626704064100204 1f8f000d0c1'.replace(' ', '')
+    const hit = readU32(hacked, 0x14118)
+    // Skater a2, player a3; count +1 to 255; no energy part; .cont2's test.
+    expect(at(hacked, hit, 66)).toBe(`48e7e0f04a6a003467260c6b000b00526e1e${countOfA2}521064025310` + '4cdf0f074a6b003466062ebc000141504e75')
+    // The roll: count x 2, at most 10, added to impact before the compare; .22 ($14494) for no injury.
+    expect(at(hacked, 0x14432, 2) + at(hacked, 0x14438, 2)).toBe('4eb94e71')
+    const roll = readU32(hacked, 0x14434)
+    expect(at(hacked, roll, 68)).toBe(`48e76080${countOfA2}74001410c4fc00020c42000a6304343c000a` + 'd46a0032b0424cdf01066e024e752ebc000144944e75')
+    // Each game: clear the 64 bytes, then clearTeamStats.
+    expect(at(hacked, readU32(hacked, 0x778e), 26)).toBe('48e7808041f8f000703f421851c8fffc4cdf01014ef900017102')
+    // Each intermission: halve every count, then PeriodOver's own two instructions.
+    expect(at(hacked, 0x17236, 2) + at(hacked, 0x1723c, 4)).toBe('4eb94e714e71')
+    expect(at(hacked, readU32(hacked, 0x17238), 36)).toBe('48e7c08041f8f000703f1210e20910c151c8fff84cdf01035278c46608780001c2ea4e75')
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, injuryBonus: 2, injuryCap: 10 }, unknown: [] })
+    // With the energy too, the knockdown code takes it after counting; and each comes out on its own.
+    const both = applyHacks(openRom(hacked), { ...NO_HACKS, injuryBonus: 2, injuryCap: 10, hitEnergy: 204 })
+    expect(detectHacks(both.bytes).choices).toMatchObject({ injuryBonus: 2, injuryCap: 10, hitEnergy: 204 })
+    const energyOnly = applyHacks(both, { ...NO_HACKS, hitEnergy: 204 }).bytes
+    // The energy alone is the code Match Viewer played, byte for byte.
+    expect(Buffer.compare(energyOnly, applyHacks(opened, { ...NO_HACKS, hitEnergy: 204 }).bytes)).toBe(0)
+    expect(Buffer.compare(applyHacks(both, NO_HACKS).bytes, opened.bytes)).toBe(0)
+    // A count hook without the roll (or the other way round) is not a state the editor makes: unknown, left alone.
+    const half = hacked.slice()
+    half.set([0xb0, 0x6a, 0x00, 0x32, 0x6e, 0x00, 0x00, 0x5c], 0x14432)
+    expect(detectHacks(half).unknown).toContain('injuryBonus')
+    expect(() => applyHacks(opened, { ...NO_HACKS, injuryBonus: 11 })).toThrow('from 0 to 10')
   })
 
   it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {
