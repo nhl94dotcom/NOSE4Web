@@ -3,11 +3,12 @@ import { ALL_PARTS, importTeam, type ImportParts } from './core/importteam'
 import { openRom, type RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 
-const PARTS: { key: keyof ImportParts; label: string }[] = [
+// `snes` is the label for the SNES game, where it differs.
+const PARTS: { key: keyof ImportParts; label: string; snes?: string }[] = [
   { key: 'names', label: 'Names' },
   { key: 'roster', label: 'Roster and lines' },
-  { key: 'colours', label: 'Home and away colours' },
-  { key: 'pictures', label: 'Logos, banners and banner colours' },
+  { key: 'colours', label: 'Home and away colours', snes: 'Home and away colours, and name banner colours' },
+  { key: 'pictures', label: 'Logos, banners and banner colours', snes: 'Logos: team, centre ice and score logos' },
   { key: 'photos', label: 'Player photos (with the roster)' },
 ]
 
@@ -125,14 +126,14 @@ export function ImportTeamPage({ project, onChange }: Props) {
             </label>
           </div>
           <p>
-            {PARTS.filter((part) => project.game.platform === 'genesis' || part.key !== 'pictures').map((part) => (
+            {PARTS.map((part) => (
               <label key={part.key} className="choice">
                 <input
                   type="checkbox"
                   checked={parts[part.key] ?? false}
                   onChange={(e) => setParts({ ...parts, [part.key]: e.target.checked })}
                 />{' '}
-                {part.label}
+                {project.game.platform === 'snes' ? (part.snes ?? part.label) : part.label}
               </label>
             ))}
           </p>

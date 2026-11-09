@@ -28,6 +28,7 @@ import { SnesPhotosEditor } from './SnesPhotosEditor'
 import { AddScoreLogos, SnesScoreLogoEditor } from './SnesScoreLogoEditor'
 import { snesScoreLogosSupported } from './core/snesscorelogos'
 import { snesPhotosSupported } from './core/snesphotos'
+import { snesPictureKinds } from './core/snespictureset'
 import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { HacksPage } from './HacksPage'
@@ -43,6 +44,7 @@ import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
+import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
@@ -420,6 +422,7 @@ export default function App() {
                       <AddScoreLogos project={current} onChange={change} />
                     )}
                     {snesPhotosSupported(current) && <SnesPhotosEditor project={current} team={selected} onChange={change} />}
+                    <SnesCopyTeamSection project={current} team={selected} onChange={change} />
                   </>
                 )
               )
@@ -534,7 +537,7 @@ export default function App() {
           {entry(IMPORT_TEAM, 'Import a team')}
           {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
           {entry(CSV, 'Spreadsheet files')}
-          {(project.graphicsSupported || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
+          {(project.graphicsSupported || snesPictureKinds(project).length > 0 || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(CHANGES, changes > 0 ? `Changes (${changes})` : 'Changes')}

@@ -619,7 +619,9 @@ export function HelpPage() {
       </p>
       <p>
         <b>Copy to another team</b>, at the foot of a team's page, copies its colours, its logos and banners, or
-        both, over another team's. It is a quick way to start a new team from one that looks similar.
+        both, over another team's. It is a quick way to start a new team from one that looks similar. On the SNES it
+        copies the home and away colours with the name banner colours, and the team logo, centre ice logo and score
+        logo; a centre ice logo that other teams share in the ROM changes for them too, as when it is replaced.
       </p>
 
       <h3 id="help-picturefiles">Picture files</h3>
@@ -651,7 +653,9 @@ export function HelpPage() {
           Each goes back to the player of its name on that team, wherever he now is on the roster, so a set of
           photos carries to next season's ROM. A photo may be any size, as when imported on the team page. On the
           Genesis a player who is not among the featured players is added to them. On the SNES, Picture files
-          holds only the photos.
+          holds the team logos, the centre ice logos (named <code>centre_ice</code>) and, where the ROM has them, the
+          score logos (<code>score_logo</code>), as <code>02_Boston_Bruins_logo.png</code> and the like, alongside
+          the photos.
         </li>
         <li>
           Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
@@ -1302,6 +1306,12 @@ export function HelpPage() {
           Banners that every team shares in this ROM are also left alone.
         </li>
         <li>The centre-ice logo is drawn with the home colours, so bring the colours with it.</li>
+        <li>
+          On the SNES, <b>Logos</b> brings the team logo, the centre ice logo and the score logo. The centre ice logo
+          is matched to the colours this ROM draws it in, or, in a build that gives each team centre ice colours of
+          its own, brings the colours it shows; teams that share it here get it too. A team whose score box shows its
+          letters in the other ROM shows them here as well, and a ROM without score logos leaves this one's alone.
+        </li>
         <li>A bigger roster needs more room; the space meter shows whether it fits.</li>
       </ul>
 
@@ -1601,7 +1611,8 @@ export function HelpPage() {
           to 14), and 15 is its frame; 7 and 8 also colour the stripes on the player card's team page. Colour 0 is
           see-through, and colour 1 is not the block's but the menu text while the team is the visitors, so neither is
           offered, nor changed by Import a team. Where two teams share them, the changed ones go into free space so the
-          other team keeps its own. Import a team brings the name and the colours. ROMs
+          other team keeps its own. Import a team brings the name and the colours, and its logos too: the team logo,
+          the centre ice logo (matched to the colours this ROM draws it in) and the score logo. ROMs
           rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the

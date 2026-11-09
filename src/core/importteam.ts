@@ -15,9 +15,23 @@ import {
   withBanner,
   withBannerColors,
   withRinkLogo,
+  pictureToImage,
   writeGraphics,
   type BannerKind,
 } from './graphics'
+import { SNES_COLORS } from './color'
+import { scoreLogoFromImage, snesScoreLogo, snesScoreLogosSupported, withoutSnesScoreLogo, withSnesScoreLogo, blankScoreLogo } from './snesscorelogos'
+import {
+  centreIceInOwnColours,
+  NO_SNES_PICTURE_EDITS,
+  snesCentreIce,
+  snesCentreIceFromImage,
+  snesCentreIceSharedWith,
+  snesLogo,
+  snesPicturesSupported,
+  withSnesCentreIceColours,
+  writeSnesPictures,
+} from './snespictures'
 import { convertWeight, isRating, weightBase, type AttributeKind } from './attributes'
 import { NHL94 } from './games'
 import { importPhotos } from './photoimport'
@@ -140,7 +154,11 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
     }
   }
 
-  if (parts.pictures) {
+  if (parts.pictures && project.game.platform === 'snes' && other.game.platform === 'snes') {
+    next = importSnesPictures(next, other, from, to, notes)
+  } else if (parts.pictures && project.game.platform !== other.game.platform) {
+    notes.push('Logos and banners were left alone: the two games keep them in different ways.')
+  } else if (parts.pictures) {
     if (!project.graphicsSupported || !other.graphicsSupported) {
       notes.push('Logos and banners were left alone: one of the two ROMs keeps them in a way the editor cannot read.')
     } else {
@@ -211,6 +229,69 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
       notes.push(`${name} left alone: in this ROM every team shows the same one. Give the logos and banners more room first if each team should have its own.`)
     } else {
       attempt(name, (p) => ({ ...p, graphics: withBanner(p, ours, to, banner(other, theirs, from)) }))
+    }
+  }
+  return next
+}
+
+// The SNES game's team logo, centre ice logo and score logo, each tried on
+// its own. The centre ice logo is matched to the colours this team's is drawn
+// in (or, where it has colours of its own, given the colours it shows), and
+// goes to the teams that share it here too, as on the team page.
+function importSnesPictures(project: RomProject, other: RomProject, from: number, to: number, notes: string[]): RomProject {
+  let next = project
+  const [ours, theirs] = [project.teams.length, other.teams.length]
+  const attempt = (name: string, make: (current: RomProject) => RomProject) => {
+    try {
+      const made = make(next)
+      writeSnesPictures(made.bytes.slice(), made.teams.length, made.snesPictures ?? NO_SNES_PICTURE_EDITS)
+      next = made
+      notes.push(`${name} brought in.`)
+    } catch (e) {
+      notes.push(`${name} left alone: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  if (!snesPicturesSupported(project.bytes, ours) || !snesPicturesSupported(other.bytes, theirs)) {
+    notes.push('Logos were left alone: one of the two ROMs keeps them in a way the editor cannot read.')
+  } else {
+    const theirEdits = other.snesPictures ?? NO_SNES_PICTURE_EDITS
+    attempt('Team logo', (p) => {
+      const edits = p.snesPictures ?? NO_SNES_PICTURE_EDITS
+      return { ...p, snesPictures: { ...edits, logos: { ...edits.logos, [to]: snesLogo(other.bytes, theirs, theirEdits, from) } } }
+    })
+    const shared = snesCentreIceSharedWith(project.bytes, ours, to)
+    const sharedNote = shared.length > 0 ? ` (and for ${shared.map((t) => teamDisplayName(project.teams[t])).join(', ')}, which share it here)` : ''
+    attempt(`Centre ice logo${sharedNote}`, (p) => {
+      const edits = p.snesPictures ?? NO_SNES_PICTURE_EDITS
+      const source = snesCentreIce(other.bytes, theirs, theirEdits, from, other.rinkPalette)
+      const like = snesCentreIce(p.bytes, ours, edits, to, p.rinkPalette)
+      let bytes = p.bytes
+      let picture
+      if (like.ownColours) {
+        const own = centreIceInOwnColours(source.picture, source.palette)
+        bytes = p.bytes.slice()
+        withSnesCentreIceColours(bytes, ours, to, own.colours)
+        picture = own.picture
+      } else {
+        picture = snesCentreIceFromImage(pictureToImage(source.picture, source.palette, SNES_COLORS), source.picture.width, source.picture.height, like)
+      }
+      const centreIce = { ...edits.centreIce }
+      for (const t of [to, ...shared]) centreIce[t] = picture
+      return { ...p, bytes, snesPictures: { ...edits, centreIce } }
+    })
+  }
+  if (snesScoreLogosSupported(project)) {
+    const logo = snesScoreLogosSupported(other) ? snesScoreLogo(other, from) : null
+    if (!snesScoreLogosSupported(other)) {
+      notes.push('Score logo left alone: the other ROM has no score logos.')
+    } else if (!logo) {
+      attempt('Score logo (the team shows its letters)', (p) => (snesScoreLogo(p, to) ? withoutSnesScoreLogo(p, to) : p))
+    } else {
+      attempt('Score logo', (p) => {
+        // Matched to this ROM's black and ring, which every score logo shares.
+        const made = scoreLogoFromImage(pictureToImage(logo.picture, logo.palette, SNES_COLORS), logo.picture.width, logo.picture.height, (snesScoreLogo(p, to) ?? blankScoreLogo()).palette)
+        return withSnesScoreLogo(p, to, made.picture, made.palette)
+      })
     }
   }
   return next

@@ -85,7 +85,9 @@ That licence does not cover:
 - NHL '94 for the SNES too: rosters (with the unused room at the end of
   the teams' bank as more room for them), lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,
-  team logos and centre ice logos as PNG images, name banner colours, the main menu's starting
+  team logos and centre ice logos as PNG images (one at a time or every team's in
+  Picture files), name banner colours, copying a team's colours and logos to
+  another, the main menu's starting
   choices, and the disassembly's hacks, among them the fix for the SNES hot and cold
   bug, with spreadsheets, project files, trades,
   checking and comparing, from the community's SNES disassembly,

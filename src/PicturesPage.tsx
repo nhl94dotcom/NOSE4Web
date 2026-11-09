@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { importPictureSet, pictureKinds, pictureSet, pictureTitle, type PictureSetResult } from './core/pictureset'
 import { anyPhotos, identifyPhotoFile, importPhotoSet, photoSet } from './core/photoset'
 import type { RomProject } from './core/rom'
+import { importSnesPictureSet, snesPictureKinds, snesPictureSet, snesPictureTitle } from './core/snespictureset'
+import { SNES_COLORS } from './core/color'
 import { createZip, isZip, readZip } from './core/zip'
 import { download } from './download'
 import { pictureToPng, readImage } from './images'
@@ -24,9 +26,13 @@ export function PicturesPage({ project, setName, onChange }: Props) {
   const [grew, setGrew] = useState(0)
   // Whether files go to the team named in them, or to the team at their number.
   const [byName, setByName] = useState(false)
-  const logos = project.graphicsSupported
-  const kinds = logos ? pictureKinds(project) : []
-  const set = logos ? pictureSet(project) : []
+  // The SNES game's logos, centre ice logos and score logos; the Genesis game's logos and banners.
+  const snes = project.game.platform === 'snes'
+  const snesKinds = snesPictureKinds(project)
+  const logos = snes ? snesKinds.length > 0 : project.graphicsSupported
+  const titles = snes ? snesKinds.map((kind) => snesPictureTitle(kind)) : logos ? pictureKinds(project).map((kind) => pictureTitle(project, kind)) : []
+  const set = snes ? snesPictureSet(project) : logos ? pictureSet(project) : []
+  const what = snes ? 'logos' : 'logos and banners'
   const photos = photoSet(project)
 
   async function exportAll() {
@@ -34,7 +40,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
     setError('')
     try {
       const files = []
-      for (const entry of set) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette) })
+      for (const entry of set) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette, snes ? SNES_COLORS : undefined) })
       for (const entry of photos) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette, entry.format) })
       download(createZip(files), `${setName}_pictures.zip`, 'application/zip')
     } catch (e) {
@@ -75,12 +81,12 @@ export function PicturesPage({ project, setName, onChange }: Props) {
       const photoFiles = images.filter((image) => identifyPhotoFile(image.name))
       const pictureFiles = images.filter((image) => !identifyPhotoFile(image.name))
       const pictures = logos
-        ? importPictureSet(project, pictureFiles, { byName })
+        ? (snes ? importSnesPictureSet : importPictureSet)(project, pictureFiles, { byName })
         : {
             project,
             replaced: [],
             unchanged: 0,
-            problems: pictureFiles.map((file) => `${file.name}: this ROM's logos and banners are not in picture files.`),
+            problems: pictureFiles.map((file) => `${file.name}: this ROM's ${what} are not in picture files.`),
           }
       const faces = importPhotoSet(pictures.project, photoFiles, byName)
       if (pictures.replaced.length + faces.replaced.length > 0) onChange(faces.project)
@@ -101,7 +107,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
     <main className="team help">
       <h2>Picture files</h2>
       <p className="note">
-        Every team's {logos ? 'logos and banners' : ''}
+        Every team's {logos ? what : ''}
         {logos && anyPhotos(project) ? ', and ' : ''}
         {anyPhotos(project) ? "the players' own photos" : ''} as PNG files in one zip, the way the spreadsheet files hold everything else. Use it to
         carry artwork to next season's ROM, to edit many pictures in one sitting, or to keep a copy.
@@ -114,7 +120,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           </button>{' '}
           <span className="note">
             {count(set.length + photos.length, 'picture')} in {setName}_pictures.zip
-            {kinds.length > 0 && `: ${kinds.map((kind) => pictureTitle(project, kind).toLowerCase()).join(', ')} for each team. One that several teams share is in it once`}
+            {titles.length > 0 && `: ${titles.map((title) => title.toLowerCase()).join(', ')} for each team. One that several teams share is in it once`}
             {photos.length > 0 && `. ${count(photos.length, 'player photo')} in its photos folder, a folder for each team and a file for each player with a photo of his own, named after him`}
             .
           </span>
@@ -151,7 +157,8 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           </span>
         </p>
         <p className="note">
-          A file is matched to its team and picture by its name, such as 03_Buffalo_Sabres_menu_logo.png: the number at
+          A file is matched to its team and picture by its name, such as{' '}
+          {snes ? '03_Buffalo_Sabres_centre_ice.png' : '03_Buffalo_Sabres_menu_logo.png'}: the number at
           the start is the team's place in the list, and the end says which picture. The team name in the middle is
           only for you. Files showing what the editor has already are skipped, so only pictures you changed are
           replaced. Each must be the same size as the picture it replaces. A player photo, in the photos folder,

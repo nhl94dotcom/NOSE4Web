@@ -7,6 +7,7 @@ import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 import { snesBlockColours } from '../src/core/snesblockcolours'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
+import { currentSnesPicture } from '../src/core/snespictureset'
 import { createZip, readZip } from '../src/core/zip'
 
 // Most of these need a ROM, which is copyrighted and not part of the project.
@@ -2104,6 +2105,38 @@ test.describe('with the SNES game', () => {
     expect(rom.settings.playoffDraws.flat().every((t) => t < 20)).toBe(true)
     expect(rom.settings.menu.map((item) => item.value)).toEqual([0, 1, 10, 1, 0, 2, 1])
     expect(rom.rinkPalette[1] & 0x1f).toBe(3)
+  })
+
+  test("exports and imports every team's logos as picture files, and copies a team's logos and colours", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    const main = page.locator('main')
+    await entry(page, 'Picture files').click()
+    const zip = new Uint8Array(readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Export all pictures' }))).path()))
+    const files = await readZip(zip)
+    const pictures = files.filter((f) => !f.name.startsWith('photos/'))
+    expect(pictures.filter((f) => /^\d\d_.*_logo\.png$/.test(f.name))).toHaveLength(28)
+    expect(pictures.map((f) => f.name)).toContain('02_Boston_Bruins_centre_ice.png')
+    // Brought straight back in, nothing changes.
+    await main.locator('input[type=file]').setInputFiles({ name: 'pictures.zip', mimeType: 'application/zip', buffer: Buffer.from(zip) })
+    await expect(main.getByText(`Replaced 0 pictures. ${files.length} files matched what was there already.`)).toBeVisible()
+
+    // Boston's colours and logos copied to Buffalo.
+    await team(page, 'Boston Bruins').click()
+    const copy = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Copy to another team' }) })
+    await copy.getByLabel('Team to copy colours and logos to').selectOption('2')
+    await copy.getByRole('button', { name: 'Copy from Boston Bruins to' }).click()
+    await expect(copy.getByText('Team logo copied.')).toBeVisible()
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    const opened = readRom(new Uint8Array(readFileSync(snesPath)))
+    const look = (project: typeof rom, t: number, kind: 'logo' | 'centreIce') => {
+      const p = currentSnesPicture(project, t, kind)!
+      return [Array.from(p.picture.pixels), p.palette.map((w) => w & 0x7fff)]
+    }
+    expect(look(rom, 2, 'logo')).toEqual(look(opened, 1, 'logo'))
+    expect(rom.teams[2].palette).toEqual(opened.teams[1].palette)
+    expect(look(rom, 1, 'logo')).toEqual(look(opened, 1, 'logo'))
+    expect(look(rom, 3, 'logo')).toEqual(look(opened, 3, 'logo'))
   })
 
   test("changes a team's name banner colours and resets them", async ({ page }) => {
