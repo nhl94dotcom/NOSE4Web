@@ -6,7 +6,7 @@ import { SNES_COLORS } from '../src/core/color'
 import { pictureToImage } from '../src/core/graphics'
 import { importTeam } from '../src/core/importteam'
 import { buildRom, openRom } from '../src/core/rom'
-import { snesBlockColours } from '../src/core/snesblockcolours'
+import { snesBlockColours, withSnesBlockColours } from '../src/core/snesblockcolours'
 import { snesPlaceNameRoom } from '../src/core/snesplacenames'
 import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
 
@@ -34,6 +34,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES banner names', () => {
     const long = { ...project, teams: project.teams.map((team) => ({ ...team, placeName: 'A very long place name' })) }
     expect(checkProject(long).some((finding) => finding.where === 'Banner names' && finding.level === 'problem')).toBe(true)
     expect(openRom(buildRom(long)).teams[0].placeName).toBe('Anaheim')
+  })
+})
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('SNES name banner colours', () => {
+  it('are set from colour 2 on; colours 0 and 1, the menu text, stay as they were', () => {
+    const project = open('NHL94.smc')
+    const before = snesBlockColours(project, 1)!
+    const given = Array.from({ length: 16 }, (_, i) => 0x1000 + i)
+    const after = snesBlockColours(openRom(buildRom(withSnesBlockColours(project, 1, given))), 1)!
+    expect(after).toEqual([before[0], before[1], ...given.slice(2)])
+    expect(after[1]).toBe(0x6f7b)
   })
 })
 

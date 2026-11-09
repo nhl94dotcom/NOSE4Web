@@ -2111,11 +2111,11 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     await team(page, 'Boston Bruins').click()
     const banner = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Name banner colours' }) })
-    await expect(banner.locator('.swatch')).toHaveCount(15)
+    await expect(banner.locator('.swatch')).toHaveCount(14)
     const reset = banner.getByRole('button', { name: 'Reset banner colours' })
     await expect(reset).toBeDisabled()
-    // Colour 3, in the first run of shades.
-    await banner.locator('.swatch').nth(2).click()
+    // Colour 3, in the first run of shades (colours 0 and 1 are not offered).
+    await banner.locator('.swatch').nth(1).click()
     await banner.getByLabel(/^Red/).fill('31')
     await expect(reset).toBeEnabled()
     const opened = readRom(new Uint8Array(readFileSync(snesPath)))
