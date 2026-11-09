@@ -2089,6 +2089,41 @@ test.describe('with the SNES game', () => {
     expect(sheet).toContain("<dt>Extra attacker fix</dt><dd>In Edit Lines, picking a line's extra attacker")
   })
 
+  test('puts in any skater at any position, which the line editor then allows, and when the computer pulls its goalie', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    const main = page.locator('main')
+    await team(page, 'Boston Bruins').click()
+    const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+    const ld = lines.locator('tbody tr').first().locator('select').nth(1)
+    const skaters = await rows(page, 'Skaters').count()
+    expect(await ld.locator('option').count()).toBeLessThan(skaters)
+
+    // Any skater at any position turns the extra attacker fix on with it; max boost turns the hot and cold fix off.
+    await entry(page, 'Hacks').click()
+    await main.getByLabel('Hot and cold bug fix').selectOption('on')
+    await main.getByLabel('Any skater at any position in Edit Lines').selectOption('on')
+    await expect(main.getByLabel('Extra attacker fix')).toHaveValue('on')
+    await main.getByLabel('Show the maximum boost in Edit Lines').selectOption('on')
+    await expect(main.getByLabel('Hot and cold bug fix')).toHaveValue('off')
+    await main.getByLabel('Pull the goalie with L and R').selectOption('on')
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(main.getByText(/^Done: 4 changes/)).toBeVisible()
+
+    await team(page, 'Boston Bruins').click()
+    await expect(ld.locator('option')).toHaveCount(skaters)
+
+    await entry(page, 'Game settings').click()
+    await expect(main.getByRole('heading', { name: 'Computer pulls its goalie' })).toBeVisible()
+    await expect(main.getByLabel('Most goals behind to pull the goalie')).toHaveValue('2')
+    await main.getByLabel('Most goals behind to pull the goalie').fill('3')
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const again = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(again.settings.cpuPullGoalie).toEqual({ goalsUnder: 4, secondsUnder: 61 })
+    const hacks = detectSnesHacks(again.bytes).choices
+    expect([hacks.forwardsAndDefence, hacks.extraAttackerFix, hacks.showMaxBoost, hacks.hotColdFix, hacks.manualPullGoalie]).toEqual([true, true, true, false, true])
+  })
+
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)

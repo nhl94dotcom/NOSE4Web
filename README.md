@@ -111,6 +111,9 @@ That licence does not cover:
   options for the computer's goalie pull and the goalie's five-hole blind
   ring, and, on the SNES, NHL94SNESVault's extra attacker fix and a Y button
   fix, all tested in the game with the NHL94 Match Viewer project
+- On the SNES, NHL94SNESVault's hacks for Edit Lines (any skater at any
+  position, and the maximum boost of the hot and cold bug shown) and for
+  pulling the goalie with L and R, and when the computer pulls its goalie
 - From the same project's readings, also tested in the game: the comeback
   bonus fix for the SNES, and options for pulled-goalie sniping (every shot
   exact while the shooter's own goalie is off the ice), the computer

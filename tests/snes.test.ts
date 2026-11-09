@@ -149,7 +149,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         })
         expect(changedElsewhere).toEqual([])
         // The hacks still go in, none of them into the teams' bank.
-        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => !detectSnesHacks(reopened.bytes).unknown.includes(hack)).map((hack) => [hack, true]))
+        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && !detectSnesHacks(reopened.bytes).unknown.includes(hack)).map((hack) => [hack, true]))
         const hacked = applySnesHacks(reopened, hacks)
         expect(hacked.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000)).toEqual(
           reopened.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000),
@@ -377,9 +377,9 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
       const project = openRom(read(name))
       const before = detectSnesHacks(project.bytes)
       // Every hack is found, wherever the ROM's code is, but the extra attacker fix, which uses the original game's
-      // work memory and so is offered only in ROMs laid out as the original.
-      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['extraAttackerFix'])
-      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => !before.unknown.includes(hack)).map((hack) => [hack, true]))
+      // work memory, and the hacks of Edit Lines and the pads, all offered only in ROMs laid out as the original.
+      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['extraAttackerFix', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'])
+      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && !before.unknown.includes(hack)).map((hack) => [hack, true]))
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
       // The 30-second periods offer a fourth period length on the menu.
@@ -459,7 +459,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
     // The hacks are found by the code around them; those that need to know where the game's variables are cannot
     // be put in, as that is read from the colour loader changed here.
-    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix'])
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)

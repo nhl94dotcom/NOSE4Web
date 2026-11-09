@@ -9,7 +9,7 @@ import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { lineupRatings } from './core/league'
-import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot } from './core/lines'
+import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot as suitsSlotFor } from './core/lines'
 import { overallRating } from './core/rating'
 import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
 import {
@@ -38,6 +38,8 @@ function cleanText(text: string): string {
 
 interface Props {
   game: GameConfig
+  // Whether the ROM's Edit Lines puts any skater at any position (an SNES hack).
+  anyPosition?: boolean
   team: Team
   // The team as it is in the ROM that was opened, for resetting to.
   original: Team
@@ -90,7 +92,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
@@ -210,6 +212,7 @@ export function TeamEditor(props: Props) {
       onChange={(e) => setTickedLines(e.target.checked ? [...tickedLines, l].sort((a, b) => a - b) : tickedLines.filter((i) => i !== l))}
     />
   )
+  const suitsSlot = (t: Team, slot: number, position: number) => suitsSlotFor(t, slot, position, anyPosition)
   // Each position offers only the players it is for: goalies in goal, defence
   // on defence, forwards up front, and any skater as the extra attacker. One
   // the ROM already has out of his role is kept, and shown as such.

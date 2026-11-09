@@ -4,7 +4,7 @@ import { hackDifferences, hacksSupported } from './hacks'
 import { snesHackDifferences } from './sneshacks'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
-import { menuOptions } from './settings'
+import { menuOptions, pullGoalieText } from './settings'
 import { goalieCount, teamDisplayName, teamLabels, type Player, type Team } from './team'
 import { projectTeamRatings } from './ppfix'
 import { teamRatings, type TeamRating } from './teamratings'
@@ -148,6 +148,10 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
   if (now.overtimeSeconds !== old.overtimeSeconds) clock.push(`Overtime: ${old.overtimeSeconds} to ${now.overtimeSeconds} seconds.`)
   if (now.shootoutSeconds !== old.shootoutSeconds) clock.push(`Shootout: ${old.shootoutSeconds} to ${now.shootoutSeconds} seconds.`)
   add('Clock', clock)
+  const [pullNow, pullWas] = [now.cpuPullGoalie, old.cpuPullGoalie]
+  if (pullNow && pullWas && (pullNow.goalsUnder !== pullWas.goalsUnder || pullNow.secondsUnder !== pullWas.secondsUnder)) {
+    add('Computer pulls its goalie', [`${pullGoalieText(pullWas)} to ${pullGoalieText(pullNow)}.`])
+  }
 
   const choice = (project: RomProject, i: number) => {
     const item = project.settings.menu[i]

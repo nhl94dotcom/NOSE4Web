@@ -44,6 +44,16 @@ export interface Settings {
   menu: MenuItem[]
   // How many of the teams the menu offers, where the editor finds that.
   menuTeams: MenuTeams | null
+  // When a computer team pulls its goalie, where the editor finds it (SNES).
+  cpuPullGoalie?: CpuPullGoalie | null
+}
+
+// A computer team pulls its goalie in the third period when it is behind by
+// at least one goal and fewer than `goalsUnder`, with fewer than `secondsUnder`
+// left: the game's own two numbers (3 and 61 in the original SNES game).
+export interface CpuPullGoalie {
+  goalsUnder: number
+  secondsUnder: number
 }
 
 function readFixedText(rom: Uint8Array, o: number): FixedText {
@@ -175,4 +185,11 @@ export function menuOptions(settings: Settings, game: GameConfig, index: number,
     return settings.periodLengths.slice(0, offered).map((period) => period.text)
   }
   return settings.menu[index].options ?? []
+}
+
+// When a computer team pulls its goalie, in words.
+export function pullGoalieText({ goalsUnder, secondsUnder }: CpuPullGoalie): string {
+  if (goalsUnder <= 1 || secondsUnder === 0) return 'never'
+  const goals = goalsUnder === 2 ? '1 goal' : `1 to ${goalsUnder - 1} goals`
+  return `behind by ${goals} with ${secondsUnder - 1} seconds or less left`
 }

@@ -190,6 +190,10 @@ function mergeSettings(base: Settings, from: Settings, teamCount: number, notes:
     shootoutSeconds: number(from.shootoutSeconds, base.shootoutSeconds),
     menu: base.menu.map((item, i) => ({ ...item, value: number(from.menu[i]?.value, item.value) })),
     menuTeams: base.menuTeams && { offered: teamsOffered(from.menuTeams?.offered, base.menuTeams.offered, teamCount) },
+    cpuPullGoalie: base.cpuPullGoalie && {
+      goalsUnder: Math.min(0xff, number(from.cpuPullGoalie?.goalsUnder, base.cpuPullGoalie.goalsUnder)),
+      secondsUnder: Math.min(0xffff, number(from.cpuPullGoalie?.secondsUnder, base.cpuPullGoalie.secondsUnder)),
+    },
   }
 }
 

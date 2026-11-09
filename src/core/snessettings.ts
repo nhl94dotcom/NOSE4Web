@@ -1,7 +1,7 @@
 import { readU16LE, writeU16LE } from './bytes'
 import type { GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams } from './menuteams'
-import type { FixedText, PeriodLength, Rule, Settings } from './settings'
+import type { CpuPullGoalie, FixedText, PeriodLength, Rule, Settings } from './settings'
 import { findCode, loRomOffset } from './snes'
 import { parseSnesMenu, refreshSnesMenu, snesChoiceTextPlaces, writeSnesMenu } from './snesmenu'
 
@@ -19,6 +19,12 @@ const OVERTIME_AT = 27
 const PENALTY_LIST = 'a8a9(..)00858fa9(....)858db78d18658d858da78d29'
 // NewPO: a random draw of 32 (and #$1F), 16 teams each (times 16, plus playoffseats).
 const PLAYOFF_DRAWS = '291f0085a5a5a51a291f0085a50a0a0a0a69(....)8589a9(..)00858ba90f00'
+// The computer's pulled goalie: in the third period (cmp #2), its score less
+// the other team's, if more than 0 and less than a number (cmp #3), and the
+// clock less than another (cmp #61). NHL94SNESVault's CPUPullGoalie sets them.
+const CPU_PULL_GOALIE = 'ad....c90200d0..a48db9....a49138f9....30..f0..c9(..)00b0..ad....c9(....)b0..'
+const PULL_GOALS_AT = 24
+const PULL_SECONDS_AT = 32
 
 const PERIOD_LENGTHS = 4
 const PERIOD_LINE = 3
@@ -43,6 +49,7 @@ interface Places {
   clock: { shootout: number; overtime: number } | null
   rules: number[]
   playoffs: number | null
+  pullGoalie: number
 }
 
 function places(rom: Uint8Array): Places {
@@ -73,6 +80,7 @@ function places(rom: Uint8Array): Places {
     clock: reset ? { shootout: reset.at + SHOOTOUT_AT, overtime: reset.at + OVERTIME_AT } : null,
     rules,
     playoffs: inRom(seats, PLAYOFF_DRAWS_COUNT * PLAYOFF_SLOTS) ? seats : null,
+    pullGoalie: findCode(rom, CPU_PULL_GOALIE)?.at ?? -1,
   }
 }
 
@@ -96,8 +104,11 @@ export function parseSnesSettings(rom: Uint8Array, game: GameConfig): Settings {
     shootoutSeconds: periodLengths.length > 0 ? readU16LE(rom, at.clock!.shootout) : 0,
     menu: parseSnesMenu(rom),
     menuTeams: parseMenuTeams(rom, game),
+    cpuPullGoalie: at.pullGoalie >= 0 ? readPullGoalie(rom, at.pullGoalie) : null,
   }
 }
+
+const readPullGoalie = (rom: Uint8Array, at: number): CpuPullGoalie => ({ goalsUnder: rom[at + PULL_GOALS_AT], secondsUnder: readU16LE(rom, at + PULL_SECONDS_AT) })
 
 export function writeSnesSettings(rom: Uint8Array, game: GameConfig, settings: Settings): void {
   const at = places(rom)
@@ -120,6 +131,10 @@ export function writeSnesSettings(rom: Uint8Array, game: GameConfig, settings: S
   }
   writeSnesMenu(rom, settings.menu)
   writeMenuTeams(rom, game, settings.menuTeams, settings.playoffDraws)
+  if (at.pullGoalie >= 0 && settings.cpuPullGoalie) {
+    rom[at.pullGoalie + PULL_GOALS_AT] = Math.max(0, Math.min(0xff, settings.cpuPullGoalie.goalsUnder))
+    writeU16LE(rom, at.pullGoalie + PULL_SECONDS_AT, Math.max(0, Math.min(0xffff, settings.cpuPullGoalie.secondsUnder)))
+  }
 }
 
 // The settings once a hack has changed the ROM from `before` to `after`: the

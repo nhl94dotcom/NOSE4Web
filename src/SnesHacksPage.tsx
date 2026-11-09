@@ -11,6 +11,7 @@ import {
   snesHacksCopiedFrom,
   snesHacksForDiscord,
   withRecommendedSnesFixes,
+  withSnesHackChoice,
   type SnesHack,
   type SnesHackChoices,
 } from './core/sneshacks'
@@ -63,6 +64,12 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "A hard shot the goalie knocks away with his stick or glove, too fast for him to catch, is not counted as a shot on goal in the original game, only one he catches or stops with his body is, so those go missing from the totals. With this on they count once, for the shooter and his team and against the goalie. On the SNES this covers hard high shots off his stick or glove as well as low ones, more than on the Genesis: up to about 4 more shots on goal a game. Only the statistics change. Found by the NHL94 Match Viewer project and tested in the game.",
   penaltyShotFixes:
     'A penalty shot whistled dead because the net was knocked off, or because the loose puck stopped moving for two seconds, is taken all over again, from the side, as the original game leaves it pending. With the fix those whistles end the penalty shot, as a goal or the puck hitting the boards does, and play goes on to a faceoff.',
+  forwardsAndDefence:
+    "The game's own Edit Lines offers only forwards for the forward positions and only defencemen for the defence. With this on it lists every skater for every position, so players can put a forward on the point of a power play or a defenceman up front. It changes only what Edit Lines offers: a player plays any position as the line has him. It needs the extra attacker fix, which turns on with it. NOSE4Web's own line editor offers any skater at any position in a ROM that has it. McMarkis's hack from NHL94SNESVault. It can only go into ROMs laid out like the original game.",
+  showMaxBoost:
+    "For a ROM that keeps the hot and cold bug. The bug puts about half of every player's ratings at the maximum in play, but Edit Lines and the team roster go on showing the low value the game works out for them, so players cannot see who is really boosted. With this on they show such a rating as 100, as it plays. It changes only what is shown, and cannot be on with the hot and cold bug fix, which removes the boost; turning either on turns the other off. McMarkis's hack from NHL94SNESVault. It can only go into ROMs laid out like the original game.",
+  manualPullGoalie:
+    "During play, a player can press L and R together to pull his goalie for an extra attacker, and again to put him back, with a beep each time. The original game pulls a goalie only for a delayed penalty, and only the computer pulls its own late in a game. It works only while the puck is in play, not between whistles, and not while the goalie is off for a penalty. With both players on one team, player 1 has it. McMarkis's hack from NHL94SNESVault. It can only go into ROMs laid out like the original game.",
   faceoffFix:
     "Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine dots; before that a faceoff was often held where play stopped, and the game follows that older way, putting one on a dot only when play stops past the hash marks. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Leave it off to keep the game's own 1990s-style faceoffs. Worked out with the NHL94 Match Viewer project, from today's NHL rulebook.",
 }
@@ -70,6 +77,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
+  { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
   { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
@@ -137,7 +145,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     disabled={unknown}
                     value={wanted[hack] ? 'on' : 'off'}
                     onChange={(e) => {
-                      setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: e.target.value === 'on' } })
+                      setDraft({ rom: project.bytes, choices: withSnesHackChoice(wanted, hack, e.target.value === 'on') })
                       setNotice('')
                       setError('')
                     }}

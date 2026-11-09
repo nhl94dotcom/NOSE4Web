@@ -32,6 +32,9 @@ export type SnesHack =
   | 'awarenessFix'
   | 'secondAssist'
   | 'stickShots'
+  | 'forwardsAndDefence'
+  | 'showMaxBoost'
+  | 'manualPullGoalie'
 
 interface Site {
   // The game's address.
@@ -131,6 +134,38 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
     { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
     { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
   ],
+  // NHL94SNESVault's ForwardsAndDefenseHack: Edit Lines lists every skater,
+  // forwards and defencemen, for every position. Where it counts the players
+  // to list for a position, it counts the defencemen and the forwards
+  // together. It needs the extra attacker fix, whose swaps it relies on, and
+  // its code follows that fix's.
+  forwardsAndDefence: [
+    { at: 0x9b8e1a, original: '10 21 2200939B', hacked: 'EA EA EA 4CBACE' },
+    { at: 0x9bceba, original: free(33), hacked: '2200939B 8DA31D 2200D39E A5A5 8DAB1D 22DC929B 18 6DA31D 8DA31D ADAB1D 4C3B8E' },
+  ],
+  // NHL94SNESVault's ShowMaxBoost, for a ROM with the hot and cold bug: where
+  // the bug puts a rating at the maximum, Edit Lines and the team roster show
+  // it as 100, as it plays, not the low value the game works out for display.
+  showMaxBoost: [
+    { at: 0x9f9a30, original: '4CBD9A', hacked: '4C43FB' },
+    { at: 0x9ffb43, original: free(14), hacked: '2414 3003 4CBD9A A96400 8DA500 6B' },
+  ],
+  // NHL94SNESVault's ManualPullGoalie: during play, L and R together pull a
+  // team's goalie for an extra attacker, or put him back, with a beep. Where
+  // the game reads whether the goalie is in the net, it first checks the pads:
+  // the team's pad (player 1 for home, player 2 for away, or the first of
+  // them on it) with L and R held turns GoalieInNetHmAw over, unless the goalie
+  // is off for a penalty.
+  manualPullGoalie: [
+    { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
+    {
+      at: 0x9efb6e,
+      original: free(87),
+      hacked:
+        'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BD7607 29FF00 C93000 D022 ' +
+        'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
+    },
+  ],
 }
 
 export const SNES_HACKS: SnesHack[] = [
@@ -152,6 +187,9 @@ export const SNES_HACKS: SnesHack[] = [
   'awarenessFix',
   'secondAssist',
   'stickShots',
+  'forwardsAndDefence',
+  'showMaxBoost',
+  'manualPullGoalie',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -173,6 +211,34 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   awarenessFix: "Computer forwards' awareness fix",
   secondAssist: 'Second-assist bug fix',
   stickShots: 'Count stick deflections as shots',
+  forwardsAndDefence: 'Any skater at any position in Edit Lines',
+  showMaxBoost: 'Show the maximum boost in Edit Lines',
+  manualPullGoalie: 'Pull the goalie with L and R',
+}
+
+// Hacks that go together, as NHL94SNESVault has them: one that needs another
+// on, and two that cannot both be.
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix' }
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
+
+// `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
+export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
+  const next = { ...choices, [hack]: on }
+  for (const [needer, needed] of Object.entries(NEEDS) as [SnesHack, SnesHack][]) {
+    if (on && hack === needer) next[needed] = true
+    if (!on && hack === needed) next[needer] = false
+  }
+  for (const pair of EXCLUDES) if (on && pair.includes(hack)) next[pair[0] === hack ? pair[1] : pair[0]] = false
+  return next
+}
+
+// Why these choices cannot go into a ROM together, if they cannot.
+function clash(choices: SnesHackChoices): string | null {
+  for (const [needer, needed] of Object.entries(NEEDS) as [SnesHack, SnesHack][]) {
+    if (choices[needer] && !choices[needed]) return `${SNES_HACK_TITLES[needer]} needs the ${SNES_HACK_TITLES[needed].toLowerCase()} on.`
+  }
+  for (const [a, b] of EXCLUDES) if (choices[a] && choices[b]) return `${SNES_HACK_TITLES[a]} and the ${SNES_HACK_TITLES[b].toLowerCase()} cannot both be on.`
+  return null
 }
 
 export type SnesHackChoices = Record<SnesHack, boolean>
@@ -486,6 +552,8 @@ export class SnesHackError extends Error {}
 // something else for are left as they are; asking to change one is an error.
 export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>): RomProject {
   const { choices, unknown } = detectSnesHacks(project.bytes)
+  const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
+  if (problem) throw new SnesHackError(problem)
   const rom = project.bytes.slice()
   const source = splitSnesFile(project.source)?.rom ?? null
   for (const hack of SNES_HACKS) {
@@ -541,17 +609,29 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
+  'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
 ]
 
-// What this ROM has, as a Discord post for a league's owners. The extra
-// attacker fix is not offered where the code has moved, so it is not missed there.
+// Whether Edit Lines may put any skater at any position in this ROM.
+export function snesAnyPosition(project: RomProject): boolean {
+  return project.game.platform === 'snes' && detectSnesHacks(project.bytes).choices.forwardsAndDefence
+}
+
+// Hacks found only where the code is as the original game has it, so not
+// missed in a ROM whose code has moved.
+export function snesHackInPlaceOnly(hack: SnesHack): boolean {
+  return !RELOCATED[hack]
+}
+
+// What this ROM has, as a Discord post for a league's owners. Hacks found
+// only where the code is in place are not missed where it has moved.
 // `extra`: more lines for the post, such as its pictures (hacksheet.ts).
 export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string[] = []): string {
   const { choices, unknown } = detectSnesHacks(rom)
   const inPlace = snesCodeInPlace(rom)
   const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => `- **${SNES_HACK_TITLES[hack]}**`)
-  const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || hack !== 'extraAttackerFix')).map((hack) => SNES_HACK_TITLES[hack])
+  const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || !snesHackInPlaceOnly(hack))).map((hack) => SNES_HACK_TITLES[hack])
   return discordPost(name, [...lines, ...extra], unread)
 }
 

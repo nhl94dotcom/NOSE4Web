@@ -1,6 +1,6 @@
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState } from './hacks'
 import { snesCodeInPlace } from './snes'
-import { detectSnesHacks, SNES_HACK_TITLES, type SnesHack } from './sneshacks'
+import { detectSnesHacks, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
 import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
 import { genesisScoreLogo, hasGenesisScoreLogos } from './genesisscorelogos'
@@ -125,10 +125,14 @@ const SNES: Record<SnesHack, string> = {
   noGoalPosts: 'A puck between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'The game starts without the EA logo.',
   skipPucksIntro: 'The game starts without the flying pucks.',
+  forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
+  showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
+  manualPullGoalie: 'During play, pressing L and R together pulls your goalie for an extra attacker, or puts him back, with a beep.',
 }
 
 const SNES_SECTIONS: [string, SnesHack[]][] = [
   ['Bug fixes', ['hotColdFix', 'secondAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
+  ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
   ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts']],
   ['Statistics', ['stickShots']],
   ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
@@ -142,8 +146,8 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
     heading,
     items: hacks.flatMap((hack) => {
       if (unknown.includes(hack)) {
-        // The extra attacker fix is not offered where the code has moved, so it is not missed there.
-        if (inPlace || hack !== 'extraAttackerFix') unread.push(SNES_HACK_TITLES[hack])
+        // Hacks offered only where the code is in place are not missed where it has moved.
+        if (inPlace || !snesHackInPlaceOnly(hack)) unread.push(SNES_HACK_TITLES[hack])
         return []
       }
       return choices[hack] ? [{ title: SNES_HACK_TITLES[hack], text: SNES[hack] }] : []

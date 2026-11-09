@@ -60,9 +60,11 @@ export function freeSkater(team: Team, line: number[], slot: number): number | u
 
 export type LineRole = 'goalie' | 'defence' | 'forward' | 'skater'
 
-// Who a position on a line is for. The extra attacker may be any skater.
-export function slotRole(slot: number): LineRole {
-  return slot === 0 ? 'goalie' : DEFENCE_LINE_SLOTS.includes(slot) ? 'defence' : slot < 6 ? 'forward' : 'skater'
+// Who a position on a line is for. The extra attacker may be any skater, and
+// so may any skater's position with `anyPosition`: in an SNES ROM with
+// NHL94SNESVault's hack that lets Edit Lines put any skater anywhere.
+export function slotRole(slot: number, anyPosition = false): LineRole {
+  return slot === 0 ? 'goalie' : anyPosition || slot >= 6 ? 'skater' : DEFENCE_LINE_SLOTS.includes(slot) ? 'defence' : 'forward'
 }
 
 // A roster position's role, counted from 1: goalies, then forwards, then defence.
@@ -71,14 +73,16 @@ export function playerRole(team: Team, position: number): Exclude<LineRole, 'ska
   return position <= goalies ? 'goalie' : position - goalies <= team.forwards ? 'forward' : 'defence'
 }
 
-export function suitsSlot(team: Team, slot: number, position: number): boolean {
-  const role = slotRole(slot)
+export function suitsSlot(team: Team, slot: number, position: number, anyPosition = false): boolean {
+  const role = slotRole(slot, anyPosition)
   return role === 'skater' ? playerRole(team, position) !== 'goalie' : playerRole(team, position) === role
 }
 
 // A forward on defence or a defenceman up front: the game's own Edit Lines
 // does not offer it, but some ROMs do it on purpose, as forwards on the points
 // of a power play.
-export function outOfRoleSlots(team: Team, line: number[]): number[] {
-  return SKATER_LINE_SLOTS.filter((slot) => line[slot] >= 1 && line[slot] <= team.players.length && playerRole(team, line[slot]) !== 'goalie' && !suitsSlot(team, slot, line[slot]))
+export function outOfRoleSlots(team: Team, line: number[], anyPosition = false): number[] {
+  return SKATER_LINE_SLOTS.filter(
+    (slot) => line[slot] >= 1 && line[slot] <= team.players.length && playerRole(team, line[slot]) !== 'goalie' && !suitsSlot(team, slot, line[slot], anyPosition),
+  )
 }

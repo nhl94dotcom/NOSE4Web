@@ -168,6 +168,36 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
             The menu text does not update itself when you change the seconds.
             {game.platform === 'snes' && ' The SNES game plays overtime this long in the regular season; in the playoffs an overtime period is as long as the others.'}
           </p>
+          {settings.cpuPullGoalie && (
+            <>
+              <h3>Computer pulls its goalie</h3>
+              <p>
+                In the third period, when behind by 1 to{' '}
+                <input
+                  className="seconds"
+                  type="number"
+                  aria-label="Most goals behind to pull the goalie"
+                  min={0}
+                  max={20}
+                  value={settings.cpuPullGoalie.goalsUnder - 1}
+                  onChange={(e) => {
+                    const goals = Math.min(20, Math.max(0, Math.floor(Number(e.target.value)) || 0))
+                    onChange({ ...settings, cpuPullGoalie: { ...settings.cpuPullGoalie!, goalsUnder: goals + 1 } })
+                  }}
+                />{' '}
+                goals, with{' '}
+                {secondsInput(Math.max(0, settings.cpuPullGoalie.secondsUnder - 1), (seconds) =>
+                  onChange({ ...settings, cpuPullGoalie: { ...settings.cpuPullGoalie!, secondsUnder: seconds + 1 } }),
+                )}{' '}
+                seconds or less left.
+              </p>
+              <p className="note">
+                A team the computer controls pulls its goalie for an extra attacker then. The original
+                game does it behind by 1 or 2 goals with 60 seconds or less left. 0 goals means never. These are the two numbers
+                NHL94SNESVault's CPU pull goalie setting changes.
+              </p>
+            </>
+          )}
         </section>
       )}
 

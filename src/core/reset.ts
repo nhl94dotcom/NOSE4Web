@@ -147,7 +147,7 @@ export function resetTeam(project: RomProject, original: RomProject, team: numbe
 export type SettingsPart = 'clock' | 'menu' | 'rules' | 'playoffDraws'
 
 const SETTINGS_PARTS: Record<SettingsPart, (keyof Settings)[]> = {
-  clock: ['periodLengths', 'overtimeSeconds', 'shootoutSeconds'],
+  clock: ['periodLengths', 'overtimeSeconds', 'shootoutSeconds', 'cpuPullGoalie'],
   menu: ['menu'],
   rules: ['rules'],
   playoffDraws: ['playoffDraws'],

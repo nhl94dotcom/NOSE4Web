@@ -441,7 +441,9 @@ export function HelpPage() {
       <p>
         Some ROMs put a skater out of his role on purpose, such as forwards on the points of a power play, or a
         forward on defence in the original SNES game. The editor keeps such a choice, labels it with his role, and
-        Check ROM notes it. Choose someone else and it cannot be chosen again, short of the spreadsheet files.
+        Check ROM notes it. Choose someone else and it cannot be chosen again, short of the spreadsheet files. An SNES
+        ROM with the hack <b>Any skater at any position in Edit Lines</b> (on the Hacks page) lets players do it in the
+        game, so there every skater's position offers every skater, and Check ROM says nothing of it.
       </p>
       <p>
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions
@@ -1672,7 +1674,10 @@ export function HelpPage() {
           reads it. The clock's fourth
           period length, 30 seconds, is offered on the menu by the 30-second periods hack. Overtime in the regular
           season is 5 minutes; in the playoffs an overtime period is as long as the others. In the playoff modes the
-          menu shows the Home line as Team and hides the Visitor line. The penalty minutes are the length of each
+          menu shows the Home line as Team and hides the Visitor line. Under the clock, <b>Computer pulls its goalie</b>{' '}
+          sets when a team the computer controls pulls its goalie in the third period: behind by 1 to how many goals,
+          with how many seconds or less left (1 to 2 goals and 60 seconds in the original game; 0 goals for never),
+          the two numbers NHL94SNESVault's setting changes. The penalty minutes are the length of each
           penalty, which the one-minute penalties hack changes. A message's text cannot be longer than the room the
           game gives it, and a shorter one is filled out with spaces. In a draw the game takes the 16 teams in the
           order its playoff tree has them.
