@@ -266,7 +266,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'regainAssist',
           onOff('regainAssist'),
-          "When a player loses the puck to an opponent, wins it back himself, and passes to a teammate who scores, the original game loses his assist: a flag left from the opponent's touch makes the scorer take his place among the last players to touch the puck. This clears the flag when he wins it back, so he gets the assist. About 1 goal in 34 in recorded games. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist and one-timer assist fixes or without them.",
+          "When a player loses the puck to an opponent, wins it back himself, and passes to a teammate who scores, the original game loses his assist: a flag left from the opponent's touch makes the scorer take his place among the last players to touch the puck. This clears the flag when he wins it back, so he gets the assist. About 1 goal in 34 in recorded games. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist and one-timer assist fixes or without them, and is among the recommended fixes.",
         )}
         {hack(
           'aggressionFix',

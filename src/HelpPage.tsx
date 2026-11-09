@@ -1041,10 +1041,10 @@ export function HelpPage() {
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
         that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, one-timer
-        assist, Aggression,
+        assist, regained-puck assist, Aggression,
         power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, and
         counting stick deflections as shots, with smozoma's legacy weight bug fix taken out; on the SNES the power play and
-        penalty kill, comeback bonus, penalty shot, extra attacker and second-assist fixes and counting stick
+        penalty kill, comeback bonus, penalty shot, extra attacker, second-assist and regained-puck assist fixes and counting stick
         deflections as shots. It leaves the faceoff spot fix (a choice
         between eras), the options, and two fixes leagues may not want as they are: the SNES hot and cold bug fix,
         which makes every player play lower than players are used to, and the SNES Y button fix, a habit people
