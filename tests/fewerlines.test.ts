@@ -10,6 +10,7 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 // Every place the fix changes, as [offset, length].
 const SITES: [number, number][] = [
   [0x82f2, 2], [0x8374, 2], [0x837a, 2], [0x8636, 2], [0x879c, 2], [0x8c6e, 2], [0x8c76, 2], [0x8c82, 2],
+  ...[0x87a2, 0x87a8, 0x87ae, 0x87b4, 0x87ba, 0x87c0, 0x87c6].map((at): [number, number] => [at, 2]),
   ...[0, 1, 2, 3, 4].map((i): [number, number] => [0x86dc + i * 6, 2]),
   ...[0, 1, 2, 3, 4].map((i): [number, number] => [0x191d2 + i * 4, 2]),
 ]
@@ -34,12 +35,16 @@ describe('the positions Edit Lines is fitted to', () => {
 })
 
 describe.skipIf(!existsSync(path('nhl94.bin')))('Edit Lines for fewer skaters', () => {
-  it("writes, for LW and C, exactly the bytes of smozoma's 2 on 2 fix, and takes them out again", () => {
+  it("writes smozoma's 2 on 2 fix for LW and C, with the line-changes-on rows and the penalty kill's fitted too", () => {
     const stock = open('nhl94.bin')
     expect(detectHacks(stock.bytes).choices.fewerSkaterLines).toBe(0)
+    expect(bytesAt(stock.bytes).slice(8, 15)).toEqual(['0004', '0004', '0004', '0004', '0004', '0003', '0003'])
     const two = applyHacks(stock, { ...NO_HACKS, fewerSkaterLines: 32 }).bytes
     expect(bytesAt(two)).toEqual([
-      '0003', '0003', '0004', '5644', '0001', '0003', '7201', '5341',
+      // smozoma's, but the penalty kill keeps its C (no subq: the ROM plays no RW).
+      '0003', '0003', '0004', '5644', '0001', '0003', '7201', '4e71',
+      // Line changes on: two rows on every line.
+      '0001', '0001', '0001', '0001', '0001', '0001', '0001',
       '4c57', '4320', '2020', '2020', '2020',
       '4c57', '4300', '4c57', '4300', '5257',
     ])
@@ -47,7 +52,18 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Edit Lines for fewer skaters', 
     expect(Buffer.compare(applyHacks({ ...stock, bytes: two }, NO_HACKS).bytes, stock.bytes)).toBe(0)
     // One position: the penalty-kill rows' subq becomes a NOP, so the roster view does not loop.
     const one = applyHacks(stock, { ...NO_HACKS, fewerSkaterLines: 41 }).bytes
-    expect(bytesAt(one).slice(0, 8)).toEqual(['0004', '0004', '0004', '5844', '0000', '0004', '7200', '4e71'])
+    // As Match Viewer's working scratch copy: one row everywhere.
+    expect(bytesAt(one).slice(0, 15)).toEqual(['0004', '0004', '0004', '5844', '0000', '0004', '7200', '4e71', '0000', '0000', '0000', '0000', '0000', '0000', '0000'])
+    // Playing RW, the penalty kill drops it.
+    const wings = applyHacks(stock, { ...NO_HACKS, fewerSkaterLines: 33 }).bytes
+    expect(bytesAt(wings).slice(7, 15)).toEqual(['5341', '0002', '0002', '0002', '0002', '0002', '0001', '0001'])
+    // smozoma's own version, as in 2on2_update.bin, is recognised, and updated when the hacks are applied.
+    const smozoma = two.slice()
+    smozoma.set([0x53, 0x41], 0x8c82)
+    for (const at of [0x87a2, 0x87a8, 0x87ae, 0x87b4, 0x87ba]) smozoma.set([0, 4], at)
+    for (const at of [0x87c0, 0x87c6]) smozoma.set([0, 3], at)
+    expect(detectHacks(smozoma).choices.fewerSkaterLines).toBe(32)
+    expect(Buffer.compare(applyHacks({ ...stock, bytes: smozoma }, { ...NO_HACKS, fewerSkaterLines: 32 }).bytes, two)).toBe(0)
     expect(() => applyHacks(stock, { ...NO_HACKS, fewerSkaterLines: 46 })).toThrow('follow each other')
   })
 

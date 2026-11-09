@@ -1317,14 +1317,27 @@ const goalieDelay: Part<number> = {
 // $8636), the number of rows less one ($879C), the roster view's first
 // position ($8C6E) and rows less one (moveq at $8C76), the header labels
 // ($86DC, every 6 bytes) and the row names ($191D2, every 4). The roster view
-// takes a row off the penalty-kill lines (subq.w #1,d1 at $8C82), which with
-// one row would loop 65,536 times, so for one it becomes a NOP. With line
-// changes on, Edit Lines keeps its five rows.
+// takes a row off the penalty-kill lines (subq.w #1,d1 at $8C82), which have
+// no RW: it is kept only where the ROM plays RW (with one row it would loop
+// 65,536 times), else it becomes a NOP. With line changes on, Edit Lines takes
+// each line's rows from LineIconPosTable (x, y and rows less one, 6 bytes a
+// line, the counts at $87A2 to $87BA for the five full lines and $87C0 and
+// $87C6 for the penalty kill's four), which are fitted too; left at 5 and 4
+// the editor crashed there (Match Viewer, in the game). The earlier version,
+// smozoma's for 2 on 2 and NOSE4Web's first, fitted neither; a ROM with it is
+// recognised, and given these when its hacks are next applied.
 const POSITION_LABELS = ['LD', 'RD', 'LW', 'C ', 'RW']
 const ROW_NAMES = ['LD', 'RD', 'LW', 'C\0', 'RW']
 const ascii2 = (text: string) => [text.charCodeAt(0), text.charCodeAt(1)]
 
-function lineViewBytes(first: number, count: number): [number, number[]][] {
+const FULL_LINE_COUNTS = [0x87a2, 0x87a8, 0x87ae, 0x87b4, 0x87ba]
+const KILL_LINE_COUNTS = [0x87c0, 0x87c6]
+
+function lineViewBytes(first: number, count: number, earlier = false): [number, number[]][] {
+  const last = first + count - 1
+  // The penalty kill's rows: the used positions up to C.
+  const killRows = Math.max(1, Math.min(last, 4) - first + 1)
+  const keepSubq = earlier ? count > 1 : last === 5 && count > 1
   const sites: [number, number[]][] = [
     [0x82f2, [0, first]],
     [0x8374, [0, first]],
@@ -1333,7 +1346,9 @@ function lineViewBytes(first: number, count: number): [number, number[]][] {
     [0x879c, [0, count - 1]],
     [0x8c6e, [0, first]],
     [0x8c76, [0x72, count - 1]],
-    [0x8c82, count === 1 ? [0x4e, 0x71] : [0x53, 0x41]],
+    [0x8c82, keepSubq ? [0x53, 0x41] : [0x4e, 0x71]],
+    ...FULL_LINE_COUNTS.map((at): [number, number[]] => [at, [0, earlier ? 4 : count - 1]]),
+    ...KILL_LINE_COUNTS.map((at): [number, number[]] => [at, [0, earlier ? 3 : killRows - 1]]),
   ]
   POSITION_LABELS.forEach((_, i) => sites.push([0x86dc + i * 6, ascii2(i < count ? POSITION_LABELS[first - 1 + i] : '  ')]))
   ROW_NAMES.forEach((name, i) => sites.push([0x191d2 + i * 4, ascii2(i < count ? ROW_NAMES[first - 1 + i] : name)]))
@@ -1348,8 +1363,8 @@ const fewerSkaterLines: Part<number> = {
     const first = rom[0x82f3]
     const count = rom[0x879d] + 1
     if (!fitsView(first, count)) return undefined
-    const holds = lineViewBytes(first, count).every(([at, bytes]) => bytes.every((byte, i) => rom[at + i] === byte))
-    return holds ? viewCode(first, count) : undefined
+    const holds = (earlier: boolean) => lineViewBytes(first, count, earlier).every(([at, bytes]) => bytes.every((byte, i) => rom[at + i] === byte))
+    return holds(false) || holds(true) ? viewCode(first, count) : undefined
   },
   remove: (rom) => lineViewBytes(1, 5).forEach(([at, bytes]) => rom.set(bytes, at)),
   apply(work, value) {

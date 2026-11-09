@@ -705,14 +705,15 @@ export function HacksPage({ project, name, onChange }: Props) {
               ))}
             </select>,
             <>
-              For a ROM that puts fewer skaters on the ice. With line changes off, the game's Edit Lines and the Team
-              Rosters line view still show all five skaters' positions, and on a position the ROM leaves empty they show
-              whatever was there before and can crash. This makes them show only the positions this ROM plays, worked out
+              For a ROM that puts fewer skaters on the ice. The game's Edit Lines and the Team Rosters line view still
+              show all five skaters' positions, and a position the ROM leaves empty crashes them as they open (an
+              address error). This makes them show only the positions this ROM plays, with line changes off or on, worked out
               from the positions its first line leaves empty on every team
               {fitted ? `: ${fewerSkaterLinesText(fitted)}` : ''}. It works only where those positions follow each other in
-              the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. With line changes on,
-              Edit Lines keeps its five rows, but these ROMs are played with them off. From smozoma's forum post for 2 on
-              2, worked out for any number of skaters in the game's code by the NHL94 Match Viewer project.
+              the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. From smozoma's forum post
+              for 2 on 2, worked out for any number of skaters, and for line changes on, in the game's code by the NHL94
+              Match Viewer project, and tested in the game for 1 on 1. A ROM with smozoma's version is updated to this when
+              its hacks are next applied.
             </>,
           )
         })()}
