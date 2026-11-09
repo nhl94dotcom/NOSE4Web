@@ -80,6 +80,11 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
+  introWait: (c) => `Each intro screen waits about ${(((c.introWait + 1) * 4) / 60).toFixed(1)} seconds, where the original game waits 5.4 (a button skips it).`,
+  puckFriction: (c) =>
+    `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a player receiving a pass).`,
+  puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
+  greenFan: () => 'The fan in green in the stands has his arm and leg back.',
   fewerSkaterLines: (c) => `Edit Lines and Team Rosters show only the positions this ROM plays, ${fewerSkaterLinesText(c.fewerSkaterLines)}, so they no longer crash.`,
   bCheckPenaltiesOff: (c) =>
     c.bCheckPenaltiesOff === 'forum'
@@ -105,7 +110,8 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction']],
+  ['Looks and screens', ['puckColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]
 

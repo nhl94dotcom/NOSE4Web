@@ -130,7 +130,17 @@ export interface HackChoices {
   // puts fewer skaters on the ice uses: 0 for the original game's five, else
   // first position x 10 + how many (1 LD, 2 RD, 3 LW, 4 C, 5 RW), so 32 is LW and C.
   fewerSkaterLines: number
+  // The wait on each of the two intro screens, in counts of 4 frames less one: 80 in the original game.
+  introWait: number
+  // How fast the puck slows on the ice: it loses 1 / 2^n of its speed a frame, 9 in the original game.
+  puckFriction: number
+  // Which of the game's colour sets the puck is drawn in.
+  puckColours: PuckColours
+  // The fan in green in the stands, with his arm and leg back.
+  greenFan: boolean
 }
+
+export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
 export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
@@ -176,6 +186,10 @@ export type HackPart =
   | 'bCheckPenaltiesOff'
   | 'goalieDelay'
   | 'fewerSkaterLines'
+  | 'introWait'
+  | 'puckFriction'
+  | 'puckColours'
+  | 'greenFan'
 
 export interface HackState {
   choices: HackChoices
@@ -225,6 +239,10 @@ export const NO_HACKS: HackChoices = {
   bCheckPenaltiesOff: 'original',
   goalieDelay: 17,
   fewerSkaterLines: 0,
+  introWait: 80,
+  puckFriction: 9,
+  puckColours: 'rink',
+  greenFan: false,
 }
 
 // The least and most each number can be.
@@ -239,6 +257,8 @@ export const HACK_RANGES = {
   turnRate: [1, 999],
   hotColdRange: [0, 9],
   goalieDelay: [1, 128],
+  introWait: [0, 600],
+  puckFriction: [1, 12],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}
@@ -1359,6 +1379,60 @@ export function fewerSkaterLinesText(value: number): string {
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+// -------------------------------------------------------------- intro waits
+// The EA Sports screen ($17AAC) and the High Score and Mark Lesser screen
+// ($FEE2C) each wait for (n + 1) x 4 frames, n = 80 in the original game, so
+// about 5.4 seconds; a button skips either. The count borrows the random
+// seed's first word but always ends, so any value is safe (Match Viewer).
+const introWait = numberPart([site(0x17aac, '31FC'), site(0xfee2c, '31FC')], NO_HACKS.introWait)
+
+// ------------------------------------------------------------ puck friction
+// moveq #9,d2 at $AC1C: anything with its deceleration-off flag on the ice
+// loses 1/512 of its speed a frame (a skater, moveq #6 at $AC10, 1/64): the
+// puck always, a player receiving a pass, and a skater with the runaway-speed
+// bug. Nothing else reads it, and there is no friction in the air (Match
+// Viewer). From chaos's forum post, play-tested there.
+const FRICTION_AT = 0xac1c
+const puckFriction: Part<number> = {
+  detect: (rom) => (rom[FRICTION_AT] === 0x74 && rom[FRICTION_AT + 1] >= 1 && rom[FRICTION_AT + 1] <= 12 ? rom[FRICTION_AT + 1] : undefined),
+  remove: (rom) => void (rom[FRICTION_AT + 1] = NO_HACKS.puckFriction),
+  apply: (work, value) => void (work.rom[FRICTION_AT + 1] = value),
+}
+
+// -------------------------------------------------------------- puck colours
+// Frames 395 to 404, the puck and its flip, are one piece each: X, Y, tile,
+// then the attribute word, whose high byte at $A1670 to $A16B8 (every 8)
+// holds the flips and the palette, bits 5 and 6: the rink's colours (the
+// original), the crowd's, the home team's or the visitors' (AdamCatalyst's
+// forum post, the pieces placed by Match Viewer). The shadow is left alone.
+const PUCK_ATTRIBUTES = Array.from({ length: 10 }, (_, i) => 0xa1670 + i * 8)
+const PUCK_PALETTES: Record<PuckColours, number> = { rink: 0x00, crowd: 0x20, home: 0x40, away: 0x60 }
+const PUCK_FLIPS = [0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x08, 0x08, 0x08, 0x08]
+const puckColours: Part<PuckColours> = {
+  detect(rom) {
+    if (!PUCK_ATTRIBUTES.every((at, i) => (rom[at] & ~0x60) === PUCK_FLIPS[i])) return undefined
+    const bits = rom[PUCK_ATTRIBUTES[0]] & 0x60
+    if (!PUCK_ATTRIBUTES.every((at) => (rom[at] & 0x60) === bits)) return undefined
+    return (Object.keys(PUCK_PALETTES) as PuckColours[]).find((key) => PUCK_PALETTES[key] === bits)
+  },
+  remove: (rom) => PUCK_ATTRIBUTES.forEach((at, i) => void (rom[at] = PUCK_FLIPS[i])),
+  apply: (work, value) => PUCK_ATTRIBUTES.forEach((at, i) => void (work.rom[at] = PUCK_FLIPS[i] | PUCK_PALETTES[value])),
+}
+
+// ---------------------------------------------------------------- green fan
+// Two tiles of the sideboards' tile map put back a fan's arm and leg, from
+// tiles still in the ROM (kingraph's forum post): $BDEAE 0063 to 206A, and
+// $BDEEE 006E to 2074. Several league ROMs have it.
+const GREEN_FAN = [
+  { at: 0xbdeae, original: bytes('0063'), hacked: bytes('206A') },
+  { at: 0xbdeee, original: bytes('006E'), hacked: bytes('2074') },
+]
+const greenFan: Part<boolean> = {
+  detect: (rom) => (GREEN_FAN.every((s) => is(rom, s.at, s.original)) ? false : GREEN_FAN.every((s) => is(rom, s.at, s.hacked)) ? true : undefined),
+  remove: (rom) => GREEN_FAN.forEach((s) => rom.set(s.original, s.at)),
+  apply: (work, value) => void (value && GREEN_FAN.forEach((s) => work.rom.set(s.hacked, s.at))),
+}
+
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -1410,6 +1484,10 @@ export function detectHacks(rom: Uint8Array): HackState {
     bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
     goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
+    introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
+    puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
+    puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
+    greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -1469,6 +1547,10 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
     ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
+    ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
+    ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
+    ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
+    ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1532,7 +1614,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'greenFan', 'introWait', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1681,6 +1763,10 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   bCheckPenaltiesOff: 'B-checks with penalties off',
   goalieDelay: 'Goalie control delay',
   fewerSkaterLines: 'Edit Lines for fewer skaters',
+  introWait: 'Intro screen wait',
+  puckFriction: 'Puck friction',
+  puckColours: 'Puck colours',
+  greenFan: 'The fan in green',
 }
 
 // Which part's code each choice is kept in.
@@ -1725,6 +1811,10 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   bCheckPenaltiesOff: 'bCheckPenaltiesOff',
   goalieDelay: 'goalieDelay',
   fewerSkaterLines: 'fewerSkaterLines',
+  introWait: 'introWait',
+  puckFriction: 'puckFriction',
+  puckColours: 'puckColours',
+  greenFan: 'greenFan',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {

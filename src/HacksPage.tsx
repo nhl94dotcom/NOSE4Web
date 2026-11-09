@@ -22,6 +22,7 @@ import {
   type Bonuses,
   type HackChoices,
   type BCheckPenaltiesOff,
+  type PuckColours,
   type Injuries,
   type ThreeStars,
   type WeightFix,
@@ -42,6 +43,13 @@ interface Props {
   onChange: (project: RomProject) => void
 }
 
+
+const PUCK_TEXTS: Record<PuckColours, string> = {
+  rink: "The rink's, as the original game",
+  crowd: "The crowd's",
+  home: "The home team's",
+  away: "The visitors'",
+}
 
 const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
   original: 'As in the original game',
@@ -179,7 +187,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -709,6 +717,16 @@ export function HacksPage({ project, name, onChange }: Props) {
           )
         })()}
         {hack(
+          'puckFriction',
+          number('puckFriction'),
+          <>
+            How fast the puck slows down on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller
+            number slows it faster (8 is twice as fast as the original 9, 10 half as fast). A player receiving a pass
+            slows the same way, and so does a skater caught by the runaway-speed bug. There is no friction in the air.
+            From chaos's forum post, read in the game's code by the NHL94 Match Viewer project. {stock('puckFriction')}
+          </>,
+        )}
+        {hack(
           'goalieDelay',
           number('goalieDelay'),
           <>
@@ -717,6 +735,41 @@ export function HacksPage({ project, name, onChange }: Props) {
             From smozoma's forum post; the NHL94 Match Viewer project checked every place in the game's code and tested
             it in the game (pads 1 and 2: 12 counts took the goalie after 12 frames, where the original takes 17).{' '}
             {stock('goalieDelay')}
+          </>,
+        )}
+      </section>
+
+      <section>
+        <h3>Looks and screens</h3>
+        {hack(
+          'puckColours',
+          <select aria-label={HACK_TITLES.puckColours} className="wide" disabled={unknown('puckColours')} value={wanted.puckColours} onChange={(e) => set({ puckColours: e.target.value as PuckColours })}>
+            {(Object.keys(PUCK_TEXTS) as PuckColours[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {PUCK_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            Which of the game's colour sets the puck is drawn in: the rink's, as in the original game, the crowd's, or
+            the home team's or visitors' uniform colours, so a team's puck can be its own. Its shadow is left as it is.
+            From AdamCatalyst's forum post, with the puck's pieces placed in the game's code by the NHL94 Match Viewer
+            project.
+          </>,
+        )}
+        {hack(
+          'greenFan',
+          onOff('greenFan'),
+          "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it.",
+        )}
+        {hack(
+          'introWait',
+          number('introWait'),
+          <>
+            How long each of the two intro screens, EA Sports and High Score Productions, waits before moving on, in
+            counts of four frames less one: the original 80 waits about 5.4 seconds, and 0 about a fifteenth of a second.
+            A button skips either screen anyway. From AdamCatalyst's forum post, read in the game's code by the NHL94 Match
+            Viewer project. {stock('introWait')}
           </>,
         )}
       </section>

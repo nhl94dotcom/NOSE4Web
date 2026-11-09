@@ -260,6 +260,11 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { bCheckPenaltiesOff: 'asPenaltiesOn' },
       { bCheckPenaltiesOff: 'forum' },
       { goalieDelay: 12 },
+      { introWait: 20 },
+      { puckFriction: 8 },
+      { puckColours: 'home' },
+      { puckColours: 'away' },
+      { greenFan: true },
       { goalieDelay: 128 },
     ]
     for (const change of each) {
@@ -294,6 +299,24 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(Buffer.compare(applyHacks({ ...opened, bytes: forum }, NO_HACKS).bytes, opened.bytes)).toBe(0)
     // Out of range.
     expect(() => applyHacks(opened, { ...NO_HACKS, hotColdRange: 10 })).toThrow('from 0 to 9')
+  })
+
+  it('writes the intro wait, puck friction, puck colours and the fan in green', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    const short = applyHacks(opened, { ...NO_HACKS, introWait: 20 }).bytes
+    expect([at(short, 0x17aaa, 4), at(short, 0xfee2a, 4)]).toEqual(['31fc0014', '31fc0014'])
+    expect(at(applyHacks(opened, { ...NO_HACKS, puckFriction: 8 }).bytes, 0xac1c, 2)).toBe('7408')
+    const puck = (rom: Uint8Array) => Array.from({ length: 10 }, (_, i) => at(rom, 0xa1670 + i * 8, 1)).join(' ')
+    expect(puck(opened.bytes)).toBe('00 00 00 08 00 00 08 08 08 08')
+    // AdamCatalyst's home team puck, byte for byte; the shadow at $A1668 is left alone.
+    const home = applyHacks(opened, { ...NO_HACKS, puckColours: 'home' }).bytes
+    expect(puck(home)).toBe('40 40 40 48 40 40 48 48 48 48')
+    expect(at(home, 0xa1668, 1)).toBe(at(opened.bytes, 0xa1668, 1))
+    expect(puck(applyHacks(opened, { ...NO_HACKS, puckColours: 'crowd' }).bytes)).toBe('20 20 20 28 20 20 28 28 28 28')
+    const fan = applyHacks(opened, { ...NO_HACKS, greenFan: true }).bytes
+    expect([at(fan, 0xbdeae, 2), at(fan, 0xbdeee, 2)]).toEqual(['206a', '2074'])
+    expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')
   })
 
   it('writes the B-check and goalie control delay choices, the delay in all eight places', () => {
