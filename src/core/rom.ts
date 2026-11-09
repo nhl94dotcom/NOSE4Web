@@ -1,5 +1,6 @@
 import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { readTeamSongs, writeTeamSongs } from './teamsongs'
+import { readSnesTeamSongs, writeSnesTeamSongs } from './snessongs'
 import { findGame, snesGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
@@ -121,6 +122,7 @@ function openSnesRom(file: Uint8Array, rom: Uint8Array, copierHeader: Uint8Array
   const game = snesGame(table, snesCodeInPlace(rom))
   const { teams, layout } = parseTeams(rom, game)
   readSnesPlaceNames(rom, teams.length)?.forEach((name, i) => (teams[i].placeName = name))
+  readSnesTeamSongs(rom, teams.length)?.forEach((songs, i) => (teams[i].snesSongs = songs))
   return {
     game,
     source: file.slice(),
@@ -210,6 +212,7 @@ export function buildRom(project: RomProject): Uint8Array {
   writeTeams(rom, project.game, project.teams, project.layout)
   if (project.game.platform === 'snes') {
     writeSnesPictures(rom, project.teams.length, project.snesPictures ?? NO_SNES_PICTURE_EDITS)
+    writeSnesTeamSongs(rom, project.teams.map((team) => team.snesSongs))
     writeSnesSettings(rom, project.game, project.settings)
     writeSnesRinkPalette(rom, project.rinkPalette)
     fixSnesChecksum(rom)

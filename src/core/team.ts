@@ -51,6 +51,8 @@ export interface Team {
   // The Genesis game's six organ songs for the team's home games, kept apart
   // from its team data (see teamsongs.ts).
   songs?: number[]
+  // The SNES game's six, as long pointers to the songs (see snessongs.ts).
+  snesSongs?: number[]
 }
 
 // Where the team data sits in the ROM, so it can be written back to the same place.

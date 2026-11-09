@@ -2171,6 +2171,18 @@ test.describe('with the SNES game', () => {
     expect([hacks.forwardsAndDefence, hacks.extraAttackerFix, hacks.showMaxBoost, hacks.hotColdFix, hacks.manualPullGoalie]).toEqual([true, true, true, false, true])
   })
 
+  test("sets an SNES team's organ songs, named by their data, and downloads them", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const goal = page.getByLabel('Organ song: Home goal')
+    await expect(goal.locator('option:checked')).toHaveText('Random')
+    await goal.selectOption({ label: 'Brass Bonanza' })
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(rom.teams[1].snesSongs![3]).not.toBe(0xffffffff)
+  })
+
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)

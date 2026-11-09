@@ -28,7 +28,7 @@ const TEAM_PARTS: Record<TeamPart, (team: Team) => unknown> = {
   lines: (team) => team.lines,
   home: (team) => team.palette.slice(0, 16),
   away: (team) => team.palette.slice(16),
-  songs: (team) => team.songs,
+  songs: (team) => [team.songs, team.snesSongs],
 }
 
 export function teamPartChanged(team: Team, original: Team, part: TeamPart): boolean {
@@ -40,7 +40,7 @@ export function resetTeamPart(team: Team, original: Team, part: TeamPart): Team 
     case 'names':
       return { ...team, names: original.names, placeName: original.placeName }
     case 'songs':
-      return { ...team, songs: original.songs }
+      return { ...team, songs: original.songs, snesSongs: original.snesSongs }
     case 'ratings':
       return { ...team, teamBytes: original.teamBytes, shownOverall: original.shownOverall }
     case 'roster':

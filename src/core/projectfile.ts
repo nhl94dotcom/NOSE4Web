@@ -347,7 +347,19 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     if (!own) return undefined
     return Array.isArray(value) && value.length === 6 && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 0xff) ? (value as number[]) : own
   }
-  const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes, placeName: placeName(team, i), songs: songs(team, i) }))
+  const snesSongs = (stored: StoredTeam, i: number) => {
+    const own = project.teams[i].snesSongs
+    const value = (stored as { snesSongs?: unknown }).snesSongs
+    if (!own) return undefined
+    return Array.isArray(value) && value.length === 6 && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 0xffffffff) ? (value as number[]) : own
+  }
+  const teams = file.teams.map((team, i) => ({
+    ...team,
+    freeBytes: project.teams[i].freeBytes,
+    placeName: placeName(team, i),
+    songs: songs(team, i),
+    snesSongs: snesSongs(team, i),
+  }))
   const settings = hasSettings(game, project.settings) && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
   const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)

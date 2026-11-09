@@ -48,7 +48,7 @@ import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { SplashScreenSection } from './SplashScreenSection'
-import { TeamSongsSection } from './TeamSongsSection'
+import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
@@ -428,6 +428,7 @@ export default function App() {
               ) : (
                 current.game.platform === 'snes' && (
                   <>
+                    <SnesTeamSongsSection project={current} team={selected} original={opened.teams[selected]} onChange={change} />
                     <SnesPicturesEditor project={current} team={selected} onChange={change} />
                     <SnesBannerColoursEditor project={current} original={opened} team={selected} onChange={change} />
                     {snesScoreLogosSupported(current) ? (

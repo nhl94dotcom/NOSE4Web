@@ -40,6 +40,7 @@ import { snesPlaceNameRoom } from './snesplacenames'
 import { HACK_PARTS, hackState, narrowRating, widenRating } from './hacks'
 import { detectSnesHacks } from './sneshacks'
 import type { RomProject } from './rom'
+import { sameSnesSong } from './snessongs'
 import { MAX_ROSTER } from './roster'
 import { goalieCount, teamDisplayName } from './team'
 
@@ -77,8 +78,13 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       ...team,
       names: source.names,
       placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName,
-      // A team's organ songs come with its names, where both ROMs have them.
+      // A team's organ songs come with its names, where both ROMs have them;
+      // on the SNES each as the same song in this ROM, where it has it.
       songs: team.songs && source.songs ? source.songs.slice() : team.songs,
+      snesSongs:
+        team.snesSongs && source.snesSongs
+          ? source.snesSongs.map((pointer, slot) => sameSnesSong(other.bytes, pointer, project.bytes) ?? team.snesSongs![slot])
+          : team.snesSongs,
     }
     notes.push('Names brought in.')
     // A longer banner name may not fit the room the banner names share.
