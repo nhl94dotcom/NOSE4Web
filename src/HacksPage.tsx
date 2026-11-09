@@ -762,7 +762,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (2.4%), half
             what a burst of speed costs, about 12 seconds of skating or a tenth of a typical shift's tiring; up to 204, a
             whole burst. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
-            code by the NHL94 Match Viewer project, which measured the shifts; not yet tested in the game.
+            code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game: each knockdown and hold takes its amount once, and nothing with line changes Off or Auto.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
             Use the recommended {RECOMMENDED_HIT_ENERGY}
