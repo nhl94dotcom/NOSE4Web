@@ -219,6 +219,10 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { secondAssist: true },
       { oneTimerAssist: true },
       { oneTimerAssist: true, secondAssist: true },
+      { regainAssist: true },
+      { regainAssist: true, secondAssist: true },
+      { regainAssist: true, oneTimerAssist: true },
+      { regainAssist: true, oneTimerAssist: true, secondAssist: true },
       { plusMinus: true },
       { wideRatings: true },
       { bonuses: 'disabled' },
@@ -331,6 +335,26 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(delays(applyHacks(opened, { ...NO_HACKS, goalieDelay: 12 }).bytes)).toEqual(['31fc0c0cbf06', '31fc0c0cbf08', '11fc000c', '11fc000c', '11fc000c', '11fc000c', '11fc000c', '11fc000c'])
     expect(() => applyHacks(opened, { ...NO_HACKS, goalieDelay: 0 })).toThrow('from 1 to 128')
     expect(() => applyHacks(opened, { ...NO_HACKS, goalieDelay: 129 })).toThrow('from 1 to 128')
+  })
+
+  it("puts Match Viewer's regained-puck fix at $10176, apart from the other assist fixes", () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const where = (rom: Uint8Array, offset: number) => (rom[offset] << 24) | (rom[offset + 1] << 16) | (rom[offset + 2] << 8) | rom[offset + 3]
+    const opened = openRom(stock())
+    expect(at(opened.bytes, 0x10176, 8)).toBe('b068001867000028')
+    const fixed = applyHacks(opened, { ...NO_HACKS, regainAssist: true }).bytes
+    expect(at(fixed, 0x10176, 2)).toBe('4eb9')
+    expect(at(fixed, 0x1017c, 2)).toBe('4e71')
+    // cmp.w $18(a0),d0; bne.s +12; bclr #3,$30(a0); move.l #$101A4,(sp); rts
+    expect(at(fixed, where(fixed, 0x10178), 20)).toBe('b0680018660c08a8000300302ebc000101a44e75')
+    // The rest of a2touchpuck is as it was, the second-assist fix's place included.
+    expect(at(fixed, 0x1017e, 38)).toBe(at(opened.bytes, 0x1017e, 38))
+    const all = applyHacks(opened, { ...NO_HACKS, regainAssist: true, oneTimerAssist: true, secondAssist: true }).bytes
+    for (const off of ['regainAssist', 'oneTimerAssist', 'secondAssist'] as const) {
+      const wanted = { ...NO_HACKS, regainAssist: true, oneTimerAssist: true, secondAssist: true, [off]: false }
+      expect(Buffer.compare(applyHacks({ ...opened, bytes: all }, wanted).bytes, applyHacks(opened, wanted).bytes), off).toBe(0)
+    }
+    expect(Buffer.compare(applyHacks({ ...opened, bytes: all }, NO_HACKS).bytes, opened.bytes)).toBe(0)
   })
 
   it("puts the one-timer assist fix at $F6CE4, with the second-assist fix's check in it when that is on", () => {

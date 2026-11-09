@@ -57,6 +57,7 @@ export interface HackChoices {
   bodychecks: Bodychecks
   secondAssist: boolean
   oneTimerAssist: boolean
+  regainAssist: boolean
   plusMinus: boolean
   // Ratings from 0 to 15 in place of 0 to 6, with the overall rating formulas made for them.
   wideRatings: boolean
@@ -152,6 +153,7 @@ export type HackPart =
   | 'bodychecks'
   | 'secondAssist'
   | 'oneTimerAssist'
+  | 'regainAssist'
   | 'plusMinus'
   | 'ratings'
   | 'threeStars'
@@ -203,6 +205,7 @@ export const NO_HACKS: HackChoices = {
   bodychecks: 'off',
   secondAssist: false,
   oneTimerAssist: false,
+  regainAssist: false,
   plusMinus: false,
   wideRatings: false,
   bonuses: 'original',
@@ -419,8 +422,8 @@ const secondAssist: Part<boolean> = {
   detect(rom) {
     const oneTimer = oneTimerCode(rom)
     if (oneTimer) {
-      if (is(rom, ASSIST_HOOKS[0].at, ASSIST_HOOKS[0].original)) return oneTimer.code === ONE_TIMER_CODE ? false : undefined
-      return hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE) !== null && oneTimer.code === ONE_TIMER_ASSIST_CODE ? true : undefined
+      if (is(rom, ASSIST_HOOKS[0].at, ASSIST_HOOKS[0].original)) return oneTimer.assist ? undefined : false
+      return hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE) !== null && oneTimer.assist ? true : undefined
     }
     if (ASSIST_HOOKS.every((hook) => is(rom, hook.at, hook.original))) return false
     const targets = ASSIST_HOOKS.map((hook) => hooked(rom, hook, ASSIST_CODE))
@@ -455,16 +458,31 @@ const secondAssist: Part<boolean> = {
 // since this takes over the place the second-assist fix also calls from.
 
 const ONE_TIMER_HOOK: Hook = { at: 0xf6ce4, original: bytes('3168 001A 001C 3168 0018 001A 3140 0018') }
-const ONE_TIMER_CODE = bytes('B068 0018 6722 08A8 0003 0030 660C 3168 001A 001C 3168 0018 001A 3140 0018 B068 001C 6604 50E8 001C 4E75')
-const ONE_TIMER_ASSIST_CODE = bytes(
-  'B068 0018 6728 08A8 0003 0030 6612 B068 001A 6706 3168 001A 001C 3168 0018 001A 3140 0018 B068 001C 6604 50E8 001C 4E75',
-)
 
-// The one-timer fix's code in this ROM, if it has it, and where.
-function oneTimerCode(rom: Uint8Array): { code: Uint8Array; target: number } | null {
-  for (const code of [ONE_TIMER_CODE, ONE_TIMER_ASSIST_CODE]) {
-    const target = hooked(rom, ONE_TIMER_HOOK, code)
-    if (target !== null) return { code, target }
+// a2touchpuck's list update as a routine of its own, with d0 the toucher and
+// a0 his team: not if he is the last toucher already; else with the overwrite
+// flag (tmflast) set he replaces the last toucher, and otherwise the list
+// moves down; and a second assist who is the new last toucher is cleared.
+// `assist`: with the second-assist fix's check. Without it, Match Viewer's
+// one-timer routine, byte for byte.
+function listUpdate(assist: boolean): Uint8Array {
+  const check = assist ? 'B068 001A 6706' : ''
+  const extra = assist ? 6 : 0
+  const set = 26 + extra
+  const end = 40 + extra
+  const disp = (target: number, from: number) => (target - from).toString(16).padStart(2, '0')
+  return bytes(
+    `B068 0018 67${disp(end, 6)} 08A8 0003 0030 66${disp(set, 14)} ${check} 3168 001A 001C 3168 0018 001A ` +
+      '3140 0018 B068 001C 6604 50E8 001C 4E75',
+  )
+}
+const LIST_UPDATES = [false, true].map((assist) => ({ assist, code: listUpdate(assist) }))
+
+// The one-timer fix's code in this ROM, if it has it, where, and which version.
+function oneTimerCode(rom: Uint8Array): { code: Uint8Array; target: number; assist: boolean } | null {
+  for (const version of LIST_UPDATES) {
+    const target = hooked(rom, ONE_TIMER_HOOK, version.code)
+    if (target !== null) return { ...version, target }
   }
   return null
 }
@@ -487,7 +505,37 @@ const oneTimerAssist = {
   // After the second-assist fix, whose call at the same place this replaces.
   apply(work: Work, value: boolean, secondAssistOn: boolean) {
     if (!value) return
-    hook(work, ONE_TIMER_HOOK, secondAssistOn ? ONE_TIMER_ASSIST_CODE : ONE_TIMER_CODE)
+    hook(work, ONE_TIMER_HOOK, listUpdate(secondAssistOn))
+  },
+}
+
+// --------------------------------------------- regained-puck assist fix
+// Match Viewer: 8 of 274 recorded goals. puckglue sets tmflast when the
+// other team takes the puck, and a2touchpuck's "same player as tmtouch1"
+// exit (beq.w .same at $1017A) skips the bclr that clears it, so a player
+// who wins the puck back himself keeps it set, and the teammate he passes to
+// replaces him as the last toucher: his assist is lost. Match Viewer's fix,
+// tested in the game: the 8 bytes of cmp.w tmtouch1(a0),d0 / beq.w .same at
+// $10176 become jsr / nop to 20 bytes that make the same compare; for the
+// same player they clear the flag and go on to .same ($101A4, by changing
+// the return address), and otherwise return to the original bclr and list
+// update, the second-assist fix's call in it included.
+const REGAIN_HOOK: Hook = { at: 0x10176, original: bytes('B068 0018 6700 0028') }
+const REGAIN_CODE = bytes('B068 0018 660C 08A8 0003 0030 2EBC 0001 01A4 4E75')
+
+const regainAssist: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, REGAIN_HOOK.at, REGAIN_HOOK.original)) return false
+    return hooked(rom, REGAIN_HOOK, REGAIN_CODE) !== null ? true : undefined
+  },
+  remove(rom) {
+    const target = hooked(rom, REGAIN_HOOK, REGAIN_CODE)
+    if (target === null) return
+    erase(rom, target, REGAIN_CODE.length)
+    rom.set(REGAIN_HOOK.original, REGAIN_HOOK.at)
+  },
+  apply(work, value) {
+    if (value) hook(work, REGAIN_HOOK, REGAIN_CODE)
   },
 }
 
@@ -1463,6 +1511,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     bodychecks: found('bodychecks', bodychecks.detect(rom), NO_HACKS.bodychecks),
     secondAssist: found('secondAssist', secondAssist.detect(rom), NO_HACKS.secondAssist),
     oneTimerAssist: found('oneTimerAssist', oneTimerAssist.detect(rom), NO_HACKS.oneTimerAssist),
+    regainAssist: found('regainAssist', regainAssist.detect(rom), NO_HACKS.regainAssist),
     plusMinus: found('plusMinus', plusMinus.detect(rom), NO_HACKS.plusMinus),
     wideRatings: scale.wide,
     bonuses: scale.bonuses,
@@ -1528,6 +1577,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['baseWeight', () => baseWeight.remove(work.rom), () => baseWeight.apply(work, wanted.baseWeight)],
     ['secondAssist', () => secondAssist.remove(work.rom), () => secondAssist.apply(work, wanted.secondAssist)],
     ['oneTimerAssist', () => oneTimerAssist.remove(work.rom), () => oneTimerAssist.apply(work, wanted.oneTimerAssist, wanted.secondAssist)],
+    ['regainAssist', () => regainAssist.remove(work.rom), () => regainAssist.apply(work, wanted.regainAssist)],
     ['ratings', () => ratings.remove(work.rom), () => ratings.apply(work, { wide: wanted.wideRatings, bonuses: wanted.bonuses })],
     ['plusMinus', () => plusMinus.remove(work.rom), () => plusMinus.apply(work, wanted.plusMinus)],
     ['threeStars', () => threeStars.remove(work.rom), () => threeStars.apply(work, wanted.threeStars)],
@@ -1626,7 +1676,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
-  'checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
+  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'greenFan', 'introWait', 'weightFix',
@@ -1742,6 +1792,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   bodychecks: 'Bodycheck statistics',
   secondAssist: 'Second-assist bug fix',
   oneTimerAssist: 'One-timer assist fix',
+  regainAssist: 'Regained-puck assist fix',
   plusMinus: 'Plus-minus statistic',
   wideRatings: 'Rating scale',
   bonuses: 'Hot and cold bonuses',
@@ -1790,6 +1841,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   bodychecks: 'bodychecks',
   secondAssist: 'secondAssist',
   oneTimerAssist: 'oneTimerAssist',
+  regainAssist: 'regainAssist',
   plusMinus: 'plusMinus',
   wideRatings: 'ratings',
   bonuses: 'ratings',

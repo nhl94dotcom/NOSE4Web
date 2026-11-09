@@ -8,7 +8,7 @@ describe('the hack sheet', () => {
   it('explains every hack that differs from the original, and only those', () => {
     const all: HackChoices = {
       ...NO_HACKS,
-      weightFix: 'on', bodychecks: 'on', secondAssist: true, oneTimerAssist: true, plusMinus: true, wideRatings: true, bonuses: 'disabled',
+      weightFix: 'on', bodychecks: 'on', secondAssist: true, oneTimerAssist: true, regainAssist: true, plusMinus: true, wideRatings: true, bonuses: 'disabled',
       threeStars: 'linesOn', baseWeight: 144, checkFix: 'all120', aggressionFix: true, ppPkFix: true, comebackFix: true,
       passFix: true, faceoffFix: true, runawayFix: true, penaltyShotTableFix: true, penaltyShotFixes: true,
       goaliePullFix: true, blindRingFix: true, snipingFix: true, awarenessFix: true, crowdFix: true, stickShots: true,

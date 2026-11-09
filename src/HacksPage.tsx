@@ -187,7 +187,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -262,6 +262,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'oneTimerAssist',
           onOff('oneTimerAssist'),
           "When the shooter's stick touches a pass without catching it and he then one-times it in, the original game counts him twice among the last players to touch the puck and gives the goal no assist: about 1 one-timer goal in 24 in recorded games. This puts him on the list as every other touch does, so the passer and the player before him get their assists. Ordinary one-timers are unchanged. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist fix or without it, and is among the recommended fixes.",
+        )}
+        {hack(
+          'regainAssist',
+          onOff('regainAssist'),
+          "When a player loses the puck to an opponent, wins it back himself, and passes to a teammate who scores, the original game loses his assist: a flag left from the opponent's touch makes the scorer take his place among the last players to touch the puck. This clears the flag when he wins it back, so he gets the assist. About 1 goal in 34 in recorded games. Found by the NHL94 Match Viewer project; it goes with the second-assist and one-timer assist fixes or without them.",
         )}
         {hack(
           'aggressionFix',

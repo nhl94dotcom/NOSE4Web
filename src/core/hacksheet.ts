@@ -30,6 +30,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : 'Checks are judged the same way for everyone, so a heavier checker does better, as in real hockey, and pressing C and then B to switch away just before a hit no longer helps.',
   secondAssist: () => 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: () => "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
+  regainAssist: () => 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   aggressionFix: () => 'Aggression works as the rating reads: a higher rating means more penalties, where the original game mixes the values up (a 4 plays like a 1).',
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
@@ -106,7 +107,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
 }
 
 const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
-  ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
+  ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
