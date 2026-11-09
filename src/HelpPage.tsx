@@ -1596,7 +1596,10 @@ export function HelpPage() {
           picture banners: a team's block is plain colour, its own block colours, with a name in letters, its{' '}
           <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the playoff
           bracket. It follows the place name while the two are the same, and can be shortened on the team page; all
-          the banner names share a little room, and Check ROM says if they need more. Import a team brings both. ROMs
+          the banner names share a little room, and Check ROM says if they need more. The block's 16 colours, its{' '}
+          <b>Name banner colours</b>, are changed below the logos (colour 0 is see-through and not offered; 2 to 7 and 8
+          to 14 are each a run of shades), and where two teams share them, the changed ones go into free space so the
+          other team keeps its own. Import a team brings the name and the colours. ROMs
           rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
           room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
           centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the

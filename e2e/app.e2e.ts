@@ -5,6 +5,7 @@ import { rinkLogo } from '../src/core/graphics'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { snesBlockColours } from '../src/core/snesblockcolours'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
 import { createZip, readZip } from '../src/core/zip'
 
@@ -2103,6 +2104,32 @@ test.describe('with the SNES game', () => {
     expect(rom.settings.playoffDraws.flat().every((t) => t < 20)).toBe(true)
     expect(rom.settings.menu.map((item) => item.value)).toEqual([0, 1, 10, 1, 0, 2, 1])
     expect(rom.rinkPalette[1] & 0x1f).toBe(3)
+  })
+
+  test("changes a team's name banner colours and resets them", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Boston Bruins').click()
+    const banner = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Name banner colours' }) })
+    await expect(banner.locator('.swatch')).toHaveCount(15)
+    const reset = banner.getByRole('button', { name: 'Reset banner colours' })
+    await expect(reset).toBeDisabled()
+    // Colour 3, in the first run of shades.
+    await banner.locator('.swatch').nth(2).click()
+    await banner.getByLabel(/^Red/).fill('31')
+    await expect(reset).toBeEnabled()
+    const opened = readRom(new Uint8Array(readFileSync(snesPath)))
+    let rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    const before = snesBlockColours(opened, 1)!
+    const after = snesBlockColours(rom, 1)!
+    expect(after[3] & 0x1f).toBe(31)
+    expect(after.filter((_, i) => i !== 3)).toEqual(before.filter((_, i) => i !== 3))
+    // The other teams' are as they were.
+    expect(opened.teams.map((_, t) => (t === 1 ? null : snesBlockColours(rom, t)))).toEqual(opened.teams.map((_, t) => (t === 1 ? null : snesBlockColours(opened, t))))
+    await reset.click()
+    await expect(reset).toBeDisabled()
+    rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    expect(snesBlockColours(rom, 1)).toEqual(before)
   })
 
   test('exports a team logo, imports another in its place, and downloads the ROM with it', async ({ page }) => {

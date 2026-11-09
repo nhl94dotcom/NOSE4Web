@@ -42,6 +42,7 @@ import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
+import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
@@ -412,6 +413,7 @@ export default function App() {
                 current.game.platform === 'snes' && (
                   <>
                     <SnesPicturesEditor project={current} team={selected} onChange={change} />
+                    <SnesBannerColoursEditor project={current} original={opened} team={selected} onChange={change} />
                     {snesScoreLogosSupported(current) ? (
                       <SnesScoreLogoEditor project={current} team={selected} onChange={change} />
                     ) : (
