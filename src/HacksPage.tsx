@@ -762,7 +762,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game,
             where a hit costs the skater nothing. Only with line changes On, where the game's energy counts at all. Full
             energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a
-            burst of speed costs, about 25 seconds of skating: with it a game's hits tire players a little more. Half as
+            burst of speed costs, about 25 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) and the computer changes lines about 15% more often, while the average skater is hardly touched; people hit about twice as often. Half as
             much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to
             wear players down. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
             code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game: each knockdown and hold takes its amount once, and nothing with line changes Off or Auto.
