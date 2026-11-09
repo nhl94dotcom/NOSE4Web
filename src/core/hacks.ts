@@ -1288,6 +1288,7 @@ export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   checkFix: 'all120',
   weightFix: 'off',
   secondAssist: true,
+  oneTimerAssist: true,
   aggressionFix: true,
   ppPkFix: true,
   comebackFix: true,

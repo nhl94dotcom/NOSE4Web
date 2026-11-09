@@ -234,7 +234,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'oneTimerAssist',
           onOff('oneTimerAssist'),
-          "When the shooter's stick touches a pass without catching it and he then one-times it in, the original game counts him twice among the last players to touch the puck and gives the goal no assist: about 1 one-timer goal in 24 in recorded games. This puts him on the list as every other touch does, so the passer and the player before him get their assists. Ordinary one-timers are unchanged. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist fix or without it.",
+          "When the shooter's stick touches a pass without catching it and he then one-times it in, the original game counts him twice among the last players to touch the puck and gives the goal no assist: about 1 one-timer goal in 24 in recorded games. This puts him on the list as every other touch does, so the passer and the player before him get their assists. Ordinary one-timers are unchanged. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist fix or without it, and is among the recommended fixes.",
         )}
         {hack(
           'aggressionFix',

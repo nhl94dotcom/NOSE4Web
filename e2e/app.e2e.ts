@@ -1638,6 +1638,7 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByRole('button', { name: 'Turn on the recommended fixes' }).click()
     await expect(main.locator('.outcome li')).toHaveText([
       'Second-assist bug fix: off to on.',
+      'One-timer assist fix: off to on.',
       'Weight bug and C-then-B fix: off to everyone checks as the computer.',
       'Aggression bug fix: off to on.',
       'Power play and penalty kill fix: off to on.',
@@ -1669,6 +1670,7 @@ test.describe('with the NHL 94 ROM', () => {
         '**Hacks in nhl94**',
         '- **Weight bug and C-then-B fix**',
         '- **Second-assist bug fix**',
+        '- **One-timer assist fix**',
         '- **Aggression bug fix**',
         '- **Power play and penalty kill fix**',
         '- **Comeback bonus fix**',
