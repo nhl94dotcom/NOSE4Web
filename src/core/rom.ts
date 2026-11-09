@@ -1,4 +1,5 @@
 import { readAscii, readText, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
+import { readTeamSongs, writeTeamSongs } from './teamsongs'
 import { findGame, snesGame, type GameConfig } from './games'
 import { graphicsSupported, NO_GRAPHICS_EDITS, writeGraphics, type GraphicsEdits } from './graphics'
 import { createIps } from './ips'
@@ -158,6 +159,7 @@ export function openRom(file: Uint8Array): RomProject {
 
   disableSelfCheck(bytes, game)
   const { teams, layout } = parseTeams(bytes, game)
+  readTeamSongs(bytes, teams.length)?.forEach((songs, i) => (teams[i].songs = songs))
   const rinkPalette: number[] = []
   for (let i = 0; i < RINK_COLORS; i++) rinkPalette.push(readU16(bytes, game.rinkPaletteOffset + i * 2))
   return {
@@ -218,6 +220,7 @@ export function buildRom(project: RomProject): Uint8Array {
     return file
   }
   updateTeamNameRedirects(rom, project.game)
+  writeTeamSongs(rom, project.teams.map((team) => team.songs))
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
   if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)
   writeGraphics(rom, project.game, project.graphics)

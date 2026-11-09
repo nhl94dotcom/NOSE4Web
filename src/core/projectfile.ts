@@ -340,7 +340,14 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   // A banner name from the file where it has a usable one, else the ROM's (files saved before there were any).
   const placeName = (stored: StoredTeam, i: number) =>
     project.teams[i].placeName === undefined ? undefined : typeof stored.placeName === 'string' ? stored.placeName : project.teams[i].placeName
-  const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes, placeName: placeName(team, i) }))
+  // Songs only where this ROM has them, and only as six song numbers.
+  const songs = (stored: StoredTeam, i: number) => {
+    const own = project.teams[i].songs
+    const value = (stored as { songs?: unknown }).songs
+    if (!own) return undefined
+    return Array.isArray(value) && value.length === 6 && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 0xff) ? (value as number[]) : own
+  }
+  const teams = file.teams.map((team, i) => ({ ...team, freeBytes: project.teams[i].freeBytes, placeName: placeName(team, i), songs: songs(team, i) }))
   const settings = hasSettings(game, project.settings) && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
   const leagueRules = cleanLeagueRules(file.leagueRules, teams.length)

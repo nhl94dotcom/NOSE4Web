@@ -712,7 +712,7 @@ export function HacksPage({ project, name, onChange }: Props) {
               {fitted ? `: ${fewerSkaterLinesText(fitted)}` : ''}. It works only where those positions follow each other in
               the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. From smozoma's forum post
               for 2 on 2, worked out for any number of skaters, and for line changes on, in the game's code by the NHL94
-              Match Viewer project, and tested in the game for 1 on 1. A ROM with smozoma's version is updated to this when
+              Match Viewer project, and tested in the game for 1 on 1 and 2 on 2 with line changes off and on. A ROM with smozoma's version is updated to this when
               its hacks are next applied.
             </>,
           )
@@ -724,7 +724,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             How fast the puck slows down on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller
             number slows it faster (8 is twice as fast as the original 9, 10 half as fast). A player receiving a pass
             slows the same way, and so does a skater caught by the runaway-speed bug. There is no friction in the air.
-            From chaos's forum post, read in the game's code by the NHL94 Match Viewer project. {stock('puckFriction')}
+            From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
+            0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
           </>,
         )}
         {hack(
@@ -754,22 +755,22 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             Which of the game's colour sets the puck is drawn in: the rink's, as in the original game, the crowd's, or
             the home team's or visitors' uniform colours, so a team's puck can be its own. Its shadow is left as it is.
-            From AdamCatalyst's forum post, with the puck's pieces placed in the game's code by the NHL94 Match Viewer
-            project.
+            From AdamCatalyst's forum post, with the puck's pieces placed in the game's code and tested in the game by the
+            NHL94 Match Viewer project.
           </>,
         )}
         {hack(
           'greenFan',
           onOff('greenFan'),
-          "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it.",
+          "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post, tested in the game by the NHL94 Match Viewer project; several league ROMs have it.",
         )}
         {hack(
           'introWait',
           number('introWait'),
           <>
             How long each of the two intro screens, EA Sports and High Score Productions, waits before moving on, in
-            counts of four frames less one: the original 80 waits about 5.4 seconds, and 0 about a fifteenth of a second.
-            A button skips either screen anyway. From AdamCatalyst's forum post, read in the game's code by the NHL94 Match
+            counts of four frames: with its fades, each screen lasts about 4.9 seconds at the original 80 and about 1.6 at
+            20. A button skips either screen anyway. From AdamCatalyst's forum post, tested in the game by the NHL94 Match
             Viewer project. {stock('introWait')}
           </>,
         )}

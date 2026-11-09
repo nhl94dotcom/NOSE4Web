@@ -48,6 +48,9 @@ export interface Team {
   // The SNES game's name on the team's banners and in the playoff bracket,
   // kept apart from its own names (see snesplacenames.ts).
   placeName?: string
+  // The Genesis game's six organ songs for the team's home games, kept apart
+  // from its team data (see teamsongs.ts).
+  songs?: number[]
 }
 
 // Where the team data sits in the ROM, so it can be written back to the same place.

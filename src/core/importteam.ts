@@ -73,7 +73,13 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
 
   if (parts.names) {
     // On the SNES the banner name comes too, between ROMs that keep one.
-    team = { ...team, names: source.names, placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName }
+    team = {
+      ...team,
+      names: source.names,
+      placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName,
+      // A team's organ songs come with its names, where both ROMs have them.
+      songs: team.songs && source.songs ? source.songs.slice() : team.songs,
+    }
     notes.push('Names brought in.')
     // A longer banner name may not fit the room the banner names share.
     if (team.placeName !== undefined && project.teams.every((t) => t.placeName !== undefined)) {

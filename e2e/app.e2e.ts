@@ -661,6 +661,16 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(drawRows.nth(1))).toEqual(first)
   })
 
+  test("sets a team's organ songs, and downloads them", async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const goal = page.getByLabel('Organ song: Home goal')
+    await expect(goal).toHaveValue('0')
+    await goal.selectOption({ label: '17. Brass Bonanza (HFD)' })
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(readRom(new Uint8Array(readFileSync(await download.path()))).teams[1].songs).toEqual([49, 50, 48, 0x40, 90, 49])
+  })
+
   test('copies lines to another team', async ({ page }) => {
     await openRom(page)
     const lines = () => page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })

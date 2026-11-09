@@ -80,7 +80,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
-  introWait: (c) => `Each intro screen waits about ${(((c.introWait + 1) * 4) / 60).toFixed(1)} seconds, where the original game waits 5.4 (a button skips it).`,
+  introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
   puckFriction: (c) =>
     `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a player receiving a pass).`,
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,

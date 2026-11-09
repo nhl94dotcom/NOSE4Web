@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { songName, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
 import { snesHackDifferences } from './sneshacks'
@@ -106,6 +107,12 @@ function compareTeam(project: RomProject, before: Team, after: Team, sameGame: b
   after.names.forEach((text, i) => {
     if (text !== before.names[i]) changes.push(`${NAME_LABELS[i]}: "${before.names[i]}" to "${text}".`)
   })
+  if (before.songs && after.songs) {
+    before.songs.forEach((was, slot) => {
+      const now = after.songs![slot]
+      if (was !== now) changes.push(`Organ song, ${SONG_SLOTS[slot].toLowerCase()}: ${songName(was)} to ${songName(now)}.`)
+    })
+  }
   if (before.placeName !== undefined && after.placeName !== undefined && before.placeName !== after.placeName) {
     changes.push(`Banner name: "${before.placeName}" to "${after.placeName}".`)
   }

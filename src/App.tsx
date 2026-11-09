@@ -47,6 +47,7 @@ import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
+import { TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
@@ -416,6 +417,7 @@ export default function App() {
             footer={
               current.graphicsSupported ? (
                 <>
+                  <TeamSongsSection project={current} team={selected} original={opened.teams[selected]} onChange={change} />
                   <GraphicsEditor project={current} team={selected} onChange={change} />
                   <GenesisScoreLogoEditor project={current} team={selected} onChange={change} />
                   {photosSupported(current) && <PhotosEditor project={current} team={selected} onChange={change} />}
