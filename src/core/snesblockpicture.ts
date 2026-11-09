@@ -12,7 +12,10 @@ import { findCode, findCodeAll, loRomOffset, snesSpriteFrameDots, tilePixel } fr
 const COLUMNS = 9
 const ROWS = 2
 export const SNES_BLOCK_SIZE = { width: COLUMNS * 8, height: ROWS * 8 }
-// Letters take colours of their own: SetupScreen's sprite palette 4, after the block's 16.
+// Letters take colours of their own: SetupScreen's sprite palette 4, after the block's 16. They use
+// its 15 ($FFFF, the letter) and 1 ($1D47, the edge), as Match Viewer measured on every banner screen
+// but Game Setup, where setoptions makes the edge $14A5 (a dark grey); the pause scoreboard's
+// horizontal blocks use sprite palettes 6 and 7, which hold the same two.
 export const SNES_BLOCK_LETTERS = 16
 
 // DrawTeamBlocks: lda #Teamblocksmap>>16; sta a2+2; lda #Teamblocksmap+6; sta a2; lda printy; asl x5;
