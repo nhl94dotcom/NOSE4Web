@@ -76,9 +76,9 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 
 // What NOSE4Web's version of a hack does better than NHL94SNESVault's.
 const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
-  extraAttackerFix: "On the penalty-kill lines it never finds the extra attacker, so picking him there still puts him on the line twice; NOSE4Web's covers every line. NOSE4Web's own fix was the Vault's before 9 November 2026.",
-  showMaxBoost: "It misses about 1 boosted rating in 28 (a cold value of -1), which NOSE4Web's shows as 100 too.",
-  manualPullGoalie: "It reads the buttons only about every half second, so a quick tap is often missed and a long hold can pull the goalie and put him straight back; NOSE4Web's acts once on each press.",
+  extraAttackerFix: "NHL94SNESVault's, on the penalty-kill lines, never finds the extra attacker, so picking him there still puts him on the line twice; NOSE4Web's covers every line. NOSE4Web's own fix was the Vault's before 9 November 2026.",
+  showMaxBoost: "NHL94SNESVault's misses about 1 boosted rating in 28 (a cold value of -1), which NOSE4Web's shows as 100 too.",
+  manualPullGoalie: "NHL94SNESVault's reads the buttons only about every half second, so a quick tap is often missed and a long hold can pull the goalie and put him straight back, and NOSE4Web's of the morning of 9 November 2026 can act on a press made in a short pause once play resumes; NOSE4Web's now acts once on each press made in play.",
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
@@ -167,7 +167,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 </p>
                 {state.vaultVersions?.includes(hack) && (
                   <p className="note">
-                    <b>This ROM has NHL94SNESVault's own version.</b> {VAULT_VERSION_NOTE[hack]}{' '}
+                    <b>This ROM has an earlier version of it.</b> {VAULT_VERSION_NOTE[hack]}{' '}
                     <button
                       onClick={() => {
                         try {

@@ -172,7 +172,11 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   // new code makes) to code that, for pads 1 and 2, sets a count of 24 loops
   // at $1EF0 or $1EF2 (unused RAM, Match Viewer) when the pad has just pressed
   // L or R and holds exactly L and R, and otherwise counts it down; the check
-  // turns the goalie over when its pad's count is set, and clears it.
+  // turns the goalie over when its pad's count is set, and clears it. While
+  // the game is paused (sflags $15D8 bit 0) both counts are zeroed, as play
+  // takes some 37 frames to resume without reading the pads, and a count left
+  // from a press in a short pause would otherwise run out in play (Match
+  // Viewer).
   manualPullGoalie: [
     { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
     {
@@ -183,34 +187,47 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
         'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
     },
     { at: 0x9b84d8, original: '8DA20A', hacked: '20DBCE' },
-    {
-      at: 0x9bcedb,
-      original: free(50),
-      hacked: '8DA20A A20000 BDB80A 293000 F013 BD7607 29FF00 C93000 D008 A91800 9DF01E 8009 BDF01E F004 3A 9DF01E E8 E8 E00400 D0D5 60',
-    },
+    { at: 0x9bcedb, original: free(63), hacked: '8DA20A AD D815 4A 9007 9CF01E 9CF21E 60 A20000 BDB80A 293000 F013 BD7607 29FF00 C93000 D008 A91800 9DF01E 8009 BDF01E F004 3A 9DF01E E8 E8 E00400 D0D5 60' },
   ],
 }
 
-// The versions of hacks NHL94SNESVault puts in, where NOSE4Web's own differ:
-// recognised as the hack, and replaced by NOSE4Web's when asked.
-const VAULT_VERSIONS: Partial<Record<SnesHack, Site[]>> = {
-  extraAttackerFix: [
+// Earlier versions of hacks, where NOSE4Web's own now differ: those
+// NHL94SNESVault puts in, and NOSE4Web's own earlier ones. Recognised as the
+// hack, and replaced by NOSE4Web's when asked.
+const VAULT_VERSIONS: Partial<Record<SnesHack, Site[][]>> = {
+  extraAttackerFix: [[
     { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
     { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
-  ],
-  showMaxBoost: [
+  ]],
+  showMaxBoost: [[
     { at: 0x9f9a30, original: '4CBD9A', hacked: '4C43FB' },
     { at: 0x9ffb43, original: free(14), hacked: '2414 3003 4CBD9A A96400 8DA500 6B' },
-  ],
+  ]],
   manualPullGoalie: [
-    { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
-    {
-      at: 0x9efb6e,
-      original: free(87),
-      hacked:
-        'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BD7607 29FF00 C93000 D022 ' +
-        'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
-    },
+    // NOSE4Web's of 9 November 2026, 10:00, which counted presses made in a pause.
+    [
+      { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
+      {
+        at: 0x9efb6e,
+        original: free(87),
+        hacked:
+          'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BDF01E F028 9EF01E EA EA EA ' +
+          'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
+      },
+      { at: 0x9b84d8, original: '8DA20A', hacked: '20DBCE' },
+      { at: 0x9bcedb, original: free(50), hacked: '8DA20A A20000 BDB80A 293000 F013 BD7607 29FF00 C93000 D008 A91800 9DF01E 8009 BDF01E F004 3A 9DF01E E8 E8 E00400 D0D5 60' },
+    ],
+    // NHL94SNESVault's.
+    [
+      { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
+      {
+        at: 0x9efb6e,
+        original: free(87),
+        hacked:
+          'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BD7607 29FF00 C93000 D022 ' +
+          'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
+      },
+    ],
   ],
 }
 
@@ -588,8 +605,8 @@ function detect(rom: Uint8Array): SnesHackState {
       const places = placesOf(rom, hack, null, inPlace)
       if (places && places.every((place) => holds(rom, place, 'original'))) return [hack, false]
       if (places && places.every((place) => holds(rom, place, 'hacked'))) return [hack, true]
-      const vault = VAULT_VERSIONS[hack]
-      if (inPlace && vault && vault.every((site) => holds(rom, placedSite(site), 'hacked'))) {
+      const earlier = VAULT_VERSIONS[hack] ?? []
+      if (inPlace && earlier.some((version) => version.every((site) => holds(rom, placedSite(site), 'hacked')))) {
         vaultVersions.push(hack)
         return [hack, true]
       }

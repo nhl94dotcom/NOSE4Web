@@ -33,8 +33,10 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     // And GetNewPresses's last store, STA $0AA2 at $9B:84D8, becomes a call to the code that counts the presses.
     expect(hex(on.bytes, 0xd84d8, 4)).toBe('20dbce60')
     expect(hex(on.bytes, 0xdcedb, 3)).toBe('8da20a')
-    expect(on.bytes[0xdcedb + 49]).toBe(0x60)
-    expect(on.bytes[0xdcedb + 50]).toBe(0xff)
+    // While the game is paused, the counts are zeroed.
+    expect(hex(on.bytes, 0xdcede, 13)).toBe('add8154a90079cf01e9cf21e60')
+    expect(on.bytes[0xdcedb + 62]).toBe(0x60)
+    expect(on.bytes[0xdcedb + 63]).toBe(0xff)
     // Max boost, testing the stored byte ($16).
     expect(hex(on.bytes, 0xf9a30, 3)).toBe('4c43fb')
     expect(hex(on.bytes, 0xffb43, 17)).toBe('a516c98000b0034cbd9aa964008da5006b')
@@ -74,6 +76,18 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     expect(detectSnesHacks(updated.bytes).vaultVersions).toEqual([])
     // Taken out, the Vault's versions leave the original game.
     expect(applySnesHacks(vault, { extraAttackerFix: false, showMaxBoost: false, manualPullGoalie: false }).bytes).toEqual(project.bytes)
+  })
+
+  it("recognise NOSE4Web's L and R of the morning of 9 November 2026, which counted presses made in a pause", () => {
+    const project = open()
+    const on = applySnesHacks(project, { manualPullGoalie: true })
+    const bytes = on.bytes.slice()
+    bytes.fill(0xff, 0xdcedb, 0xdcedb + 63)
+    bytes.set(Uint8Array.from('8da20aa20000bdb80a293000f013bd760729ff00c93000d008a918009df01e8009bdf01ef0043a9df01ee8e8e00400d0d560'.match(/../g)!.map((pair) => parseInt(pair, 16))), 0xdcedb)
+    const earlier = openRom(bytes)
+    expect(detectSnesHacks(earlier.bytes).vaultVersions).toEqual(['manualPullGoalie'])
+    expect(applySnesHacks(earlier, { manualPullGoalie: true }, true).bytes).toEqual(on.bytes)
+    expect(applySnesHacks(earlier, { manualPullGoalie: false }).bytes).toEqual(project.bytes)
   })
 
   it('go together as the Vault has them', () => {
