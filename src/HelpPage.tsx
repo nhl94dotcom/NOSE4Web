@@ -450,8 +450,8 @@ export function HelpPage() {
         and C, but their RW is still played: a short-handed team that pulls its goalie puts that skater on, not the
         extra attacker, who comes on only at full strength (the game fills the ice from G, LD, RD, C, LW and RW, then
         the extra attacker; found by the NHL94 Match Viewer project, in play on the SNES and in the Genesis code). The
-        editor shows that RW with a dashed border, and it can be changed here as any other position. On the SNES the
-        game's own Edit Lines never edits the extra attacker's place either, on any line.
+        editor shows that RW with a dashed border, and it can be changed here as any other position. The game's own
+        Edit Lines never edits the extra attacker's place either, on any line, on either system.
       </p>
       <p>
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions

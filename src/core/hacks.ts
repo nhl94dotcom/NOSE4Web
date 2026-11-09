@@ -56,6 +56,7 @@ export interface HackChoices {
   weightFix: WeightFix
   bodychecks: Bodychecks
   secondAssist: boolean
+  oneTimerAssist: boolean
   plusMinus: boolean
   // Ratings from 0 to 15 in place of 0 to 6, with the overall rating formulas made for them.
   wideRatings: boolean
@@ -123,6 +124,7 @@ export type HackPart =
   | 'weightFix'
   | 'bodychecks'
   | 'secondAssist'
+  | 'oneTimerAssist'
   | 'plusMinus'
   | 'ratings'
   | 'threeStars'
@@ -163,6 +165,7 @@ export const NO_HACKS: HackChoices = {
   weightFix: 'off',
   bodychecks: 'off',
   secondAssist: false,
+  oneTimerAssist: false,
   plusMinus: false,
   wideRatings: false,
   bonuses: 'original',
@@ -359,8 +362,15 @@ const bodychecks: Part<Bodychecks> = {
 const ASSIST_HOOKS: Hook[] = [0x10188, 0xf6ce4].map((at) => ({ at, original: bytes('3168 001A 001C') }))
 const ASSIST_CODE = bytes('B068 001A 6700 0008 3168 001A 001C 4E75')
 
+// Where the one-timer assist fix has taken over the second place, the fix's
+// own check is in the one-timer fix's code instead (oneTimerAssist below).
 const secondAssist: Part<boolean> = {
   detect(rom) {
+    const oneTimer = oneTimerCode(rom)
+    if (oneTimer) {
+      if (is(rom, ASSIST_HOOKS[0].at, ASSIST_HOOKS[0].original)) return oneTimer.code === ONE_TIMER_CODE ? false : undefined
+      return hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE) !== null && oneTimer.code === ONE_TIMER_ASSIST_CODE ? true : undefined
+    }
     if (ASSIST_HOOKS.every((hook) => is(rom, hook.at, hook.original))) return false
     const targets = ASSIST_HOOKS.map((hook) => hooked(rom, hook, ASSIST_CODE))
     return targets[0] !== null && targets[0] === targets[1] ? true : undefined
@@ -368,13 +378,65 @@ const secondAssist: Part<boolean> = {
   remove(rom) {
     const target = hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE)
     if (target === null) return
+    const second = hooked(rom, ASSIST_HOOKS[1], ASSIST_CODE) === target
     erase(rom, target, ASSIST_CODE.length)
-    for (const hook of ASSIST_HOOKS) rom.set(hook.original, hook.at)
+    rom.set(ASSIST_HOOKS[0].original, ASSIST_HOOKS[0].at)
+    if (second) rom.set(ASSIST_HOOKS[1].original, ASSIST_HOOKS[1].at)
   },
   apply(work, value) {
     if (!value) return
     const target = place(work, ASSIST_CODE)
     for (const hook of ASSIST_HOOKS) writeHook(work.rom, hook, target)
+  },
+}
+
+// ------------------------------------------------------ one-timer assist fix
+// Found by the NHL94 Match Viewer project. a2touchpuck adds a player to the
+// last-touch list with three checks: not if he is the last touch already;
+// tmflast, which replaces the last touch rather than moving the list down;
+// and clearing a second assist who is the new last touch. onetimershot puts
+// the shooter on the list with three plain moves at $F6CE4 instead, so when
+// the receiver's stick touched the pass without catching it before the
+// one-timer, the list reads shooter, shooter, passer and the goal has no
+// assist (3 of 71 one-timer goals in recorded games). The fix calls
+// a2touchpuck's own list update there (42 bytes, Match Viewer's). With the
+// second-assist fix on, that fix's check goes in its code too (48 bytes),
+// since this takes over the place the second-assist fix also calls from.
+
+const ONE_TIMER_HOOK: Hook = { at: 0xf6ce4, original: bytes('3168 001A 001C 3168 0018 001A 3140 0018') }
+const ONE_TIMER_CODE = bytes('B068 0018 6722 08A8 0003 0030 660C 3168 001A 001C 3168 0018 001A 3140 0018 B068 001C 6604 50E8 001C 4E75')
+const ONE_TIMER_ASSIST_CODE = bytes(
+  'B068 0018 6728 08A8 0003 0030 6612 B068 001A 6706 3168 001A 001C 3168 0018 001A 3140 0018 B068 001C 6604 50E8 001C 4E75',
+)
+
+// The one-timer fix's code in this ROM, if it has it, and where.
+function oneTimerCode(rom: Uint8Array): { code: Uint8Array; target: number } | null {
+  for (const code of [ONE_TIMER_CODE, ONE_TIMER_ASSIST_CODE]) {
+    const target = hooked(rom, ONE_TIMER_HOOK, code)
+    if (target !== null) return { code, target }
+  }
+  return null
+}
+
+const ONE_TIMER_REST = ONE_TIMER_HOOK.original.subarray(6)
+
+const oneTimerAssist = {
+  detect(rom: Uint8Array): boolean | undefined {
+    if (oneTimerCode(rom)) return true
+    // The place as the original game has it, or with the second-assist fix's call in its first six bytes.
+    if (!is(rom, ONE_TIMER_HOOK.at + 6, ONE_TIMER_REST)) return undefined
+    return is(rom, ONE_TIMER_HOOK.at, ONE_TIMER_HOOK.original) || hooked(rom, ASSIST_HOOKS[1], ASSIST_CODE) !== null ? false : undefined
+  },
+  remove(rom: Uint8Array) {
+    const found = oneTimerCode(rom)
+    if (!found) return
+    erase(rom, found.target, found.code.length)
+    rom.set(ONE_TIMER_HOOK.original, ONE_TIMER_HOOK.at)
+  },
+  // After the second-assist fix, whose call at the same place this replaces.
+  apply(work: Work, value: boolean, secondAssistOn: boolean) {
+    if (!value) return
+    hook(work, ONE_TIMER_HOOK, secondAssistOn ? ONE_TIMER_ASSIST_CODE : ONE_TIMER_CODE)
   },
 }
 
@@ -1104,6 +1166,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     weightFix: found('weightFix', weightFix.detect(rom), NO_HACKS.weightFix),
     bodychecks: found('bodychecks', bodychecks.detect(rom), NO_HACKS.bodychecks),
     secondAssist: found('secondAssist', secondAssist.detect(rom), NO_HACKS.secondAssist),
+    oneTimerAssist: found('oneTimerAssist', oneTimerAssist.detect(rom), NO_HACKS.oneTimerAssist),
     plusMinus: found('plusMinus', plusMinus.detect(rom), NO_HACKS.plusMinus),
     wideRatings: scale.wide,
     bonuses: scale.bonuses,
@@ -1158,6 +1221,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['bodychecks', () => bodychecks.remove(work.rom), () => bodychecks.apply(work, wanted.bodychecks)],
     ['baseWeight', () => baseWeight.remove(work.rom), () => baseWeight.apply(work, wanted.baseWeight)],
     ['secondAssist', () => secondAssist.remove(work.rom), () => secondAssist.apply(work, wanted.secondAssist)],
+    ['oneTimerAssist', () => oneTimerAssist.remove(work.rom), () => oneTimerAssist.apply(work, wanted.oneTimerAssist, wanted.secondAssist)],
     ['ratings', () => ratings.remove(work.rom), () => ratings.apply(work, { wide: wanted.wideRatings, bonuses: wanted.bonuses })],
     ['plusMinus', () => plusMinus.remove(work.rom), () => plusMinus.apply(work, wanted.plusMinus)],
     ['threeStars', () => threeStars.remove(work.rom), () => threeStars.apply(work, wanted.threeStars)],
@@ -1245,7 +1309,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
-  'checkFix', 'secondAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
+  'checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
@@ -1360,6 +1424,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   weightFix: "smozoma's weight bug fix (legacy)",
   bodychecks: 'Bodycheck statistics',
   secondAssist: 'Second-assist bug fix',
+  oneTimerAssist: 'One-timer assist fix',
   plusMinus: 'Plus-minus statistic',
   wideRatings: 'Rating scale',
   bonuses: 'Hot and cold bonuses',
@@ -1397,6 +1462,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   weightFix: 'weightFix',
   bodychecks: 'bodychecks',
   secondAssist: 'secondAssist',
+  oneTimerAssist: 'oneTimerAssist',
   plusMinus: 'plusMinus',
   wideRatings: 'ratings',
   bonuses: 'ratings',

@@ -217,6 +217,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { weightFix: 'simple' },
       { bodychecks: 'on' },
       { secondAssist: true },
+      { oneTimerAssist: true },
+      { oneTimerAssist: true, secondAssist: true },
       { plusMinus: true },
       { wideRatings: true },
       { bonuses: 'disabled' },
@@ -259,10 +261,31 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     }
   })
 
+  it("puts the one-timer assist fix at $F6CE4, with the second-assist fix's check in it when that is on", () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    expect(at(opened.bytes, 0xf6ce4, 16)).toBe('3168001a001c31680018001a31400018')
+    const alone = applyHacks(opened, { ...NO_HACKS, oneTimerAssist: true }).bytes
+    expect(at(alone, 0xf6ce4, 6).slice(0, 4)).toBe('4eb9')
+    expect(at(alone, 0xf6cea, 10)).toBe('4e714e714e714e714e71')
+    const where = (rom: Uint8Array) => (rom[0xf6ce6] << 24) | (rom[0xf6ce7] << 16) | (rom[0xf6ce8] << 8) | rom[0xf6ce9]
+    expect(at(alone, where(alone), 42)).toBe('b06800186722 08a800030030 660c 3168001a001c 31680018001a 31400018 b068001c 6604 50e8001c 4e75'.replace(/ /g, ''))
+    // With the second-assist fix, its first place still calls that fix, and this code has the fix's check.
+    const both = applyHacks(opened, { ...NO_HACKS, oneTimerAssist: true, secondAssist: true }).bytes
+    expect(at(both, 0x10188, 2)).toBe('4eb9')
+    expect(at(both, where(both), 48)).toBe('b06800186728 08a800030030 6612 b068001a 6706 3168001a001c 31680018001a 31400018 b068001c 6604 50e8001c 4e75'.replace(/ /g, ''))
+    // Turning either off leaves the other as it would be on its own.
+    const assistOnly = applyHacks(opened, { ...NO_HACKS, secondAssist: true }).bytes
+    expect(Buffer.compare(applyHacks({ ...opened, bytes: both }, { ...NO_HACKS, secondAssist: true }).bytes, assistOnly)).toBe(0)
+    expect(Buffer.compare(applyHacks({ ...opened, bytes: both }, { ...NO_HACKS, oneTimerAssist: true }).bytes, alone)).toBe(0)
+    expect(Buffer.compare(applyHacks({ ...opened, bytes: both }, NO_HACKS).bytes, opened.bytes)).toBe(0)
+  })
+
   it('makes every hack at once, reads them all back and takes them all out', () => {
     const opened = openRom(stock())
     const all: HackChoices = {
       ...FULL,
+      oneTimerAssist: true,
       checkFix: 'all120',
       aggressionFix: true,
       ppPkFix: true,
