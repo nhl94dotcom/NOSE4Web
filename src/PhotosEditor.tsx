@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  FEWEST_PHOTOS,
+  setupCardCount,
   FIRST_SHADE,
   PHOTO_SIZE,
   photoFromImage,
@@ -32,6 +32,8 @@ const fileName = (text: string) => text.replace(/[^A-Za-z0-9]+/g, '_').replace(/
 // A Genesis team's featured players and their photos. See core/photos.ts.
 export function PhotosEditor({ project, team, onChange }: Props) {
   const [notice, setNotice] = useState('')
+  // How many cards the setup screen cycles through, from the ROM.
+  const shown = setupCardCount(project.bytes)
   const [failed, setFailed] = useState(false)
   // The photo being drawn, by its place in the list.
   const [drawing, setDrawing] = useState<number | null>(null)
@@ -93,7 +95,7 @@ export function PhotosEditor({ project, team, onChange }: Props) {
     <section>
       <h2>Player photos</h2>
       <p className="note">
-        The team setup screen shows the first {FEWEST_PHOTOS} of these players' cards in turn, so a team keeps at least {FEWEST_PHOTOS}. The matchup screens
+        The team setup screen shows the first {shown} of these players' cards in turn, so a team keeps at least {shown}. The matchup screens
         show the photo of any player listed here, and a generic picture for everyone else. A photo is {PHOTO_SIZE} by {PHOTO_SIZE} pixels in eight shades
         of the game's photo colours; an imported image of any size is cropped to the square in its middle, shrunk, and shaded to them. Photos follow
         their players when players are moved, traded, let go or reordered here.
@@ -107,7 +109,7 @@ export function PhotosEditor({ project, team, onChange }: Props) {
               <strong>
                 {index + 1}. {name}
               </strong>
-              {index < FEWEST_PHOTOS && <span className="note"> (setup screen)</span>}
+              {index < shown && <span className="note"> (setup screen)</span>}
               <PictureView picture={photo.picture} palette={palette} scale={2} />
               <p>
                 <select
@@ -166,8 +168,8 @@ export function PhotosEditor({ project, team, onChange }: Props) {
                   ↓
                 </button>{' '}
                 <button
-                  disabled={photos.length <= FEWEST_PHOTOS}
-                  title={photos.length <= FEWEST_PHOTOS ? `A team keeps at least ${FEWEST_PHOTOS}.` : undefined}
+                  disabled={photos.length <= shown}
+                  title={photos.length <= shown ? `A team keeps at least ${shown}.` : undefined}
                   onClick={() => {
                     setDrawing(null)
                     act(() => withPhotoRemoved(project, team, index), `${name} taken off the list.`)

@@ -49,3 +49,15 @@ describe.skipIf(!hasRom)('the title screen credits', () => {
     expect(openRom(buildRom(long)).settings.credits!.pages).toEqual(credits.pages)
   })
 })
+
+describe.skipIf(!hasRom)('the player cards the team setup screen cycles through', () => {
+  it("are read from the ROM's cmpi.w at $F8906: six in the original game, more in some league ROMs", async () => {
+    const { setupCardCount } = await import('../src/core/photos')
+    expect(setupCardCount(open().bytes)).toBe(6)
+    if (local.league30Rom && existsSync(path(local.league30Rom))) expect(setupCardCount(open(local.league30Rom).bytes)).toBeGreaterThanOrEqual(6)
+    // Not the instruction: the original game's six.
+    const other = open().bytes.slice()
+    other[0xf8906] = 0
+    expect(setupCardCount(other)).toBe(6)
+  })
+})

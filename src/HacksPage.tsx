@@ -49,6 +49,7 @@ const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
 const INJURY_TEXTS: Record<Injuries, string> = {
   original: 'As in the original game',
   never: 'Never: a hit is only a fall',
+  penaltyOnly: 'The penalty, but no injury',
   period: 'Every injury for the period',
   game: 'Every injury for the game',
 }
@@ -621,26 +622,29 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
             checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
-            head-bleeding hack below then never shows. The other two choices make every injury last the period, or the
-            game, whoever made the hit. From chaos's forum post, with the period choice corrected from the game's code
-            by the NHL94 Match Viewer project, so that it covers the hardest fighters too.
+            head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
+            but there is no injury box: the player lies down for about ten seconds and then skates on. The last two
+            choices make every injury last the period, or the game, whoever made the hit. From chaos's forum post, with
+            the period and penalty choices worked out in the game's code by the NHL94 Match Viewer project, and all
+            tested in the game.
           </>,
         )}
         {hack(
           'hotColdRange',
           number('hotColdRange'),
           <>
-            Before each game every player is made a little hot or cold: each value from -(n - 1) to n - 1, so the original
-            9 gives -8 to 8. A smaller number makes the swings smaller. In play the value is divided by 3, so 3 or less
+            Before each game every player is made a little hot or cold: each value from -n to n - 1, so the original 9
+            gives -9 to 8. A smaller number makes the swings smaller. In play the value is divided by 3, so 2 or less
             takes hot and cold out of how anyone plays, though Edit Lines and the player cards still show the small
-            values; 0 or 1 makes them all 0. It goes with any of the hot and cold bonus choices above. From chaos's forum
-            post, read in the game's code by the NHL94 Match Viewer project. {stock('hotColdRange')}
+            values; 0 makes them all 0. It goes with any of the hot and cold bonus choices above. From chaos's forum post,
+            tested in the game by the NHL94 Match Viewer project: 4 changes about half as many working ratings as 9, and
+            2 none. {stock('hotColdRange')}
           </>,
         )}
         {hack(
           'noIcing',
           onOff('noIcing'),
-          "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, read in the game's code by the NHL94 Match Viewer project; NOSE4Web's version branches cleanly past the instruction the post's skips half of, and a ROM with the post's version is recognised.",
+          "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, tested in the game by the NHL94 Match Viewer project; NOSE4Web's version branches cleanly past the instruction the post's skips half of, and a ROM with the post's version is recognised.",
         )}
         {hack(
           'bCheckPenaltiesOff',
@@ -665,7 +669,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             drops the roll, so B-checks trip the same either way. It changes nothing with penalties on, as leagues play.
             A forum post (CoachMac) does it by swapping two tests, which also gives the computer's B-checks that roll
             with penalties on, so about 3 in 4 of them miss; NOSE4Web's changes one test only (found by the NHL94 Match
-            Viewer project in the game's code). A ROM with the forum's version shows it as such, and can be set back.
+            Viewer project, and tested in the game: with penalties off, B-checks tripped 66 times in 72, as with them
+            on, where the original managed 10). A ROM with the forum's version shows it as such, and can be set back.
           </>,
         )}
         {hack(
@@ -674,7 +679,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             How long a player holds B before he takes control of his goalie, in counts of the game's timer: 17, about half
             a second, in the original game, so 12 is about a third of a second. It is the same for all four pads in 2 on 2.
-            From smozoma's forum post; the game's code was checked for every place by the NHL94 Match Viewer project.{' '}
+            From smozoma's forum post; the NHL94 Match Viewer project checked every place in the game's code and tested
+            it in the game (pads 1 and 2: 12 counts took the goalie after 12 frames, where the original takes 17).{' '}
             {stock('goalieDelay')}
           </>,
         )}

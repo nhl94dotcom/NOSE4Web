@@ -1,4 +1,4 @@
-import { FEWEST_PHOTOS, photoLayout, withPhotoEntries, type PhotoEntry } from './photos'
+import { photoLayout, setupCardCount, withPhotoEntries, type PhotoEntry } from './photos'
 import type { RomProject } from './rom'
 import { snesPhotoRow, snesPhotosSupported, withSnesPhotoRow } from './snesphotos'
 import { goalieCount, type Player } from './team'
@@ -79,9 +79,10 @@ function genesisFollow(before: RomProject, after: RomProject, from: (Place | nul
     const kept = [...lists[t], ...incoming[t]]
     const listed = new Set(kept.flatMap((entry) => (entry ? [entry.slot] : [])))
     // A player who has left keeps his place in the list only while the setup
-    // screen needs six: it goes to a player with no photo in the list, with
+    // screen needs it (six in the original game): it goes to a player with no photo in the list, with
     // the generic picture.
-    let needed = FEWEST_PHOTOS - listed.size
+    const fewest = setupCardCount(after.bytes)
+    let needed = fewest - listed.size
     const unlisted = after.teams[t].players.map((_, slot) => slot).filter((slot) => !listed.has(slot))
     const entries = kept.flatMap((entry): PhotoEntry[] => {
       if (entry) return [entry]
@@ -90,7 +91,7 @@ function genesisFollow(before: RomProject, after: RomProject, from: (Place | nul
       const slot = unlisted.shift()!
       return [{ at: old.generic[slot < goalies ? 1 : 3], slot }]
     })
-    if (!sameEntries(entries, list.entries) && entries.length >= FEWEST_PHOTOS) project = withPhotoEntries(project, t, entries)
+    if (!sameEntries(entries, list.entries) && entries.length >= fewest) project = withPhotoEntries(project, t, entries)
   })
   return project
 }

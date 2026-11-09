@@ -44,6 +44,16 @@ export const SHADES = 8
 const PALETTE_ROW = 1
 // The fewest entries a list may have: the setup screen shows the first six.
 export const FEWEST_PHOTOS = 6
+// How many the setup screen cycles through: the cmpi.w #6,(featuredplayer).l
+// at $F8906 (Match Viewer), which some league ROMs raise (CDL has 11). It has
+// no end check, so a list shorter than it is read past its end marker. The
+// matchup screens and the player cards search the list to its end instead.
+const CARD_COUNT_AT = 0xf8906
+export function setupCardCount(rom: Uint8Array): number {
+  if (rom[CARD_COUNT_AT] !== 0x0c || rom[CARD_COUNT_AT + 1] !== 0x79) return FEWEST_PHOTOS
+  const count = (rom[CARD_COUNT_AT + 2] << 8) | rom[CARD_COUNT_AT + 3]
+  return count >= 1 && count <= 26 ? count : FEWEST_PHOTOS
+}
 const TILE_NUMBER = 0x07ff
 const FLIP_H = 0x0800
 const FLIP_V = 0x1000
@@ -282,7 +292,8 @@ const withBytes = (project: RomProject, bytes: Uint8Array): RomProject => ({ ...
 
 // Writes `entries` as `team`'s list: where it is if it fits there, else at the end of the ROM.
 function writeList(rom: Uint8Array, layout: PhotoLayout, team: number, entries: PhotoEntry[]): Uint8Array {
-  if (entries.length < FEWEST_PHOTOS) throw new Error(`A team needs at least ${FEWEST_PHOTOS} featured players: the team setup screen shows six in turn.`)
+  const fewest = setupCardCount(rom)
+  if (entries.length < fewest) throw new Error(`A team needs at least ${fewest} featured players: the team setup screen shows ${fewest} in turn.`)
   const list = layout.lists[team]
   const shared = layout.lists.some((other, t) => t !== team && other.at === list.at)
   const room = shared ? 0 : listRoom(rom, layout, team)

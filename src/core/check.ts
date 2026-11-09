@@ -5,7 +5,7 @@ import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
-import { FEWEST_PHOTOS, photoLayout } from './photos'
+import { photoLayout, setupCardCount } from './photos'
 import { snesPlaceNameRoom } from './snesplacenames'
 import { snesAnyPosition } from './sneshacks'
 import { menuOptions } from './settings'
@@ -138,7 +138,17 @@ function checkPhotos(project: RomProject, labels: string[], findings: Finding[])
   const layout = photoLayout(project.bytes, project.teams.length)
   layout?.lists.forEach((list, team) => {
     const count = project.teams[team].players.length
-    const past = list.entries.slice(0, FEWEST_PHOTOS).flatMap((entry, i) => (entry.slot >= count ? [i + 1] : []))
+    const shown = setupCardCount(project.bytes)
+    if (list.entries.length < shown) {
+      // What the game shows then is not yet known, so it is a note.
+      findings.push({
+        level: 'note',
+        where: labels[team],
+        team,
+        message: `The team setup screen cycles through ${shown} player cards, but the team's photo list has only ${list.entries.length}, so it reads past the list's end. Add players under Player photos.`,
+      })
+    }
+    const past = list.entries.slice(0, shown).flatMap((entry, i) => (entry.slot >= count ? [i + 1] : []))
     if (past.length === 0) return
     const one = past.length === 1
     findings.push({

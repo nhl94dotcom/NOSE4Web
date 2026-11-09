@@ -72,11 +72,13 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   injuries: (c) =>
     c.injuries === 'never'
       ? 'Hits never injure: a player knocked down gets up as from any other check.'
-      : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
+      : c.injuries === 'penaltyOnly'
+        ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies down for a few seconds and skates on.'
+        : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
   hotColdRange: (c) =>
-    c.hotColdRange <= 3
+    c.hotColdRange <= 2
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
-      : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange - 1} to ${c.hotColdRange - 1}, where the original has -8 to 8.`,
+      : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
   bCheckPenaltiesOff: (c) =>
     c.bCheckPenaltiesOff === 'forum'

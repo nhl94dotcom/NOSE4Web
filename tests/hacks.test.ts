@@ -251,6 +251,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { turnRate: 300 },
       { realTime: true },
       { injuries: 'never' },
+      { injuries: 'penaltyOnly' },
       { injuries: 'period' },
       { injuries: 'game' },
       { hotColdRange: 4 },
@@ -279,6 +280,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'never' }).bytes)).toEqual(['60000052', '66000012', '67000018'])
     expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'period' }).bytes)).toEqual(['66000052', '4e714e71', '67000018'])
     expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'game' }).bytes)).toEqual(['66000052', '60000012', '60000018'])
+    const penaltyOnly = applyHacks(opened, { ...NO_HACKS, injuries: 'penaltyOnly' }).bytes
+    expect([at(penaltyOnly, 0x14450, 4), at(penaltyOnly, 0x1446a, 6)]).toEqual(['4e714e71', '4e714e714e71'])
+    expect([at(opened.bytes, 0x14450, 4), at(opened.bytes, 0x1446a, 6)]).toEqual(['6100005a', '31fc0004c3ec'])
     expect(at(opened.bytes, 0xf70aa, 4)).toBe('303c0009')
     expect(at(applyHacks(opened, { ...NO_HACKS, hotColdRange: 4 }).bytes, 0xf70aa, 4)).toBe('303c0004')
     expect(at(opened.bytes, 0x1023e, 8)).toBe('08f80002bf804e75')

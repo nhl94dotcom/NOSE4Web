@@ -118,7 +118,7 @@ export interface HackChoices {
   realTime: boolean
   // Whether a hit can injure, and for how long.
   injuries: Injuries
-  // The range of each player's hot and cold values: from -(n - 1) to n - 1.
+  // The range of each player's hot and cold values: from -n to n - 1.
   hotColdRange: number
   noIcing: boolean
   // B-checks with penalties off: 'asPenaltiesOn' plays them as with penalties
@@ -129,7 +129,7 @@ export interface HackChoices {
 }
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
-export type Injuries = 'original' | 'never' | 'period' | 'game'
+export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
 
 // 'ratings' covers the rating scale and the bonuses, whose code is shared.
 // 'goalieBox' covers both ways a goalie without the puck may roam.
@@ -1186,14 +1186,20 @@ const clock: Part<boolean> = {
 // the game. Never: the bne.w becomes bra.w, so the hit is a fall and nothing
 // more. Every injury for the period: the bne.w at $14508 becomes two NOPs
 // (the forum's change at $14536 misses Fighting 12 and more). For the game:
-// $14508 and $14520 become bra.w.
+// $14508 and $14520 become bra.w. A penalty but no injury (Match Viewer's):
+// the call of setInjuryType at $14450 and the injury countdown, move.w
+// #4,(InjCntDown).w at $1446A, become NOPs, so the penalty is called with no
+// injury box, and the player lies down for about 10 seconds and skates on.
+// All five tested in the game by Match Viewer.
 
-const INJURY_SITES = [0x14440, 0x14508, 0x14520]
+const INJURY_SITES = [0x14440, 0x14508, 0x14520, 0x14450, 0x1446a]
+const INJURY_KEPT = ['6100005A', '31FC0004C3EC']
 const INJURY_BYTES: Record<Injuries, string[]> = {
-  original: ['66000052', '66000012', '67000018'],
-  never: ['60000052', '66000012', '67000018'],
-  period: ['66000052', '4E714E71', '67000018'],
-  game: ['66000052', '60000012', '60000018'],
+  original: ['66000052', '66000012', '67000018', ...INJURY_KEPT],
+  never: ['60000052', '66000012', '67000018', ...INJURY_KEPT],
+  penaltyOnly: ['66000052', '66000012', '67000018', '4E714E71', '4E714E714E71'],
+  period: ['66000052', '4E714E71', '67000018', ...INJURY_KEPT],
+  game: ['66000052', '60000012', '60000018', ...INJURY_KEPT],
 }
 
 const injuries: Part<Injuries> = {
@@ -1204,11 +1210,12 @@ const injuries: Part<Injuries> = {
 
 // ------------------------------------------------------- hot and cold range
 // Create_HotCold_Table fills each player's 16 hot and cold values with
-// randomd0s of move.w #9,d0 at $F70AC: each from -8 to 8 (Match Viewer; the
-// disassembly's comment says -9). In play only the first is used, added to
-// the rating x 5 after a signed divide by 3, so 3 or less removes the effect
-// on the ice, though Edit Lines and the player cards still show the values;
-// 0 or 1 makes every value 0.
+// randomd0s of move.w #9,d0 at $F70AC: each from -n to n - 1, so -9 to 8 in
+// the original game. In play only the first is used, added to the rating x 5
+// after a signed divide by 3, so -2 to 2 do nothing and 2 or less removes the
+// effect on the ice (3 can draw -3), though Edit Lines and the player cards
+// still show the values; 0 makes every value 0. Tested by Match Viewer:
+// working ratings changed by 9: 88, 4: 49, 3: 19, 2: none.
 const hotColdRange = numberPart([site(0xf70ac, '303C')], NO_HACKS.hotColdRange)
 
 // ---------------------------------------------------------------- no icing
