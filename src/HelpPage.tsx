@@ -424,8 +424,24 @@ export function HelpPage() {
         with line changes. They change as you change the lines or the players.
       </p>
       <p>
-        The game expects the first goalie on the roster in the G column, no goalie in a skater's position, and no
-        player twice on one line. The editor does not stop you breaking these, so check them in the game if you do.
+        Each position offers only the players it is for, as the game's own Edit Lines does: goalies in the G column,
+        defencemen at LD and RD, forwards at LW, C and RW, and any skater as the extra attacker (EA). Whether a skater
+        is a forward or a defenceman comes from the roster: the forwards come first. Choosing a player who is already
+        in another position on the line swaps the two, so no one is on a line twice.
+      </p>
+      <p>
+        A player twice on a line is something to fix. The game dresses the line as written, with two of him on the
+        ice, but the next time it works out who should be out there, one of them finds no position, leaves the ice,
+        and the team plays a skater short with no penalty until a line change. With line changes off, that can be
+        the rest of the period. Check ROM reports it as a problem, and the editor shows the line's two positions in
+        red. The extra attacker is not counted: the original game often repeats a player there. Deleting a player,
+        or a roster from the spreadsheet files, never leaves one twice on a line: his positions go to another
+        skater.
+      </p>
+      <p>
+        Some ROMs put a skater out of his role on purpose, such as forwards on the points of a power play, or a
+        forward on defence in the original SNES game. The editor keeps such a choice, labels it with his role, and
+        Check ROM notes it. Choose someone else and it cannot be chosen again, short of the spreadsheet files.
       </p>
       <p>
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions

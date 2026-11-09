@@ -71,7 +71,8 @@ That licence does not cover:
   SNES game, adapted with McMarkis's permission from his 32-team build
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
-- Adding, deleting and reordering players, and the lines they play on
+- Adding, deleting and reordering players, and the lines they play on, each
+  position offering only the players it is for and no one on a line twice
 - Rink colours
 - Hacks to the game itself, from smozoma's smozROM: the second-assist fix,
   bodycheck and plus-minus statistics, the improved three stars, 0 to 15

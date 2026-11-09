@@ -1,7 +1,7 @@
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import type { GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
-import { emptyLineSlots, LINE_SLOTS } from './lines'
+import { emptyLineSlots, LINE_SLOTS, withoutRepeats } from './lines'
 import { parseCsv, type Cell } from './csv'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
@@ -259,7 +259,9 @@ const players: CsvTable = {
       const goalieNibbles = old.goalieNibbles.map((value, i) => (i >= goalies ? 0 : value || 1))
       if (goalies > goalieCount(old)) warnings.push(`${name}: the goalie byte for each added goalie was set to 1.`)
 
-      changed.set(index, { ...old, players: roster, lines, goalieNibbles, forwards, defense })
+      // A slot that fell to another player must not repeat one on its line.
+      const next = { ...old, players: roster, lines, goalieNibbles, forwards, defense }
+      changed.set(index, lost > 0 ? { ...next, lines: lines.map((line) => withoutRepeats(next, line)) } : next)
       playerCount += roster.length
     }
     sheet.finish()

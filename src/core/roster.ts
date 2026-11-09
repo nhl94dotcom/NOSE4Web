@@ -1,3 +1,4 @@
+import { withoutRepeats } from './lines'
 import { goalieCount, type Player, type Team } from './team'
 
 // Limits NOSE enforces because of the game engine.
@@ -44,7 +45,8 @@ export function canDeletePlayer(team: Team, index: number): boolean {
 }
 
 // Removes a skater. Line slots that used them fall to the last player on the
-// roster, and later players move up one position.
+// roster, or to another skater where he is on that line already, and later
+// players move up one position.
 export function deletePlayer(team: Team, index: number): Team {
   if (!canDeletePlayer(team, index)) return team
   const position = index + 1
@@ -55,7 +57,8 @@ export function deletePlayer(team: Team, index: number): Team {
     players: team.players.filter((_, i) => i !== index),
     lines: mapLines(team, (v) => (v === position ? last : v > position && v <= last + 1 ? v - 1 : v)),
   }
-  return withSkaterCounts(next, team.forwards - (wasForward ? 1 : 0))
+  const counted = withSkaterCounts(next, team.forwards - (wasForward ? 1 : 0))
+  return { ...counted, lines: counted.lines.map((line, l) => (team.lines[l].includes(position) ? withoutRepeats(counted, line) : line)) }
 }
 
 // Puts a skater on a roster: after the last forward, or at the end as a

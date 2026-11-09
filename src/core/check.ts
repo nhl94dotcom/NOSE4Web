@@ -1,7 +1,7 @@
 import { attributeText } from './attributes'
 import { colorRgb } from './color'
 import { checkLeagueRules } from './leaguerules'
-import { emptyLineSlots, LINE_SLOTS } from './lines'
+import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
 import { FEWEST_PHOTOS, photoLayout } from './photos'
@@ -23,7 +23,6 @@ export interface Finding {
   message: string
 }
 
-const EXTRA_ATTACKER_SLOT = 6
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
 function checkTeam(project: RomProject, team: Team, index: number, where: string, emptySlots: boolean[][], findings: Finding[]): void {
@@ -69,8 +68,19 @@ function checkTeam(project: RomProject, team: Team, index: number, where: string
       add('problem', `${name} has a goalie in a skater's position.`)
     }
     // The extra attacker is left out: the original game often repeats a player there.
-    const valid = slots.slice(0, EXTRA_ATTACKER_SLOT).filter((position) => position >= 1 && position <= count)
-    if (new Set(valid).size < valid.length) add('note', `${name} uses the same player twice.`)
+    const valid = (slot: number) => slots[slot] >= 1 && slots[slot] <= count
+    const at = (slot: number) => game.linePositionLabels[slot]
+    for (const slot of repeatedLineSlots(slots).filter(valid)) {
+      const first = slots.findIndex((position) => position === slots[slot])
+      add(
+        'problem',
+        `${name} has ${team.players[slots[slot] - 1].name} at both ${at(first)} and ${at(slot)}. The game plays such a line a skater short, with no penalty, until a line change: one copy of him leaves the ice and no one takes his place.`,
+      )
+    }
+    for (const slot of outOfRoleSlots(team, slots)) {
+      const role = playerRole(team, slots[slot]) === 'forward' ? 'a forward' : 'a defenceman'
+      add('note', `${name} has ${team.players[slots[slot] - 1].name}, ${role}, at ${at(slot)}.`)
+    }
   })
 }
 

@@ -9,6 +9,7 @@ import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { lineupRatings } from './core/league'
+import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot } from './core/lines'
 import { overallRating } from './core/rating'
 import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
 import {
@@ -209,23 +210,41 @@ export function TeamEditor(props: Props) {
       onChange={(e) => setTickedLines(e.target.checked ? [...tickedLines, l].sort((a, b) => a - b) : tickedLines.filter((i) => i !== l))}
     />
   )
-  const lineBox = (l: number, slot: number, line: number[]) => (
-    <select
-      aria-label={`${game.linePositionLabels[slot]} on line ${game.lineLabels[l]}`}
-      value={line[slot]}
-      onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}
-    >
-      {emptySlots[l]?.[slot] && <option value={0}>Empty</option>}
-      {(line[slot] === 0 && !emptySlots[l]?.[slot]) || line[slot] > team.players.length ? (
-        <option value={line[slot]}>Invalid ({hex(line[slot])})</option>
-      ) : null}
-      {team.players.map((player, i) => (
-        <option key={i} value={i + 1}>
-          {hex(player.jersey)} {player.name}
-        </option>
-      ))}
-    </select>
-  )
+  // Each position offers only the players it is for: goalies in goal, defence
+  // on defence, forwards up front, and any skater as the extra attacker. One
+  // the ROM already has out of his role is kept, and shown as such.
+  const roleWord = { goalie: 'goalie', defence: 'defence', forward: 'forward' }
+  const lineBox = (l: number, slot: number, line: number[]) => {
+    const current = line[slot]
+    const valid = current >= 1 && current <= team.players.length
+    const repeated = SKATER_LINE_SLOTS.includes(slot) && valid && repeatedLineSlots(line).some((s) => line[s] === current)
+    const outOfRole = valid && !suitsSlot(team, slot, current)
+    const title = repeated
+      ? `${team.players[current - 1].name} is in two positions on this line. The game plays it a skater short: choose someone else for one of them.`
+      : outOfRole
+        ? `${team.players[current - 1].name} is a ${roleWord[playerRole(team, current)]}, not a ${slotRole(slot) === 'defence' ? 'defenceman' : slotRole(slot)}. Only the ROM put him here; the list offers the ${slotRole(slot) === 'goalie' ? 'goalies' : slotRole(slot) === 'defence' ? 'defencemen' : 'forwards'}.`
+        : undefined
+    return (
+      <select
+        aria-label={`${game.linePositionLabels[slot]} on line ${game.lineLabels[l]}`}
+        className={repeated ? 'shared' : undefined}
+        title={title}
+        value={current}
+        onChange={(e) => setLineSlot(l, slot, Number(e.target.value))}
+      >
+        {emptySlots[l]?.[slot] && <option value={0}>Empty</option>}
+        {(current === 0 && !emptySlots[l]?.[slot]) || current > team.players.length ? <option value={current}>Invalid ({hex(current)})</option> : null}
+        {team.players.map((player, i) =>
+          suitsSlot(team, slot, i + 1) || i + 1 === current ? (
+            <option key={i} value={i + 1}>
+              {hex(player.jersey)} {player.name}
+              {suitsSlot(team, slot, i + 1) ? '' : ` (${roleWord[playerRole(team, i + 1)]})`}
+            </option>
+          ) : null,
+        )}
+      </select>
+    )
+  }
 
   const reset = (part: TeamPart, what: string) => (
     <ResetButton
@@ -239,9 +258,18 @@ export function TeamEditor(props: Props) {
     onChange({ ...team, players: team.players.map((p, i) => (i === index ? player : p)) })
   }
 
+  // A skater chosen for a position he already holds elsewhere on the line
+  // swaps with whoever was here, so that no one is on a line twice. Where
+  // this position was empty, a free skater takes his old one instead.
   function setLineSlot(line: number, slot: number, value: number) {
-    const lines = team.lines.map((l, i) => (i === line ? l.map((v, s) => (s === slot ? value : v)) : l))
-    onChange({ ...team, lines })
+    const old = team.lines[line]
+    const other = SKATER_LINE_SLOTS.includes(slot) && value !== 0 ? SKATER_LINE_SLOTS.find((s) => s !== slot && old[s] === value) : undefined
+    const next = old.map((v, s) => (s === slot ? value : v))
+    if (other !== undefined) {
+      const swapped = old[slot] >= 1 && old[slot] <= team.players.length ? old[slot] : freeSkater(team, next, other)
+      if (swapped !== undefined) next[other] = swapped
+    }
+    onChange({ ...team, lines: team.lines.map((l, i) => (i === line ? next : l)) })
   }
 
   function attributeTitle(name: string, kind: AttributeKind, index: number, label: string, isGoalies: boolean): string {

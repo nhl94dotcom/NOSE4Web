@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
+import { checkProject } from '../src/core/check'
 import { rinkLogo } from '../src/core/graphics'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
@@ -594,23 +595,36 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Check ROM').click()
     await expect(page.getByText('Nothing to report.')).toBeVisible()
 
-    // Put the first goalie at left wing on Anaheim's first line.
+    // Anaheim's first line: left wing offers only forwards, and the centre
+    // chosen for it swaps places with him rather than being on the line twice.
     await team(page, 'Anaheim Mighty Ducks').click()
     const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
-    await lines.locator('tbody tr').first().locator('select').nth(3).selectOption('1')
+    const nlc = lines.locator('tbody tr').first().locator('select')
+    // Anaheim's 16 skaters are 9 forwards and 7 defence; the extra attacker may be any of them.
+    await expect(nlc.nth(3).locator('option')).toHaveCount(9)
+    await expect(nlc.nth(1).locator('option')).toHaveCount(7)
+    await expect(nlc.nth(6).locator('option')).toHaveCount(await rows(page, 'Skaters').count())
+    const [wing, centre] = [await nlc.nth(3).inputValue(), await nlc.nth(4).inputValue()]
+    await nlc.nth(3).selectOption(centre)
+    await expect(nlc.nth(3)).toHaveValue(centre)
+    await expect(nlc.nth(4)).toHaveValue(wing)
+    await expect(page.locator('select.shared')).toHaveCount(0)
+
+    // A goalie with no name is a problem.
+    await nameOf(rows(page, 'Goalies').first()).fill('')
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM (1)')
     await entry(page, /Check ROM/).click()
     await expect(page.getByRole('heading', { name: 'Likely to cause trouble in the game (1)' })).toBeVisible()
-    await expect(page.getByText("Line NLC has a goalie in a skater's position.")).toBeVisible()
+    await expect(page.getByText('Player 1 has no name.')).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/check.png', fullPage: true })
     await page.locator('main').getByRole('button', { name: 'Anaheim Mighty Ducks' }).first().click()
-    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Guy Hebert')
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('')
 
     await entry(page, 'Compare ROMs').click()
     await page.locator('main input[type=file]').setInputFiles(romPath)
     await expect(page.getByText('Overtime: 600 to 300 seconds.')).toBeVisible()
     await expect(page.locator('main h3')).toHaveText(['For the league', 'Everything, team by team', 'Anaheim Mighty Ducks', 'Clock'])
-    await expect(page.getByText(/^Line NLC: LW .* to Guy Hebert\.$/)).toBeVisible()
+    await expect(page.getByText(/^Line NLC: LW .* to .*\.$/)).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/compare.png', fullPage: true })
   })
 
@@ -657,7 +671,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     // A line naming a player further down than a team's roster goes is refused.
     const last = String(await rows(page, 'Skaters').count() + await rows(page, 'Goalies').count())
-    await lineRows().nth(4).locator('select').nth(3).selectOption(last)
+    await lineRows().nth(4).locator('select').nth(6).selectOption(last)
     await lines().getByRole('button', { name: 'Copy ticked' }).click()
     await team(page, 'Anaheim Mighty Ducks').click()
     const before = await values(lineRows().nth(2))
@@ -1034,7 +1048,10 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(lines.getByText('Invalid')).toHaveCount(0)
     // A position the ROM uses cannot be emptied; one it leaves empty can be filled and emptied again.
     await expect(first.nth(4).locator('option', { hasText: 'Empty' })).toHaveCount(0)
-    await first.nth(1).selectOption({ index: 5 })
+    // A defenceman not at RD already, which would move him.
+    const rd = await first.nth(2).inputValue()
+    const free = await first.nth(1).locator('option').evaluateAll((options, taken) => options.map((o) => (o as HTMLOptionElement).value).filter((v) => v !== '0' && v !== taken), rd)
+    await first.nth(1).selectOption(free[0])
     await expect(first.nth(1).locator('option:checked')).not.toHaveText('Empty')
     await first.nth(1).selectOption({ label: 'Empty' })
     await page.screenshot({ path: 'test-results/shots/fewer-skaters.png', fullPage: true })
@@ -1831,9 +1848,12 @@ test.describe('with the hacked ROMs on this computer', () => {
       await romPicker(page).setInputFiles({ name: `hack_${n + 1}.${snes ? 'smc' : 'bin'}`, mimeType: 'application/octet-stream', buffer: readFileSync(path) })
       await expect(page.locator('nav button').first()).toBeVisible()
       await expect(page.locator('header')).toContainText(rom.game.title)
-      // Every team is listed, and nothing about the ROM as it stands is a problem.
+      // Every team is listed, and nothing about the ROM as it stands is a
+      // problem, but for a player twice on a line, as some league ROMs have.
       expect(await page.locator('nav button').count()).toBeGreaterThanOrEqual(rom.teams.length + 6)
-      await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
+      const problems = checkProject(rom).filter((finding) => finding.level === 'problem')
+      expect(problems.filter((finding) => !/ at both \w+ and \w+\./.test(finding.message))).toEqual([])
+      await expect(entry(page, /Check ROM/)).toHaveText(problems.length > 0 ? `Check ROM (${problems.length})` : 'Check ROM')
       await expect(rows(page, 'Goalies').first()).toBeVisible()
       const shot = `test-results/shots/${rom.game.title.replace(/[^A-Za-z0-9]+/g, '_')}`
       await page.screenshot({ path: `${shot}.png` })
