@@ -68,7 +68,9 @@ export function snesPlaceNameRoom(rom: Uint8Array, names: string[]): { used: num
 }
 
 // Writes the names, packed into their room. False, writing nothing, where
-// they do not fit.
+// they do not fit. The last name ends where the room does, so that the room,
+// which is read again from where the names lie, is all still there after
+// names are shortened: any to spare lies before it.
 export function writeSnesPlaceNames(rom: Uint8Array, names: string[]): boolean {
   const p = places(rom, names.length)
   if (!p) return false
@@ -77,6 +79,7 @@ export function writeSnesPlaceNames(rom: Uint8Array, names: string[]): boolean {
   rom.fill(0, p.start, p.end)
   let at = p.start
   names.forEach((name, i) => {
+    if (i === names.length - 1) at = p.end - (name.length + 1)
     rom[p.table + i * 2] = loRomAddress(at) & 0xff
     rom[p.table + i * 2 + 1] = loRomAddress(at) >> 8
     for (let k = 0; k < name.length; k++) rom[at + k] = name.charCodeAt(k) & 0x7f

@@ -7,6 +7,7 @@ import { pictureToImage } from '../src/core/graphics'
 import { importTeam } from '../src/core/importteam'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesBlockColours } from '../src/core/snesblockcolours'
+import { snesPlaceNameRoom } from '../src/core/snesplacenames'
 import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -22,6 +23,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES banner names', () => {
     const reopened = openRom(buildRom(renamed))
     expect(reopened.teams[9].placeName).toBe('Carolina')
     expect(reopened.teams.map((team) => team.placeName).filter((_, t) => t !== 9)).toEqual(project.teams.map((team) => team.placeName).filter((_, t) => t !== 9))
+    // A name shortened keeps the room, so a longer one fits again later.
+    const before = snesPlaceNameRoom(project.bytes, project.teams.map((team) => team.placeName!))!
+    const shortened = openRom(buildRom({ ...project, teams: project.teams.map((team, t) => (t === 0 ? { ...team, placeName: 'A' } : team)) }))
+    expect(snesPlaceNameRoom(shortened.bytes, shortened.teams.map((team) => team.placeName!))!.room).toBe(before.room)
+    const longer = openRom(buildRom({ ...shortened, teams: shortened.teams.map((team, t) => (t === 0 ? { ...team, placeName: 'Anaheim' } : team)) }))
+    expect(longer.teams[0].placeName).toBe('Anaheim')
+    expect(longer.teams.slice(1).map((team) => team.placeName)).toEqual(project.teams.slice(1).map((team) => team.placeName))
     // Too long for their room: not written, and Check ROM says so.
     const long = { ...project, teams: project.teams.map((team) => ({ ...team, placeName: 'A very long place name' })) }
     expect(checkProject(long).some((finding) => finding.where === 'Banner names' && finding.level === 'problem')).toBe(true)

@@ -277,9 +277,13 @@ export function withGenesisBloodTakenOut(project: RomProject): RomProject {
   writeU16(rom, s.fallLists + 12, LYING[0])
   writeU16(rom, s.fallLists + 24, LYING[1])
   writeU16(rom, s.fallLists + 28, LYING[1])
-  rom.fill(0xff, added.start, added.end)
+  // What was written: up to the end of the copied pieces. The room taken may
+  // run a few bytes further, unused, where something added later may begin.
+  const table = added.header + HEADER
+  const written = table + offset(rom, table, frameCount(rom, table) - 1)
+  rom.fill(0xff, added.start, written)
   // NOSE's end mark, where adding moved it to follow the room and nothing follows it, goes back.
-  if (rom[added.end] === 0x60 && rom[added.end + 1] === 0xfe && rom.subarray(added.end + 2).every((b) => b === 0xff)) {
+  if (rom[added.end] === 0x60 && rom[added.end + 1] === 0xfe && rom.subarray(written, added.end).every((b) => b === 0xff) && rom.subarray(added.end + 2).every((b) => b === 0xff)) {
     rom[added.end] = rom[added.end + 1] = 0xff
     rom[added.start] = 0x60
     rom[added.start + 1] = 0xfe

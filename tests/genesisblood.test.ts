@@ -5,6 +5,7 @@ import { readU16, readU32 } from '../src/core/bytes'
 import { canAddGenesisBlood, hasGenesisBlood, withGenesisBloodAdded, withGenesisBloodTakenOut } from '../src/core/genesisblood'
 import { hasGenesisScoreLogos, withGenesisScoreLogosAdded, withGenesisScoreLogosTakenOut } from '../src/core/genesisscorelogos'
 import { pictureItems } from '../src/core/hacksheet'
+import { claimSpace } from '../src/core/space'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -89,6 +90,19 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('head bleeding', () => {
     sameAsBefore(out, project)
     expect(hasGenesisBlood(out)).toBe(false)
     expect(canAddGenesisBlood(out)).toBe(true)
+  })
+
+  it('when taken out, leaves alone what was added after it', () => {
+    // A ROM without NOSE's end mark, so that what comes next starts just past the last byte written.
+    const project = open('nhl94.bin')
+    const bytes = project.bytes.slice()
+    bytes[0xffac0] = bytes[0xffac1] = 0xff
+    const added = withGenesisBloodAdded({ ...project, bytes })
+    const after = claimSpace(added.bytes, 16)!
+    after.rom.fill(0xab, after.at, after.at + 16)
+    const out = withGenesisBloodTakenOut({ ...added, bytes: after.rom })
+    expect(Array.from(out.bytes.subarray(after.at, after.at + 16))).toEqual(new Array(16).fill(0xab))
+    expect(frames(out.bytes)).toEqual(frames(project.bytes))
   })
 
   it('goes with score logos, either added first, and each comes out alone', () => {
