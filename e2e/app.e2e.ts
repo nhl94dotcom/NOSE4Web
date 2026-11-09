@@ -2098,6 +2098,10 @@ test.describe('with the SNES game', () => {
     const ld = lines.locator('tbody tr').first().locator('select').nth(1)
     const skaters = await rows(page, 'Skaters').count()
     expect(await ld.locator('option').count()).toBeLessThan(skaters)
+    // The penalty-kill lines' RW, hidden in the game's Edit Lines, is the short-handed extra skater.
+    await expect(lines.getByLabel('RW on line PK1')).toHaveClass('hidden-slot')
+    await expect(lines.getByLabel('RW on line PK1')).toHaveAttribute('title', /pulls its goalie while short-handed/)
+    await expect(lines.getByLabel('RW on line Sc1')).not.toHaveClass('hidden-slot')
 
     // Any skater at any position turns the extra attacker fix on with it; max boost turns the hot and cold fix off.
     await entry(page, 'Hacks').click()

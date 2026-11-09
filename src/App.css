@@ -149,6 +149,10 @@ input.name {
 }
 
 /* A jersey number another player on the team wears too. */
+select.hidden-slot {
+  border-style: dashed;
+}
+
 input.num.shared,
 select.shared {
   border-color: var(--bad);

@@ -446,6 +446,13 @@ export function HelpPage() {
         game, so there every skater's position offers every skater, and Check ROM says nothing of it.
       </p>
       <p>
+        On the SNES the game's Edit Lines gives the penalty-kill lines (PK1 and PK2) only four rows, LD, RD, LW and C,
+        but their RW is still played: a short-handed team that pulls its goalie puts that skater on, not the extra
+        attacker, who comes on only at full strength (the game fills the ice from G, LD, RD, C, LW and RW, then the
+        extra attacker; found by the NHL94 Match Viewer project). The editor shows that RW with a dashed border, and
+        it can be changed here as any other position.
+      </p>
+      <p>
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions
         empty on every team. The editor recognises this: those positions show <b>Empty</b>, Check ROM does not
         report them, and the lines sheet of the spreadsheet files has blank cells for them. Leave them empty unless
