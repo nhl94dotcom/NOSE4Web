@@ -3,6 +3,7 @@ import type { GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams } from './menuteams'
 import type { CpuPullGoalie, FixedText, PeriodLength, Rule, Settings } from './settings'
 import { findCode, loRomOffset } from './snes'
+import { parseSnesCredits, writeSnesCredits } from './snescredits'
 import { parseSnesMenu, refreshSnesMenu, snesChoiceTextPlaces, writeSnesMenu } from './snesmenu'
 
 // The SNES game's settings, as the Genesis game's are edited: the clock, the
@@ -105,6 +106,7 @@ export function parseSnesSettings(rom: Uint8Array, game: GameConfig): Settings {
     menu: parseSnesMenu(rom),
     menuTeams: parseMenuTeams(rom, game),
     cpuPullGoalie: at.pullGoalie >= 0 ? readPullGoalie(rom, at.pullGoalie) : null,
+    credits: parseSnesCredits(rom),
   }
 }
 
@@ -135,6 +137,9 @@ export function writeSnesSettings(rom: Uint8Array, game: GameConfig, settings: S
     rom[at.pullGoalie + PULL_GOALS_AT] = Math.max(0, Math.min(0xff, settings.cpuPullGoalie.goalsUnder))
     writeU16LE(rom, at.pullGoalie + PULL_SECONDS_AT, Math.max(0, Math.min(0xffff, settings.cpuPullGoalie.secondsUnder)))
   }
+  // Only when changed, so that credits as the ROM has them keep their bytes.
+  const credits = settings.credits
+  if (credits && JSON.stringify(parseSnesCredits(rom)?.pages) !== JSON.stringify(credits.pages)) writeSnesCredits(rom, credits)
 }
 
 // The settings once a hack has changed the ROM from `before` to `after`: the

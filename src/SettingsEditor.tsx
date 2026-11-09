@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { copyDraws, pasteDraws } from './core/clipboard'
 import type { GameConfig } from './core/games'
-import { CREDITS_LINE_LENGTH, CREDITS_PAGE_LINES, creditsBytes, creditsFit, creditsText } from './core/credits'
+import { CREDITS_LINE_LENGTH, CREDITS_PAGE_LINES, creditsFit, creditsText, creditsUsed } from './core/credits'
+import { SNES_CREDITS_LINE_LENGTH, SNES_CREDITS_PAGE_LINES, snesCreditsText } from './core/snescredits'
 import { isAllStarTeam } from './core/league'
 import { FEWEST_MENU_TEAMS, leagueDraws } from './core/menuteams'
 import { MAX_SECONDS, menuOptions, type FixedText, type Settings } from './core/settings'
@@ -410,45 +411,74 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
 // The credits rolled on the title screen, a box of lines for each page.
 function CreditsSection({ settings, original, onChange }: { settings: Settings; original: Settings; onChange: (settings: Settings) => void }) {
   const credits = settings.credits!
-  const used = creditsBytes(credits.pages).length
+  const snes = credits.format === 'snes'
+  const lineLength = snes ? SNES_CREDITS_LINE_LENGTH : CREDITS_LINE_LENGTH
+  const pageLines = snes ? SNES_CREDITS_PAGE_LINES : CREDITS_PAGE_LINES
+  const textOk = snes ? snesCreditsText : creditsText
+  const used = creditsUsed(credits)
   const setPages = (pages: string[][]) => onChange({ ...settings, credits: { ...credits, pages } })
-  const setPage = (p: number, text: string) =>
-    setPages(credits.pages.map((page, i) => (i === p ? text.split('\n').map((line) => line.replace(/[^\x20-\x7e]/g, '')) : page)))
+  // Only the letters the game has: on the SNES, capitals (lower case shows as them), digits, space, "." and "@".
+  const clean = (line: string) => (snes ? line.toUpperCase().replace(/[^A-Z0-9 .@]/g, '') : line.replace(/[^\x20-\x7e]/g, ''))
+  const setPage = (p: number, text: string) => setPages(credits.pages.map((page, i) => (i === p ? text.split('\n').map(clean) : page)))
   const fits = creditsFit(credits)
+  const nameless = snes && credits.pages.some((page) => page.length < 2)
   return (
     <section>
       <h2>Title screen credits</h2>
       <p>
         <ResetButton what="credits" changed={settingsPartChanged(settings, original, 'credits')} onReset={() => onChange(resetSettingsPart(settings, original, 'credits'))} />{' '}
         <span className={fits ? 'note' : 'error'}>
-          {used} of {credits.room} bytes used.{fits ? '' : ' Too long: the credits are not written until they fit.'}
+          {used} of {credits.room} bytes used.
+          {nameless ? ' Every title needs a name under it: the credits are not written until each has one.' : fits ? '' : ' Too long: the credits are not written until they fit.'}
         </span>
       </p>
-      <p className="note">
-        The credits roll page by page on the title screen, each page held for a moment. A page has up to {CREDITS_PAGE_LINES} lines of up to{' '}
-        {CREDITS_LINE_LENGTH} letters, centred by the game; an empty line is a gap. <b>$</b> shows as the copyright sign. The first page is EA's
-        copyright notice: smozoma's guide to the credits warns that changing it can cause trouble, though league ROMs have changed it.
-      </p>
+      {snes ? (
+        <p className="note">
+          The credits roll one title at a time on the title screen: the title with its first name, then each of its other names in turn. A box is one
+          title: its first line is the title and the lines after it are its names, at least one. The original game has up to {SNES_CREDITS_PAGE_LINES - 1}{' '}
+          names under a title and lines of up to {SNES_CREDITS_LINE_LENGTH} letters, centred by the game. The game has capital letters, digits, spaces,{' '}
+          <b>.</b> and <b>@</b>, which shows as the copyright sign. The same line twice takes its bytes once. The two copyright lines under the title are
+          not changed.
+        </p>
+      ) : (
+        <p className="note">
+          The credits roll page by page on the title screen, each page held for a moment. A page has up to {CREDITS_PAGE_LINES} lines of up to{' '}
+          {CREDITS_LINE_LENGTH} letters, centred by the game; an empty line is a gap. <b>$</b> shows as the copyright sign. The first page is EA's
+          copyright notice: smozoma's guide to the credits warns that changing it can cause trouble, though league ROMs have changed it.
+        </p>
+      )}
       <ol className="credits">
         {credits.pages.map((page, p) => {
-          const long = page.some((line) => line.length > CREDITS_LINE_LENGTH || !creditsText(line)) || page.length > CREDITS_PAGE_LINES
+          const long = page.some((line) => line.length > lineLength || !textOk(line)) || page.length > pageLines
           return (
             <li key={p}>
               <textarea
-                aria-label={`Credits page ${p + 1}`}
-                className={long ? 'shared' : undefined}
-                rows={CREDITS_PAGE_LINES}
-                cols={CREDITS_LINE_LENGTH + 2}
+                aria-label={snes ? `Credits title ${p + 1}` : `Credits page ${p + 1}`}
+                className={long || (snes && page.length < 2) ? 'shared' : undefined}
+                rows={snes ? Math.max(3, page.length) : CREDITS_PAGE_LINES}
+                cols={lineLength + 2}
                 value={page.join('\n')}
                 onChange={(e) => setPage(p, e.target.value)}
               />{' '}
-              <button title="Add a page after this one" onClick={() => setPages([...credits.pages.slice(0, p + 1), [''], ...credits.pages.slice(p + 1)])}>
-                Add page
+              <button
+                title={snes ? 'Add a title after this one' : 'Add a page after this one'}
+                onClick={() => setPages([...credits.pages.slice(0, p + 1), snes ? ['TITLE', 'NAME'] : [''], ...credits.pages.slice(p + 1)])}
+              >
+                {snes ? 'Add title' : 'Add page'}
               </button>{' '}
-              <button disabled={credits.pages.length <= 1} title="Remove this page" onClick={() => setPages(credits.pages.filter((_, i) => i !== p))}>
+              <button
+                disabled={credits.pages.length <= 1}
+                title={snes ? 'Remove this title and its names' : 'Remove this page'}
+                onClick={() => setPages(credits.pages.filter((_, i) => i !== p))}
+              >
                 Remove
               </button>
-              {long && <span className="note"> More than the original game's {CREDITS_PAGE_LINES} lines of {CREDITS_LINE_LENGTH} letters: check it on the screen.</span>}
+              {long && (
+                <span className="note">
+                  {' '}
+                  More than the original game's {pageLines} lines of {lineLength} letters: check it on the screen.
+                </span>
+              )}
             </li>
           )
         })}

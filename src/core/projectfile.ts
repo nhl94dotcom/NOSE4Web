@@ -458,6 +458,6 @@ function withSnesPictures(project: RomProject, stored: ProjectFile['snesPictures
 function fileCredits(value: unknown, base: Credits): Credits {
   const pages = (value as Credits | undefined)?.pages
   if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page) && page.every((line) => typeof line === 'string'))) return base
-  const credits = { room: base.room, pages: pages.map((page) => page.slice()) }
+  const credits = { ...base, pages: pages.map((page) => page.slice()) }
   return creditsFit(credits) ? credits : base
 }

@@ -1,3 +1,5 @@
+import { snesCreditsBytes, snesCreditsFit } from './snescredits'
+
 // The credits the Genesis game rolls on its title screen (smozoma's forum
 // post, "HOWTO: Edit the game credits"). The title code loads their address
 // with movea.l #credits,a1 at $FF224. Each line is a word, its length plus 2,
@@ -10,10 +12,12 @@
 // room to spare, and repoints the game at them; they are found either way.
 
 export interface Credits {
-  // Each page's lines, as shown.
+  // Each page's lines, as shown. On the SNES a page is one credit title, then its names.
   pages: string[][]
   // How many bytes they may take.
   room: number
+  // The SNES game's credits (snescredits.ts); the Genesis game's otherwise.
+  format?: 'snes'
 }
 
 const POINTER_CODE_AT = 0xff224
@@ -82,6 +86,9 @@ export function creditsBytes(pages: string[][]): Uint8Array {
   return Uint8Array.from(out)
 }
 
+// How many bytes they take, in either game's format.
+export const creditsUsed = (credits: Credits) => (credits.format === 'snes' ? snesCreditsBytes(credits.pages) : creditsBytes(credits.pages).length)
+
 // Writes the credits in their room, the rest of the room filled with 00. They
 // are left as they are if they do not fit or hold what the font cannot show.
 export function writeCredits(rom: Uint8Array, credits: Credits): boolean {
@@ -93,5 +100,6 @@ export function writeCredits(rom: Uint8Array, credits: Credits): boolean {
 }
 
 export function creditsFit(credits: Credits): boolean {
+  if (credits.format === 'snes') return snesCreditsFit(credits)
   return credits.pages.length > 0 && credits.pages.every((page) => page.every(creditsText)) && creditsBytes(credits.pages).length <= credits.room
 }

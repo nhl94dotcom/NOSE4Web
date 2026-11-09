@@ -2186,6 +2186,26 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].snesSongs![3]).not.toBe(0xffffffff)
   })
 
+  test('edits the title screen credits, a box for each title, and downloads them', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Game settings').click()
+    const first = page.getByLabel('Credits title 1', { exact: true })
+    await expect(first).toHaveValue('DESIGN ADAPTED BY\nMICHAEL BROOK')
+    await expect(page.getByText('916 of 949 bytes used.', { exact: true })).toBeVisible()
+    // Typed in lower case, shown and stored as the game's capitals; a letter it lacks is left out.
+    await first.fill('League made by\nOur Commish!')
+    await expect(first).toHaveValue('LEAGUE MADE BY\nOUR COMMISH')
+    // A title alone is not enough.
+    await first.fill('LEAGUE MADE BY')
+    await expect(page.getByText(/Every title needs a name under it/)).toBeVisible()
+    await first.fill('LEAGUE MADE BY\nOUR COMMISH')
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(rom.settings.credits!.pages[0]).toEqual(['LEAGUE MADE BY', 'OUR COMMISH'])
+    expect(rom.settings.credits!.pages[1][0]).toBe('PROGRAMMING')
+  })
+
   test('edits a roster, the overall shown and a colour, and downloads the ROM', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
@@ -2204,7 +2224,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Clock', 'Main menu starting choices', 'Rule messages', 'Playoff draws'])
+    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })

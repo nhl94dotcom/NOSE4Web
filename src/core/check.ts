@@ -220,7 +220,10 @@ export function checkProject(project: RomProject): Finding[] {
     findings.push({
       level: 'problem',
       where: 'Title screen credits',
-      message: `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
+      message:
+        settings.credits.format === 'snes' && settings.credits.pages.some((page) => page.length < 2)
+          ? 'A credit title has no name under it, which the game cannot show, so the credits are not written: give each title a name on the Game settings page.'
+          : `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
     })
   }
 

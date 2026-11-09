@@ -47,7 +47,7 @@ export interface Settings {
   menuTeams: MenuTeams | null
   // When a computer team pulls its goalie, where the editor finds it (SNES).
   cpuPullGoalie?: CpuPullGoalie | null
-  // The credits on the title screen, where the editor finds them (Genesis).
+  // The credits on the title screen, where the editor finds them (credits.ts, snescredits.ts).
   credits?: Credits | null
 }
 

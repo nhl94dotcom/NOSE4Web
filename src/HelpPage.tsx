@@ -731,6 +731,15 @@ export function HelpPage() {
           From smozoma's forum guide to the credits.
         </li>
         <li>
+          <b>Title screen credits</b> (SNES): the credits the title screen rolls, a box for each credit title: its first
+          line is the title, and each line after it a name under that title, shown one at a time. Every title needs at
+          least one name. The game's letters are capitals (lower case is shown as them), digits, spaces, "." and "@",
+          the copyright sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its
+          letters plus 1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes
+          its letters once. The two copyright lines are left as they are. Found by the code that rolls them, so rebuilt
+          ROMs work too.
+        </li>
+        <li>
           <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
           Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
           whole screen, 320 by 224 pixels; a picture of another size is fitted inside it on black. The screen can show
