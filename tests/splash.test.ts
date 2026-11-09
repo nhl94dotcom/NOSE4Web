@@ -33,7 +33,13 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     const drawn = (from: number, to: number) => splash.picture.pixels.subarray(from * 320, to * 320).some((p) => p !== 128)
     expect(drawn(24, 120)).toBe(true)
     expect(drawn(128, 200)).toBe(true)
-    if (local.league30Rom && existsSync(path(local.league30Rom))) expect(readSplash(open(local.league30Rom).bytes)!.original).toBe(false)
+    if (local.league30Rom && existsSync(path(local.league30Rom))) {
+      // wboy's picture, drawn in the first picture's colours, since its call loads none of its own.
+      const league = readSplash(open(local.league30Rom).bytes)!
+      expect(league.original).toBe(false)
+      expect(league.ownColours).toBe(false)
+      expect(league.palette.slice(64, 128)).toEqual(league.palette.slice(0, 64))
+    }
   })
 
   it("takes a picture of the league's own, shows it back, and puts the original back", () => {
@@ -46,6 +52,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     const hacked = openRom(buildRom(withSplashImage(project, image)))
     const splash = readSplash(hacked.bytes)!
     expect(splash.original).toBe(false)
+    // Its call loads all four of its palette rows: moveq #$F,d5 (Match Viewer's fix).
+    expect(splash.ownColours).toBe(true)
+    expect([hacked.bytes[0xfee18], hacked.bytes[0xfee19]]).toEqual([0x7a, 0x0f])
     // The white square's middle is white, a band is red, the field is dark blue.
     const at = (x: number, y: number) => colorRgb(splash.palette[splash.picture.pixels[y * SPLASH_WIDTH + x]])
     expect(at(160, 112)).toEqual([255, 255, 255])
@@ -56,6 +65,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     expect(again.bytes.length).toBe(hacked.bytes.length)
     const restored = withOriginalSplash(again)
     expect(readSplash(restored.bytes)).toEqual(readSplash(project.bytes))
+    expect(restored.bytes[0xfee19]).toBe(0)
   })
 
   it('fits a picture of another shape inside the screen, on black', () => {

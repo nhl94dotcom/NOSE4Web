@@ -93,7 +93,13 @@ export function SplashScreenSection({ project, opened, onChange }: Props) {
           Put back the original
         </button>{' '}
         <span className="note">
-          {splash.original ? "The original game's screen." : wasOriginal ? 'A picture of your own.' : 'This ROM has a picture of its own.'}
+          {splash.original
+            ? "The original game's screen."
+            : wasOriginal
+              ? 'A picture of your own.'
+              : splash.ownColours
+                ? 'This ROM has a picture of its own.'
+                : "This ROM has a picture of its own, drawn in the original screen's colours, as wboy's ROMs have it: importing it again gives it its own."}
         </span>
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}

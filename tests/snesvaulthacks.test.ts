@@ -128,3 +128,26 @@ describe.skipIf(!hasRom)('when the computer pulls its goalie', () => {
     expect(pullGoalieText({ goalsUnder: 1, secondsUnder: 61 })).toBe('never')
   })
 })
+
+describe.skipIf(!hasRom)('the regained-puck assist fix', () => {
+  it("calls code that clears the overwrite flag on a2touchpuck's same-player path, in place of its cmp and beq", () => {
+    const project = open()
+    expect(hex(project.bytes, 0xf4523, 5)).toBe('d99a17f03d')
+    const on = applySnesHacks(project, { regainAssist: true })
+    expect(on.bytes[0xf4523]).toBe(0x20)
+    expect(hex(on.bytes, 0xf4526, 2)).toBe('eaea')
+    const to = 0xf0000 + (on.bytes[0xf4524] | (on.bytes[0xf4525] << 8)) - 0x8000
+    // cmp tmtouch1,y; beq +1; rts; pla; lda tmflags,y; and #$FFFB; sta tmflags,y; lda $A5; jmp $C565
+    expect(hex(on.bytes, to, 21)).toBe('d99a17f0016068b9de1729fbff99de17a5a54c65c5')
+    expect(detectSnesHacks(openRom(buildRom(on)).bytes).choices.regainAssist).toBe(true)
+    expect(applySnesHacks(on, { regainAssist: false }).bytes).toEqual(project.bytes)
+  })
+
+  it.skipIf(!existsSync(fileURLToPath(new URL('../../nhl94_SA1_Original.sfc', import.meta.url))))('finds the same code in the SA-1 build, whose RAM is $6000 on', () => {
+    const sa1 = openRom(new Uint8Array(readFileSync(fileURLToPath(new URL('../../nhl94_SA1_Original.sfc', import.meta.url)))))
+    expect(detectSnesHacks(sa1.bytes).unknown).not.toContain('regainAssist')
+    const on = applySnesHacks(sa1, { regainAssist: true })
+    expect(detectSnesHacks(on.bytes).choices.regainAssist).toBe(true)
+    expect(applySnesHacks(on, { regainAssist: false }).bytes).toEqual(sa1.bytes)
+  })
+})

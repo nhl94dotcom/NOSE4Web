@@ -9,7 +9,12 @@
 //
 // A picture of the league's own takes the screen as wboy's 30-team ROMs do:
 // the first picture loads one tile, both are placed at the top left, and the
-// second points at a full-screen picture of 40 x 28 tiles in free room.
+// second points at a full-screen picture of 40 x 28 tiles in free room. The
+// routine that draws a picture copies the palette rows its d5 names, a bit a
+// row: the first call names all four, the second none (moveq #0,d5 at
+// $FEE18), so a picture there is drawn in the first picture's colours
+// (Match Viewer, in the game) unless that becomes moveq #$F,d5, as NOSE4Web's
+// pictures have it; wboy's keep the first picture's colours.
 
 import { colorRgb, GENESIS_COLORS } from './color'
 import type { Picture } from './graphics'
@@ -18,6 +23,8 @@ import { claimSpace } from './space'
 
 const FIRST_AT = 0xfedce
 const SECOND_AT = 0xfedfc
+// moveq #rows,d5 before the second picture's call.
+const ROWS_AT = 0xfee18
 // The original game's positions and headers, to put back.
 const ORIGINAL = {
   first: { x: 0x0e, y: 0x03, header: 0xf4378, tiles: 0x6f },
@@ -77,6 +84,8 @@ export interface Splash {
   palette: number[]
   // Whether it is the original game's two pictures.
   original: boolean
+  // Whether the second picture is drawn in its own colours.
+  ownColours: boolean
 }
 
 // The screen as it is in this ROM, or null where its code is not as the original game has it.
@@ -114,7 +123,11 @@ export function readSplash(rom: Uint8Array): Splash | null {
   const original =
     first.x === ORIGINAL.first.x && first.y === ORIGINAL.first.y && first.header === ORIGINAL.first.header && images[0].tiles === ORIGINAL.first.tiles &&
     second.x === ORIGINAL.second.x && second.y === ORIGINAL.second.y && second.header === ORIGINAL.second.header
-  return { picture, palette: [...images[0].palette, ...images[1].palette, 0], original }
+  // The second picture is drawn in its own colours only in the rows its call loads.
+  const rows = rom[ROWS_AT] === 0x7a ? rom[ROWS_AT + 1] & 0x0f : 0
+  const secondPalette = images[1].palette.map((colour, i) => (rows & (1 << Math.floor(i / COLOURS)) ? colour : images[0]!.palette[i]))
+  const loads = rows === 0x0f
+  return { picture, palette: [...images[0].palette, ...secondPalette, 0], original: original && rows === 0, ownColours: loads }
 }
 
 // ----------------------------------------------------------------- making
@@ -340,6 +353,8 @@ export function withSplashImage(project: RomProject, image: SplashImage): RomPro
   next.set([0, 0], FIRST_AT + 1)
   next.set([0, 0], SECOND_AT + 1)
   put32(next, SECOND_AT + 6, at)
+  // The second picture loads its own four palette rows.
+  if (next[ROWS_AT] === 0x7a) next[ROWS_AT + 1] = 0x0f
   return { ...project, bytes: next }
 }
 
@@ -355,6 +370,7 @@ export function withOriginalSplash(project: RomProject): RomProject {
   next.set([ORIGINAL.first.x, ORIGINAL.first.y], FIRST_AT + 1)
   next.set([ORIGINAL.second.x, ORIGINAL.second.y], SECOND_AT + 1)
   put32(next, SECOND_AT + 6, ORIGINAL.second.header)
+  if (next[ROWS_AT] === 0x7a) next[ROWS_AT + 1] = 0
   return { ...project, bytes: next }
 }
 

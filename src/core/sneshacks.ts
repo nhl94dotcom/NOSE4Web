@@ -35,6 +35,7 @@ export type SnesHack =
   | 'forwardsAndDefence'
   | 'showMaxBoost'
   | 'manualPullGoalie'
+  | 'regainAssist'
 
 interface Site {
   // The game's address.
@@ -253,6 +254,7 @@ export const SNES_HACKS: SnesHack[] = [
   'forwardsAndDefence',
   'showMaxBoost',
   'manualPullGoalie',
+  'regainAssist',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -277,6 +279,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   forwardsAndDefence: 'Any skater at any position in Edit Lines',
   showMaxBoost: 'Show the maximum boost in Edit Lines',
   manualPullGoalie: 'Pull the goalie with L and R',
+  regainAssist: 'Regained-puck assist fix',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -506,6 +509,42 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const code = bytesOf('A5', d0, 'D9', t2, 'F006', original, '60')
     return withNewCode(rom, site, call, original, code)
   },
+  // Assists lost after a regained puck (Match Viewer: 10 of 259 recorded
+  // goals). a2touchpuck's "already the last toucher" exit, cmp tmtouch1,y /
+  // beq at $9E:C523 in the original game, runs before the overwrite flag
+  // (tmflags bit 2) is cleared, so when the last toucher before an opponent
+  // wins the puck back himself the flag stays set, and the teammate he passes
+  // to then overwrites him as the last toucher, and his assist is lost. The
+  // fix calls new code in place of the cmp and beq: the same compare, and on
+  // the same player the flag cleared (the list kept) before going on where
+  // the beq went, with A reloaded from the direct-page copy the routine
+  // compares (16-bit A and index, as there). Found by the code around it in
+  // every build: the 2 MB ones have their RAM $6000 on.
+  regainAssist: (rom) => {
+    const after = 'b9(....)890400f01929fbff99'
+    const plain = only(rom, '85(..)a4..d9(....)f03d' + after)
+    const hooked = plain >= 0 ? -1 : only(rom, '85(..)a4..20....eaea' + after)
+    const found = plain >= 0 ? plain : hooked
+    if (found < 0) return null
+    const site = found + 4
+    const dp = rom[found + 1]
+    const flags = readU16(rom, site + 6)
+    let toucher: number
+    let target: number
+    if (plain >= 0) {
+      toucher = readU16(rom, site + 1)
+      target = (loRomAddress(site) + 5 + 0x3d) & 0xffff
+    } else {
+      const code = loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+      if (rom[code] !== 0xd9 || rom[code + 18] !== 0x4c) return null
+      toucher = readU16(rom, code + 1)
+      target = readU16(rom, code + 19)
+    }
+    const original = bytesOf('D9', word(toucher), 'F03D')
+    const call = (to: number) => bytesOf('20', word(to), 'EAEA')
+    const code = bytesOf('D9', word(toucher), 'F001 60 68 B9', word(flags), '29FBFF 99', word(flags), 'A5', dp, '4C', word(target))
+    return withNewCode(rom, site, call, original, code)
+  },
   // Stick deflections (bug 34), as on the Genesis but wider: in puckstick, a
   // puck too fast for the goalie to catch takes .t1x (nopuck 8) to .3, which
   // plays the sound, has him touch it and deflects it, and never counts the
@@ -685,7 +724,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
-  'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
+  'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
 ]
 

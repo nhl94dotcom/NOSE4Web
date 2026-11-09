@@ -153,10 +153,11 @@ const SNES: Record<SnesHack, string> = {
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
   manualPullGoalie: 'During play, pressing L and R together pulls your goalie for an extra attacker, or puts him back, with a beep.',
+  regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
 }
 
 const SNES_SECTIONS: [string, SnesHack[]][] = [
-  ['Bug fixes', ['hotColdFix', 'secondAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
+  ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
   ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
   ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts']],
   ['Statistics', ['stickShots']],
