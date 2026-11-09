@@ -130,9 +130,15 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   // which finds the player moved among the line's places, the extra attacker's
   // too, and puts him back, then makes that test. Its code uses the original
   // game's work memory, so it is offered only in ROMs laid out as the original.
+  // The Vault's searches the line's own number of rows and the extra
+  // attacker's place after them (lineslots + 1 places from lineslots down),
+  // which on the penalty-kill lines, of 4 rows, ends at the unused RW place
+  // and never reaches the extra attacker (Match Viewer). NOSE4Web's searches
+  // a fixed 6 places on every line, from the extra attacker's down (ADC #5
+  // and LDX #6 / NOP for ADC lineslots and LDX lineslots / INX).
   extraAttackerFix: [
     { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
-    { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
+    { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 690500 8595 A20600 EA A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
   ],
   // NHL94SNESVault's ForwardsAndDefenseHack: Edit Lines lists every skater,
   // forwards and defencemen, for every position. Where it counts the players
@@ -188,6 +194,10 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
 // The versions of hacks NHL94SNESVault puts in, where NOSE4Web's own differ:
 // recognised as the hack, and replaced by NOSE4Web's when asked.
 const VAULT_VERSIONS: Partial<Record<SnesHack, Site[]>> = {
+  extraAttackerFix: [
+    { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
+    { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
+  ],
   showMaxBoost: [
     { at: 0x9f9a30, original: '4CBD9A', hacked: '4C43FB' },
     { at: 0x9ffb43, original: free(14), hacked: '2414 3003 4CBD9A A96400 8DA500 6B' },

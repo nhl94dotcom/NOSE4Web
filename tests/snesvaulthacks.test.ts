@@ -19,6 +19,8 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     const project = open()
     expect(project.bytes.length).toBe(0x100000)
     const on = applySnesHacks(project, { extraAttackerFix: true, forwardsAndDefence: true, manualPullGoalie: true, showMaxBoost: true })
+    // The extra attacker fix searches a fixed 6 places, from the extra attacker's down, on every line.
+    expect(hex(on.bytes, 0xdce78, 13)).toBe('48a5a5186905008595a20600ea')
     // Any skater at any position: the hijack, and the new code after the extra attacker fix's.
     expect(hex(on.bytes, 0xd8e1a, 6)).toBe('eaeaea4cbace')
     expect(hex(on.bytes, 0xdceba, 33)).toBe('2200939b8da31d2200d39ea5a58dab1d22dc929b186da31d8da31dadab1d4c3b8e')
@@ -55,20 +57,23 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
       'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BD7607 29FF00 C93000 D022 ' +
         'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
     )
+    // And the Vault's extra attacker fix, which NOSE4Web put in before 9 November 2026.
+    put(0xd8c96, '2078CE')
+    put(0xdce78, '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60')
     const vault = openRom(bytes)
     const state = detectSnesHacks(vault.bytes)
     expect(state.unknown).toEqual([])
-    expect(state.vaultVersions).toEqual(['showMaxBoost', 'manualPullGoalie'])
-    expect([state.choices.showMaxBoost, state.choices.manualPullGoalie]).toEqual([true, true])
+    expect(state.vaultVersions).toEqual(['extraAttackerFix', 'showMaxBoost', 'manualPullGoalie'])
+    expect([state.choices.extraAttackerFix, state.choices.showMaxBoost, state.choices.manualPullGoalie]).toEqual([true, true, true])
     // Left alone by an ordinary apply.
     expect(applySnesHacks(vault, { ...state.choices, noGoalPosts: true }).bytes.subarray(0xf7b6e, 0xf7b6e + 87)).toEqual(vault.bytes.subarray(0xf7b6e, 0xf7b6e + 87))
     // Updated when asked, and then NOSE4Web's own.
-    const updated = applySnesHacks(vault, { showMaxBoost: true, manualPullGoalie: true }, true)
-    const fresh = applySnesHacks(project, { showMaxBoost: true, manualPullGoalie: true })
+    const updated = applySnesHacks(vault, { extraAttackerFix: true, showMaxBoost: true, manualPullGoalie: true }, true)
+    const fresh = applySnesHacks(project, { extraAttackerFix: true, showMaxBoost: true, manualPullGoalie: true })
     expect(updated.bytes).toEqual(fresh.bytes)
     expect(detectSnesHacks(updated.bytes).vaultVersions).toEqual([])
     // Taken out, the Vault's versions leave the original game.
-    expect(applySnesHacks(vault, { showMaxBoost: false, manualPullGoalie: false }).bytes).toEqual(project.bytes)
+    expect(applySnesHacks(vault, { extraAttackerFix: false, showMaxBoost: false, manualPullGoalie: false }).bytes).toEqual(project.bytes)
   })
 
   it('go together as the Vault has them', () => {

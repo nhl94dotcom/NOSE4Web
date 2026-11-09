@@ -51,7 +51,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   skipEaIntro: 'Starts the game without the EA logo.',
   skipPucksIntro: 'Starts the game without the flying pucks.',
   extraAttackerFix:
-    "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced from the line, so the line has one skater too few. With the fix the two swap, as they do for any other move within the line. This is McMarkis's fix from NHL94SNESVault, as it has it. It can only go into ROMs laid out like the original game.",
+    "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced from the line, so the line has one skater too few. With the fix the two swap, as they do for any other move within the line. This is McMarkis's fix from NHL94SNESVault, in NOSE4Web's version, which also covers the penalty-kill lines, where the Vault's never finds the extra attacker (found by the NHL94 Match Viewer project). It can only go into ROMs laid out like the original game.",
   yButtonFix:
     'A skater who has been knocked down, or is falling into the boards, being held or in any other move that locks him, can still hook or hold with Y, where every other button does nothing until he is free. With the fix Y waits too. (NHL94SNESVault has a fix for a skater knocked down; this covers every locked move.) Players are used to the original, so it is not among the recommended fixes.',
   comebackFix:
@@ -76,6 +76,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 
 // What NOSE4Web's version of a hack does better than NHL94SNESVault's.
 const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
+  extraAttackerFix: "On the penalty-kill lines it never finds the extra attacker, so picking him there still puts him on the line twice; NOSE4Web's covers every line. NOSE4Web's own fix was the Vault's before 9 November 2026.",
   showMaxBoost: "It misses about 1 boosted rating in 28 (a cold value of -1), which NOSE4Web's shows as 100 too.",
   manualPullGoalie: "It reads the buttons only about every half second, so a quick tap is often missed and a long hold can pull the goalie and put him straight back; NOSE4Web's acts once on each press.",
 }
