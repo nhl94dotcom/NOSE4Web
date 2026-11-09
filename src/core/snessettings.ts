@@ -13,7 +13,9 @@ import { parseSnesMenu, refreshSnesMenu, snesChoiceTextPlaces, writeSnesMenu } f
 // GetPeriodTime: lda.l Optperlen; asl; tax; lda.l GetPeriodTime_timetab,x; sta d0.
 const PERIOD_TIMES = 'afc234..0aaabf(....)(..)85a5fa6b'
 // ResetClock: a shootout's clock (lda #25), and overtime's in the regular season (lda #300).
-const RESET_CLOCK = 'ad....f007a9(....)85a58013ad....c90300300bafbc34..d005a9(....)85a5'
+// Its 6 bytes after the overtime test are either lda.l OptPlayMode / bne, or the
+// jmp to the 99-minute overtime hack's code (sneshacks.ts).
+const RESET_CLOCK = 'ad....f007a9(....)85a58013ad....c90300300b............a9(....)85a5'
 const SHOOTOUT_AT = 6
 const OVERTIME_AT = 27
 // The penalties and stoppages: lda #bank; sta $8F; lda #Penaltylist; sta $8D; lda [$8D],y ...

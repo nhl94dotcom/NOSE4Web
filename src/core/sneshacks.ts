@@ -1,6 +1,6 @@
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
-import { findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
+import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
 import { snesPeriodCountPlace } from './snesmenu'
 import { refreshSnesSettings } from './snessettings'
 
@@ -36,6 +36,7 @@ export type SnesHack =
   | 'showMaxBoost'
   | 'manualPullGoalie'
   | 'regainAssist'
+  | 'fourthPeriodOvertime'
 
 interface Site {
   // The game's address.
@@ -255,6 +256,7 @@ export const SNES_HACKS: SnesHack[] = [
   'showMaxBoost',
   'manualPullGoalie',
   'regainAssist',
+  'fourthPeriodOvertime',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -280,11 +282,12 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   showMaxBoost: 'Show the maximum boost in Edit Lines',
   manualPullGoalie: 'Pull the goalie with L and R',
   regainAssist: 'Regained-puck assist fix',
+  fourthPeriodOvertime: '99-minute overtime on the fourth period length',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
 // on, and two that cannot both be.
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix' }
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
@@ -380,6 +383,8 @@ function withNewCode(rom: Uint8Array, site: number, call: (address: number) => U
   ]
 }
 const readU16 = (rom: Uint8Array, at: number) => rom[at] | (rom[at + 1] << 8)
+// The fourth period length's overtime: 99 minutes.
+const FOURTH_OVERTIME = 99 * 60
 
 // The penalties whose length the one-minute penalties change, by the bytes
 // around each (the same in every build).
@@ -520,6 +525,30 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the beq went, with A reloaded from the direct-page copy the routine
   // compares (16-bit A and index, as there). Found by the code around it in
   // every build: the 2 MB ones have their RAM $6000 on.
+  // McMarkis's "5 Minutes, 99 Min OT" (his Genesis patch), as NOSE4Web's
+  // Genesis option has it. ResetClock has, for overtime: lda.l OptPlayMode /
+  // bne .1 (playoffs: as long as a period) / lda #300 / sta d0 (the regular
+  // season's 5:00, the Clock's overtime). Its first 6 bytes become jmp / nop
+  // to 26 bytes in the same bank that make the same test, then in the
+  // regular season on the fourth length (Optperlen 3, read as GetPeriodTime
+  // reads it) set 99:00 and go on to .1; otherwise they go back to the lda.
+  // The menu's fourth length is the 30-second periods hack's, so that is
+  // needed too; its length and text are set on Game settings.
+  fourthPeriodOvertime: (rom) => {
+    const before = 'ad....f007a9....85a58013ad....c90300300b'
+    const plain = only(rom, before + 'af......d005a9....85a5')
+    const hooked = plain >= 0 ? -1 : only(rom, before + '4c....eaeaeaa9....85a5')
+    const found = plain >= 0 ? plain : hooked
+    const period = findCode(rom, 'afc234..0aaabf')
+    if (found < 0 || !period) return null
+    const site = found + 20
+    const from = plain >= 0 ? site : loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+    if (rom[from] !== 0xaf) return null
+    const playMode = rom.slice(from, from + 4)
+    const address = loRomAddress(site)
+    const code = bytesOf(playMode, 'D00E', rom.slice(period.at, period.at + 4), 'C90300 D008 A9', word(FOURTH_OVERTIME), '85A5 4C', word(address + 11), '4C', word(address + 6))
+    return withNewCode(rom, site, (to) => bytesOf('4C', word(to), 'EAEAEA'), bytesOf(playMode, 'D005'), code)
+  },
   regainAssist: (rom) => {
     const after = 'b9(....)890400f01929fbff99'
     const plain = only(rom, '85(..)a4..d9(....)f03d' + after)
@@ -725,7 +754,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

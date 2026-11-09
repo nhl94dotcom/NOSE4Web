@@ -160,12 +160,13 @@ const SNES: Record<SnesHack, string> = {
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
   manualPullGoalie: 'During play, pressing L and R together pulls your goalie for an extra attacker, or puts him back, with a beep.',
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 
 const SNES_SECTIONS: [string, SnesHack[]][] = [
   ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
   ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
-  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'noInterference', 'noPenaltyShots', 'noGoalPosts']],
+  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts']],
   ['Statistics', ['stickShots']],
   ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
 ]
