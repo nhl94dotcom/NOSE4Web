@@ -276,9 +276,9 @@ function importSnesPictures(project: RomProject, other: RomProject, from: number
       let bytes = p.bytes
       let picture
       if (like.ownColours) {
-        const own = centreIceInOwnColours(source.picture, source.palette, source.ownColours)
+        const own = centreIceInOwnColours(source.picture, source.palette, source.ownColours, source.titleRow)
         bytes = p.bytes.slice()
-        withSnesCentreIceColours(bytes, ours, to, own.colours)
+        withSnesCentreIceColours(bytes, ours, to, own.colours, own.titleRow)
         picture = own.picture
       } else {
         picture = snesCentreIceFromImage(pictureToImage(source.picture, source.palette, SNES_COLORS), source.picture.width, source.picture.height, like)

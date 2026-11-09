@@ -113,6 +113,8 @@ interface Contents {
   // In the SA-1 build, where each team's own centre ice colours are, for a
   // team that has them; -1 for one drawn in the rink's.
   iceOwn: number[]
+  // And where its row of IceTitleColours is, for a team that has them.
+  iceTitle: number[]
 }
 
 // Read once for each ROM the project holds. A ROM being written to is read
@@ -138,12 +140,13 @@ function read(rom: Uint8Array, teamCount: number, remember = true): Contents | n
         iceTiles.every((p) => p >= 0 && (isHuffman(rom, p) || isLz(rom, p))) &&
         iceMaps.every((p) => p >= 0 && p + 6 <= rom.length)
       const own = findCode(rom, ICE_COLOUR_LOADER)
+      const titleRow = (t: number) => (own ? loRomOffset(own.groups[1], own.groups[0]) + t * COLOURS : -1)
       const iceOwn = Array.from({ length: teamCount }, (_, t) => {
         if (!own || own.groups[0] < 0x8000 || own.groups[2] < 0x8002) return -1
-        const flag = loRomOffset(own.groups[1], own.groups[0]) + t * COLOURS
-        return rom[flag] ? loRomOffset(own.groups[3], own.groups[2] - 2) + t * COLOURS * 2 : -1
+        return rom[titleRow(t)] ? loRomOffset(own.groups[3], own.groups[2] - 2) + t * COLOURS * 2 : -1
       })
-      if (ok) found = { tables, frames, frameAt, set, palettes, iceTiles, iceMaps, iceOwn }
+      const iceTitle = iceOwn.map((at, t) => (at >= 0 ? titleRow(t) : -1))
+      if (ok) found = { tables, frames, frameAt, set, palettes, iceTiles, iceMaps, iceOwn, iceTitle }
     }
   } catch (e) {
     if (!(e instanceof HuffmanError || e instanceof LzError)) throw e
@@ -525,12 +528,19 @@ export function snesCentreIce(
   edits: SnesPictureEdits,
   team: number,
   rink?: number[],
-): { picture: Picture; palette: number[]; rows: number[]; ownColours: boolean } {
+): { picture: Picture; palette: number[]; rows: number[]; ownColours: boolean; titleRow: number[] | null } {
   const c = need(rom, teamCount)
   const palette = rink?.length === ROWS * COLOURS ? rink.slice() : iceColours(rom, c)
   const own = c.iceOwn[team]
   if (own >= 0) for (let i = 1; i < COLOURS; i++) palette[ICE_ROWS[0] * COLOURS + i] = readU16LE(rom, own + i * 2)
-  return { picture: edits.centreIce[team] ?? drawCentreIce(rom, c, team), palette, rows: own >= 0 ? [ICE_ROWS[0]] : ICE_ROWS, ownColours: own >= 0 }
+  const title = c.iceTitle[team]
+  return {
+    picture: edits.centreIce[team] ?? drawCentreIce(rom, c, team),
+    palette,
+    rows: own >= 0 ? [ICE_ROWS[0]] : ICE_ROWS,
+    ownColours: own >= 0,
+    titleRow: title >= 0 ? Array.from(rom.subarray(title, title + COLOURS)) : null,
+  }
 }
 
 function drawCentreIce(rom: Uint8Array, c: Contents, team: number): Picture {
@@ -614,12 +624,16 @@ function iceTilesFor(picture: Picture, map: IceMap): { tiles: Uint8Array; words:
 
 // Where the SA-1 build gives a team centre ice colours of its own (row 5 of
 // the rink's while its logo is drawn, colours 1 to 15), sets them. False for
-// a team drawn in the rink's colours.
-export function withSnesCentreIceColours(rom: Uint8Array, teamCount: number, team: number, colours: number[]): boolean {
+// a team drawn in the rink's colours. With `titleRow`, sets the team's row of
+// IceTitleColours too.
+export function withSnesCentreIceColours(rom: Uint8Array, teamCount: number, team: number, colours: number[], titleRow?: number[]): boolean {
   const c = need(rom, teamCount, false)
   const own = c.iceOwn[team]
   if (own < 0) return false
   for (let i = 1; i < COLOURS; i++) writeU16LE(rom, own + i * 2, colours[i] ?? 0)
+  // Its first byte must stay other than 0: the rink reads it too, to know the
+  // team has colours of its own.
+  if (titleRow?.[0]) rom.set(titleRow.slice(0, COLOURS), c.iceTitle[team])
   return true
 }
 
@@ -628,41 +642,49 @@ export function withSnesCentreIceColours(rom: Uint8Array, teamCount: number, tea
 // team's colours. A logo whose map has palette bits set, as those of the SA-1
 // build's teams with colours of their own do, takes the second half of it,
 // colours $70 to $7F (LoadTitleLogo's LogoPalBits), so its pixel numbers 1 to
-// 15 show these there. The build's own colours follow them, a colour of the
-// logo at the number whose title colour is like it. Measured by Match Viewer,
-// the same in the retail, Classic and both 2026 ROMs.
+// 15 show these there. Measured by Match Viewer, the same in the retail,
+// Classic and both 2026 ROMs. In the SA-1 build, a team with centre ice
+// colours of its own also has a row of IceTitleColours, which TitleIceColours
+// reads right after the logo is unpacked: byte 0 is the half ($60 or $70), and
+// bytes 1 to 15 the title number each of the team's own colours shows as.
 export const SNES_TITLE_OWN_HALF = [0x6b5a, 0x7fff, 0x4a52, 0x2529, 0x5ef7, 0x025b, 0x0f3f, 0x0000, 0x4ca4, 0x3400, 0x0165, 0x6da9, 0x009a, 0x0012, 0x05ff, 0x1dd9]
 // Its first half, colours $60 to $6F, which a logo in the rink's first row of
 // colours takes, as the original game's mostly are.
 export const SNES_TITLE_RINK_HALF = [0x6b5a, 0x0000, 0x7fff, 0x2529, 0x5ef7, 0x009a, 0x0f3f, 0x6da9, 0x05ff, 0x0012, 0x1dd9, 0x7f20, 0x0208, 0x1934, 0x39d2, 0x3117]
 
-// A centre ice logo drawn in the rink's colours (as the original game's are),
-// made for a team with colours of its own: those it shows, up to 15, become
-// the team's (the rest matched to the nearest), and each pixel takes the one
-// it showed. Each colour goes to the number whose title colour is nearest the
-// colour the logo shows on the title where it comes from (a pixel's number in
-// the half of the title's colours its logo takes), so it looks there as it
-// did, as near as the title's colours allow; on the rink it is unchanged.
-// `ownColours`: the logo comes from a team with colours of its own, whose
-// title colours are the second half. Returns the picture and the colours to set.
-export function centreIceInOwnColours(picture: Picture, palette: number[], ownColours = false): { picture: Picture; colours: number[] } {
+// A centre ice logo made for a team with colours of its own. Each colour it
+// shows on the rink, with the title colour it shows where it comes from (the
+// half of the title's colours its logo takes, and the title number of its
+// pixels), is one of the team's, up to 15 of them (the rest matched to the
+// nearest). Each pixel takes the one it showed, so on the rink it is
+// unchanged, and the team's row of IceTitleColours shows each on the title as
+// it was shown there. Each is given the number whose title colour is nearest
+// that, so a ROM without the row looks as near as it can. `ownColours`: the
+// logo comes from a team with colours of its own, whose title colours are the
+// second half, renumbered by `titleRow` (its row of IceTitleColours) where it
+// has one. Returns the picture, the colours to set and the row to set.
+export function centreIceInOwnColours(
+  picture: Picture,
+  palette: number[],
+  ownColours = false,
+  titleRow: number[] | null = null,
+): { picture: Picture; colours: number[]; titleRow: number[] } {
+  const row = titleRow?.[0] ? titleRow : null
+  const own = ownColours || picture.pixels.some((p) => p && Math.floor(p / COLOURS) !== ICE_ROWS[0])
+  const half = (row ? row[0] !== 0x60 : own) ? SNES_TITLE_OWN_HALF : SNES_TITLE_RINK_HALF
+  // A pixel's rink colour and title number, as one key.
+  const keyOf = (p: number) => (palette[p] & 0x7fff) * COLOURS + (row ? row[p % COLOURS] & 15 : p % COLOURS)
+  const word = (key: number) => Math.floor(key / COLOURS)
+  const titleNumber = (key: number) => key % COLOURS
   const counts = new Map<number, number>()
-  for (const p of picture.pixels) if (p) counts.set(palette[p] & 0x7fff, (counts.get(palette[p] & 0x7fff) ?? 0) + 1)
-  const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, COLOURS - 1).map(([word]) => word)
+  for (const p of picture.pixels) if (p) counts.set(keyOf(p), (counts.get(keyOf(p)) ?? 0) + 1)
+  const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, COLOURS - 1).map(([key]) => key)
   const distance = (a: number, b: number) => {
     const [x, y] = [colorRgb(a, SNES_COLORS), colorRgb(b, SNES_COLORS)]
     return (x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2
   }
-  // The title colour each colour of the logo shows: that of the number most of its pixels have.
-  const half = ownColours || picture.pixels.some((p) => p && Math.floor(p / COLOURS) !== ICE_ROWS[0]) ? SNES_TITLE_OWN_HALF : SNES_TITLE_RINK_HALF
-  const numbers = chosen.map(() => new Map<number, number>())
-  for (const p of picture.pixels) {
-    const c = p ? chosen.indexOf(palette[p] & 0x7fff) : -1
-    if (c >= 0) numbers[c].set(p % COLOURS, (numbers[c].get(p % COLOURS) ?? 0) + 1)
-  }
-  const shown = numbers.map((counted) => half[[...counted].sort((a, b) => b[1] - a[1])[0][0]])
   // The closest pairs of a colour and a number first, each used once.
-  const pairs = chosen.flatMap((_, c) => Array.from({ length: COLOURS - 1 }, (_, k) => ({ c, slot: k + 1, d: distance(shown[c], SNES_TITLE_OWN_HALF[k + 1]) })))
+  const pairs = chosen.flatMap((key, c) => Array.from({ length: COLOURS - 1 }, (_, k) => ({ c, slot: k + 1, d: distance(half[titleNumber(key)], half[k + 1]) })))
   pairs.sort((a, b) => a.d - b.d || a.c - b.c || a.slot - b.slot)
   const slotOfChosen = new Array<number>(chosen.length).fill(0)
   const taken = new Set<number>()
@@ -672,19 +694,22 @@ export function centreIceInOwnColours(picture: Picture, palette: number[], ownCo
     taken.add(slot)
   }
   // Numbers no colour of the logo needs keep the title's colour.
-  const colours = SNES_TITLE_OWN_HALF.map((word, slot) => (slot === 0 ? 0 : word))
-  chosen.forEach((word, c) => (colours[slotOfChosen[c]] = word))
-  const slotOf = (word: number) => {
-    const exact = chosen.indexOf(word)
+  const colours = half.map((w, slot) => (slot === 0 ? 0 : w))
+  chosen.forEach((key, c) => (colours[slotOfChosen[c]] = word(key)))
+  const newRow = [half === SNES_TITLE_RINK_HALF ? 0x60 : 0x70, ...Array.from({ length: COLOURS - 1 }, (_, k) => k + 1)]
+  chosen.forEach((key, c) => (newRow[slotOfChosen[c]] = titleNumber(key)))
+  const slotOf = (key: number) => {
+    const exact = chosen.indexOf(key)
     if (exact >= 0) return slotOfChosen[exact]
+    const far = (other: number) => distance(word(key), word(other)) + distance(half[titleNumber(key)], half[titleNumber(other)])
     let best = 0
     chosen.forEach((other, c) => {
-      if (distance(word, other) < distance(word, chosen[best])) best = c
+      if (far(other) < far(chosen[best])) best = c
     })
     return slotOfChosen[best]
   }
-  const pixels = Uint8Array.from(picture.pixels, (p) => (p ? ICE_ROWS[0] * COLOURS + slotOf(palette[p] & 0x7fff) : 0))
-  return { picture: { width: picture.width, height: picture.height, pixels }, colours }
+  const pixels = Uint8Array.from(picture.pixels, (p) => (p ? ICE_ROWS[0] * COLOURS + slotOf(keyOf(p)) : 0))
+  return { picture: { width: picture.width, height: picture.height, pixels }, colours, titleRow: newRow }
 }
 
 // A centre ice logo from an image. Each 8 x 8 tile is drawn in whichever of

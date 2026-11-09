@@ -120,23 +120,38 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     expect(look(reopened, 1, 'logo')).toEqual(look(classic, 4, 'logo'))
     expect(look(reopened, 1, 'centreIce')).toEqual(look(classic, 4, 'centreIce'))
     expect(look(reopened, 1, 'scoreLogo')).toEqual(look(build, 1, 'scoreLogo'))
-    // On the title's pucks, where the build's teams with colours of their own take the title's second half, each
-    // colour at the number whose title colour is nearest what Classic's title shows: the black outline (Classic's 1,
-    // 465 pixels) at 7, black, and the tan face (Classic's 10) at 15, the same tan (Match Viewer).
-    const { NO_SNES_PICTURE_EDITS, snesCentreIce } = await import('../src/core/snespictures')
+    // On the title's pucks. The build's teams with colours of their own have a row of IceTitleColours (team t at
+    // $A0:9CFC + 16 t here), which says which half of the title's colours the logo takes and what title number each
+    // of its numbers shows as. As the build shipped it, Chicago's row turned 7 into 6 and 15 into 7 (Match Viewer).
+    // The import sets it to show the logo as Classic's title does: the first half, and each number as itself, so
+    // the black outline (Classic's 1, 465 pixels) and the tan face (Classic's 10) keep their numbers.
+    const { NO_SNES_PICTURE_EDITS, SNES_TITLE_OWN_HALF, SNES_TITLE_RINK_HALF, snesCentreIce } = await import('../src/core/snespictures')
+    const pixels = (project: RomProject, team: number) => snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, team).picture.pixels
     const numbers = (project: RomProject, team: number) => {
       const counted = new Map<number, number>()
-      snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, team).picture.pixels.forEach((p) => p && counted.set(p % 16, (counted.get(p % 16) ?? 0) + 1))
+      pixels(project, team).forEach((p) => p && counted.set(p % 16, (counted.get(p % 16) ?? 0) + 1))
       return [...counted].sort((a, b) => b[1] - a[1]).map(([n]) => n)
     }
+    const row = (project: RomProject, team: number) => Array.from(project.bytes.subarray(0x101cfc + team * 16, 0x101cfc + team * 16 + 16))
+    expect(row(build, 1)).toEqual([0x70, 1, 1, 1, 1, 4, 6, 6, 5, 2, 3, 3, 7, 7, 7, 7])
     expect(numbers(classic, 4).slice(0, 2)).toEqual([1, 10])
-    expect(numbers(reopened, 1).slice(0, 2)).toEqual([7, 15])
+    expect(numbers(reopened, 1).slice(0, 2)).toEqual([1, 10])
+    expect(row(reopened, 1)[0]).toBe(0x60)
+    // What each pixel shows on the title: in a ROM without the row, the first half's colour at its number.
+    const titleLook = (project: RomProject, team: number, withRow = true) => {
+      const r = withRow ? row(project, team) : [0x60, ...Array.from({ length: 15 }, (_, i) => i + 1)]
+      const half = r[0] === 0x60 ? SNES_TITLE_RINK_HALF : SNES_TITLE_OWN_HALF
+      return Array.from(pixels(project, team), (p) => (p ? half[r[p % 16] & 15] : -1))
+    }
+    expect(titleLook(reopened, 1)).toEqual(titleLook(classic, 4, false))
     // And within the build, a score logo copied.
     const copied = importTeam(build, build, 4, 1, { names: false, roster: false, colours: false, pictures: true })
     expect(copied.notes).toContain('Score logo brought in.')
     const again = openRom(buildRom(copied.project))
     expect(look(again, 1, 'scoreLogo')).toEqual(look(build, 4, 'scoreLogo'))
     expect(look(again, 1, 'centreIce')).toEqual(look(build, 4, 'centreIce'))
+    // On the title too: the source's row of IceTitleColours is followed.
+    expect(titleLook(again, 1)).toEqual(titleLook(build, 4))
     expect(look(again, 5, 'scoreLogo')).toEqual(look(build, 5, 'scoreLogo'))
   })
 })
