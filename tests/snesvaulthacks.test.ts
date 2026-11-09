@@ -22,17 +22,53 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     // Any skater at any position: the hijack, and the new code after the extra attacker fix's.
     expect(hex(on.bytes, 0xd8e1a, 6)).toBe('eaeaea4cbace')
     expect(hex(on.bytes, 0xdceba, 33)).toBe('2200939b8da31d2200d39ea5a58dab1d22dc929b186da31d8da31dadab1d4c3b8e')
-    // Pull the goalie with L and R: the hijack and 87 bytes of new code.
+    // Pull the goalie with L and R: the hijack and 87 bytes of new code, which reads the press count at $1EF0.
     expect(hex(on.bytes, 0xf50bf, 5)).toBe('206efbeaea')
     expect(hex(on.bytes, 0xf7b6e, 5)).toBe('a20000ac91')
+    expect(hex(on.bytes, 0xf7b6e + 32, 11)).toBe('bdf01ef0289ef01eeaeaea')
     expect(hex(on.bytes, 0xf7b6e + 83, 4)).toBe('01000200')
     expect(on.bytes[0xf7b6e + 87]).toBe(0xff)
-    // Max boost.
+    // And GetNewPresses's last store, STA $0AA2 at $9B:84D8, becomes a call to the code that counts the presses.
+    expect(hex(on.bytes, 0xd84d8, 4)).toBe('20dbce60')
+    expect(hex(on.bytes, 0xdcedb, 3)).toBe('8da20a')
+    expect(on.bytes[0xdcedb + 49]).toBe(0x60)
+    expect(on.bytes[0xdcedb + 50]).toBe(0xff)
+    // Max boost, testing the stored byte ($16).
     expect(hex(on.bytes, 0xf9a30, 3)).toBe('4c43fb')
+    expect(hex(on.bytes, 0xffb43, 17)).toBe('a516c98000b0034cbd9aa964008da5006b')
     const state = detectSnesHacks(openRom(buildRom(on)).bytes)
     expect(state.unknown).toEqual([])
     expect([state.choices.forwardsAndDefence, state.choices.manualPullGoalie, state.choices.showMaxBoost]).toEqual([true, true, true])
     expect(applySnesHacks(on, detectSnesHacks(project.bytes).choices).bytes).toEqual(project.bytes)
+  })
+
+  it("recognise the Vault's own versions, and put in NOSE4Web's when asked", () => {
+    const project = open()
+    const bytes = project.bytes.slice()
+    // The Vault's Max Boost and L and R, as its patches put them in.
+    const put = (at: number, text: string) => bytes.set(Uint8Array.from(text.replace(/ /g, '').match(/../g)!.map((pair) => parseInt(pair, 16))), at)
+    put(0xf9a30, '4C43FB')
+    put(0xffb43, '2414 3003 4CBD9A A96400 8DA500 6B')
+    put(0xf50bf, '206EFB EA EA')
+    put(
+      0xf7b6e,
+      'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BD7607 29FF00 C93000 D022 ' +
+        'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
+    )
+    const vault = openRom(bytes)
+    const state = detectSnesHacks(vault.bytes)
+    expect(state.unknown).toEqual([])
+    expect(state.vaultVersions).toEqual(['showMaxBoost', 'manualPullGoalie'])
+    expect([state.choices.showMaxBoost, state.choices.manualPullGoalie]).toEqual([true, true])
+    // Left alone by an ordinary apply.
+    expect(applySnesHacks(vault, { ...state.choices, noGoalPosts: true }).bytes.subarray(0xf7b6e, 0xf7b6e + 87)).toEqual(vault.bytes.subarray(0xf7b6e, 0xf7b6e + 87))
+    // Updated when asked, and then NOSE4Web's own.
+    const updated = applySnesHacks(vault, { showMaxBoost: true, manualPullGoalie: true }, true)
+    const fresh = applySnesHacks(project, { showMaxBoost: true, manualPullGoalie: true })
+    expect(updated.bytes).toEqual(fresh.bytes)
+    expect(detectSnesHacks(updated.bytes).vaultVersions).toEqual([])
+    // Taken out, the Vault's versions leave the original game.
+    expect(applySnesHacks(vault, { showMaxBoost: false, manualPullGoalie: false }).bytes).toEqual(project.bytes)
   })
 
   it('go together as the Vault has them', () => {

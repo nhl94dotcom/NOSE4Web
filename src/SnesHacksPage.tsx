@@ -67,11 +67,17 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   forwardsAndDefence:
     "The game's own Edit Lines offers only forwards for the forward positions and only defencemen for the defence. With this on it lists every skater for every position, so players can put a forward on the point of a power play or a defenceman up front, and picking someone already on the line swaps the two, the extra attacker included. A player plays the position the line gives him. It needs the extra attacker fix, which turns on with it. NOSE4Web's own line editor offers any skater at any position in a ROM that has it. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project. It can only go into ROMs laid out like the original game.",
   showMaxBoost:
-    "For a ROM that keeps the hot and cold bug. The bug puts about half of every player's ratings at the maximum in play, but Edit Lines and the team roster go on showing the value the game works out for display, so players cannot see who is really boosted. With this on they show such a rating as 100, as it plays. It misses about 1 rating in 28 (a cold value of -1, which the display rounds to 0), still shown as before though boosted in play, and the overall shown does not change. It changes only what is shown, and cannot be on with the hot and cold bug fix, which removes the boost; turning either on turns the other off. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project. It can only go into ROMs laid out like the original game.",
+    "For a ROM that keeps the hot and cold bug. The bug puts about half of every player's ratings at the maximum in play, but Edit Lines and the team roster go on showing the value the game works out for display, so players cannot see who is really boosted. With this on they show such a rating as 100, as it plays; the overall shown does not change. It changes only what is shown, and cannot be on with the hot and cold bug fix, which removes the boost; turning either on turns the other off. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project, in NOSE4Web's version: it reads the stored hot or cold value, as play does, so it also catches the cold value of -1 the Vault's misses (about 1 rating in 28). It can only go into ROMs laid out like the original game.",
   manualPullGoalie:
-    "During play, a player can press L and R together to pull his goalie for an extra attacker, and again to put him back, with a beep each time; he stays out through faceoffs until put back. The game reads the buttons only about every half second, so hold L and R (and nothing else) for about that long: a quick tap is often missed, and holding much longer can pull him and put him straight back. It does nothing between whistles, while the game has the goalie out for a delayed penalty, or while the backup goalie is in net. With both players on one team, player 1 has it. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project. It can only go into ROMs laid out like the original game.",
+    "During play, a player can press L and R together to pull his goalie for an extra attacker, and again to put him back, with a beep each time; he stays out through faceoffs until put back. Each press of L and R together (and nothing else) counts once, however short or long, and the goalie comes off or back within about half a second. It does nothing between whistles, while the game has the goalie out for a delayed penalty, or while the backup goalie is in net. With both players on one team, player 1 has it. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project, in NOSE4Web's version: the Vault's reads the buttons only every half second, so a quick tap was often missed and a long hold could pull the goalie and put him straight back. It can only go into ROMs laid out like the original game.",
   faceoffFix:
     "Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine dots; before that a faceoff was often held where play stopped, and the game follows that older way, putting one on a dot only when play stops past the hash marks. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Leave it off to keep the game's own 1990s-style faceoffs. Worked out with the NHL94 Match Viewer project, from today's NHL rulebook.",
+}
+
+// What NOSE4Web's version of a hack does better than NHL94SNESVault's.
+const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
+  showMaxBoost: "It misses about 1 boosted rating in 28 (a cold value of -1), which NOSE4Web's shows as 100 too.",
+  manualPullGoalie: "It reads the buttons only about every half second, so a quick tap is often missed and a long hold can pull the goalie and put him straight back; NOSE4Web's acts once on each press.",
 }
 
 const GROUPS: { title: string; hacks: SnesHack[] }[] = [
@@ -158,6 +164,24 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                   {ABOUT[hack]}
                   {unknown && <b> This ROM has something else in its place, so it is left exactly as it is.</b>}
                 </p>
+                {state.vaultVersions?.includes(hack) && (
+                  <p className="note">
+                    <b>This ROM has NHL94SNESVault's own version.</b> {VAULT_VERSION_NOTE[hack]}{' '}
+                    <button
+                      onClick={() => {
+                        try {
+                          onChange(applySnesHacks(project, { [hack]: true }, true))
+                          setNotice(`Done: ${SNES_HACK_TITLES[hack]} is now NOSE4Web's version. Undo puts it back.`)
+                          setError('')
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : String(e))
+                        }
+                      }}
+                    >
+                      Put in NOSE4Web's version
+                    </button>
+                  </p>
+                )}
               </div>
             )
           })}

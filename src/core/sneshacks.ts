@@ -146,16 +146,52 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   // NHL94SNESVault's ShowMaxBoost, for a ROM with the hot and cold bug: where
   // the bug puts a rating at the maximum, Edit Lines and the team roster show
   // it as 100, as it plays, not the low value the game works out for display.
+  // NOSE4Web's version tests the stored hot or cold byte ($16), as the game
+  // in play does (any of $80 or more is maxed), where the Vault's tests the
+  // value scaled for display ($14), which rounds a cold -1 to 0 and so missed
+  // about 1 rating in 28 (Match Viewer). $9F:9ABD reloads A from $A5.
   showMaxBoost: [
     { at: 0x9f9a30, original: '4CBD9A', hacked: '4C43FB' },
-    { at: 0x9ffb43, original: free(14), hacked: '2414 3003 4CBD9A A96400 8DA500 6B' },
+    { at: 0x9ffb43, original: free(17), hacked: 'A516 C98000 B003 4CBD9A A96400 8DA500 6B' },
   ],
   // NHL94SNESVault's ManualPullGoalie: during play, L and R together pull a
   // team's goalie for an extra attacker, or put him back, with a beep. Where
   // the game reads whether the goalie is in the net, it first checks the pads:
   // the team's pad (player 1 for home, player 2 for away, or the first of
-  // them on it) with L and R held turns GoalieInNetHmAw over, unless the goalie
-  // is off for a penalty.
+  // them on it) with L and R pressed turns GoalieInNetHmAw over, unless the
+  // goalie is off for a penalty. That check runs only every 24 frames, so the
+  // Vault's, reading the buttons held then, missed quick taps and turned a long
+  // hold over twice (Match Viewer). NOSE4Web's acts on a press: GetNewPresses,
+  // once a game loop, ends with a call (in place of its last store, which the
+  // new code makes) to code that, for pads 1 and 2, sets a count of 24 loops
+  // at $1EF0 or $1EF2 (unused RAM, Match Viewer) when the pad has just pressed
+  // L or R and holds exactly L and R, and otherwise counts it down; the check
+  // turns the goalie over when its pad's count is set, and clears it.
+  manualPullGoalie: [
+    { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
+    {
+      at: 0x9efb6e,
+      original: free(87),
+      hacked:
+        'A20000 AC9100 B9AA17 C900FF D001 60 B9C1FB DD841C F009 E8 E8 E00400 D0F1 802D BDF01E F028 9EF01E EA EA EA ' +
+        'B9AA17 F007 C9FFFF F002 8016 49FFFF 99AA17 2207D49F A90070 8564 A90500 227DA180 A491 B9AA17 60 0100 0200',
+    },
+    { at: 0x9b84d8, original: '8DA20A', hacked: '20DBCE' },
+    {
+      at: 0x9bcedb,
+      original: free(50),
+      hacked: '8DA20A A20000 BDB80A 293000 F013 BD7607 29FF00 C93000 D008 A91800 9DF01E 8009 BDF01E F004 3A 9DF01E E8 E8 E00400 D0D5 60',
+    },
+  ],
+}
+
+// The versions of hacks NHL94SNESVault puts in, where NOSE4Web's own differ:
+// recognised as the hack, and replaced by NOSE4Web's when asked.
+const VAULT_VERSIONS: Partial<Record<SnesHack, Site[]>> = {
+  showMaxBoost: [
+    { at: 0x9f9a30, original: '4CBD9A', hacked: '4C43FB' },
+    { at: 0x9ffb43, original: free(14), hacked: '2414 3003 4CBD9A A96400 8DA500 6B' },
+  ],
   manualPullGoalie: [
     { at: 0x9ed0bf, original: 'A491 B9AA17', hacked: '206EFB EA EA' },
     {
@@ -247,6 +283,8 @@ export interface SnesHackState {
   choices: SnesHackChoices
   // Hacks whose places hold something else. They are never changed.
   unknown: SnesHack[]
+  // Hacks the ROM has in NHL94SNESVault's version, where NOSE4Web's differs.
+  vaultVersions?: SnesHack[]
 }
 
 const hexBytes = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
@@ -534,31 +572,42 @@ export function detectSnesHacks(rom: Uint8Array): SnesHackState {
 function detect(rom: Uint8Array): SnesHackState {
   const inPlace = snesCodeInPlace(rom)
   const unknown: SnesHack[] = []
+  const vaultVersions: SnesHack[] = []
   const choices = Object.fromEntries(
     SNES_HACKS.map((hack) => {
       const places = placesOf(rom, hack, null, inPlace)
       if (places && places.every((place) => holds(rom, place, 'original'))) return [hack, false]
       if (places && places.every((place) => holds(rom, place, 'hacked'))) return [hack, true]
+      const vault = VAULT_VERSIONS[hack]
+      if (inPlace && vault && vault.every((site) => holds(rom, placedSite(site), 'hacked'))) {
+        vaultVersions.push(hack)
+        return [hack, true]
+      }
       unknown.push(hack)
       return [hack, false]
     }),
   ) as SnesHackChoices
-  return { choices, unknown }
+  return { choices, unknown, vaultVersions }
 }
+
+const placedSite = (site: Site): Placed => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) })
 
 export class SnesHackError extends Error {}
 
 // The ROM with the hacks wanted put in or taken out. Hacks the ROM holds
 // something else for are left as they are; asking to change one is an error.
-export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>): RomProject {
-  const { choices, unknown } = detectSnesHacks(project.bytes)
+// `updateVault`: hacks the ROM has in NHL94SNESVault's version, where
+// NOSE4Web's differs, are replaced by NOSE4Web's if they are to stay on.
+export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>, updateVault = false): RomProject {
+  const { choices, unknown, vaultVersions = [] } = detectSnesHacks(project.bytes)
   const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
   if (problem) throw new SnesHackError(problem)
   const rom = project.bytes.slice()
   const source = splitSnesFile(project.source)?.rom ?? null
   for (const hack of SNES_HACKS) {
     const want = wanted[hack]
-    if (want === undefined || want === choices[hack]) continue
+    const update = updateVault && want === true && vaultVersions.includes(hack)
+    if (want === undefined || (want === choices[hack] && !update)) continue
     if (unknown.includes(hack)) {
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)
     }
