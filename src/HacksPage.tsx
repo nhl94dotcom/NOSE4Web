@@ -25,7 +25,10 @@ import {
   type Injuries,
   type ThreeStars,
   type WeightFix,
+  fewerSkaterLinesFor,
+  fewerSkaterLinesText,
 } from './core/hacks'
+import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { GenesisBloodSection } from './GenesisBloodSection'
@@ -673,6 +676,38 @@ export function HacksPage({ project, name, onChange }: Props) {
             on, where the original managed 10). A ROM with the forum's version shows it as such, and can be set back.
           </>,
         )}
+        {(() => {
+          // Offered for a ROM that leaves positions of its first line empty on every team.
+          const fitted = fewerSkaterLinesFor(emptyLineSlots(project.teams)[0])
+          if (fitted === 0 && wanted.fewerSkaterLines === 0) return null
+          return hack(
+            'fewerSkaterLines',
+            <select
+              aria-label={HACK_TITLES.fewerSkaterLines}
+              className="wide"
+              disabled={unknown('fewerSkaterLines') || (fitted === null && wanted.fewerSkaterLines === 0)}
+              value={wanted.fewerSkaterLines}
+              onChange={(e) => set({ fewerSkaterLines: Number(e.target.value) })}
+            >
+              <option value={0}>All five positions, as the original game</option>
+              {[...new Set([fitted, wanted.fewerSkaterLines].filter((value): value is number => !!value))].map((value) => (
+                <option key={value} value={value}>
+                  Only {fewerSkaterLinesText(value)}
+                </option>
+              ))}
+            </select>,
+            <>
+              For a ROM that puts fewer skaters on the ice. With line changes off, the game's Edit Lines and the Team
+              Rosters line view still show all five skaters' positions, and on a position the ROM leaves empty they show
+              whatever was there before and can crash. This makes them show only the positions this ROM plays, worked out
+              from the positions its first line leaves empty on every team
+              {fitted ? `: ${fewerSkaterLinesText(fitted)}` : ''}. It works only where those positions follow each other in
+              the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. With line changes on,
+              Edit Lines keeps its five rows, but these ROMs are played with them off. From smozoma's forum post for 2 on
+              2, worked out for any number of skaters in the game's code by the NHL94 Match Viewer project.
+            </>,
+          )
+        })()}
         {hack(
           'goalieDelay',
           number('goalieDelay'),

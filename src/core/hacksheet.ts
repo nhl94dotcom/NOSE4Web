@@ -1,4 +1,4 @@
-import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState } from './hacks'
+import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
 import { detectSnesHacks, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
@@ -80,6 +80,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
+  fewerSkaterLines: (c) => `Edit Lines and Team Rosters show only the positions this ROM plays, ${fewerSkaterLinesText(c.fewerSkaterLines)}, so they no longer crash.`,
   bCheckPenaltiesOff: (c) =>
     c.bCheckPenaltiesOff === 'forum'
       ? "B-checks with penalties off trip as they do with penalties on; with penalties on, the computer's B-checks trip less often (the forum's version)."
@@ -104,7 +105,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines']],
   ['Older hacks', ['weightFix']],
 ]
 

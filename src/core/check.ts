@@ -140,12 +140,13 @@ function checkPhotos(project: RomProject, labels: string[], findings: Finding[])
     const count = project.teams[team].players.length
     const shown = setupCardCount(project.bytes)
     if (list.entries.length < shown) {
-      // What the game shows then is not yet known, so it is a note.
+      // Match Viewer, in the game: no crash, but an empty entry draws the
+      // start of the ROM as a picture, and the setup screen goes on past it.
       findings.push({
         level: 'note',
         where: labels[team],
         team,
-        message: `The team setup screen cycles through ${shown} player cards, but the team's photo list has only ${list.entries.length}, so it reads past the list's end. Add players under Player photos.`,
+        message: `The team setup screen cycles through ${shown} player cards, but the team's photo list ends after ${list.entries.length}. The setup screen does not stop there: card ${list.entries.length + 1} shows a garbage picture, and any cards after it come from what follows in the ROM, which the matchup screens and player cards never show. Add players under Player photos.`,
       })
     }
     const past = list.entries.slice(0, shown).flatMap((entry, i) => (entry.slot >= count ? [i + 1] : []))

@@ -126,6 +126,10 @@ export interface HackChoices {
   bCheckPenaltiesOff: BCheckPenaltiesOff
   // How long B is held before a person takes the goalie, in counts of the game's timer: 17 in the original game.
   goalieDelay: number
+  // Edit Lines and Team Rosters fitted to the skaters' positions a ROM that
+  // puts fewer skaters on the ice uses: 0 for the original game's five, else
+  // first position x 10 + how many (1 LD, 2 RD, 3 LW, 4 C, 5 RW), so 32 is LW and C.
+  fewerSkaterLines: number
 }
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
@@ -171,6 +175,7 @@ export type HackPart =
   | 'noIcing'
   | 'bCheckPenaltiesOff'
   | 'goalieDelay'
+  | 'fewerSkaterLines'
 
 export interface HackState {
   choices: HackChoices
@@ -219,6 +224,7 @@ export const NO_HACKS: HackChoices = {
   noIcing: false,
   bCheckPenaltiesOff: 'original',
   goalieDelay: 17,
+  fewerSkaterLines: 0,
 }
 
 // The least and most each number can be.
@@ -1280,6 +1286,79 @@ const goalieDelay: Part<number> = {
   },
 }
 
+// ------------------------------------------------- Edit Lines for fewer skaters
+// From smozoma's forum post and the disassembly (Match Viewer). With line
+// changes off, Edit Lines draws and lets the cursor reach the five skaters'
+// positions, and Team Rosters' line view lists them, even where a ROM leaves
+// some empty, which shows stale data and can crash. For used positions that
+// follow each other in LD, RD, LW, C, RW order, from position s, n of them:
+// the cursor's first position (move.w #s at $82F2), its lowest and highest
+// (cmp.w at $8374 and $837A), the first position drawn (addq.w #s,d4 at
+// $8636), the number of rows less one ($879C), the roster view's first
+// position ($8C6E) and rows less one (moveq at $8C76), the header labels
+// ($86DC, every 6 bytes) and the row names ($191D2, every 4). The roster view
+// takes a row off the penalty-kill lines (subq.w #1,d1 at $8C82), which with
+// one row would loop 65,536 times, so for one it becomes a NOP. With line
+// changes on, Edit Lines keeps its five rows.
+const POSITION_LABELS = ['LD', 'RD', 'LW', 'C ', 'RW']
+const ROW_NAMES = ['LD', 'RD', 'LW', 'C\0', 'RW']
+const ascii2 = (text: string) => [text.charCodeAt(0), text.charCodeAt(1)]
+
+function lineViewBytes(first: number, count: number): [number, number[]][] {
+  const sites: [number, number[]][] = [
+    [0x82f2, [0, first]],
+    [0x8374, [0, first]],
+    [0x837a, [0, first + count - 1]],
+    [0x8636, [0x50 | (first << 1), 0x44]],
+    [0x879c, [0, count - 1]],
+    [0x8c6e, [0, first]],
+    [0x8c76, [0x72, count - 1]],
+    [0x8c82, count === 1 ? [0x4e, 0x71] : [0x53, 0x41]],
+  ]
+  POSITION_LABELS.forEach((_, i) => sites.push([0x86dc + i * 6, ascii2(i < count ? POSITION_LABELS[first - 1 + i] : '  ')]))
+  ROW_NAMES.forEach((name, i) => sites.push([0x191d2 + i * 4, ascii2(i < count ? ROW_NAMES[first - 1 + i] : name)]))
+  return sites
+}
+
+const fitsView = (first: number, count: number) => first >= 1 && count >= 1 && first + count - 1 <= 5
+const viewCode = (first: number, count: number) => (first === 1 && count === 5 ? 0 : first * 10 + count)
+
+const fewerSkaterLines: Part<number> = {
+  detect(rom) {
+    const first = rom[0x82f3]
+    const count = rom[0x879d] + 1
+    if (!fitsView(first, count)) return undefined
+    const holds = lineViewBytes(first, count).every(([at, bytes]) => bytes.every((byte, i) => rom[at + i] === byte))
+    return holds ? viewCode(first, count) : undefined
+  },
+  remove: (rom) => lineViewBytes(1, 5).forEach(([at, bytes]) => rom.set(bytes, at)),
+  apply(work, value) {
+    if (value === 0) return
+    const [first, count] = [Math.floor(value / 10), value % 10]
+    if (!fitsView(first, count)) throw new HackError('Edit Lines can only be fitted to positions that follow each other.')
+    lineViewBytes(first, count).forEach(([at, bytes]) => work.rom.set(bytes, at))
+  },
+}
+
+// The value that fits Edit Lines to the skaters' positions a ROM uses on its
+// first line, from the line positions it leaves empty on every team; 0 where
+// it uses all five, null where the used ones do not follow each other.
+export function fewerSkaterLinesFor(empty: boolean[] | undefined): number | null {
+  const used = [1, 2, 3, 4, 5].filter((slot) => !empty?.[slot])
+  if (used.length === 0) return null
+  const [first, count] = [used[0], used.length]
+  if (used.some((slot, i) => slot !== first + i)) return null
+  return viewCode(first, count)
+}
+
+// The positions a value fits Edit Lines to, as the game names them.
+export function fewerSkaterLinesText(value: number): string {
+  if (value === 0) return 'LD, RD, LW, C and RW'
+  const [first, count] = [Math.floor(value / 10), value % 10]
+  const names = POSITION_LABELS.slice(first - 1, first - 1 + count).map((label) => label.trim())
+  return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -1330,6 +1409,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
     bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
     goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
+    fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -1388,6 +1468,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
     ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
     ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
+    ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1451,7 +1532,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1599,6 +1680,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   noIcing: 'No icing',
   bCheckPenaltiesOff: 'B-checks with penalties off',
   goalieDelay: 'Goalie control delay',
+  fewerSkaterLines: 'Edit Lines for fewer skaters',
 }
 
 // Which part's code each choice is kept in.
@@ -1642,6 +1724,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   noIcing: 'noIcing',
   bCheckPenaltiesOff: 'bCheckPenaltiesOff',
   goalieDelay: 'goalieDelay',
+  fewerSkaterLines: 'fewerSkaterLines',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {
