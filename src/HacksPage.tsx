@@ -778,6 +778,22 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'netColours',
+          <select aria-label={HACK_TITLES.netColours} className="wide" disabled={unknown('netColours')} value={wanted.netColours} onChange={(e) => set({ netColours: e.target.value as PuckColours })}>
+            {(Object.keys(PUCK_TEXTS) as PuckColours[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {PUCK_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            Which of the game's colour sets both nets are drawn in, as for the puck. The net art keeps its own colour
+            numbers, so in another set they take that set's colours in the same places: the crowd's gives red posts, as
+            in clockwise's forum post. A team's colours may look odd, since they were never made for the net. The nets
+            sit in the same table of pieces as the puck, placed by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
           'greenFan',
           onOff('greenFan'),
           "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post, tested in the game by the NHL94 Match Viewer project; several league ROMs have it.",

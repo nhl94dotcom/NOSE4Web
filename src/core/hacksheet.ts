@@ -88,6 +88,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
   puckFriction: (c) =>
     `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a player receiving a pass).`,
+  netColours: (c) => `The nets are drawn in the ${c.netColours === 'crowd' ? "crowd's" : c.netColours === 'home' ? "home team's" : c.netColours === 'away' ? "visitors'" : "rink's"} colours.`,
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
   greenFan: () => 'The fan in green in the stands has his arm and leg back.',
   fewerSkaterLines: (c) => `Edit Lines and Team Rosters show only the positions this ROM plays, ${fewerSkaterLinesText(c.fewerSkaterLines)}, so they no longer crash.`,
@@ -116,7 +117,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
   ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction']],
-  ['Looks and screens', ['puckColours', 'greenFan', 'introWait']],
+  ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]
 

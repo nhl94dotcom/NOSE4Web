@@ -268,6 +268,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { puckFriction: 8 },
       { puckColours: 'home' },
       { puckColours: 'away' },
+      { netColours: 'crowd' },
+      { netColours: 'home' },
       { greenFan: true },
       { goalieDelay: 128 },
       { fourthPeriodOvertime: 5940 },
@@ -319,6 +321,14 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(puck(home)).toBe('40 40 40 48 40 40 48 48 48 48')
     expect(at(home, 0xa1668, 1)).toBe(at(opened.bytes, 0xa1668, 1))
     expect(puck(applyHacks(opened, { ...NO_HACKS, puckColours: 'crowd' }).bytes)).toBe('20 20 20 28 20 20 28 28 28 28')
+    // The nets' six pieces, the puck's left as they are.
+    const nets = (rom: Uint8Array) => Array.from({ length: 6 }, (_, i) => at(rom, 0xa16c0 + i * 8, 1)).join(' ')
+    expect(nets(opened.bytes)).toBe('00 08 00 08 00 08')
+    const red = applyHacks(opened, { ...NO_HACKS, netColours: 'crowd' }).bytes
+    expect(nets(red)).toBe('20 28 20 28 20 28')
+    expect(puck(red)).toBe(puck(opened.bytes))
+    expect(nets(applyHacks(opened, { ...NO_HACKS, netColours: 'away', puckColours: 'home' }).bytes)).toBe('60 68 60 68 60 68')
+    expect(detectHacks(red).choices.netColours).toBe('crowd')
     const fan = applyHacks(opened, { ...NO_HACKS, greenFan: true }).bytes
     expect([at(fan, 0xbdeae, 2), at(fan, 0xbdeee, 2)]).toEqual(['206a', '2074'])
     expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')

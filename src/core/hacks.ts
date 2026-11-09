@@ -140,6 +140,8 @@ export interface HackChoices {
   puckFriction: number
   // Which of the game's colour sets the puck is drawn in.
   puckColours: PuckColours
+  // The colours both nets are drawn in, from the same choices.
+  netColours: PuckColours
   // The fan in green in the stands, with his arm and leg back.
   greenFan: boolean
 }
@@ -195,6 +197,7 @@ export type HackPart =
   | 'fourthPeriodOvertime'
   | 'puckFriction'
   | 'puckColours'
+  | 'netColours'
   | 'greenFan'
 
 export interface HackState {
@@ -250,6 +253,7 @@ export const NO_HACKS: HackChoices = {
   fourthPeriodOvertime: 0,
   puckFriction: 9,
   puckColours: 'rink',
+  netColours: 'rink',
   greenFan: false,
 }
 
@@ -1542,6 +1546,25 @@ const puckColours: Part<PuckColours> = {
   apply: (work, value) => PUCK_ATTRIBUTES.forEach((at, i) => void (work.rom[at] = PUCK_FLIPS[i] | PUCK_PALETTES[value])),
 }
 
+// --------------------------------------------------------------- net colours
+// Frames 405 (the bottom net, 4 pieces) and 406 (the top net, 2 pieces) are
+// the six pieces from $A16BA; each attribute word's high byte, $A16C0 to
+// $A16E8 (every 8), holds the flips and the palette as the puck's do
+// (clockwise's forum post moved them to the crowd's colours for red posts;
+// the pieces placed by Match Viewer). Both nets take the same colours.
+const NET_ATTRIBUTES = Array.from({ length: 6 }, (_, i) => 0xa16c0 + i * 8)
+const NET_FLIPS = [0x00, 0x08, 0x00, 0x08, 0x00, 0x08]
+const netColours: Part<PuckColours> = {
+  detect(rom) {
+    if (!NET_ATTRIBUTES.every((at, i) => (rom[at] & ~0x60) === NET_FLIPS[i])) return undefined
+    const bits = rom[NET_ATTRIBUTES[0]] & 0x60
+    if (!NET_ATTRIBUTES.every((at) => (rom[at] & 0x60) === bits)) return undefined
+    return (Object.keys(PUCK_PALETTES) as PuckColours[]).find((key) => PUCK_PALETTES[key] === bits)
+  },
+  remove: (rom) => NET_ATTRIBUTES.forEach((at, i) => void (rom[at] = NET_FLIPS[i])),
+  apply: (work, value) => NET_ATTRIBUTES.forEach((at, i) => void (work.rom[at] = NET_FLIPS[i] | PUCK_PALETTES[value])),
+}
+
 // ---------------------------------------------------------------- green fan
 // Two tiles of the sideboards' tile map put back a fan's arm and leg, from
 // tiles still in the ROM (kingraph's forum post): $BDEAE 0063 to 206A, and
@@ -1612,6 +1635,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
+    netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
@@ -1677,6 +1701,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
+    ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
@@ -1742,7 +1767,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1896,6 +1921,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   fourthPeriodOvertime: 'Fourth period length, with its own overtime',
   puckFriction: 'Puck friction',
   puckColours: 'Puck colours',
+  netColours: 'Net colours',
   greenFan: 'The fan in green',
 }
 
@@ -1946,6 +1972,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   fourthPeriodOvertime: 'fourthPeriodOvertime',
   puckFriction: 'puckFriction',
   puckColours: 'puckColours',
+  netColours: 'netColours',
   greenFan: 'greenFan',
 }
 
