@@ -60,22 +60,58 @@ export function readSnesPlaceNames(rom: Uint8Array, teamCount: number): string[]
   })
 }
 
-// How many bytes the names take, and how many the ROM has room for.
-export function snesPlaceNameRoom(rom: Uint8Array, names: string[]): { used: number; room: number } | null {
-  const p = places(rom, names.length)
-  if (!p) return null
-  return { used: names.reduce((sum, name) => sum + name.length + 1, 0), room: p.end - p.start }
+// Room to spare when the names are moved, so a few more letters fit later
+// without moving them again.
+const SPARE = 32
+
+// Room the names must leave alone: the team data's overflow, the unused room
+// at the end of the teams' bank that rosters grow into (in the original game
+// the same bank as the names, and nearly all its unused room).
+export type Avoid = { start: number; end: number } | undefined
+
+// The longest run of unused bytes in the names' bank after their table, which
+// the names can be moved to: [start, end), a byte left unused at each side.
+function freeRun(rom: Uint8Array, p: Places, teamCount: number, avoid: Avoid): { start: number; end: number } | null {
+  const bankStart = Math.floor(p.table / 0x8000) * 0x8000
+  let best: { start: number; end: number } | null = null
+  let start = -1
+  for (let i = p.table + teamCount * 2; i <= bankStart + 0x8000; i++) {
+    if (i < bankStart + 0x8000 && i < rom.length && rom[i] === 0xff && !(avoid && i >= avoid.start && i < avoid.end)) {
+      if (start < 0) start = i
+      continue
+    }
+    if (start >= 0 && (!best || i - start > best.end - best.start)) best = { start, end: i }
+    start = -1
+  }
+  return best && best.end - best.start > 2 ? { start: best.start + 1, end: best.end - 1 } : null
 }
 
-// Writes the names, packed into their room. False, writing nothing, where
-// they do not fit. The last name ends where the room does, so that the room,
-// which is read again from where the names lie, is all still there after
-// names are shortened: any to spare lies before it.
-export function writeSnesPlaceNames(rom: Uint8Array, names: string[]): boolean {
+// How many bytes the names take, and how many the ROM has room for: where
+// they lie, or, if more, the unused room in their bank they can move to.
+export function snesPlaceNameRoom(rom: Uint8Array, names: string[], avoid?: Avoid): { used: number; room: number } | null {
   const p = places(rom, names.length)
+  if (!p) return null
+  const free = freeRun(rom, p, names.length, avoid)
+  return { used: names.reduce((sum, name) => sum + name.length + 1, 0), room: Math.max(p.end - p.start, free ? free.end - free.start : 0) }
+}
+
+// Writes the names, packed into their room. Where they have outgrown it, they
+// move to unused room in their bank (the code reads them from its own bank),
+// with some to spare, and their old room is freed. False, writing nothing,
+// where they do not fit either way. The last name ends where the room does,
+// so that the room, which is read again from where the names lie, is all
+// still there after names are shortened: any to spare lies before it.
+export function writeSnesPlaceNames(rom: Uint8Array, names: string[], avoid?: Avoid): boolean {
+  let p = places(rom, names.length)
   if (!p) return false
-  const room = snesPlaceNameRoom(rom, names)!
-  if (room.used > room.room) return false
+  const used = names.reduce((sum, name) => sum + name.length + 1, 0)
+  if (used > p.end - p.start) {
+    const free = freeRun(rom, p, names.length, avoid)
+    if (!free || used > free.end - free.start) return false
+    rom.fill(0xff, p.start, p.end)
+    p = { ...p, start: free.start, end: free.start + Math.min(used + SPARE, free.end - free.start) }
+    found.delete(rom)
+  }
   rom.fill(0, p.start, p.end)
   let at = p.start
   names.forEach((name, i) => {

@@ -165,7 +165,7 @@ export function checkProject(project: RomProject): Finding[] {
   checkStrips(project, labels, findings)
   checkPhotos(project, labels, findings)
   if (project.game.platform === 'snes' && teams.every((team) => team.placeName !== undefined)) {
-    const room = snesPlaceNameRoom(project.bytes, teams.map((team) => team.placeName!))
+    const room = snesPlaceNameRoom(project.bytes, teams.map((team) => team.placeName!), project.layout.overflow)
     if (room && room.used > room.room) {
       findings.push({
         level: 'problem',

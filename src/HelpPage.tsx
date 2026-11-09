@@ -1613,7 +1613,9 @@ export function HelpPage() {
           picture banners: a team's block is plain colour, its own block colours, with a name in letters, its{' '}
           <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the playoff
           bracket. It follows the place name while the two are the same, and can be shortened on the team page; all
-          the banner names share a little room, and Check ROM says if they need more. The block's 16 colours, its{' '}
+          the banner names share a little room. Where they outgrow it, they move to unused room in their bank, which
+          the 32-team ROM has plenty of; in the original game that room is the rosters', so there Check ROM says if
+          they need more. The block's 16 colours, its{' '}
           <b>Name banner colours</b>, are changed below the logos, with the banner shown as the menus draw it, the
           banner name on it: 2 to 14 fill the block, in two runs of shades (2 to 7 and 8
           to 14), and 15 is its frame; 7 and 8 also colour the stripes on the player card's team page. Colour 0 is

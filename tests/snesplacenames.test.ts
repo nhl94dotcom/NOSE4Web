@@ -31,7 +31,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES banner names', () => {
     const longer = openRom(buildRom({ ...shortened, teams: shortened.teams.map((team, t) => (t === 0 ? { ...team, placeName: 'Anaheim' } : team)) }))
     expect(longer.teams[0].placeName).toBe('Anaheim')
     expect(longer.teams.slice(1).map((team) => team.placeName)).toEqual(project.teams.slice(1).map((team) => team.placeName))
-    // Too long for their room: not written, and Check ROM says so.
+    // Too long for their room, whose bank's unused room is the rosters' to grow into: not written, and Check ROM says so.
     const long = { ...project, teams: project.teams.map((team) => ({ ...team, placeName: 'A very long place name' })) }
     expect(checkProject(long).some((finding) => finding.where === 'Banner names' && finding.level === 'problem')).toBe(true)
     expect(openRom(buildRom(long)).teams[0].placeName).toBe('Anaheim')
@@ -62,6 +62,23 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES name banner colours', () =
       const longer = snesBlockPicture(project.bytes, snesBlockColours(project, 1)!, 'BOSTON BOSTON')!
       expect(longer.picture.pixels.filter((v) => v >= SNES_BLOCK_LETTERS).length).toBeGreaterThan(count((v) => v >= SNES_BLOCK_LETTERS))
     }
+  })
+})
+
+describe.skipIf(!existsSync(path('nhl94_2026.sfc')))('SNES banner names that outgrow their room', () => {
+  it('move to unused room in their bank, where it is not the rosters', () => {
+    const project = open('nhl94_2026.sfc')
+    // One letter more for Boston, as when Chicago comes in over it.
+    const chicago = { ...project, teams: project.teams.map((team, t) => (t === 1 ? { ...team, placeName: 'Chicago' } : team)) }
+    expect(checkProject(chicago).some((finding) => finding.where === 'Banner names')).toBe(false)
+    const once = openRom(buildRom(chicago))
+    expect(once.teams.map((team) => team.placeName)).toEqual(chicago.teams.map((team) => team.placeName))
+    expect(once.teams.map((team) => team.players)).toEqual(project.teams.map((team) => team.players))
+    // Kept through a second save, and room to spare for longer names.
+    const long = { ...once, teams: once.teams.map((team, t) => ({ ...team, placeName: `Long place name ${t}` })) }
+    const twice = openRom(buildRom(long))
+    expect(twice.teams.map((team) => team.placeName)).toEqual(long.teams.map((team) => team.placeName))
+    expect(twice.teams.map((team) => team.players)).toEqual(project.teams.map((team) => team.players))
   })
 })
 

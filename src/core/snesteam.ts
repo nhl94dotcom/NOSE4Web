@@ -266,7 +266,7 @@ export function writeSnesTeams(rom: Uint8Array, game: GameConfig, teams: Team[],
     )
   }
   // The names on the team banners, where every team has one and they fit; Check ROM says when they do not.
-  if (teams.every((team) => team.placeName !== undefined)) writeSnesPlaceNames(rom, teams.map((team) => team.placeName!))
+  if (teams.every((team) => team.placeName !== undefined)) writeSnesPlaceNames(rom, teams.map((team) => team.placeName!), layout.overflow)
   const bank = rom[game.teamTableOffset + 2]
   // Teams that were in the room at the end of the bank and are no longer leave it unused.
   if (layout.overflow) rom.fill(0xff, layout.overflow.start, layout.overflow.end)

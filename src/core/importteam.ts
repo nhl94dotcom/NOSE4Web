@@ -36,6 +36,7 @@ import { convertWeight, isRating, weightBase, type AttributeKind } from './attri
 import { NHL94 } from './games'
 import { importPhotos } from './photoimport'
 import { snesBlockColours, withSnesBlockColours } from './snesblockcolours'
+import { snesPlaceNameRoom } from './snesplacenames'
 import { HACK_PARTS, hackState, narrowRating, widenRating } from './hacks'
 import { detectSnesHacks } from './sneshacks'
 import type { RomProject } from './rom'
@@ -74,6 +75,13 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
     // On the SNES the banner name comes too, between ROMs that keep one.
     team = { ...team, names: source.names, placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName }
     notes.push('Names brought in.')
+    // A longer banner name may not fit the room the banner names share.
+    if (team.placeName !== undefined && project.teams.every((t) => t.placeName !== undefined)) {
+      const room = snesPlaceNameRoom(project.bytes, project.teams.map((t, i) => (i === to ? team.placeName! : t.placeName!)), project.layout.overflow)
+      if (room && room.used > room.room) {
+        notes.push(`Its banner name, ${team.placeName}, needs ${room.used - room.room} bytes more than the banner names have room for, so the banners keep the old one until some are shortened (Banner name, on the team pages).`)
+      }
+    }
   }
   if (parts.roster) {
     if (source.players.length > MAX_ROSTER) throw new Error(`${teamDisplayName(source)} has more players than a team can hold.`)
