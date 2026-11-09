@@ -261,6 +261,16 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(section.getByRole('button', { name: 'Add score logos for every team' })).toBeVisible()
   })
 
+  test('adds head bleeding on the Hacks page and takes it out again', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Hacks').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Head bleeding' }) })
+    await section.getByRole('button', { name: 'Add head bleeding' }).click()
+    await expect(section.getByText('Head bleeding added: a player hurt for the game now bleeds. The ROM grew to 2 MB to make room.')).toBeVisible()
+    await section.getByRole('button', { name: 'Take head bleeding out' }).click()
+    await expect(section.getByRole('button', { name: 'Add head bleeding' })).toBeVisible()
+  })
+
   test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
     await openRom(page)
     await team(page, 'Anaheim Mighty Ducks').click()

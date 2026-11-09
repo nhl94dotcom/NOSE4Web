@@ -557,6 +557,17 @@ export function HelpPage() {
         alone, and <b>Take score logos out of this ROM</b> puts the game back as it was. In the original game, adding
         them makes the ROM 2 MB. ROMs whose score box is laid out differently, such as EVO, do not offer them.
       </p>
+      <h3 id="help-genesis-blood">Head bleeding (Genesis)</h3>
+      <p>
+        In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took the blood
+        out. <b>Add head bleeding</b>, at the foot of the Hacks page, brings it back for a player hurt for the game: he
+        falls and lies still as before, now with a little blood as he lands and more half a second later. A player out
+        for the period writhes as before, without blood. Only the look changes. The blood is NOSE4Web's own drawing,
+        after '93's, in colours 13 and 14 of the arena palette (dark reds in the original game). To make room the
+        game's sprite frame table is copied to the end of the ROM, which makes the original game 2 MB. <b>Take head
+        bleeding out</b> puts the game back as it was. ROMs whose sprites are laid out differently, such as EVO, do not
+        offer it.
+      </p>
       <h3 id="help-photos">Player photos</h3>
       <p>
         On the Genesis, <b>Player photos</b>, below the logos, lists the team's featured players. The team setup screen shows the

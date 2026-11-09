@@ -26,6 +26,7 @@ import {
 } from './core/hacks'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
+import { GenesisBloodSection } from './GenesisBloodSection'
 import { HackShortcuts } from './HackShortcuts'
 import { genesisHackSheet, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
@@ -691,6 +692,8 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
         {error && <p className="error">{error}</p>}
       </section>
+
+      <GenesisBloodSection project={project} onChange={onChange} />
     </main>
   )
 }

@@ -66,7 +66,8 @@ function find(rom: Uint8Array, pattern: string): { at: number; groups: number[] 
   }
   return out
 }
-const one = (rom: Uint8Array, pattern: string) => {
+// The one place a pattern is; null where it is nowhere or in more than one place.
+export const one = (rom: Uint8Array, pattern: string) => {
   const all = find(rom, pattern)
   return all.length === 1 ? all[0] : null
 }

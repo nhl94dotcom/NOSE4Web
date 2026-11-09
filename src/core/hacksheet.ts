@@ -3,6 +3,8 @@ import { snesCodeInPlace } from './snes'
 import { detectSnesHacks, SNES_HACK_TITLES, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
 import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
+import { genesisScoreLogo, hasGenesisScoreLogos } from './genesisscorelogos'
+import { hasGenesisBlood } from './genesisblood'
 
 // A page for a league's owners: what each hack in the league's ROM means for
 // how the game plays, in plain words. Only what differs from the original
@@ -247,6 +249,20 @@ export function pictureItems(project: RomProject): { title: string; text: string
           (count === teams ? '.' : '; the rest show their letters.'),
       })
     }
+  }
+  if (hasGenesisScoreLogos(project)) {
+    const count = project.teams.filter((_, team) => genesisScoreLogo(project, team) !== null).length
+    if (count > 0) {
+      items.push({
+        title: 'Score box logos',
+        text:
+          `${count === teams ? 'Each team shows' : `${count} of the ${teams} teams show`} a small logo in the score box, where the original game prints its three letters` +
+          (count === teams ? '.' : '; the rest show their letters.'),
+      })
+    }
+  }
+  if (hasGenesisBlood(project)) {
+    items.push({ title: 'Head bleeding', text: "A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA '93." })
   }
   return items
 }

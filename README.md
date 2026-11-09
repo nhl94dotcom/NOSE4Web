@@ -64,6 +64,8 @@ That licence does not cover:
   screens, and on the SNES swap two players' photos
 - Score box logos for the Genesis, in each team's home and away colours (the
   idea from McMarkis's 32-team SNES build)
+- Head bleeding for the Genesis, after NHLPA '93: a player hurt for the game
+  bleeds as he lies on the ice (on the Hacks page)
 - The score box's team logos of the 32-team SNES builds: import, draw, or
   show the team's letters instead; and the same logos added to the original
   SNES game, adapted with McMarkis's permission from his 32-team build
