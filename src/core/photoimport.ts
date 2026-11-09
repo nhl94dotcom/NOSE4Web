@@ -50,20 +50,35 @@ function importSnes(project: RomProject, other: RomProject, from: number, to: nu
   const theirs = snesTeamPhotos(other, from)
   const players = other.teams[from].players.length
   let next = withSnesPhotoPalette(project, to, snesPhotoPalette(other, from))
-  // A generic picture there: the generic one this place has here, or the one most places here share.
-  const row = snesPhotoRow(next, to)
+  // A stand-in picture there comes too: one this ROM has already, the same
+  // pixels (brought in with an earlier team, or its own), or else a copy,
+  // stored once and shared by the places that show it.
   const key = (address: Uint8Array) => Array.from(address).join(',')
-  const uses = new Map<string, number>()
-  for (const t of project.teams.keys()) for (const address of snesPhotoRow(next, t)) uses.set(key(address), (uses.get(key(address)) ?? 0) + 1)
-  const commonest = [...uses].sort((a, b) => b[1] - a[1])[0][0]
-  const generic = project.teams
-    .flatMap((_, t) => snesPhotoRow(next, t))
-    .find((address) => key(address) === commonest)!
-  next = withSnesPhotoRow(
-    next,
-    to,
-    row.map((address, slot) => (slot < players && theirs[slot].generic ? ((uses.get(key(address)) ?? 0) > 1 ? address : generic) : address)),
-  )
+  const same = (a: { pixels: Uint8Array }, b: { pixels: Uint8Array }) => a.pixels.every((p, i) => p === b.pixels[i])
+  const known: { address: Uint8Array; picture: { pixels: Uint8Array } }[] = []
+  const seen = new Set<string>()
+  project.teams.forEach((_, t) => {
+    const photos = snesTeamPhotos(next, t)
+    snesPhotoRow(next, t).forEach((address, slot) => {
+      if (seen.has(key(address))) return
+      seen.add(key(address))
+      known.push({ address, picture: photos[slot].picture })
+    })
+  })
+  for (let slot = 0; slot < players; slot++) {
+    if (!theirs[slot].generic) continue
+    const found = known.find((k) => same(k.picture, theirs[slot].picture))
+    if (found) {
+      const row = snesPhotoRow(next, to)
+      row[slot] = found.address
+      next = withSnesPhotoRow(next, to, row)
+    } else {
+      next = withSnesPhoto(next, to, slot, theirs[slot].picture)
+      // Written where an old photo was, or in new room: either way, that address now shows this picture.
+      const address = snesPhotoRow(next, to)[slot]
+      known.splice(0, known.length, ...known.filter((k) => key(k.address) !== key(address)), { address, picture: theirs[slot].picture })
+    }
+  }
   let copied = 0
   theirs.forEach((photo, slot) => {
     if (slot >= players || photo.generic) return

@@ -29,12 +29,8 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     const reopened = openRom(buildRom(result.project))
     const want = snesLooks(classic, 1)
     const got = snesLooks(reopened, 1)
-    // Each player's own photo looks the same; generic ones are this ROM's.
-    snesTeamPhotos(classic, 1)
-      .slice(0, want.length)
-      .forEach((photo, slot) => {
-        if (!photo.generic) expect(got[slot]).toEqual(want[slot])
-      })
+    // Every player's photo looks the same, a stand-in too: the Classic stand-ins come with the team.
+    expect(got.slice(0, want.length)).toEqual(want)
   })
 })
 

@@ -26,3 +26,10 @@ describe("crediting a hack's maker", () => {
     })
   }
 })
+
+describe('crediting McMarkis for a build with other teams', () => {
+  const name = 'nhl94_SA1_Original.sfc'
+  it.skipIf(!existsSync(path(name)))('names him for his 28-team build with the original rosters', () => {
+    expect(credit(name)).toMatchObject({ rom: 'a 28-team build of SNES NHL 94: 32 Team + 60 FPS + Fighting', author: 'McMarkis' })
+  })
+})
