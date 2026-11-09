@@ -10,17 +10,18 @@
 
 import { claimSpace } from './space'
 
-// What each of a team's six songs is for. The power plays are as LeadSong
-// picks them (Match Viewer, in the game): slot 1 when the home team has more
-// players, 4 when the visitors do, the other way round from the
-// disassembly's names. They may never play in a real power play: LeadSong
-// stops when sflags2 bit 5 is set, which the power-play display sets.
+// What each of a team's six songs is for. LeadSong plays slot 1 at the next
+// faceoff when the home team goes a man up and 4 when it goes a man short,
+// once for each change of who is ahead (Match Viewer, in the game, after
+// real penalties): the home power play and penalty kill, as the SNES
+// disassembly names its own; the Genesis disassembly's names for them are
+// the wrong way round.
 export const SONG_SLOTS = [
   'Period start',
   'Home team on the power play',
   'Faceoff (once a period, and the shootout)',
   'Home goal',
-  'Visitors on the power play',
+  'Home team on the penalty kill',
   'Late in the third period',
 ]
 // The organ songs, $30 to $77, as the disassembly names them (from the forum
