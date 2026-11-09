@@ -37,6 +37,8 @@ export type SnesHack =
   | 'manualPullGoalie'
   | 'regainAssist'
   | 'fourthPeriodOvertime'
+  | 'hitEnergy'
+  | 'holdEnergy'
 
 interface Site {
   // The game's address.
@@ -257,6 +259,8 @@ export const SNES_HACKS: SnesHack[] = [
   'manualPullGoalie',
   'regainAssist',
   'fourthPeriodOvertime',
+  'hitEnergy',
+  'holdEnergy',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -283,6 +287,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   manualPullGoalie: 'Pull the goalie with L and R',
   regainAssist: 'Regained-puck assist fix',
   fourthPeriodOvertime: '99-minute overtime on the fourth period length',
+  hitEnergy: 'Energy lost when knocked down',
+  holdEnergy: 'Energy lost when held or hooked',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -318,6 +324,8 @@ export interface SnesHackState {
   unknown: SnesHack[]
   // Hacks the ROM has in NHL94SNESVault's version, where NOSE4Web's differs.
   vaultVersions?: SnesHack[]
+  // The amount each hack that holds one has, 0 where it is off.
+  amounts?: Record<SnesAmount, number>
 }
 
 const hexBytes = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
@@ -386,6 +394,34 @@ const readU16 = (rom: Uint8Array, at: number) => rom[at] | (rom[at + 1] << 8)
 // The fourth period length's overtime: 99 minutes.
 const FOURTH_OVERTIME = 99 * 60
 
+// ------------------------------------------------------- energy lost to hits
+// The hacks whose new code holds an amount: energy (0 to $1000) a skater
+// loses. 0 is off. The recommended amounts are Match Viewer's, from measured
+// shifts: half a burst for a knockdown, half that for a hold.
+export type SnesAmount = 'hitEnergy' | 'holdEnergy'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy']
+export const RECOMMENDED_SNES_HIT_ENERGY = 100
+export const RECOMMENDED_SNES_HOLD_ENERGY = 50
+export const SNES_AMOUNT_RANGE: [number, number] = [0, 204]
+const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
+// Where the code keeps its amount, and the position or flail operand it ends with.
+const HIT_AMOUNT_AT = 38
+const HIT_POSITION_AT = 58
+const HOLD_AMOUNT_AT = 25
+const HOLD_FLAIL_AT = 45
+
+// What the energy code needs from this ROM, all from the energy drain in
+// playeracc: lda.l OptLine / beq; ...; jsl getpde; lda d0; sec; sbc #33 ...
+// jml setpde. The direct-page a2 and d1 are read from getpde itself.
+function energyEnv(rom: Uint8Array): { optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number } | null {
+  const drain = only(rom, 'af......f0..ad....293f00d0..22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......')
+  if (drain < 0) return null
+  const getpde = rom.slice(drain + 15, drain + 18)
+  const at = loRomOffset(getpde[2], getpde[0] | (getpde[1] << 8))
+  if (at < 0 || at + 19 > rom.length || rom[at] !== 0xbd || rom[at + 7] !== 0x85 || rom[at + 17] !== 0x85) return null
+  return { optLine: rom.slice(drain, drain + 4), getpde, setpde: rom.slice(drain + 42, drain + 45), a2: rom[at + 18], d0: rom[drain + 19], d1: rom[at + 8] }
+}
+
 // The penalties whose length the one-minute penalties change, by the bytes
 // around each (the same in every build).
 const MINOR_PENALTIES = [
@@ -400,7 +436,7 @@ const MINOR_PENALTIES = [
   ['0101060cfffe', '04090048'],
 ]
 
-type Relocate = (rom: Uint8Array, source: Uint8Array | null) => Placed[] | null
+type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) => Placed[] | null
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   hotColdFix: (rom) => {
@@ -525,7 +561,56 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the beq went, with A reloaded from the direct-page copy the routine
   // compares (16-bit A and index, as there). Found by the code around it in
   // every build: the 2 MB ones have their RAM $6000 on.
-  // McMarkis's "5 Minutes, 99 Min OT" (his Genesis patch), as NOSE4Web's
+  // Energy lost to hits (a community idea; the sites read by Match Viewer),
+  // as NOSE4Web's Genesis option. FallDown's .t2 (a real fall: X the
+  // hitter, a2 the player hit) starts lda.w position,x / beq .2; the lda
+  // becomes jsr to code that, with line changes on (lda.l OptLine / beq, the
+  // energy drain's own test), for a skater (position,y) knocked down by a
+  // player (X below $18, not the puck), takes the amount off with getpde and
+  // setpde (X, Y and the a2, d0 and d1 they use kept), then does the lda, so
+  // the beq after it is as before. holdcheck's lda.w #SPAflail, the moment a
+  // hold or hook catches X, becomes jsr to code that takes its amount off X
+  // the same way, then does the lda. Every address is taken from the ROM's
+  // own code, so it goes into every build.
+  hitEnergy: (rom, _source, amount) => {
+    const env = energyEnv(rom)
+    // The team's check count after it: lda tmchecks,y, or a jsr where a ROM counts checks its own way (Classic, SDL16).
+    const tail = 'f0..64..bd....f005a9020085..ad....d0..a4........1a99'
+    const plain = only(rom, 'bd....' + tail)
+    const hooked = plain >= 0 ? -1 : only(rom, '20....' + tail)
+    const site = plain >= 0 ? plain : hooked
+    if (!env || site < 0) return null
+    const code = plain >= 0 ? -1 : loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+    if (code >= 0 && (rom[code + HIT_POSITION_AT - 1] !== 0xbd || rom[code + HIT_POSITION_AT + 2] !== 0x60)) return null
+    const position = word(readU16(rom, plain >= 0 ? site + 1 : code + HIT_POSITION_AT))
+    const value = amount ?? (code >= 0 ? readU16(rom, code + HIT_AMOUNT_AT) : RECOMMENDED_SNES_HIT_ENERGY)
+    const { a2, d0, d1 } = env
+    const body = bytesOf(
+      'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', env.optLine, 'F0 1D E0 1800 B0 18 A4', a2, 'B9', position,
+      'F0 11 BB 22', env.getpde, 'A5', d0, '38 E9', word(value), '85', d0, '22', env.setpde,
+      '68 85', d1, '68 85', d0, '68 85', a2, '7A FA BD', position, '60',
+    )
+    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('BD', position), body)
+  },
+  holdEnergy: (rom, _source, amount) => {
+    const env = energyEnv(rom)
+    const tail = '9d....22......a6..a4..84..86..'
+    const plain = only(rom, 'a9....' + tail)
+    const hooked = plain >= 0 ? -1 : only(rom, '20....' + tail)
+    const site = plain >= 0 ? plain : hooked
+    if (!env || site < 0) return null
+    const code = plain >= 0 ? -1 : loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+    if (code >= 0 && (rom[code + HOLD_FLAIL_AT - 1] !== 0xa9 || rom[code + HOLD_FLAIL_AT + 2] !== 0x60)) return null
+    const flail = word(readU16(rom, plain >= 0 ? site + 1 : code + HOLD_FLAIL_AT))
+    const value = amount ?? (code >= 0 ? readU16(rom, code + HOLD_AMOUNT_AT) : RECOMMENDED_SNES_HOLD_ENERGY)
+    const { a2, d0, d1 } = env
+    const body = bytesOf(
+      'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', env.optLine, 'F0 10 22', env.getpde, 'A5', d0, '38 E9', word(value), '85', d0,
+      '22', env.setpde, '68 85', d1, '68 85', d0, '68 85', a2, '7A FA A9', flail, '60',
+    )
+    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('A9', flail), body)
+  },
+  // McMarkis's "5 Minutes, 99 Min OT\" (his Genesis patch), as NOSE4Web's
   // Genesis option has it. ResetClock has, for overtime: lda.l OptPlayMode /
   // bne .1 (playoffs: as long as a period) / lda #300 / sta d0 (the regular
   // season's 5:00, the Clock's overtime). Its first 6 bytes become jmp / nop
@@ -638,12 +723,20 @@ function intro(rom: Uint8Array, source: Uint8Array | null, before: string, after
 }
 
 // Each hack's places in `rom`, or null where it cannot be found there.
-function placesOf(rom: Uint8Array, hack: SnesHack, source: Uint8Array | null, inPlace = snesCodeInPlace(rom)): Placed[] | null {
+function placesOf(rom: Uint8Array, hack: SnesHack, source: Uint8Array | null, inPlace = snesCodeInPlace(rom), amount?: number): Placed[] | null {
   const sites = SITES[hack]
   if (inPlace && sites) {
     return sites.map((site) => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) }))
   }
-  return RELOCATED[hack]?.(rom, source) ?? null
+  return RELOCATED[hack]?.(rom, source, amount) ?? null
+}
+
+// The amount a hack's code in the ROM holds (its places built from what is there).
+function amountIn(rom: Uint8Array, hack: SnesAmount): number {
+  const places = placesOf(rom, hack, null)
+  if (!places || !places.every((place) => holds(rom, place, 'hacked'))) return 0
+  const code = places[1]
+  return readU16(rom, code.at + (hack === 'hitEnergy' ? HIT_AMOUNT_AT : HOLD_AMOUNT_AT))
 }
 
 const holds = (rom: Uint8Array, place: Placed, which: 'original' | 'hacked') => {
@@ -682,7 +775,8 @@ function detect(rom: Uint8Array): SnesHackState {
       return [hack, false]
     }),
   ) as SnesHackChoices
-  return { choices, unknown, vaultVersions }
+  const amounts = Object.fromEntries(SNES_AMOUNTS.map((hack) => [hack, choices[hack] ? amountIn(rom, hack) : 0])) as Record<SnesAmount, number>
+  return { choices, unknown, vaultVersions, amounts }
 }
 
 const placedSite = (site: Site): Placed => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) })
@@ -693,8 +787,18 @@ export class SnesHackError extends Error {}
 // something else for are left as they are; asking to change one is an error.
 // `updateVault`: hacks the ROM has in NHL94SNESVault's version, where
 // NOSE4Web's differs, are replaced by NOSE4Web's if they are to stay on.
-export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>, updateVault = false): RomProject {
-  const { choices, unknown, vaultVersions = [] } = detectSnesHacks(project.bytes)
+export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>, updateVault = false, amounts: Partial<Record<SnesAmount, number>> = {}): RomProject {
+  const { choices, unknown, vaultVersions = [], amounts: had } = detectSnesHacks(project.bytes)
+  // An amount is the hack on (more than 0) or off.
+  wanted = { ...wanted }
+  for (const hack of SNES_AMOUNTS) {
+    const amount = amounts[hack]
+    if (amount === undefined) continue
+    if (amount < SNES_AMOUNT_RANGE[0] || amount > SNES_AMOUNT_RANGE[1] || !Number.isInteger(amount)) {
+      throw new SnesHackError(`${SNES_HACK_TITLES[hack]} must be a whole number from ${SNES_AMOUNT_RANGE[0]} to ${SNES_AMOUNT_RANGE[1]}.`)
+    }
+    wanted[hack] = amount > 0
+  }
   const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
   if (problem) throw new SnesHackError(problem)
   const rom = project.bytes.slice()
@@ -702,12 +806,18 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   for (const hack of SNES_HACKS) {
     const want = wanted[hack]
     const update = updateVault && want === true && vaultVersions.includes(hack)
-    if (want === undefined || (want === choices[hack] && !update)) continue
+    const amount = isAmount(hack) ? amounts[hack] : undefined
+    // A new amount for a hack already in: take it out, then put it in with the amount.
+    const reAmount = isAmount(hack) && want === true && choices[hack] && amount !== undefined && amount !== had?.[hack]
+    if (want === undefined || (want === choices[hack] && !update && !reAmount)) continue
     if (unknown.includes(hack)) {
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)
     }
     // Each hack is placed in the ROM as the ones before it have left it, so that their new code does not overlap.
-    const places = placesOf(rom, hack, source)
+    if (reAmount) {
+      for (const place of placesOf(rom, hack, source) ?? []) if (place.original) rom.set(place.original, place.at)
+    }
+    const places = placesOf(rom, hack, source, undefined, amount)
     if (!places) throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has no room for it.`)
     for (const place of places) {
       const bytes = want ? place.hacked : place.original
@@ -754,7 +864,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
@@ -774,7 +884,10 @@ export function snesHackInPlaceOnly(hack: SnesHack): boolean {
 export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string[] = []): string {
   const { choices, unknown } = detectSnesHacks(rom)
   const inPlace = snesCodeInPlace(rom)
-  const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => `- **${SNES_HACK_TITLES[hack]}**`)
+  const { amounts } = detectSnesHacks(rom)
+  const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map(
+    (hack) => `- **${SNES_HACK_TITLES[hack]}**${isAmount(hack) && amounts ? `: ${amounts[hack]}` : ''}`,
+  )
   const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || !snesHackInPlaceOnly(hack))).map((hack) => SNES_HACK_TITLES[hack])
   return discordPost(name, [...lines, ...extra], unread)
 }
@@ -783,8 +896,11 @@ export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string
 export function snesHackDifferences(before: Uint8Array, after: Uint8Array): string[] {
   const [was, now] = [detectSnesHacks(before), detectSnesHacks(after)]
   const onOff = (value: boolean) => (value ? 'on' : 'off')
-  return SNES_HACKS.filter((hack) => was.choices[hack] !== now.choices[hack] && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map(
-    (hack) => `${SNES_HACK_TITLES[hack]}: ${onOff(was.choices[hack])} to ${onOff(now.choices[hack])}.`,
+  const differs = (hack: SnesHack) => was.choices[hack] !== now.choices[hack] || (isAmount(hack) && was.amounts?.[hack] !== now.amounts?.[hack])
+  return SNES_HACKS.filter((hack) => differs(hack) && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map((hack) =>
+    isAmount(hack)
+      ? `${SNES_HACK_TITLES[hack]}: ${was.amounts?.[hack] ?? 0} to ${now.amounts?.[hack] ?? 0}.`
+      : `${SNES_HACK_TITLES[hack]}: ${onOff(was.choices[hack])} to ${onOff(now.choices[hack])}.`,
   )
 }
 

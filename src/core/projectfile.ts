@@ -7,7 +7,7 @@ import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
-import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from './sneshacks'
+import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGE, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
@@ -43,8 +43,9 @@ interface ProjectFile {
   leagueRules?: LeagueRules
   // The hacks the ROM had, to be put into the ROM the project is opened over.
   hacks?: HackChoices
-  // The same for an SNES ROM.
+  // The same for an SNES ROM, with the amounts of those that hold one.
   snesHacks?: SnesHackChoices
+  snesHackAmounts?: Partial<Record<SnesAmount, number>>
   // An SNES ROM's replaced logos.
   snesPictures?: {
     logos: Record<string, { pixels: string; palette: number[] }>
@@ -111,6 +112,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     leagueRules: project.leagueRules,
     hacks: hackState(project)?.choices,
     snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
+    snesHackAmounts: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).amounts : undefined,
     snesPictures: project.snesPictures && {
       logos: Object.fromEntries(
         Object.entries(project.snesPictures.logos).map(([team, logo]) => [team, { pixels: pack(logo.picture.pixels), palette: logo.palette }]),
@@ -302,10 +304,18 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     }
   }
   if (file.snesHacks && opened.game.platform === 'snes') {
-    const now = detectSnesHacks(opened.bytes).choices
-    if (SNES_HACKS.some((hack) => typeof file.snesHacks![hack] === 'boolean' && file.snesHacks![hack] !== now[hack])) {
+    const { choices: now, amounts: nowAmounts } = detectSnesHacks(opened.bytes)
+    // Only amounts that are whole numbers in range.
+    const amounts = Object.fromEntries(
+      SNES_AMOUNTS.flatMap((hack) => {
+        const value = file.snesHackAmounts?.[hack]
+        return typeof value === 'number' && Number.isInteger(value) && value >= SNES_AMOUNT_RANGE[0] && value <= SNES_AMOUNT_RANGE[1] ? [[hack, value]] : []
+      }),
+    ) as Partial<Record<SnesAmount, number>>
+    const amountsDiffer = SNES_AMOUNTS.some((hack) => amounts[hack] !== undefined && amounts[hack] !== nowAmounts?.[hack])
+    if (amountsDiffer || SNES_HACKS.some((hack) => typeof file.snesHacks![hack] === 'boolean' && file.snesHacks![hack] !== now[hack])) {
       try {
-        opened = applySnesHacks(opened, file.snesHacks)
+        opened = applySnesHacks(opened, file.snesHacks, false, amounts)
         notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
       } catch (e) {
         throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)

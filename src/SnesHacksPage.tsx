@@ -12,9 +12,20 @@ import {
   snesHacksForDiscord,
   withRecommendedSnesFixes,
   withSnesHackChoice,
+  RECOMMENDED_SNES_HIT_ENERGY,
+  RECOMMENDED_SNES_HOLD_ENERGY,
+  SNES_AMOUNT_RANGE,
+  SNES_AMOUNTS,
+  type SnesAmount,
   type SnesHack,
   type SnesHackChoices,
 } from './core/sneshacks'
+
+const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = { hitEnergy: RECOMMENDED_SNES_HIT_ENERGY, holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY }
+const FULL_ENERGY = 0x1000
+const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
+// An energy amount as units and as a share of full energy.
+const energyShare = (units: number) => (units === 0 ? 'Off: none taken.' : `${units} units, ${Math.round((units / FULL_ENERGY) * 1000) / 10}% of full energy.`)
 
 interface Props {
   project: RomProject
@@ -72,6 +83,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "For a ROM that keeps the hot and cold bug. The bug puts about half of every player's ratings at the maximum in play, but Edit Lines and the team roster go on showing the value the game works out for display, so players cannot see who is really boosted. With this on they show such a rating as 100, as it plays; the overall shown does not change. It changes only what is shown, and cannot be on with the hot and cold bug fix, which removes the boost; turning either on turns the other off. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project, in NOSE4Web's version: it reads the stored hot or cold value, as play does, so it also catches the cold value of -1 the Vault's misses (about 1 rating in 28). It can only go into ROMs laid out like the original game.",
   manualPullGoalie:
     "During play, a player can press L and R together to pull his goalie for an extra attacker, and again to put him back, with a beep each time; he stays out through faceoffs until put back. Each press of L and R together (and nothing else) counts once, however short or long, and the goalie comes off or back within about half a second. It does nothing between whistles, while the game has the goalie out for a delayed penalty, or while the backup goalie is in net. With both players on one team, player 1 has it. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project, in NOSE4Web's version: the Vault's reads the buttons only every half second, so a quick tap was often missed and a long hold could pull the goalie and put him straight back. It can only go into ROMs laid out like the original game.",
+  hitEnergy:
+    "An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game, where a hit costs the skater nothing. Only with line changes on, where the game's energy counts at all. Full energy is 4096 units; a burst of speed costs 204. Recommended: 100 (2.4%), about 18 seconds of skating; up to 204. A knockdown by the puck, or a bump that does not knock him down, costs nothing. As on the Genesis; read from the game's code by the NHL94 Match Viewer project, which measured the shifts; not yet tested in the game. Found by the code around it, so it goes into every build.",
+  holdEnergy:
+    'The same for a skater caught by a hold or hook (Y), once each time it catches him. Recommended: 50 (1.2%), half a knockdown\'s. Only with line changes on.',
   fourthPeriodOvertime:
     "An option. A regular-season game played on the menu's fourth period length gets 99 minutes of overtime, about as good as no limit, which can save a league a separate playoff ROM. The fourth length is the one the 30-second periods hack offers, so that turns on with this; set its length and menu text with the others on the Game settings page (for example 5:00, \"5 Minutes, 99 Min OT\"). The other lengths keep the Clock's overtime, and playoff overtime stays as long as a period, as in the original game. McMarkis's Genesis patch, made for the SNES as NOSE4Web's Genesis option has it. Found by the code that sets the clock, so it goes into every build.",
   faceoffFix:
@@ -89,7 +104,7 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
   { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 
@@ -98,18 +113,25 @@ const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every
 export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
-  const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices })
+  const hadAmounts = state.amounts ?? { hitEnergy: 0, holdEnergy: 0 }
+  const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
+  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
+  const wantedAmounts = draft.rom === project.bytes ? draft.amounts : hadAmounts
+  const setAmount = (hack: SnesAmount, value: number) => {
+    setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: value > 0 }, amounts: { ...wantedAmounts, [hack]: value } })
+    setNotice('')
+    setError('')
+  }
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   // What could not be copied from another ROM's hacks, if they were.
   const [notCopied, setNotCopied] = useState<string[]>([])
-  const changed = SNES_HACKS.filter((hack) => wanted[hack] !== state.choices[hack])
+  const changed = SNES_HACKS.filter((hack) => wanted[hack] !== state.choices[hack] || (isAmount(hack) && wantedAmounts[hack] !== hadAmounts[hack]))
 
   function apply() {
     try {
-      onChange(applySnesHacks(project, wanted))
+      onChange(applySnesHacks(project, wanted, false, wantedAmounts))
       setNotice(`Done: ${changed.length === 1 ? '1 change' : `${changed.length} changes`} to the game. Undo puts it back.`)
       setError('')
     } catch (e) {
@@ -132,7 +154,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
         onRecommended={
           !sameChoices(withRecommendedSnesFixes(wanted, state.unknown), wanted) &&
           (() => {
-            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown) })
+            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown), amounts: wantedAmounts })
             setNotice('')
             setError('')
           })
@@ -149,6 +171,24 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>
+                {isAmount(hack) ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <input
+                      type="number"
+                      aria-label={SNES_HACK_TITLES[hack]}
+                      disabled={unknown}
+                      min={SNES_AMOUNT_RANGE[0]}
+                      max={SNES_AMOUNT_RANGE[1]}
+                      value={wantedAmounts[hack]}
+                      onChange={(e) => setAmount(hack, Math.max(SNES_AMOUNT_RANGE[0], Math.min(SNES_AMOUNT_RANGE[1], Math.round(Number(e.target.value) || 0))))}
+                    />{' '}
+                    <span className="note">{energyShare(wantedAmounts[hack])}</span>{' '}
+                    <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>
+                      Use the recommended {RECOMMENDED_AMOUNTS[hack]}
+                    </button>
+                  </label>
+                ) : (
                 <label>
                   <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                   <select
@@ -156,7 +196,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     disabled={unknown}
                     value={wanted[hack] ? 'on' : 'off'}
                     onChange={(e) => {
-                      setDraft({ rom: project.bytes, choices: withSnesHackChoice(wanted, hack, e.target.value === 'on') })
+                      setDraft({ rom: project.bytes, choices: withSnesHackChoice(wanted, hack, e.target.value === 'on'), amounts: wantedAmounts })
                       setNotice('')
                       setError('')
                     }}
@@ -165,6 +205,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     <option value="on">On</option>
                   </select>
                 </label>
+                )}
                 <p className="note">
                   {ABOUT[hack]}
                   {unknown && <b> This ROM has something else in its place, so it is left exactly as it is.</b>}
@@ -200,7 +241,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
           <button
             disabled={changed.length === 0}
             onClick={() => {
-              setDraft({ rom: project.bytes, choices: state.choices })
+              setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
               setNotCopied([])
             }}
           >
@@ -213,7 +254,12 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 return
               }
               const copied = snesHacksCopiedFrom(state, detectSnesHacks(other.bytes))
-              setDraft({ rom: project.bytes, choices: copied.choices })
+              const otherAmounts = detectSnesHacks(other.bytes).amounts ?? hadAmounts
+              setDraft({
+                rom: project.bytes,
+                choices: copied.choices,
+                amounts: Object.fromEntries(SNES_AMOUNTS.map((hack) => [hack, copied.choices[hack] ? otherAmounts[hack] : 0])) as Record<SnesAmount, number>,
+              })
               setNotCopied(copied.notCopied)
               setNotice(`Set to ${fileName}'s hacks. Check the choices above and press Apply.`)
               setError('')
@@ -228,7 +274,8 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             <ul>
               {changed.map((hack) => (
                 <li key={hack}>
-                  {SNES_HACK_TITLES[hack]}: {state.choices[hack] ? 'on' : 'off'} to {wanted[hack] ? 'on' : 'off'}.
+                  {SNES_HACK_TITLES[hack]}:{' '}
+                  {isAmount(hack) ? `${hadAmounts[hack]} to ${wantedAmounts[hack]}` : `${state.choices[hack] ? 'on' : 'off'} to ${wanted[hack] ? 'on' : 'off'}`}.
                 </li>
               ))}
             </ul>

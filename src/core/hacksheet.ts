@@ -165,21 +165,28 @@ const SNES: Record<SnesHack, string> = {
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
   manualPullGoalie: 'During play, pressing L and R together pulls your goalie for an extra attacker, or puts him back, with a beep.',
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
+  holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',
   fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 
 const SNES_SECTIONS: [string, SnesHack[]][] = [
   ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
   ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
-  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts']],
+  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy']],
   ['Statistics', ['stickShots']],
   ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
 ]
 
 export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
-  const { choices, unknown } = detectSnesHacks(rom)
+  const { choices, unknown, amounts } = detectSnesHacks(rom)
   const inPlace = snesCodeInPlace(rom)
   const unread: string[] = []
+  // The energy hacks say how much: units and a share of full energy.
+  const textOf = (hack: SnesHack) =>
+    (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
+      ? SNES[hack].replace('some of his energy', `${amounts[hack]} units of his energy (${energyText(amounts[hack])})`)
+      : SNES[hack]
   const sections = SNES_SECTIONS.map(([heading, hacks]) => ({
     heading,
     items: hacks.flatMap((hack) => {
@@ -188,7 +195,7 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
         if (inPlace || !snesHackInPlaceOnly(hack)) unread.push(SNES_HACK_TITLES[hack])
         return []
       }
-      return choices[hack] ? [{ title: SNES_HACK_TITLES[hack], text: SNES[hack] }] : []
+      return choices[hack] ? [{ title: SNES_HACK_TITLES[hack], text: textOf(hack) }] : []
     }),
   })).filter((section) => section.items.length > 0)
   return { name, game: "NHL '94 for the SNES", sections, unread }
