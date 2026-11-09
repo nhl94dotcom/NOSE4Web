@@ -29,6 +29,7 @@ import { AddScoreLogos, SnesScoreLogoEditor } from './SnesScoreLogoEditor'
 import { snesScoreLogosSupported } from './core/snesscorelogos'
 import { snesPhotosSupported } from './core/snesphotos'
 import { snesPictureKinds } from './core/snespictureset'
+import { playerPhoto, playerPhotosSupported, withPlayerPhotos } from './core/playerphotos'
 import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { HacksPage } from './HacksPage'
@@ -383,6 +384,12 @@ export default function App() {
             changed={teamChanged(current, opened, selected)}
             onResetAll={() => change(resetTeam(current, opened, selected))}
             onChange={(team) => updateTeam(selected, team)}
+            photoOf={playerPhotosSupported(current) ? (slot) => playerPhoto(current, selected, slot) : undefined}
+            onPasteWithPhotos={(team, rows) => {
+              const made = withPlayerPhotos({ ...current, teams: current.teams.map((t, i) => (i === selected ? team : t)) }, selected, rows)
+              change(made.project)
+              return made.notes
+            }}
             rawAttributes={rawAttributes}
             onRawAttributesChange={setRawAttributes}
             quickKeys={quickKeys}

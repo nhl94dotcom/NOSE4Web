@@ -324,7 +324,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   let project = opened
   for (let i = 0; i < (file.expansions?.rosterSpace ?? 0); i++) {
     if (!nextExpansion(project)) {
-      notes.push('This ROM could not be given as much roster space as the project had. Check the space meter.')
+      notes.push('This ROM could not be given as much roster space as the project had. Check the bytes free at the top of the page.')
       break
     }
     project = expandTeamSpace(project)

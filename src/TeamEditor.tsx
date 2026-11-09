@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
-import { copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
+import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
+import type { PlayerPhoto } from './core/playerphotos'
 import { colorFormat } from './core/color'
 import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
@@ -43,6 +44,10 @@ interface Props {
   changed: boolean
   onResetAll: () => void
   onChange: (team: Team) => void
+  // A player's own photo, to copy with him, where the ROM's photos can be read.
+  photoOf?: (index: number) => PlayerPhoto | null
+  // The team after a paste, with each pasted row given its new player's photo (null: he has none).
+  onPasteWithPhotos?: (team: Team, rows: { slot: number; goalie: boolean; photo: PlayerPhoto | null }[]) => string[]
   // Whether attributes show as the numbers stored in the ROM instead of as text.
   rawAttributes: boolean
   onRawAttributesChange: (raw: boolean) => void
@@ -84,7 +89,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots } = props
+  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
@@ -129,17 +134,22 @@ export function TeamEditor(props: Props) {
   }
 
   async function copyTicked() {
-    await writeClipboard(copyPlayers(team, ticked))
+    await writeClipboard(copyPlayers(team, ticked, photoOf))
     setNotice(`Copied ${ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`}.`)
   }
 
   async function pasteOverTicked(attributesOnly: boolean) {
     try {
       const text = await readClipboard()
-      onChange(pastePlayers(team, ticked, text, attributesOnly))
+      const pasted = pastePlayers(team, ticked, text, attributesOnly)
+      // A whole player brings his photo, where the copy holds photos.
+      const photos = attributesOnly || !onPasteWithPhotos ? null : copiedPhotos(text, ticked)
+      const problems = photos && onPasteWithPhotos ? onPasteWithPhotos(pasted, ticked.map((slot, n) => ({ slot, goalie: slot < goalies, photo: photos[n] }))) : (onChange(pasted), [])
       const count = copiedPlayerCount(text)
       const repeated = ticked.length > count ? ', repeating them to fill the rows' : ''
-      setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${repeated}.`)
+      const withPhotos = photos?.some((photo) => photo) ? (count === 1 ? ', with his photo' : ', with their photos') : ''
+      const left = problems.length > 0 ? ` A photo could not be brought: ${problems[0]}` : ''
+      setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${withPhotos}${repeated}.${left}`)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e))
     }

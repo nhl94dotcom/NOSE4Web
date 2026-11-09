@@ -1,3 +1,4 @@
+import { isPlayerPhoto, type PlayerPhoto } from './playerphotos'
 import { goalieCount, type Player, type Team } from './team'
 
 // Copying players as text lets them travel through the system clipboard, so
@@ -7,11 +8,15 @@ const MARKER = 'nose-web players'
 
 interface CopiedPlayer extends Player {
   goalie: boolean
+  // His own photo, or null for a player with none; left out by copies made
+  // before photos came along, or from a ROM whose photos the editor cannot read.
+  photo?: PlayerPhoto | null
 }
 
-export function copyPlayers(team: Team, indexes: number[]): string {
+// `photoOf` gives each player's own photo, where the ROM's photos can be read.
+export function copyPlayers(team: Team, indexes: number[], photoOf?: (index: number) => PlayerPhoto | null): string {
   const goalies = goalieCount(team)
-  const players: CopiedPlayer[] = indexes.map((i) => ({ ...team.players[i], goalie: i < goalies }))
+  const players: CopiedPlayer[] = indexes.map((i) => ({ ...team.players[i], goalie: i < goalies, ...(photoOf ? { photo: photoOf(i) } : {}) }))
   return JSON.stringify({ format: MARKER, players })
 }
 
@@ -34,7 +39,8 @@ function readCopied(text: string): CopiedPlayer[] {
         Number.isInteger(p.jersey) &&
         Array.isArray(p.attributes) &&
         p.attributes.length === 14 &&
-        p.attributes.every((v) => Number.isInteger(v) && v >= 0 && v <= 15),
+        p.attributes.every((v) => Number.isInteger(v) && v >= 0 && v <= 15) &&
+        (p.photo === undefined || p.photo === null || isPlayerPhoto(p.photo)),
     )
   if (!valid) throw new Error('The clipboard does not hold copied players.')
   return players
@@ -58,6 +64,15 @@ export function pastePlayers(team: Team, indexes: number[], text: string, attrib
     players[index] = attributesOnly ? { ...players[index], attributes } : { name, jersey, attributes }
   })
   return { ...team, players }
+}
+
+// The photos for the rows a paste over `indexes` fills, in the same order:
+// each the photo of the player pasted there, or null for one with none.
+// Null altogether where the copy holds no photos, so the rows are left alone.
+export function copiedPhotos(text: string, indexes: number[]): (PlayerPhoto | null)[] | null {
+  const copied = readCopied(text)
+  if (copied.some((p) => p.photo === undefined)) return null
+  return indexes.map((_, n) => copied[n % copied.length].photo ?? null)
 }
 
 export function copiedPlayerCount(text: string): number {

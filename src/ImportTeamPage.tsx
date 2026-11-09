@@ -151,7 +151,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
           )}
           <p className="note">
             The centre-ice logo is drawn with the home colours, so it looks right only if the colours come too. A
-            bigger roster needs more room in the ROM; watch the space meter at the top.
+            bigger roster needs more room in the ROM; watch the bytes free at the top of the page.
           </p>
         </>
       )}

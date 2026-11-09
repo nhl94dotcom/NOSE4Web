@@ -97,7 +97,7 @@ export function HelpPage() {
           to slide the list in, and tap a team or page to go there.
         </li>
         <li>
-          The top bar keeps Undo, Redo, the space meter and <b>Download ROM</b> in view. <b>More</b> opens the rest:
+          The top bar keeps Undo, Redo, the space left in the ROM (such as <i>120 bytes free</i>) and <b>Download ROM</b> in view. <b>More</b> opens the rest:
           adding roster space, opening another ROM, and downloading a patch.
         </li>
         <li>
@@ -370,7 +370,14 @@ export function HelpPage() {
         <li>A paste replaces the ticked rows. It does not insert new ones. To bring in an extra player, add a player first and paste over the new row.</li>
         <li>If you tick more rows than you copied, the copied rows repeat to fill them.</li>
         <li>
-          <b>Paste attributes only</b> keeps each row's name and jersey number.
+          A pasted player brings his photo: his own, or, if he had none, the stand-in the game gives a player without one,
+          in place of the photo of the player he replaces. On the Genesis a player with a photo of his own who was not
+          among the featured players is added to them. On the SNES the photo is reshaded to the team's own photo
+          colours, so between teams it may look a little different. Players moved with Move ticked to, or traded,
+          take their photos with them too.
+        </li>
+        <li>
+          <b>Paste attributes only</b> keeps each row's name and jersey number, and its photo.
         </li>
         <li>Goalies can only be pasted over goalies, and skaters over skaters.</li>
         <li>
@@ -775,7 +782,7 @@ export function HelpPage() {
         roster, so reset both if you changed both. If you moved a player to another team, resetting one of the two
         rosters leaves him on both teams or on neither; reset both rosters to put him back. A picture that several
         teams share is reset for all of them. Resetting a roster can need more room than is free if other teams
-        have grown; the space meter will say so. Giving rosters or pictures more room is not something a reset
+        have grown; the bytes free at the top will say so. Giving rosters or pictures more room is not something a reset
         undoes.
       </p>
 
@@ -1312,7 +1319,7 @@ export function HelpPage() {
           its own, brings the colours it shows; teams that share it here get it too. A team whose score box shows its
           letters in the other ROM shows them here as well, and a ROM without score logos leaves this one's alone.
         </li>
-        <li>A bigger roster needs more room; the space meter shows whether it fits.</li>
+        <li>A bigger roster needs more room; the bytes free at the top of the page show whether it fits.</li>
       </ul>
 
       <h3 id="help-check">Checking a ROM</h3>
@@ -1516,7 +1523,7 @@ export function HelpPage() {
               number the game shows.
             </li>
             <li>
-              Each team has a fixed amount of room of its own. The space meter shows the room left on the fullest
+              Each team has a fixed amount of room of its own. The figure at the top of the page shows the room left on the fullest
               team, and a team that outgrows its room has to be trimmed before the ROM can be downloaded.
             </li>
             <li>
