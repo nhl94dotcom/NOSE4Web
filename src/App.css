@@ -148,6 +148,13 @@ input.name {
   width: 12rem;
 }
 
+/* A jersey number another player on the team wears too. */
+input.num.shared {
+  border-color: var(--bad);
+  color: var(--bad);
+  font-weight: bold;
+}
+
 input.num {
   width: 2.6rem;
   text-align: center;

@@ -392,6 +392,23 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('main').getByText('Centre-ice logo changed.')).toBeVisible()
   })
 
+  test('marks jersey numbers two players on a team share', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const skaters = rows(page, 'Skaters')
+    const number = (row: Locator) => row.getByLabel(/^Jersey number of/)
+    await expect(page.locator('input.num.shared')).toHaveCount(0)
+    const first = await number(skaters.nth(0)).inputValue()
+    const firstName = await nameOf(skaters.nth(0)).inputValue()
+    const secondName = await nameOf(skaters.nth(1)).inputValue()
+    await number(skaters.nth(1)).fill(first)
+    await expect(page.locator('input.num.shared')).toHaveCount(2)
+    await expect(number(skaters.nth(0))).toHaveAttribute('title', `${secondName} wears number ${first} too.`)
+    await expect(number(skaters.nth(1))).toHaveAttribute('title', `${firstName} wears number ${first} too.`)
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(page.locator('input.num.shared')).toHaveCount(0)
+  })
+
   test('copies a player to another team', async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()

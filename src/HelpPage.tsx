@@ -220,7 +220,7 @@ export function HelpPage() {
           <b>Name</b>: the game expects a first and last name separated by a space.
         </li>
         <li>
-          <b>No.</b>: the jersey number, 00 to 99.
+          <b>No.</b>: the jersey number, 00 to 99. A number another player on the team wears too shows in red; hover it to see who.
         </li>
         <li>
           <b>Ovr</b>: the overall rating the game will show. It is worked out from the attributes as you edit and

@@ -292,9 +292,12 @@ export function TeamEditor(props: Props) {
     }
     const numberBox = (index: number) => {
       const player = team.players[index]
+      // Others on the team wearing the same number.
+      const sharing = team.players.filter((other, i) => i !== index && other.jersey === player.jersey).map((other) => other.name)
       return (
         <input
-          className="num"
+          className={sharing.length > 0 ? 'num shared' : 'num'}
+          title={sharing.length > 0 ? `${sharing.join(', ')} ${sharing.length === 1 ? 'wears' : 'wear'} number ${hex(player.jersey)} too.` : undefined}
           aria-label={`Jersey number of ${player.name}`}
           inputMode="numeric"
           value={hex(player.jersey)}
