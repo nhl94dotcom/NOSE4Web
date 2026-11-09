@@ -12,9 +12,12 @@ permissions:
   pages: write
   id-token: write
 
+# A deploy that has started is let finish: a newer push waits its turn
+# rather than cancelling it, since a publish cancelled part way can leave the
+# next one failing (as two pushes a few minutes apart did on 2026-11-09).
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
