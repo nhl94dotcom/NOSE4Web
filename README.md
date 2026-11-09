@@ -62,6 +62,8 @@ That licence does not cover:
 - Player photos: import any image as a player's photo, or draw it; on the
   Genesis, choose which players are featured on the team setup and matchup
   screens, and on the SNES swap two players' photos
+- Score box logos for the Genesis, in each team's home and away colours (the
+  idea from McMarkis's 32-team SNES build)
 - The score box's team logos of the 32-team SNES builds: import, draw, or
   show the team's letters instead; and the same logos added to the original
   SNES game, adapted with McMarkis's permission from his 32-team build

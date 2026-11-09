@@ -245,6 +245,22 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
   })
 
+  test('adds score logos for every team, in home and away colours, and takes them out again', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Score logo' }) })
+    await section.getByRole('button', { name: 'Add score logos for every team' }).click()
+    await expect(section.locator('canvas.preview')).toHaveCount(2)
+    await expect(section.getByText('The ROM grew to 2 MB to make room.')).toBeVisible()
+    await section.screenshot({ path: 'test-results/shots/genesis-score-logo.png' })
+    await section.getByRole('button', { name: "Show Boston's letters instead" }).click()
+    await expect(section.locator('canvas.preview')).toHaveCount(0)
+    await section.getByRole('button', { name: 'Give Boston a score logo' }).click()
+    await expect(section.locator('canvas.preview')).toHaveCount(2)
+    await section.getByRole('button', { name: 'Take score logos out of this ROM' }).click()
+    await expect(section.getByRole('button', { name: 'Add score logos for every team' })).toBeVisible()
+  })
+
   test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
     await openRom(page)
     await team(page, 'Anaheim Mighty Ducks').click()

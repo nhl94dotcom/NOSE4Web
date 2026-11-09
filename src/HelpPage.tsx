@@ -543,6 +543,20 @@ export function HelpPage() {
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
         for both. Logos and banners are not part of the spreadsheet files.
       </p>
+      <h3 id="help-genesis-score-logos">Score logos (Genesis)</h3>
+      <p>
+        The game prints each team's three letters in the score box during play. <b>Add score logos for every team</b>,
+        under Score logo on any team's page, shows a small logo there instead, an idea from McMarkis's 32-team SNES
+        build, with NOSE4Web's own code for the Genesis. The score box grows two rows taller, so that each team has a
+        logo, 24 by 16 pixels, beside its score. The game colours each team in its uniform colours during play, the
+        home team in its home colours and the visitors in their away colours, so each team has two logos: one in its
+        home colours and one in its away colours, both on black (the uniform's third colour, black in the original
+        game). Every team starts with logos made from its centre-ice logo. Import or draw the home one and the away one
+        is made from it, each colour matched to the nearest away colour; changing the uniform colours changes the
+        logos with them. <b>Show Boston's letters instead</b> and <b>Give Boston a score logo</b> act on that team
+        alone, and <b>Take score logos out of this ROM</b> puts the game back as it was. In the original game, adding
+        them makes the ROM 2 MB. ROMs whose score box is laid out differently, such as EVO, do not offer them.
+      </p>
       <h3 id="help-photos">Player photos</h3>
       <p>
         On the Genesis, <b>Player photos</b>, below the logos, lists the team's featured players. The team setup screen shows the

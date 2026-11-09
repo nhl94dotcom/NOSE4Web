@@ -23,6 +23,7 @@ import { teamDisplayName, teamLabels, teamSpace, type Team } from './core/team'
 import { cleanFileName, download } from './download'
 import { GraphicsEditor } from './GraphicsEditor'
 import { PhotosEditor } from './PhotosEditor'
+import { GenesisScoreLogoEditor } from './GenesisScoreLogoEditor'
 import { SnesPhotosEditor } from './SnesPhotosEditor'
 import { AddScoreLogos, SnesScoreLogoEditor } from './SnesScoreLogoEditor'
 import { snesScoreLogosSupported } from './core/snesscorelogos'
@@ -404,6 +405,7 @@ export default function App() {
               current.graphicsSupported ? (
                 <>
                   <GraphicsEditor project={current} team={selected} onChange={change} />
+                  <GenesisScoreLogoEditor project={current} team={selected} onChange={change} />
                   {photosSupported(current) && <PhotosEditor project={current} team={selected} onChange={change} />}
                 </>
               ) : (
