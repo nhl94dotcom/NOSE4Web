@@ -9,7 +9,7 @@ import { buildRom, openRom } from '../src/core/rom'
 import { snesBlockColours, withSnesBlockColours } from '../src/core/snesblockcolours'
 import { snesPlaceNameRoom } from '../src/core/snesplacenames'
 import { SNES_BLOCK_LETTERS, snesBlockPicture } from '../src/core/snesblockpicture'
-import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
+import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, SNES_TITLE_OWN_HALF, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
@@ -113,6 +113,15 @@ describe.skipIf(!both)('a Classic team brought into the 32-team build', () => {
     const coloured = openRom(buildRom({ ...project, bytes, snesPictures: { logos: {}, centreIce: { 11: own.picture } } }))
     const look = (ice: { picture: { pixels: Uint8Array }; palette: number[] }) => Array.from(ice.picture.pixels, (v) => (v ? ice.palette[v] & 0x7fff : -1))
     expect(look(snesCentreIce(coloured.bytes, coloured.teams.length, NO_SNES_PICTURE_EDITS, 11, coloured.rinkPalette))).toEqual(look(theirs))
+    // On the title's pucks, each pixel number shows the title's colour for it: each as near the logo's own as
+    // the title has, and nearer than taking the numbers in turn would put them.
+    const rgb = (w: number) => [(w & 31) << 3, ((w >> 5) & 31) << 3, ((w >> 10) & 31) << 3]
+    const far = (a: number, b: number) => rgb(a).reduce((sum, v, i) => sum + (v - rgb(b)[i]) ** 2, 0)
+    const title = (pixels: Uint8Array, colours: number[]) =>
+      Array.from(pixels).reduce((sum, p) => (p ? sum + far(SNES_TITLE_OWN_HALF[p & 15], colours[p & 15]) : sum), 0)
+    const inTurn = [...new Set(Array.from(theirs.picture.pixels).filter((p) => p).map((p) => theirs.palette[p] & 0x7fff))]
+    const naive = Uint8Array.from(theirs.picture.pixels, (p) => (p ? 1 + inTurn.indexOf(theirs.palette[p] & 0x7fff) : 0))
+    expect(title(own.picture.pixels, own.colours)).toBeLessThan(title(naive, [0, ...inTurn]))
     // Too many squares for the room is refused.
     expect(() => snesCentreIceFromImage(new Uint8Array(80 * 64 * 4), 80, 64, ours)).toThrow('no more of them (36)')
   })
