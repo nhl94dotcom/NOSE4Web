@@ -47,6 +47,7 @@ import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
+import { SplashScreenSection } from './SplashScreenSection'
 import { TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
@@ -328,7 +329,9 @@ export default function App() {
             original={opened.settings}
             teamNames={teamNames}
             onChange={(settings) => change({ ...current, settings })}
-          />
+          >
+            {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
+          </SettingsEditor>
         )
       case CSV:
         return <CsvPanel project={current} setName={name || 'rom'} onChange={change} onSetNameChange={setName} />

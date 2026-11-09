@@ -731,6 +731,15 @@ export function HelpPage() {
           From smozoma's forum guide to the credits.
         </li>
         <li>
+          <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
+          Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
+          whole screen, 320 by 224 pixels; a picture of another size is fitted inside it on black. The screen can show
+          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to the
+          nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those ROMs'
+          pictures show here too. Export as PNG gives the screen as it is; Put back the original restores the original
+          game's. From kingraph's forum reference to the screen.
+        </li>
+        <li>
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
           the play mode, the two teams, the period length, penalties, line changes, goalie control, and on the
           Genesis the players and user records. A league can set its usual game up so that nobody has to change the

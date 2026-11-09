@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { copyDraws, pasteDraws } from './core/clipboard'
 import type { GameConfig } from './core/games'
@@ -24,9 +24,11 @@ interface Props {
   original: Settings
   teamNames: string[]
   onChange: (settings: Settings) => void
+  // More sections for the page, such as the splash screen.
+  children?: ReactNode
 }
 
-export function SettingsEditor({ game, settings, original, teamNames, onChange }: Props) {
+export function SettingsEditor({ game, settings, original, teamNames, onChange, children }: Props) {
   // Playoff draws ticked for copying and pasting.
   const [ticked, setTicked] = useState<number[]>([])
   const [notice, setNotice] = useState('')
@@ -400,6 +402,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
           </table>
         </section>
       )}
+      {children}
     </main>
   )
 }

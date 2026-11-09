@@ -661,6 +661,20 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(drawRows.nth(1))).toEqual(first)
   })
 
+  test('replaces the splash screen with a picture, and puts the original back', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    const splash = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Splash screen' }) })
+    await expect(splash.getByText("The original game's screen.")).toBeVisible()
+    const png = await downloadFrom(page, splash.getByRole('button', { name: 'Export as PNG' }))
+    expect(png.suggestedFilename()).toBe('splash_screen.png')
+    await splash.locator('input[type=file]').setInputFiles(await png.path())
+    await expect(splash.getByText(/is now the splash screen/)).toBeVisible()
+    await expect(splash.getByText('A picture of your own.')).toBeVisible()
+    await splash.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(splash.getByText("The original game's screen.")).toBeVisible()
+  })
+
   test("sets a team's organ songs, and downloads them", async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()

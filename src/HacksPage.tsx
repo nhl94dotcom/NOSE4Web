@@ -735,7 +735,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             How long a player holds B before he takes control of his goalie, in counts of the game's timer: 17, about half
             a second, in the original game, so 12 is about a third of a second. It is the same for all four pads in 2 on 2.
             From smozoma's forum post; the NHL94 Match Viewer project checked every place in the game's code and tested
-            it in the game (pads 1 and 2: 12 counts took the goalie after 12 frames, where the original takes 17).{' '}
+            it in the game on all four pads, 3 and 4 through a 4-Way Play adapter (12 counts took the goalie after 12
+            frames, where the original takes 17).{' '}
             {stock('goalieDelay')}
           </>,
         )}

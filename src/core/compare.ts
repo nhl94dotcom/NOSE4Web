@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { readSplash } from './splash'
 import { songName, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
@@ -166,6 +167,11 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     )
     if (creditsWas.pages.length > creditsNow.pages.length) lines.push(`${creditsWas.pages.length - creditsNow.pages.length} pages fewer, ${creditsNow.pages.length} in all.`)
     add('Title screen credits', lines)
+  }
+  if (before.game.platform === 'genesis' && after.game.platform === 'genesis') {
+    const [was, now] = [readSplash(before.bytes), readSplash(after.bytes)]
+    const same = was && now && was.palette.every((c, i) => c === now.palette[i]) && was.picture.pixels.every((p, i) => p === now.picture.pixels[i])
+    if (was && now && !same) add('Splash screen', [now.original ? "The original game's screen again." : 'A picture of its own.'])
   }
 
   const choice = (project: RomProject, i: number) => {
