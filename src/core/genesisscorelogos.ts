@@ -3,6 +3,7 @@ import { colorRgb } from './color'
 import type { Picture } from './graphics'
 import { rinkLogo } from './graphics'
 import type { RomProject } from './rom'
+import { inBetweenShades } from './snesscorecode'
 import { claimSpace, fullRomReason } from './space'
 
 // Score box logos for the Genesis game: where it prints a team's three
@@ -548,6 +549,14 @@ export function genesisScoreLogoFromCentreIce(project: RomProject, team: number)
     return { home, away: awayFromHome(home, palette) }
   }
   const rgb = palette.slice(0, 16).map((word) => colorRgb(word))
+  // Left out where there is another: the logo's in-between shades (as for
+  // the SNES), and the colours every team's uniform has the same, such as the
+  // skin tones, which a centre-ice logo uses at its edges and which stand out
+  // on the black box (Match Viewer).
+  const inBetween = inBetweenShades(big, rgb)
+  for (let slot = 1; slot < 16; slot++) {
+    if (project.teams.length > 1 && project.teams.every((other) => other.palette[slot] === palette[slot])) inBetween.add(slot)
+  }
   const solid: [number, number][] = []
   for (let y = 0; y < big.height; y++) for (let x = 0; x < big.width; x++) if (big.pixels[y * big.width + x]) solid.push([x, y])
   const home = blank()
@@ -573,7 +582,8 @@ export function genesisScoreLogoFromCentreIce(project: RomProject, team: number)
         if (drawn * 2 < count) continue
         const mix = [0, 1, 2].map((k) => [...uses].reduce((sum, [p, n]) => sum + rgb[p][k] * n, 0) / drawn)
         const distance = (p: number) => rgb[p].reduce((sum, v, k) => sum + (v - mix[k]) ** 2, 0)
-        home.pixels[(oy + y) * GENESIS_SCORE_LOGO.width + ox + x] = [...uses.keys()].sort((a, b) => distance(a) - distance(b))[0]
+        const main = [...uses.keys()].filter((p) => !inBetween.has(p))
+        home.pixels[(oy + y) * GENESIS_SCORE_LOGO.width + ox + x] = (main.length > 0 ? main : [...uses.keys()]).sort((a, b) => distance(a) - distance(b))[0]
       }
     }
   }

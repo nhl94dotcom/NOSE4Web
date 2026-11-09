@@ -428,7 +428,7 @@ export function scoreLogoFromTeamLogo(project: RomProject, team: number): { pict
 // The colours of a logo that are shades between two others it uses more,
 // drawn where those meet, as Detroit's pinks between its red and white:
 // near the line between the two in colour, a fifth to four fifths along.
-function inBetweenShades(picture: Picture, rgb: number[][]): Set<number> {
+export function inBetweenShades(picture: Picture, rgb: number[][]): Set<number> {
   const counts = new Map<number, number>()
   for (const p of picture.pixels) if (p) counts.set(p, (counts.get(p) ?? 0) + 1)
   const used = [...counts.keys()]
