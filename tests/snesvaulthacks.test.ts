@@ -143,11 +143,17 @@ describe.skipIf(!hasRom)('the regained-puck assist fix', () => {
     expect(applySnesHacks(on, { regainAssist: false }).bytes).toEqual(project.bytes)
   })
 
-  it.skipIf(!existsSync(fileURLToPath(new URL('../../nhl94_SA1_Original.sfc', import.meta.url))))('finds the same code in the SA-1 build, whose RAM is $6000 on', () => {
-    const sa1 = openRom(new Uint8Array(readFileSync(fileURLToPath(new URL('../../nhl94_SA1_Original.sfc', import.meta.url)))))
-    expect(detectSnesHacks(sa1.bytes).unknown).not.toContain('regainAssist')
-    const on = applySnesHacks(sa1, { regainAssist: true })
-    expect(detectSnesHacks(on.bytes).choices.regainAssist).toBe(true)
-    expect(applySnesHacks(on, { regainAssist: false }).bytes).toEqual(sa1.bytes)
+  // The other SNES builds (tests/local.json), the 2 MB ones with RAM $6000 on.
+  const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
+  const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+  const others = (local.snesRoms ?? []).map((name) => fileURLToPath(new URL(`../../${name}`, import.meta.url))).filter((file) => existsSync(file))
+  it.skipIf(others.length === 0)('finds the same code in the other builds', () => {
+    for (const file of others) {
+      const rom = openRom(new Uint8Array(readFileSync(file)))
+      expect(detectSnesHacks(rom.bytes).unknown, file).not.toContain('regainAssist')
+      const on = applySnesHacks(rom, { regainAssist: true })
+      expect(detectSnesHacks(on.bytes).choices.regainAssist, file).toBe(true)
+      expect(applySnesHacks(on, { regainAssist: false }).bytes, file).toEqual(rom.bytes)
+    }
   })
 })
