@@ -1,5 +1,6 @@
 import { attributeText } from './attributes'
 import { colorRgb } from './color'
+import { creditsFit } from './credits'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
@@ -184,6 +185,14 @@ export function checkProject(project: RomProject): Finding[] {
         message: `The names on the team banners need ${room.used - room.room} bytes more than the ROM has room for, so they are not written: shorten some under Banner name on the team pages.`,
       })
     }
+  }
+
+  if (settings.credits && !creditsFit(settings.credits)) {
+    findings.push({
+      level: 'problem',
+      where: 'Title screen credits',
+      message: `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
+    })
   }
 
   settings.playoffDraws.forEach((draw, d) => {

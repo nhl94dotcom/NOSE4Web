@@ -722,6 +722,15 @@ export function HelpPage() {
           the menu text, so change both.
         </li>
         <li>
+          <b>Title screen credits</b> (Genesis): the credits the title screen rolls, a box for each page, one line of
+          text to a line of the box. They must fit the room the ROM has for them, 934 bytes in the original game (a
+          line takes its letters rounded up to an even number, plus 2); the count above the boxes says how much is
+          used. The original game's pages have up to 4 lines of up to 25 letters, and the game centres each line. $
+          shows as the copyright sign. A league can put its own name in them; smozoma's guide warns that the first
+          page, EA's copyright notice, can cause trouble if changed, though several league ROMs have changed it.
+          From smozoma's forum guide to the credits.
+        </li>
+        <li>
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
           the play mode, the two teams, the period length, penalties, line changes, goalie control, and on the
           Genesis the players and user records. A league can set its usual game up so that nobody has to change the

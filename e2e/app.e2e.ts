@@ -590,6 +590,15 @@ test.describe('with the NHL 94 ROM', () => {
     const overtime = page.locator('tr').filter({ hasText: 'Overtime' }).locator('input')
     await overtime.fill('300')
     await page.screenshot({ path: 'test-results/shots/settings.png', fullPage: true })
+    // The title screen credits, a box for each page.
+    await expect(page.getByLabel('Credits page 1', { exact: true })).toHaveValue('$ 1993 Electronic Arts\nLicensed by\nSega Enterprises Ltd.')
+    await expect(page.getByText('934 of 934 bytes used.')).toBeVisible()
+    await page.getByLabel('Credits page 3', { exact: true }).fill('Programmed by\nMark Lesser\nand Our League')
+    // A line of 14 letters takes 16 bytes.
+    await expect(page.getByText('950 of 934 bytes used. Too long: the credits are not written until they fit.')).toBeVisible()
+    // Page 4 (Graphics by, Doug Wike: 26 bytes) emptied to one blank line (2 bytes).
+    await page.getByLabel('Credits page 4', { exact: true }).fill('')
+    await expect(page.getByText('926 of 934 bytes used.', { exact: true })).toBeVisible()
 
     // The original game passes the check.
     await entry(page, 'Check ROM').click()
@@ -628,8 +637,9 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Compare ROMs').click()
     await page.locator('main input[type=file]').setInputFiles(romPath)
     await expect(page.getByText('Overtime: 600 to 300 seconds.')).toBeVisible()
-    await expect(page.locator('main h3')).toHaveText(['For the league', 'Everything, team by team', 'Anaheim Mighty Ducks', 'Clock'])
+    await expect(page.locator('main h3')).toHaveText(['For the league', 'Everything, team by team', 'Anaheim Mighty Ducks', 'Clock', 'Title screen credits'])
     await expect(page.getByText(/^Line NLC: LW .* to .*\.$/)).toBeVisible()
+    await expect(page.getByText('Page 3: Programmed by / Mark Lesser / and Our League.')).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/compare.png', fullPage: true })
   })
 

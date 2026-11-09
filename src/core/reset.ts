@@ -144,13 +144,14 @@ export function resetTeam(project: RomProject, original: RomProject, team: numbe
 
 // ----------------------------------------------------------------- settings
 
-export type SettingsPart = 'clock' | 'menu' | 'rules' | 'playoffDraws'
+export type SettingsPart = 'clock' | 'menu' | 'rules' | 'playoffDraws' | 'credits'
 
 const SETTINGS_PARTS: Record<SettingsPart, (keyof Settings)[]> = {
   clock: ['periodLengths', 'overtimeSeconds', 'shootoutSeconds', 'cpuPullGoalie'],
   menu: ['menu'],
   rules: ['rules'],
   playoffDraws: ['playoffDraws'],
+  credits: ['credits'],
 }
 
 // The menu's starting choices are its values: a hack can change what choices

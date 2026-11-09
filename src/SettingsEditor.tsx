@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
 import { copyDraws, pasteDraws } from './core/clipboard'
 import type { GameConfig } from './core/games'
+import { CREDITS_LINE_LENGTH, CREDITS_PAGE_LINES, creditsBytes, creditsFit, creditsText } from './core/credits'
 import { isAllStarTeam } from './core/league'
 import { FEWEST_MENU_TEAMS, leagueDraws } from './core/menuteams'
 import { MAX_SECONDS, menuOptions, type FixedText, type Settings } from './core/settings'
@@ -202,6 +203,8 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
         </section>
       )}
 
+      {settings.credits && <CreditsSection settings={settings} original={original} onChange={onChange} />}
+
       <section>
         <h2>Main menu starting choices</h2>
         <p>
@@ -398,5 +401,55 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
         </section>
       )}
     </main>
+  )
+}
+
+// The credits rolled on the title screen, a box of lines for each page.
+function CreditsSection({ settings, original, onChange }: { settings: Settings; original: Settings; onChange: (settings: Settings) => void }) {
+  const credits = settings.credits!
+  const used = creditsBytes(credits.pages).length
+  const setPages = (pages: string[][]) => onChange({ ...settings, credits: { ...credits, pages } })
+  const setPage = (p: number, text: string) =>
+    setPages(credits.pages.map((page, i) => (i === p ? text.split('\n').map((line) => line.replace(/[^\x20-\x7e]/g, '')) : page)))
+  const fits = creditsFit(credits)
+  return (
+    <section>
+      <h2>Title screen credits</h2>
+      <p>
+        <ResetButton what="credits" changed={settingsPartChanged(settings, original, 'credits')} onReset={() => onChange(resetSettingsPart(settings, original, 'credits'))} />{' '}
+        <span className={fits ? 'note' : 'error'}>
+          {used} of {credits.room} bytes used.{fits ? '' : ' Too long: the credits are not written until they fit.'}
+        </span>
+      </p>
+      <p className="note">
+        The credits roll page by page on the title screen, each page held for a moment. A page has up to {CREDITS_PAGE_LINES} lines of up to{' '}
+        {CREDITS_LINE_LENGTH} letters, centred by the game; an empty line is a gap. <b>$</b> shows as the copyright sign. The first page is EA's
+        copyright notice: smozoma's guide to the credits warns that changing it can cause trouble, though league ROMs have changed it.
+      </p>
+      <ol className="credits">
+        {credits.pages.map((page, p) => {
+          const long = page.some((line) => line.length > CREDITS_LINE_LENGTH || !creditsText(line)) || page.length > CREDITS_PAGE_LINES
+          return (
+            <li key={p}>
+              <textarea
+                aria-label={`Credits page ${p + 1}`}
+                className={long ? 'shared' : undefined}
+                rows={CREDITS_PAGE_LINES}
+                cols={CREDITS_LINE_LENGTH + 2}
+                value={page.join('\n')}
+                onChange={(e) => setPage(p, e.target.value)}
+              />{' '}
+              <button title="Add a page after this one" onClick={() => setPages([...credits.pages.slice(0, p + 1), [''], ...credits.pages.slice(p + 1)])}>
+                Add page
+              </button>{' '}
+              <button disabled={credits.pages.length <= 1} title="Remove this page" onClick={() => setPages(credits.pages.filter((_, i) => i !== p))}>
+                Remove
+              </button>
+              {long && <span className="note"> More than the original game's {CREDITS_PAGE_LINES} lines of {CREDITS_LINE_LENGTH} letters: check it on the screen.</span>}
+            </li>
+          )
+        })}
+      </ol>
+    </section>
   )
 }

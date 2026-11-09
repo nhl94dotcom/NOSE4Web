@@ -1,35 +1,51 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { openRom } from '../src/core/rom'
+import { checkProject } from '../src/core/check'
+import { creditsBytes, parseCredits } from '../src/core/credits'
+import { buildRom, openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
+const hasRom = existsSync(path('nhl94.bin'))
+const open = (name = 'nhl94.bin') => openRom(new Uint8Array(readFileSync(path(name))))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
-const local: { otherRoms?: string[]; snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
-const credit = (name: string) => openRom(new Uint8Array(readFileSync(path(name)))).game.credit
+const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
 
-describe("crediting a hack's maker", () => {
-  const evo = local.otherRoms?.find((name) => / EVO /.test(name))
-  it.skipIf(!evo || !existsSync(path(evo)))('names AdamCatalyst for EVO', () => {
-    expect(credit(evo!)).toEqual({ rom: 'NHL 94 EVO', author: 'AdamCatalyst', url: 'https://forum.nhl94.com/index.php?/topic/40320-nhl-94-evo/' })
+describe.skipIf(!hasRom)('the title screen credits', () => {
+  it("are read from the original game's 934 bytes at $5776, and make the same bytes again", () => {
+    const rom = open().bytes
+    const credits = parseCredits(rom)!
+    expect(credits.room).toBe(934)
+    expect(credits.pages).toHaveLength(21)
+    expect(credits.pages[0]).toEqual(['$ 1993 Electronic Arts', 'Licensed by', 'Sega Enterprises Ltd.'])
+    expect(credits.pages[2]).toEqual(['Programmed by', 'Mark Lesser'])
+    expect(Buffer.compare(Buffer.from(creditsBytes(credits.pages)), Buffer.from(rom.subarray(0x5776, 0x5776 + 934)))).toBe(0)
   })
 
-  for (const name of ['nhl94_2026.sfc', 'nhl94snes_2026.sfc']) {
-    it.skipIf(!existsSync(path(name)))(`names McMarkis for his 32-team build, ${name}`, () => {
-      expect(credit(name)).toMatchObject({ rom: 'SNES NHL 94: 32 Team + 60 FPS + Fighting', author: 'McMarkis' })
-    })
-  }
+  it('are read in every Genesis ROM on this computer that keeps them in place, and left as they are', () => {
+    for (const name of [local.league30Rom, ...(local.otherRoms ?? [])].filter((n): n is string => !!n && existsSync(path(n)))) {
+      const project = open(name)
+      const credits = project.settings.credits
+      if (!credits) continue
+      expect(creditsBytes(credits.pages).length, name).toBeLessThanOrEqual(credits.room)
+      expect(parseCredits(buildRom(project)), name).toEqual(credits)
+    }
+  })
 
-  for (const name of ['nhl94.bin', 'NHL94.smc', 'SDL16.smc', 'NHL94_Classic.smc']) {
-    it.skipIf(!existsSync(path(name)))(`credits no one for ${name}`, () => {
-      expect(credit(name)).toBeUndefined()
-    })
-  }
-})
+  it('are written when changed, the rest of their room cleared, and refused when too long', () => {
+    const project = open()
+    const credits = project.settings.credits!
+    const pages = [credits.pages[0], ['Edited by', 'The Commissioner'], ['']]
+    const edited = openRom(buildRom({ ...project, settings: { ...project.settings, credits: { ...credits, pages } } }))
+    expect(edited.settings.credits!.pages).toEqual(pages)
+    const used = creditsBytes(pages).length
+    expect(edited.bytes.subarray(0x5776 + used, 0x5776 + 934).every((byte) => byte === 0)).toBe(true)
+    // The table after them is untouched.
+    expect(Buffer.compare(Buffer.from(edited.bytes.subarray(0x5776 + 934, 0x5776 + 950)), Buffer.from(project.bytes.subarray(0x5776 + 934, 0x5776 + 950)))).toBe(0)
 
-describe('crediting McMarkis for a build with other teams', () => {
-  const name = 'nhl94_SA1_Original.sfc'
-  it.skipIf(!existsSync(path(name)))('names him for his 28-team build with the original rosters', () => {
-    expect(credit(name)).toMatchObject({ rom: 'a 28-team build of SNES NHL 94: 32 Team + 60 FPS + Fighting', author: 'McMarkis' })
+    const long = { ...project, settings: { ...project.settings, credits: { ...credits, pages: Array.from({ length: 60 }, () => ['A line of credits text']) } } }
+    expect(checkProject(long).some((finding) => finding.level === 'problem' && finding.where === 'Title screen credits')).toBe(true)
+    // Not written, so the ROM keeps the credits it had.
+    expect(openRom(buildRom(long)).settings.credits!.pages).toEqual(credits.pages)
   })
 })

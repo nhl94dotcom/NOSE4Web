@@ -152,6 +152,14 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
   if (pullNow && pullWas && (pullNow.goalsUnder !== pullWas.goalsUnder || pullNow.secondsUnder !== pullWas.secondsUnder)) {
     add('Computer pulls its goalie', [`${pullGoalieText(pullWas)} to ${pullGoalieText(pullNow)}.`])
   }
+  const [creditsNow, creditsWas] = [now.credits, old.credits]
+  if (creditsNow && creditsWas) {
+    const lines = creditsNow.pages.flatMap((page, i) =>
+      JSON.stringify(page) === JSON.stringify(creditsWas.pages[i]) ? [] : [`Page ${i + 1}: ${page.filter((line) => line.trim()).join(' / ') || '(blank)'}.`],
+    )
+    if (creditsWas.pages.length > creditsNow.pages.length) lines.push(`${creditsWas.pages.length - creditsNow.pages.length} pages fewer, ${creditsNow.pages.length} in all.`)
+    add('Title screen credits', lines)
+  }
 
   const choice = (project: RomProject, i: number) => {
     const item = project.settings.menu[i]

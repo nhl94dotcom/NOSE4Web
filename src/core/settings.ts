@@ -1,4 +1,5 @@
 import { readAscii, readU16, readU32, writeAscii, writeU16 } from './bytes'
+import { parseCredits, writeCredits, type Credits } from './credits'
 import type { GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams, type MenuTeams } from './menuteams'
 
@@ -46,6 +47,8 @@ export interface Settings {
   menuTeams: MenuTeams | null
   // When a computer team pulls its goalie, where the editor finds it (SNES).
   cpuPullGoalie?: CpuPullGoalie | null
+  // The credits on the title screen, where the editor finds them (Genesis).
+  credits?: Credits | null
 }
 
 // A computer team pulls its goalie in the third period when it is behind by
@@ -143,6 +146,7 @@ export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
     shootoutSeconds: readU16(rom, game.shootoutSecondsOffset),
     menu: parseMenu(rom, game),
     menuTeams: parseMenuTeams(rom, game),
+    credits: parseCredits(rom),
   }
 }
 
@@ -168,6 +172,9 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
   const defaults = menuAddresses(rom, game).defaults
   settings.menu.forEach((item, i) => writeU16(rom, defaults + i * 2, item.value))
   writeMenuTeams(rom, game, settings.menuTeams, settings.playoffDraws)
+  // Only when changed, so that credits as the ROM has them keep their bytes.
+  const credits = settings.credits
+  if (credits && JSON.stringify(parseCredits(rom)?.pages) !== JSON.stringify(credits.pages)) writeCredits(rom, credits)
 }
 
 // Whether the project has game settings to edit: all of them, or for the

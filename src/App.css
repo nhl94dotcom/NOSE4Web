@@ -149,6 +149,15 @@ input.name {
 }
 
 /* A jersey number another player on the team wears too. */
+textarea.shared {
+  border-color: var(--bad);
+}
+
+ol.credits textarea {
+  font-family: monospace;
+  vertical-align: top;
+}
+
 select.hidden-slot {
   border-style: dashed;
 }

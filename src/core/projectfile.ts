@@ -4,6 +4,7 @@
 // of a season as it stood, and passes changes to someone with their own ROM.
 
 import { FEWEST_MENU_TEAMS } from './menuteams'
+import { creditsFit, type Credits } from './credits'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from './sneshacks'
@@ -194,6 +195,7 @@ function mergeSettings(base: Settings, from: Settings, teamCount: number, notes:
       goalsUnder: Math.min(0xff, number(from.cpuPullGoalie?.goalsUnder, base.cpuPullGoalie.goalsUnder)),
       secondsUnder: Math.min(0xffff, number(from.cpuPullGoalie?.secondsUnder, base.cpuPullGoalie.secondsUnder)),
     },
+    credits: base.credits && fileCredits(from.credits, base.credits),
   }
 }
 
@@ -431,4 +433,12 @@ function withSnesPictures(project: RomProject, stored: ProjectFile['snesPictures
     notes.push(`The project's logos were left out: ${e instanceof Error ? e.message : String(e)}`)
     return project
   }
+}
+
+// A file's credits, where they are lines of text that fit this ROM's room.
+function fileCredits(value: unknown, base: Credits): Credits {
+  const pages = (value as Credits | undefined)?.pages
+  if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page) && page.every((line) => typeof line === 'string'))) return base
+  const credits = { room: base.room, pages: pages.map((page) => page.slice()) }
+  return creditsFit(credits) ? credits : base
 }
