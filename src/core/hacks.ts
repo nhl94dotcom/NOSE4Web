@@ -136,6 +136,9 @@ export interface HackChoices {
   introWait: number
   // Offer the menu's fourth period length, and the regular season's overtime on it in seconds: 0 is the original game (three lengths).
   fourthPeriodOvertime: number
+  // Energy a skater loses when knocked down, and when a hold or hook catches him (0 to $1000 is empty to full): 0 is the original game.
+  hitEnergy: number
+  holdEnergy: number
   // How fast the puck slows on the ice: it loses 1 / 2^n of its speed a frame, 9 in the original game.
   puckFriction: number
   // Which of the game's colour sets the puck is drawn in.
@@ -195,6 +198,8 @@ export type HackPart =
   | 'fewerSkaterLines'
   | 'introWait'
   | 'fourthPeriodOvertime'
+  | 'hitEnergy'
+  | 'holdEnergy'
   | 'puckFriction'
   | 'puckColours'
   | 'netColours'
@@ -251,6 +256,8 @@ export const NO_HACKS: HackChoices = {
   fewerSkaterLines: 0,
   introWait: 80,
   fourthPeriodOvertime: 0,
+  hitEnergy: 0,
+  holdEnergy: 0,
   puckFriction: 9,
   puckColours: 'rink',
   netColours: 'rink',
@@ -271,6 +278,8 @@ export const HACK_RANGES = {
   goalieDelay: [1, 128],
   introWait: [0, 600],
   fourthPeriodOvertime: [0, 5999],
+  hitEnergy: [0, 204],
+  holdEnergy: [0, 204],
   puckFriction: [1, 12],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
@@ -602,6 +611,66 @@ const fourthPeriodOvertime: Part<number> = {
     setPeriodChoices(work.rom, OT4_LENGTHS.hacked)
   },
 }
+
+// ------------------------------------------------------- energy lost to hits
+// A community idea, read from the code by Match Viewer: a skater knocked
+// down loses energy, and one caught by a hold or hook loses some too, with
+// line changes On only (OptLine 0 and not Auto's full-energy flag, sflags7
+// bit 4), as the game's own drain. Energy runs from 0 to $1000; a burst
+// costs $CC. FallDown's .cont2 ($14116, a real fall, past the stumble test,
+// each pair once) has tst.w position(a3) / beq.w .chkpos: those 8 bytes
+// become jsr / nop to code that, for a skater (position(a2) not 0) knocked
+// down by a player (SCnum(a3) 11 or less: not the puck), takes the amount
+// off with getpde and setpde, registers kept, then makes the same test and
+// returns to .chkpos ($14150) for a goalie hitter. holdcheck's move.w
+// #SPAflail,d1 / bsr.w SetSPA ($13F5C), the moment a hold catches a3 (once
+// a hold: a3 is then locked), becomes jsr / nop to code that takes its
+// amount off a3, then sets the flail and goes on to SetSPA.
+const HIT_HOOK: Hook = { at: 0x14116, original: bytes('4A6B 0034 6700 0034') }
+const hex4 = (value: number) => value.toString(16).padStart(4, '0')
+const hitCode = (amount: number) =>
+  bytes(
+    `4A78 D058 6630 0838 0004 C2FC 6628 4A6A 0034 6722 0C6B 000B 0052 6E1A 48E7 E0F0 264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 4A6B 0034 6606 2EBC 0001 4150 4E75`,
+  )
+const HIT_VALUE_AT = 42
+const HOLD_HOOK: Hook = { at: 0x13f5c, original: bytes('323C 0CF4 6100 C7D8') }
+const holdCode = (amount: number) =>
+  bytes(`4A78 D058 6620 0838 0004 C2FC 6618 48E7 E0F0 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 323C 0CF4 4EF9 0001 073A`)
+const HOLD_VALUE_AT = 26
+// The recommended amounts (Match Viewer, from measured shifts): half a burst for a knockdown, about 12 game
+// seconds of skating on the Genesis (2.4% of full), and half that for a hold; at most a whole burst.
+export const RECOMMENDED_HIT_ENERGY = 100
+export const RECOMMENDED_HOLD_ENERGY = 50
+export const FULL_ENERGY = 0x1000
+
+// A part whose hook calls code holding one amount.
+function amountPart(at: Hook, code: (amount: number) => Uint8Array, valueAt: number): Part<number> {
+  const target = (rom: Uint8Array) => {
+    if (readU16(rom, at.at) !== OP_JSR || readU16(rom, at.at + 6) !== OP_NOP) return null
+    const to = readU32(rom, at.at + 2)
+    const length = code(0).length
+    if (to + length > rom.length) return null
+    return is(rom, to, code(readU16(rom, to + valueAt))) ? to : null
+  }
+  return {
+    detect(rom) {
+      if (is(rom, at.at, at.original)) return 0
+      const to = target(rom)
+      return to === null ? undefined : readU16(rom, to + valueAt)
+    },
+    remove(rom) {
+      const to = target(rom)
+      if (to === null) return
+      erase(rom, to, code(0).length)
+      rom.set(at.original, at.at)
+    },
+    apply(work, value) {
+      if (value > 0) hook(work, at, code(value))
+    },
+  }
+}
+const hitEnergy = amountPart(HIT_HOOK, hitCode, HIT_VALUE_AT)
+const holdEnergy = amountPart(HOLD_HOOK, holdCode, HOLD_VALUE_AT)
 
 // ------------------------------------------------------ plus-minus statistic
 // Keeps each player's plus-minus where a save state can be read for it. The
@@ -1633,6 +1702,8 @@ export function detectHacks(rom: Uint8Array): HackState {
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
     introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
     fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
+    hitEnergy: found('hitEnergy', hitEnergy.detect(rom), NO_HACKS.hitEnergy),
+    holdEnergy: found('holdEnergy', holdEnergy.detect(rom), NO_HACKS.holdEnergy),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
@@ -1699,6 +1770,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
     ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
     ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
+    ['hitEnergy', () => hitEnergy.remove(work.rom), () => hitEnergy.apply(work, wanted.hitEnergy)],
+    ['holdEnergy', () => holdEnergy.remove(work.rom), () => holdEnergy.apply(work, wanted.holdEnergy)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
@@ -1767,7 +1840,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1919,6 +1992,8 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   fewerSkaterLines: 'Edit Lines for fewer skaters',
   introWait: 'Intro screen wait',
   fourthPeriodOvertime: 'Fourth period length, with its own overtime',
+  hitEnergy: 'Energy lost when knocked down',
+  holdEnergy: 'Energy lost when held or hooked',
   puckFriction: 'Puck friction',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
@@ -1970,6 +2045,8 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   fewerSkaterLines: 'fewerSkaterLines',
   introWait: 'introWait',
   fourthPeriodOvertime: 'fourthPeriodOvertime',
+  hitEnergy: 'hitEnergy',
+  holdEnergy: 'holdEnergy',
   puckFriction: 'puckFriction',
   puckColours: 'puckColours',
   netColours: 'netColours',

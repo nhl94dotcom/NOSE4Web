@@ -273,6 +273,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { greenFan: true },
       { goalieDelay: 128 },
       { fourthPeriodOvertime: 5940 },
+      { hitEnergy: 204 },
+      { holdEnergy: 102 },
+      { hitEnergy: 204, holdEnergy: 102 },
     ]
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }
@@ -332,6 +335,30 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const fan = applyHacks(opened, { ...NO_HACKS, greenFan: true }).bytes
     expect([at(fan, 0xbdeae, 2), at(fan, 0xbdeee, 2)]).toEqual(['206a', '2074'])
     expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')
+  })
+
+  it('takes energy from a skater knocked down, and from one caught by a hold, with line changes on', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    expect(at(opened.bytes, 0x14116, 8)).toBe('4a6b003467000034')
+    expect(at(opened.bytes, 0x13f5c, 8)).toBe('323c0cf46100c7d8')
+    const hacked = applyHacks(opened, { ...NO_HACKS, hitEnergy: 204, holdEnergy: 102 }).bytes
+    // FallDown's .cont2 and holdcheck's flail become jsr / nop.
+    expect(at(hacked, 0x14116, 2) + at(hacked, 0x1411c, 2)).toBe('4eb94e71')
+    expect(at(hacked, 0x13f5c, 2) + at(hacked, 0x13f62, 2)).toBe('4eb94e71')
+    const hit = readU32(hacked, 0x14118)
+    // Line changes on and not Auto; a skater; a player hitter; getpde, take 204, setpde; then .cont2's test, .chkpos by the return address.
+    expect(at(hacked, hit, 68)).toBe(
+      '4a78d05866300838' + '0004c2fc66284a6a' + '003467220c6b000b' + '00526e1a48e7e0f0' + '264a4eb90001575a' + '044000cc4eb90001' + '577a4cdf0f074a6b' + '003466062ebc0001' + '41504e75',
+    )
+    const hold = readU32(hacked, 0x13f5e)
+    expect(at(hacked, hold, 48)).toBe('4a78d05866200838' + '0004c2fc661848e7' + 'e0f04eb90001575a' + '044000664eb90001' + '577a4cdf0f07323c' + '0cf44ef90001073a')
+    // The routines the code calls are where it says: getpde, setpde and SetSPA.
+    expect(at(opened.bytes, 0x1575a, 4)).toBe('347cc6ce')
+    expect(at(opened.bytes, 0x1577a, 4)).toBe('4a406a00')
+    expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
+    expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
+    expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 205 })).toThrow('from 0 to 204')
   })
 
   it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {

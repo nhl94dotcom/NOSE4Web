@@ -21,6 +21,8 @@ export interface HackSheet {
 type Explain = (choices: HackChoices) => string
 
 const more = (value: number, original: number, bigger: string, smaller: string) => (value > original ? bigger : smaller)
+// An amount of energy as a share of full energy ($1000).
+const energyText = (units: number) => `${Math.round((units / 4096) * 1000) / 10}%`
 // Seconds as the game's clock shows them, minutes and seconds.
 const clockText = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 
@@ -83,6 +85,9 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
+  hitEnergy: (c) =>
+    `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
+  holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   fourthPeriodOvertime: (c) =>
     `The menu offers a fourth period length, and a regular-season game on it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
   introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
@@ -116,7 +121,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'hitEnergy', 'holdEnergy']],
   ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]

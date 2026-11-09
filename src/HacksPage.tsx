@@ -28,6 +28,9 @@ import {
   type WeightFix,
   fewerSkaterLinesFor,
   fewerSkaterLinesText,
+  FULL_ENERGY,
+  RECOMMENDED_HIT_ENERGY,
+  RECOMMENDED_HOLD_ENERGY,
 } from './core/hacks'
 import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
@@ -43,6 +46,10 @@ interface Props {
   onChange: (project: RomProject) => void
 }
 
+
+// An energy amount as units and as a share of full energy.
+const energyShare = (units: number) =>
+  units === 0 ? 'none taken' : `${units} units is ${Math.round((units / FULL_ENERGY) * 1000) / 10}% of full energy`
 
 const PUCK_TEXTS: Record<PuckColours, string> = {
   rink: "The rink's, as the original game",
@@ -744,6 +751,34 @@ export function HacksPage({ project, name, onChange }: Props) {
             From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
             0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
           </>,
+        )}
+        {hack(
+          'hitEnergy',
+          number('hitEnergy'),
+          <>
+            An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so
+            he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game,
+            where a hit costs the skater nothing. Only with line changes On, where the game's energy counts at all. Full
+            energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (2.4%), half
+            what a burst of speed costs, about 12 seconds of skating or a tenth of a typical shift's tiring; up to 204, a
+            whole burst. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
+            code by the NHL94 Match Viewer project, which measured the shifts; not yet tested in the game.
+          </>,
+          <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
+            Use the recommended {RECOMMENDED_HIT_ENERGY}
+          </button>,
+        )}
+        {hack(
+          'holdEnergy',
+          number('holdEnergy'),
+          <>
+            The same for a skater caught by a hold or hook (A without the puck), once each time it catches him.{' '}
+            {energyShare(wanted.holdEnergy)}. Recommended: {RECOMMENDED_HOLD_ENERGY} (1.2%), half a knockdown's. Only with line
+            changes On.
+          </>,
+          <button type="button" disabled={unknown('holdEnergy') || wanted.holdEnergy === RECOMMENDED_HOLD_ENERGY} onClick={() => set({ holdEnergy: RECOMMENDED_HOLD_ENERGY })}>
+            Use the recommended {RECOMMENDED_HOLD_ENERGY}
+          </button>,
         )}
         {hack(
           'goalieDelay',
