@@ -45,7 +45,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(detectSnesHacks(more.bytes).amounts).toEqual({ hitEnergy: 204, holdEnergy: 50 })
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
-    expect(() => applySnesHacks(project, {}, false, { hitEnergy: 205 })).toThrow('from 0 to 204')
+    expect(() => applySnesHacks(project, {}, false, { hitEnergy: 1025 })).toThrow('from 0 to 1024')
     // A project file keeps the amounts.
     const reopened = openProjectFile(project, saveProjectFile(again, project, 'test')).project
     expect(detectSnesHacks(reopened.bytes).amounts).toEqual({ hitEnergy: 100, holdEnergy: 50 })

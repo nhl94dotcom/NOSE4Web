@@ -358,7 +358,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(opened.bytes, 0x1577a, 4)).toBe('4a406a00')
     expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
-    expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 205 })).toThrow('from 0 to 204')
+    expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 1025 })).toThrow('from 0 to 1024')
   })
 
   it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {

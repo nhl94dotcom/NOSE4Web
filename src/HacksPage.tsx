@@ -759,9 +759,10 @@ export function HacksPage({ project, name, onChange }: Props) {
             An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so
             he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game,
             where a hit costs the skater nothing. Only with line changes On, where the game's energy counts at all. Full
-            energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (2.4%), half
-            what a burst of speed costs, about 12 seconds of skating or a tenth of a typical shift's tiring; up to 204, a
-            whole burst. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
+            energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a
+            burst of speed costs, about 25 seconds of skating: with it a game's hits tire players a little more. Half as
+            much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to
+            wear players down. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
             code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game: each knockdown and hold takes its amount once, and nothing with line changes Off or Auto.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
@@ -773,7 +774,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           number('holdEnergy'),
           <>
             The same for a skater caught by a hold or hook (A without the puck), once each time it catches him.{' '}
-            {energyShare(wanted.holdEnergy)}. Recommended: {RECOMMENDED_HOLD_ENERGY} (1.2%), half a knockdown's. Only with line
+            {energyShare(wanted.holdEnergy)}. Recommended: {RECOMMENDED_HOLD_ENERGY} (2.5%), half a knockdown's. Only with line
             changes On.
           </>,
           <button type="button" disabled={unknown('holdEnergy') || wanted.holdEnergy === RECOMMENDED_HOLD_ENERGY} onClick={() => set({ holdEnergy: RECOMMENDED_HOLD_ENERGY })}>

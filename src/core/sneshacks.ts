@@ -397,12 +397,12 @@ const FOURTH_OVERTIME = 99 * 60
 // ------------------------------------------------------- energy lost to hits
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
-// shifts: half a burst for a knockdown, half that for a hold.
+// shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
 export type SnesAmount = 'hitEnergy' | 'holdEnergy'
 export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy']
-export const RECOMMENDED_SNES_HIT_ENERGY = 100
-export const RECOMMENDED_SNES_HOLD_ENERGY = 50
-export const SNES_AMOUNT_RANGE: [number, number] = [0, 204]
+export const RECOMMENDED_SNES_HIT_ENERGY = 204
+export const RECOMMENDED_SNES_HOLD_ENERGY = 102
+export const SNES_AMOUNT_RANGE: [number, number] = [0, 1024]
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38

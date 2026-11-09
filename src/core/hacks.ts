@@ -278,8 +278,8 @@ export const HACK_RANGES = {
   goalieDelay: [1, 128],
   introWait: [0, 600],
   fourthPeriodOvertime: [0, 5999],
-  hitEnergy: [0, 204],
-  holdEnergy: [0, 204],
+  hitEnergy: [0, 1024],
+  holdEnergy: [0, 1024],
   puckFriction: [1, 12],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
@@ -637,10 +637,11 @@ const HOLD_HOOK: Hook = { at: 0x13f5c, original: bytes('323C 0CF4 6100 C7D8') }
 const holdCode = (amount: number) =>
   bytes(`4A78 D058 6620 0838 0004 C2FC 6618 48E7 E0F0 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 323C 0CF4 4EF9 0001 073A`)
 const HOLD_VALUE_AT = 26
-// The recommended amounts (Match Viewer, from measured shifts): half a burst for a knockdown, about 12 game
-// seconds of skating on the Genesis (2.4% of full), and half that for a hold; at most a whole burst.
-export const RECOMMENDED_HIT_ENERGY = 100
-export const RECOMMENDED_HOLD_ENERGY = 50
+// The recommended amounts: a burst's cost for a knockdown (5% of full, about 25 game seconds of skating
+// on the Genesis), half that for a hold. Match Viewer measured half as much as too small to notice (under
+// 4% more tiring in a game); up to a quarter of full energy for a league that wants hits to wear players down.
+export const RECOMMENDED_HIT_ENERGY = 204
+export const RECOMMENDED_HOLD_ENERGY = 102
 export const FULL_ENERGY = 0x1000
 
 // A part whose hook calls code holding one amount.
