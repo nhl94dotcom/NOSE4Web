@@ -37,16 +37,27 @@ describe.skipIf(!hasRom)('a player twice on a line', () => {
     const line = team.lines[0].map((v, s) => (s === LW ? team.lines[0][C] : v))
     const fixed = withoutRepeats(team, line)
     expect(repeatedLineSlots(fixed)).toEqual([])
-    // The later of the two positions is the one given someone else.
+    // The later of the two positions is the one given someone else, unless the other is the one just changed.
     expect(fixed[LW]).toBe(line[LW])
     expect(playerRole(team, fixed[C])).toBe('forward')
+    const changedFirst = withoutRepeats(team, line, [LW])
+    expect(changedFirst[C]).toBe(line[C])
+    expect(repeatedLineSlots(changedFirst)).toEqual([])
+    expect(playerRole(team, changedFirst[LW])).toBe('forward')
   })
 
   it('is not made by deleting a player', () => {
     const team = open().teams[BOSTON]
     // Delete each skater in turn: his places fall to the last player, who may be on the line already.
     for (let i = goalieCount(team); i < team.players.length; i++) {
-      for (const line of deletePlayer(team, i).lines) expect(repeatedLineSlots(line)).toEqual([])
+      const next = deletePlayer(team, i)
+      next.lines.forEach((line, l) => {
+        expect(repeatedLineSlots(line)).toEqual([])
+        // Every other position keeps its player.
+        for (let slot = 0; slot < 7; slot++) {
+          if (team.lines[l][slot] !== i + 1) expect(next.players[line[slot] - 1].name).toBe(team.players[team.lines[l][slot] - 1].name)
+        }
+      })
     }
   })
 })
@@ -56,7 +67,7 @@ describe.skipIf(!hasRom)('roles on a line', () => {
     for (const team of open().teams) for (const line of team.lines) expect(outOfRoleSlots(team, line)).toEqual([])
   })
 
-  it('tell goalies, forwards and defence apart, with any skater as extra attacker', () => {
+  it('tell goalies, forwards and defence apart, with a forward as extra attacker but where Edit Lines allows any skater', () => {
     const team: Team = open().teams[BOSTON]
     const goalies = goalieCount(team)
     const forward = goalies + 1
@@ -66,9 +77,13 @@ describe.skipIf(!hasRom)('roles on a line', () => {
     expect(suitsSlot(team, 1, forward)).toBe(false)
     expect(suitsSlot(team, C, forward)).toBe(true)
     expect(suitsSlot(team, C, defence)).toBe(false)
-    expect(suitsSlot(team, 6, defence)).toBe(true)
-    expect(suitsSlot(team, 6, 1)).toBe(false)
-    const line = team.lines[0].map((v, s) => (s === 1 ? forward : v))
-    expect(outOfRoleSlots(team, line)).toEqual([1])
+    expect(suitsSlot(team, 6, forward)).toBe(true)
+    expect(suitsSlot(team, 6, defence)).toBe(false)
+    expect(suitsSlot(team, 6, defence, true)).toBe(true)
+    expect(suitsSlot(team, 1, forward, true)).toBe(true)
+    expect(suitsSlot(team, 6, 1, true)).toBe(false)
+    const line = team.lines[0].map((v, s) => (s === 1 ? forward : s === 6 ? defence : v))
+    expect(outOfRoleSlots(team, line)).toEqual([1, 6])
+    expect(outOfRoleSlots(team, line, true)).toEqual([])
   })
 })

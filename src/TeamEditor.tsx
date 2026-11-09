@@ -214,7 +214,7 @@ export function TeamEditor(props: Props) {
   )
   const suitsSlot = (t: Team, slot: number, position: number) => suitsSlotFor(t, slot, position, anyPosition)
   // Each position offers only the players it is for: goalies in goal, defence
-  // on defence, forwards up front, and any skater as the extra attacker. One
+  // on defence, forwards up front and as the extra attacker (core/lines.ts). One
   // the ROM already has out of his role is kept, and shown as such.
   const roleWord = { goalie: 'goalie', defence: 'defence', forward: 'forward' }
   const lineBox = (l: number, slot: number, line: number[]) => {

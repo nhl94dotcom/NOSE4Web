@@ -425,7 +425,7 @@ export function HelpPage() {
       </p>
       <p>
         Each position offers only the players it is for, as the game's own Edit Lines does: goalies in the G column,
-        defencemen at LD and RD, forwards at LW, C and RW, and any skater as the extra attacker (EA). Whether a skater
+        defencemen at LD and RD, and forwards at LW, C and RW and as the extra attacker (EA). Whether a skater
         is a forward or a defenceman comes from the roster: the forwards come first. Choosing a player who is already
         in another position on the line swaps the two, so no one is on a line twice.
       </p>

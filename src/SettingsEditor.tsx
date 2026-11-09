@@ -192,7 +192,8 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange }
                 seconds or less left.
               </p>
               <p className="note">
-                A team the computer controls pulls its goalie for an extra attacker then. The original
+                A team the computer controls pulls its goalie for an extra attacker then, while it carries the puck in its
+                attacking half. The original
                 game does it behind by 1 or 2 goals with 60 seconds or less left. 0 goals means never. These are the two numbers
                 NHL94SNESVault's CPU pull goalie setting changes.
               </p>

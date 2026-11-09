@@ -146,7 +146,7 @@ function attributeHeadings(project: RomProject): string[] {
 }
 
 // Moves each line slot to wherever its player now sits on the roster.
-function remapLines(old: Team, players: Player[]): { lines: number[][]; lost: number } {
+function remapLines(old: Team, players: Player[]): { lines: number[][]; lost: number; lostSlots: number[][] } {
   const used = new Set<number>()
   const find = (match: (candidate: Player) => boolean) => players.findIndex((p, i) => !used.has(i) && match(p))
   const moved = old.players.map((player) => {
@@ -157,15 +157,17 @@ function remapLines(old: Team, players: Player[]): { lines: number[][]; lost: nu
   })
 
   let lost = 0
-  const lines = old.lines.map((line) =>
+  const lostSlots = old.lines.map(() => [] as number[])
+  const lines = old.lines.map((line, l) =>
     line.map((position, slot) => {
       if (slot >= LINE_SLOTS || position === 0 || position > old.players.length) return position
       if (moved[position - 1] >= 0) return moved[position - 1] + 1
       lost++
+      lostSlots[l].push(slot)
       return slot === 0 ? 1 : Math.min(position, players.length)
     }),
   )
-  return { lines, lost }
+  return { lines, lost, lostSlots }
 }
 
 const players: CsvTable = {
@@ -253,7 +255,7 @@ const players: CsvTable = {
       }
 
       const roster = sorted.map((entry) => entry.player)
-      const { lines, lost } = remapLines(old, roster)
+      const { lines, lost, lostSlots } = remapLines(old, roster)
       if (lost > 0) warnings.push(`${name}: ${plural(lost, 'line slot')} used players who are gone. ${LINES_WARNING}`)
       // Only whether a goalie byte is zero matters to the game (see roster.ts).
       const goalieNibbles = old.goalieNibbles.map((value, i) => (i >= goalies ? 0 : value || 1))
@@ -261,7 +263,7 @@ const players: CsvTable = {
 
       // A slot that fell to another player must not repeat one on its line.
       const next = { ...old, players: roster, lines, goalieNibbles, forwards, defense }
-      changed.set(index, lost > 0 ? { ...next, lines: lines.map((line) => withoutRepeats(next, line)) } : next)
+      changed.set(index, lost > 0 ? { ...next, lines: lines.map((line, l) => (lostSlots[l].length > 0 ? withoutRepeats(next, line, lostSlots[l]) : line)) } : next)
       playerCount += roster.length
     }
     sheet.finish()

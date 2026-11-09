@@ -20,6 +20,7 @@ export function emptyLineSlots(teams: Team[]): boolean[][] {
 // The skaters' positions on a line: two defence and three forwards. The
 // extra attacker is left out; the original game often repeats a player there.
 export const SKATER_LINE_SLOTS = [1, 2, 3, 4, 5]
+const EXTRA_ATTACKER = 6
 const DEFENCE_LINE_SLOTS = [1, 2]
 
 // The positions of a line held by a player who is already in an earlier one.
@@ -38,8 +39,18 @@ export function repeatedLineSlots(line: number[]): number[] {
 
 // A line with each repeated skater replaced by one not on it yet: a defenceman
 // for a defence position and a forward for a forward's, if there is one free.
-export function withoutRepeats(team: Team, line: number[]): number[] {
-  const repeated = repeatedLineSlots(line)
+// Of a player's positions, he keeps one that is not in `changed` (positions
+// just given him, as when a deleted player's fall to the last on the roster),
+// else the first.
+export function withoutRepeats(team: Team, line: number[], changed: number[] = []): number[] {
+  const repeated = SKATER_LINE_SLOTS.filter((slot) => {
+    const position = line[slot]
+    if (position === 0) return false
+    const holders = SKATER_LINE_SLOTS.filter((s) => line[s] === position)
+    if (holders.length < 2) return false
+    const kept = holders.find((s) => !changed.includes(s)) ?? holders[0]
+    return slot !== kept
+  })
   if (repeated.length === 0) return line
   const next = line.slice()
   for (const slot of repeated) {
@@ -60,11 +71,13 @@ export function freeSkater(team: Team, line: number[], slot: number): number | u
 
 export type LineRole = 'goalie' | 'defence' | 'forward' | 'skater'
 
-// Who a position on a line is for. The extra attacker may be any skater, and
-// so may any skater's position with `anyPosition`: in an SNES ROM with
-// NHL94SNESVault's hack that lets Edit Lines put any skater anywhere.
+// Who a position on a line is for, as both games' Edit Lines has it: the
+// extra attacker is a forward (the Genesis's SelectLinePlayer lists forwards
+// for every position past the defence; every original roster has one there).
+// With `anyPosition` any skater may take any skater's position: in an SNES ROM
+// with NHL94SNESVault's hack that lets Edit Lines put any skater anywhere.
 export function slotRole(slot: number, anyPosition = false): LineRole {
-  return slot === 0 ? 'goalie' : anyPosition || slot >= 6 ? 'skater' : DEFENCE_LINE_SLOTS.includes(slot) ? 'defence' : 'forward'
+  return slot === 0 ? 'goalie' : anyPosition ? 'skater' : DEFENCE_LINE_SLOTS.includes(slot) ? 'defence' : 'forward'
 }
 
 // A roster position's role, counted from 1: goalies, then forwards, then defence.
@@ -78,11 +91,11 @@ export function suitsSlot(team: Team, slot: number, position: number, anyPositio
   return role === 'skater' ? playerRole(team, position) !== 'goalie' : playerRole(team, position) === role
 }
 
-// A forward on defence or a defenceman up front: the game's own Edit Lines
-// does not offer it, but some ROMs do it on purpose, as forwards on the points
-// of a power play.
+// A forward on defence or a defenceman up front, the extra attacker's place
+// among them: the game's own Edit Lines does not offer it, but some ROMs do it
+// on purpose, as forwards on the points of a power play.
 export function outOfRoleSlots(team: Team, line: number[], anyPosition = false): number[] {
-  return SKATER_LINE_SLOTS.filter(
+  return [...SKATER_LINE_SLOTS, EXTRA_ATTACKER].filter(
     (slot) => line[slot] >= 1 && line[slot] <= team.players.length && playerRole(team, line[slot]) !== 'goalie' && !suitsSlot(team, slot, line[slot], anyPosition),
   )
 }

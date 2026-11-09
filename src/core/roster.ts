@@ -58,7 +58,13 @@ export function deletePlayer(team: Team, index: number): Team {
     lines: mapLines(team, (v) => (v === position ? last : v > position && v <= last + 1 ? v - 1 : v)),
   }
   const counted = withSkaterCounts(next, team.forwards - (wasForward ? 1 : 0))
-  return { ...counted, lines: counted.lines.map((line, l) => (team.lines[l].includes(position) ? withoutRepeats(counted, line) : line)) }
+  return {
+    ...counted,
+    lines: counted.lines.map((line, l) => {
+      const fallen = team.lines[l].flatMap((v, slot) => (v === position ? [slot] : []))
+      return fallen.length > 0 ? withoutRepeats(counted, line, fallen) : line
+    }),
+  }
 }
 
 // Puts a skater on a roster: after the last forward, or at the end as a

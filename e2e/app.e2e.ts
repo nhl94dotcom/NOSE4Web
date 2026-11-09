@@ -600,10 +600,10 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Anaheim Mighty Ducks').click()
     const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
     const nlc = lines.locator('tbody tr').first().locator('select')
-    // Anaheim's 16 skaters are 9 forwards and 7 defence; the extra attacker may be any of them.
+    // Anaheim's 16 skaters are 9 forwards and 7 defence; the extra attacker is a forward too.
     await expect(nlc.nth(3).locator('option')).toHaveCount(9)
     await expect(nlc.nth(1).locator('option')).toHaveCount(7)
-    await expect(nlc.nth(6).locator('option')).toHaveCount(await rows(page, 'Skaters').count())
+    await expect(nlc.nth(6).locator('option')).toHaveCount(9)
     const [wing, centre] = [await nlc.nth(3).inputValue(), await nlc.nth(4).inputValue()]
     await nlc.nth(3).selectOption(centre)
     await expect(nlc.nth(3)).toHaveValue(centre)
@@ -671,7 +671,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     // A line naming a player further down than a team's roster goes is refused.
     const last = String(await rows(page, 'Skaters').count() + await rows(page, 'Goalies').count())
-    await lineRows().nth(4).locator('select').nth(6).selectOption(last)
+    await lineRows().nth(4).locator('select').nth(1).selectOption(last)
     await lines().getByRole('button', { name: 'Copy ticked' }).click()
     await team(page, 'Anaheim Mighty Ducks').click()
     const before = await values(lineRows().nth(2))
