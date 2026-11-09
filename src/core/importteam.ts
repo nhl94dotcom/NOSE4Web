@@ -276,7 +276,7 @@ function importSnesPictures(project: RomProject, other: RomProject, from: number
       let bytes = p.bytes
       let picture
       if (like.ownColours) {
-        const own = centreIceInOwnColours(source.picture, source.palette)
+        const own = centreIceInOwnColours(source.picture, source.palette, source.ownColours)
         bytes = p.bytes.slice()
         withSnesCentreIceColours(bytes, ours, to, own.colours)
         picture = own.picture

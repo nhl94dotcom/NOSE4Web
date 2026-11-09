@@ -632,14 +632,20 @@ export function withSnesCentreIceColours(rom: Uint8Array, teamCount: number, tea
 // logo at the number whose title colour is like it. Measured by Match Viewer,
 // the same in the retail, Classic and both 2026 ROMs.
 export const SNES_TITLE_OWN_HALF = [0x6b5a, 0x7fff, 0x4a52, 0x2529, 0x5ef7, 0x025b, 0x0f3f, 0x0000, 0x4ca4, 0x3400, 0x0165, 0x6da9, 0x009a, 0x0012, 0x05ff, 0x1dd9]
+// Its first half, colours $60 to $6F, which a logo in the rink's first row of
+// colours takes, as the original game's mostly are.
+export const SNES_TITLE_RINK_HALF = [0x6b5a, 0x0000, 0x7fff, 0x2529, 0x5ef7, 0x009a, 0x0f3f, 0x6da9, 0x05ff, 0x0012, 0x1dd9, 0x7f20, 0x0208, 0x1934, 0x39d2, 0x3117]
 
 // A centre ice logo drawn in the rink's colours (as the original game's are),
 // made for a team with colours of its own: those it shows, up to 15, become
 // the team's (the rest matched to the nearest), and each pixel takes the one
-// it showed. Each colour goes to the number whose title colour is nearest it,
-// so the logo looks as it does in the game on the title's pucks too, as near
-// as the title's colours allow. Returns the picture and the colours to set.
-export function centreIceInOwnColours(picture: Picture, palette: number[]): { picture: Picture; colours: number[] } {
+// it showed. Each colour goes to the number whose title colour is nearest the
+// colour the logo shows on the title where it comes from (a pixel's number in
+// the half of the title's colours its logo takes), so it looks there as it
+// did, as near as the title's colours allow; on the rink it is unchanged.
+// `ownColours`: the logo comes from a team with colours of its own, whose
+// title colours are the second half. Returns the picture and the colours to set.
+export function centreIceInOwnColours(picture: Picture, palette: number[], ownColours = false): { picture: Picture; colours: number[] } {
   const counts = new Map<number, number>()
   for (const p of picture.pixels) if (p) counts.set(palette[p] & 0x7fff, (counts.get(palette[p] & 0x7fff) ?? 0) + 1)
   const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, COLOURS - 1).map(([word]) => word)
@@ -647,8 +653,16 @@ export function centreIceInOwnColours(picture: Picture, palette: number[]): { pi
     const [x, y] = [colorRgb(a, SNES_COLORS), colorRgb(b, SNES_COLORS)]
     return (x[0] - y[0]) ** 2 + (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2
   }
+  // The title colour each colour of the logo shows: that of the number most of its pixels have.
+  const half = ownColours || picture.pixels.some((p) => p && Math.floor(p / COLOURS) !== ICE_ROWS[0]) ? SNES_TITLE_OWN_HALF : SNES_TITLE_RINK_HALF
+  const numbers = chosen.map(() => new Map<number, number>())
+  for (const p of picture.pixels) {
+    const c = p ? chosen.indexOf(palette[p] & 0x7fff) : -1
+    if (c >= 0) numbers[c].set(p % COLOURS, (numbers[c].get(p % COLOURS) ?? 0) + 1)
+  }
+  const shown = numbers.map((counted) => half[[...counted].sort((a, b) => b[1] - a[1])[0][0]])
   // The closest pairs of a colour and a number first, each used once.
-  const pairs = chosen.flatMap((word, c) => Array.from({ length: COLOURS - 1 }, (_, k) => ({ c, slot: k + 1, d: distance(word, SNES_TITLE_OWN_HALF[k + 1]) })))
+  const pairs = chosen.flatMap((_, c) => Array.from({ length: COLOURS - 1 }, (_, k) => ({ c, slot: k + 1, d: distance(shown[c], SNES_TITLE_OWN_HALF[k + 1]) })))
   pairs.sort((a, b) => a.d - b.d || a.c - b.c || a.slot - b.slot)
   const slotOfChosen = new Array<number>(chosen.length).fill(0)
   const taken = new Set<number>()

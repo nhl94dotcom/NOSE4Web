@@ -120,6 +120,17 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     expect(look(reopened, 1, 'logo')).toEqual(look(classic, 4, 'logo'))
     expect(look(reopened, 1, 'centreIce')).toEqual(look(classic, 4, 'centreIce'))
     expect(look(reopened, 1, 'scoreLogo')).toEqual(look(build, 1, 'scoreLogo'))
+    // On the title's pucks, where the build's teams with colours of their own take the title's second half, each
+    // colour at the number whose title colour is nearest what Classic's title shows: the black outline (Classic's 1,
+    // 465 pixels) at 7, black, and the tan face (Classic's 10) at 15, the same tan (Match Viewer).
+    const { NO_SNES_PICTURE_EDITS, snesCentreIce } = await import('../src/core/snespictures')
+    const numbers = (project: RomProject, team: number) => {
+      const counted = new Map<number, number>()
+      snesCentreIce(project.bytes, project.teams.length, NO_SNES_PICTURE_EDITS, team).picture.pixels.forEach((p) => p && counted.set(p % 16, (counted.get(p % 16) ?? 0) + 1))
+      return [...counted].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+    }
+    expect(numbers(classic, 4).slice(0, 2)).toEqual([1, 10])
+    expect(numbers(reopened, 1).slice(0, 2)).toEqual([7, 15])
     // And within the build, a score logo copied.
     const copied = importTeam(build, build, 4, 1, { names: false, roster: false, colours: false, pictures: true })
     expect(copied.notes).toContain('Score logo brought in.')
