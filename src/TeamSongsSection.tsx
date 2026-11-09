@@ -50,7 +50,8 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
         song names are the community's, as the game's disassembly lists them, with the teams that have each in the
-        original game.
+        original game. The two power-play songs may seldom or never be heard: the game's power-play display stops
+        them (from the game's code; being checked in play).
         {outside &&
           ` In this ROM the song table has room for only ${room} teams, so this team plays songs from whatever follows it. Choosing a song moves the table to free space in the ROM, so that every team has six of its own.`}
       </p>

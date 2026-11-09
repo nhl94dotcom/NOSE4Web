@@ -10,13 +10,17 @@
 
 import { claimSpace } from './space'
 
-// What each of a team's six songs is for.
+// What each of a team's six songs is for. The power plays are as LeadSong
+// picks them (Match Viewer, in the game): slot 1 when the home team has more
+// players, 4 when the visitors do, the other way round from the
+// disassembly's names. They may never play in a real power play: LeadSong
+// stops when sflags2 bit 5 is set, which the power-play display sets.
 export const SONG_SLOTS = [
   'Period start',
-  'Visitors on the power play',
+  'Home team on the power play',
   'Faceoff (once a period, and the shootout)',
   'Home goal',
-  'Home team on the power play',
+  'Visitors on the power play',
   'Late in the third period',
 ]
 // The organ songs, $30 to $77, as the disassembly names them (from the forum
