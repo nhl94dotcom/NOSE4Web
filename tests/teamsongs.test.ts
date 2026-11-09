@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { checkProject } from '../src/core/check'
 import { compareProjects } from '../src/core/compare'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
@@ -53,5 +54,11 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('organ songs', () => {
     expect(Buffer.compare(Buffer.from(moved.subarray(0xfe57a, 0xfe57e)), Buffer.from(project.bytes.subarray(0xfe57a, 0xfe57e)))).toBe(0)
     const given = setSong({ ...project, bytes: moved }, 29, 0, 0x60)
     expect(openRom(buildRom(given)).teams[29].songs![0]).toBe(0x60)
+    // Check ROM names the two teams past the table's room, and no more once it has moved.
+    const notes = (p: RomProject) => checkProject(p).filter((f) => f.message.startsWith("The ROM's organ song table"))
+    expect(notes(project).map((f) => f.team)).toEqual([28, 29])
+    expect(notes(project)[0].message).toContain("the game's random songs")
+    expect(notes(project)[1].message).toContain('3 song slots with no song at all')
+    expect(notes({ ...project, bytes: moved })).toEqual([])
   })
 })

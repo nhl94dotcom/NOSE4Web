@@ -1,6 +1,7 @@
 import { attributeText } from './attributes'
 import { colorRgb } from './color'
 import { creditsFit } from './credits'
+import { isSong, teamSongsRoom } from './teamsongs'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
@@ -196,6 +197,23 @@ export function checkProject(project: RomProject): Finding[] {
         message: `The names on the team banners need ${room.used - room.room} bytes more than the ROM has room for, so they are not written: shorten some under Banner name on the team pages.`,
       })
     }
+  }
+
+  // Teams past the organ song table's room play what follows it (Match Viewer).
+  const songRoom = project.game.platform === 'genesis' ? teamSongsRoom(project.bytes, teams.length) : null
+  if (songRoom !== null) {
+    teams.forEach((team, t) => {
+      if (t < songRoom || !team.songs) return
+      const silent = team.songs.filter((value) => !isSong(value)).length
+      findings.push({
+        level: 'note',
+        where: labels[t],
+        team: t,
+        message: `The ROM's organ song table has room for only ${songRoom} teams, so this team's home games use what follows it in the ROM: ${
+          silent === 0 ? "the game's random songs, not songs of its own" : `${plural(silent, 'song slot')} with no song at all`
+        }. Choosing a song under Organ songs on the team page moves the table, so that every team has its own.`,
+      })
+    })
   }
 
   if (settings.credits && !creditsFit(settings.credits)) {
