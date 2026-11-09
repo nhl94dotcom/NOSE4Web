@@ -428,7 +428,7 @@ export default function App() {
                     ) : (
                       <AddScoreLogos project={current} onChange={change} />
                     )}
-                    {snesPhotosSupported(current) && <SnesPhotosEditor project={current} team={selected} onChange={change} />}
+                    {snesPhotosSupported(current) && <SnesPhotosEditor project={current} original={opened} team={selected} onChange={change} />}
                     <SnesCopyTeamSection project={current} team={selected} onChange={change} />
                   </>
                 )

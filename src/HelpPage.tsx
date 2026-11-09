@@ -610,7 +610,9 @@ export function HelpPage() {
         on the roster. Those without one of their own share generic goalie and skater pictures, coloured in the
         team's colours. A team's photos all share its 15 photo colours, so an imported image is shaded to them;
         see-through parts show the card behind. Photos follow their players here as on the Genesis; one traded
-        to another team is drawn in that team's photo colours. <b>Swap with…</b> swaps two players' photos, to put
+        to another team is drawn in that team's photo colours. Of those, 1 to 12 are the skin and hair shades every
+        team has, and 13 to 15 the uniform as the photos show it, separate from the home and away colours: change them
+        under <b>Uniform colours in the photos</b> when you change a team's colours, and its photos follow. <b>Swap with…</b> swaps two players' photos, to put
         right a ROM whose photos are on the wrong players. Importing a team with its photos brings its photo
         colours too. A new photo goes where the old one was if it fits, or else into free space in the ROM.
       </p>

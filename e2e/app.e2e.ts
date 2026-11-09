@@ -2156,6 +2156,33 @@ test.describe('with the SNES game', () => {
     expect(look(rom, 3, 'logo')).toEqual(look(opened, 3, 'logo'))
   })
 
+  test("changes the uniform colours a team's photos show, and resets them", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const photos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Player photos' }) })
+    const reset = photos.getByRole('button', { name: 'Reset uniform colours' })
+    await expect(reset).toBeDisabled()
+    const firstPhoto = photos.locator('.pictures canvas').first()
+    const pixels = () => firstPhoto.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data))
+    const before = await pixels()
+    // Uniform colour 1, the teal, made red.
+    await photos.locator('.swatch').nth(0).click()
+    await photos.getByLabel(/^Red/).fill('31')
+    await photos.getByLabel(/^Green/).fill('0')
+    await photos.getByLabel(/^Blue/).fill('0')
+    await expect(reset).toBeEnabled()
+    expect(await pixels()).not.toEqual(before)
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    const { snesPhotoPalette } = await import('../src/core/snesphotos')
+    expect(snesPhotoPalette(rom, 0)[13] & 0x7fff).toBe(31)
+    const opened = readRom(new Uint8Array(readFileSync(snesPath)))
+    expect(snesPhotoPalette(rom, 1)).toEqual(snesPhotoPalette(opened, 1))
+    await reset.click()
+    await expect(reset).toBeDisabled()
+    expect(await pixels()).toEqual(before)
+  })
+
   test("changes a team's name banner colours and resets them", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
