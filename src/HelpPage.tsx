@@ -728,7 +728,8 @@ export function HelpPage() {
           used. The original game's pages have up to 4 lines of up to 25 letters, and the game centres each line. $
           shows as the copyright sign. A league can put its own name in them; smozoma's guide warns that the first
           page, EA's copyright notice, can cause trouble if changed, though several league ROMs have changed it.
-          From smozoma's forum guide to the credits.
+          From smozoma's forum guide to the credits; checked in the game by the NHL94 Match Viewer project. The game
+          rolls them once after power-on or reset, then goes to the menus.
         </li>
         <li>
           <b>Title screen credits</b> (SNES): the credits the title screen rolls, a box for each credit title: its first
@@ -737,7 +738,9 @@ export function HelpPage() {
           the copyright sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its
           letters plus 1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes
           its letters once. The two copyright lines are left as they are. Found by the code that rolls them, so rebuilt
-          ROMs work too.
+          ROMs work too. The title screen lasts 4,740 frames from the start of the credits whatever they hold, and
+          the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits before going to
+          the menus (about a minute with 5). Both editors were checked in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser

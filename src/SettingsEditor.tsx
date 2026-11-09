@@ -438,7 +438,9 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
           title: its first line is the title and the lines after it are its names, at least one. The original game has up to {SNES_CREDITS_PAGE_LINES - 1}{' '}
           names under a title and lines of up to {SNES_CREDITS_LINE_LENGTH} letters, centred by the game. The game has capital letters, digits, spaces,{' '}
           <b>.</b> and <b>@</b>, which shows as the copyright sign. The same line twice takes its bytes once. The two copyright lines under the title are
-          not changed.
+          not changed. The title screen lasts the same time however long the credits are (4,740 frames from their start), and the original's
+          titles fill nearly all of it: with fewer, the title screen waits with no credits before it goes to the menus (with 5 titles, about a
+          minute).
         </p>
       ) : (
         <p className="note">
