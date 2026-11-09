@@ -21,6 +21,8 @@ import {
   type CheckFix,
   type Bonuses,
   type HackChoices,
+  type BCheckPenaltiesOff,
+  type Injuries,
   type ThreeStars,
   type WeightFix,
 } from './core/hacks'
@@ -37,6 +39,19 @@ interface Props {
   onChange: (project: RomProject) => void
 }
 
+
+const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
+  original: 'As in the original game',
+  asPenaltiesOn: 'As with penalties on',
+  forum: "The forum's version",
+}
+
+const INJURY_TEXTS: Record<Injuries, string> = {
+  original: 'As in the original game',
+  never: 'Never: a hit is only a fall',
+  period: 'Every injury for the period',
+  game: 'Every injury for the game',
+}
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 // What each choice of bonuses means where it shows: in play, and in the
 // ratings on the Edit Lines screen.
@@ -160,7 +175,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -592,6 +607,75 @@ export function HacksPage({ project, name, onChange }: Props) {
             The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
             2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
             seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
+          </>,
+        )}
+        {hack(
+          'injuries',
+          <select aria-label={HACK_TITLES.injuries} className="wide" disabled={unknown('injuries')} value={wanted.injuries} onChange={(e) => set({ injuries: e.target.value as Injuries })}>
+            {(Object.keys(INJURY_TEXTS) as Injuries[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {INJURY_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
+            checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
+            head-bleeding hack below then never shows. The other two choices make every injury last the period, or the
+            game, whoever made the hit. From chaos's forum post, with the period choice corrected from the game's code
+            by the NHL94 Match Viewer project, so that it covers the hardest fighters too.
+          </>,
+        )}
+        {hack(
+          'hotColdRange',
+          number('hotColdRange'),
+          <>
+            Before each game every player is made a little hot or cold: each value from -(n - 1) to n - 1, so the original
+            9 gives -8 to 8. A smaller number makes the swings smaller. In play the value is divided by 3, so 3 or less
+            takes hot and cold out of how anyone plays, though Edit Lines and the player cards still show the small
+            values; 0 or 1 makes them all 0. It goes with any of the hot and cold bonus choices above. From chaos's forum
+            post, read in the game's code by the NHL94 Match Viewer project. {stock('hotColdRange')}
+          </>,
+        )}
+        {hack(
+          'noIcing',
+          onOff('noIcing'),
+          "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, read in the game's code by the NHL94 Match Viewer project; NOSE4Web's version branches cleanly past the instruction the post's skips half of, and a ROM with the post's version is recognised.",
+        )}
+        {hack(
+          'bCheckPenaltiesOff',
+          <select
+            aria-label={HACK_TITLES.bCheckPenaltiesOff}
+            className="wide"
+            disabled={unknown('bCheckPenaltiesOff')}
+            value={wanted.bCheckPenaltiesOff}
+            onChange={(e) => set({ bCheckPenaltiesOff: e.target.value as BCheckPenaltiesOff })}
+          >
+            {(Object.keys(BCHECK_TEXTS) as BCheckPenaltiesOff[])
+              .filter((choice) => choice !== 'forum' || state.choices.bCheckPenaltiesOff === 'forum')
+              .map((choice) => (
+                <option key={choice} value={choice}>
+                  {BCHECK_TEXTS[choice]}
+                </option>
+              ))}
+          </select>,
+          <>
+            With penalties off, the original game lets your B-check trip a player only after an extra roll of your
+            Checking against his Agility, so many miss; with penalties on there is no such roll. <b>As with penalties on</b>{' '}
+            drops the roll, so B-checks trip the same either way. It changes nothing with penalties on, as leagues play.
+            A forum post (CoachMac) does it by swapping two tests, which also gives the computer's B-checks that roll
+            with penalties on, so about 3 in 4 of them miss; NOSE4Web's changes one test only (found by the NHL94 Match
+            Viewer project in the game's code). A ROM with the forum's version shows it as such, and can be set back.
+          </>,
+        )}
+        {hack(
+          'goalieDelay',
+          number('goalieDelay'),
+          <>
+            How long a player holds B before he takes control of his goalie, in counts of the game's timer: 17, about half
+            a second, in the original game, so 12 is about a third of a second. It is the same for all four pads in 2 on 2.
+            From smozoma's forum post; the game's code was checked for every place by the NHL94 Match Viewer project.{' '}
+            {stock('goalieDelay')}
           </>,
         )}
       </section>

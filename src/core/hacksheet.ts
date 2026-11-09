@@ -69,6 +69,21 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, NO_HACKS.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${NO_HACKS.goalieLine}).`,
   stamina: () => 'With line changes on, players on the ice never tire, so lines change only when you want them to.',
+  injuries: (c) =>
+    c.injuries === 'never'
+      ? 'Hits never injure: a player knocked down gets up as from any other check.'
+      : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
+  hotColdRange: (c) =>
+    c.hotColdRange <= 3
+      ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
+      : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange - 1} to ${c.hotColdRange - 1}, where the original has -8 to 8.`,
+  noIcing: () => 'Icing is never called.',
+  bCheckPenaltiesOff: (c) =>
+    c.bCheckPenaltiesOff === 'forum'
+      ? "B-checks with penalties off trip as they do with penalties on; with penalties on, the computer's B-checks trip less often (the forum's version)."
+      : 'With penalties off, B-checks trip as they do with penalties on.',
+  goalieDelay: (c) =>
+    `B is held ${more(c.goalieDelay, NO_HACKS.goalieDelay, 'longer', 'for less time')} before a player takes the goalie: about ${(c.goalieDelay / 34).toFixed(2)} seconds, where the original game takes about 0.5.`,
   energyDrain: (c) => `Players tire ${more(c.energyDrain, NO_HACKS.energyDrain, 'faster', 'more slowly')} on the ice (${c.energyDrain}, where the original has ${NO_HACKS.energyDrain}).`,
   energyRecovery: (c) =>
     `Players get their energy back ${more(c.energyRecovery, NO_HACKS.energyRecovery, 'faster', 'more slowly')} on the bench (${c.energyRecovery}, where the original has ${NO_HACKS.energyRecovery}).`,
@@ -87,7 +102,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay']],
   ['Older hacks', ['weightFix']],
 ]
 

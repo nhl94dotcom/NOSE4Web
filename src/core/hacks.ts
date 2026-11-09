@@ -116,7 +116,20 @@ export interface HackChoices {
   turnRate: number
   // The game, penalty and penalty shot clocks count true seconds.
   realTime: boolean
+  // Whether a hit can injure, and for how long.
+  injuries: Injuries
+  // The range of each player's hot and cold values: from -(n - 1) to n - 1.
+  hotColdRange: number
+  noIcing: boolean
+  // B-checks with penalties off: 'asPenaltiesOn' plays them as with penalties
+  // on; 'forum' is the forum's version, which changes the computer's with them on.
+  bCheckPenaltiesOff: BCheckPenaltiesOff
+  // How long B is held before a person takes the goalie, in counts of the game's timer: 17 in the original game.
+  goalieDelay: number
 }
+
+export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
+export type Injuries = 'original' | 'never' | 'period' | 'game'
 
 // 'ratings' covers the rating scale and the bonuses, whose code is shared.
 // 'goalieBox' covers both ways a goalie without the puck may roam.
@@ -153,6 +166,11 @@ export type HackPart =
   | 'speedBurst'
   | 'turnRate'
   | 'clock'
+  | 'injuries'
+  | 'hotColdRange'
+  | 'noIcing'
+  | 'bCheckPenaltiesOff'
+  | 'goalieDelay'
 
 export interface HackState {
   choices: HackChoices
@@ -196,6 +214,11 @@ export const NO_HACKS: HackChoices = {
   speedBurst: 0,
   turnRate: 150,
   realTime: false,
+  injuries: 'original',
+  hotColdRange: 9,
+  noIcing: false,
+  bCheckPenaltiesOff: 'original',
+  goalieDelay: 17,
 }
 
 // The least and most each number can be.
@@ -208,6 +231,8 @@ export const HACK_RANGES = {
   energyRecovery: [0, 999],
   speedBurst: [0, 95],
   turnRate: [1, 999],
+  hotColdRange: [0, 9],
+  goalieDelay: [1, 128],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}
@@ -1152,6 +1177,102 @@ const clock: Part<boolean> = {
   apply: (work, value) => void (value && CLOCK_SITES.forEach((each, i) => writeSite(work.rom, each, CLOCK_VALUES.realTime[i]))),
 }
 
+// ------------------------------------------------------------- injuries
+// From the forum (chaos) and the Genesis disassembly (Match Viewer). FallDown
+// makes a hit an injury past one last test, btst #gmclock then bne.w .22 at
+// $14440; setInjuryType then takes the checker's Fighting / 4 (0 to 3): 0 is
+// for the period (bne.w .not0 at $14508 not taken), 3 for the game (beq.w
+// .injurygame at $14520), and 1 or 2 for the period unless chkFgtBit1 says
+// the game. Never: the bne.w becomes bra.w, so the hit is a fall and nothing
+// more. Every injury for the period: the bne.w at $14508 becomes two NOPs
+// (the forum's change at $14536 misses Fighting 12 and more). For the game:
+// $14508 and $14520 become bra.w.
+
+const INJURY_SITES = [0x14440, 0x14508, 0x14520]
+const INJURY_BYTES: Record<Injuries, string[]> = {
+  original: ['66000052', '66000012', '67000018'],
+  never: ['60000052', '66000012', '67000018'],
+  period: ['66000052', '4E714E71', '67000018'],
+  game: ['66000052', '60000012', '60000018'],
+}
+
+const injuries: Part<Injuries> = {
+  detect: (rom) => (Object.keys(INJURY_BYTES) as Injuries[]).find((value) => INJURY_SITES.every((at, i) => is(rom, at, bytes(INJURY_BYTES[value][i])))),
+  remove: (rom) => INJURY_SITES.forEach((at, i) => rom.set(bytes(INJURY_BYTES.original[i]), at)),
+  apply: (work, value) => INJURY_SITES.forEach((at, i) => work.rom.set(bytes(INJURY_BYTES[value][i]), at)),
+}
+
+// ------------------------------------------------------- hot and cold range
+// Create_HotCold_Table fills each player's 16 hot and cold values with
+// randomd0s of move.w #9,d0 at $F70AC: each from -8 to 8 (Match Viewer; the
+// disassembly's comment says -9). In play only the first is used, added to
+// the rating x 5 after a signed divide by 3, so 3 or less removes the effect
+// on the ice, though Edit Lines and the player cards still show the values;
+// 0 or 1 makes every value 0.
+const hotColdRange = numberPart([site(0xf70ac, '303C')], NO_HACKS.hotColdRange)
+
+// ---------------------------------------------------------------- no icing
+// From the forum (TheTome) and the disassembly (Match Viewer): a2touchpuck
+// ends with bset #ifok,(iflags).w; rts at $1023E, arming an icing check when
+// a player sends the puck from his own half. Skipping it leaves no icing
+// state, so no call, and the computer goalie plays a loose puck as usual.
+// The forum's bra.s +2 lands on the bset's address word, $BF80, which runs as
+// eor.l d7,d0 before the rts; NOSE4Web's bra.s +4 goes to the rts. Both are
+// recognised.
+const ICING_AT = 0x1023e
+const ICING = { original: bytes('08F8 0002 BF80'), hacked: bytes('6004 0002 BF80'), forum: bytes('6002 0002 BF80') }
+const noIcing: Part<boolean> = {
+  detect: (rom) => (is(rom, ICING_AT, ICING.original) ? false : is(rom, ICING_AT, ICING.hacked) || is(rom, ICING_AT, ICING.forum) ? true : undefined),
+  remove: (rom) => rom.set(ICING.original, ICING_AT),
+  apply: (work, value) => void (value && work.rom.set(ICING.hacked, ICING_AT)),
+}
+
+// ------------------------------------------------ B-checks with penalties off
+// From the forum (CoachMac) and the disassembly (Match Viewer). In Bcheck,
+// with penalties off and a person making the B-check, the trip works only
+// after an extra roll (randomd0($20 + checker's Chk - target's Agl) reaching
+// $18); everyone else goes straight to .checkdir. $13FDC is bne.w .checkdir,
+// taken with penalties on, and $13FE6 beq.w .checkdir, taken when the checker
+// is not a person. The forum swaps both, which with penalties on gives the
+// computer's checker the roll; NOSE4Web's makes $13FDC bra.w, so that with
+// penalties off B-checks play as they do with them on, and nothing else.
+const BCHECK_SITES = [0x13fdc, 0x13fe6]
+const BCHECK_BYTES: Record<BCheckPenaltiesOff, string[]> = {
+  original: ['6600003A', '67000030'],
+  asPenaltiesOn: ['6000003A', '67000030'],
+  forum: ['6700003A', '66000030'],
+}
+const bCheckPenaltiesOff: Part<BCheckPenaltiesOff> = {
+  detect: (rom) => (Object.keys(BCHECK_BYTES) as BCheckPenaltiesOff[]).find((value) => BCHECK_SITES.every((at, i) => is(rom, at, bytes(BCHECK_BYTES[value][i])))),
+  remove: (rom) => BCHECK_SITES.forEach((at, i) => rom.set(bytes(BCHECK_BYTES.original[i]), at)),
+  apply: (work, value) => BCHECK_SITES.forEach((at, i) => work.rom.set(bytes(BCHECK_BYTES[value][i]), at)),
+}
+
+// --------------------------------------------------------- goalie control delay
+// From the forum (smozoma) and the disassembly (Match Viewer): holding B
+// counts the pad's bholdtimer ($FFBF06 for pads 1 and 2, $FFBF08 for pads 3
+// and 4) down from $11, and the eight places that set it all hold the start
+// value: two move.w #$1111 resets, when the hold-reset timer runs out, and
+// six move.b #$11. Pads 3 and 4 use the same code, with their timer swapped
+// in. From 1 to $80: the count is subq.b #1 then bpl, so more than $80 would
+// be negative at once and taken almost straight away.
+const DELAY_WORDS = [0xad04, 0xad0a]
+const DELAY_BYTES = [0xb12f, 0xb139, 0xb36d, 0xb377, 0xb39b, 0xb3c3]
+const DELAY_WORD_LEAD = bytes('31FC')
+const DELAY_BYTE_LEAD = bytes('11FC 00')
+const goalieDelay: Part<number> = {
+  detect(rom) {
+    if (!DELAY_WORDS.every((at) => is(rom, at - 2, DELAY_WORD_LEAD)) || !DELAY_BYTES.every((at) => is(rom, at - 3, DELAY_BYTE_LEAD))) return undefined
+    const values = [...DELAY_WORDS.flatMap((at) => [rom[at], rom[at + 1]]), ...DELAY_BYTES.map((at) => rom[at])]
+    return values.every((value) => value === values[0]) && values[0] >= 1 && values[0] <= 0x80 ? values[0] : undefined
+  },
+  remove: (rom) => goalieDelay.apply({ rom }, NO_HACKS.goalieDelay),
+  apply(work, value) {
+    for (const at of DELAY_WORDS) work.rom.set([value, value], at)
+    for (const at of DELAY_BYTES) work.rom[at] = value
+  },
+}
+
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -1197,6 +1318,11 @@ export function detectHacks(rom: Uint8Array): HackState {
     speedBurst: found('speedBurst', speedBurst.detect(rom), NO_HACKS.speedBurst),
     turnRate: found('turnRate', turnRate.detect(rom), NO_HACKS.turnRate),
     realTime: found('clock', clock.detect(rom), NO_HACKS.realTime),
+    injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
+    hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
+    noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
+    bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
+    goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -1250,6 +1376,11 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
     ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
+    ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
+    ['hotColdRange', () => hotColdRange.remove(work.rom), () => hotColdRange.apply(work, wanted.hotColdRange)],
+    ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
+    ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
+    ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -1313,7 +1444,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1456,6 +1587,11 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   speedBurst: 'Speed burst',
   turnRate: 'Stopping and turning',
   realTime: 'Real-time clock',
+  injuries: 'Injuries',
+  hotColdRange: 'Hot and cold range',
+  noIcing: 'No icing',
+  bCheckPenaltiesOff: 'B-checks with penalties off',
+  goalieDelay: 'Goalie control delay',
 }
 
 // Which part's code each choice is kept in.
@@ -1494,6 +1630,11 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   speedBurst: 'speedBurst',
   turnRate: 'turnRate',
   realTime: 'clock',
+  injuries: 'injuries',
+  hotColdRange: 'hotColdRange',
+  noIcing: 'noIcing',
+  bCheckPenaltiesOff: 'bCheckPenaltiesOff',
+  goalieDelay: 'goalieDelay',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {

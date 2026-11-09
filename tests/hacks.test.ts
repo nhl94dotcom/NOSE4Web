@@ -250,6 +250,16 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { speedBurst: 24 },
       { turnRate: 300 },
       { realTime: true },
+      { injuries: 'never' },
+      { injuries: 'period' },
+      { injuries: 'game' },
+      { hotColdRange: 4 },
+      { hotColdRange: 0 },
+      { noIcing: true },
+      { bCheckPenaltiesOff: 'asPenaltiesOn' },
+      { bCheckPenaltiesOff: 'forum' },
+      { goalieDelay: 12 },
+      { goalieDelay: 128 },
     ]
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }
@@ -259,6 +269,41 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       expect(Buffer.compare(viaFull.bytes, direct.bytes)).toBe(0)
       expect(Buffer.compare(applyHacks(direct, wanted).bytes, direct.bytes)).toBe(0)
     }
+  })
+
+  it('writes the injury, hot and cold range and icing choices as the forum posts and Match Viewer have them', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    const sites = (rom: Uint8Array) => [at(rom, 0x14440, 4), at(rom, 0x14508, 4), at(rom, 0x14520, 4)]
+    expect(sites(opened.bytes)).toEqual(['66000052', '66000012', '67000018'])
+    expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'never' }).bytes)).toEqual(['60000052', '66000012', '67000018'])
+    expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'period' }).bytes)).toEqual(['66000052', '4e714e71', '67000018'])
+    expect(sites(applyHacks(opened, { ...NO_HACKS, injuries: 'game' }).bytes)).toEqual(['66000052', '60000012', '60000018'])
+    expect(at(opened.bytes, 0xf70aa, 4)).toBe('303c0009')
+    expect(at(applyHacks(opened, { ...NO_HACKS, hotColdRange: 4 }).bytes, 0xf70aa, 4)).toBe('303c0004')
+    expect(at(opened.bytes, 0x1023e, 8)).toBe('08f80002bf804e75')
+    expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
+    // The forum's version, bra.s +2, is recognised and taken out.
+    const forum = opened.bytes.slice()
+    forum.set([0x60, 0x02], 0x1023e)
+    expect(detectHacks(forum)).toEqual({ choices: { ...NO_HACKS, noIcing: true }, unknown: [] })
+    expect(Buffer.compare(applyHacks({ ...opened, bytes: forum }, NO_HACKS).bytes, opened.bytes)).toBe(0)
+    // Out of range.
+    expect(() => applyHacks(opened, { ...NO_HACKS, hotColdRange: 10 })).toThrow('from 0 to 9')
+  })
+
+  it('writes the B-check and goalie control delay choices, the delay in all eight places', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    const bcheck = (rom: Uint8Array) => [at(rom, 0x13fdc, 4), at(rom, 0x13fe6, 4)]
+    expect(bcheck(opened.bytes)).toEqual(['6600003a', '67000030'])
+    expect(bcheck(applyHacks(opened, { ...NO_HACKS, bCheckPenaltiesOff: 'asPenaltiesOn' }).bytes)).toEqual(['6000003a', '67000030'])
+    expect(bcheck(applyHacks(opened, { ...NO_HACKS, bCheckPenaltiesOff: 'forum' }).bytes)).toEqual(['6700003a', '66000030'])
+    const delays = (rom: Uint8Array) => [at(rom, 0xad02, 6), at(rom, 0xad08, 6), ...[0xb12f, 0xb139, 0xb36d, 0xb377, 0xb39b, 0xb3c3].map((o) => at(rom, o - 3, 4))]
+    expect(delays(opened.bytes)).toEqual(['31fc1111bf06', '31fc1111bf08', '11fc0011', '11fc0011', '11fc0011', '11fc0011', '11fc0011', '11fc0011'])
+    expect(delays(applyHacks(opened, { ...NO_HACKS, goalieDelay: 12 }).bytes)).toEqual(['31fc0c0cbf06', '31fc0c0cbf08', '11fc000c', '11fc000c', '11fc000c', '11fc000c', '11fc000c', '11fc000c'])
+    expect(() => applyHacks(opened, { ...NO_HACKS, goalieDelay: 0 })).toThrow('from 1 to 128')
+    expect(() => applyHacks(opened, { ...NO_HACKS, goalieDelay: 129 })).toThrow('from 1 to 128')
   })
 
   it("puts the one-timer assist fix at $F6CE4, with the second-assist fix's check in it when that is on", () => {
