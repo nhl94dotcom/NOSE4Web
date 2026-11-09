@@ -202,7 +202,7 @@ export interface SpriteImage {
   pixels: Uint8Array
 }
 
-function tilePixel(rom: Uint8Array, tile: number, x: number, y: number): number {
+export function tilePixel(rom: Uint8Array, tile: number, x: number, y: number): number {
   const bit = 7 - x
   const low = tile + y * 2
   const high = tile + 16 + y * 2
@@ -213,15 +213,42 @@ function tilePixel(rom: Uint8Array, tile: number, x: number, y: number): number 
 // The first frame follows the table, so its place says how many there are:
 // 976 in the original game.
 export function snesSpriteFrame(rom: Uint8Array, id: number): SpriteImage | null {
+  const at = snesSpriteFrameAt(rom, id)
+  return at === null ? null : drawSpriteFrame(rom, at)
+}
+
+function snesSpriteFrameAt(rom: Uint8Array, id: number): number | null {
   if (id < 1 || id > readU16LE(rom, FRAME_TABLE) / 4) return null
   const entry = FRAME_TABLE + (id - 1) * 4
-  return drawSpriteFrame(rom, (readU16LE(rom, entry + 2) + 2) * BANK_SIZE + readU16LE(rom, entry))
+  return (readU16LE(rom, entry + 2) + 2) * BANK_SIZE + readU16LE(rom, entry)
+}
+
+// Frame `id`'s pixels where the game draws them, from the point it is drawn
+// at: [x, y, colour] for each one that shows. Null where it cannot be drawn.
+// The big font's letters keep their tiles after them too, though without the
+// header's flag for it: `tilesAfter` says to read them there all the same.
+export function snesSpriteFrameDots(rom: Uint8Array, id: number, tilesAfter = false): [number, number, number][] | null {
+  const at = snesSpriteFrameAt(rom, id)
+  return at === null ? null : frameDots(rom, at, tilesAfter)
 }
 
 // The frame at `frame` in `rom`, which may also be a sprite set unpacked from
 // the ROM, such as the team logos.
 export function drawSpriteFrame(rom: Uint8Array, frame: number): SpriteImage | null {
-  if (frame + FRAME_HEADER > rom.length || !(rom[frame + 1] & INLINE_TILES)) return null
+  const dots = frameDots(rom, frame)
+  if (!dots || dots.length === 0) return null
+  const xs = dots.map((d) => d[0])
+  const ys = dots.map((d) => d[1])
+  const [minX, minY] = [Math.min(...xs), Math.min(...ys)]
+  const width = Math.max(...xs) - minX + 1
+  const height = Math.max(...ys) - minY + 1
+  const pixels = new Uint8Array(width * height)
+  for (const [x, y, colour] of dots) pixels[(y - minY) * width + (x - minX)] = colour
+  return { width, height, pixels }
+}
+
+function frameDots(rom: Uint8Array, frame: number, tilesAfter = false): [number, number, number][] | null {
+  if (frame + FRAME_HEADER > rom.length || !(tilesAfter || rom[frame + 1] & INLINE_TILES)) return null
   const count = rom[frame]
   const firstPart = readU16LE(rom, frame + 0x0c) / 32
   const secondPartAt = Math.max(1, Math.ceil(firstPart / 16)) * 16
@@ -245,15 +272,7 @@ export function drawSpriteFrame(rom: Uint8Array, frame: number): SpriteImage | n
       }
     }
   }
-  if (dots.length === 0) return null
-  const xs = dots.map((d) => d[0])
-  const ys = dots.map((d) => d[1])
-  const [minX, minY] = [Math.min(...xs), Math.min(...ys)]
-  const width = Math.max(...xs) - minX + 1
-  const height = Math.max(...ys) - minY + 1
-  const pixels = new Uint8Array(width * height)
-  for (const [x, y, colour] of dots) pixels[(y - minY) * width + (x - minX)] = colour
-  return { width, height, pixels }
+  return dots
 }
 
 // A skater from the side and from behind, and a goalie facing out: what the

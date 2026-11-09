@@ -2145,12 +2145,19 @@ test.describe('with the SNES game', () => {
     await team(page, 'Boston Bruins').click()
     const banner = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Name banner colours' }) })
     await expect(banner.locator('.swatch')).toHaveCount(14)
+    // The banner itself, as the menus show it, changing as its colours do.
+    const preview = banner.locator('canvas.preview')
+    await expect(preview).toHaveCount(1)
+    const pixels = () => preview.evaluate((c: HTMLCanvasElement) => Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data))
+    const shown = await pixels()
     const reset = banner.getByRole('button', { name: 'Reset banner colours' })
     await expect(reset).toBeDisabled()
     // Colour 3, in the first run of shades (colours 0 and 1 are not offered).
     await banner.locator('.swatch').nth(1).click()
     await banner.getByLabel(/^Red/).fill('31')
     await expect(reset).toBeEnabled()
+    expect(await pixels()).not.toEqual(shown)
+    await banner.screenshot({ path: 'test-results/shots/snes-banner-colours.png' })
     const opened = readRom(new Uint8Array(readFileSync(snesPath)))
     let rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
     const before = snesBlockColours(opened, 1)!

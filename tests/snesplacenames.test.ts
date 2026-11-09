@@ -8,6 +8,7 @@ import { importTeam } from '../src/core/importteam'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesBlockColours, withSnesBlockColours } from '../src/core/snesblockcolours'
 import { snesPlaceNameRoom } from '../src/core/snesplacenames'
+import { SNES_BLOCK_LETTERS, snesBlockPicture } from '../src/core/snesblockpicture'
 import { centreIceInOwnColours, NO_SNES_PICTURE_EDITS, snesCentreIce, snesCentreIceFromImage, withSnesCentreIceColours } from '../src/core/snespictures'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -45,6 +46,22 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES name banner colours', () =
     const after = snesBlockColours(openRom(buildRom(withSnesBlockColours(project, 1, given))), 1)!
     expect(after).toEqual([before[0], before[1], ...given.slice(2)])
     expect(after[1]).toBe(0x6f7b)
+  })
+
+  it('are shown on the banner as the menus draw it, with the banner name on it', () => {
+    for (const name of ['NHL94.smc', 'NHL94_Classic.smc', 'nhl94_2026.sfc'].filter((n) => existsSync(path(n)))) {
+      const project = open(name)
+      const banner = snesBlockPicture(project.bytes, snesBlockColours(project, 1)!, project.teams[1].placeName!)!
+      expect(banner, name).not.toBe(null)
+      const count = (test: (v: number) => boolean) => banner.picture.pixels.filter(test).length
+      // The yellow frame, colour 15, 172 pixels as Match Viewer counted in the game; the fill 2 to 14; no colour 1.
+      expect(count((v) => v === 15), name).toBe(172)
+      expect(count((v) => v === 1), name).toBe(0)
+      expect(count((v) => v >= SNES_BLOCK_LETTERS), name).toBeGreaterThan(50)
+      // A longer name has more letters on it.
+      const longer = snesBlockPicture(project.bytes, snesBlockColours(project, 1)!, 'BOSTON BOSTON')!
+      expect(longer.picture.pixels.filter((v) => v >= SNES_BLOCK_LETTERS).length).toBeGreaterThan(count((v) => v >= SNES_BLOCK_LETTERS))
+    }
   })
 })
 

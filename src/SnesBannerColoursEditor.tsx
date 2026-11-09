@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { SNES_COLORS } from './core/color'
 import type { RomProject } from './core/rom'
 import { SNES_BLOCK_KEPT, snesBlockColours, withSnesBlockColours } from './core/snesblockcolours'
+import { snesBlockPicture } from './core/snesblockpicture'
+import { PictureView } from './GraphicsEditor'
 import { PaletteEditor } from './Palette'
 import { ResetButton } from './ResetButton'
 
@@ -25,6 +27,8 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
   const colours = snesBlockColours(project, team)
   if (!colours) return null
   const before = original.teams.length === project.teams.length ? snesBlockColours(original, team) : null
+  // The banner as the menus show it, with the team's banner name on it.
+  const banner = snesBlockPicture(project.bytes, colours, project.teams[team].placeName ?? '')
 
   function set(next: number[]) {
     try {
@@ -44,6 +48,11 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
         shades from one of the team's colours, and colour 15 is the frame. Colours 7 and 8 also colour the stripes on the
         player card's team page.
       </p>
+      {banner && (
+        <p>
+          <PictureView picture={banner.picture} palette={banner.palette} scale={4} format={SNES_COLORS} />
+        </p>
+      )}
       <PaletteEditor palette={colours.slice(SNES_BLOCK_KEPT)} labels={LABELS} format={SNES_COLORS} onChange={(next) => set([...colours.slice(0, SNES_BLOCK_KEPT), ...next])} />
       {problem && <p className="error">{problem}</p>}
       <p>
