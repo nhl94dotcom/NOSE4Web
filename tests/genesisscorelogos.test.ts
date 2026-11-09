@@ -50,9 +50,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis score logos', () => {
   it('takes the code out, leaving the game as it was', () => {
     const project = open('nhl94.bin')
     const out = withGenesisScoreLogosTakenOut(withoutGenesisScoreLogo(withGenesisScoreLogosAdded(project), 3))
-    // The ROM grew to 2 MB for them; the original part is the original but for NOSE's end mark.
-    const differ = [...project.bytes.keys()].filter((i) => out.bytes[i] !== project.bytes[i])
-    expect(differ.length).toBeLessThanOrEqual(2)
+    // The ROM grew to 2 MB for them; the original part is the original, NOSE's end mark back where it was, and the rest unused.
+    expect(out.bytes.subarray(0, project.bytes.length)).toEqual(project.bytes)
+    expect(out.bytes.subarray(project.bytes.length).every((b) => b === 0xff)).toBe(true)
     expect(canAddGenesisScoreLogos(out)).toBe(true)
   })
 

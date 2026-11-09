@@ -1,7 +1,7 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { one } from './genesisscorelogos'
 import type { RomProject } from './rom'
-import { claimSpace, fullRomReason } from './space'
+import { claimSpace, fullRomReason, releaseSpace } from './space'
 
 // Head bleeding for the Genesis game, an idea from NHLPA '93: in '93 a player
 // hurt by a check lies on the ice with blood spreading from his head, drawn as
@@ -281,12 +281,7 @@ export function withGenesisBloodTakenOut(project: RomProject): RomProject {
   // run a few bytes further, unused, where something added later may begin.
   const table = added.header + HEADER
   const written = table + offset(rom, table, frameCount(rom, table) - 1)
-  rom.fill(0xff, added.start, written)
   // NOSE's end mark, where adding moved it to follow the room and nothing follows it, goes back.
-  if (rom[added.end] === 0x60 && rom[added.end + 1] === 0xfe && rom.subarray(written, added.end).every((b) => b === 0xff) && rom.subarray(added.end + 2).every((b) => b === 0xff)) {
-    rom[added.end] = rom[added.end + 1] = 0xff
-    rom[added.start] = 0x60
-    rom[added.start + 1] = 0xfe
-  }
+  releaseSpace(rom, [{ start: added.start, end: written }])
   return { ...project, bytes: rom }
 }

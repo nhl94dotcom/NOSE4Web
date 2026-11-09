@@ -4,7 +4,7 @@ import type { Picture } from './graphics'
 import { rinkLogo } from './graphics'
 import type { RomProject } from './rom'
 import { inBetweenShades } from './snesscorecode'
-import { claimSpace, fullRomReason } from './space'
+import { claimSpace, fullRomReason, releaseSpace } from './space'
 
 // Score box logos for the Genesis game: where it prints a team's three
 // letters in the vertical rink's score box, a small logo, 24 by 16 pixels,
@@ -411,11 +411,12 @@ export function withGenesisScoreLogosTakenOut(project: RomProject): RomProject {
   writeU16(rom, s.lineChange, 0x08f8)
   writeU16(rom, s.lineChange + 2, 0)
   writeU16(rom, s.lineChange + 4, s.sflags3)
+  const parts = [{ start: found.at, end: found.at + found.size }]
   for (let team = 0; team < project.teams.length * 2; team++) {
     const tiles = readU32(rom, found.table + team * 4)
-    if (tiles) rom.fill(0xff, tiles, tiles + TILES * TILE)
+    if (tiles) parts.push({ start: tiles, end: tiles + TILES * TILE })
   }
-  rom.fill(0xff, found.at, found.at + found.size)
+  releaseSpace(rom, parts)
   return { ...project, bytes: rom }
 }
 
@@ -484,17 +485,18 @@ export function withGenesisScoreLogo(project: RomProject, team: number, logo: Ge
   return { ...project, bytes: rom }
 }
 
-// A team shown by its letters: its logos' room freed (at the end of the
-// ROM it stays the ROM's), its entry emptied.
+// A team shown by its letters: its logos' room freed, its entry emptied.
 export function withoutGenesisScoreLogo(project: RomProject, team: number): RomProject {
   const found = added(project.bytes, project.teams.length)
   if (!found) throw new Error('This ROM has no score logos.')
   const rom = project.bytes.slice()
+  const parts = []
   for (const slot of [0, 4]) {
     const at = readU32(rom, found.table + team * ENTRY + slot)
-    if (at) rom.fill(0xff, at, at + TILES * TILE)
+    if (at) parts.push({ start: at, end: at + TILES * TILE })
     writeU32(rom, found.table + team * ENTRY + slot, 0)
   }
+  releaseSpace(rom, parts)
   return { ...project, bytes: rom }
 }
 

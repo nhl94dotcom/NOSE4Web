@@ -1,6 +1,6 @@
 import { photoLayout, photoPicture, photosSupported, withPhoto, withPhotoEntries, type PhotoEntry } from './photos'
 import type { RomProject } from './rom'
-import { snesPhotoPalette, snesPhotoRow, snesPhotosSupported, snesTeamPhotos, withSnesPhoto, withSnesPhotoPalette, withSnesPhotoRow } from './snesphotos'
+import { snesPhotoPalette, snesPhotoRow, snesPhotosSupported, snesTeamPhotos, withSnesPhoto, withSnesPhotoPalette, withSnesPhotoPointed } from './snesphotos'
 import { goalieCount } from './team'
 
 // A team's player photos brought in from another ROM of the same game, with
@@ -68,16 +68,15 @@ function importSnes(project: RomProject, other: RomProject, from: number, to: nu
   for (let slot = 0; slot < players; slot++) {
     if (!theirs[slot].generic) continue
     const found = known.find((k) => same(k.picture, theirs[slot].picture))
-    if (found) {
-      const row = snesPhotoRow(next, to)
-      row[slot] = found.address
-      next = withSnesPhotoRow(next, to, row)
-    } else {
-      next = withSnesPhoto(next, to, slot, theirs[slot].picture)
-      // Written where an old photo was, or in new room: either way, that address now shows this picture.
-      const address = snesPhotoRow(next, to)[slot]
-      known.splice(0, known.length, ...known.filter((k) => key(k.address) !== key(address)), { address, picture: theirs[slot].picture })
-    }
+    // The photo this place showed is freed if no other place shows it, and is then no longer one to point at.
+    const old = snesPhotoRow(next, to)[slot]
+    if (found) next = withSnesPhotoPointed(next, to, slot, found.address)
+    else next = withSnesPhoto(next, to, slot, theirs[slot].picture)
+    // Written where an old photo was, or in new room: either way, that address now shows this picture.
+    const address = snesPhotoRow(next, to)[slot]
+    const used = (wanted: Uint8Array) => next.teams.some((_, t) => snesPhotoRow(next, t).some((a) => key(a) === key(wanted)))
+    known.splice(0, known.length, ...known.filter((k) => (found || key(k.address) !== key(address)) && (key(k.address) !== key(old) || used(old))))
+    if (!found) known.push({ address, picture: theirs[slot].picture })
   }
   let copied = 0
   theirs.forEach((photo, slot) => {

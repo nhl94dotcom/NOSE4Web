@@ -32,6 +32,23 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     // Every player's photo looks the same, a stand-in too: the Classic stand-ins come with the team.
     expect(got.slice(0, want.length)).toEqual(want)
   })
+
+  it('frees the photos it replaces, so another team brought in over it takes no more room', { timeout: 300000 }, () => {
+    const classic = open('NHL94_Classic.smc')
+    const build = open('nhl94_2026.sfc')
+    const unused = (bytes: Uint8Array) => bytes.reduce((n, v) => n + (v === 0xff ? 1 : 0), 0)
+    const direct = importTeam(build, classic, 4, 1, parts).project
+    const twice = importTeam(importTeam(build, classic, 1, 1, parts).project, classic, 4, 1, parts).project
+    // The first team's own photos, where the second has stand-ins, are given back.
+    expect(unused(twice.bytes)).toBeGreaterThanOrEqual(unused(direct.bytes))
+    const reopened = openRom(buildRom(twice))
+    const want = snesLooks(classic, 4)
+    expect(snesLooks(reopened, 1).slice(0, want.length)).toEqual(want)
+    // Every other team's photos are as they were.
+    build.teams.forEach((_, t) => {
+      if (t !== 1) expect(snesLooks(reopened, t), `team ${t}`).toEqual(snesLooks(build, t))
+    })
+  })
 })
 
 describe.skipIf(!existsSync(path('nhl94.bin')) || !local.league30Rom || !existsSync(path(local.league30Rom)))('importing a Genesis team with its photos', () => {

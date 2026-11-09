@@ -189,6 +189,21 @@ export function withSnesPhotoPalette(project: RomProject, team: number, palette:
   return { ...project, bytes: rom }
 }
 
+// A team's place `slot` shown the photo at `address` (3 bytes, as in the
+// table), one the ROM has already. The photo it showed, if no other place
+// shows it, is freed.
+export function withSnesPhotoPointed(project: RomProject, team: number, slot: number, address: Uint8Array): RomProject {
+  const layout = need(project)
+  const rom = project.bytes.slice()
+  const entry = layout.table + (team * SNES_PHOTO_SLOTS + slot) * 4
+  const at = long(rom, entry)
+  const users = Array.from({ length: project.teams.length * SNES_PHOTO_SLOTS }, (_, i) => photoAt(rom, layout.table, i)).filter((other) => other === at).length
+  const size = photoData(rom, at)?.packedSize ?? 0
+  rom.set(address, entry)
+  if (users === 1 && long(rom, entry) !== at) rom.fill(0xff, at, at + size)
+  return { ...project, bytes: rom }
+}
+
 // The photo addresses of a team's 26 places, as they are in the table (3 bytes each).
 export function snesPhotoRow(project: RomProject, team: number): Uint8Array[] {
   const layout = need(project)

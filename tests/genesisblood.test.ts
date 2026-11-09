@@ -118,6 +118,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('head bleeding', () => {
     const bloodOnly = withGenesisScoreLogosTakenOut(both)
     expect(hasGenesisBlood(bloodOnly)).toBe(true)
     expect(hasGenesisScoreLogos(bloodOnly)).toBe(false)
+    // Each taken out, whichever goes first: the ROM is as it was, the room between them given back too.
+    sameAsBefore(withGenesisBloodTakenOut(bloodOnly), project)
+    sameAsBefore(withGenesisScoreLogosTakenOut(logosOnly), project)
   })
 })
 
