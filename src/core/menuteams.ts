@@ -66,11 +66,18 @@ function only(rom: Uint8Array, pattern: string, even: boolean): number | null {
   return all.length === 1 ? all[0].at : null
 }
 
-function genesisPlaces(rom: Uint8Array): Place[] {
+// The Genesis game's two tables of how many choices each menu line has, one
+// word a line (the second for 4-Way Play), or none where they are not found.
+export function genesisOptionLimits(rom: Uint8Array): number[] {
   const limits = only(rom, G_LIMITS, true)
   if (limits === null) return []
   const tables = [readU32(rom, limits + 2), readU32(rom, limits + G_LIMITS_4WAY_AT + 2)]
-  if (tables.some((table) => table + 8 > rom.length)) return []
+  return tables.some((table) => table + 16 > rom.length) ? [] : tables
+}
+
+function genesisPlaces(rom: Uint8Array): Place[] {
+  const tables = genesisOptionLimits(rom)
+  if (tables.length === 0) return []
   const places: Place[] = tables.flatMap((table) => G_TEAM_LINES.map((line): Place => ({ at: table + line * 2, size: 2, kind: 'menu' })))
   const demo = only(rom, G_DEMO, true)
   if (demo !== null) places.push({ at: demo + 1, size: 1, kind: 'demo' }, { at: demo + 13, size: 1, kind: 'demo' })

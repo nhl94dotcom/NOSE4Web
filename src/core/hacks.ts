@@ -26,6 +26,7 @@ import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './b
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
+import { genesisOptionLimits } from './menuteams'
 import { claimSpace, fullRomReason } from './space'
 import { goalieCount, type Player, type Team } from './team'
 import type { FreeAgent } from './trade'
@@ -133,6 +134,8 @@ export interface HackChoices {
   fewerSkaterLines: number
   // The wait on each of the two intro screens, in counts of 4 frames less one: 80 in the original game.
   introWait: number
+  // Offer the menu's fourth period length, and the regular season's overtime on it in seconds: 0 is the original game (three lengths).
+  fourthPeriodOvertime: number
   // How fast the puck slows on the ice: it loses 1 / 2^n of its speed a frame, 9 in the original game.
   puckFriction: number
   // Which of the game's colour sets the puck is drawn in.
@@ -189,6 +192,7 @@ export type HackPart =
   | 'goalieDelay'
   | 'fewerSkaterLines'
   | 'introWait'
+  | 'fourthPeriodOvertime'
   | 'puckFriction'
   | 'puckColours'
   | 'greenFan'
@@ -243,6 +247,7 @@ export const NO_HACKS: HackChoices = {
   goalieDelay: 17,
   fewerSkaterLines: 0,
   introWait: 80,
+  fourthPeriodOvertime: 0,
   puckFriction: 9,
   puckColours: 'rink',
   greenFan: false,
@@ -261,6 +266,7 @@ export const HACK_RANGES = {
   hotColdRange: [0, 9],
   goalieDelay: [1, 128],
   introWait: [0, 600],
+  fourthPeriodOvertime: [0, 5999],
   puckFriction: [1, 12],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
@@ -536,6 +542,60 @@ const regainAssist: Part<boolean> = {
   },
   apply(work, value) {
     if (value) hook(work, REGAIN_HOOK, REGAIN_CODE)
+  },
+}
+
+// ------------------------------------------------ fourth period length's overtime
+// McMarkis's "5 Minutes, 99 Min OT" (NHL94-Gens-Patches, 99MinOT_Menu), made
+// general. The menu offers three of the game's four period lengths; this
+// offers the fourth too (its count in both OptionLimits tables, 3 to 4), and
+// gives a regular-season game on it its own overtime. ResetClock has, at
+// $7822, tst.w OptPlayMode / bne.w .0 (playoffs: overtime as long as a
+// period) / move.w #600,d0 (the regular season's 10:00, the Clock's
+// overtime). Those first 8 bytes become jsr / nop to 24 bytes that make the
+// same test; in the regular season on the fourth length they load the
+// overtime and skip the move, in the playoffs they skip it, and otherwise
+// they return to it. So the Clock's overtime stays where it is, and playoffs
+// are as in the original game (McMarkis's patch gives them 10:00 or 99:00).
+// The fourth length and its menu text are set with the others (Game
+// settings); the original's is 30 seconds.
+const OT4_HOOK: Hook = { at: 0x7822, original: bytes('4A78 D048 6600 0006') }
+// tst.w OptPlayMode.w; bne.s skip; cmpi.w #3,Optperlen.w; bne.s back;
+// move.w #n,d0; skip: addq.l #6,(sp); rts; back: rts.
+const ot4Code = (seconds: number) => bytes(`4A78 D048 660C 0C78 0003 D050 6608 303C ${seconds.toString(16).padStart(4, '0')} 5C97 4E75 4E75`)
+const OT4_VALUE_AT = 16
+const OT4_LINE = 4
+const OT4_LENGTHS = { original: 3, hacked: 4 }
+
+function ot4Target(rom: Uint8Array): number | null {
+  if (readU16(rom, OT4_HOOK.at) !== OP_JSR || readU16(rom, OT4_HOOK.at + 6) !== OP_NOP) return null
+  const target = readU32(rom, OT4_HOOK.at + 2)
+  if (target + 24 > rom.length) return null
+  return is(rom, target, ot4Code(readU16(rom, target + OT4_VALUE_AT))) ? target : null
+}
+
+const setPeriodChoices = (rom: Uint8Array, count: number) => {
+  for (const table of genesisOptionLimits(rom)) writeU16(rom, table + OT4_LINE * 2, count)
+}
+
+const fourthPeriodOvertime: Part<number> = {
+  detect(rom) {
+    if (is(rom, OT4_HOOK.at, OT4_HOOK.original)) return 0
+    const target = ot4Target(rom)
+    return target === null ? undefined : readU16(rom, target + OT4_VALUE_AT)
+  },
+  remove(rom) {
+    const target = ot4Target(rom)
+    if (target === null) return
+    erase(rom, target, 24)
+    rom.set(OT4_HOOK.original, OT4_HOOK.at)
+    setPeriodChoices(rom, OT4_LENGTHS.original)
+  },
+  apply(work, value) {
+    if (value <= 0) return
+    if (genesisOptionLimits(work.rom).length === 0) throw new HackError("The main menu's table of choices is not where the original game has it.")
+    hook(work, OT4_HOOK, ot4Code(value))
+    setPeriodChoices(work.rom, OT4_LENGTHS.hacked)
   },
 }
 
@@ -1549,6 +1609,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
     introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
+    fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
@@ -1613,6 +1674,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
     ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
+    ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
@@ -1680,7 +1742,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'greenFan', 'introWait', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -1831,6 +1893,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   goalieDelay: 'Goalie control delay',
   fewerSkaterLines: 'Edit Lines for fewer skaters',
   introWait: 'Intro screen wait',
+  fourthPeriodOvertime: 'Fourth period length, with its own overtime',
   puckFriction: 'Puck friction',
   puckColours: 'Puck colours',
   greenFan: 'The fan in green',
@@ -1880,6 +1943,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   goalieDelay: 'goalieDelay',
   fewerSkaterLines: 'fewerSkaterLines',
   introWait: 'introWait',
+  fourthPeriodOvertime: 'fourthPeriodOvertime',
   puckFriction: 'puckFriction',
   puckColours: 'puckColours',
   greenFan: 'greenFan',

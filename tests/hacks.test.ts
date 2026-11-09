@@ -270,6 +270,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { puckColours: 'away' },
       { greenFan: true },
       { goalieDelay: 128 },
+      { fourthPeriodOvertime: 5940 },
     ]
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }
@@ -321,6 +322,31 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const fan = applyHacks(opened, { ...NO_HACKS, greenFan: true }).bytes
     expect([at(fan, 0xbdeae, 2), at(fan, 0xbdeee, 2)]).toEqual(['206a', '2074'])
     expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')
+  })
+
+  it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    // The menu's period line offers 3 choices, in both tables of choice counts.
+    expect([at(opened.bytes, 0xf7926, 2), at(opened.bytes, 0xf7938, 2)]).toEqual(['0003', '0003'])
+    const hacked = applyHacks(opened, { ...NO_HACKS, fourthPeriodOvertime: 5940 }).bytes
+    expect([at(hacked, 0xf7926, 2), at(hacked, 0xf7938, 2)]).toEqual(['0004', '0004'])
+    // tst.w OptPlayMode / bne.w become jsr / nop; the Clock's move.w #600,d0 after them is left.
+    expect(at(hacked, 0x7822, 2) + at(hacked, 0x7828, 2)).toBe('4eb94e71')
+    expect(at(hacked, 0x782a, 4)).toBe('303c0258')
+    const target = readU32(hacked, 0x7824)
+    expect(at(hacked, target, 24)).toBe('4a78d048660c0c780003d0506608303c17345c974e754e75')
+    const again = openRom(hacked)
+    expect(detectHacks(again.bytes).choices.fourthPeriodOvertime).toBe(5940)
+    expect(again.settings.overtimeSeconds).toBe(600)
+    // The Clock's overtime is still edited where it was, with the hack on.
+    const clock = openRom(buildRom({ ...again, settings: { ...again.settings, overtimeSeconds: 300 } }))
+    expect(clock.settings.overtimeSeconds).toBe(300)
+    expect(detectHacks(clock.bytes).choices.fourthPeriodOvertime).toBe(5940)
+    // Changed, then taken out: the original game again.
+    expect(detectHacks(applyHacks(again, { ...NO_HACKS, fourthPeriodOvertime: 600 }).bytes).choices.fourthPeriodOvertime).toBe(600)
+    expect(Buffer.compare(applyHacks(again, NO_HACKS).bytes, opened.bytes)).toBe(0)
+    expect(() => applyHacks(opened, { ...NO_HACKS, fourthPeriodOvertime: 6000 })).toThrow('from 0 to 5999')
   })
 
   it('writes the B-check and goalie control delay choices, the delay in all eight places', () => {

@@ -430,6 +430,18 @@ export function HacksPage({ project, name, onChange }: Props) {
             speed.
           </>,
         )}
+        {hack(
+          'fourthPeriodOvertime',
+          number('fourthPeriodOvertime'),
+          <>
+            An option, in seconds of overtime: 0 leaves it off. The main menu offers three of the game's four period
+            lengths; this offers the fourth too, and a regular-season game on it gets this much overtime instead of the
+            Clock's (5940 is 99 minutes, about as good as no limit). Set the fourth length and its menu text with the
+            others on the Game settings page: the original's is 30 seconds. The other lengths keep the Clock's overtime,
+            and playoff overtime stays as long as a period, as in the original game. McMarkis's "5 Minutes, 99 Min OT"
+            patch, made for any length; it can save a league a separate playoff ROM.
+          </>,
+        )}
       </section>
 
       <section>
