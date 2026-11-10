@@ -23,7 +23,7 @@ import {
   type SnesHackChoices,
 } from './core/sneshacks'
 
-const HITS_ONLY_HACKS: SnesHack[] = ['hitEnergy', 'holdEnergy', 'noSkatingDrain', 'freeBurst']
+const HITS_ONLY_HACKS: SnesHack[] = ['hitEnergy', 'holdEnergy', 'noSkatingDrain', 'freeBurst', 'energySpeed']
 const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   hitEnergy: RECOMMENDED_SNES_HIT_ENERGY,
   holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY,
@@ -69,6 +69,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   noInterference: 'Interference is never called.',
   noSkatingDrain:
     'With line changes on, skating costs no energy: the drain every 64th frame on the ice never runs. Players then tire only from what else costs it, hits and holds (if set) and speed bursts, and rest on the bench as usual. With speed bursts free too, only hits tire a player. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game: a skater never hit keeps full energy through a shift.',
+  energySpeed:
+    "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It also makes skaters tired from skating slower than before, with line changes on and skating costing energy. Line changes Auto keeps everyone at full speed. Read from the game's code, after the NHL94 Match Viewer project's measurements; not yet tested in the game.",
   freeBurst:
     'A C-button speed burst costs no energy with line changes on, where the original costs 204 of 4096. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game.',
   noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
@@ -123,7 +125,7 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
   { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 
@@ -258,7 +260,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 onClick={() => {
                   setDraft({
                     rom: project.bytes,
-                    choices: { ...wanted, hitEnergy: true, holdEnergy: true, noSkatingDrain: true, freeBurst: true },
+                    choices: { ...wanted, hitEnergy: true, holdEnergy: true, noSkatingDrain: true, freeBurst: true, energySpeed: true },
                     amounts: { ...wantedAmounts, ...SNES_HITS_ONLY },
                   })
                   setNotice('')
@@ -268,8 +270,8 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 Energy from hits only
               </button>{' '}
               <span className="note">
-                Skating and speed bursts cost nothing; a knockdown costs {SNES_HITS_ONLY.hitEnergy} (a third of full energy) and a hold {SNES_HITS_ONLY.holdEnergy}.
-                Players get it back on the bench as usual. Then Apply. Tested in the game by the NHL94 Match Viewer project: an average skater's top speed falls about 8%, 14% and 22% after one, two and three knockdowns. On the SNES energy never takes a skater below half his speed, so hits slow him less than on the Genesis.
+                Skating and speed bursts cost nothing; a knockdown costs {SNES_HITS_ONLY.hitEnergy} (a third of full energy) and a hold {SNES_HITS_ONLY.holdEnergy}; and energy takes all of a skater's speed, so three knockdowns leave him at the slowest speed there is.
+                Players get it back on the bench as usual. Then Apply. The energy costs were tested in the game by the NHL94 Match Viewer project; with the original's speed an average skater was 8%, 14% and 22% slower after one, two and three knockdowns, which is why energy now takes all of his speed (about 14%, 29% and 43%, not yet tested in the game).
               </span>
             </p>
           )}

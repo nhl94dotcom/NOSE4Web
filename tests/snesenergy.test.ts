@@ -15,6 +15,17 @@ const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.
 const target = (rom: Uint8Array, site: number) => loRomOffset(Math.floor(site / 0x8000) | 0x80, rom[site + 1] | (rom[site + 2] << 8))
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () => {
+  it("can let energy take all of a skater's speed, in every build", () => {
+    const project = open('NHL94.smc')
+    // playeracc: lda d0 / lsr / clc / adc #$800 / tax / pla / asl x4 / jsl Mul16x8U.
+    expect(hex(project.bytes, 0xf2803, 14)).toBe('a5a54a18690008aa680a0a0a0a22')
+    const on = applySnesHacks(project, { energySpeed: true })
+    expect(hex(on.bytes, 0xf2803, 14)).toBe('a5a5eaeaeaeaeaaa680a0a0a0a22')
+    expect(detectSnesHacks(on.bytes).choices.energySpeed).toBe(true)
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { energySpeed: false })), buildRom(project))).toBe(0)
+    for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('energySpeed')
+  })
+
   it('can make skating and speed bursts cost no energy, in every build', () => {
     const project = open('NHL94.smc')
     // playeracc's drain: lda seed / and #$3F / bne past it at $9E:A867; burst's sbc #$CC at $9E:820C.

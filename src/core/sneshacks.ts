@@ -42,6 +42,7 @@ export type SnesHack =
   | 'injuryBonus'
   | 'noSkatingDrain'
   | 'freeBurst'
+  | 'energySpeed'
 
 interface Site {
   // The game's address.
@@ -267,6 +268,7 @@ export const SNES_HACKS: SnesHack[] = [
   'injuryBonus',
   'noSkatingDrain',
   'freeBurst',
+  'energySpeed',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -298,6 +300,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   injuryBonus: 'Injury risk added by each knockdown',
   noSkatingDrain: 'Skating costs no energy',
   freeBurst: 'Speed bursts cost no energy',
+  energySpeed: "Energy takes all of a skater's speed",
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -543,6 +546,14 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const found = only(rom, '22......af......f0..a5..38e9....85..22......af......c90200d005a90010')
     if (found < 0) return null
     return [{ at: found + 13, original: hexBytes('E9CC00'), hacked: hexBytes('E90000') }]
+  },
+  // playeracc's speed class: lda d0 (energy) / lsr / clc / adc #$800 / tax, then leg speed x 16 times it, the
+  // high word the MaxSpeed index; so no energy halves the class. With the shift and add gone it is the
+  // energy itself, as on the Genesis: an empty skater skates at the slowest class there is.
+  energySpeed: (rom) => {
+    const found = only(rom, 'a5..' + '..........' + 'aa680a0a0a0a22')
+    if (found < 0) return null
+    return [{ at: found + 2, original: hexBytes('4A18690008'), hacked: hexBytes('EAEAEAEAEA') }]
   },
   noInterference: (rom) => {
     const found = only(rom, '38e91f00' + '....' + 'bd....890040d0b5a9140038fd....22')
@@ -1032,7 +1043,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
