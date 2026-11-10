@@ -88,7 +88,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   hitEnergy: (c) =>
     `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
   injuryBonus: (c) =>
-    `Each knockdown a skater takes adds ${c.injuryBonus} to the impact of a later hit that can injure him (at most ${c.injuryCap}, about ${Math.round((c.injuryCap / 160) * 100)} in 100 more), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
+    `Each knockdown a skater takes adds ${c.injuryBonus} to the impact of a hit that can injure him, its own included (at most ${c.injuryCap}, about ${Math.round((c.injuryCap / 160) * 100)} in 100 more), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
   injuryCap: (c) => `The injury risk knockdowns add is at most ${c.injuryCap} impact, about ${Math.round((c.injuryCap / 160) * 100)} in 100 more on a hit that can injure.`,
   holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   anyPosition: () => "The game's Edit Lines offers every skater for every position, and keeps such lines when they are saved; a player plays the position the line gives him.",
@@ -171,7 +171,7 @@ const SNES: Record<SnesHack, string> = {
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
   holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',
-  injuryBonus: 'Each knockdown a skater takes makes a later hit a little more likely to injure him (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
+  injuryBonus: 'Each knockdown a skater takes makes a hit a little more likely to injure him, its own included (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 

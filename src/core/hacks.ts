@@ -898,12 +898,13 @@ const GAME_HOOK: Hook = { at: 0x778c, original: bytes('4EB9 0001 7102') }
 const GAME_CODE = bytes('48E7 8080 41F8 F000 703F 4218 51C8 FFFC 4CDF 0101 4EF9 0001 7102')
 const PERIOD_HOOK: Hook = { at: 0x17236, original: bytes('5278 C466 0878 0001 C2EA') }
 const PERIOD_CODE = bytes('48E7 C080 41F8 F000 703F 1210 E209 10C1 51C8 FFF8 4CDF 0103 5278 C466 0878 0001 C2EA 4E75')
-// The recommended bonus and cap, the commissioner's choice from Match Viewer's estimates over 26 recorded
-// league games: +10 impact a knockdown, at most +50 (an eligible hit about 31 in 100 more likely to injure),
-// for about 30% more injuries a game and the most-hit skaters (5 or more knockdowns) about 1.4 times as
-// likely to be hurt; +2 / 10 was too little to notice.
-export const RECOMMENDED_INJURY_BONUS = 10
-export const RECOMMENDED_INJURY_CAP = 50
+// The recommended bonus and cap, for the effect the commissioner chose from Match Viewer's estimates over 26
+// recorded league games: about 30% more injuries a game, the most-hit skaters about 1.4 times as likely to be
+// hurt. A knockdown is counted before its own injury roll, so the first already adds the bonus; with that,
+// Match Viewer puts +5 impact a knockdown, at most +25, at +27% and 1.33 times (+10 / 50, chosen first, at
+// +54% and 1.66); +2 / 10 was too little to notice.
+export const RECOMMENDED_INJURY_BONUS = 5
+export const RECOMMENDED_INJURY_CAP = 25
 
 interface InjuryRisk {
   bonus: number
