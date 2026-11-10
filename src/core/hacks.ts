@@ -136,6 +136,8 @@ export interface HackChoices {
   introWait: number
   // Offer the menu's fourth period length, and the regular season's overtime on it in seconds: 0 is the original game (three lengths).
   fourthPeriodOvertime: number
+  // Edit Lines lists every skater for every position, and saves such lines.
+  anyPosition: boolean
   // Energy a skater loses when knocked down, and when a hold or hook catches him (0 to $1000 is empty to full): 0 is the original game.
   hitEnergy: number
   holdEnergy: number
@@ -201,6 +203,7 @@ export type HackPart =
   | 'fewerSkaterLines'
   | 'introWait'
   | 'fourthPeriodOvertime'
+  | 'anyPosition'
   | 'hitEnergy'
   | 'holdEnergy'
   | 'injuryBonus'
@@ -261,6 +264,7 @@ export const NO_HACKS: HackChoices = {
   fewerSkaterLines: 0,
   introWait: 80,
   fourthPeriodOvertime: 0,
+  anyPosition: false,
   hitEnergy: 0,
   holdEnergy: 0,
   injuryBonus: 0,
@@ -636,7 +640,7 @@ const fourthPeriodOvertime: Part<number> = {
 // a hold: a3 is then locked), becomes jsr / nop to code that takes its
 // amount off a3, then sets the flail and goes on to SetSPA.
 type Asm = (string | { label: string } | { branch: number; to: string })[]
-// Machine code from hex and short branches to labels in it.
+// Machine code from hex and short branches (forward or back) to labels in it.
 function assemble(parts: Asm): Uint8Array {
   const sizes = parts.map((part) => (typeof part === 'string' ? bytes(part).length : 'label' in part ? 0 : 2))
   const labels: Record<string, number> = {}
@@ -651,8 +655,8 @@ function assemble(parts: Asm): Uint8Array {
     if (typeof part === 'string') out.set(bytes(part), at)
     else if ('branch' in part) {
       const distance = labels[part.to] - (at + 2)
-      if (distance <= 0 || distance > 127) throw new Error(`A short branch to ${part.to} cannot reach it.`)
-      out.set([part.branch, distance], at)
+      if (distance === 0 || distance < -128 || distance > 127) throw new Error(`A short branch to ${part.to} cannot reach it.`)
+      out.set([part.branch, distance & 0xff], at)
     }
     at += sizes[i]
   })
@@ -934,6 +938,81 @@ const injuryRisk: Part<InjuryRisk> = {
     hook(work, ROLL_HOOK, rollCode(value.bonus, value.cap))
     hook(work, GAME_HOOK, GAME_CODE)
     hook(work, PERIOD_HOOK, PERIOD_CODE)
+  },
+}
+
+// ------------------------------------------------- any skater at any position
+// As the SNES hack from NHL94SNESVault, read from the code by Match Viewer.
+// SelectLinePlayer lists the forwards for slots 3 to 5 and the defencemen
+// for 1 and 2 by branching on the slot (cmp.w #2,d2 / bgt.w .n / add.w
+// d0,d1 at $83A2); with the bgt and the add gone, every slot lists every
+// skater, from the first after the goalies. SetLineSlot already swaps a
+// player picked from elsewhere on the line. Lines saved from the editor's
+// exit menu keep each slot as a nibble counted from the first forward or
+// defenceman, which a defenceman at forward overflows, and the save block
+// around them is full (the playoff state and totals follow), so a byte a
+// slot, counted from the first skater, goes in 34 bytes of save RAM at
+// $1EC0 that no ROM uses (the original's own blocks end at $E20; a scan of
+// the league ROMs found none other), with the team + 1 first, built at
+// $FFF040:
+// - EncodeTeamLines ($8928) writes the team to the old block as before
+//   (WriteLineData keeps the playoffs; the editor's exit offers Load by it),
+//   then the new block (WriteSRAM, MakeSRAMChecksum).
+// - DecodeTeamLines ($88C8) reads the new block (ReadSRAM) and, if it is the
+//   same team's, puts each slot's player in with SetLineSlot; lines saved
+//   before the hack go through the original code.
+// Both are menu handlers: their first 8 bytes become jsr / nop to code that
+// drops the jsr's return and returns to the menu itself.
+const SELECT_AT = 0x83a4
+const SELECT = { original: bytes('6E00 000A D240'), hacked: bytes('4E71 4E71 4E71') }
+const ENCODE_HOOK: Hook = { at: 0x8928, original: bytes('48E7 F8F0 307C D076') }
+const ENCODE_CODE = assemble([
+  '588F 48E7 F8F0 307C D076 302A 0028 5240 1080 4EB9 000F E696',
+  '41F8 F040 10C0 43EA 016A 4EB9 0000 9F40 3200 267C 0000 898A 4242',
+  { label: 'next' },
+  '141B',
+  { branch: 0x6b, to: 'done' },
+  '1631 2000 5303 9601 10C3',
+  { branch: 0x60, to: 'next' },
+  { label: 'done' },
+  '203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A1E4 4EB9 0001 A206 4CDF 0F1F 4E75',
+])
+const DECODE_HOOK: Hook = { at: 0x88c8, original: bytes('48E7 F890 307C D076') }
+const DECODE_CODE = assemble([
+  '588F 48E7 F890 203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A244 1038 F040 B038 D076',
+  { branch: BEQ, to: 'ours' },
+  '307C D076 4EF9 0000 88D0',
+  { label: 'ours' },
+  '41F8 F041 4EB9 0000 9F40 3200 267C 0000 898A 4242',
+  { label: 'next' },
+  '1413',
+  { branch: 0x6b, to: 'done' },
+  '7000 1018 D041 5240 141B 4EB9 0000 8898',
+  { branch: 0x60, to: 'next' },
+  { label: 'done' },
+  '4CDF 091F 4E75',
+])
+const anyPosition: Part<boolean> = {
+  detect(rom) {
+    const plain = is(rom, SELECT_AT, SELECT.original) && is(rom, ENCODE_HOOK.at, ENCODE_HOOK.original) && is(rom, DECODE_HOOK.at, DECODE_HOOK.original)
+    if (plain) return false
+    return is(rom, SELECT_AT, SELECT.hacked) && hooked(rom, ENCODE_HOOK, ENCODE_CODE) !== null && hooked(rom, DECODE_HOOK, DECODE_CODE) !== null ? true : undefined
+  },
+  remove(rom) {
+    const encode = hooked(rom, ENCODE_HOOK, ENCODE_CODE)
+    const decode = hooked(rom, DECODE_HOOK, DECODE_CODE)
+    if (!is(rom, SELECT_AT, SELECT.hacked) || encode === null || decode === null) return
+    erase(rom, encode, ENCODE_CODE.length)
+    erase(rom, decode, DECODE_CODE.length)
+    rom.set(SELECT.original, SELECT_AT)
+    rom.set(ENCODE_HOOK.original, ENCODE_HOOK.at)
+    rom.set(DECODE_HOOK.original, DECODE_HOOK.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    hook(work, ENCODE_HOOK, ENCODE_CODE)
+    hook(work, DECODE_HOOK, DECODE_CODE)
+    work.rom.set(SELECT.hacked, SELECT_AT)
   },
 }
 
@@ -1971,6 +2050,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
     introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
     fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
+    anyPosition: found('anyPosition', anyPosition.detect(rom), NO_HACKS.anyPosition),
     hitEnergy: found('hitEnergy', hit?.energy, NO_HACKS.hitEnergy),
     holdEnergy: found('holdEnergy', holdEnergy.detect(rom), NO_HACKS.holdEnergy),
     injuryBonus: found('injuryBonus', injury?.bonus, NO_HACKS.injuryBonus),
@@ -2041,6 +2121,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
     ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
     ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
+    ['anyPosition', () => anyPosition.remove(work.rom), () => anyPosition.apply(work, wanted.anyPosition)],
     ['hitEnergy', () => hitHook.remove(work.rom), () => hitHook.apply(work, { energy: wanted.hitEnergy, counting: wanted.injuryBonus > 0 })],
     ['injuryBonus', () => injuryRisk.remove(work.rom), () => injuryRisk.apply(work, { bonus: wanted.injuryBonus, cap: wanted.injuryCap })],
     ['holdEnergy', () => holdEnergy.remove(work.rom), () => holdEnergy.apply(work, wanted.holdEnergy)],
@@ -2112,7 +2193,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
+  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -2264,6 +2345,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   fewerSkaterLines: 'Edit Lines for fewer skaters',
   introWait: 'Intro screen wait',
   fourthPeriodOvertime: 'Fourth period length, with its own overtime',
+  anyPosition: 'Any skater at any position in Edit Lines',
   hitEnergy: 'Energy lost when knocked down',
   injuryBonus: 'Injury risk added by each knockdown',
   injuryCap: 'Most injury risk knockdowns can add',
@@ -2319,6 +2401,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   fewerSkaterLines: 'fewerSkaterLines',
   introWait: 'introWait',
   fourthPeriodOvertime: 'fourthPeriodOvertime',
+  anyPosition: 'anyPosition',
   hitEnergy: 'hitEnergy',
   injuryBonus: 'injuryBonus',
   injuryCap: 'injuryCap',

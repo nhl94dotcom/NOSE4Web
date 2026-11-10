@@ -8,7 +8,7 @@ import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
 import { photoLayout, setupCardCount } from './photos'
 import { snesPlaceNameRoom } from './snesplacenames'
-import { snesAnyPosition } from './sneshacks'
+import { anyPosition } from './anyposition'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
 
@@ -80,7 +80,7 @@ function checkTeam(project: RomProject, team: Team, index: number, where: string
         `${name} has ${team.players[slots[slot] - 1].name} at both ${at(first)} and ${at(slot)}. The game plays such a line a skater short, with no penalty, until a line change: one copy of him leaves the ice and no one takes his place.`,
       )
     }
-    for (const slot of outOfRoleSlots(team, slots, snesAnyPosition(project))) {
+    for (const slot of outOfRoleSlots(team, slots, anyPosition(project))) {
       const role = playerRole(team, slots[slot]) === 'forward' ? 'a forward' : 'a defenceman'
       add('note', `${name} has ${team.players[slots[slot] - 1].name}, ${role}, at ${at(slot)}.`)
     }

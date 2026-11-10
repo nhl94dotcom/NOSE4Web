@@ -196,7 +196,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -743,6 +743,19 @@ export function HacksPage({ project, name, onChange }: Props) {
             </>,
           )
         })()}
+        {hack(
+          'anyPosition',
+          onOff('anyPosition'),
+          <>
+            The game's own Edit Lines lists only forwards for the forward positions and only defencemen for the defence.
+            With this on it lists every skater for every position, and picking someone already on the line swaps the two,
+            as the game already does. A player plays the position the line gives him, faceoffs included, with his own
+            ratings. Lines saved from Edit Lines are kept in a new place in the save memory, a byte a position, so a
+            defenceman at forward comes back as himself; lines saved before it is on still load. NOSE4Web's own line
+            editor offers any skater at any position whatever the ROM has. As McMarkis's SNES hack in NHL94SNESVault, read
+            from the Genesis code by the NHL94 Match Viewer project; not yet tested in the game.
+          </>,
+        )}
         {hack(
           'puckFriction',
           number('puckFriction'),

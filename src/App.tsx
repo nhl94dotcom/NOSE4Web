@@ -34,7 +34,7 @@ import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { HacksPage } from './HacksPage'
 import { hacksSupported, withHacksOf } from './core/hacks'
-import { snesAnyPosition } from './core/sneshacks'
+import { anyPosition } from './core/anyposition'
 import { HelpPage } from './HelpPage'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
@@ -381,7 +381,7 @@ export default function App() {
           <TeamEditor
             key={selected}
             game={current.game}
-            anyPosition={snesAnyPosition(current)}
+            anyPosition={anyPosition(current)}
             players={snesPlayers}
             teamRatingList={teamRatingsFor(ppPkFixed)}
             team={current.teams[selected]}

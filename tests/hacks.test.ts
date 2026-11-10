@@ -273,6 +273,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { greenFan: true },
       { goalieDelay: 128 },
       { fourthPeriodOvertime: 5940 },
+      { anyPosition: true },
       { hitEnergy: 204 },
       { holdEnergy: 102 },
       { hitEnergy: 204, holdEnergy: 102 },
@@ -404,6 +405,33 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     half.set([0xb0, 0x6a, 0x00, 0x32, 0x6e, 0x00, 0x00, 0x5c], 0x14432)
     expect(detectHacks(half).unknown).toContain('injuryBonus')
     expect(() => applyHacks(opened, { ...NO_HACKS, injuryBonus: 11 })).toThrow('from 0 to 10')
+  })
+
+  it('lists every skater for every position in Edit Lines, and saves such lines a byte a slot', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    expect(at(opened.bytes, 0x83a0, 10)).toBe('b47c00026e00000ad240')
+    const hacked = applyHacks(opened, { ...NO_HACKS, anyPosition: true }).bytes
+    // SelectLinePlayer: no branch on the slot, so every slot lists from the first skater.
+    expect(at(hacked, 0x83a4, 6)).toBe('4e714e714e71')
+    // EncodeTeamLines: the team to the old block (WriteLineData), then a byte a slot, counted from the first skater, to save RAM $1EC0.
+    expect(at(hacked, 0x8928, 2) + at(hacked, 0x892e, 2)).toBe('4eb94e71')
+    expect(at(hacked, readU32(hacked, 0x892a), 96)).toBe(
+      '588f48e7f8f0307cd076302a002852401080' + '4eb9000fe69641f8f04010c043ea016a4eb900009f403200267c0000898a4242' + '141b6b0c163120005303960110c360f0' +
+        '203c00001ec0722241f8f0404eb90001a1e44eb90001a2064cdf0f1f4e75',
+    )
+    // DecodeTeamLines: the new block if it is this team's, else the original code.
+    expect(at(hacked, 0x88c8, 2) + at(hacked, 0x88ce, 2)).toBe('4eb94e71')
+    expect(at(hacked, readU32(hacked, 0x88ca), 92)).toBe(
+      '588f48e7f890203c00001ec0722241f8f0404eb90001a2441038f040b038d076670a' + '307cd0764ef9000088d0' +
+        '41f8f0414eb900009f403200267c0000898a4242' + '14136b1270001018d0415240141b4eb90000889860ea' + '4cdf091f4e75',
+    )
+    // The routines it calls are where it says.
+    expect([at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), at(opened.bytes, 0x1a1e4, 4), at(opened.bytes, 0x1a244, 4), at(opened.bytes, 0xfe696, 4)]).toEqual([
+      at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), '48e7e0c0', '48e7e0c0', '48e7c080',
+    ])
+    expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, anyPosition: true }, unknown: [] })
+    expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
   })
 
   it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {
