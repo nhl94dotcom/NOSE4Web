@@ -64,6 +64,16 @@ const LOGO_ORIGIN = 4
 // of 16, and the rest from the row after; a 16 x 16 piece at tile t also
 // uses t + 1, t + 16 and t + 17. See snesSpriteFrame.
 const VRAM_ROW = 16
+// LoadFrameTiles (FindCachedFrame.asm) gives a logo's frame room in the
+// sprite tile cache by its tile count, in units of four tiles: up to 8 units
+// a run of two tile rows, two columns a unit wide; 9 a chain of two whole rows
+// and two columns of the two rows after. It copies the first part of the
+// tiles from the start of that room on, and the second part to the row after
+// the first part's whole rows. Tiles placed outside the room land on other
+// sprites' tiles in the cache, which show stray blocks, and are themselves
+// written over (as the original logos never are).
+const UNIT = 4
+const RUN_UNITS = 8
 
 interface Tables {
   logoSet: number
@@ -198,7 +208,7 @@ function drawLogo(set: Uint8Array, p: number): Picture {
   const picture = { width: LOGO_SIZE, height: LOGO_SIZE, pixels: new Uint8Array(LOGO_SIZE * LOGO_SIZE) }
   const count = set[p]
   const firstPart = readU16LE(set, p + 0x0c) / TILE
-  const secondPartAt = Math.max(1, Math.ceil(firstPart / VRAM_ROW)) * VRAM_ROW
+  const secondPartAt = secondPartPlace(set, p)
   const tiles = p + readU16LE(set, p + 0x10)
   // The game puts the pieces in the sprite table in order, and an earlier
   // sprite is in front (Match Viewer): where two pieces overlap, the first
@@ -224,6 +234,54 @@ function drawLogo(set: Uint8Array, p: number): Picture {
     }
   }
   return picture
+}
+
+// Where LoadFrameTiles puts a frame's second part: the second row for a frame
+// of up to 8 units, otherwise the row after the first part's whole rows. A
+// frame an earlier NOSE4Web laid out with a first part longer than a row and
+// up to 8 units had it after the first part's rows, which is where it is read
+// from, so that saving it again lays it out right.
+function secondPartPlace(data: Uint8Array, p: number): number {
+  const firstPart = readU16LE(data, p + 0x0c) / TILE
+  const units = Math.ceil(readU16LE(data, p + 2) / UNIT)
+  if (units <= RUN_UNITS) return firstPart <= VRAM_ROW ? VRAM_ROW : Math.ceil(firstPart / VRAM_ROW) * VRAM_ROW
+  return (Math.floor(firstPart / VRAM_ROW) + 1) * VRAM_ROW
+}
+
+// Whether the frame at `p` puts tiles outside its room in the sprite tile
+// cache, or draws pieces from places it does not load (see UNIT): the stray
+// blocks of logos an earlier NOSE4Web laid out.
+function frameSpills(data: Uint8Array, p: number): boolean {
+  const units = Math.ceil(readU16LE(data, p + 2) / UNIT)
+  const firstPart = readU16LE(data, p + 0x0c) / TILE
+  const secondPart = readU16LE(data, p + 0x0e) / TILE
+  const wholeRows = 2 * Math.floor(units / RUN_UNITS)
+  const restColumns = 2 * (units % RUN_UNITS)
+  const inRoom = (place: number) => {
+    const [row, col] = [Math.floor(place / VRAM_ROW), place % VRAM_ROW]
+    if (units <= RUN_UNITS) return row <= 1 && col < 2 * units
+    return row < wholeRows || (row < wholeRows + 2 && col < restColumns)
+  }
+  // The game's own place for the second part, whatever this frame's maker thought.
+  const secondAt = units <= RUN_UNITS ? VRAM_ROW : (Math.floor(firstPart / VRAM_ROW) + 1) * VRAM_ROW
+  const loaded = new Set<number>()
+  for (let i = 0; i < firstPart; i++) loaded.add(i)
+  for (let i = 0; i < secondPart; i++) loaded.add(secondAt + i)
+  if ([...loaded].some((place) => !inRoom(place))) return true
+  for (let s = 0; s < data[p]; s++) {
+    const q = p + FRAME_HEADER + s * PIECE
+    const place = data[q + 4]
+    const needs = data[q + 6] === 0xff ? [place, place + 1, place + VRAM_ROW, place + VRAM_ROW + 1] : [place]
+    if (needs.some((each) => !loaded.has(each))) return true
+  }
+  return false
+}
+
+// The teams whose logo frames show stray blocks in the game (see frameSpills).
+export function snesLogosThatSpill(rom: Uint8Array, teamCount: number): number[] {
+  const c = read(rom, teamCount)
+  if (!c) return []
+  return c.frameAt.flatMap((p, team) => (frameSpills(c.frames, p) ? [team] : []))
 }
 
 const readColours = (rom: Uint8Array, at: number) => Array.from({ length: COLOURS }, (_, i) => readU16LE(rom, at + i * 2))
@@ -330,6 +388,13 @@ interface Layout {
 }
 
 // The pieces and tiles of a logo on a grid of 8 x 8 cells from (left, top).
+// Each different 16 x 16 square (up to 8) is a block, at columns 2i and 2i + 1
+// of the first two tile rows; each other different 8 x 8 square a single tile.
+// The singles follow the blocks in the first row, then the second, only as
+// far as the frame's room in the cache reaches (see UNIT): 2 columns a unit
+// for up to 8 units; for 9, the first two rows whole and then the first two
+// columns of the third and fourth. The first part is the first row (the first
+// three, for 9 units) and the second the row after, as the original logos are.
 function layOut(at: (x: number, y: number) => number, opaque: [number, number][], left: number, top: number): Layout | null {
   const filled = new Set<string>()
   for (const [x, y] of opaque) filled.add(`${Math.floor((x - left) / 8)},${Math.floor((y - top) / 8)}`)
@@ -361,69 +426,87 @@ function layOut(at: (x: number, y: number) => number, opaque: [number, number][]
 
   // Squares of four filled cells, none overlapping.
   const taken = new Set<string>()
-  const blocks: [number, number][] = []
+  const squares: [number, number][] = []
   for (const [cx, cy] of cells) {
     const square = [0, 1, 2, 3].map((q) => `${cx + (q & 1)},${cy + (q >> 1)}`)
     if (square.every((key) => filled.has(key) && !taken.has(key))) {
-      blocks.push([cx, cy])
+      squares.push([cx, cy])
       square.forEach((key) => taken.add(key))
     }
   }
-  const used = new Map<number, Uint8Array>()
-  const pieces: Layout['pieces'] = []
+
+  // The different blocks and singles, and each piece by which of them it draws:
+  // a block i at place 2i, a quarter q of block i at 2i + (q & 1) + (q >> 1) * 16,
+  // single j wherever it is placed below.
+  type Source = { block: number; quarter: number } | { single: number }
+  const blocks: number[][] = []
+  const singles: number[][] = []
   const bigAt = new Map<string, number>()
-  const smallAt = new Map<string, number>()
-  let distinctBlocks = 0
-  const singles: [number, number][] = cells.filter(([cx, cy]) => !taken.has(`${cx},${cy}`))
-  for (const [cx, cy] of blocks) {
+  const smallAt = new Map<string, Source>()
+  const drawn: { x: number; y: number; source: Source; flip: number; big: boolean }[] = []
+  const singleCells: [number, number][] = cells.filter(([cx, cy]) => !taken.has(`${cx},${cy}`))
+  for (const [cx, cy] of squares) {
     const flip = flips.find((f) => bigAt.has(colours(cx, cy, 2, f).join()))
     if (flip !== undefined) {
-      pieces.push({ x: left + cx * 8, y: top + cy * 8, place: bigAt.get(colours(cx, cy, 2, flip).join())!, flip, big: true })
+      drawn.push({ x: left + cx * 8, y: top + cy * 8, source: { block: bigAt.get(colours(cx, cy, 2, flip).join())!, quarter: 0 }, flip, big: true })
       continue
     }
-    if (distinctBlocks === 8) {
+    if (blocks.length === RUN_UNITS) {
       // No room in the first two rows for another: its cells go as single tiles.
-      for (let q = 0; q < 4; q++) singles.push([cx + (q & 1), cy + (q >> 1)])
+      for (let q = 0; q < 4; q++) singleCells.push([cx + (q & 1), cy + (q >> 1)])
       continue
     }
-    const place = 2 * distinctBlocks++
     const pixels = colours(cx, cy, 2, 0)
-    bigAt.set(pixels.join(), place)
+    const block = blocks.push(pixels) - 1
+    bigAt.set(pixels.join(), block)
     for (let q = 0; q < 4; q++) {
-      const where = place + (q & 1) + (q >> 1) * VRAM_ROW
-      used.set(where, tileBytes(pixels, 16, (q & 1) * 8, (q >> 1) * 8))
       const quarter = colours(cx + (q & 1), cy + (q >> 1), 1, 0).join()
-      if (!smallAt.has(quarter)) smallAt.set(quarter, where)
+      if (!smallAt.has(quarter)) smallAt.set(quarter, { block, quarter: q })
     }
-    pieces.push({ x: left + cx * 8, y: top + cy * 8, place, flip: 0, big: true })
+    drawn.push({ x: left + cx * 8, y: top + cy * 8, source: { block, quarter: 0 }, flip: 0, big: true })
   }
-  let next = 0
-  for (const [cx, cy] of singles) {
+  for (const [cx, cy] of singleCells) {
     const flip = flips.find((f) => smallAt.has(colours(cx, cy, 1, f).join()))
     if (flip !== undefined) {
-      pieces.push({ x: left + cx * 8, y: top + cy * 8, place: smallAt.get(colours(cx, cy, 1, flip).join())!, flip, big: false })
+      drawn.push({ x: left + cx * 8, y: top + cy * 8, source: smallAt.get(colours(cx, cy, 1, flip).join())!, flip, big: false })
       continue
     }
-    while (used.has(next)) next++
     const pixels = colours(cx, cy, 1, 0)
-    used.set(next, tileBytes(pixels, 8, 0, 0))
-    smallAt.set(pixels.join(), next)
-    pieces.push({ x: left + cx * 8, y: top + cy * 8, place: next, flip: 0, big: false })
+    const single = singles.push(pixels) - 1
+    smallAt.set(pixels.join(), { single })
+    drawn.push({ x: left + cx * 8, y: top + cy * 8, source: { single }, flip: 0, big: false })
   }
 
-  // The places from 0 that follow on are the first part; any others, which
-  // can only be blocks' bottom halves, the second, from the next row.
+  // The places the singles take, in the frame's room.
+  const count = blocks.length * UNIT + singles.length
+  const units = Math.ceil(count / UNIT)
+  const width = units <= RUN_UNITS ? 2 * units : VRAM_ROW
+  const free: number[] = []
+  for (const row of [0, 1]) for (let col = 2 * blocks.length; col < width; col++) free.push(row * VRAM_ROW + col)
+  if (units > RUN_UNITS) {
+    const extra = 2 * (units - RUN_UNITS)
+    for (const row of [2, 3]) for (let col = 0; col < extra; col++) free.push(row * VRAM_ROW + col)
+  }
+  // More tiles than the largest room (9 units) cannot be placed; the caller says so by the count.
+  while (free.length < singles.length) free.push(4 * VRAM_ROW + free.length)
+  const singlePlace = singles.map((_, j) => free[j])
+  const placeOf = (source: Source) => ('single' in source ? singlePlace[source.single] : 2 * source.block + (source.quarter & 1) + (source.quarter >> 1) * VRAM_ROW)
+
+  const used = new Map<number, Uint8Array>()
+  blocks.forEach((pixels, i) => {
+    for (let q = 0; q < 4; q++) used.set(2 * i + (q & 1) + (q >> 1) * VRAM_ROW, tileBytes(pixels, 16, (q & 1) * 8, (q >> 1) * 8))
+  })
+  singles.forEach((pixels, j) => used.set(singlePlace[j], tileBytes(pixels, 8, 0, 0)))
   const places = [...used.keys()].sort((a, b) => a - b)
-  let firstPart = 0
-  while (used.has(firstPart)) firstPart++
-  const secondAt = Math.max(1, Math.ceil(firstPart / VRAM_ROW)) * VRAM_ROW
-  const second = places.filter((place) => place >= firstPart)
-  if (second.some((place, i) => place !== secondAt + i)) return null
+  // The first part: the first row, or the first three rows for 9 units; the second the row after.
+  const lastFirstRow = units > RUN_UNITS ? 2 : 0
+  const first = places.filter((place) => Math.floor(place / VRAM_ROW) <= lastFirstRow)
+  const second = places.filter((place) => Math.floor(place / VRAM_ROW) > lastFirstRow)
   return {
-    pieces,
-    first: places.filter((place) => place < firstPart).map((place) => used.get(place)!),
+    pieces: drawn.map((piece) => ({ x: piece.x, y: piece.y, place: placeOf(piece.source), flip: piece.flip, big: piece.big })),
+    first: first.map((place) => used.get(place)!),
     second: second.map((place) => used.get(place)!),
-    bytes: FRAME_HEADER + pieces.length * PIECE + places.length * TILE,
+    bytes: FRAME_HEADER + drawn.length * PIECE + places.length * TILE,
   }
 }
 
@@ -771,8 +854,27 @@ export function sameBank(at: number, size: number): boolean {
   return Math.floor(at / 0x8000) === Math.floor((at + size - 1) / 0x8000)
 }
 
-// Writes the edited pictures into `rom`. With no edits it changes nothing.
+// Writes the edited pictures into `rom`. Logos whose frames spill out of their
+// room in the game (laid out by an earlier NOSE4Web) are laid out again,
+// looking the same, where they fit; otherwise, with no edits, it changes nothing.
 export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: SnesPictureEdits): void {
+  const c = read(rom, teamCount, false)
+  const spilling = c ? c.frameAt.flatMap((p, team) => (frameSpills(c.frames, p) && !edits.logos[team] ? [team] : [])) : []
+  if (c && spilling.length > 0) {
+    const relaid = Object.fromEntries(spilling.map((team) => [team, { picture: drawLogo(c.frames, c.frameAt[team]), palette: readColours(rom, c.palettes[team]) }]))
+    const copy = rom.slice()
+    try {
+      writePictures(copy, teamCount, { ...edits, logos: { ...edits.logos, ...relaid } })
+      rom.set(copy)
+      return
+    } catch (e) {
+      if (!(e instanceof SnesPictureRoomError)) throw e
+    }
+  }
+  writePictures(rom, teamCount, edits)
+}
+
+function writePictures(rom: Uint8Array, teamCount: number, edits: SnesPictureEdits): void {
   const logoTeams = Object.keys(edits.logos).map(Number)
   const iceTeams = Object.keys(edits.centreIce).map(Number)
   if (logoTeams.length === 0 && iceTeams.length === 0) return
@@ -793,7 +895,8 @@ export function writeSnesPictures(rom: Uint8Array, teamCount: number, edits: Sne
     const frames: Uint8Array[] = original.slice()
     // A logo the same as the ROM's keeps the ROM's frame.
     for (const team of logoTeams) {
-      if (!samePixels(edits.logos[team].picture, drawLogo(unpacked, c.frameAt[team]))) frames[team] = logoFrame(edits.logos[team].picture, original[team])
+      const p = c.frameAt[team]
+      if (!samePixels(edits.logos[team].picture, drawLogo(unpacked, p)) || frameSpills(unpacked, p)) frames[team] = logoFrame(edits.logos[team].picture, original[team])
     }
     // Where only colours changed, the set is left exactly as it was.
     if (frames.some((frame, f) => frame !== original[f])) {
@@ -867,7 +970,7 @@ function writeRomLogos(rom: Uint8Array, c: Contents, edits: SnesPictureEdits, te
   for (const team of teams) {
     const p = c.frameAt[team]
     const length = frameLength(rom, p)
-    if (samePixels(edits.logos[team].picture, drawLogo(rom, p))) continue
+    if (samePixels(edits.logos[team].picture, drawLogo(rom, p)) && !frameSpills(rom, p)) continue
     const frame = logoFrame(edits.logos[team].picture, rom.slice(p, p + length))
     const shared = c.frameAt.some((other, t) => t !== team && other === p)
     if (!shared) rom.fill(0xff, p, p + length)

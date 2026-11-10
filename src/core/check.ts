@@ -8,6 +8,7 @@ import type { RomProject } from './rom'
 import { teamsMissingFromDraws } from './menuteams'
 import { photoLayout, setupCardCount } from './photos'
 import { snesPlaceNameRoom } from './snesplacenames'
+import { snesLogosThatSpill } from './snespictures'
 import { anyPosition } from './anyposition'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
@@ -195,6 +196,21 @@ export function checkProject(project: RomProject): Finding[] {
         level: 'problem',
         where: 'Banner names',
         message: `The names on the team banners need ${room.used - room.room} bytes more than the ROM has room for, so they are not written: shorten some under Banner name on the team pages.`,
+      })
+    }
+  }
+
+  // Logos an earlier NOSE4Web laid out past their room in the game's sprite
+  // tile cache, which show stray blocks; saving the ROM lays them out again.
+  if (project.game.platform === 'snes') {
+    for (const team of snesLogosThatSpill(project.bytes, teams.length)) {
+      if (project.snesPictures?.logos[team]) continue
+      findings.push({
+        level: 'problem',
+        where: labels[team],
+        team,
+        message:
+          "Its logo was laid out by an earlier NOSE4Web in a way that can show stray blocks of colour in the game, on it or elsewhere on the screen. Download the ROM from NOSE4Web and it is laid out again, looking the same.",
       })
     }
   }
