@@ -115,7 +115,6 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 
 // What NOSE4Web's version of a hack does better than NHL94SNESVault's.
 const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
-  goaliePoke: "NOSE4Web's first version (10 November 2026) kept the stick's own reach of about 2 units, so it changed next to nothing; this one reaches 6.",
   hitEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
   holdEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
   injuryBonus: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",

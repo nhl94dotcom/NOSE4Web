@@ -13,7 +13,7 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.subarray(at, at + count)).toString('hex')
 
 describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", () => {
-  it('reaches a puck on the ice straight ahead: the reach the larger offset, the height down to the ice, only in the poke', () => {
+  it('reaches a puck on the ice within 6 units of the stick tip, the height down to the ice, only in the poke', () => {
     const project = open('NHL94.smc')
     // checkpuckcoll_ccx .9 at $9E:9987: tya / jsl GetFrameHot / |x| to the reach d2 and two thirds of it to d4 /
     // two thirds of |y| to the height d3, then sta d3 / ldx curobj.
@@ -30,14 +30,5 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))).toBe(0)
     // In every build, with its own SPA and poke animation.
     for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('goaliePoke')
-    // The first version (c545a2e), the reach the larger offset, is recognised as an earlier one and replaced.
-    const old = on.bytes.slice()
-    old.set(Buffer.from('85b1a691bda311c928e5d017a5a9100449ffff1ac5ad900285ada5b11865b585b564b1a6e460', 'hex'), code)
-    const oldState = detectSnesHacks(old)
-    expect(oldState.choices.goaliePoke).toBe(true)
-    expect(oldState.vaultVersions).toContain('goaliePoke')
-    const renewed = applySnesHacks({ ...on, bytes: old }, { goaliePoke: true }, true)
-    const at = loRomOffset(0x9e, renewed.bytes[site + 1] | (renewed.bytes[site + 2] << 8))
-    expect(hex(renewed.bytes, at, 13)).toBe('85b1a691bda311c928e5d012a9')
   })
 })

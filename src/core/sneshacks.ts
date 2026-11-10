@@ -578,18 +578,6 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const site = found + 43
     const head = bytesOf('85B1 A691 BD', rom.slice(spa + 9, spa + 11), 'C9', rom.slice(poke + 1, poke + 3))
     const code = bytesOf(head, 'D012 A90600 C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
-    // The first version (c545a2e) took the larger of the stick spot's offsets as the reach, about 2 for
-    // the poke (Match Viewer), which changed next to nothing; it is recognised, to be replaced.
-    const first = bytesOf(head, 'D017 A5A9 1004 49FFFF 1A C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
-    if (rom[site] === 0x20 && rom[site + 3] === 0xea) {
-      const target = loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
-      if (same(rom, target, first)) {
-        return [
-          { at: site, original: hexBytes('85B1A6E4'), hacked: rom.slice(site, site + 4) },
-          { at: target, original: unused(first.length), hacked: first, earlier: true },
-        ]
-      }
-    }
     return withNewCode(rom, site, (to) => bytesOf('20', word(to), 'EA'), hexBytes('85B1A6E4'), code)
   },
   noInterference: (rom) => {
@@ -1030,9 +1018,7 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)
     }
     // Each hack is placed in the ROM as the ones before it have left it, so that their new code does not overlap.
-    // An earlier NOSE4Web version found by its own code (placed with `earlier`) is taken out the same way.
-    const earlierPlaces = update && !isAmount(hack) ? (placesOf(rom, hack, source) ?? []) : []
-    if (reAmount || earlierPlaces.some((place) => place.earlier)) {
+    if (reAmount) {
       for (const place of placesOf(rom, hack, source) ?? []) if (place.original) rom.set(place.original, place.at)
     }
     const places = placesOf(rom, hack, source, undefined, amount ?? (isAmount(hack) && reAmount ? had?.[hack] : undefined))

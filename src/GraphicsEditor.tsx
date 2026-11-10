@@ -210,6 +210,8 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const [bannerFrom, setBannerFrom] = useState(others[0] ?? 0)
   const [bannerColoursToo, setBannerColoursToo] = useState(true)
   const source = others.includes(bannerFrom) ? bannerFrom : (others[0] ?? 0)
+  // Teams that show this team's banners too, whose banners a copy changes as well.
+  const bannerSharers = [...new Set(letterable.flatMap((b) => pictureSharedWith(project, team, b.kind)))].filter((other) => other !== team)
   function takeBanners() {
     try {
       let graphics = project.graphics
@@ -434,6 +436,8 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
             <span className="note">
               Replaces {teamName}'s {letterable.map((b) => pictureTitle(project, b.kind).toLowerCase()).join(' and ')} with a copy of
               that team's; that team keeps its own. Undo takes it back.
+              {bannerSharers.length > 0 &&
+                ` In this ROM ${teamName} shares its banners with ${bannerSharers.map((other) => labels[other]).join(', ')}, so they change for ${bannerSharers.length === 1 ? 'that team' : 'those teams'} too.`}
             </span>
           </p>
         </>
