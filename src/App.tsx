@@ -47,6 +47,7 @@ import { SettingsEditor } from './SettingsEditor'
 import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
+import { MenuPictureSection } from './MenuPictureSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
@@ -331,6 +332,7 @@ export default function App() {
             onChange={(settings) => change({ ...current, settings })}
           >
             {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
+            {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
           </SettingsEditor>
         )
       case CSV:

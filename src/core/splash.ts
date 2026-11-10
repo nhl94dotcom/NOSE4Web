@@ -57,7 +57,7 @@ function placed(rom: Uint8Array, at: number): Placed | null {
   return { x: rom[at + 1], y: rom[at + 2], header }
 }
 
-interface Image {
+export interface Image {
   tiles: number
   palette: number[]
   width: number
@@ -65,7 +65,7 @@ interface Image {
   map: number[]
 }
 
-function readImage(rom: Uint8Array, header: number): Image | null {
+export function readImage(rom: Uint8Array, header: number): Image | null {
   const paletteAt = header + u32(rom, header)
   const sizeAt = header + u32(rom, header + 4)
   const tiles = u16(rom, header + 8)
@@ -132,16 +132,16 @@ export function readSplash(rom: Uint8Array): Splash | null {
 
 // ----------------------------------------------------------------- making
 
-type Rgb = [number, number, number]
-const toLevels = ([r, g, b]: Rgb): Rgb => [Math.round((r * 7) / 255), Math.round((g * 7) / 255), Math.round((b * 7) / 255)]
-const levelKey = ([r, g, b]: Rgb) => (r << 6) | (g << 3) | b
-const keyLevels = (key: number): Rgb => [(key >> 6) & 7, (key >> 3) & 7, key & 7]
-const word = ([r, g, b]: Rgb) => GENESIS_COLORS.word([r, g, b])
-const far = (a: Rgb, b: Rgb) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+export type Rgb = [number, number, number]
+export const toLevels = ([r, g, b]: Rgb): Rgb => [Math.round((r * 7) / 255), Math.round((g * 7) / 255), Math.round((b * 7) / 255)]
+export const levelKey = ([r, g, b]: Rgb) => (r << 6) | (g << 3) | b
+export const keyLevels = (key: number): Rgb => [(key >> 6) & 7, (key >> 3) & 7, key & 7]
+export const word = ([r, g, b]: Rgb) => GENESIS_COLORS.word([r, g, b])
+export const far = (a: Rgb, b: Rgb) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
 const BLACK = 0
 
 // The image fitted inside the screen, centred, on black, in the console's levels (one key a pixel).
-function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Uint16Array {
+export function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Uint16Array {
   const scale = Math.min(SPLASH_WIDTH / width, SPLASH_HEIGHT / height)
   const w = Math.round(width * scale)
   const h = Math.round(height * scale)
@@ -170,7 +170,7 @@ function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, height: num
 }
 
 // Up to `most` colours standing for the given ones, by median cut.
-function medianCut(counts: Map<number, number>, most: number): number[] {
+export function medianCut(counts: Map<number, number>, most: number): number[] {
   type Box = { keys: number[] }
   const boxes: Box[] = [{ keys: [...counts.keys()] }]
   const spread = (box: Box, c: number) => {
@@ -208,7 +208,7 @@ function medianCut(counts: Map<number, number>, most: number): number[] {
   })
 }
 
-const nearest = (key: number, among: number[]) => {
+export const nearest = (key: number, among: number[]) => {
   const levels = keyLevels(key)
   let best = 0
   among.forEach((other, i) => {

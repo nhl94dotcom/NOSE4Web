@@ -1,4 +1,5 @@
 import { attributeText } from './attributes'
+import { readMenuPicture } from './menupicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { songName, SONG_SLOTS } from './teamsongs'
@@ -179,6 +180,9 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const [was, now] = [readSplash(before.bytes), readSplash(after.bytes)]
     const same = was && now && was.palette.every((c, i) => c === now.palette[i]) && was.picture.pixels.every((p, i) => p === now.picture.pixels[i])
     if (was && now && !same) add('Splash screen', [now.original ? "The original game's screen again." : 'A picture of its own.'])
+    const [menuWas, menuNow] = [readMenuPicture(before.bytes), readMenuPicture(after.bytes)]
+    const menuSame = menuWas && menuNow && menuWas.palette.every((c, i) => c === menuNow.palette[i]) && menuWas.picture.pixels.every((p, i) => p === menuNow.picture.pixels[i])
+    if (menuWas && menuNow && !menuSame) add('Main menu background', [menuNow.original ? "The original game's background again." : 'A picture of its own.'])
   }
 
   const choice = (project: RomProject, i: number) => {
