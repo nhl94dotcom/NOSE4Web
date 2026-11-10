@@ -576,9 +576,29 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const poke = only(rom, 'a9....22......a9f0009d')
     if (found < 0 || spa < 0 || poke < 0) return null
     const site = found + 43
+    // assgoalie .22 starts the poke: sta facedir,x / sta pfalock,x with A the poke's direction, so straight up
+    // the ice (direction 0) leaves the facing unlocked and the next think stands him up before the poke reaches
+    // full stretch, in the original game too (Match Viewer). pfalock is only tested for non-zero, so its sta
+    // becomes a jsr to code storing $80. Both hooks share one block of new code, in the same bank.
+    const lockAt = poke - 3
+    if (loRomBank(site, 0x80) !== loRomBank(lockAt, 0x80)) return null
     const head = bytesOf('85B1 A691 BD', rom.slice(spa + 9, spa + 11), 'C9', rom.slice(poke + 1, poke + 3))
-    const code = bytesOf(head, 'D012 A90600 C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
-    return withNewCode(rom, site, (to) => bytesOf('20', word(to), 'EA'), hexBytes('85B1A6E4'), code)
+    const reach = bytesOf(head, 'D012 A90600 C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
+    const siteOriginal = hexBytes('85B1A6E4')
+    const isIn = !same(rom, site, siteOriginal)
+    const room = isIn ? loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1)) : -1
+    // pfalock's address: from the sta, or from the code where it is in.
+    const lockStore = isIn ? rom.slice(room + reach.length + 4, room + reach.length + 6) : rom.slice(lockAt + 1, lockAt + 3)
+    if (!isIn && rom[lockAt] !== 0x9d) return null
+    const lock = bytesOf('A98000 9D', lockStore, '60')
+    const code = bytesOf(reach, lock)
+    const at = isIn ? room : roomInBank(rom, site, code.length)
+    if (at < 0) return null
+    return [
+      { at: site, original: siteOriginal, hacked: bytesOf('20', word(loRomAddress(at)), 'EA') },
+      { at: lockAt, original: bytesOf('9D', lockStore), hacked: bytesOf('20', word(loRomAddress(at + reach.length))) },
+      { at, original: unused(code.length), hacked: code },
+    ]
   },
   noInterference: (rom) => {
     const found = only(rom, '38e91f00' + '....' + 'bd....890040d0b5a9140038fd....22')

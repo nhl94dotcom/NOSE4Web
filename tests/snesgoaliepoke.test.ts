@@ -26,6 +26,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     // sta d3; ldx a2; lda SPA,x ($11A3); cmp #SPAgpoke ($E528); bne out; reach = max(reach, 6);
     // d4 = d3 + d4 (the top kept), d3 = 0 (the bottom at the ice); ldx curobj; rts.
     expect(hex(on.bytes, code, 33)).toBe('85b1a691bda311c928e5d012a90600c5ad900285ada5b11865b585b564b1a6e460')
+    // assgoalie .22's sta pfalock,x ($14E3) before lda #SPAgpoke becomes a jsr to code after it storing $80, so a
+    // poke straight up the ice (direction 0) locks his facing too.
+    const lockAt = 0xf5599 - 3
+    expect(hex(project.bytes, lockAt, 6)).toBe('9de314a928e5')
+    expect(on.bytes[lockAt]).toBe(0x20)
+    expect(loRomOffset(0x9e, on.bytes[lockAt + 1] | (on.bytes[lockAt + 2] << 8))).toBe(code + 33)
+    expect(hex(on.bytes, code + 33, 7)).toBe('a980009de31460')
     expect(detectSnesHacks(on.bytes).choices.goaliePoke).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))).toBe(0)
     // In every build, with its own SPA and poke animation.
