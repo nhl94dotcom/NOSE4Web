@@ -955,9 +955,13 @@ const injuryRisk: Part<InjuryRisk> = {
 // $1EC0 that no ROM uses (the original's own blocks end at $E20; a scan of
 // the league ROMs found none other), with the team + 1 first, built at
 // $FFF040:
-// - EncodeTeamLines ($8928) writes the team to the old block as before
-//   (WriteLineData keeps the playoffs; the editor's exit offers Load by it),
-//   then the new block (WriteSRAM, MakeSRAMChecksum).
+// - EncodeTeamLines ($8928) writes the old block as before (WriteLineData
+//   keeps the playoffs; the editor's exit offers Load by its team byte), with
+//   each slot's nibble where the player fits it (a forward at forward, a
+//   defenceman at defence) and the first forward or defenceman where he
+//   doesn't, so a ROM without the hack loads lines that fit exactly and never
+//   a player who isn't there; then the new block (WriteSRAM,
+//   MakeSRAMChecksum). Its first version wrote only the team byte there.
 // - DecodeTeamLines ($88C8) reads the new block (ReadSRAM) and, if it is the
 //   same team's, puts each slot's player in with SetLineSlot; lines saved
 //   before the hack go through the original code.
@@ -967,6 +971,40 @@ const SELECT_AT = 0x83a4
 const SELECT = { original: bytes('6E00 000A D240'), hacked: bytes('4E71 4E71 4E71') }
 const ENCODE_HOOK: Hook = { at: 0x8928, original: bytes('48E7 F8F0 307C D076') }
 const ENCODE_CODE = assemble([
+  // movem.l d0-d5/a0-a4,-(sp); the team + 1 to both blocks (a4 = the old one's nibbles, a0 = the new one's bytes)
+  '588F 48E7 FCF8 302A 0028 5240 387C D076 18C0 41F8 F040 10C0',
+  // a1 = the lines, d1 = goalies (GetGoalieCount), d5 = forwards (GetForwardCount), a3 = AttributeOffsetTbl
+  '43EA 016A 4EB9 0000 9F40 3200 4EB9 0000 9F7E 3A00 267C 0000 898A 4242 4244',
+  { label: 'next' },
+  '141B',
+  { branch: 0x6b, to: 'done' },
+  // d3 = the player counted from the first skater, to the new block
+  '1631 2000 5303 9601 10C3 0242 0007 0C42 0002',
+  { branch: 0x6e, to: 'forward' },
+  // a defence slot: counted from the first defenceman, or 0 for a forward
+  '9605',
+  { branch: 0x64, to: 'pack' },
+  '7600',
+  { branch: 0x60, to: 'pack' },
+  { label: 'forward' },
+  // a forward slot: as it is for a forward, or 0 for a defenceman
+  'B605',
+  { branch: 0x65, to: 'pack' },
+  '7600',
+  { label: 'pack' },
+  // low nibble, then high nibble and the next byte, as the original
+  '0844 0000',
+  { branch: 0x66, to: 'high' },
+  '1883',
+  { branch: 0x60, to: 'next' },
+  { label: 'high' },
+  'E903 871C',
+  { branch: 0x60, to: 'next' },
+  { label: 'done' },
+  '4EB9 000F E696 203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A1E4 4EB9 0001 A206 4CDF 1F3F 4E75',
+])
+// The first version (68134c4), which left the old block's nibbles as they were.
+const FIRST_ENCODE_CODE = assemble([
   '588F 48E7 F8F0 307C D076 302A 0028 5240 1080 4EB9 000F E696',
   '41F8 F040 10C0 43EA 016A 4EB9 0000 9F40 3200 267C 0000 898A 4242',
   { label: 'next' },
@@ -977,6 +1015,14 @@ const ENCODE_CODE = assemble([
   { label: 'done' },
   '203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A1E4 4EB9 0001 A206 4CDF 0F1F 4E75',
 ])
+// Where the encode routine is, and how long, in either version.
+function encodeAt(rom: Uint8Array): { at: number; length: number } | null {
+  for (const code of [ENCODE_CODE, FIRST_ENCODE_CODE]) {
+    const at = hooked(rom, ENCODE_HOOK, code)
+    if (at !== null) return { at, length: code.length }
+  }
+  return null
+}
 const DECODE_HOOK: Hook = { at: 0x88c8, original: bytes('48E7 F890 307C D076') }
 const DECODE_CODE = assemble([
   '588F 48E7 F890 203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A244 1038 F040 B038 D076',
@@ -996,13 +1042,13 @@ const anyPosition: Part<boolean> = {
   detect(rom) {
     const plain = is(rom, SELECT_AT, SELECT.original) && is(rom, ENCODE_HOOK.at, ENCODE_HOOK.original) && is(rom, DECODE_HOOK.at, DECODE_HOOK.original)
     if (plain) return false
-    return is(rom, SELECT_AT, SELECT.hacked) && hooked(rom, ENCODE_HOOK, ENCODE_CODE) !== null && hooked(rom, DECODE_HOOK, DECODE_CODE) !== null ? true : undefined
+    return is(rom, SELECT_AT, SELECT.hacked) && encodeAt(rom) !== null && hooked(rom, DECODE_HOOK, DECODE_CODE) !== null ? true : undefined
   },
   remove(rom) {
-    const encode = hooked(rom, ENCODE_HOOK, ENCODE_CODE)
+    const encode = encodeAt(rom)
     const decode = hooked(rom, DECODE_HOOK, DECODE_CODE)
     if (!is(rom, SELECT_AT, SELECT.hacked) || encode === null || decode === null) return
-    erase(rom, encode, ENCODE_CODE.length)
+    erase(rom, encode.at, encode.length)
     erase(rom, decode, DECODE_CODE.length)
     rom.set(SELECT.original, SELECT_AT)
     rom.set(ENCODE_HOOK.original, ENCODE_HOOK.at)

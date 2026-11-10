@@ -414,11 +414,14 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const hacked = applyHacks(opened, { ...NO_HACKS, anyPosition: true }).bytes
     // SelectLinePlayer: no branch on the slot, so every slot lists from the first skater.
     expect(at(hacked, 0x83a4, 6)).toBe('4e714e714e71')
-    // EncodeTeamLines: the team to the old block (WriteLineData), then a byte a slot, counted from the first skater, to save RAM $1EC0.
+    // EncodeTeamLines: the old block's nibbles where the player fits them (else 0), with WriteLineData, then a byte a slot,
+    // counted from the first skater, to save RAM $1EC0.
     expect(at(hacked, 0x8928, 2) + at(hacked, 0x892e, 2)).toBe('4eb94e71')
-    expect(at(hacked, readU32(hacked, 0x892a), 96)).toBe(
-      '588f48e7f8f0307cd076302a002852401080' + '4eb9000fe69641f8f04010c043ea016a4eb900009f403200267c0000898a4242' + '141b6b0c163120005303960110c360f0' +
-        '203c00001ec0722241f8f0404eb90001a1e44eb90001a2064cdf0f1f4e75',
+    expect(at(hacked, readU32(hacked, 0x892a), 144)).toBe(
+      '588f48e7fcf8302a00285240387cd07618c041f8f04010c0' + '43ea016a4eb900009f4032004eb900009f7e3a00267c0000898a42424244' +
+        '141b6b32' + '163120005303960110c3024200070c420002' + '6e08' + '9605640a76006006' + 'b6056502' + '7600' +
+        '08440000' + '6604' + '188360d0' + 'e903871c60ca' +
+        '4eb9000fe696203c00001ec0722241f8f0404eb90001a1e44eb90001a2064cdf1f3f4e75',
     )
     // DecodeTeamLines: the new block if it is this team's, else the original code.
     expect(at(hacked, 0x88c8, 2) + at(hacked, 0x88ce, 2)).toBe('4eb94e71')
@@ -430,8 +433,23 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect([at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), at(opened.bytes, 0x1a1e4, 4), at(opened.bytes, 0x1a244, 4), at(opened.bytes, 0xfe696, 4)]).toEqual([
       at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), '48e7e0c0', '48e7e0c0', '48e7c080',
     ])
+    // GetForwardCount: the high nibble of the scouting report's forwards byte.
+    expect(at(opened.bytes, 0x9f7e, 28)).toBe('48e70080206a001ed0e8000810280003e8480240000f4cdf01004e75')
     expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, anyPosition: true }, unknown: [] })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
+    // The first version (68134c4), which wrote only the team byte to the old block, is still recognised, and taken out whole.
+    const first = hacked.slice()
+    const encode = readU32(hacked, 0x892a)
+    first.fill(0xff, encode, encode + 144)
+    first.set(
+      Buffer.from(
+        '588f48e7f8f0307cd076302a0028524010804eb9000fe69641f8f04010c043ea016a4eb900009f403200267c0000898a4242141b6b0c163120005303960110c360f0203c00001ec0722241f8f0404eb90001a1e44eb90001a2064cdf0f1f4e75',
+        'hex',
+      ),
+      encode,
+    )
+    expect(detectHacks(first)).toEqual({ choices: { ...NO_HACKS, anyPosition: true }, unknown: [] })
+    expect(Buffer.compare(applyHacks(openRom(first), NO_HACKS).bytes, opened.bytes)).toBe(0)
   })
 
   it("offers the fourth period length with its own regular-season overtime, keeping the Clock's and the playoffs'", () => {
