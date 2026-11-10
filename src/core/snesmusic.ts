@@ -111,9 +111,9 @@ export function readSnesSong(rom: Uint8Array, pointer: number): SnesSong | null 
   return { pointer, events, seconds: last, custom }
 }
 
-// A song for the organ from MIDI notes, as the game's: the highest note
-// sounding at each start on the melody organ, the rest on the other, at most
-// SNES_SONG_VOICES at once, drums left out, notes moved by octaves into range.
+// A song for the organ from MIDI notes, as the game's: a note alone on both
+// organs, in a chord the highest on the first and the rest on the second, at
+// most SNES_SONG_VOICES notes at once, drums left out, notes moved into range.
 export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick: number; code: number; length: number }[][] } {
   let drums = 0
   let dropped = 0
@@ -140,10 +140,20 @@ export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick
     played.push({ on, off, note })
   }
   const kept = played.filter((p) => p.off > p.on)
+  // Each organ has its own place left or right (the instrument's stereo bytes; Match Viewer): a note sounding
+  // alone plays on both, in the middle; in a chord the highest note starting plays on the first and the rest
+  // on the second, as the game's own songs share them.
   const tracks: { tick: number; code: number; length: number }[][] = [[], []]
   for (const p of kept) {
+    const n = { tick: p.on, code: p.note + NOTE_OFFSET, length: p.off - p.on }
+    const alone = !kept.some((o) => o !== p && o.on < p.off && o.off > p.on)
+    if (alone) {
+      tracks[0].push(n)
+      tracks[1].push({ ...n })
+      continue
+    }
     const highest = Math.max(...kept.filter((o) => o.on === p.on).map((o) => o.note))
-    tracks[p.note === highest ? 0 : 1].push({ tick: p.on, code: p.note + NOTE_OFFSET, length: p.off - p.on })
+    tracks[p.note === highest ? 0 : 1].push(n)
   }
   const events: SongEvent[] = []
   tracks.forEach((track, t) =>

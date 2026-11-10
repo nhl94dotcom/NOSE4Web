@@ -768,8 +768,8 @@ export function HelpPage() {
           restores the game's. Song 1 cannot be replaced, as the game uses it to know which song is playing. Short
           tunes of 10 to 30 seconds suit the game, as its own are. Read from the game's sound driver in the Genesis
           disassembly. On the SNES the same section lists the songs the teams and the random songs use, with the same
-          buttons; there a new song is played as the game's own are, the highest note at each moment on one organ and
-          the rest on the other, at most four at once, and every team that had the old song gets the new one.
+          buttons; there a new song is played on the game's two organs, one to each side: a note on its own on both,
+          and in a chord the highest note on one and the rest on the other, at most four at once, and every team that had the old song gets the new one.
         </li>
         <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your own

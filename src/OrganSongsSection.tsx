@@ -181,8 +181,8 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
       <p className="note">
         The songs the teams' organ songs and the random songs use. Play gives a rough idea of one in the browser (the
         console's organ sounds different). Export MIDI saves it as a MIDI file. <b>Replace</b> puts a MIDI file of your
-        own in its place, as the game's songs are: the highest note at each moment on one organ and the rest on the
-        other, at most {SNES_SONG_VOICES} at once (the console has eight voices, shared with the sound effects), drums
+        own in its place, on the game's two organs, one to the left and one to the right: a note on its own on both,
+        and in a chord the highest note on one and the rest on the other, at most {SNES_SONG_VOICES} at once (the console has eight voices, shared with the sound effects), drums
         left out, notes moved by octaves into the organ's range. The new song goes into free room in the ROM, and every
         team with that song in a slot plays it. Not yet tested in the game.
       </p>
