@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { SNES_COLORS } from './core/color'
 import type { RomProject } from './core/rom'
+import { snesPlaceNameRoom } from './core/snesplacenames'
+import { teamLabels } from './core/team'
 import { SNES_BLOCK_KEPT, snesBlockColours, withSnesBlockColours } from './core/snesblockcolours'
 import { snesBlockPicture } from './core/snesblockpicture'
 import { PictureView } from './GraphicsEditor'
@@ -24,6 +26,9 @@ const same = (a: number[], b: number[]) => a.length === b.length && a.every((wor
 // name is drawn on, on the menus. See core/snesblockcolours.ts.
 export function SnesBannerColoursEditor({ project, original, team, onChange }: Props) {
   const [problem, setProblem] = useState('')
+  const [from, setFrom] = useState<number | null>(null)
+  const [nameToo, setNameToo] = useState(true)
+  const [copied, setCopied] = useState('')
   const colours = snesBlockColours(project, team)
   if (!colours) return null
   const before = original.teams.length === project.teams.length ? snesBlockColours(original, team) : null
@@ -33,6 +38,34 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
   function set(next: number[]) {
     try {
       onChange(withSnesBlockColours(project, team, next))
+      setProblem('')
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  // Another team's banner for this one: its colours, and the name lettered on it unless unticked.
+  const labels = teamLabels(project.teams, project.game)
+  const others = project.teams.map((_, i) => i).filter((i) => i !== team && snesBlockColours(project, i))
+  const source = from !== null && others.includes(from) ? from : (others[0] ?? null)
+  function takeBanner() {
+    if (source === null) return
+    try {
+      const theirs = snesBlockColours(project, source)!
+      let next = withSnesBlockColours(project, team, [...colours!.slice(0, SNES_BLOCK_KEPT), ...theirs.slice(SNES_BLOCK_KEPT)])
+      const name = project.teams[source].placeName
+      const withName = nameToo && name !== undefined && project.teams[team].placeName !== undefined
+      if (withName) next = { ...next, teams: next.teams.map((t, i) => (i === team ? { ...t, placeName: name } : t)) }
+      // The banner names share a table with little room; a longer one may not fit until others are shortened.
+      const room = withName ? snesPlaceNameRoom(next.bytes, next.teams.map((t) => t.placeName ?? ''), next.layout.overflow) : null
+      const short = room && room.used > room.room ? room.used - room.room : 0
+      onChange(next)
+      setCopied(
+        `This team's banner now has ${labels[source]}'s colours${withName ? ` and reads ${name}` : ''}. Undo takes it back.` +
+          (short
+            ? ` But the banner names have no room for it: they need ${short} ${short === 1 ? 'letter' : 'letters'} more than this ROM holds, so the game keeps showing the old name until some are shortened (Banner name, above).`
+            : ''),
+      )
       setProblem('')
     } catch (e) {
       setProblem(e instanceof Error ? e.message : String(e))
@@ -58,6 +91,25 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
       <p>
         <ResetButton what="banner colours" changed={!!before && !same(colours, before)} onReset={() => before && set(before)} />
       </p>
+      {source !== null && (
+        <p>
+          <button onClick={takeBanner}>Use the banner of</button>{' '}
+          <select className="wide" aria-label="Team whose banner to use" value={source} onChange={(e) => setFrom(Number(e.target.value))}>
+            {others.map((other) => (
+              <option key={other} value={other}>
+                {labels[other]}
+              </option>
+            ))}
+          </select>{' '}
+          {project.teams[team].placeName !== undefined && (
+            <label className="choice">
+              <input type="checkbox" checked={nameToo} onChange={(e) => setNameToo(e.target.checked)} /> and its banner name
+            </label>
+          )}{' '}
+          <span className="note">That team keeps its own.</span>
+        </p>
+      )}
+      {copied && <p className="note">{copied}</p>}
     </section>
   )
 }

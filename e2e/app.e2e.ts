@@ -2364,6 +2364,17 @@ test.describe('with the SNES game', () => {
     await expect(reset).toBeDisabled()
     rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
     expect(snesBlockColours(rom, 1)).toEqual(before)
+
+    // Another team's banner for this one: its colours and the name on it.
+    const detroit = opened.teams.findIndex((t) => t.names.join(' ').includes('Detroit'))
+    await banner.getByLabel('Team whose banner to use').selectOption(String(detroit))
+    await banner.getByRole('button', { name: 'Use the banner of' }).click()
+    // Detroit is a letter longer than Boston, and retail's banner names have no room to spare: the name waits, and it says so.
+    await expect(banner.getByText(/^This team's banner now has .*Detroit.*'s colours and reads Detroit\. Undo takes it back\. But the banner names have no room for it: they need 1 letter more/)).toBeVisible()
+    rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    expect(snesBlockColours(rom, 1)!.slice(2)).toEqual(snesBlockColours(opened, detroit)!.slice(2))
+    expect(rom.teams[1].placeName).toBe('Boston')
+    expect(snesBlockColours(rom, detroit)).toEqual(snesBlockColours(opened, detroit))
   })
 
   test('exports a team logo, imports another in its place, and downloads the ROM with it', async ({ page }) => {

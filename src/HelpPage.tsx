@@ -654,7 +654,10 @@ export function HelpPage() {
       </p>
       <p>
         <b>Another team's banners</b> gives this team a copy of another team's banners, and their stripe colours
-        unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own.
+        unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own. On the SNES,
+        where a banner is its colours and the name lettered on it, <b>Use the banner of</b> under the name banner
+        colours copies both; the names share a table with little room, so a longer one may wait until others are
+        shortened, and it says so.
       </p>
       <p>
         <b>Copy to another team</b>, at the foot of a team's page, copies its colours, its logos and banners, or
