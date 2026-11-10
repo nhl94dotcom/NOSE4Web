@@ -563,9 +563,11 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // The goalie's stick test (checkpuckcoll_ccx .9) takes the frame's stick spot: |x| is the reach, and
   // |y| a height, from (2/3)|y| - (2/3)|x| to (2/3)|y| + (2/3)|x| (at least 5), so a stick held up or
   // down the ice never reaches a puck on it, and a goalie's X poke straight ahead is useless (Match
-  // Viewer). While he is in the poke (SPA = SPAgpoke), the new code makes the reach the larger of |x| and
-  // |y| and the bottom of the height the ice, keeping its top, so the poke reaches 11 or 12 units ahead and
-  // still cannot knock down a raised shot. Nothing else changes: his stance and stick saves are as before,
+  // Viewer). The stick box is centred on the stick spot (GetHot) and its size, the reach, comes from
+  // GetFrameHot, about 2 for every poke frame (Match Viewer). While he is in the poke (SPA = SPAgpoke), the
+  // new code makes the reach at least 6, a skater's steal radius, and the bottom of the height the ice,
+  // keeping its top, so the poke knocks loose a puck on the ice within 6 units of its tip and still
+  // cannot knock down a raised shot. Nothing else changes: his stance and stick saves are as before,
   // and a poke that reaches the puck knocks it loose, as a sideways one does. sta d3 / ldx curobj after the
   // height becomes jsr / nop. SPA and the poke's animation are read from puckglue and assgoalie.
   goaliePoke: (rom) => {
@@ -574,7 +576,20 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const poke = only(rom, 'a9....22......a9f0009d')
     if (found < 0 || spa < 0 || poke < 0) return null
     const site = found + 43
-    const code = bytesOf('85B1 A691 BD', rom.slice(spa + 9, spa + 11), 'C9', rom.slice(poke + 1, poke + 3), 'D017 A5A9 1004 49FFFF 1A C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
+    const head = bytesOf('85B1 A691 BD', rom.slice(spa + 9, spa + 11), 'C9', rom.slice(poke + 1, poke + 3))
+    const code = bytesOf(head, 'D012 A90600 C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
+    // The first version (c545a2e) took the larger of the stick spot's offsets as the reach, about 2 for
+    // the poke (Match Viewer), which changed next to nothing; it is recognised, to be replaced.
+    const first = bytesOf(head, 'D017 A5A9 1004 49FFFF 1A C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
+    if (rom[site] === 0x20 && rom[site + 3] === 0xea) {
+      const target = loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+      if (same(rom, target, first)) {
+        return [
+          { at: site, original: hexBytes('85B1A6E4'), hacked: rom.slice(site, site + 4) },
+          { at: target, original: unused(first.length), hacked: first, earlier: true },
+        ]
+      }
+    }
     return withNewCode(rom, site, (to) => bytesOf('20', word(to), 'EA'), hexBytes('85B1A6E4'), code)
   },
   noInterference: (rom) => {
@@ -1015,7 +1030,9 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)
     }
     // Each hack is placed in the ROM as the ones before it have left it, so that their new code does not overlap.
-    if (reAmount) {
+    // An earlier NOSE4Web version found by its own code (placed with `earlier`) is taken out the same way.
+    const earlierPlaces = update && !isAmount(hack) ? (placesOf(rom, hack, source) ?? []) : []
+    if (reAmount || earlierPlaces.some((place) => place.earlier)) {
       for (const place of placesOf(rom, hack, source) ?? []) if (place.original) rom.set(place.original, place.at)
     }
     const places = placesOf(rom, hack, source, undefined, amount ?? (isAmount(hack) && reAmount ? had?.[hack] : undefined))

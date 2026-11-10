@@ -23,12 +23,21 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     expect(on.bytes[site]).toBe(0x20)
     expect(on.bytes[site + 3]).toBe(0xea)
     const code = loRomOffset(0x9e, on.bytes[site + 1] | (on.bytes[site + 2] << 8))
-    // sta d3; ldx a2; lda SPA,x ($11A3); cmp #SPAgpoke ($E528); bne out; reach = max(reach, |y|);
+    // sta d3; ldx a2; lda SPA,x ($11A3); cmp #SPAgpoke ($E528); bne out; reach = max(reach, 6);
     // d4 = d3 + d4 (the top kept), d3 = 0 (the bottom at the ice); ldx curobj; rts.
-    expect(hex(on.bytes, code, 38)).toBe('85b1a691bda311c928e5d017a5a9100449ffff1ac5ad900285ada5b11865b585b564b1a6e460')
+    expect(hex(on.bytes, code, 33)).toBe('85b1a691bda311c928e5d012a90600c5ad900285ada5b11865b585b564b1a6e460')
     expect(detectSnesHacks(on.bytes).choices.goaliePoke).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))).toBe(0)
     // In every build, with its own SPA and poke animation.
     for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('goaliePoke')
+    // The first version (c545a2e), the reach the larger offset, is recognised as an earlier one and replaced.
+    const old = on.bytes.slice()
+    old.set(Buffer.from('85b1a691bda311c928e5d017a5a9100449ffff1ac5ad900285ada5b11865b585b564b1a6e460', 'hex'), code)
+    const oldState = detectSnesHacks(old)
+    expect(oldState.choices.goaliePoke).toBe(true)
+    expect(oldState.vaultVersions).toContain('goaliePoke')
+    const renewed = applySnesHacks({ ...on, bytes: old }, { goaliePoke: true }, true)
+    const at = loRomOffset(0x9e, renewed.bytes[site + 1] | (renewed.bytes[site + 2] << 8))
+    expect(hex(renewed.bytes, at, 13)).toBe('85b1a691bda311c928e5d012a9')
   })
 })
