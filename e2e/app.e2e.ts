@@ -700,7 +700,13 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Boston Bruins').click()
     const goal = page.getByLabel('Organ song: Home goal')
     await expect(goal).toHaveValue('0')
+    // Random has nothing to play; a song does, and Play becomes Stop while it plays.
+    const play = page.getByRole('button', { name: 'Play the song: Home goal' })
+    await expect(play).toBeDisabled()
     await goal.selectOption({ label: '17. Brass Bonanza (HFD)' })
+    await play.click()
+    await page.getByRole('button', { name: 'Stop the song: Home goal' }).click()
+    await expect(play).toBeEnabled()
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     expect(readRom(new Uint8Array(readFileSync(await download.path()))).teams[1].songs).toEqual([49, 50, 48, 0x40, 90, 49])
   })

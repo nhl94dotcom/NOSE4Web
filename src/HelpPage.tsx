@@ -808,7 +808,9 @@ export function HelpPage() {
             <li><b>Put back the original</b> restores the game's song.</li>
           </ul>
           Song 1 cannot be replaced, as the game uses it to tell which song is playing. Short tunes of 10 to 30
-          seconds suit the game, as its own are. Played in the game by the NHL94 Match Viewer project.
+          seconds suit the game, as its own are. Played in the game by the NHL94 Match Viewer project. A team's
+          page chooses its six songs (for the start of a period, a home goal and so on), with a <b>Play</b> button
+          beside each, so you can hear a song before you settle on it.
         </li>
         <li>
           <b>Organ songs</b> (SNES): the same, for the songs the teams' slots and the random songs use. The game plays

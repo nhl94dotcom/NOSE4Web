@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { readSong, type SongEvent } from './core/genesismusic'
+import { readSnesSong } from './core/snesmusic'
+import { playSong } from './songpreview'
 import type { RomProject } from './core/rom'
 import { resetTeamPart, teamPartChanged } from './core/reset'
 import { splitSnesFile } from './core/snes'
@@ -16,8 +19,30 @@ interface Props {
 }
 
 // A Genesis team's six organ songs, played in its home games.
+// A button that plays a song in the browser, a rough idea of it (the console's organ sounds different).
+// Pressed again, or when another starts, it stops.
+function usePlayer() {
+  const [playing, setPlaying] = useState<number | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+  useEffect(() => () => stopRef.current?.(), [])
+  const stop = () => {
+    stopRef.current?.()
+    stopRef.current = null
+    setPlaying(null)
+  }
+  const play = (slot: number, events: SongEvent[] | null) => {
+    const was = playing
+    stop()
+    if (was === slot || !events) return
+    setPlaying(slot)
+    stopRef.current = playSong(events, () => setPlaying((now) => (now === slot ? null : now)))
+  }
+  return { playing, play }
+}
+
 export function TeamSongsSection({ project, team, original, onChange }: Props) {
   const [error, setError] = useState('')
+  const player = usePlayer()
   const songs = project.teams[team].songs
   if (!songs) return null
   const room = teamSongsRoom(project.bytes, project.teams.length)
@@ -53,7 +78,8 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
         song names are the community's, as the game's disassembly lists them, with the teams that have each in the
         original game. The power play and penalty kill songs play at the faceoff after a penalty puts the home
-        team a man up or a man short.
+        team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
+        your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
         {outside &&
           ` In this ROM the song table has room for only ${room} teams, so this team plays songs from whatever follows it. Choosing a song moves the table to free space in the ROM, so that every team has six of its own.`}
       </p>
@@ -71,7 +97,14 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
                       {songName(number, project.bytes)}
                     </option>
                   ))}
-                </select>
+                </select>{' '}
+                <button
+                  disabled={songs[slot] === RANDOM_SONG || !isSong(songs[slot])}
+                  aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
+                  onClick={() => player.play(slot, readSong(project.bytes, songs[slot])?.events ?? null)}
+                >
+                  {player.playing === slot ? 'Stop' : 'Play'}
+                </button>
               </td>
             </tr>
           ))}
@@ -86,6 +119,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
 // one of the songs the ROM has, so the choices are those its song tables
 // point at, as it is and as it was opened.
 export function SnesTeamSongsSection({ project, team, original, onChange }: Props) {
+  const player = usePlayer()
   const songs = project.teams[team].snesSongs
   if (!songs) return null
   const opened = splitSnesFile(project.source)?.rom
@@ -108,7 +142,8 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
       </p>
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
-        song names are the community's, as the game's disassembly lists them.
+        song names are the community's, as the game's disassembly lists them. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
+        your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
       </p>
       <table className="left">
         <tbody>
@@ -126,7 +161,14 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
                       {choice.name}
                     </option>
                   ))}
-                </select>
+                </select>{' '}
+                <button
+                  disabled={songs[slot] === SNES_RANDOM_SONG}
+                  aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
+                  onClick={() => player.play(slot, readSnesSong(project.bytes, songs[slot])?.events ?? (opened ? (readSnesSong(opened, songs[slot])?.events ?? null) : null))}
+                >
+                  {player.playing === slot ? 'Stop' : 'Play'}
+                </button>
               </td>
             </tr>
           ))}
