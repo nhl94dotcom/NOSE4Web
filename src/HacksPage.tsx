@@ -753,9 +753,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             ratings. Lines saved from Edit Lines are kept in a new place in the save memory, a byte a position, so a
             defenceman at forward comes back as himself; lines saved before it is on still load. The game's own place is
             written as well, so the same save on a ROM without this loads those lines too, except that anyone saved out of
-            position comes back as the team's first forward or defenceman. NOSE4Web's own line editor offers any skater at
-            any position whatever the ROM has. As McMarkis's SNES hack in NHL94SNESVault, read from the Genesis code by the
-            NHL94 Match Viewer project, and tested in the game by them; the saving for ROMs without it is not yet tested.
+            position is replaced by a forward or defenceman as the position needs (the team's first, or, if he is already
+            on the line, whoever that swap leaves), never by a skater who is on the line twice. NOSE4Web's own line editor
+            offers any skater at any position whatever the ROM has. As McMarkis's SNES hack in NHL94SNESVault, read from
+            the Genesis code by the NHL94 Match Viewer project, and tested in the game by them, loading on a ROM without it
+            included.
           </>,
         )}
         {hack(
