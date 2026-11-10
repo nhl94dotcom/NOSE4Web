@@ -26,7 +26,10 @@ export const SONG_SLOTS = [
   'Late in the third period',
 ]
 // The organ songs, $30 to $77, as the disassembly names them (from the forum
-// list by Jkline3 and Tony Ouradnik): the tune, its key, and who has it.
+// list by Jkline3 and Tony Ouradnik): the tune, its key, and who has it. Two
+// are corrected by their notes: the list's La Raspa is the Mexican Hat Dance
+// (Jarabe Tapatio: G-C G-C G-C, G-C-D-C-B-C-D), and its Las Chiapanecas, the
+// clapping song, is not the Mexican Hat Dance, as the list had it.
 export const SONG_NAMES: Record<number, string> = {
   0x30: "Go Team Go [E-flat] (BOS)",
   0x31: "Here We Go [E-flat] (BOS)",
@@ -38,10 +41,10 @@ export const SONG_NAMES: Record<number, string> = {
   0x37: "You Say It's Your Birthday {Claps} (CGY)",
   0x38: "Here Come the Hawks (CHI)",
   0x39: "Gypsy Spain [G, rising] (CHI)",
-  0x3a: "Las Chiapanecas {Mexican Hat Dance} [C] (CHI)",
-  0x3b: "La Raspa [C] (DET)",
+  0x3a: "Las Chiapanecas {Clapping Song} [C] (CHI)",
+  0x3b: "Mexican Hat Dance {listed as La Raspa} [C] (DET)",
   0x3c: "O'Malleys Steps / Charge [C] (DET)",
-  0x3d: "Las Chiapanecas {Mexican Hat Dance} [F] (DET)",
+  0x3d: "Las Chiapanecas {Clapping Song} [F] (DET)",
   0x3e: "O'Malleys Steps [F] (EDM)",
   0x3f: "Here We Go [C] (EDM)",
   0x40: "Brass Bonanza (HFD)",
@@ -49,7 +52,7 @@ export const SONG_NAMES: Record<number, string> = {
   0x42: "William Tell Overture (HFD)",
   0x43: "O'Malley's Steps [C] (LA)",
   0x44: "You Say It's Your Birthday (LA)",
-  0x45: "Las Chiapanecas {Mexican Hat Dance} [G] (LA)",
+  0x45: "Las Chiapanecas {Clapping Song} [G] (LA)",
   0x46: "Go Team Go [C] (LA)",
   0x47: "Rally Time [C] (NYI)",
   0x48: "Charge [B-flat only] (NYI)",
@@ -62,7 +65,7 @@ export const SONG_NAMES: Record<number, string> = {
   0x4f: "O'Malley's Steps [F] (MTL)",
   0x50: "Let's Go [F] (NJ)",
   0x51: "Buildup [C] (NJ)",
-  0x52: "La Raspa [F] (NJ)",
+  0x52: "Mexican Hat Dance {listed as La Raspa} [F] (NJ)",
   0x53: "Let's Go [F] {Shorter} (NYR, ASE, ASW)",
   0x54: "Here We Go [C] {Slower} (NYR, ASE, ASW)",
   0x55: "Charge [C] {Slower} (NYR)",
