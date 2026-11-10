@@ -19,10 +19,12 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     const project = open('NHL94.smc')
     // playeracc: lda d0 / lsr / clc / adc #$800 / tax / pla / asl x4 / jsl Mul16x8U.
     expect(hex(project.bytes, 0xf2803, 14)).toBe('a5a54a18690008aa680a0a0a0a22')
-    const on = applySnesHacks(project, { energySpeed: true })
+    // Goalies never go to the bench, so it needs skating to cost nothing (Match Viewer).
+    expect(() => applySnesHacks(project, { energySpeed: true })).toThrow('needs the skating costs no energy on')
+    const on = applySnesHacks(project, { energySpeed: true, noSkatingDrain: true })
     expect(hex(on.bytes, 0xf2803, 14)).toBe('a5a5eaeaeaeaeaaa680a0a0a0a22')
     expect(detectSnesHacks(on.bytes).choices.energySpeed).toBe(true)
-    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { energySpeed: false })), buildRom(project))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { energySpeed: false, noSkatingDrain: false })), buildRom(project))).toBe(0)
     for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('energySpeed')
   })
 

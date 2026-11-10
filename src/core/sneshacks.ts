@@ -305,7 +305,9 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
 // on, and two that cannot both be.
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods' }
+// Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
+// drain would slow them more than the original game does (Match Viewer).
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
