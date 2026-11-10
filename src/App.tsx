@@ -48,6 +48,7 @@ import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { MenuPictureSection } from './MenuPictureSection'
+import { OrganSongsSection, SnesOrganSongsSection } from './OrganSongsSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
@@ -333,6 +334,8 @@ export default function App() {
           >
             {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
+            {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
+            {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
           </SettingsEditor>
         )
       case CSV:

@@ -675,6 +675,26 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(splash.getByText("The original game's screen.")).toBeVisible()
   })
 
+  test('exports an organ song as MIDI, replaces another with it, and puts the original back', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
+    const brass = songs.locator('tr').filter({ hasText: 'Brass Bonanza (HFD)' })
+    const midi = await downloadFrom(page, brass.getByRole('button', { name: 'Export MIDI' }))
+    expect(midi.suggestedFilename()).toBe('song_17.mid')
+    await songs.getByLabel('Replace song 2', { exact: true }).setInputFiles(await midi.path())
+    await expect(songs.getByText(/^Song 2 is now "Brass Bonanza \(HFD\)", \d:\d\d long, on the organ\./)).toBeVisible()
+    const second = songs.locator('tr').nth(1)
+    await expect(second).toContainText('Brass Bonanza (HFD) (in place of Here We Go [E-flat] (BOS))')
+    // The team pages offer it by its name.
+    await team(page, 'Boston Bruins').click()
+    await expect(page.getByLabel('Organ song: Home goal').locator('option', { hasText: '2. Brass Bonanza (HFD) (in place of' })).toHaveCount(1)
+    await entry(page, 'Game settings').click()
+    await second.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(second).toContainText('Here We Go [E-flat] (BOS)')
+    await expect(second.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)
+  })
+
   test("sets a team's organ songs, and downloads them", async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()
@@ -2237,7 +2257,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws'])
+    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Organ songs'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })
@@ -2331,6 +2351,25 @@ test.describe('with the SNES game', () => {
     await reset.click()
     await expect(reset).toBeDisabled()
     expect(await pixels()).toEqual(before)
+  })
+
+  test('exports an SNES organ song as MIDI and puts it in place of another, for the teams that have it', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Game settings').click()
+    const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
+    const brass = songs.locator('tr').filter({ hasText: /^Brass Bonanza/ })
+    const midi = await downloadFrom(page, brass.getByRole('button', { name: 'Export MIDI' }))
+    expect(midi.suggestedFilename()).toBe('Brass_Bonanza.mid')
+    await songs.getByLabel('Replace Jaws Theme', { exact: true }).setInputFiles(await midi.path())
+    await expect(songs.getByText(/^"Brass Bonanza" is now in place of Jaws Theme, \d:\d\d long, on the organ\./)).toBeVisible()
+    await expect(songs.locator('tr').filter({ hasText: 'Brass Bonanza (in place of Jaws Theme)' })).toHaveCount(1)
+    await team(page, 'San Jose Sharks').click()
+    const options = await page.locator('select[aria-label^="Organ song"]').first().locator('option').allTextContents()
+    expect(options).toContain('Brass Bonanza')
+    await entry(page, 'Game settings').click()
+    await songs.locator('tr').filter({ hasText: 'Brass Bonanza (in place of Jaws Theme)' }).getByRole('button', { name: 'Put back the original' }).click()
+    await expect(songs.getByText('Jaws Theme is back. Undo takes it back.')).toBeVisible()
   })
 
   test("changes a team's name banner colours and resets them", async ({ page }) => {

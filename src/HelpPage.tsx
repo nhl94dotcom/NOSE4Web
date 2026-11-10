@@ -759,6 +759,19 @@ export function HelpPage() {
           game's. From kingraph's forum reference to the screen.
         </li>
         <li>
+          <b>Organ songs</b> (Genesis): the songs the organ plays, which each team's page chooses from. <b>Play</b>
+          gives a rough idea of one in the browser, <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts
+          a MIDI file of your own in its place. Every note is played on the game's organ, at most four at once (the
+          console has five voices, shared with the sound effects; later notes past that are left out), drums are left
+          out, and notes too low or high are moved by octaves into the game's range. The new song goes into free room
+          at the end of the ROM, so every team with that song in a slot plays it, and <b>Put back the original</b>{' '}
+          restores the game's. Song 1 cannot be replaced, as the game uses it to know which song is playing. Short
+          tunes of 10 to 30 seconds suit the game, as its own are. Read from the game's sound driver in the Genesis
+          disassembly. On the SNES the same section lists the songs the teams and the random songs use, with the same
+          buttons; there a new song is played as the game's own are, the highest note at each moment on one organ and
+          the rest on the other, at most four at once, and every team that had the old song gets the new one.
+        </li>
+        <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your own
           and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8 squares,
           so a detailed picture has its most alike squares merged (logos and simple designs come out clean, photos

@@ -68,7 +68,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
                   <option value={RANDOM_SONG}>Random</option>
                   {SONG_NUMBERS.map((number) => (
                     <option key={number} value={number}>
-                      {songName(number)}
+                      {songName(number, project.bytes)}
                     </option>
                   ))}
                 </select>

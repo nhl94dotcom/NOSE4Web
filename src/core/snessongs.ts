@@ -113,10 +113,32 @@ const isRandom = (pointer: number) => pointer >>> 16 >= 0x8000
 // A song's name, or where it is when it is not one of the 53.
 export function snesSongName(rom: Uint8Array, pointer: number): string {
   if (isRandom(pointer)) return 'Random'
+  const custom = customSongName(rom, pointer)
+  if (custom) return custom
   const at = offsetOf(pointer)
   const name = at >= 0 && at + 64 <= rom.length ? SNES_SONG_NAMES[fnv(rom.subarray(at, at + 64))] : undefined
   const bank = ((pointer >>> 16) & 0xff).toString(16).toUpperCase()
   return name ?? `The song at $${bank}:${(pointer & 0xffff).toString(16).toUpperCase().padStart(4, '0')}`
+}
+
+// A song NOSE4Web made from a MIDI file: its name, from the text that opens
+// its first track ('N4W1', the replaced song's pointer, the name; snesmusic.ts).
+function customSongName(rom: Uint8Array, pointer: number): string | null {
+  const at = offsetOf(pointer)
+  if (at < 0 || at + 12 > rom.length) return null
+  const track = at + (rom[at + 8] | (rom[at + 9] << 8))
+  if (track + 8 > rom.length || rom[track] !== 0 || rom[track + 1] !== 0xe7) return null
+  const text = String.fromCharCode(...rom.subarray(track + 3, track + 3 + rom[track + 2]))
+  return text.startsWith('N4W1') ? text.slice(13) : null
+}
+
+// Where each song pointer of the tables is (every team's six, then the eight random songs).
+export function snesSongPointerEntries(rom: Uint8Array): number[] {
+  const tables = findTables(rom)
+  if (!tables) return []
+  const entries: number[] = []
+  for (let at = tables.teamSongs; at < tables.defaultSongs + 32; at += 4) entries.push(at)
+  return entries
 }
 
 // Each team's six songs, for the teams the table has room for, or null where it is not found.

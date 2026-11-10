@@ -1,8 +1,9 @@
 import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
+import { readSong } from './genesismusic'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
-import { songName, SONG_SLOTS } from './teamsongs'
+import { SONG_NUMBERS, songName, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
 import { snesHackDifferences } from './sneshacks'
@@ -183,6 +184,12 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const [menuWas, menuNow] = [readMenuPicture(before.bytes), readMenuPicture(after.bytes)]
     const menuSame = menuWas && menuNow && menuWas.palette.every((c, i) => c === menuNow.palette[i]) && menuWas.picture.pixels.every((p, i) => p === menuNow.picture.pixels[i])
     if (menuWas && menuNow && !menuSame) add('Main menu background', [menuNow.original ? "The original game's background again." : 'A picture of its own.'])
+    const songLines = SONG_NUMBERS.flatMap((number) => {
+      const [was, now] = [readSong(before.bytes, number), readSong(after.bytes, number)]
+      if (!was || !now || JSON.stringify(was.events) === JSON.stringify(now.events)) return []
+      return [`Song ${number - 0x2f}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
+    })
+    add('Organ songs', songLines)
   }
 
   const choice = (project: RomProject, i: number) => {

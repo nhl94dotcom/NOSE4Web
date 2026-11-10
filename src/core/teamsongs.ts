@@ -8,6 +8,7 @@
 // them songs of their own moves the table to free room and repoints that one
 // movea.l, leaving RandomSongs and its own pointer as they are.
 
+import { readSong } from './genesismusic'
 import { claimSpace } from './space'
 
 // What each of a team's six songs is for. LeadSong plays slot 1 at the next
@@ -106,11 +107,13 @@ const LAST_SONG = 0x77
 export const isSong = (value: number) => value === RANDOM_SONG || (value >= FIRST_SONG && value <= LAST_SONG)
 export const SONG_NUMBERS = Array.from({ length: LAST_SONG - FIRST_SONG + 1 }, (_, i) => FIRST_SONG + i)
 
-// A song as the editor names it: its number from 1, as the forum lists them, and its name.
-export function songName(value: number): string {
+// A song as the editor names it: its number from 1, as the forum lists them,
+// and its name; with `rom`, a song NOSE4Web put in from a MIDI file by its own.
+export function songName(value: number, rom?: Uint8Array): string {
   if (value === RANDOM_SONG) return 'one of the random songs'
   if (!isSong(value)) return 'no song'
-  return `${value - FIRST_SONG + 1}. ${SONG_NAMES[value]}`
+  const custom = rom ? readSong(rom, value)?.custom : null
+  return `${value - FIRST_SONG + 1}. ${custom ? `${custom.name} (in place of ${SONG_NAMES[value]})` : SONG_NAMES[value]}`
 }
 
 const CODE = [0x20, 0x7c, -1, -1, -1, -1, 0x22, 0x7c, -1, -1, -1, -1, 0x30, 0x38, -1, -1, 0xc0, 0xfc, 0x00, 0x06]
