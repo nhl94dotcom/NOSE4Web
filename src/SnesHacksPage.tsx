@@ -71,6 +71,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     'With line changes on, skating costs no energy: the drain every 64th frame on the ice never runs. Players then tire only from what else costs it, hits and holds (if set) and speed bursts, and rest on the bench as usual. With speed bursts free too, only hits tire a player. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game: a skater never hit keeps full energy through a shift.',
   energySpeed:
     "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It needs Skating costs no energy, which turns on with it: goalies never go to the bench, so the skating drain would slow them more than in the original game. Line changes Auto keeps everyone at full speed. Read from the game's code and tested in the game by the NHL94 Match Viewer project, on the original and the SA-1 build: a leg-speed-15 skater's speed class is 15, 10, 5 and 0 after none to three knockdowns, and goalies keep full speed.",
+  goaliePoke:
+    "A fix as an option, from a community report that the goalie's poke check (X) seems useless. In the original game a goalie's stick can only touch a puck on the ice when he holds it out to the side, so a poke straight up or down the ice, the way he usually faces, never reaches it. With this on, his poke straight ahead reaches the ice about 11 or 12 units in front of him and knocks the puck loose, as a sideways poke already does; it still cannot knock down a raised shot, and his stance and stick saves are as before. Computer goalies poke too. Read from the game's code by the NHL94 Match Viewer project; not yet tested in the game.",
   freeBurst:
     'A C-button speed burst costs no energy with line changes on, where the original costs 204 of 4096. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game.',
   noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
@@ -125,7 +127,7 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
   { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 

@@ -43,6 +43,7 @@ export type SnesHack =
   | 'noSkatingDrain'
   | 'freeBurst'
   | 'energySpeed'
+  | 'goaliePoke'
 
 interface Site {
   // The game's address.
@@ -269,6 +270,7 @@ export const SNES_HACKS: SnesHack[] = [
   'noSkatingDrain',
   'freeBurst',
   'energySpeed',
+  'goaliePoke',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -301,6 +303,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   noSkatingDrain: 'Skating costs no energy',
   freeBurst: 'Speed bursts cost no energy',
   energySpeed: "Energy takes all of a skater's speed",
+  goaliePoke: 'Goalie poke check reaches the ice',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -556,6 +559,23 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const found = only(rom, 'a5..' + '..........' + 'aa680a0a0a0a22')
     if (found < 0) return null
     return [{ at: found + 2, original: hexBytes('4A18690008'), hacked: hexBytes('EAEAEAEAEA') }]
+  },
+  // The goalie's stick test (checkpuckcoll_ccx .9) takes the frame's stick spot: |x| is the reach, and
+  // |y| a height, from (2/3)|y| - (2/3)|x| to (2/3)|y| + (2/3)|x| (at least 5), so a stick held up or
+  // down the ice never reaches a puck on it, and a goalie's X poke straight ahead is useless (Match
+  // Viewer). While he is in the poke (SPA = SPAgpoke), the new code makes the reach the larger of |x| and
+  // |y| and the bottom of the height the ice, keeping its top, so the poke reaches 11 or 12 units ahead and
+  // still cannot knock down a raised shot. Nothing else changes: his stance and stick saves are as before,
+  // and a poke that reaches the puck knocks it loose, as a sideways one does. sta d3 / ldx curobj after the
+  // height becomes jsr / nop. SPA and the poke's animation are read from puckglue and assgoalie.
+  goaliePoke: (rom) => {
+    const found = only(rom, '9822......a5a589008' + '0f00449ffff1a85ad0aaabf......85b5a5a989008' + '0f00449ffff1a0aaabf......')
+    const spa = only(rom, 'a491a98c0099....b9....c9....')
+    const poke = only(rom, 'a9....22......a9f0009d')
+    if (found < 0 || spa < 0 || poke < 0) return null
+    const site = found + 43
+    const code = bytesOf('85B1 A691 BD', rom.slice(spa + 9, spa + 11), 'C9', rom.slice(poke + 1, poke + 3), 'D017 A5A9 1004 49FFFF 1A C5AD 9002 85AD A5B1 18 65B5 85B5 64B1 A6E4 60')
+    return withNewCode(rom, site, (to) => bytesOf('20', word(to), 'EA'), hexBytes('85B1A6E4'), code)
   },
   noInterference: (rom) => {
     const found = only(rom, '38e91f00' + '....' + 'bd....890040d0b5a9140038fd....22')
@@ -1045,7 +1065,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
