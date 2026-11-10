@@ -763,8 +763,10 @@ export function HelpPage() {
           and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8 squares,
           so a detailed picture has its most alike squares merged (logos and simple designs come out clean, photos
           blocky), and 25 colours of its own besides the menu's white, greys and black. It goes into free room at the
-          end of the ROM. ROMs with a picture made with Drezz's forum guide, which loads more squares than there is room
-          for, show it here with a warning; importing it again fits it. Drezz's guide and the screen's measurements by
+          end of the ROM. The parts the screen always covers (under the top strip, the team banners and the logo box
+          frame) are left blank, so the room goes to the parts that show. ROMs with a picture made with Drezz's forum
+          guide, which loads more squares than there is room for and so draws over the team banners' own, show it here
+          with a warning; importing it again fits it. Drezz's guide, and the screen's measurements and a game test by
           the NHL94 Match Viewer project.
         </li>
         <li>

@@ -63,8 +63,11 @@ export function MenuPictureSection({ project, opened, onChange }: Props) {
         320 by 224 pixels. The screen has room for {MENU_PICTURE_TILES} different 8 by 8 squares of it (the original
         has 240), so a detailed picture has its most alike squares merged: logos and simple designs come out clean,
         photos blocky. It has up to {MENU_PICTURE_COLOURS} colours of its own, each square in one of two sets, plus the
-        menu's own white, greys and black, which it keeps so the menu's lettering and frames look as they do. It goes
-        into free room at the end of the ROM.
+        menu's own white, greys and black, which it keeps so the menu's lettering and frames look as they do. The parts
+        the screen always covers, under the top strip, the team banners and the logo box frame, are left blank, so the
+        room goes to the parts that show. It goes into free room at the end of the ROM. Tested in the game by the NHL94
+        Match Viewer project: the menu, banners, logos and player cards stay exactly as they were, and every colour
+        shows as it should.
       </p>
       <PictureView picture={menu.picture} palette={menu.palette} scale={2} />
       <p>

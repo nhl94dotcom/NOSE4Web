@@ -5,6 +5,7 @@ import { colorRgb } from '../src/core/color'
 import { compareProjects } from '../src/core/compare'
 import {
   MENU_PICTURE_COLOURS,
+  MENU_PICTURE_HIDDEN_CELLS,
   MENU_PICTURE_TILES,
   menuPictureFromImage,
   menuPicturePalette,
@@ -90,6 +91,12 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Game Setup background', () 
     expect(made.distinct).toBeGreaterThan(MENU_PICTURE_TILES)
     expect(made.tiles.length).toBeLessThanOrEqual(MENU_PICTURE_TILES)
     expect(MENU_PICTURE_COLOURS).toBe(25)
+    // The 114 cells the screen always covers are left blank (Match Viewer's grid): the top strip's top-left corner, say.
+    expect(MENU_PICTURE_HIDDEN_CELLS).toBe(114)
+    const blank = made.tiles.findIndex((tile) => tile.every((b) => b === 0))
+    expect(made.map[6] & 0x7ff).toBe(blank)
+    expect(made.map[2 * 40 + 7] & 0x7ff).toBe(blank)
+    expect(made.map[4 * 40 + 6] & 0x7ff).not.toBe(blank)
     const own = new Set([0, 2, 8, 9, 10, 11, 12, 13, 14, 15, ...Array.from({ length: 15 }, (_, i) => 49 + i)].map((i) => made.palette[i]))
     expect(own.size).toBeLessThanOrEqual(25)
     const hacked = openRom(buildRom(withMenuPicture(project, made)))

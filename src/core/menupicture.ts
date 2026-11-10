@@ -38,6 +38,29 @@ const FIXED = [1, 3, 4, 5, 6, 7]
 const ROW0_FREE = [2, 8, 9, 10, 11, 12, 13, 14, 15]
 const ROW3_FREE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 export const MENU_PICTURE_COLOURS = 1 + ROW0_FREE.length + ROW3_FREE.length
+// The cells the background never shows in, whatever the teams, with the logos
+// up or a player card (Match Viewer, in the game): under the top strip, the
+// team banners (none of whose tiles has a see-through pixel) and the logo box
+// frame. A new picture leaves them blank, so its tiles go to the cells that
+// show. The visitors' logo and the player photo may have see-through pixels,
+// so the cells under them are kept.
+const HIDDEN_ROWS = [
+  '......############################......',
+  '......############################......',
+  '.......##########################.......',
+  '.......##########################.......',
+  '........................................',
+  '........###.............................',
+  '........................................',
+  '........................................',
+  '........................................',
+  '........................................',
+  '........................................',
+  '........................................',
+  '........###.............................',
+]
+const HIDDEN = new Set(HIDDEN_ROWS.flatMap((row, y) => [...row].flatMap((c, x) => (c === '#' ? [y * ACROSS + x] : []))))
+export const MENU_PICTURE_HIDDEN_CELLS = HIDDEN.size
 
 const u16 = (rom: Uint8Array, at: number) => (rom[at] << 8) | rom[at + 1]
 const u32 = (rom: Uint8Array, at: number) => ((rom[at] << 24) | (rom[at + 1] << 16) | (rom[at + 2] << 8) | rom[at + 3]) >>> 0
@@ -144,8 +167,11 @@ function shared(cells: { row: number; tile: Tile }[]): { map: number[]; tiles: T
 export function menuPictureFromImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, fixed: number[]): MenuImage {
   const keys = fitted(rgba, width, height)
   const fixedKeys = FIXED.map((i) => wordKey(fixed[i]))
+  const cellOf = (i: number) => Math.floor(i / SPLASH_WIDTH / 8) * ACROSS + Math.floor((i % SPLASH_WIDTH) / 8)
   const counts = new Map<number, number>()
-  for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1)
+  keys.forEach((key, i) => {
+    if (!HIDDEN.has(cellOf(i))) counts.set(key, (counts.get(key) ?? 0) + 1)
+  })
   const colours = counts.size
   // Colours the fonts' own match exactly need no room of their own.
   const rest = new Map([...counts].filter(([key]) => !fixedKeys.includes(key)))
@@ -155,16 +181,18 @@ export function menuPictureFromImage(rgba: Uint8Array | Uint8ClampedArray, width
   for (const key of counts.keys()) reduce.set(key, every[nearest(key, every)])
   // The backdrop is the commonest colour of the picture's own.
   const used = new Map<number, number>()
-  for (const key of keys) {
+  keys.forEach((key, i) => {
+    if (HIDDEN.has(cellOf(i))) return
     const k = reduce.get(key)!
     if (!fixedKeys.includes(k)) used.set(k, (used.get(k) ?? 0) + 1)
-  }
+  })
   const backdrop = used.size ? [...used].sort((a, b) => b[1] - a[1])[0][0] : 0
 
   // Each tile's colours, then rows of them: the busiest tiles first, each into the row it adds fewest colours to.
   const cellCounts: Map<number, number>[] = Array.from({ length: CELLS }, () => new Map())
   keys.forEach((key, i) => {
-    const cell = Math.floor(i / SPLASH_WIDTH / 8) * ACROSS + Math.floor((i % SPLASH_WIDTH) / 8)
+    const cell = cellOf(i)
+    if (HIDDEN.has(cell)) return
     const k = reduce.get(key)!
     cellCounts[cell].set(k, (cellCounts[cell].get(k) ?? 0) + 1)
   })
@@ -204,6 +232,7 @@ export function menuPictureFromImage(rgba: Uint8Array | Uint8ClampedArray, width
 
   // Each tile in the row that draws it nearest.
   const cells = Array.from({ length: CELLS }, (_, cell) => {
+    if (HIDDEN.has(cell)) return { row: 0, tile: new Uint8Array(64) }
     let bestRow = 0
     let bestError = Infinity
     rows.forEach((row, r) => {
