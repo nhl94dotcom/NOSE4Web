@@ -46,7 +46,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
     expect(() => applySnesHacks(project, {}, false, { hitEnergy: 1025 })).toThrow('from 0 to 1024')
-    // NOSE4Web's first version (9d3695f), which took energy after the whistle: recognised as an earlier version, and replaced on request.
+    // NOSE4Web's first version (41def89), which took energy after the whistle: recognised as an earlier version, and replaced on request.
     const first = on.bytes.slice()
     const code = target(on.bytes, t2)
     const current = on.bytes.slice(code, code + 66)

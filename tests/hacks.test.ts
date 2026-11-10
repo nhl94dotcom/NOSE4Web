@@ -362,7 +362,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
     expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 1025 })).toThrow('from 0 to 1024')
-    // The first version (36fe502), which took energy after the whistle too, is still recognised, and put in again as this one.
+    // The first version (3180527), which took energy after the whistle too, is still recognised, and put in again as this one.
     const first = hacked.slice()
     first.set(Buffer.from('4a78d058663008380004c2fc66284a6a003467220c6b000b00526e1a48e7e0f0264a4eb90001575a044000cc4eb90001577a4cdf0f074a6b003466062ebc000141504e75', 'hex'), hit)
     first.set(Buffer.from('4a78d058662008380004c2fc661848e7e0f04eb90001575a044000664eb90001577a4cdf0f07323c0cf44ef90001073a', 'hex'), hold)
@@ -437,7 +437,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(opened.bytes, 0x9f7e, 28)).toBe('48e70080206a001ed0e8000810280003e8480240000f4cdf01004e75')
     expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, anyPosition: true }, unknown: [] })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
-    // The first version (68134c4), which wrote only the team byte to the old block, is still recognised, and taken out whole.
+    // The first version (b2606c6), which wrote only the team byte to the old block, is still recognised, and taken out whole.
     const first = hacked.slice()
     const encode = readU32(hacked, 0x892a)
     first.fill(0xff, encode, encode + 144)

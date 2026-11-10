@@ -694,7 +694,7 @@ const hitCode = (amount: number) =>
   ])
 const valueAt = (code: (value: number) => Uint8Array) => code(0x1234).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
 const HIT_VALUE_AT = valueAt(hitCode)
-// NOSE4Web's first version (36fe502, played by Match Viewer), which took energy after the whistle too:
+// NOSE4Web's first version (3180527, played by Match Viewer), which took energy after the whistle too:
 // recognised, and replaced whenever the hacks are put in again.
 const firstHitCode = (amount: number) =>
   bytes(
@@ -810,7 +810,7 @@ const countingHitCode = (amount: number) =>
     '4E75',
   ])
 const COUNTING_VALUE_AT = valueAt(countingHitCode)
-// The first counting version (f3d8449, played by Match Viewer), which counted knockdowns after the whistle too.
+// The first counting version (0f3e827, played by Match Viewer), which counted knockdowns after the whistle too.
 const firstCountingHitCode = (amount: number) =>
   assemble([
     '48E7 E0F0 4A6A 0034',
@@ -1004,7 +1004,7 @@ const ENCODE_CODE = assemble([
   { label: 'done' },
   '4EB9 000F E696 203C 0000 1EC0 7222 41F8 F040 4EB9 0001 A1E4 4EB9 0001 A206 4CDF 1F3F 4E75',
 ])
-// The first version (68134c4), which left the old block's nibbles as they were.
+// The first version (b2606c6), which left the old block's nibbles as they were.
 const FIRST_ENCODE_CODE = assemble([
   '588F 48E7 F8F0 307C D076 302A 0028 5240 1080 4EB9 000F E696',
   '41F8 F040 10C0 43EA 016A 4EB9 0000 9F40 3200 267C 0000 898A 4242',
