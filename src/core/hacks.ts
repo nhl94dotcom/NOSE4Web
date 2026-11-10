@@ -113,6 +113,10 @@ export interface HackChoices {
   stamina: boolean
   energyDrain: number
   energyRecovery: number
+  // Skating on the ice costs no energy (line changes on); hits, holds and bursts still can.
+  noSkatingDrain: boolean
+  // The energy a C-button speed burst costs (line changes on); 0 for none.
+  burstEnergy: number
   // The push the C button gives; 0 for the original game's, which is 32 for a fresh player and less for a tired one.
   speedBurst: number
   turnRate: number
@@ -192,6 +196,8 @@ export type HackPart =
   | 'stamina'
   | 'energyDrain'
   | 'energyRecovery'
+  | 'noSkatingDrain'
+  | 'burstEnergy'
   | 'speedBurst'
   | 'turnRate'
   | 'clock'
@@ -253,6 +259,8 @@ export const NO_HACKS: HackChoices = {
   stamina: false,
   energyDrain: 33,
   energyRecovery: 9,
+  noSkatingDrain: false,
+  burstEnergy: 204,
   speedBurst: 0,
   turnRate: 150,
   realTime: false,
@@ -281,16 +289,20 @@ export const HACK_RANGES = {
   goalieWidth: [0, 124],
   goalieOut: [0, 255],
   goalieLine: [0, 255],
-  energyDrain: [0, 999],
+  // Below 16, a player's endurance bonus (half his endurance, up to 15, while his energy is at least $C00)
+  // can outweigh the loss: his energy climbs past full until a fast skater's speed wraps round to the slowest
+  // (Match Viewer, in the game: $1000 to $12BE in 2 minutes at 0). Skating that costs nothing is noSkatingDrain.
+  energyDrain: [16, 999],
   energyRecovery: [0, 999],
+  burstEnergy: [0, 4096],
   speedBurst: [0, 95],
   turnRate: [1, 999],
   hotColdRange: [0, 9],
   goalieDelay: [1, 128],
   introWait: [0, 600],
   fourthPeriodOvertime: [0, 5999],
-  hitEnergy: [0, 1024],
-  holdEnergy: [0, 1024],
+  hitEnergy: [0, 4096],
+  holdEnergy: [0, 4096],
   injuryBonus: [0, 10],
   injuryCap: [1, 60],
   puckFriction: [1, 12],
@@ -722,6 +734,10 @@ const FIRST_HOLD_VALUE_AT = 26
 // on the Genesis), half that for a hold. Match Viewer measured half as much as too small to notice (under
 // 4% more tiring in a game); up to a quarter of full energy for a league that wants hits to wear players down.
 export const RECOMMENDED_HIT_ENERGY = 204
+// Energy lost only to hits, as a league asked: skating and bursts cost nothing, a knockdown a third of
+// full energy (three empty a skater), a hold half that. Match Viewer measured an average skater's top
+// speed at 2/3, 1/3 and no energy as 13%, 26% and 35% below full.
+export const HITS_ONLY = { noSkatingDrain: true, burstEnergy: 0, hitEnergy: 1365, holdEnergy: 683 } as const
 export const RECOMMENDED_HOLD_ENERGY = 102
 export const FULL_ENERGY = 0x1000
 
@@ -1740,6 +1756,10 @@ const goalieLine = numberPart([site(0xd3ea, 'B27C'), site(0xd3f2, 'B27C', true)]
 const stamina = switchPart(0x15782, bytes('3580'), bytes('6002'))
 const energyDrain = numberPart([site(0x10d42, '0440')], NO_HACKS.energyDrain)
 const energyRecovery = numberPart([site(0x7a1a, '0672')], NO_HACKS.energyRecovery)
+// .sube, the drain each 128 frames on the ice: tst.w OptLine / bne.w rtss2 becomes bra.w rtss2, so it never runs.
+const noSkatingDrain = switchPart(0x10d2a, bytes('6600'), bytes('6000'))
+// burst: subi.w #$CC,d0 before setpde, with line changes on.
+const burstEnergy = numberPart([site(0xbb72, '0440')], NO_HACKS.burstEnergy)
 
 // The C button's push. The original game works it out from the player's
 // energy, 32 at the most; the hack makes it one number for everybody.
@@ -2086,6 +2106,8 @@ export function detectHacks(rom: Uint8Array): HackState {
     stamina: found('stamina', stamina.detect(rom), NO_HACKS.stamina),
     energyDrain: found('energyDrain', energyDrain.detect(rom), NO_HACKS.energyDrain),
     energyRecovery: found('energyRecovery', energyRecovery.detect(rom), NO_HACKS.energyRecovery),
+    noSkatingDrain: found('noSkatingDrain', noSkatingDrain.detect(rom), NO_HACKS.noSkatingDrain),
+    burstEnergy: found('burstEnergy', burstEnergy.detect(rom), NO_HACKS.burstEnergy),
     speedBurst: found('speedBurst', speedBurst.detect(rom), NO_HACKS.speedBurst),
     turnRate: found('turnRate', turnRate.detect(rom), NO_HACKS.turnRate),
     realTime: found('clock', clock.detect(rom), NO_HACKS.realTime),
@@ -2146,6 +2168,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['stamina', () => stamina.remove(work.rom), () => stamina.apply(work, wanted.stamina)],
     ['energyDrain', () => energyDrain.remove(work.rom), () => energyDrain.apply(work, wanted.energyDrain)],
     ['energyRecovery', () => energyRecovery.remove(work.rom), () => energyRecovery.apply(work, wanted.energyRecovery)],
+    ['noSkatingDrain', () => noSkatingDrain.remove(work.rom), () => noSkatingDrain.apply(work, wanted.noSkatingDrain)],
+    ['burstEnergy', () => burstEnergy.remove(work.rom), () => burstEnergy.apply(work, wanted.burstEnergy)],
     ['speedBurst', () => speedBurst.remove(work.rom), () => speedBurst.apply(work, wanted.speedBurst)],
     ['turnRate', () => turnRate.remove(work.rom), () => turnRate.apply(work, wanted.turnRate)],
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
@@ -2240,7 +2264,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
+  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -2381,6 +2405,8 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   stamina: 'Unlimited stamina',
   energyDrain: 'Energy lost on the ice',
   energyRecovery: 'Energy gained on the bench',
+  noSkatingDrain: 'Skating costs no energy',
+  burstEnergy: 'Energy a C-button burst costs',
   speedBurst: 'Speed burst',
   turnRate: 'Stopping and turning',
   realTime: 'Real-time clock',
@@ -2437,6 +2463,8 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   stamina: 'stamina',
   energyDrain: 'energyDrain',
   energyRecovery: 'energyRecovery',
+  noSkatingDrain: 'noSkatingDrain',
+  burstEnergy: 'burstEnergy',
   speedBurst: 'speedBurst',
   turnRate: 'turnRate',
   realTime: 'clock',

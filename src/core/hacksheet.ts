@@ -108,6 +108,11 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   goalieDelay: (c) =>
     `B is held ${more(c.goalieDelay, NO_HACKS.goalieDelay, 'longer', 'for less time')} before a player takes the goalie: about ${(c.goalieDelay / 34).toFixed(2)} seconds, where the original game takes about 0.5.`,
   energyDrain: (c) => `Players tire ${more(c.energyDrain, NO_HACKS.energyDrain, 'faster', 'more slowly')} on the ice (${c.energyDrain}, where the original has ${NO_HACKS.energyDrain}).`,
+  noSkatingDrain: () => 'With line changes on, skating costs no energy: players tire only from what else is set to cost it, such as hits and speed bursts, and rest on the bench as usual.',
+  burstEnergy: (c) =>
+    c.burstEnergy === 0
+      ? 'A speed burst costs no energy.'
+      : `A speed burst costs ${c.burstEnergy} energy (${Math.round((c.burstEnergy / 4096) * 100)}% of full), where the original costs ${NO_HACKS.burstEnergy}.`,
   energyRecovery: (c) =>
     `Players get their energy back ${more(c.energyRecovery, NO_HACKS.energyRecovery, 'faster', 'more slowly')} on the bench (${c.energyRecovery}, where the original has ${NO_HACKS.energyRecovery}).`,
   speedBurst: (c) => `The C-button speed burst gives every player the same push, ${c.speedBurst}, tired or not; the original gives a fresh player 32 and a tired one less.`,
@@ -125,7 +130,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
   ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]

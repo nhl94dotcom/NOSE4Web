@@ -29,6 +29,7 @@ import {
   fewerSkaterLinesFor,
   fewerSkaterLinesText,
   FULL_ENERGY,
+  HITS_ONLY,
   RECOMMENDED_HIT_ENERGY,
   RECOMMENDED_HOLD_ENERGY,
   RECOMMENDED_INJURY_BONUS,
@@ -196,7 +197,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -614,12 +615,36 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'energyDrain',
           number('energyDrain'),
-          <>How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more line changes. {stock('energyDrain')}</>,
+          <>
+            How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more
+            line changes. {stock('energyDrain')} At least 16: below that a player with high endurance gets more back than he
+            loses, his energy climbs past full, and after a minute or two a fast skater drops to the slowest speed there is
+            (found in the game by the NHL94 Match Viewer project). For no tiring from skating at all, use Skating costs no
+            energy, below.
+          </>,
         )}
         {hack(
           'energyRecovery',
           number('energyRecovery'),
           <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock('energyRecovery')}</>,
+        )}
+        {hack(
+          'noSkatingDrain',
+          onOff('noSkatingDrain'),
+          <>
+            With line changes on, skating costs no energy. Players then tire only from what else costs it: hits and holds
+            (Energy lost when knocked down, below) and speed bursts (the next setting), and they rest on the bench as usual.
+            With speed bursts set to cost nothing too, only hits tire a player. Unlike Unlimited stamina, which stops
+            every loss, hits still count. Not yet tested in the game.
+          </>,
+        )}
+        {hack(
+          'burstEnergy',
+          number('burstEnergy'),
+          <>
+            The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none.
+            {' '}{stock('burstEnergy')} Not yet tested in the game.
+          </>,
         )}
         {hack(
           'speedBurst',
@@ -780,14 +805,31 @@ export function HacksPage({ project, name, onChange }: Props) {
             where a hit costs the skater nothing. Only with line changes On, where the game's energy counts at all. Full
             energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a
             burst of speed costs, about 25 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) and the computer changes lines about 15% more often, while the average skater is hardly touched; people hit about twice as often. Half as
-            much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to
-            wear players down. A knockdown by a puck, a bump that does not knock him down, or a hit after the whistle costs nothing. Read from the game's
+            much was measured as too small to notice. Up to 4096, all of a skater's energy, for a league that wants hits to
+            wear players down. For energy lost only to hits, the button below turns on Skating costs no energy, makes a
+            speed burst cost nothing, and sets a knockdown to {HITS_ONLY.hitEnergy} (a third) and a hold to{' '}
+            {HITS_ONLY.holdEnergy}: three knockdowns then empty a skater, and he gets it back on the bench as usual, about 7
+            minutes of game time from empty. Match Viewer measured an average skater's top speed after one, two and three
+            knockdowns at 13%, 26% and 35% below full; at no energy every skater is as slow as the slowest, and his shots
+            and checks are weaker too. A knockdown by a puck, a bump that does not knock him down, or a hit after the whistle costs nothing. Read from the game's
             code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game: each knockdown and hold takes its amount once, and nothing with line changes Off or Auto.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
             Use the recommended {RECOMMENDED_HIT_ENERGY}
           </button>,
         )}
+        <p>
+          <button
+            type="button"
+            disabled={(Object.keys(HITS_ONLY) as (keyof typeof HITS_ONLY)[]).some((key) => unknown(key)) || (Object.keys(HITS_ONLY) as (keyof typeof HITS_ONLY)[]).every((key) => wanted[key] === HITS_ONLY[key])}
+            onClick={() => set(HITS_ONLY)}
+          >
+            Energy from hits only
+          </button>{' '}
+          <span className="note">
+            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Not yet tested in the game.
+          </span>
+        </p>
         {hack(
           'holdEnergy',
           number('holdEnergy'),

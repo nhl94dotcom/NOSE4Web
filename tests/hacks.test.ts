@@ -251,6 +251,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { goalieLine: 96 },
       { stamina: true },
       { energyDrain: 65, energyRecovery: 6 },
+      { noSkatingDrain: true },
+      { burstEnergy: 0 },
+      { noSkatingDrain: true, burstEnergy: 0, hitEnergy: 1365, holdEnergy: 683 },
       { speedBurst: 24 },
       { turnRate: 300 },
       { realTime: true },
@@ -361,7 +364,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(opened.bytes, 0x1577a, 4)).toBe('4a406a00')
     expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
-    expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 1025 })).toThrow('from 0 to 1024')
+    expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 4097 })).toThrow('from 0 to 4096')
     // The first version (3180527), which took energy after the whistle too, is still recognised, and put in again as this one.
     const first = hacked.slice()
     first.set(Buffer.from('4a78d058663008380004c2fc66284a6a003467220c6b000b00526e1a48e7e0f0264a4eb90001575a044000cc4eb90001577a4cdf0f074a6b003466062ebc000141504e75', 'hex'), hit)
@@ -405,6 +408,24 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     half.set([0xb0, 0x6a, 0x00, 0x32, 0x6e, 0x00, 0x00, 0x5c], 0x14432)
     expect(detectHacks(half).unknown).toContain('injuryBonus')
     expect(() => applyHacks(opened, { ...NO_HACKS, injuryBonus: 11 })).toThrow('from 0 to 10')
+  })
+
+  it('can make skating and speed bursts cost no energy, and keeps the drain from climbing past full', () => {
+    const at = (rom: Uint8Array, offset: number, length: number) => Buffer.from(rom.subarray(offset, offset + length)).toString('hex')
+    const opened = openRom(stock())
+    // .sube: tst.w OptLine / bne.w rtss2, then the drain of 33; burst: tst.w OptLine / bne.w, subi.w #$CC,d0.
+    expect(at(opened.bytes, 0x10d26, 8)).toBe('4a78d05866004738')
+    expect(at(opened.bytes, 0x10d40, 4)).toBe('04400021')
+    expect(at(opened.bytes, 0xbb68, 12)).toBe('4a78d0586600001a044000cc')
+    const hacked = applyHacks(opened, { ...NO_HACKS, noSkatingDrain: true, burstEnergy: 0 }).bytes
+    expect(at(hacked, 0x10d2a, 4)).toBe('60004738')
+    expect(at(hacked, 0xbb70, 4)).toBe('04400000')
+    expect(detectHacks(hacked).choices).toMatchObject({ noSkatingDrain: true, burstEnergy: 0 })
+    expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
+    // Below 16, a high-endurance player's give-back outweighs the drain (Match Viewer, in the game).
+    expect(() => applyHacks(opened, { ...NO_HACKS, energyDrain: 15 })).toThrow('from 16 to 999')
+    // A hit may now take up to all of a player's energy.
+    expect(detectHacks(applyHacks(opened, { ...NO_HACKS, hitEnergy: 4096 }).bytes).choices.hitEnergy).toBe(4096)
   })
 
   it('lists every skater for every position in Edit Lines, and saves such lines a byte a slot', () => {

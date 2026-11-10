@@ -13,7 +13,7 @@ describe('the hack sheet', () => {
       passFix: true, faceoffFix: true, runawayFix: true, penaltyShotTableFix: true, penaltyShotFixes: true,
       goaliePullFix: true, blindRingFix: true, snipingFix: true, awarenessFix: true, crowdFix: true, stickShots: true,
       goalieHold: 0, goalieWidth: 40, goalieOut: 224, goalieLine: 144, stamina: true, energyDrain: 65,
-      energyRecovery: 6, speedBurst: 24, turnRate: 300, realTime: true, injuries: 'period', hotColdRange: 4, noIcing: true, bCheckPenaltiesOff: 'asPenaltiesOn', goalieDelay: 12, fewerSkaterLines: 32, introWait: 20, puckFriction: 8, puckColours: 'home', netColours: 'crowd', greenFan: true, fourthPeriodOvertime: 5940, anyPosition: true, hitEnergy: 204, holdEnergy: 102, injuryBonus: 2, injuryCap: 12,
+      energyRecovery: 6, noSkatingDrain: true, burstEnergy: 0, speedBurst: 24, turnRate: 300, realTime: true, injuries: 'period', hotColdRange: 4, noIcing: true, bCheckPenaltiesOff: 'asPenaltiesOn', goalieDelay: 12, fewerSkaterLines: 32, introWait: 20, puckFriction: 8, puckColours: 'home', netColours: 'crowd', greenFan: true, fourthPeriodOvertime: 5940, anyPosition: true, hitEnergy: 204, holdEnergy: 102, injuryBonus: 2, injuryCap: 12,
     }
     const sheet = genesisHackSheet({ choices: all, unknown: [] }, 'League <ROM>')
     const items = sheet.sections.flatMap((section) => section.items)
