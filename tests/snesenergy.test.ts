@@ -15,6 +15,26 @@ const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.
 const target = (rom: Uint8Array, site: number) => loRomOffset(Math.floor(site / 0x8000) | 0x80, rom[site + 1] | (rom[site + 2] << 8))
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () => {
+  it('can make skating and speed bursts cost no energy, in every build', () => {
+    const project = open('NHL94.smc')
+    // playeracc's drain: lda seed / and #$3F / bne past it at $9E:A867; burst's sbc #$CC at $9E:820C.
+    expect(hex(project.bytes, 0xf2861, 8)).toBe('ad9207293f00d01f')
+    expect(hex(project.bytes, 0xf020b, 4)).toBe('38e9cc00')
+    const on = applySnesHacks(project, { noSkatingDrain: true, freeBurst: true }, false, { hitEnergy: 1365, holdEnergy: 683 })
+    expect(hex(on.bytes, 0xf2867, 2)).toBe('801f')
+    expect(hex(on.bytes, 0xf020c, 3)).toBe('e90000')
+    const state = detectSnesHacks(on.bytes)
+    expect(state.choices).toMatchObject({ noSkatingDrain: true, freeBurst: true, hitEnergy: true, holdEnergy: true })
+    expect(state.amounts).toMatchObject({ hitEnergy: 1365, holdEnergy: 683 })
+    // Off again, the ROM is as it was.
+    const off = applySnesHacks(openRom(buildRom(on)), { noSkatingDrain: false, freeBurst: false, hitEnergy: false, holdEnergy: false })
+    expect(Buffer.compare(buildRom(off), buildRom(project))).toBe(0)
+    // Found in the other builds too.
+    for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('noSkatingDrain')
+    for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('freeBurst')
+    expect(() => applySnesHacks(project, {}, false, { hitEnergy: 4097 })).toThrow('from 0 to 4096')
+  })
+
   it('jsr from FallDown and holdcheck to code that takes the amounts, with line changes on', () => {
     const project = open('NHL94.smc')
     expect(detectSnesHacks(project.bytes).amounts).toEqual({ hitEnergy: 0, holdEnergy: 0, injuryBonus: 0 })
@@ -45,7 +65,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(detectSnesHacks(more.bytes).amounts).toMatchObject({ hitEnergy: 204, holdEnergy: 50 })
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
-    expect(() => applySnesHacks(project, {}, false, { hitEnergy: 1025 })).toThrow('from 0 to 1024')
+    expect(() => applySnesHacks(project, {}, false, { hitEnergy: 4097 })).toThrow('from 0 to 4096')
     // NOSE4Web's first version (41def89), which took energy after the whistle: recognised as an earlier version, and replaced on request.
     const first = on.bytes.slice()
     const code = target(on.bytes, t2)

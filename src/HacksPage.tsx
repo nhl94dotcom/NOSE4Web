@@ -449,7 +449,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             Clock's (5940 is 99 minutes, about as good as no limit). Set the fourth length and its menu text with the
             others on the Game settings page: the original's is 30 seconds. The other lengths keep the Clock's overtime,
             and playoff overtime stays as long as a period, as in the original game. McMarkis's "5 Minutes, 99 Min OT"
-            patch, made for any length; it can save a league a separate playoff ROM.
+            patch, made for any length; it can save a league a separate playoff ROM. Tested in the game by the NHL94
+            Match Viewer project: a regular-season overtime of 99:00 counts down and shows right, ends the game at 0:00 if
+            still tied, and the playoffs keep theirs. With 99 minutes, the faceoff song cannot play in its first half.
           </>,
         )}
       </section>
@@ -635,7 +637,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             With line changes on, skating costs no energy. Players then tire only from what else costs it: hits and holds
             (Energy lost when knocked down, below) and speed bursts (the next setting), and they rest on the bench as usual.
             With speed bursts set to cost nothing too, only hits tire a player. Unlike Unlimited stamina, which stops
-            every loss, hits still count. Not yet tested in the game.
+            every loss, hits still count. Tested in the game by the NHL94 Match Viewer project: a skater never hit keeps full energy through a whole shift of skating and bursts.
           </>,
         )}
         {hack(
@@ -643,7 +645,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           number('burstEnergy'),
           <>
             The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none.
-            {' '}{stock('burstEnergy')} Not yet tested in the game.
+            {' '}{stock('burstEnergy')} Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -827,7 +829,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             Energy from hits only
           </button>{' '}
           <span className="note">
-            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Not yet tested in the game.
+            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Tested in the game by the NHL94 Match Viewer project: each knockdown and hold costs exactly that, and the bench works as before.
           </span>
         </p>
         {hack(
@@ -921,7 +923,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             Which of the game's colour sets both nets are drawn in, as for the puck. The net art keeps its own colour
             numbers, so in another set they take that set's colours in the same places: the crowd's gives red posts, as
             in clockwise's forum post. A team's colours may look odd, since they were never made for the net. The nets
-            sit in the same table of pieces as the puck, placed by the NHL94 Match Viewer project.
+            sit in the same table of pieces as the puck, placed by the NHL94 Match Viewer project and tested in the game:
+            both nets change, in play and in replays, and the puck stays exactly as it was. The crowd's gives an olive-grey
+            net; a home team's can be heavy against the ice.
           </>,
         )}
         {hack(

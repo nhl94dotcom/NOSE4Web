@@ -40,6 +40,8 @@ export type SnesHack =
   | 'hitEnergy'
   | 'holdEnergy'
   | 'injuryBonus'
+  | 'noSkatingDrain'
+  | 'freeBurst'
 
 interface Site {
   // The game's address.
@@ -263,6 +265,8 @@ export const SNES_HACKS: SnesHack[] = [
   'hitEnergy',
   'holdEnergy',
   'injuryBonus',
+  'noSkatingDrain',
+  'freeBurst',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -292,6 +296,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   hitEnergy: 'Energy lost when knocked down',
   holdEnergy: 'Energy lost when held or hooked',
   injuryBonus: 'Injury risk added by each knockdown',
+  noSkatingDrain: 'Skating costs no energy',
+  freeBurst: 'Speed bursts cost no energy',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -408,12 +414,14 @@ export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus'
 export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus']
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
+// Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
+export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // For the Genesis's effect (+27% injuries, 1.33 times for the most-hit): Match Viewer's estimates from 29
 // recorded SNES league games, the knockdown counted before its own roll, up to 5 knockdowns, are +4 at +18%
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 1024], holdEnergy: [0, 1024], injuryBonus: [0, 20] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -426,11 +434,14 @@ const INJURY_IMPACT_AT = 55
 
 // What the energy code needs from this ROM, all from the energy drain in
 // playeracc: lda.l OptLine / beq; ...; jsl getpde; lda d0; sec; sbc #33 ...
+// (lda seed / and #$3F / bne: one call in 64; the bne is bra with noSkatingDrain).
+const DRAIN = 'af......f0..ad....293f00....22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......'
+const DRAIN_SKIP_AT = 12
 // jml setpde. The direct-page a2 and d1 are read from getpde itself.
 function energyEnv(
   rom: Uint8Array,
 ): { gmclock: Uint8Array; optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number; pnum: Uint8Array; pfteam: Uint8Array } | null {
-  const drain = only(rom, 'af......f0..ad....293f00d0..22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......')
+  const drain = only(rom, DRAIN)
   if (drain < 0) return null
   const getpde = rom.slice(drain + 15, drain + 18)
   const at = loRomOffset(getpde[2], getpde[0] | (getpde[1] << 8))
@@ -517,6 +528,21 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   thirtySecondPeriods: (rom) => {
     const at = snesPeriodCountPlace(rom)
     return at < 0 ? null : [{ at, original: hexBytes('0300'), hacked: hexBytes('0400') }]
+  },
+  // With line changes on, playeracc's drain each 64th frame on the ice (with the endurance give-back)
+  // never runs: its bne past it becomes bra.
+  noSkatingDrain: (rom) => {
+    const found = only(rom, DRAIN)
+    if (found < 0 || ![0xd0, 0x80].includes(rom[found + DRAIN_SKIP_AT])) return null
+    const length = rom[found + DRAIN_SKIP_AT + 1]
+    return [{ at: found + DRAIN_SKIP_AT, original: Uint8Array.of(0xd0, length), hacked: Uint8Array.of(0x80, length) }]
+  },
+  // burst (the C button, with line changes on): jsl getpde; lda.l OptLine / beq; lda d0 / sec / sbc #$CC; sta d0;
+  // jsl setpde, then full energy with Auto. The cost becomes 0.
+  freeBurst: (rom) => {
+    const found = only(rom, '22......af......f0..a5..38e9....85..22......af......c90200d005a90010')
+    if (found < 0) return null
+    return [{ at: found + 13, original: hexBytes('E9CC00'), hacked: hexBytes('E90000') }]
   },
   noInterference: (rom) => {
     const found = only(rom, '38e91f00' + '....' + 'bd....890040d0b5a9140038fd....22')
@@ -1006,7 +1032,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

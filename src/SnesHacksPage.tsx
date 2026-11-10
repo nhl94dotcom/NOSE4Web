@@ -17,11 +17,13 @@ import {
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
   SNES_AMOUNTS,
+  SNES_HITS_ONLY,
   type SnesAmount,
   type SnesHack,
   type SnesHackChoices,
 } from './core/sneshacks'
 
+const HITS_ONLY_HACKS: SnesHack[] = ['hitEnergy', 'holdEnergy', 'noSkatingDrain', 'freeBurst']
 const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   hitEnergy: RECOMMENDED_SNES_HIT_ENERGY,
   holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY,
@@ -65,6 +67,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',
+  noSkatingDrain:
+    'With line changes on, skating costs no energy: the drain every 64th frame on the ice never runs. Players then tire only from what else costs it, hits and holds (if set) and speed bursts, and rest on the bench as usual. With speed bursts free too, only hits tire a player. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game: a skater never hit keeps full energy through a shift.',
+  freeBurst:
+    'A C-button speed burst costs no energy with line changes on, where the original costs 204 of 4096. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game.',
   noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
   noGoalPosts: 'A puck that reaches the net between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'Starts the game without the EA logo.',
@@ -92,13 +98,13 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   manualPullGoalie:
     "During play, a player can press L and R together to pull his goalie for an extra attacker, and again to put him back, with a beep each time; he stays out through faceoffs until put back. Each press of L and R together (and nothing else) counts once, however short or long, and the goalie comes off or back within about half a second. It does nothing between whistles, while the game has the goalie out for a delayed penalty, or while the backup goalie is in net. With both players on one team, player 1 has it. McMarkis's hack from NHL94SNESVault, tested in the game with the NHL94 Match Viewer project, in NOSE4Web's version: the Vault's reads the buttons only every half second, so a quick tap was often missed and a long hold could pull the goalie and put him straight back. It can only go into ROMs laid out like the original game.",
   hitEnergy:
-    "An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game, where a hit costs the skater nothing. Only with line changes on, where the game's energy counts at all. Full energy is 4096 units; a burst of speed costs 204. Recommended: 204 (5%), what a burst costs, about 38 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) while the average skater is hardly touched; people hit about twice as often; half as much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to wear players down. A knockdown by the puck, a bump that does not knock him down, or a hit after the whistle costs nothing. As on the Genesis; read from the game's code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game, in the original and McMarkis's SA-1 build: each knockdown and hold takes its amount once, and nothing with line changes Off. As the game's own energy drain, Automatic line changes count as on here (on the Genesis they do not). Found by the code around it, so it goes into every build.",
+    "An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game, where a hit costs the skater nothing. Only with line changes on, where the game's energy counts at all. Full energy is 4096 units; a burst of speed costs 204. Recommended: 204 (5%), what a burst costs, about 38 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) while the average skater is hardly touched; people hit about twice as often; half as much was measured as too small to notice. Up to 4096, all of a skater's energy, for a league that wants hits to wear players down; Energy from hits only, below, makes skating and speed bursts free and a knockdown cost a third. On the SNES a skater with no energy keeps more of his speed than on the Genesis (his speed rating is halved, not lost); Match Viewer measured an average skater 8%, 14% and 22% slower after one, two and three knockdowns of 1365. A knockdown by the puck, a bump that does not knock him down, or a hit after the whistle costs nothing. As on the Genesis; read from the game's code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game, in the original and McMarkis's SA-1 build: each knockdown and hold takes its amount once, and nothing with line changes Off. As the game's own energy drain, Automatic line changes count as on here (on the Genesis they do not). Found by the code around it, so it goes into every build.",
   holdEnergy:
     'The same for a skater caught by a hold or hook (Y), once each time it catches him in play. Recommended: 102 (2.5%), half a knockdown\'s. Only with line changes on.',
   injuryBonus:
     "An option, the other half of the community idea: each knockdown a skater takes makes a later injury a little more likely, and half of it wears off at each intermission. 0 is the original game. Only the few hits that can injure in the original game are affected (a puck carrier knocked onto his back while facing straight up or down the ice, with the clock running), so injuries stay rare: the game rolls 0 to 298 against the hit's impact, and this adds the number to the impact for each knockdown the skater has taken this game, the one being rolled for included, counting up to five. Recommended: 6, the Genesis's recommended effect: estimated from recorded SNES league games at about 27% more injuries a game, with the skaters knocked down most (5 times or more) about 1.35 times as likely to be hurt; each 1 more adds about 5% (19 comes to about 87% and 2.1 times). The estimates are indicative only, as those games had no injuries to check them against. Knockdowns in play are counted, with line changes on or off; those after the whistle are not. For the original game and its 1 MB edits; the rebuilt builds keep their memory elsewhere. Read from the game's code by the NHL94 Match Viewer project and tested in the game: each knockdown counts once, the counts start at 0 each game and halve at each intermission, and only hits that can already injure become likelier to.",
   fourthPeriodOvertime:
-    "An option. A regular-season game played on the menu's fourth period length gets 99 minutes of overtime, about as good as no limit, which can save a league a separate playoff ROM. The fourth length is the one the 30-second periods hack offers, so that turns on with this; set its length and menu text with the others on the Game settings page (for example 5:00, \"5 Minutes, 99 Min OT\"). The other lengths keep the Clock's overtime, and playoff overtime stays as long as a period, as in the original game. McMarkis's Genesis patch, made for the SNES as NOSE4Web's Genesis option has it. Found by the code that sets the clock, so it goes into every build.",
+    "An option. A regular-season game played on the menu's fourth period length gets 99 minutes of overtime, about as good as no limit, which can save a league a separate playoff ROM. The fourth length is the one the 30-second periods hack offers, so that turns on with this; set its length and menu text with the others on the Game settings page (for example 5:00, \"5 Minutes, 99 Min OT\"). The other lengths keep the Clock's overtime, and playoff overtime stays as long as a period, as in the original game. McMarkis's Genesis patch, made for the SNES as NOSE4Web's Genesis option has it. Found by the code that sets the clock, so it goes into every build. Tested in the game by the NHL94 Match Viewer project, on the original and McMarkis's SA-1 build: 99:00 in the regular season on the fourth length, 5:00 otherwise and in the playoffs, and a tied game ends at 0:00.",
   faceoffFix:
     "Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine dots; before that a faceoff was often held where play stopped, and the game follows that older way, putting one on a dot only when play stops past the hash marks. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Leave it off to keep the game's own 1990s-style faceoffs. Worked out with the NHL94 Match Viewer project, from today's NHL rulebook.",
 }
@@ -117,7 +123,7 @@ const GROUPS: { title: string; hacks: SnesHack[] }[] = [
   { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
   { title: 'Statistics', hacks: ['stickShots'] },
   { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
+  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
 ]
 
@@ -244,6 +250,29 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
               </div>
             )
           })}
+          {group.hacks.includes('hitEnergy') && (
+            <p>
+              <button
+                type="button"
+                disabled={HITS_ONLY_HACKS.some((hack) => state.unknown.includes(hack)) || (HITS_ONLY_HACKS.every((hack) => wanted[hack]) && wantedAmounts.hitEnergy === SNES_HITS_ONLY.hitEnergy && wantedAmounts.holdEnergy === SNES_HITS_ONLY.holdEnergy)}
+                onClick={() => {
+                  setDraft({
+                    rom: project.bytes,
+                    choices: { ...wanted, hitEnergy: true, holdEnergy: true, noSkatingDrain: true, freeBurst: true },
+                    amounts: { ...wantedAmounts, ...SNES_HITS_ONLY },
+                  })
+                  setNotice('')
+                  setError('')
+                }}
+              >
+                Energy from hits only
+              </button>{' '}
+              <span className="note">
+                Skating and speed bursts cost nothing; a knockdown costs {SNES_HITS_ONLY.hitEnergy} (a third of full energy) and a hold {SNES_HITS_ONLY.holdEnergy}.
+                Players get it back on the bench as usual. Then Apply. Tested in the game by the NHL94 Match Viewer project: an average skater's top speed falls about 8%, 14% and 22% after one, two and three knockdowns. On the SNES energy never takes a skater below half his speed, so hits slow him less than on the Genesis.
+              </span>
+            </p>
+          )}
         </section>
       ))}
       <section>
