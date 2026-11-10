@@ -3,6 +3,12 @@
 // ROM, it puts that work back. It moves work between computers, keeps a copy
 // of a season as it stood, and passes changes to someone with their own ROM.
 
+import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
+import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
+import { customSongBytes, withSongBytes } from './genesismusic'
+import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
+import { snesSongChoices } from './snessongs'
+import { SONG_NUMBERS } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
 import { expandTeamSpace, nextExpansion } from './expand'
@@ -52,6 +58,11 @@ interface ProjectFile {
     centreIce: Record<string, { width: number; height: number; pixels: string }>
   }
   baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
+  // Songs put in from MIDI files: the Genesis's by number, the SNES's by where they were.
+  songs?: { genesis?: { number: number; bytes: string }[]; snes?: { pointer: number; bytes: string }[] }
+  // The Genesis's splash screen and main menu background, where the project changed them: the original's
+  // again, or a picture of the league's own as its bytes.
+  screens?: { splash?: { original: true } | { bytes: string; ownColours: boolean }; menuPicture?: { original: true } | { bytes: string } }
 }
 
 const PICTURE_SETS: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, PictureKind> = {
@@ -122,6 +133,8 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
       ),
     },
     baseline: project.baseline,
+    songs: savedSongs(project),
+    screens: savedScreens(project, opened),
   }
   return JSON.stringify(file)
 }
@@ -425,7 +438,105 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     notes.push('The project has pictures, but this ROM keeps its pictures in a way the editor cannot read, so they were left out.')
   }
   if (game.platform === 'snes') project = withSnesPictures(project, file.snesPictures, notes)
+  project = withSavedSongs(project, file.songs, notes)
+  project = withSavedScreens(project, file.screens, notes)
   return { project, name: typeof file.name === 'string' ? file.name : '', notes }
+}
+
+const sameBytes = (a: Uint8Array | null, b: Uint8Array | null) => a === b || (!!a && !!b && a.length === b.length && a.every((byte, i) => byte === b[i]))
+
+// The splash screen and main menu background, where the project has changed them from the ROM it opened.
+function savedScreens(project: RomProject, opened: RomProject): ProjectFile['screens'] {
+  if (project.game.platform !== 'genesis') return undefined
+  const screens: NonNullable<ProjectFile['screens']> = {}
+  const [splash, was] = [splashBytes(project.bytes), splashBytes(opened.bytes)]
+  if (!sameBytes(splash?.bytes ?? null, was?.bytes ?? null) || splash?.ownColours !== was?.ownColours) {
+    screens.splash = splash ? { bytes: pack(splash.bytes), ownColours: splash.ownColours } : { original: true }
+  }
+  const menu = menuPictureBytes(project.bytes)
+  if (!sameBytes(menu, menuPictureBytes(opened.bytes))) screens.menuPicture = menu ? { bytes: pack(menu) } : { original: true }
+  return screens.splash || screens.menuPicture ? screens : undefined
+}
+
+// The project's splash screen and main menu background put in, where this ROM can take them.
+function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], notes: string[]): RomProject {
+  if (project.game.platform !== 'genesis' || !screens) return project
+  const left: string[] = []
+  const splash = screens.splash
+  if (splash) {
+    try {
+      if ('original' in splash) {
+        if (splashBytes(project.bytes)) project = withOriginalSplash(project)
+      } else {
+        const bytes = unpack(splash.bytes)
+        const there = splashBytes(project.bytes)
+        if (!sameBytes(there?.bytes ?? null, bytes) || there?.ownColours !== splash.ownColours) project = withSplashBytes(project, bytes, splash.ownColours === true)
+      }
+    } catch {
+      left.push('splash screen')
+    }
+  }
+  const menu = screens.menuPicture
+  if (menu) {
+    try {
+      if ('original' in menu) {
+        if (menuPictureBytes(project.bytes)) project = withOriginalMenuPicture(project)
+      } else {
+        const bytes = unpack(menu.bytes)
+        if (!sameBytes(menuPictureBytes(project.bytes), bytes)) project = withMenuPictureBytes(project, bytes)
+      }
+    } catch {
+      left.push('main menu background')
+    }
+  }
+  if (left.length > 0) notes.push(`The project's ${left.join(' and ')} could not be put into this ROM, and ${left.length === 1 ? 'was' : 'were'} left out.`)
+  return project
+}
+
+// The songs the project has put in from MIDI files, as their bytes.
+function savedSongs(project: RomProject): ProjectFile['songs'] {
+  if (project.game.platform === 'genesis') {
+    const genesis = SONG_NUMBERS.flatMap((number) => {
+      const bytes = customSongBytes(project.bytes, number)
+      return bytes ? [{ number, bytes: pack(bytes) }] : []
+    })
+    return genesis.length ? { genesis } : undefined
+  }
+  const snes = snesSongChoices(project.bytes).flatMap(({ pointer }) => {
+    const bytes = snesCustomSongBytes(project.bytes, pointer)
+    return bytes ? [{ pointer, bytes: pack(bytes) }] : []
+  })
+  return snes.length ? { snes } : undefined
+}
+
+// The project's songs put back in, each where this ROM has room for it.
+function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes: string[]): RomProject {
+  let left = 0
+  if (project.game.platform === 'genesis') {
+    for (const song of songs?.genesis ?? []) {
+      try {
+        const bytes = unpack(song.bytes)
+        const there = customSongBytes(project.bytes, song.number)
+        if (there && there.length === bytes.length && there.every((byte, i) => byte === bytes[i])) continue
+        project = { ...project, bytes: withSongBytes(project.bytes, song.number, bytes) }
+      } catch {
+        left++
+      }
+    }
+  } else {
+    for (const song of songs?.snes ?? []) {
+      try {
+        const bytes = unpack(song.bytes)
+        const there = snesCustomSongBytes(project.bytes, song.pointer >>> 0)
+        if (there && there.length === bytes.length && there.every((byte, i) => byte === bytes[i])) continue
+        project = withSnesSongBytes(project, song.pointer >>> 0, bytes)
+      } catch {
+        left++
+      }
+    }
+  }
+  if (left > 0) notes.push(`${left} of the project's organ songs could not be put into this ROM, and were left out.`)
+  return project
 }
 
 // An SNES project's logos, each kept where it is the right size and the

@@ -363,10 +363,21 @@ export function menuPicturePalette(rom: Uint8Array): number[] | null {
 // The project with the background showing `made`: in the room of a picture of
 // the league's own already there if it fits, else in free room at the end.
 export function withMenuPicture(project: RomProject, made: MenuImage): RomProject {
+  if (made.tiles.length > MENU_PICTURE_TILES) throw new Error(`The picture has ${made.tiles.length} tiles; the screen has room for ${MENU_PICTURE_TILES}.`)
+  return withMenuPictureBytes(project, imageBytes(made))
+}
+
+// The background of the league's own, as its bytes, for a project file; null for the original's.
+export function menuPictureBytes(rom: Uint8Array): Uint8Array | null {
+  const found = image(rom)
+  if (!found || found.at === ORIGINAL_HEADER) return null
+  return rom.slice(found.at, found.at + u32(rom, found.at + 4) + 4 + found.image.width * found.image.height * 2)
+}
+
+// The project with the background given as its bytes.
+export function withMenuPictureBytes(project: RomProject, bytes: Uint8Array): RomProject {
   const found = image(project.bytes)
   if (!found) throw new Error("This ROM's Game Setup screen is not as the original game has it, so its background cannot be changed.")
-  if (made.tiles.length > MENU_PICTURE_TILES) throw new Error(`The picture has ${made.tiles.length} tiles; the screen has room for ${MENU_PICTURE_TILES}.`)
-  const bytes = imageBytes(made)
   const { at: old, image: was } = found
   let next: Uint8Array = project.bytes.slice()
   let at: number

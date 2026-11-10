@@ -222,9 +222,10 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
   let drums = 0
   let dropped = 0
   let moved = 0
-  const first = Math.min(...notes.map((n) => n.start))
+  const first = notes.reduce((least, n) => Math.min(least, n.start), Infinity)
   type Played = { on: number; off: number; note: number; volume: number }
   const played: Played[] = []
+  let active: Played[] = []
   for (const midi of notes) {
     if (midi.channel === DRUMS) {
       drums++
@@ -236,17 +237,22 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
     if (note !== midi.note) moved++
     const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
     const off = Math.max(on + 1, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
-    // The same note again ends the one still sounding, as the game keys notes off by number.
-    for (const other of played) if (other.note === note && other.off > on && other.on <= on) other.off = on
-    const sounding = played.filter((other) => other.on <= on && other.off > on)
-    if (sounding.length >= SONG_VOICES) {
+    // The notes still sounding (the notes come in order of start). The same note again ends the one
+    // still sounding, as the game keys notes off by number.
+    active = active.filter((other) => other.off > on)
+    for (const other of active) if (other.note === note) other.off = on
+    active = active.filter((other) => other.off > on)
+    if (active.length >= SONG_VOICES) {
       dropped++
       continue
     }
     // A third of the MIDI velocity, as songToMidi gives three times the game's volume: 105 is the organ's 35.
     const volume = Math.max(1, Math.min(127, Math.round(midi.velocity / 3)))
-    played.push({ on, off, note, volume })
+    const p = { on, off, note, volume }
+    played.push(p)
+    active.push(p)
   }
+  if (played.length === 0) throw new MidiError('This MIDI file has only drums, which the organ does not play.')
   const events: SongEvent[] = [{ frame: 0, status: 0xc0, data: [ORGAN, ORGAN_VOLUME] }]
   const timed: SongEvent[] = []
   for (const p of played) {
@@ -256,7 +262,7 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
   }
   // Offs before ons at the same moment, so a repeated note sounds again.
   timed.sort((a, b) => a.frame - b.frame || (a.status === 0x80 ? -1 : 1) - (b.status === 0x80 ? -1 : 1))
-  events.push(...timed)
+  for (const event of timed) events.push(event)
   const end = timed.length ? timed[timed.length - 1].frame : 0
   return { events, seconds: end / FRAMES_PER_SECOND, drums, dropped, moved }
 }
@@ -349,4 +355,40 @@ export function songToMidi(song: { events: SongEvent[] }, name = ''): Uint8Array
   const header = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 60]
   const length = track.length
   return Uint8Array.from([...header, 0x4d, 0x54, 0x72, 0x6b, (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff, ...track])
+}
+
+// ------------------------------------------------- songs in project files
+
+// A song NOSE4Web made, as its bytes (stream, end and mark), for a project file; null for the game's own.
+export function customSongBytes(rom: Uint8Array, number: number): Uint8Array | null {
+  const table = soundTable(rom)
+  const song = readSong(rom, number)
+  if (table < 0 || !song?.custom) return null
+  const start = u32(rom, table + number * 4)
+  let p = start
+  while (p + 4 <= rom.length && rom[p + 1] !== 0) p += 4
+  let end = p + 12
+  while (end < rom.length && rom[end] !== 0) end++
+  end++
+  if ((end - start) % 2) end++
+  return rom.slice(start, end)
+}
+
+// The ROM with song `number` replaced by a song's bytes from a project file, its mark naming this ROM's own.
+export function withSongBytes(rom: Uint8Array, number: number, bytes: Uint8Array): Uint8Array {
+  const table = soundTable(rom)
+  if (table < 0 || number <= FIRST_SONG || number > LAST_TEAM_SONG) throw new SongError('This ROM has no place for the song.')
+  let p = 0
+  while (p + 4 <= bytes.length && bytes[p + 1] !== 0) p += 4
+  if (!MARK.every((byte, i) => bytes[p + 4 + i] === byte)) throw new SongError('The song is not one NOSE4Web made.')
+  const current = readSong(rom, number)
+  const own = current?.custom ? current.custom.replaced : u32(rom, table + number * 4)
+  const song = bytes.slice()
+  put32(song, p + 8, own)
+  const claimed = claimSpace(rom, song.length + 1)
+  if (!claimed) throw new SongError('There is no room left in this ROM for the song.')
+  const at = claimed.at + (claimed.at % 2)
+  claimed.rom.set(song, at)
+  put32(claimed.rom, table + number * 4, at)
+  return claimed.rom
 }

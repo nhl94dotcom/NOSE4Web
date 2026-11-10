@@ -18,6 +18,9 @@ const SECTIONS = [
   ['lines', 'Lines'],
   ['colours', 'Team colours'],
   ['pictures', 'Logos and banners'],
+  ['genesis-score-logos', 'Score logos (Genesis)'],
+  ['genesis-blood', 'Head bleeding (Genesis)'],
+  ['photos', 'Player photos'],
   ['picturefiles', 'Picture files'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
@@ -730,57 +733,23 @@ export function HelpPage() {
         </li>
         <li>
           <b>Title screen credits</b> (Genesis): the credits the title screen rolls, a box for each page, one line of
-          text to a line of the box. They must fit the room the ROM has for them, 934 bytes in the original game (a
-          line takes its letters rounded up to an even number, plus 2); the count above the boxes says how much is
-          used. The original game's pages have up to 4 lines of up to 25 letters, and the game centres each line. $
-          shows as the copyright sign. A league can put its own name in them; smozoma's guide warns that the first
-          page, EA's copyright notice, can cause trouble if changed, though several league ROMs have changed it.
-          From smozoma's forum guide to the credits; checked in the game by the NHL94 Match Viewer project. The game
-          rolls them once after power-on or reset, then goes to the menus.
+          text to a line of the box. The original game's pages have up to 4 lines of up to 25 letters, and the game
+          centres each line; a $ sign shows as the copyright sign. They must fit the room the ROM has for them, 934
+          bytes in the original game (a line takes its letters rounded up to an even number, plus 2), and the count
+          above the boxes says how much is used. A league can put its own name in them. smozoma's guide warns that
+          changing the first page, EA's copyright notice, can cause trouble, though several league ROMs have changed
+          it. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
+          guide; checked in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Title screen credits</b> (SNES): the credits the title screen rolls, a box for each credit title: its first
-          line is the title, and each line after it a name under that title, shown one at a time. Every title needs at
-          least one name. The game's letters are capitals (lower case is shown as them), digits, spaces, "." and "@",
-          the copyright sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its
-          letters plus 1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes
-          its letters once. The two copyright lines are left as they are. Found by the code that rolls them, so rebuilt
-          ROMs work too. The title screen lasts 4,740 frames from the start of the credits whatever they hold, and
-          the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits before going to
-          the menus (about a minute with 5). Both editors were checked in the game by the NHL94 Match Viewer project.
-        </li>
-        <li>
-          <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
-          Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
-          whole screen, 320 by 224 pixels; a picture of another size is fitted inside it on black. The screen can show
-          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to the
-          nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those ROMs'
-          pictures show here too. Export as PNG gives the screen as it is; Put back the original restores the original
-          game's. From kingraph's forum reference to the screen.
-        </li>
-        <li>
-          <b>Organ songs</b> (Genesis): the songs the organ plays, which each team's page chooses from. <b>Play</b>
-          gives a rough idea of one in the browser, <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts
-          a MIDI file of your own in its place. Every note is played on the game's organ, at most four at once (the
-          console has five voices, shared with the sound effects; later notes past that are left out), drums are left
-          out, and notes too low or high are moved by octaves into the game's range. The new song goes into free room
-          at the end of the ROM, so every team with that song in a slot plays it, and <b>Put back the original</b>{' '}
-          restores the game's. Song 1 cannot be replaced, as the game uses it to know which song is playing. Short
-          tunes of 10 to 30 seconds suit the game, as its own are. Read from the game's sound driver in the Genesis
-          disassembly. On the SNES the same section lists the songs the teams and the random songs use, with the same
-          buttons; there a new song is played on the game's two organs, one to each side: a note on its own on both,
-          and in a chord the highest note on one and the rest on the other, at most four at once, and every team that had the old song gets the new one.
-        </li>
-        <li>
-          <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your own
-          and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8 squares,
-          so a detailed picture has its most alike squares merged (logos and simple designs come out clean, photos
-          blocky), and 25 colours of its own besides the menu's white, greys and black. It goes into free room at the
-          end of the ROM. The parts the screen always covers (under the top strip, the team banners and the logo box
-          frame) are left blank, so the room goes to the parts that show. ROMs with a picture made with Drezz's forum
-          guide, which loads more squares than there is room for and so draws over the team banners' own, show it here
-          with a warning; importing it again fits it. Drezz's guide, and the screen's measurements and a game test by
-          the NHL94 Match Viewer project.
+          <b>Title screen credits</b> (SNES): a box for each credit title. Its first line is the title, and each line
+          after it is a name under that title, shown one at a time; every title needs at least one name. The game has
+          capital letters (lower case is shown as capitals), digits, spaces, "." and "@", which shows as the copyright
+          sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its letters plus
+          1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes its letters
+          once. The two copyright lines are left as they are. The title screen lasts the same time whatever the credits
+          hold, and the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits
+          before going to the menus (about a minute with 5). Checked in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
@@ -806,6 +775,47 @@ export function HelpPage() {
           the ROM, <b>Fill the draws with the league's teams</b> makes new draws from the teams the menu offers
           (leaving out All-Star teams), each of them in at least one draw. It needs at least 16 teams. New playoffs
           freeze the game when started with a team that no draw has, so <b>Check ROM</b> says so.
+        </li>
+        <li>
+          <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
+          Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
+          whole screen, 320 by 224 pixels; a picture of another shape is fitted inside it, on black. The screen shows
+          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to
+          the nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those
+          ROMs' pictures show here too. <b>Export as PNG</b> saves the screen as it is; <b>Put back the original</b>{' '}
+          restores the original game's. From kingraph's forum reference; checked in the game by the NHL94 Match Viewer
+          project.
+        </li>
+        <li>
+          <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your
+          own and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8
+          squares and 25 colours of its own, besides the menu's white, greys and black. A detailed picture has its
+          most alike squares merged to fit, so logos and simple designs come out clean and photos blocky. The parts
+          the menu always covers are left blank, so the room goes to the parts that show. ROMs with a picture made
+          with Drezz's forum guide show it here with a warning: the guide loads more squares than there is room for,
+          which draws over the team banners. Importing such a picture again fits it. Based on Drezz's guide; measured
+          and checked in the game by the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Organ songs</b> (Genesis): the songs the organ plays, which each team's page chooses from.{' '}
+          <b>Play</b> gives a rough idea of a song in the browser (the console's organ sounds different),{' '}
+          <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts a MIDI file of your own in its place:
+          <ul>
+            <li>every note is played on the game's organ, at most four at once (the console has five voices,
+            shared with the sound effects), and later notes past four are left out;</li>
+            <li>drums are left out, and notes too low or too high are moved by octaves into the game's range;</li>
+            <li>every team with that song in one of its slots plays the new one, which the team pages name;</li>
+            <li><b>Put back the original</b> restores the game's song.</li>
+          </ul>
+          Song 1 cannot be replaced, as the game uses it to tell which song is playing. Short tunes of 10 to 30
+          seconds suit the game, as its own are. Played in the game by the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Organ songs</b> (SNES): the same, for the songs the teams' slots and the random songs use. The game plays
+          its organ on two instruments, one to each side; a new song does the same, a note on its own on both and, in
+          a chord, the highest note on one and the rest on the other, at most four at once. Every team that had the
+          old song gets the new one. Played in the game by the NHL94 Match Viewer project, on the original game and
+          McMarkis's 32-team builds.
         </li>
       </ul>
 
@@ -944,7 +954,8 @@ export function HelpPage() {
       <h3 id="help-project">Project files</h3>
       <p>
         A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
-        pictures you replaced and your free agents. <b>Save project file</b> on the Project file page downloads it,
+        pictures you replaced (the splash screen and main menu background included), the organ songs you made from
+        MIDI files, and your free agents. <b>Save project file</b> on the Project file page downloads it,
         named with the Name box at the top.
       </p>
       <p>Use one to:</p>
@@ -1076,24 +1087,39 @@ export function HelpPage() {
 
       <h3 id="help-hacks">Hacks</h3>
       <p>
-        The <b>Hacks</b> page changes the game itself, where every other page changes its data. Most of the hacks
-        are the work of smozoma, from his program smozROM, and are built in with his permission; those under Play
-        were found by members of the NHL94 forums. The page shows what the
-        ROM has now, which for a league ROM is often several of them already. Set what you want and press{' '}
+        The <b>Hacks</b> page changes the game itself, where every other page changes its data. Each hack is
+        explained beside its setting, with where it came from: smozoma's program smozROM (built in with his
+        permission), guides posted on the NHL94 forums, and the NHL94 Match Viewer project's reading of the game's
+        code, which found most of the fixes and tested every hack marked as played in the game. The page shows what
+        the ROM has now, which for a league ROM is often several hacks already. Set what you want and press{' '}
         <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
-        takes it all back.
+        takes it all back. The hacks are in groups: <b>Fixes</b> for the game's bugs, <b>Statistics</b>,{' '}
+        <b>Ratings</b>, <b>Weights</b>, <b>Play</b> (options that change how the game plays), <b>Looks and
+        screens</b>, and <b>Legacy hacks</b> kept for league ROMs that have them.
       </p>
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
-        that has been tested in the game: on the Genesis the weight bug and C-then-B fix, second-assist, one-timer
-        assist, regained-puck assist, Aggression,
-        power play and penalty kill, comeback bonus, rocket pass, runaway speed and both penalty shot fixes, and
-        counting stick deflections as shots, with smozoma's legacy weight bug fix taken out; on the SNES the power play and
-        penalty kill, comeback bonus, penalty shot, extra attacker, second-assist and regained-puck assist fixes and counting stick
-        deflections as shots. It leaves the faceoff spot fix (a choice
-        between eras), the options, and two fixes leagues may not want as they are: the SNES hot and cold bug fix,
-        which makes every player play lower than players are used to, and the SNES Y button fix, a habit people
-        expect. Press Apply to make it so. <b>Copy this ROM's hacks for Discord</b> puts what this
+        that has been tested in the game; press Apply to make it so.
+      </p>
+      <ul>
+        <li>
+          On the Genesis: the weight bug and C-then-B fix (taking out smozoma's legacy weight bug fix), the
+          second-assist, one-timer assist and regained-puck assist fixes, the Aggression, power play and penalty
+          kill, comeback bonus, rocket pass and runaway speed fixes, both penalty shot fixes, and counting stick
+          deflections as shots.
+        </li>
+        <li>
+          On the SNES: the power play and penalty kill, comeback bonus, penalty shot, extra attacker, second-assist
+          and regained-puck assist fixes, and counting stick deflections as shots.
+        </li>
+        <li>
+          Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and two fixes
+          leagues may not want as they are: the SNES hot and cold bug fix, which makes every player play lower than
+          players are used to, and the SNES Y button fix, a habit people expect.
+        </li>
+      </ul>
+      <p>
+        <b>Copy this ROM's hacks for Discord</b> puts what this
         ROM has, everything that differs from the original game, on the clipboard as a Discord post for a
         league's owners, each hack explained in plain words, and shows it below the button. Discord takes at most
         2,000 characters a message, so a long list comes as several messages, each with its own copy button, to
@@ -1357,6 +1383,43 @@ export function HelpPage() {
           the original game's run two and a half times as fast. Periods then last as long as they say, so set
           shorter ones in Game settings. People who have played this way report that the penalty clock can skip
           now and then.
+        </li>
+      </ul>
+      <p>The other options, each explained in full beside its setting:</p>
+      <ul>
+        <li>
+          <b>One-timer assist fix</b> and <b>regained-puck assist fix</b> (in with the fixes): assists the original
+          game leaves out, after a one-timer and when a player wins the puck back himself and passes to the scorer.
+        </li>
+        <li>
+          <b>Injuries</b>: none, as the original game has them, or each one lasting only the period or the whole
+          game. <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
+          is held before you take the goalie.
+        </li>
+        <li>
+          <b>Edit Lines for fewer skaters</b>: for 1-on-1, 2-on-2 or 3-on-3 ROMs, so the game's Edit Lines shows only
+          the positions used and no longer crashes. <b>Any skater at any position in Edit Lines</b>: the game's own
+          line editor offers every skater for every position, and saved lines keep them.
+        </li>
+        <li>
+          <b>Fourth period length, with its own overtime</b>: the main menu offers a fourth period length, whose
+          regular-season games get an overtime of their own (99 minutes, say), saving a league a separate playoff
+          ROM.
+        </li>
+        <li>
+          <b>Hits and energy</b>, for games with line changes on: <b>energy lost when knocked down</b> and{' '}
+          <b>when held or hooked</b>; <b>injury risk added by each knockdown</b>, with the most it can add; and{' '}
+          <b>skating costs no energy</b> and the <b>energy a C-button burst costs</b>. The <b>Energy from hits
+          only</b> button sets them so that only hits tire a player: three knockdowns leave a skater at the slowest
+          speed there is, and he gets his energy back on the bench.
+        </li>
+        <li>
+          <b>Puck friction</b>: how quickly a loose puck slows down.
+        </li>
+        <li>
+          <b>Looks and screens</b>: <b>puck colours</b> and <b>net colours</b> (drawn in the crowd's or a team's
+          colours), <b>the fan in green</b> (his missing arm and leg put back), and the <b>intro screen wait</b>.
         </li>
       </ul>
       <p>
@@ -1673,59 +1736,82 @@ export function HelpPage() {
           Genesis ROM, as the two games give their colours different jobs.
         </li>
         <li>
-          <b>Hacks:</b> the Hacks page has the SNES patches of the game's disassembly, NHL94SNESVault: the hot and
-          cold bug fix, defence control on from the start, one-minute penalties, 30-second periods, no interference
-          penalties, no penalty shots, no goal posts, and skipping the intros; and the editor's own power play and
-          penalty kill fix, comeback bonus fix, faceoff spot fix, computer forwards' awareness option, second-assist
-          bug fix and the option to count stick deflections as shots, as for the Genesis, and penalty shot fixes (a penalty shot whistled dead
-          because the net was knocked off, or because the loose puck stood still for two seconds, is no longer taken
-          again); NHL94SNESVault's extra attacker fix (in Edit Lines, picking a line's extra attacker for one of
-          its positions swaps the two, where the original game puts him in both and drops the player he replaced; for
-          ROMs laid out as the original game); and a Y button fix: a skater knocked down, falling into the boards, being
-          held or in any other move that locks him can no longer hook or hold with Y, as no other button works then
-          either (NHL94SNESVault's own fix covers only the ordinary knockdown). Most worth knowing is the{' '}
-          <b>hot and cold bug fix</b>: in the original game a bug puts about half of every player's ratings at the
-          maximum each game, whatever they are in the ROM, and the fix makes the ratings you set the ones that play.
-          A hack is only changed where the ROM has the original game's code or the hack's in its place.
+          <b>Hacks:</b> the SNES Hacks page works as the Genesis one, each hack explained beside its setting. A hack is
+          only changed where the ROM has the original game's code or the hack's in its place. It has:
+          <ul>
+            <li>
+              From NHL94SNESVault, by McMarkis and its contributors: the <b>hot and cold bug fix</b> (in the original
+              game a bug puts about half of every player's ratings at the maximum each game, whatever they are in
+              the ROM; the fix makes the ratings you set the ones that play), defence control on from the start,
+              one-minute penalties, 30-second periods, no interference penalties, no penalty shots, no goal posts,
+              skipping the intros, the extra attacker fix, any skater at any position in Edit Lines, showing the
+              maximum boost in Edit Lines, and pulling the goalie with L and R (the last two in NOSE4Web's versions,
+              which fix gaps in the Vault's).
+            </li>
+            <li>
+              As on the Genesis: the power play and penalty kill, comeback bonus, faceoff spot, second-assist and
+              regained-puck assist fixes, the computer forwards' awareness option, counting stick deflections as
+              shots, and the fourth period length with its own 99-minute overtime.
+            </li>
+            <li>
+              The SNES's own: penalty shot fixes (a penalty shot whistled dead because the net was knocked off, or
+              because the loose puck stood still for two seconds, is no longer taken again), and a Y button fix (a
+              skater in a move that locks him, such as being knocked down, can no longer hook or hold with Y).
+            </li>
+            <li>
+              Hits and energy, as on the Genesis, with an <b>Energy from hits only</b> button, and{' '}
+              <b>energy takes all of a skater's speed</b>, which the SNES needs for that: in the original game an
+              empty skater keeps half his speed.
+            </li>
+            <li>
+              <b>Goalie poke check reaches the ice</b>: in the original game a goalie's poke (X) straight up or down
+              the ice never reaches the puck; with this on it knocks it loose, as a sideways poke can.
+            </li>
+          </ul>
         </li>
         <li>
-          <b>Logos:</b> each team's logo, on the matchup, setup and player card screens, and its centre ice logo
-          are on the team page, to export as PNG images and import again, or to copy to another team (a centre ice
-          logo is matched to the colours the other team's is drawn in). A team logo has 15 colours of its own,
-          taken from the image you import, and can use at most 36 different squares of 8 by 8 pixels (an empty
-          square, or one that is an exact copy of another, even flipped, costs nothing). All the logos are unpacked
-          together into room the original logos fill, so a logo bigger than the one it replaces fits only where
-          others take less room; the editor lays out other logos more tightly, looking the same, where that helps.
-          A centre ice logo is drawn in the rink's colours, two rows of 15 that every team shares, faded as if seen
-          through the ice, and each square of 8 by 8 pixels of it is matched to the row that suits it best. Its
-          different squares (exact copies cost nothing, but flipped ones do here) can be no more than the game has room
-          for: as many as the largest original logo uses. One that has grown is moved to free space in the
-          ROM. A centre ice logo may also be another size, in whole squares, if it has no more squares than the one it
-          replaces (64 by 32 for 48 by 48, say): the game takes its size from it and centres it. The SNES game has no
-          picture banners: a team's block is plain colour, its own block colours, with a name in letters, its{' '}
-          <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the playoff
-          bracket. It follows the place name while the two are the same, and can be shortened on the team page; all
-          the banner names share a little room. Where they outgrow it, they move to unused room in their bank, which
-          the 32-team ROM has plenty of; in the original game that room is the rosters', so there Check ROM says if
-          they need more. The block's 16 colours, its{' '}
-          <b>Name banner colours</b>, are changed below the logos, with the banner shown as the menus draw it, the
-          banner name on it: 2 to 14 fill the block, in two runs of shades (2 to 7 and 8
-          to 14), and 15 is its frame; 7 and 8 also colour the stripes on the player card's team page. Colour 0 is
-          see-through, and colour 1 is not the block's but the menu text while the team is the visitors, so neither is
-          offered, nor changed by Import a team. Where two teams share them, the changed ones go into free space so the
-          other team keeps its own. Import a team brings the name and the colours, and its logos too: the team logo,
-          the centre ice logo (matched to the colours this ROM draws it in) and the score logo. ROMs
-          rebuilt with more teams, such as the 32-team ROM, keep each logo unpacked in the ROM, so there is no shared
-          room to fit: a logo bigger than the one it replaces goes into free space, as does one two teams share. Their
-          centre ice logos may be packed another way, which the editor reads and writes too, and in its builds for the
-          SA-1 chip each team's centre ice logo has 15 colours of its own, to which an imported one is matched.
-          Both logos can also be drawn in the editor (see Logos and banners). Each shows, as you draw, how many
-          different squares it uses against the most it may have, and says plainly when a stroke would take it over.
-          The team logo's 15 colours can be changed as you go. The centre ice logo is shown on the rink as you draw,
-          and its colours are listed by row, with the rows it uses marked: paint with those for exact colours. Where
-          a stroke puts a colour from the other row into a square, the square takes whichever row shows it best, and
-          its pixels the nearest colours in that row, so a small touch-up in the other row gets the nearest match
-          rather than changing the rest of the square.
+          <b>Logos</b>, on the team page, to export as PNG images and import again, to draw in the editor (see Logos
+          and banners), or to copy to another team:
+          <ul>
+            <li>
+              The <b>team logo</b>, on the matchup, setup and player card screens, has 15 colours of its own, taken
+              from the image you import, and can use at most 36 different squares of 8 by 8 pixels (an empty square,
+              or an exact copy of another, even flipped, costs nothing). In the original game all the logos are
+              unpacked together into room the original logos fill, so a logo bigger than the one it replaces fits
+              only where others take less; the editor lays other logos out more tightly, looking the same, where
+              that helps. ROMs rebuilt with more teams keep each logo apart, so a bigger one simply goes into free
+              space.
+            </li>
+            <li>
+              The <b>centre ice logo</b> is drawn in the rink's colours, two rows of 15 that every team shares, faded
+              as if seen through the ice; each 8 by 8 square of it takes the row that suits it best. It can use as
+              many different squares as the largest original centre ice logo (exact copies cost nothing, flipped ones
+              do). It may also be another size, in whole squares, if it has no more of them than the one it replaces
+              (64 by 32 for 48 by 48, say): the game takes its size from it and centres it. In McMarkis's builds for
+              the SA-1 chip each team's centre ice logo has 15 colours of its own instead, to which an imported one is
+              matched.
+            </li>
+            <li>
+              While you draw, each logo shows how many different squares it uses against the most it may have, and
+              says plainly when a stroke would take it over. The centre ice logo is shown on the rink as you draw,
+              with its colours listed by row and the rows it uses marked.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <b>Banners:</b> the SNES game has no picture banners. A team's block is plain colour with its name in
+          letters, its <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the
+          playoff bracket. It follows the place name while the two are the same, and can be shortened on the team
+          page. All the banner names share a little room; in the original game that room is the rosters', so there
+          Check ROM says if they need more, and a 32-team ROM has plenty. The block's 16 colours, its{' '}
+          <b>Name banner colours</b>, are below the logos, with the banner shown as the menus draw it: 2 to 14 fill
+          the block in two runs of shades (2 to 7 and 8 to 14), 15 is its frame, and 7 and 8 also colour the stripes
+          on the player card's team page. <b>Use the banner of</b> gives a team another team's banner colours, and
+          its banner name unless you untick it.
+        </li>
+        <li>
+          <b>Import a team</b> brings a team's banner name and colours, and its logos: the team logo, the centre ice
+          logo (matched to the colours this ROM draws it in) and the score logo.
         </li>
         <li>
           <b>Score logos:</b> McMarkis's 32-team builds show a small logo for each team in the score box during
@@ -1826,8 +1912,11 @@ export function HelpPage() {
         these games store their data comes from NOSE.
       </p>
       <p>
-        The hacks on the Hacks page are the work of smozoma (Michael Capewell), ported from his program smozROM
-        with his permission, as is the table of weights by season.
+        Many of the Genesis hacks are the work of smozoma (Michael Capewell), ported from his program smozROM with
+        his permission, as is the table of weights by season. Others come from guides on the NHL94 forums, each
+        credited beside it on the Hacks page (among them chaos, TheTome, CoachMac, clockwise, kingraph, Drezz,
+        AdamCatalyst, Sean and McMarkis, whose Genesis patches gave the fourth period's overtime). Most of the fixes,
+        and every hack's test in the game, are the NHL94 Match Viewer project's.
       </p>
       <p>
         The Play hacks on that page come from findings posted on the NHL94 forums: the C-then-B check finding and

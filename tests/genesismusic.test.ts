@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -91,6 +92,27 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
     expect(readSong(back, 0x40)!.events).toEqual(before.events)
     // Song 1 stays: the game finds the song playing by it.
     expect(() => withSong(project.bytes, 0x30, made.events, 'x')).toThrow('Song 1 cannot be replaced')
+  })
+
+  it('keeps a song in a project file, and puts it into a fresh copy of the ROM', () => {
+    const project = open()
+    const made = songFromMidi(readMidi(testMidi()).notes)
+    const edited = { ...project, bytes: withSong(project.bytes, 0x40, made.events, 'Test') }
+    const text = saveProjectFile(edited, project, 'test')
+    const reopened = openProjectFile(open(), text).project
+    const song = readSong(reopened.bytes, 0x40)!
+    expect(song.custom?.name).toBe('Test')
+    expect(song.custom?.replaced).toBe(readSong(edited.bytes, 0x40)!.custom!.replaced)
+    expect(song.events).toEqual(readSong(edited.bytes, 0x40)!.events)
+    // Over the ROM it was made from, it is not put in twice.
+    expect(openProjectFile(edited, text).project.bytes.length).toBe(edited.bytes.length)
+    expect(Buffer.compare(openProjectFile(edited, text).project.bytes, edited.bytes)).toBe(0)
+  })
+
+  it('makes no song of drums alone, and takes very long files', () => {
+    expect(() => songFromMidi([{ start: 0, length: 1, note: 36, velocity: 100, channel: 9 }])).toThrow('only drums')
+    const many = Array.from({ length: 200000 }, (_, i) => ({ start: i * 0.01, length: 0.005, note: 60 + (i % 12), velocity: 90, channel: 0 }))
+    expect(songFromMidi(many).events.length).toBeGreaterThan(1000)
   })
 
   it("exports a game song as MIDI that reads back with the same notes", () => {

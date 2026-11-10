@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { colorRgb } from '../src/core/color'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { readSplash, splashFromImage, SPLASH_HEIGHT, SPLASH_WIDTH, withOriginalSplash, withSplashImage } from '../src/core/splash'
 
@@ -66,6 +67,22 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     const restored = withOriginalSplash(again)
     expect(readSplash(restored.bytes)).toEqual(readSplash(project.bytes))
     expect(restored.bytes[0xfee19]).toBe(0)
+  })
+
+  it('keeps the picture in a project file, and the original put back over a ROM that had its own', () => {
+    const project = open()
+    const edited = withSplashImage(project, splashFromImage(testImage(320, 224), 320, 224))
+    const reopened = openProjectFile(open(), saveProjectFile(edited, project, 'test')).project
+    expect(readSplash(reopened.bytes)!.picture.pixels).toEqual(readSplash(edited.bytes)!.picture.pixels)
+    expect(readSplash(reopened.bytes)!.ownColours).toBe(true)
+    // A project that left the screen alone leaves a ROM's own as it is.
+    expect(saveProjectFile(project, project, 'test')).not.toContain('"screens"')
+    if (local.league30Rom && existsSync(path(local.league30Rom))) {
+      const league = open(local.league30Rom)
+      const back = withOriginalSplash(league)
+      const over = openProjectFile(open(local.league30Rom), saveProjectFile(back, league, 'test')).project
+      expect(readSplash(over.bytes)!.original).toBe(true)
+    }
   })
 
   it('fits a picture of another shape inside the screen, on black', () => {

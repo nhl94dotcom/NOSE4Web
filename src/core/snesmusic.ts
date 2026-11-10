@@ -21,7 +21,7 @@ import type { RomProject } from './rom'
 import { loRomAddress, loRomBank, loRomOffset } from './snes'
 import { freeSpace, keptBanks } from './snespictures'
 import { snesSongPointerEntries } from './snessongs'
-import { FRAMES_PER_SECOND, type MadeSong, type MidiNote, type SongEvent } from './genesismusic'
+import { FRAMES_PER_SECOND, MidiError, type MadeSong, type MidiNote, type SongEvent } from './genesismusic'
 
 const NOTE_OFFSET = 104
 const LOWEST_MIDI = 26
@@ -33,6 +33,8 @@ const TEMPO = 157 // a tick a frame
 export const SNES_SONG_VOICES = 4
 const DRUMS = 9
 const MARK = 'N4W1'
+// Frames two notes may overlap and still count as one after the other.
+const LEGATO = 3
 
 const offsetOf = (pointer: number) => loRomOffset((pointer >>> 16) & 0xff, pointer & 0xffff)
 const ticksPerSecond = (tempo: number) => (FRAMES_PER_SECOND * 0x40) / Math.max(1, Math.floor(0x2760 / Math.max(1, tempo)))
@@ -118,9 +120,10 @@ export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick
   let drums = 0
   let dropped = 0
   let moved = 0
-  const first = Math.min(...notes.map((n) => n.start))
+  const first = notes.reduce((least, n) => Math.min(least, n.start), Infinity)
   type Played = { on: number; off: number; note: number }
   const played: Played[] = []
+  let active: Played[] = []
   for (const midi of notes) {
     if (midi.channel === DRUMS) {
       drums++
@@ -132,27 +135,48 @@ export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick
     if (note !== midi.note) moved++
     const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
     const off = Math.max(on + 1, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
-    for (const other of played) if (other.note === note && other.off > on && other.on <= on) other.off = on
-    if (played.filter((other) => other.on <= on && other.off > on).length >= SNES_SONG_VOICES) {
+    // The notes still sounding (the notes come in order of start); the same note again ends the one sounding.
+    active = active.filter((other) => other.off > on)
+    for (const other of active) if (other.note === note) other.off = on
+    active = active.filter((other) => other.off > on)
+    if (active.length >= SNES_SONG_VOICES) {
       dropped++
       continue
     }
-    played.push({ on, off, note })
+    const p = { on, off, note }
+    played.push(p)
+    active.push(p)
   }
   const kept = played.filter((p) => p.off > p.on)
-  // Each organ has its own place left or right (the instrument's stereo bytes; Match Viewer): a note sounding
-  // alone plays on both, in the middle; in a chord the highest note starting plays on the first and the rest
-  // on the second, as the game's own songs share them.
+  if (kept.length === 0) throw new MidiError('This MIDI file has only drums, which the organ does not play.')
+  // Each organ has its own place left or right (the instrument's stereo bytes; Match Viewer). In a chord the
+  // highest note starting plays on the first and the rest on the second, as the game's own songs share them;
+  // a note on its own (no other sounding with it for more than a few frames, as a melody's notes often run
+  // on) plays on both, in the middle, where that keeps to SNES_SONG_VOICES voices.
+  const overlap = (a: Played, b: Played) => Math.min(a.off, b.off) - Math.max(a.on, b.on)
+  const near = (p: Played) => {
+    const others: Played[] = []
+    for (let i = kept.indexOf(p) - 1; i >= 0 && kept[i].on > p.on - 600; i--) if (overlap(kept[i], p) > 0) others.push(kept[i])
+    for (let i = kept.indexOf(p) + 1; i < kept.length && kept[i].on < p.off; i++) if (overlap(kept[i], p) > 0) others.push(kept[i])
+    return others
+  }
+  const voices = new Map<Played, number>()
   const tracks: { tick: number; code: number; length: number }[][] = [[], []]
   for (const p of kept) {
     const n = { tick: p.on, code: p.note + NOTE_OFFSET, length: p.off - p.on }
-    const alone = !kept.some((o) => o !== p && o.on < p.off && o.off > p.on)
-    if (alone) {
+    const others = near(p)
+    const alone = others.every((o) => overlap(o, p) <= LEGATO)
+    // The voices of the other notes at the busiest moment of its own (later ones counted as one until placed).
+    const moments = [p.on, p.off - 1, ...others.flatMap((o) => [o.on, o.off - 1])].filter((t) => t >= p.on && t < p.off)
+    const around = Math.max(0, ...moments.map((t) => others.reduce((sum, o) => sum + (o.on <= t && o.off > t ? (voices.get(o) ?? 1) : 0), 0)))
+    if (alone && around + 2 <= SNES_SONG_VOICES) {
       tracks[0].push(n)
       tracks[1].push({ ...n })
+      voices.set(p, 2)
       continue
     }
-    const highest = Math.max(...kept.filter((o) => o.on === p.on).map((o) => o.note))
+    voices.set(p, 1)
+    const highest = kept.reduce((top, o) => (o.on === p.on ? Math.max(top, o.note) : top), 0)
     tracks[p.note === highest ? 0 : 1].push(n)
   }
   const events: SongEvent[] = []
@@ -163,14 +187,14 @@ export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick
     }),
   )
   events.sort((a, b) => a.frame - b.frame || (a.status & 0xf0) - (b.status & 0xf0))
-  const end = Math.max(0, ...kept.map((p) => p.off))
+  const end = kept.reduce((latest, p) => Math.max(latest, p.off), 0)
   return { events, seconds: end / FRAMES_PER_SECOND, drums, dropped, moved, tracks }
 }
 
 // The bytes of a song from its two tracks: the header, then each track
 // (the first with NOSE4Web's mark), each ending at the song's last tick.
 export function snesSongBytes(tracks: { tick: number; code: number; length: number }[][], replaced: number, name: string): Uint8Array {
-  const end = Math.max(1, ...tracks.flat().map((n) => n.tick + n.length))
+  const end = tracks.flat().reduce((latest, n) => Math.max(latest, n.tick + n.length), 1)
   const used = tracks.filter((track, t) => t === 0 || track.length > 0)
   const bodies = used.map((track, t) => {
     const out: number[] = []
@@ -227,4 +251,46 @@ function repoint(project: RomProject, from: number, to: number): RomProject {
   }
   const teams = project.teams.map((team) => (team.snesSongs ? { ...team, snesSongs: team.snesSongs.map((p) => (p >>> 0 === from >>> 0 ? to : p)) } : team))
   return { ...project, bytes: rom, teams }
+}
+
+// ------------------------------------------------- songs in project files
+
+// A song NOSE4Web made, as its bytes (header and tracks), for a project file; null for the game's own.
+export function snesCustomSongBytes(rom: Uint8Array, pointer: number): Uint8Array | null {
+  const song = readSnesSong(rom, pointer)
+  const at = offsetOf(pointer)
+  if (!song?.custom || at < 0) return null
+  let end = at + 8
+  for (let y = 8; y < 8 + 2 * 17; y += 2) {
+    const offset = rom[at + y] | (rom[at + y + 1] << 8)
+    if (!offset) break
+    // Each track runs to its end ($D9).
+    const p = { at: at + offset }
+    for (let i = 0; i < 20000 && p.at < rom.length; i++) {
+      readVarLen(rom, p)
+      const code = rom[p.at++]
+      if (code < 0xd9) {
+        p.at++
+        readVarLen(rom, p)
+      } else if (code === 0xd9 || code === 0xda) break
+      else if (code === 0xe7) p.at += rom[p.at] + 1
+      else if (code === 0xdc) p.at += 1
+    }
+    end = Math.max(end, p.at)
+  }
+  return rom.slice(at, end)
+}
+
+// The project with a song from a project file, once at `saved`, written in free room, and every team song
+// and random song at `saved` or at the song it replaced pointed at it.
+export function withSnesSongBytes(project: RomProject, saved: number, bytes: Uint8Array): RomProject {
+  const rom = project.bytes.slice()
+  const at = freeSpace(rom, bytes.length, keptBanks(rom))
+  if (at < 0) throw new Error('There is no room left in this ROM for the song.')
+  rom.set(bytes, at)
+  const to = ((loRomBank(at, 0x80) << 16) | loRomAddress(at)) >>> 0
+  const song = readSnesSong(rom, to)
+  let next = repoint({ ...project, bytes: rom }, saved, to)
+  if (song?.custom) next = repoint(next, song.custom.replaced, to)
+  return next
 }

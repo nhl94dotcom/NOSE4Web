@@ -13,6 +13,7 @@ import {
   withMenuPicture,
   withOriginalMenuPicture,
 } from '../src/core/menupicture'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -83,6 +84,17 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Game Setup background', () 
     // A second picture goes where the first is, if it fits.
     const again = withMenuPicture(hacked, made)
     expect(again.bytes.length).toBe(hacked.bytes.length)
+  })
+
+  it('keeps the background in a project file, put into a fresh copy of the ROM', () => {
+    const project = open()
+    const edited = withMenuPicture(project, menuPictureFromImage(simple(320, 224), 320, 224, menuPicturePalette(project.bytes)!))
+    const text = saveProjectFile(edited, project, 'test')
+    const reopened = openProjectFile(open(), text).project
+    expect(readMenuPicture(reopened.bytes)!.picture.pixels).toEqual(readMenuPicture(edited.bytes)!.picture.pixels)
+    expect(readMenuPicture(reopened.bytes)!.original).toBe(false)
+    // Over the ROM it came from, nothing is written twice.
+    expect(Buffer.compare(openProjectFile(edited, text).project.bytes, edited.bytes)).toBe(0)
   })
 
   it('merges the most alike squares of a busy picture into the room there is, in at most 25 colours of its own', () => {

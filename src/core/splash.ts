@@ -333,11 +333,24 @@ const imageLength = (rom: Uint8Array, header: number) => {
 // The project with the screen showing `image`: in the room of a picture of
 // the league's own already there if it fits, else in free room at the end.
 export function withSplashImage(project: RomProject, image: SplashImage): RomProject {
+  return withSplashBytes(project, imageBytes(image), true)
+}
+
+// The picture of the league's own the screen shows, as its bytes and whether it
+// is drawn in its own colours, for a project file; null for the original's.
+export function splashBytes(rom: Uint8Array): { bytes: Uint8Array; ownColours: boolean } | null {
+  const splash = readSplash(rom)
+  const second = placed(rom, SECOND_AT)
+  if (!splash || splash.original || !second) return null
+  return { bytes: rom.slice(second.header, second.header + imageLength(rom, second.header)), ownColours: splash.ownColours }
+}
+
+// The project with the screen showing a picture given as its bytes.
+export function withSplashBytes(project: RomProject, bytes: Uint8Array, ownColours: boolean): RomProject {
   const rom = project.bytes
   const first = placed(rom, FIRST_AT)
   const second = placed(rom, SECOND_AT)
   if (!first || !second) throw new Error("This ROM's splash screen code is not as the original game has it, so it cannot be changed.")
-  const bytes = imageBytes(image)
   let next: Uint8Array = rom.slice()
   let at: number
   if (second.header !== ORIGINAL.second.header && imageLength(rom, second.header) >= bytes.length) at = second.header
@@ -353,8 +366,8 @@ export function withSplashImage(project: RomProject, image: SplashImage): RomPro
   next.set([0, 0], FIRST_AT + 1)
   next.set([0, 0], SECOND_AT + 1)
   put32(next, SECOND_AT + 6, at)
-  // The second picture loads its own four palette rows.
-  if (next[ROWS_AT] === 0x7a) next[ROWS_AT + 1] = 0x0f
+  // The second picture loads its own four palette rows (or none, as wboy's pictures have it).
+  if (next[ROWS_AT] === 0x7a) next[ROWS_AT + 1] = ownColours ? 0x0f : 0
   return { ...project, bytes: next }
 }
 

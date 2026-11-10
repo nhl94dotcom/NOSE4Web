@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readMidi, songToMidi } from '../src/core/genesismusic'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
 import { snesSongChoices, snesSongName } from '../src/core/snessongs'
@@ -47,9 +48,26 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES organ songs from MIDI file
     // Downloaded and opened again, the teams have it.
     const reopened = openRom(buildRom(next))
     expect(reopened.teams[holders[0]].snesSongs).toContain(pointer)
+    // In a project file, opened over a fresh copy of the ROM, the teams have the song again, wherever it now is.
+    const fresh = openProjectFile(open(), saveProjectFile(next, project, 'test')).project
+    const moved = fresh.teams[holders[0]].snesSongs!.find((p) => !project.teams[holders[0]].snesSongs!.includes(p))!
+    expect(readSnesSong(fresh.bytes, moved)?.custom?.name).toBe('Brass from MIDI')
+    for (const team of holders) expect(fresh.teams[team].snesSongs).not.toContain(target)
     // Put back.
     const back = withOriginalSnesSong(next, pointer)
     for (const team of holders) expect(back.teams[team].snesSongs).toEqual(project.teams[team].snesSongs)
+  })
+
+  it('puts a melody on both organs, its notes running on a frame or two included, and a chord apart', () => {
+    // A melody whose notes each run 2 frames into the next, then a three-note chord.
+    const melody = [60, 62, 64, 65].map((note, i) => ({ start: i * 0.5, length: 0.5 + 2 / 60, note, velocity: 100, channel: 0 }))
+    const chord = [48, 52, 55].map((note) => ({ start: 2, length: 1, note, velocity: 100, channel: 0 }))
+    const made = snesSongFromMidi([...melody, ...chord])
+    expect(made.tracks[0].map((n) => n.code - 104)).toEqual([60, 62, 64, 65, 55])
+    // The last melody note runs 2 frames into the chord, where doubling it would make five voices: it stays on the first.
+    expect(made.tracks[1].map((n) => n.code - 104)).toEqual([60, 62, 64, 48, 52])
+    // Drums alone make no song.
+    expect(() => snesSongFromMidi([{ start: 0, length: 1, note: 36, velocity: 100, channel: 9 }])).toThrow('only drums')
   })
 
   it('finds the songs in every build', () => {
