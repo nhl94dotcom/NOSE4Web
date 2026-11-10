@@ -205,6 +205,24 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   // ------------------------------------------------------------- copying
   const labels = teamLabels(project.teams, project.game)
   const others = project.teams.map((_, i) => i).filter((i) => i !== team)
+
+  // Another team's banners, and their stripe colours, for this team.
+  const [bannerFrom, setBannerFrom] = useState(others[0] ?? 0)
+  const [bannerColoursToo, setBannerColoursToo] = useState(true)
+  const source = others.includes(bannerFrom) ? bannerFrom : (others[0] ?? 0)
+  function takeBanners() {
+    try {
+      let graphics = project.graphics
+      for (const b of letterable) graphics = withBanner({ ...project, graphics }, b.banner, team, currentPicture(project, source, b.kind).picture)
+      if (bannerColoursToo) {
+        graphics = { ...graphics, menuPalettes: { ...graphics.menuPalettes, [team]: withBannerColors(menuPalette({ ...project, graphics }, team), bannerColors(project, source)) } }
+      }
+      const names = letterable.map((b) => pictureTitle(project, b.kind).toLowerCase())
+      apply(graphics, `${teamName} now has ${labels[source]}'s ${names.join(' and ')}${bannerColoursToo ? ', and its banner colours' : ''}. Undo takes it back.`)
+    } catch (e) {
+      fail(e, 'The banners could not be copied.')
+    }
+  }
   const [copyTo, setCopyTo] = useState(others[0] ?? 0)
   const [copyColours, setCopyColours] = useState(true)
   const [copyPictures, setCopyPictures] = useState(true)
@@ -396,6 +414,30 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         {letterable.length === 0 &&
           ' In this ROM every team shows the same banners, so there is none to letter for one team. Give the logos and banners more room first.'}
       </p>
+
+      {letterable.length > 0 && others.length > 0 && (
+        <>
+          <h2>Another team's banners</h2>
+          <p>
+            <button onClick={takeBanners}>Use the banners of</button>{' '}
+            <select className="wide" aria-label="Team whose banners to use" value={source} onChange={(e) => setBannerFrom(Number(e.target.value))}>
+              {others.map((other) => (
+                <option key={other} value={other}>
+                  {labels[other]}
+                </option>
+              ))}
+            </select>{' '}
+            <label className="choice">
+              <input type="checkbox" checked={bannerColoursToo} onChange={(e) => setBannerColoursToo(e.target.checked)} /> and
+              their banner colours
+            </label>{' '}
+            <span className="note">
+              Replaces {teamName}'s {letterable.map((b) => pictureTitle(project, b.kind).toLowerCase()).join(' and ')} with a copy of
+              that team's; that team keeps its own. Undo takes it back.
+            </span>
+          </p>
+        </>
+      )}
 
       <h2>Menu banner colours</h2>
       <PaletteEditor

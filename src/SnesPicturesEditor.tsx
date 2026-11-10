@@ -337,14 +337,10 @@ const FIFTEEN = Array.from({ length: 15 }, (_, i) => i + 1)
 // A centre ice logo's squares against the most the game has room for.
 function iceSquaresLimit(picture: Picture, most: number): { text: string; over: boolean } {
   const { squares } = snesCentreIceSquares(picture, most)
-  if (squares <= most) return { text: `Uses ${squares} of the ${most} different squares of 8 by 8 pixels the game has room for.`, over: false }
-  const extra = squares - most
+  const what = "(A square is one of the 8 by 8 boxes the grid's darker lines mark. Empty squares, and squares exactly the same as another one, don't count; a flipped copy does.)"
+  if (squares <= most) return { text: `Uses ${squares} of the ${most} squares it may have. ${what}`, over: false }
   return {
-    text:
-      `Too detailed by ${extra} ${extra === 1 ? 'square' : 'squares'}: the game builds the logo from squares of 8 by 8 pixels ` +
-      `(the darker grid lines), and this one needs ${squares} different squares where it has room for ${most}. ` +
-      'An empty square costs nothing, nor does a square that is an exact copy of another (not flipped). ' +
-      'This stroke will not be kept: to make room, first erase a square or two.',
+    text: `That stroke was undone: it would make the logo use ${squares} squares, and it may have only ${most}. ${what} To make room, erase a square or two.`,
     over: true,
   }
 }
@@ -354,16 +350,10 @@ function logoLimit(picture: Picture): { text: string; over: boolean } {
   const used = snesLogoTiles(picture)
   if (!used) return { text: 'The logo is empty; it needs at least one pixel.', over: true }
   // The game builds a logo from squares of 8 by 8 pixels (the darker grid lines), at most 36 different ones.
-  if (used.tiles <= used.most) {
-    return { text: `Uses ${used.tiles} of the ${used.most} squares of 8 by 8 pixels a logo may have.`, over: false }
-  }
-  const extra = used.tiles - used.most
+  const what = "(A square is one of the 8 by 8 boxes the grid's darker lines mark. Empty squares, and squares exactly the same as another one, even flipped, don't count.)"
+  if (used.tiles <= used.most) return { text: `Uses ${used.tiles} of the ${used.most} squares a logo may have. ${what}`, over: false }
   return {
-    text:
-      `Too detailed by ${extra} ${extra === 1 ? 'square' : 'squares'}: the game builds a logo from squares of 8 by 8 pixels ` +
-      `(the darker grid lines), and this one needs ${used.tiles} different squares where it may have ${used.most}. ` +
-      'An empty square costs nothing, nor does a square that is an exact copy of another, even flipped. ' +
-      'This stroke will not be kept: to make room, first erase a square or two near the edge.',
+    text: `That stroke was undone: it would make the logo use ${used.tiles} squares, and a logo may have only ${used.most}. ${what} To make room, erase a square or two near the edge.`,
     over: true,
   }
 }

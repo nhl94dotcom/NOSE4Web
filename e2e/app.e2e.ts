@@ -934,6 +934,13 @@ test.describe('with the NHL 94 ROM', () => {
     const found = page.locator('main table').first().locator('tbody tr')
     await expect(found.first()).toContainText('Wayne Gretzky')
     await expect(found.first()).toContainText('Los Angeles Kings')
+    // A skater found can be moved to another team from here.
+    await expect(found.first().getByLabel('Move Wayne Gretzky to')).toBeVisible()
+    await found.first().getByLabel('Move Wayne Gretzky to').selectOption({ label: 'Edmonton Oilers' })
+    await expect(page.getByText('Wayne Gretzky moved from Los Angeles Kings to Edmonton Oilers, after its last forward. Undo takes it back.')).toBeVisible()
+    await expect(found.first()).toContainText('Edmonton Oilers')
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(found.first()).toContainText('Los Angeles Kings')
 
     const table = leagueTable(page)
     await expect(table.locator('tbody tr')).toHaveCount(28)
@@ -1210,6 +1217,12 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('.picture').filter({ hasText: 'Menu logo' }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
     await page.getByRole('button', { name: 'Reset whole team' }).click()
     expect(await swatches()).not.toEqual(bostonColours)
+
+    // Another team's banners for this one, with their stripe colours.
+    await page.getByLabel('Team whose banners to use').selectOption({ label: 'Detroit Red Wings' })
+    await page.getByRole('button', { name: 'Use the banners of' }).click()
+    await expect(page.getByText(/^Anaheim Mighty Ducks now has Detroit Red Wings's .*banner.*, and its banner colours\. Undo takes it back\.$/)).toBeVisible()
+    await expect(page.locator('.picture').filter({ hasText: 'Menu banner' }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
   })
 
   test('previews and makes a trade, and holds a released player as a free agent', async ({ page }) => {
@@ -2466,7 +2479,7 @@ test.describe('with the SNES game', () => {
     const logos = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos', exact: true }) })
     await logos.locator('.picture').nth(0).getByRole('button', { name: 'Draw…' }).click()
     const editor = logos.getByRole('group', { name: 'Draw the team logo' })
-    await expect(editor.getByText(/^Uses \d+ of the 36 squares of 8 by 8 pixels/)).toBeVisible()
+    await expect(editor.getByText(/^Uses \d+ of the 36 squares a logo may have\. /)).toBeVisible()
     const canvas = editor.getByLabel('Team logo, drawn large')
     const dot = async (x: number, y: number) =>
       canvas.click({ position: { x: ((x + 0.5) * Number(await canvas.getAttribute('width'))) / 56, y: ((y + 0.5) * Number(await canvas.getAttribute('height'))) / 56 } })
@@ -2485,7 +2498,7 @@ test.describe('with the SNES game', () => {
     await logos.locator('.picture').nth(1).getByRole('button', { name: 'Draw…' }).click()
     const ice = logos.getByRole('group', { name: 'Draw the centre ice logo' })
     await expect(ice.getByText('On the rink:')).toBeVisible()
-    await expect(ice.getByText(/^Uses \d+ of the \d+ different squares of 8 by 8 pixels the game has room for\.$/)).toBeVisible()
+    await expect(ice.getByText(/^Uses \d+ of the \d+ squares it may have\. /)).toBeVisible()
     const iceCanvas = ice.getByLabel('Centre ice logo, drawn large')
     await ice.getByRole('button', { name: 'Filled rectangle' }).click()
     await ice.getByRole('button', { name: 'Row 5 colour 1', exact: true }).click()

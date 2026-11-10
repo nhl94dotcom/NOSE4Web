@@ -51,10 +51,13 @@ const BALANCE_BY: { key: SummaryColumn; label: string }[] = [
 interface Props {
   project: RomProject
   onGoToTeam: (team: number) => void
+  // Moves skaters to another team, as on a team's page; returns a message if they cannot go.
+  onMovePlayers: (from: number, indexes: number[], to: number) => string
 }
 
-export function LeaguePage({ project, onGoToTeam }: Props) {
+export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
   const [search, setSearch] = useState('')
+  const [moved, setMoved] = useState<{ text: string; failed: boolean } | null>(null)
   const [sort, setSort] = useState<{ key: string; down: boolean }>({ key: 'team', down: false })
   const [everyLine, setEveryLine] = useState(false)
   const [pair, setPair] = useState<[number, number]>([0, Math.min(1, project.teams.length - 1)])
@@ -140,6 +143,7 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
                 <th>Pos</th>
                 <th>#</th>
                 <th>Overall</th>
+                <th>Move to</th>
               </tr>
             </thead>
             <tbody>
@@ -154,11 +158,38 @@ export function LeaguePage({ project, onGoToTeam }: Props) {
                   <td>{p.role}</td>
                   <td>{hex(p.player.jersey)}</td>
                   <td>{p.overall}</td>
+                  <td>
+                    <select
+                      aria-label={`Move ${p.player.name} to`}
+                      value=""
+                      disabled={p.role === 'G'}
+                      title={p.role === 'G' ? 'Goalies move by copying and pasting on the team pages.' : undefined}
+                      onChange={(e) => {
+                        const to = Number(e.target.value)
+                        const problem = onMovePlayers(p.team, [p.index], to)
+                        setMoved(
+                          problem
+                            ? { text: problem, failed: true }
+                            : { text: `${p.player.name} moved from ${names[p.team]} to ${names[to]}, after its last ${p.role === 'F' ? 'forward' : 'defenceman'}. Undo takes it back.`, failed: false },
+                        )
+                      }}
+                    >
+                      <option value="">{p.role === 'G' ? 'goalie' : 'team…'}</option>
+                      {project.teams.map((_, t) =>
+                        t === p.team ? null : (
+                          <option key={t} value={t}>
+                            {names[t]}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        {moved && <p className={moved.failed ? 'error' : 'note'}>{moved.text}</p>}
         {found.length > SEARCH_LIMIT && <p className="note">Only the first {SEARCH_LIMIT} are shown. Type more of the name.</p>}
       </section>
 

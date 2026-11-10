@@ -653,6 +653,10 @@ export function HelpPage() {
         team's location, as the original game's do.
       </p>
       <p>
+        <b>Another team's banners</b> gives this team a copy of another team's banners, and their stripe colours
+        unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own.
+      </p>
+      <p>
         <b>Copy to another team</b>, at the foot of a team's page, copies its colours, its logos and banners, or
         both, over another team's. It is a quick way to start a new team from one that looks similar. On the SNES it
         copies the home and away colours with the name banner colours, and the team logo, centre ice logo and score
@@ -957,7 +961,9 @@ export function HelpPage() {
       <ul>
         <li>
           <b>Find a player</b> searches all rosters as you type. Part of a name is enough, and several words can be
-          in any order. Click a team in the results to go to it.
+          in any order. Click a team in the results to go to it, or choose a team under <b>Move to</b> to move a
+          skater there, as on the team pages: he goes after its last forward or defenceman, and both teams' lines are
+          kept in step. Goalies move by copying and pasting on the team pages.
         </li>
         <li>
           <b>How the teams compare</b> is a table of overall ratings, as the game shows them, averaged for each
