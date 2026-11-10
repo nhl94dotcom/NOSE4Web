@@ -346,6 +346,9 @@ interface Placed {
   at: number
   original: Uint8Array | null
   hacked: Uint8Array
+  // For a hack that holds an amount, on its new code: the amount, and whether it is NOSE4Web's earlier version.
+  amount?: number
+  earlier?: boolean
 }
 
 const word = (value: number) => [value & 0xff, (value >> 8) & 0xff]
@@ -414,10 +417,7 @@ const HIT_AMOUNT_AT = 38
 const HIT_POSITION_AT = 58
 const HOLD_AMOUNT_AT = 25
 const HOLD_FLAIL_AT = 45
-// Where the injury block's pieces start, and the roll's bonus and impact operands in its piece.
-const INJURY_ROLL_AT = 49
-const INJURY_START_AT = 49 + 65
-const INJURY_PERIOD_AT = 49 + 65 + 26
+// Where the roll's bonus and impact operands are in its piece of the injury block.
 const INJURY_BONUS_AT = 36
 const INJURY_IMPACT_AT = 55
 
@@ -426,13 +426,17 @@ const INJURY_IMPACT_AT = 55
 // jml setpde. The direct-page a2 and d1 are read from getpde itself.
 function energyEnv(
   rom: Uint8Array,
-): { optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number; pnum: Uint8Array; pfteam: Uint8Array } | null {
+): { gmclock: Uint8Array; optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number; pnum: Uint8Array; pfteam: Uint8Array } | null {
   const drain = only(rom, 'af......f0..ad....293f00d0..22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......')
   if (drain < 0) return null
   const getpde = rom.slice(drain + 15, drain + 18)
   const at = loRomOffset(getpde[2], getpde[0] | (getpde[1] << 8))
   if (at < 0 || at + 19 > rom.length || rom[at] !== 0xbd || rom[at + 7] !== 0x85 || rom[at + 17] !== 0x85) return null
+  // FallDown's .t2 tests the clock with lda.w gmclock (its first 3 bytes may be the hit energy's jsr).
+  const fall = only(rom, '......' + 'f0..64..bd....f005a9020085..ad....d0..a4........1a99')
+  if (fall < 0) return null
   return {
+    gmclock: rom.slice(fall + 18, fall + 20),
     optLine: rom.slice(drain, drain + 4),
     getpde,
     setpde: rom.slice(drain + 42, drain + 45),
@@ -608,32 +612,57 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const hooked = rom[sites.count] === 0x20
     const block = hooked ? loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, sites.count + 1)) : -1
     const position = word(readU16(rom, roll + 22))
-    const impact = word(readU16(rom, hooked ? block + INJURY_ROLL_AT + INJURY_IMPACT_AT : sites.roll + 1))
-    const restore = hooked ? rom.slice(block + INJURY_START_AT + 23, block + INJURY_START_AT + 26) : rom.slice(sites.start + 1, sites.start + 4)
-    const fade = hooked ? rom.slice(block + INJURY_PERIOD_AT + 25, block + INJURY_PERIOD_AT + 28) : rom.slice(sites.period + 1, sites.period + 4)
-    const bonus = amount ?? (hooked ? readU16(rom, block + INJURY_ROLL_AT + INJURY_BONUS_AT) : RECOMMENDED_SNES_INJURY_BONUS)
     const table = '34F07E'
     const ofY = bytesOf('B9', env.pnum, '29FF00 0A AA B9', env.pfteam, 'F006 8A 18 694000 AA')
-    const code = bytesOf(
-      // Count (49 bytes).
-      'DA B9', position, 'F026 E01800 B021', ofY, 'BF', table, 'C9FF00 B005 1A 9F', table, 'FA A97800 60',
-      // Roll (65 bytes).
-      '48 DA', ofY, 'BF', table, 'AA A90000 E00000 F007 18 69', word(bonus), 'CA 80F4 C9', word(bonus * 5), '9003 A9', word(bonus * 5),
-      'FA 48 A303 38 F9', impact, '38 E301 8303 68 68 60',
-      // Each game (26 bytes), and each intermission (28 bytes): the flags kept, 16-bit registers meanwhile.
-      '08 C230 48 DA A27E00 A90000 9F', table, 'CA CA 10F8 FA 68 28 5C', restore,
-      '08 C230 48 DA A27E00 BF', table, '4A 9F', table, 'CA CA 10F3 FA 68 28 5C', fade,
-    )
+    // This version counts only while the clock runs (lda gmclock / bne, after the whistle nothing); the first counted after it too.
+    const offsets = (clocked: boolean) => {
+      const rollAt = clocked ? 54 : 49
+      return { rollAt, startAt: rollAt + 65, periodAt: rollAt + 65 + 26 }
+    }
+    const build = (clocked: boolean, bonus: number, impact: number[], restore: Uint8Array, fade: Uint8Array) =>
+      bytesOf(
+        // Count.
+        'DA', clocked ? bytesOf('AD', env.gmclock, 'D02B') : [], 'B9', position, 'F026 E01800 B021', ofY, 'BF', table, 'C9FF00 B005 1A 9F', table,
+        'FA A97800 60',
+        // Roll (65 bytes).
+        '48 DA', ofY, 'BF', table, 'AA A90000 E00000 F007 18 69', word(bonus), 'CA 80F4 C9', word(bonus * 5), '9003 A9', word(bonus * 5),
+        'FA 48 A303 38 F9', impact, '38 E301 8303 68 68 60',
+        // Each game (26 bytes), and each intermission (28 bytes): the flags kept, 16-bit registers meanwhile.
+        '08 C230 48 DA A27E00 A90000 9F', table, 'CA CA 10F8 FA 68 28 5C', restore,
+        '08 C230 48 DA A27E00 BF', table, '4A 9F', table, 'CA CA 10F3 FA 68 28 5C', fade,
+      )
+    let found: { clocked: boolean; bonus: number; impact: number[]; restore: Uint8Array; fade: Uint8Array } | null = null
+    if (hooked) {
+      for (const clocked of [true, false]) {
+        const at = offsets(clocked)
+        const bonus = readU16(rom, block + at.rollAt + INJURY_BONUS_AT)
+        const impact = word(readU16(rom, block + at.rollAt + INJURY_IMPACT_AT))
+        const restore = rom.slice(block + at.startAt + 23, block + at.startAt + 26)
+        const fade = rom.slice(block + at.periodAt + 25, block + at.periodAt + 28)
+        if (same(rom, block, build(clocked, bonus, impact, restore, fade))) {
+          found = { clocked, bonus, impact, restore, fade }
+          break
+        }
+      }
+      if (!found) return null
+    }
+    const clocked = amount !== undefined || !found ? true : found.clocked
+    const bonus = amount ?? found?.bonus ?? RECOMMENDED_SNES_INJURY_BONUS
+    const impact = found?.impact ?? word(readU16(rom, sites.roll + 1))
+    const restore = found?.restore ?? rom.slice(sites.start + 1, sites.start + 4)
+    const fade = found?.fade ?? rom.slice(sites.period + 1, sites.period + 4)
+    const code = build(clocked, bonus, impact, restore, fade)
     const at = hooked ? block : roomInBank(rom, sites.count, code.length)
     if (at < 0) return null
     const address = loRomAddress(at)
+    const { rollAt, startAt, periodAt } = offsets(clocked)
     const long = (offset: number) => bytesOf('22', word(address + offset), 0x80 | Math.floor(at / 0x8000))
     return [
       { at: sites.count, original: hexBytes('A97800'), hacked: bytesOf('20', word(address)) },
-      { at, original: unused(code.length), hacked: code },
-      { at: sites.roll, original: bytesOf('F9', impact), hacked: bytesOf('20', word(address + INJURY_ROLL_AT)) },
-      { at: sites.start, original: bytesOf('22', restore), hacked: long(INJURY_START_AT) },
-      { at: sites.period, original: bytesOf('22', fade), hacked: long(INJURY_PERIOD_AT) },
+      { at, original: unused(code.length), hacked: code, amount: bonus, earlier: !clocked },
+      { at: sites.roll, original: bytesOf('F9', impact), hacked: bytesOf('20', word(address + rollAt)) },
+      { at: sites.start, original: bytesOf('22', restore), hacked: long(startAt) },
+      { at: sites.period, original: bytesOf('22', fade), hacked: long(periodAt) },
     ]
   },
   // Energy lost to hits (a community idea; the sites read by Match Viewer),
@@ -656,16 +685,32 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const site = plain >= 0 ? plain : hooked
     if (!env || site < 0) return null
     const code = plain >= 0 ? -1 : loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
-    if (code >= 0 && (rom[code + HIT_POSITION_AT - 1] !== 0xbd || rom[code + HIT_POSITION_AT + 2] !== 0x60)) return null
-    const position = word(readU16(rom, plain >= 0 ? site + 1 : code + HIT_POSITION_AT))
-    const value = amount ?? (code >= 0 ? readU16(rom, code + HIT_AMOUNT_AT) : RECOMMENDED_SNES_HIT_ENERGY)
     const { a2, d0, d1 } = env
-    const body = bytesOf(
-      'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', env.optLine, 'F0 1D E0 1800 B0 18 A4', a2, 'B9', position,
-      'F0 11 BB 22', env.getpde, 'A5', d0, '38 E9', word(value), '85', d0, '22', env.setpde,
-      '68 85', d1, '68 85', d0, '68 85', a2, '7A FA BD', position, '60',
-    )
-    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('BD', position), body)
+    // This version takes nothing while the clock is stopped (lda gmclock / bne: after the whistle); the first took it then too.
+    const shift = (clocked: boolean) => (clocked ? 5 : 0)
+    const build = (clocked: boolean, value: number, position: number[]) =>
+      bytesOf(
+        'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', clocked ? bytesOf('AD', env.gmclock, 'D023') : [], env.optLine, 'F0 1D E0 1800 B0 18 A4', a2,
+        'B9', position, 'F0 11 BB 22', env.getpde, 'A5', d0, '38 E9', word(value), '85', d0, '22', env.setpde,
+        '68 85', d1, '68 85', d0, '68 85', a2, '7A FA BD', position, '60',
+      )
+    let found: { clocked: boolean; value: number; position: number[] } | null = null
+    if (code >= 0) {
+      for (const clocked of [true, false]) {
+        const position = word(readU16(rom, code + HIT_POSITION_AT + shift(clocked)))
+        const value = readU16(rom, code + HIT_AMOUNT_AT + shift(clocked))
+        if (same(rom, code, build(clocked, value, position))) {
+          found = { clocked, value, position }
+          break
+        }
+      }
+      if (!found) return null
+    }
+    const clocked = amount !== undefined || !found ? true : found.clocked
+    const position = found?.position ?? word(readU16(rom, site + 1))
+    const value = amount ?? found?.value ?? RECOMMENDED_SNES_HIT_ENERGY
+    const places = withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('BD', position), build(clocked, value, position))
+    return places && [places[0], { ...places[1], amount: value, earlier: !clocked }]
   },
   holdEnergy: (rom, _source, amount) => {
     const env = energyEnv(rom)
@@ -675,15 +720,30 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const site = plain >= 0 ? plain : hooked
     if (!env || site < 0) return null
     const code = plain >= 0 ? -1 : loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
-    if (code >= 0 && (rom[code + HOLD_FLAIL_AT - 1] !== 0xa9 || rom[code + HOLD_FLAIL_AT + 2] !== 0x60)) return null
-    const flail = word(readU16(rom, plain >= 0 ? site + 1 : code + HOLD_FLAIL_AT))
-    const value = amount ?? (code >= 0 ? readU16(rom, code + HOLD_AMOUNT_AT) : RECOMMENDED_SNES_HOLD_ENERGY)
     const { a2, d0, d1 } = env
-    const body = bytesOf(
-      'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', env.optLine, 'F0 10 22', env.getpde, 'A5', d0, '38 E9', word(value), '85', d0,
-      '22', env.setpde, '68 85', d1, '68 85', d0, '68 85', a2, '7A FA A9', flail, '60',
-    )
-    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('A9', flail), body)
+    const shift = (clocked: boolean) => (clocked ? 5 : 0)
+    const build = (clocked: boolean, value: number, flail: number[]) =>
+      bytesOf(
+        'DA 5A A5', a2, '48 A5', d0, '48 A5', d1, '48', clocked ? bytesOf('AD', env.gmclock, 'D016') : [], env.optLine, 'F0 10 22', env.getpde, 'A5', d0,
+        '38 E9', word(value), '85', d0, '22', env.setpde, '68 85', d1, '68 85', d0, '68 85', a2, '7A FA A9', flail, '60',
+      )
+    let found: { clocked: boolean; value: number; flail: number[] } | null = null
+    if (code >= 0) {
+      for (const clocked of [true, false]) {
+        const flail = word(readU16(rom, code + HOLD_FLAIL_AT + shift(clocked)))
+        const value = readU16(rom, code + HOLD_AMOUNT_AT + shift(clocked))
+        if (same(rom, code, build(clocked, value, flail))) {
+          found = { clocked, value, flail }
+          break
+        }
+      }
+      if (!found) return null
+    }
+    const clocked = amount !== undefined || !found ? true : found.clocked
+    const flail = found?.flail ?? word(readU16(rom, site + 1))
+    const value = amount ?? found?.value ?? RECOMMENDED_SNES_HOLD_ENERGY
+    const places = withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('A9', flail), build(clocked, value, flail))
+    return places && [places[0], { ...places[1], amount: value, earlier: !clocked }]
   },
   // McMarkis's "5 Minutes, 99 Min OT\" (his Genesis patch), as NOSE4Web's
   // Genesis option has it. ResetClock has, for overtime: lda.l OptPlayMode /
@@ -810,8 +870,7 @@ function placesOf(rom: Uint8Array, hack: SnesHack, source: Uint8Array | null, in
 function amountIn(rom: Uint8Array, hack: SnesAmount): number {
   const places = placesOf(rom, hack, null)
   if (!places || !places.every((place) => holds(rom, place, 'hacked'))) return 0
-  const code = places[1]
-  return readU16(rom, code.at + { hitEnergy: HIT_AMOUNT_AT, holdEnergy: HOLD_AMOUNT_AT, injuryBonus: INJURY_ROLL_AT + INJURY_BONUS_AT }[hack])
+  return places[1].amount ?? 0
 }
 
 const holds = (rom: Uint8Array, place: Placed, which: 'original' | 'hacked') => {
@@ -840,7 +899,10 @@ function detect(rom: Uint8Array): SnesHackState {
     SNES_HACKS.map((hack) => {
       const places = placesOf(rom, hack, null, inPlace)
       if (places && places.every((place) => holds(rom, place, 'original'))) return [hack, false]
-      if (places && places.every((place) => holds(rom, place, 'hacked'))) return [hack, true]
+      if (places && places.every((place) => holds(rom, place, 'hacked'))) {
+        if (places.some((place) => place.earlier)) vaultVersions.push(hack)
+        return [hack, true]
+      }
       const earlier = VAULT_VERSIONS[hack] ?? []
       if (inPlace && earlier.some((version) => version.every((site) => holds(rom, placedSite(site), 'hacked')))) {
         vaultVersions.push(hack)
@@ -884,7 +946,8 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
     const update = updateVault && want === true && vaultVersions.includes(hack)
     const amount = isAmount(hack) ? amounts[hack] : undefined
     // A new amount for a hack already in: take it out, then put it in with the amount.
-    const reAmount = isAmount(hack) && want === true && choices[hack] && amount !== undefined && amount !== had?.[hack]
+    // A new amount, or NOSE4Web's version of an earlier one, for a hack already in: take it out, then put it in.
+    const reAmount = isAmount(hack) && want === true && choices[hack] && ((amount !== undefined && amount !== had?.[hack]) || update)
     if (want === undefined || (want === choices[hack] && !update && !reAmount)) continue
     if (unknown.includes(hack)) {
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)
@@ -893,7 +956,7 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
     if (reAmount) {
       for (const place of placesOf(rom, hack, source) ?? []) if (place.original) rom.set(place.original, place.at)
     }
-    const places = placesOf(rom, hack, source, undefined, amount)
+    const places = placesOf(rom, hack, source, undefined, amount ?? (isAmount(hack) && reAmount ? had?.[hack] : undefined))
     if (!places) throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has no room for it.`)
     for (const place of places) {
       const bytes = want ? place.hacked : place.original

@@ -22,18 +22,18 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES injury risk from knockdown
     expect(on.bytes[0xf1bd4]).toBe(0x20)
     const block = loRomOffset(0x9e, on.bytes[0xf1bd5] | (on.bytes[0xf1bd6] << 8))
     expect(on.bytes[0xf1dce]).toBe(0x20)
-    expect(loRomOffset(0x9e, on.bytes[0xf1dcf] | (on.bytes[0xf1dd0] << 8))).toBe(block + 49)
+    expect(loRomOffset(0x9e, on.bytes[0xf1dcf] | (on.bytes[0xf1dd0] << 8))).toBe(block + 54)
     // Count: a skater hit by a player, +1 to at most 255, at $7E:F034 + 64 for the away team + 2 x roster number; then lda #$0078.
-    expect(hex(on.bytes, block, 49)).toMatch(/^dab9....f026e01800b021b9....29ff000aaab9....f0068a18694000aabf34f07ec9ff00b0051a9f34f07efaa9780060$/)
+    expect(hex(on.bytes, block, 54)).toMatch(/^daadd615d02bb9....f026e01800b021b9....29ff000aaab9....f0068a18694000aabf34f07ec9ff00b0051a9f34f07efaa9780060$/)
     // Roll: count x 4, at most 20, taken off as the impact is; the result in A for the bpl.
-    expect(hex(on.bytes, block + 49, 21)).toMatch(/^48dab9....29ff000aaab9....f0068a18694000aa$/)
-    expect(hex(on.bytes, block + 49 + 21, 44)).toBe('bf34f07eaaa90000e00000f00718690400ca80f4c914009003a91400fa48a30338f9' + hex(project.bytes, 0xf1dcf, 2) + '38e3018303686860')
+    expect(hex(on.bytes, block + 54, 21)).toMatch(/^48dab9....29ff000aaab9....f0068a18694000aa$/)
+    expect(hex(on.bytes, block + 54 + 21, 44)).toBe('bf34f07eaaa90000e00000f00718690400ca80f4c914009003a91400fa48a30338f9' + hex(project.bytes, 0xf1dcf, 2) + '38e3018303686860')
     // Each game and each intermission go through the block, then on to restoreteams and forcefade.
     const start = 0xf8376 + 10
     const period = 0xf8cb1
     expect(hex(on.bytes, start, 1) + hex(on.bytes, period, 1)).toBe('2222')
-    expect(hex(on.bytes, block + 114, 26)).toBe(`08c23048daa27e00a900009f34f07ecaca10f8fa68285c${hex(project.bytes, start + 1, 3)}`)
-    expect(hex(on.bytes, block + 140, 28)).toBe(`08c23048daa27e00bf34f07e4a9f34f07ecaca10f3fa68285c${hex(project.bytes, period + 1, 3)}`)
+    expect(hex(on.bytes, block + 119, 26)).toBe(`08c23048daa27e00a900009f34f07ecaca10f8fa68285c${hex(project.bytes, start + 1, 3)}`)
+    expect(hex(on.bytes, block + 145, 28)).toBe(`08c23048daa27e00bf34f07e4a9f34f07ecaca10f3fa68285c${hex(project.bytes, period + 1, 3)}`)
     const again = openRom(buildRom(on))
     expect(detectSnesHacks(again.bytes).amounts).toMatchObject({ injuryBonus: 4 })
     // A new bonus in place, and out again.

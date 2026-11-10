@@ -349,18 +349,25 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(hacked, 0x14116, 2) + at(hacked, 0x1411c, 2)).toBe('4eb94e71')
     expect(at(hacked, 0x13f5c, 2) + at(hacked, 0x13f62, 2)).toBe('4eb94e71')
     const hit = readU32(hacked, 0x14118)
-    // Line changes on and not Auto; a skater; a player hitter; getpde, take 204, setpde; then .cont2's test, .chkpos by the return address.
-    expect(at(hacked, hit, 68)).toBe(
-      '4a78d05866300838' + '0004c2fc66284a6a' + '003467220c6b000b' + '00526e1a48e7e0f0' + '264a4eb90001575a' + '044000cc4eb90001' + '577a4cdf0f074a6b' + '003466062ebc0001' + '41504e75',
+    // The clock running (not after the whistle); line changes on and not Auto; a skater; a player hitter; getpde, take 204, setpde; then .cont2's test, .chkpos by the return address.
+    expect(at(hacked, hit, 76)).toBe(
+      '08380000c2ea6636' + '4a78d05866300838' + '0004c2fc66284a6a' + '003467220c6b000b' + '00526e1a48e7e0f0' + '264a4eb90001575a' + '044000cc4eb90001' + '577a4cdf0f074a6b' + '003466062ebc0001' + '41504e75',
     )
     const hold = readU32(hacked, 0x13f5e)
-    expect(at(hacked, hold, 48)).toBe('4a78d05866200838' + '0004c2fc661848e7' + 'e0f04eb90001575a' + '044000664eb90001' + '577a4cdf0f07323c' + '0cf44ef90001073a')
+    expect(at(hacked, hold, 56)).toBe('08380000c2ea6626' + '4a78d05866200838' + '0004c2fc661848e7' + 'e0f04eb90001575a' + '044000664eb90001' + '577a4cdf0f07323c' + '0cf44ef90001073a')
     // The routines the code calls are where it says: getpde, setpde and SetSPA.
     expect(at(opened.bytes, 0x1575a, 4)).toBe('347cc6ce')
     expect(at(opened.bytes, 0x1577a, 4)).toBe('4a406a00')
     expect(detectHacks(hacked).choices).toMatchObject({ hitEnergy: 204, holdEnergy: 102 })
     expect(Buffer.compare(applyHacks(openRom(hacked), NO_HACKS).bytes, opened.bytes)).toBe(0)
     expect(() => applyHacks(opened, { ...NO_HACKS, hitEnergy: 1025 })).toThrow('from 0 to 1024')
+    // The first version (36fe502), which took energy after the whistle too, is still recognised, and put in again as this one.
+    const first = hacked.slice()
+    first.set(Buffer.from('4a78d058663008380004c2fc66284a6a003467220c6b000b00526e1a48e7e0f0264a4eb90001575a044000cc4eb90001577a4cdf0f074a6b003466062ebc000141504e75', 'hex'), hit)
+    first.set(Buffer.from('4a78d058662008380004c2fc661848e7e0f04eb90001575a044000664eb90001577a4cdf0f07323c0cf44ef90001073a', 'hex'), hold)
+    expect(detectHacks(first)).toEqual({ choices: { ...NO_HACKS, hitEnergy: 204, holdEnergy: 102 }, unknown: [] })
+    const renewed = applyHacks(openRom(first), { ...NO_HACKS, hitEnergy: 204, holdEnergy: 102 }).bytes
+    expect(at(renewed, readU32(renewed, 0x14118), 8)).toBe('08380000c2ea6636')
   })
 
   it('counts knockdowns, adds them to the injury roll, clears them each game and halves them each intermission', () => {
@@ -374,7 +381,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const countOfA2 = '7200122a0066082a000600626704064100204 1f8f000d0c1'.replace(' ', '')
     const hit = readU32(hacked, 0x14118)
     // Skater a2, player a3; count +1 to 255; no energy part; .cont2's test.
-    expect(at(hacked, hit, 66)).toBe(`48e7e0f04a6a003467260c6b000b00526e1e${countOfA2}521064025310` + '4cdf0f074a6b003466062ebc000141504e75')
+    expect(at(hacked, hit, 74)).toBe(`48e7e0f0` + '08380000c2ea662c' + `4a6a003467260c6b000b00526e1e${countOfA2}521064025310` + '4cdf0f074a6b003466062ebc000141504e75')
     // The roll: count x 2, at most 10, added to impact before the compare; .22 ($14494) for no injury.
     expect(at(hacked, 0x14432, 2) + at(hacked, 0x14438, 2)).toBe('4eb94e71')
     const roll = readU32(hacked, 0x14434)
@@ -389,7 +396,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const both = applyHacks(openRom(hacked), { ...NO_HACKS, injuryBonus: 2, injuryCap: 10, hitEnergy: 204 })
     expect(detectHacks(both.bytes).choices).toMatchObject({ injuryBonus: 2, injuryCap: 10, hitEnergy: 204 })
     const energyOnly = applyHacks(both, { ...NO_HACKS, hitEnergy: 204 }).bytes
-    // The energy alone is the code Match Viewer played, byte for byte.
+    // Taking the injury risk out leaves the energy code exactly as putting the energy in alone makes it.
     expect(Buffer.compare(energyOnly, applyHacks(opened, { ...NO_HACKS, hitEnergy: 204 }).bytes)).toBe(0)
     expect(Buffer.compare(applyHacks(both, NO_HACKS).bytes, opened.bytes)).toBe(0)
     // A count hook without the roll (or the other way round) is not a state the editor makes: unknown, left alone.

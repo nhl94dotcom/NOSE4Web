@@ -764,7 +764,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             energy is {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a
             burst of speed costs, about 25 seconds of skating. Measured over computer games, it tires the most-hit players noticeably (their lowest energy about a tenth lower) and the computer changes lines about 15% more often, while the average skater is hardly touched; people hit about twice as often. Half as
             much was measured as too small to notice. Up to 1024, a quarter of full energy, for a league that wants hits to
-            wear players down. A knockdown by a puck, or a bump that does not knock him down, costs nothing. Read from the game's
+            wear players down. A knockdown by a puck, a bump that does not knock him down, or a hit after the whistle costs nothing. Read from the game's
             code by the NHL94 Match Viewer project, which measured the shifts and tested it in the game: each knockdown and hold takes its amount once, and nothing with line changes Off or Auto.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
@@ -775,7 +775,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           'holdEnergy',
           number('holdEnergy'),
           <>
-            The same for a skater caught by a hold or hook (A without the puck), once each time it catches him.{' '}
+            The same for a skater caught by a hold or hook (A without the puck), once each time it catches him in play.{' '}
             {energyShare(wanted.holdEnergy)}. Recommended: {RECOMMENDED_HOLD_ENERGY} (2.5%), half a knockdown's. Only with line
             changes On.
           </>,
@@ -794,8 +794,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             this adds the number to the impact for each knockdown the skater has taken this game, up to the most below.
             Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}: estimated from recorded
             league games at about 30% more injuries a game, with the skaters knocked down most (5 times or more) about 1.4
-            times as likely to be hurt; a fifth of that was too little to notice. Knockdowns are counted with line changes
-            on or off. Read from the game's code by the NHL94 Match Viewer project and tested in the game: each knockdown
+            times as likely to be hurt; a fifth of that was too little to notice. Knockdowns in play are counted, with line changes
+            on or off; those after the whistle are not. Read from the game's code by the NHL94 Match Viewer project and tested in the game: each knockdown
             counts once, the counts start at 0 each game and halve at each intermission, and only hits that can already
             injure become likelier to.
           </>,

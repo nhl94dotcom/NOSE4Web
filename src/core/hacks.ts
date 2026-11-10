@@ -635,72 +635,6 @@ const fourthPeriodOvertime: Part<number> = {
 // #SPAflail,d1 / bsr.w SetSPA ($13F5C), the moment a hold catches a3 (once
 // a hold: a3 is then locked), becomes jsr / nop to code that takes its
 // amount off a3, then sets the flail and goes on to SetSPA.
-const HIT_HOOK: Hook = { at: 0x14116, original: bytes('4A6B 0034 6700 0034') }
-const hex4 = (value: number) => value.toString(16).padStart(4, '0')
-const hitCode = (amount: number) =>
-  bytes(
-    `4A78 D058 6630 0838 0004 C2FC 6628 4A6A 0034 6722 0C6B 000B 0052 6E1A 48E7 E0F0 264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 4A6B 0034 6606 2EBC 0001 4150 4E75`,
-  )
-const HIT_VALUE_AT = 42
-const HOLD_HOOK: Hook = { at: 0x13f5c, original: bytes('323C 0CF4 6100 C7D8') }
-const holdCode = (amount: number) =>
-  bytes(`4A78 D058 6620 0838 0004 C2FC 6618 48E7 E0F0 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 323C 0CF4 4EF9 0001 073A`)
-const HOLD_VALUE_AT = 26
-// The recommended amounts: a burst's cost for a knockdown (5% of full, about 25 game seconds of skating
-// on the Genesis), half that for a hold. Match Viewer measured half as much as too small to notice (under
-// 4% more tiring in a game); up to a quarter of full energy for a league that wants hits to wear players down.
-export const RECOMMENDED_HIT_ENERGY = 204
-export const RECOMMENDED_HOLD_ENERGY = 102
-export const FULL_ENERGY = 0x1000
-
-// A part whose hook calls code holding one amount.
-function amountPart(at: Hook, code: (amount: number) => Uint8Array, valueAt: number): Part<number> {
-  const target = (rom: Uint8Array) => {
-    if (readU16(rom, at.at) !== OP_JSR || readU16(rom, at.at + 6) !== OP_NOP) return null
-    const to = readU32(rom, at.at + 2)
-    const length = code(0).length
-    if (to + length > rom.length) return null
-    return is(rom, to, code(readU16(rom, to + valueAt))) ? to : null
-  }
-  return {
-    detect(rom) {
-      if (is(rom, at.at, at.original)) return 0
-      const to = target(rom)
-      return to === null ? undefined : readU16(rom, to + valueAt)
-    },
-    remove(rom) {
-      const to = target(rom)
-      if (to === null) return
-      erase(rom, to, code(0).length)
-      rom.set(at.original, at.at)
-    },
-    apply(work, value) {
-      if (value > 0) hook(work, at, code(value))
-    },
-  }
-}
-const holdEnergy = amountPart(HOLD_HOOK, holdCode, HOLD_VALUE_AT)
-
-// ------------------------------------------------ injury risk from knockdowns
-// The other half of the community idea, from Match Viewer's reading: each
-// knockdown a skater takes raises his chance of being injured by a later
-// hit, a little, up to a cap, and the count halves at every intermission.
-// An injury can only come from the few hits the original game already lets
-// injure (a carrier falling back while facing straight up or down the ice),
-// where FallDown rolls 0 to 159 against the hit's impact ($14428: move.l
-// #$A0,d0 / bsr randomd0 / cmp.w impact(a2),d0 / bgt.w .22): the bonus is
-// added to the impact there, so the chance rises by about bonus / 160.
-// - The counts: a byte a player, 32 a team, at $FFF000 (free in every
-//   recorded game, below the stack and above the plus-minus log at $FFDEF4).
-// - Counting: the knockdown hook at .cont2 also adds 1 for the skater
-//   knocked down (to at most 255), whatever the line changes.
-// - The roll: its 8 bytes become jsr / nop to code that adds count x bonus,
-//   capped, to impact before the same compare, and returns to .22 ($14494)
-//   for no injury.
-// - Each game: StartGame's jsr clearTeamStats ($778C) goes through code that
-//   clears the counts first.
-// - Each intermission: PeriodOver's addq #1,gsp / bchg #gmdir,gmode ($17236)
-//   become jsr / nop to code that halves every count, then does them.
 type Asm = (string | { label: string } | { branch: number; to: string })[]
 // Machine code from hex and short branches to labels in it.
 function assemble(parts: Asm): Uint8Array {
@@ -729,11 +663,151 @@ const BNE = 0x66
 const BGT = 0x6e
 const BCC = 0x64
 const BLS = 0x63
+
+const HIT_HOOK: Hook = { at: 0x14116, original: bytes('4A6B 0034 6700 0034') }
+const hex4 = (value: number) => value.toString(16).padStart(4, '0')
+// Nothing is taken after the whistle: btst #0,gmode ($C2EA), set while the clock is stopped, as the injury roll tests it.
+const CLOCK_STOPPED = '0838 0000 C2EA'
+const hitCode = (amount: number) =>
+  assemble([
+    CLOCK_STOPPED,
+    { branch: BNE, to: 'done' },
+    '4A78 D058',
+    { branch: BNE, to: 'done' },
+    '0838 0004 C2FC',
+    { branch: BNE, to: 'done' },
+    '4A6A 0034',
+    { branch: BEQ, to: 'done' },
+    '0C6B 000B 0052',
+    { branch: BGT, to: 'done' },
+    `48E7 E0F0 264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07`,
+    { label: 'done' },
+    '4A6B 0034',
+    { branch: BNE, to: 'return' },
+    '2EBC 0001 4150',
+    { label: 'return' },
+    '4E75',
+  ])
+const valueAt = (code: (value: number) => Uint8Array) => code(0x1234).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
+const HIT_VALUE_AT = valueAt(hitCode)
+// NOSE4Web's first version (36fe502, played by Match Viewer), which took energy after the whistle too:
+// recognised, and replaced whenever the hacks are put in again.
+const firstHitCode = (amount: number) =>
+  bytes(
+    `4A78 D058 6630 0838 0004 C2FC 6628 4A6A 0034 6722 0C6B 000B 0052 6E1A 48E7 E0F0 264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 4A6B 0034 6606 2EBC 0001 4150 4E75`,
+  )
+const FIRST_HIT_VALUE_AT = 42
+const HOLD_HOOK: Hook = { at: 0x13f5c, original: bytes('323C 0CF4 6100 C7D8') }
+const holdCode = (amount: number) =>
+  assemble([
+    CLOCK_STOPPED,
+    { branch: BNE, to: 'flail' },
+    '4A78 D058',
+    { branch: BNE, to: 'flail' },
+    '0838 0004 C2FC',
+    { branch: BNE, to: 'flail' },
+    `48E7 E0F0 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07`,
+    { label: 'flail' },
+    '323C 0CF4 4EF9 0001 073A',
+  ])
+const HOLD_VALUE_AT = valueAt(holdCode)
+const firstHoldCode = (amount: number) =>
+  bytes(`4A78 D058 6620 0838 0004 C2FC 6618 48E7 E0F0 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A 4CDF 0F07 323C 0CF4 4EF9 0001 073A`)
+const FIRST_HOLD_VALUE_AT = 26
+// The recommended amounts: a burst's cost for a knockdown (5% of full, about 25 game seconds of skating
+// on the Genesis), half that for a hold. Match Viewer measured half as much as too small to notice (under
+// 4% more tiring in a game); up to a quarter of full energy for a league that wants hits to wear players down.
+export const RECOMMENDED_HIT_ENERGY = 204
+export const RECOMMENDED_HOLD_ENERGY = 102
+export const FULL_ENERGY = 0x1000
+
+// A part whose hook calls code holding one amount: this version's code first, then earlier ones it recognises.
+type AmountCode = [code: (amount: number) => Uint8Array, valueAt: number]
+function amountPart(at: Hook, versions: AmountCode[]): Part<number> {
+  const [code] = versions[0]
+  const target = (rom: Uint8Array): { to: number; value: number; length: number } | null => {
+    if (readU16(rom, at.at) !== OP_JSR || readU16(rom, at.at + 6) !== OP_NOP) return null
+    const to = readU32(rom, at.at + 2)
+    for (const [version, valueAt] of versions) {
+      const length = version(0).length
+      if (to + length > rom.length) continue
+      const value = readU16(rom, to + valueAt)
+      if (is(rom, to, version(value))) return { to, value, length }
+    }
+    return null
+  }
+  return {
+    detect(rom) {
+      if (is(rom, at.at, at.original)) return 0
+      return target(rom)?.value
+    },
+    remove(rom) {
+      const found = target(rom)
+      if (found === null) return
+      erase(rom, found.to, found.length)
+      rom.set(at.original, at.at)
+    },
+    apply(work, value) {
+      if (value > 0) hook(work, at, code(value))
+    },
+  }
+}
+const holdEnergy = amountPart(HOLD_HOOK, [
+  [holdCode, HOLD_VALUE_AT],
+  [firstHoldCode, FIRST_HOLD_VALUE_AT],
+])
+
+// ------------------------------------------------ injury risk from knockdowns
+// The other half of the community idea, from Match Viewer's reading: each
+// knockdown a skater takes raises his chance of being injured by a later
+// hit, a little, up to a cap, and the count halves at every intermission.
+// An injury can only come from the few hits the original game already lets
+// injure (a carrier falling back while facing straight up or down the ice),
+// where FallDown rolls 0 to 159 against the hit's impact ($14428: move.l
+// #$A0,d0 / bsr randomd0 / cmp.w impact(a2),d0 / bgt.w .22): the bonus is
+// added to the impact there, so the chance rises by about bonus / 160.
+// - The counts: a byte a player, 32 a team, at $FFF000 (free in every
+//   recorded game, below the stack and above the plus-minus log at $FFDEF4).
+// - Counting: the knockdown hook at .cont2 also adds 1 for the skater
+//   knocked down (to at most 255), whatever the line changes.
+// - The roll: its 8 bytes become jsr / nop to code that adds count x bonus,
+//   capped, to impact before the same compare, and returns to .22 ($14494)
+//   for no injury.
+// - Each game: StartGame's jsr clearTeamStats ($778C) goes through code that
+//   clears the counts first.
+// - Each intermission: PeriodOver's addq #1,gsp / bchg #gmdir,gmode ($17236)
+//   become jsr / nop to code that halves every count, then does them.
 // a0 = the count of player a2: $FFF000, plus 32 for the away team, plus his roster number (d1 used).
 const COUNT_OF_A2: Asm = ['7200 122A 0066 082A 0006 0062', { branch: BEQ, to: 'home' }, '0641 0020', { label: 'home' }, '41F8 F000 D0C1']
 
-// The knockdown hook's code when it counts: the energy part only for an amount.
+// The knockdown hook's code when it counts: the energy part only for an amount; nothing after the whistle.
 const countingHitCode = (amount: number) =>
+  assemble([
+    '48E7 E0F0',
+    CLOCK_STOPPED,
+    { branch: BNE, to: 'done' },
+    '4A6A 0034',
+    { branch: BEQ, to: 'done' },
+    '0C6B 000B 0052',
+    { branch: BGT, to: 'done' },
+    ...COUNT_OF_A2,
+    '5210',
+    { branch: BCC, to: 'counted' },
+    '5310',
+    { label: 'counted' },
+    ...(amount > 0
+      ? ['4A78 D058', { branch: BNE, to: 'done' }, '0838 0004 C2FC', { branch: BNE, to: 'done' }, `264A 4EB9 0001 575A 0440 ${hex4(amount)} 4EB9 0001 577A`]
+      : []),
+    { label: 'done' },
+    '4CDF 0F07 4A6B 0034',
+    { branch: BNE, to: 'return' },
+    '2EBC 0001 4150',
+    { label: 'return' },
+    '4E75',
+  ])
+const COUNTING_VALUE_AT = valueAt(countingHitCode)
+// The first counting version (f3d8449, played by Match Viewer), which counted knockdowns after the whistle too.
+const firstCountingHitCode = (amount: number) =>
   assemble([
     '48E7 E0F0 4A6A 0034',
     { branch: BEQ, to: 'done' },
@@ -754,7 +828,7 @@ const countingHitCode = (amount: number) =>
     { label: 'return' },
     '4E75',
   ])
-const COUNTING_VALUE_AT = countingHitCode(0x1234).findIndex((byte, i, all) => byte === 0x12 && all[i + 1] === 0x34)
+const FIRST_COUNTING_VALUE_AT = valueAt(firstCountingHitCode)
 
 // The knockdown hook: the energy amount, and whether it counts.
 interface HitHook {
@@ -770,13 +844,15 @@ function readHitHook(rom: Uint8Array): (HitHook & { length: number }) | null {
   const to = hitTarget(rom)
   if (to === null) return null
   const energy = (at: number) => (at + 2 <= rom.length ? readU16(rom, to + at) : 0)
-  for (const [code, value] of [
+  const candidates: [Uint8Array, HitHook][] = [
     [hitCode(energy(HIT_VALUE_AT)), { energy: energy(HIT_VALUE_AT), counting: false }],
     [countingHitCode(0), { energy: 0, counting: true }],
     [countingHitCode(energy(COUNTING_VALUE_AT)), { energy: energy(COUNTING_VALUE_AT), counting: true }],
-  ] as const) {
-    if ((code !== countingHitCode(0) || value.energy === 0) && is(rom, to, code)) return { ...value, length: code.length }
-  }
+    [firstHitCode(energy(FIRST_HIT_VALUE_AT)), { energy: energy(FIRST_HIT_VALUE_AT), counting: false }],
+    [firstCountingHitCode(0), { energy: 0, counting: true }],
+    [firstCountingHitCode(energy(FIRST_COUNTING_VALUE_AT)), { energy: energy(FIRST_COUNTING_VALUE_AT), counting: true }],
+  ]
+  for (const [code, value] of candidates) if (is(rom, to, code)) return { ...value, length: code.length }
   return null
 }
 const hitHook: Part<HitHook> = {

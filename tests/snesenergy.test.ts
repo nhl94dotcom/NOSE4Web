@@ -25,15 +25,15 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(on.bytes[t2]).toBe(0x20)
     expect(hex(on.bytes, t2 + 3, 2)).toBe(hex(project.bytes, t2 + 3, 2))
     // Save X, Y, a2, d0, d1; lda.l OptLine; beq; cpx #$18; bcs; ldy a2; lda position,y; beq; tyx; jsl getpde; sbc #100; jsl setpde; restore; lda position,x; rts.
-    expect(hex(on.bytes, target(on.bytes, t2), 61)).toBe(
-      'da5aa59148a5a548a5a948afc6347ef01de01800b018a491b9430ff011bb22b2dc9fa5a538e9640085a522d3dc9f6885a96885a5688591' + '7afabd430f60',
+    expect(hex(on.bytes, target(on.bytes, t2), 66)).toBe(
+      'da5aa59148a5a548a5a948' + 'add615d023' + 'afc6347ef01de01800b018a491b9430ff011bb22b2dc9fa5a538e9640085a522d3dc9f6885a96885a5688591' + '7afabd430f60',
     )
     // holdcheck's lda.w #SPAflail becomes jsr; the code takes 50 off X, then loads SPAflail.
     const hold = 0xf2361
     expect(on.bytes[hold]).toBe(0x20)
     const flail = hex(project.bytes, hold + 1, 2)
-    expect(hex(on.bytes, target(on.bytes, hold), 48)).toBe(
-      'da5aa59148a5a548a5a948afc6347ef01022b2dc9fa5a538e9320085a522d3dc9f6885a96885a5688591' + `7afaa9${flail}60`,
+    expect(hex(on.bytes, target(on.bytes, hold), 53)).toBe(
+      'da5aa59148a5a548a5a948' + 'add615d016' + 'afc6347ef01022b2dc9fa5a538e9320085a522d3dc9f6885a96885a5688591' + `7afaa9${flail}60`,
     )
     const again = openRom(buildRom(on))
     const state = detectSnesHacks(again.bytes)
@@ -46,6 +46,20 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
     expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
     expect(() => applySnesHacks(project, {}, false, { hitEnergy: 1025 })).toThrow('from 0 to 1024')
+    // NOSE4Web's first version (9d3695f), which took energy after the whistle: recognised as an earlier version, and replaced on request.
+    const first = on.bytes.slice()
+    const code = target(on.bytes, t2)
+    const current = on.bytes.slice(code, code + 66)
+    first.fill(0xff, code, code + 66)
+    first.set([...current.subarray(0, 11), ...current.subarray(16)], code)
+    const earlier = detectSnesHacks(first)
+    expect(earlier.choices.hitEnergy).toBe(true)
+    expect(earlier.amounts).toMatchObject({ hitEnergy: 100 })
+    expect(earlier.vaultVersions).toContain('hitEnergy')
+    const renewed = applySnesHacks(openRom(first), { hitEnergy: true }, true)
+    expect(detectSnesHacks(renewed.bytes).vaultVersions).not.toContain('hitEnergy')
+    expect(detectSnesHacks(renewed.bytes).amounts).toMatchObject({ hitEnergy: 100 })
+    expect(hex(renewed.bytes, target(renewed.bytes, t2) + 11, 5)).toBe('add615d023')
     // A project file keeps the amounts.
     const reopened = openProjectFile(project, saveProjectFile(again, project, 'test')).project
     expect(detectSnesHacks(reopened.bytes).amounts).toMatchObject({ hitEnergy: 100, holdEnergy: 50 })
