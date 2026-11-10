@@ -405,8 +405,8 @@ export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus'
 export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus']
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
-// Match Viewer's: +4 impact a knockdown on the SNES (its roll is out of 300, the Genesis's 160), up to 5 knockdowns.
-export const RECOMMENDED_SNES_INJURY_BONUS = 4
+// As the Genesis's +10 / 50, for the SNES's roll out of 300 (the Genesis's 160): +19 a knockdown, up to 5 knockdowns.
+export const RECOMMENDED_SNES_INJURY_BONUS = 19
 export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 1024], holdEnergy: [0, 1024], injuryBonus: [0, 20] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.

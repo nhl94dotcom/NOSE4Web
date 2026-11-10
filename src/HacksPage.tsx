@@ -792,9 +792,12 @@ export function HacksPage({ project, name, onChange }: Props) {
             injure in the original game are affected (a puck carrier knocked onto his back while facing straight up or down
             the ice, with the clock running), so injuries stay rare: the game rolls 0 to 159 against the hit's impact, and
             this adds the number to the impact for each knockdown the skater has taken this game, up to the most below.
-            Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}, so a hit that can injure
-            is at most about 6 in 100 more likely to. Knockdowns are counted with line changes on or off. Read from the
-            game's code by the NHL94 Match Viewer project; not yet tested in the game.
+            Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}: estimated from recorded
+            league games at about 30% more injuries a game, with the skaters knocked down most (5 times or more) about 1.4
+            times as likely to be hurt; a fifth of that was too little to notice. Knockdowns are counted with line changes
+            on or off. Read from the game's code by the NHL94 Match Viewer project and tested in the game: each knockdown
+            counts once, the counts start at 0 each game and halve at each intermission, and only hits that can already
+            injure become likelier to.
           </>,
           <button
             type="button"
