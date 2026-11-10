@@ -408,8 +408,10 @@ export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus'
 export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus']
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
-// For the Genesis's effect: Match Viewer's estimate for +19 a knockdown (up to 5 knockdowns, the knockdown
-// itself counted before its roll) is +87% injuries and 2.11 times for the most-hit, so about a third of it.
+// For the Genesis's effect (+27% injuries, 1.33 times for the most-hit): Match Viewer's estimates from 29
+// recorded SNES league games, the knockdown counted before its own roll, up to 5 knockdowns, are +4 at +18%
+// and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
+// and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
 export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 1024], holdEnergy: [0, 1024], injuryBonus: [0, 20] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
