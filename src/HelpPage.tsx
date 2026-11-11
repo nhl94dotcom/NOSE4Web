@@ -238,6 +238,42 @@ export function HelpPage() {
           cannot be typed in.
         </li>
         <li>
+          <b>LV</b> (Genesis only): the <b>league value</b>, Match Viewer's 0–99 rating built from what each rating
+          step was worth in the Classic leagues' results since 2013. It predicts a team's strength far better than
+          the game's Overall, which leaves Weight out entirely. Like Ovr it is worked out as you edit, and <b>Show in
+          order of</b> can put a roster in its order. What it counts:
+          <ul>
+            <li>
+              <b>Forwards</b>: Shot Power most, then Speed, Shot Accuracy, Stickhandling and Agility; each Weight step
+              counts against, more than any one rating counts for. Light shooters come out high and heavy stars lower
+              than the game's Overall has them.
+            </li>
+            <li>
+              <b>Defencemen</b>: Pass Accuracy, Checking, Agility and Speed most, then a little Shot Power and Shot
+              Accuracy, with Weight, Off. Awareness and Stickhandling a little against.
+            </li>
+            <li>
+              <b>Goalies</b>: Agility alone, about a quarter of a goal a game a step.
+            </li>
+          </ul>
+          The scale is fixed, its ends the original game's weakest and strongest players, so a value means the same in
+          every ROM. Its limits, as Match Viewer gives them:
+          <ul>
+            <li>
+              The size of Weight's effect is uncertain: tested over resampled teams it runs from about a sixth of a
+              point to 1.3 points a step, around half a point. Heavy stars fall much less at the low end, but fall at
+              any value in that range.
+            </li>
+            <li>The scoring weights say who scores on a team, not how much more the team scores; the team test is what supports them.</li>
+            <li>Defencemen are valued on offence only; their effect on goals against is not measured yet.</li>
+            <li>A goalie's Agility counts only while the computer plays him. A person in net always has the longest reach.</li>
+            <li>
+              It is for the Genesis game with its own ratings. The SNES game plays differently and needs weights of its
+              own, and ROMs with 0–15 ratings are on another scale, so neither shows it.
+            </li>
+          </ul>
+        </li>
+        <li>
           <b>Wgt</b>: weight in pounds, in steps of 8 from 140 to 260.
         </li>
         <li>
@@ -1058,7 +1094,7 @@ export function HelpPage() {
           Lines, playoff draws and menu choices are written by name. Where two share a name, a number is used
           instead, written like <i>#12</i> for a roster position.
         </li>
-        <li>Columns the editor does not know, such as your own notes, are ignored. So are Team name and Overall.</li>
+        <li>Columns the editor does not know, such as your own notes, are ignored. So are Team name, Overall and League value.</li>
         <li>Importing a set changes the Name box to that set's name.</li>
       </ul>
       <p>

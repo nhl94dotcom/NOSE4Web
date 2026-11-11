@@ -1564,11 +1564,11 @@ test.describe('with the NHL 94 ROM', () => {
     const text = readFileSync(await file.path(), 'utf8')
     const lines = text.trim().split(/\r?\n/)
     expect(lines).toHaveLength(2)
-    expect(lines[0]).toContain('Position,Name,Jersey,Overall')
+    expect(lines[0]).toContain('Position,Name,Jersey,Overall,League value')
     expect(lines[1]).toContain(released)
 
     // A pool prepared in a spreadsheet: the one released, and a prospect typed in.
-    const prospect = ['G', 'Draft Pick', '30', '', ...new Array<string>(14).fill('3')].join(',')
+    const prospect = ['G', 'Draft Pick', '30', '', '', ...new Array<string>(14).fill('3')].join(',')
     const edited = [...lines, prospect].join('\r\n') + '\r\n'
     await page.locator('main input[type=file][accept*="csv"]').setInputFiles({ name: 'Season_10_freeagents.csv', mimeType: 'text/csv', buffer: Buffer.from(edited) })
     await expect(page.locator('.outcome')).toContainText('Set 2 free agents.')

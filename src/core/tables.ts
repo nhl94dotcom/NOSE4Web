@@ -3,6 +3,7 @@ import type { GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
 import { emptyLineSlots, LINE_SLOTS, withoutRepeats } from './lines'
 import { parseCsv, type Cell } from './csv'
+import { hasLeagueValue, leagueValue, type Role } from './leaguevalue'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { MAX_ROSTER, MIN_ROSTER, withSkaterCounts } from './roster'
@@ -170,6 +171,13 @@ function remapLines(old: Team, players: Player[]): { lines: number[][]; lost: nu
   return { lines, lost, lostSlots }
 }
 
+// Match Viewer's league value, beside Overall where the editor has it; like
+// Overall it is worked out from the ratings, and not read back in.
+const LEAGUE_VALUE_COLUMN = 'League value'
+const valueHeading = (project: RomProject): Cell[] => (hasLeagueValue(project.game) ? [LEAGUE_VALUE_COLUMN] : [])
+const valueCell = (project: RomProject, attributes: number[], role: Role): Cell[] =>
+  hasLeagueValue(project.game) ? [leagueValue(attributes, role)] : []
+
 const players: CsvTable = {
   id: 'players',
   title: 'Players',
@@ -178,7 +186,7 @@ const players: CsvTable = {
 
   rows(project) {
     const rows: Cell[][] = [
-      ['Team', 'Team name', 'Order', 'Position', 'Name', 'Jersey', 'Overall', ...attributeHeadings(project)],
+      ['Team', 'Team name', 'Order', 'Position', 'Name', 'Jersey', 'Overall', ...valueHeading(project), ...attributeHeadings(project)],
     ]
     project.teams.forEach((team, t) => {
       const goalies = goalieCount(team)
@@ -192,6 +200,7 @@ const players: CsvTable = {
           player.name,
           jerseyToNumber(player.jersey),
           overallRating(player.attributes, i < goalies, project.game),
+          ...valueCell(project, player.attributes, position),
           ...player.attributes,
         ])
       })
@@ -375,13 +384,14 @@ const freeAgents: CsvTable = {
     'Players you are holding on no team, with the same columns as the players file. The file is the whole list: importing it replaces the free agents you had. They are not in the ROM.',
 
   rows(project) {
-    const rows: Cell[][] = [['Position', 'Name', 'Jersey', 'Overall', ...attributeHeadings(project)]]
+    const rows: Cell[][] = [['Position', 'Name', 'Jersey', 'Overall', ...valueHeading(project), ...attributeHeadings(project)]]
     for (const agent of project.freeAgents) {
       rows.push([
         agent.role,
         agent.player.name,
         jerseyToNumber(agent.player.jersey),
         overallRating(agent.player.attributes, agent.role === 'G', project.game),
+        ...valueCell(project, agent.player.attributes, agent.role),
         ...agent.player.attributes,
       ])
     }

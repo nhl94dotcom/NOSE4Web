@@ -120,8 +120,8 @@ describe.skipIf(!hasRom)('free agents in the spreadsheet files', () => {
   it('lists them with the players file\'s columns, and reads them back the same', () => {
     const project = pooled()
     const rows = table.rows(project)
-    expect(rows[0].slice(0, 4)).toEqual(['Position', 'Name', 'Jersey', 'Overall'])
-    expect(rows[0]).toHaveLength(4 + 14)
+    expect(rows[0].slice(0, 5)).toEqual(['Position', 'Name', 'Jersey', 'Overall', 'League value'])
+    expect(rows[0]).toHaveLength(5 + 14)
     expect(rows).toHaveLength(1 + 3)
     expect(rows.slice(1).map((row) => row[0])).toEqual(['F', 'D', 'G'])
     expect(rows[3].slice(1, 3)).toEqual(['Spare Goalie', 31])
@@ -136,7 +136,7 @@ describe.skipIf(!hasRom)('free agents in the spreadsheet files', () => {
   it('is the whole list: a file replaces the free agents there were', () => {
     const project = pooled()
     const rows = table.rows(project).map((row) => row.map(String))
-    const fewer = [rows[0], rows[3], ['d', 'New Prospect', '5', '', ...new Array<string>(14).fill('4')]]
+    const fewer = [rows[0], rows[3], ['d', 'New Prospect', '5', '', '', ...new Array<string>(14).fill('4')]]
     const result = importCsv(table, project, formatCsv(fewer))
     expect(result.project.freeAgents.map((a) => [a.role, a.player.name, a.player.jersey])).toEqual([
       ['G', 'Spare Goalie', 0x31],
@@ -150,7 +150,7 @@ describe.skipIf(!hasRom)('free agents in the spreadsheet files', () => {
   it('refuses rows it cannot use, saying which', () => {
     const project = pooled()
     const rows = table.rows(project).map((row) => row.map(String))
-    const bad = [rows[0], ['X', 'Somebody', '12', '', ...new Array<string>(14).fill('4')], ['F', '', '100', '', ...new Array<string>(14).fill('16')]]
+    const bad = [rows[0], ['X', 'Somebody', '12', '', '', ...new Array<string>(14).fill('4')], ['F', '', '100', '', '', ...new Array<string>(14).fill('16')]]
     let problems: string[] = []
     try {
       importCsv(table, project, formatCsv(bad))

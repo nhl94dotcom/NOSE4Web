@@ -50,7 +50,7 @@ describe.skipIf(!hasRom)('CSV tables', () => {
     const project = openRom(original)
     const rows = table('players').rows(project)
     expect(rows).toHaveLength(1 + project.teams.reduce((sum, team) => sum + team.players.length, 0))
-    expect(rows[0].slice(0, 8)).toEqual(['Team', 'Team name', 'Order', 'Position', 'Name', 'Jersey', 'Overall', 'Wgt'])
+    expect(rows[0].slice(0, 9)).toEqual(['Team', 'Team name', 'Order', 'Position', 'Name', 'Jersey', 'Overall', 'League value', 'Wgt'])
     expect(rows[0]).toContain('ShP (G: PkC)')
     expect(rows[1].slice(0, 7)).toEqual([1, 'Anaheim Mighty Ducks', 1, 'G', 'Guy Hebert', 29, 44])
   })

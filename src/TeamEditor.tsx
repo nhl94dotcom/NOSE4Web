@@ -11,6 +11,7 @@ import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { lineupRatings } from './core/league'
 import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot as suitsSlotFor } from './core/lines'
+import { hasLeagueValue, leagueValue, LEAGUE_VALUE_TITLE } from './core/leaguevalue'
 import { overallRating } from './core/rating'
 import { resetTeamPart, teamPartChanged, type TeamPart } from './core/reset'
 import {
@@ -85,18 +86,19 @@ interface Props {
   teamRatingList?: TeamRating[]
 }
 
-export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall'
+export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall' | 'value'
 
 const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
   { value: 'roster', label: 'Roster order' },
   { value: 'name', label: 'Name' },
   { value: 'jersey', label: 'Jersey number' },
   { value: 'overall', label: 'Overall rating, best first' },
+  { value: 'value', label: 'League value, best first' },
 ]
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
+  const { rosterSort: chosenSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
@@ -124,6 +126,8 @@ export function TeamEditor(props: Props) {
     if (!problem) setTicked([])
     setNotice(problem || `Signed ${agent.name}.`)
   }
+  // League value's order, chosen on a Genesis ROM, is roster order where it is not shown.
+  const rosterSort: RosterSort = chosenSort === 'value' && !hasLeagueValue(game) ? 'roster' : chosenSort
   const plainView = rosterSort === 'roster' && nameFilter.trim() === ''
 
   function moveTicked() {
@@ -301,19 +305,22 @@ export function TeamEditor(props: Props) {
     const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
     // The rows to show, as roster positions, after filtering and sorting.
     const wanted = nameFilter.trim().toLowerCase()
+    const position = (index: number) => (index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D')
     const sortKey: Record<RosterSort, (index: number) => string | number> = {
       roster: (index) => index,
       name: (index) => team.players[index].name.toLowerCase(),
       jersey: (index) => team.players[index].jersey,
       overall: (index) => -overallRating(team.players[index].attributes, isGoalies, game),
+      value: (index) => -leagueValue(team.players[index].attributes, position(index)),
     }
     const key = sortKey[rosterSort]
     const shown = Array.from({ length: to - from }, (_, row) => from + row)
       .filter((index) => team.players[index].name.toLowerCase().includes(wanted))
       .sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : a - b))
     const moveHint = plainView ? '' : ' (show the roster in roster order, unfiltered, to move players)'
-    const position = (index: number) => (index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D')
     const overall = (index: number) => overallRating(team.players[index].attributes, isGoalies, game)
+    const showValue = hasLeagueValue(game)
+    const value = (index: number) => leagueValue(team.players[index].attributes, position(index))
     const tickBox = (index: number) => (
       <input
         type="checkbox"
@@ -446,6 +453,11 @@ export function TeamEditor(props: Props) {
                         <span>Jersey number</span>
                         {numberBox(index)}
                       </label>
+                      {showValue && (
+                        <p className="card-value" title={LEAGUE_VALUE_TITLE}>
+                          League value {value(index)}
+                        </p>
+                      )}
                       {names.map((name, a) => (
                         <label key={a}>
                           <span>{name}</span>
@@ -476,6 +488,7 @@ export function TeamEditor(props: Props) {
                 <th className="pin">Name</th>
                 <th>No.</th>
                 <th>Ovr</th>
+                {showValue && <th title={LEAGUE_VALUE_TITLE}>LV</th>}
                 {labels.map((label, i) => (
                   <th key={i} title={attributeTitle(names[i], kinds[i], i, label, isGoalies)}>
                     {label}
@@ -493,6 +506,7 @@ export function TeamEditor(props: Props) {
                   <td className="pin">{nameBox(index)}</td>
                   <td>{numberBox(index)}</td>
                   <td>{overall(index)}</td>
+                  {showValue && <td title={LEAGUE_VALUE_TITLE}>{value(index)}</td>}
                   {team.players[index].attributes.map((_, a) => (
                     <td key={a}>{attributeBox(index, a)}</td>
                   ))}
@@ -720,7 +734,7 @@ export function TeamEditor(props: Props) {
         <label>
           Show in order of{' '}
           <select className="wide" value={rosterSort} onChange={(e) => onRosterSortChange(e.target.value as RosterSort)}>
-            {ROSTER_SORTS.map((sort) => (
+            {ROSTER_SORTS.filter((sort) => sort.value !== 'value' || hasLeagueValue(game)).map((sort) => (
               <option key={sort.value} value={sort.value}>
                 {sort.label}
               </option>
