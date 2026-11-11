@@ -61,6 +61,9 @@ export interface RomProject {
   // The teams as they stood when the user marked the start of a season, to
   // say what has changed since. Null until a season is started.
   baseline: Baseline | null
+  // Where teams have been moved since the ROM was opened: team n is the team
+  // that was team teamOrder[n] (see teamorder.ts). Absent while none has.
+  teamOrder?: number[]
   wasSmd: boolean
 }
 

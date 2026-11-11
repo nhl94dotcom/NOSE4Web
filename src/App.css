@@ -790,3 +790,8 @@ button:disabled {
 .discord-message {
   margin: 0.5rem 0;
 }
+
+/* Move teams: the line after the league's own teams. */
+tr.divider td {
+  border-top: 3px solid var(--line);
+}

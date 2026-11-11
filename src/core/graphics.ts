@@ -1,4 +1,4 @@
-import { readU16, readU32, writeU16, writeU32 } from './bytes'
+import { readU16, readU32, reorderEntries, writeU16, writeU32 } from './bytes'
 import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
 import type { GameConfig } from './games'
 import { claimSpace } from './space'
@@ -286,6 +286,45 @@ export function graphicsSupported(rom: Uint8Array, game: GameConfig): boolean {
     return true
   } catch {
     return false
+  }
+}
+
+// Whether every place a ROM's banners are read from is one the editor can
+// follow, so that moving teams moves their banners everywhere.
+export function bannersFollowable(rom: Uint8Array, game: GameConfig): boolean {
+  try {
+    const where = layout(rom, game)
+    return where.banners !== null && (['menu', 'visitor', 'game'] as const).every((kind) => bannersAsExpected(rom, game, kind, where))
+  } catch {
+    return false
+  }
+}
+
+// Gives the teams' pictures new team numbers: team n's become those team
+// order[n] has. The ROM's own tables are changed in `rom` (read from `from`,
+// the ROM as it was): the centre-ice and menu logo tables, the menu colours,
+// and each banner map's two rows a team. The edits not yet written go with
+// their teams.
+export function graphicsInTeamOrder(from: Uint8Array, rom: Uint8Array, game: GameConfig, edits: GraphicsEdits, order: number[]): GraphicsEdits {
+  const where = layout(from, game)
+  const g = game.graphics
+  reorderEntries(from, rom, readU32(from, g.rinkLogoTablePointer), 4, order)
+  reorderEntries(from, rom, readU32(from, g.menuLogoTablePointer), 4, order)
+  reorderEntries(from, rom, where.menuPalettesAt, LOGO_PALETTE_BYTES, order)
+  reorderEntries(from, rom, where.menuLogoColorsAt, LOGO_COLOR_BYTES, order)
+  const maps = new Map<number, Block>()
+  for (const block of Object.values(where.banners ?? {})) maps.set(block.mapAt, block)
+  for (const block of maps.values()) reorderEntries(from, rom, block.mapAt + 4, BANNER_TILES_HIGH * block.mapWidth * 2, order)
+  const place = new Map(order.map((was, n) => [was, n]))
+  const moved = <T>(record: Record<number, T>): Record<number, T> =>
+    Object.fromEntries(Object.entries(record).map(([team, value]) => [place.get(Number(team)) ?? Number(team), value]))
+  return {
+    rinkLogos: moved(edits.rinkLogos),
+    menuLogos: moved(edits.menuLogos),
+    menuPalettes: moved(edits.menuPalettes),
+    menuBanners: moved(edits.menuBanners),
+    visitorBanners: moved(edits.visitorBanners),
+    gameBanners: moved(edits.gameBanners),
   }
 }
 

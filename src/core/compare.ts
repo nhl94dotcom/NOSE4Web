@@ -13,6 +13,7 @@ import { menuOptions, pullGoalieText } from './settings'
 import { goalieCount, teamDisplayName, teamLabels, type Player, type Team } from './team'
 import { projectTeamRatings } from './ppfix'
 import { teamRatings, type TeamRating } from './teamratings'
+import { settingsInTeamOrder } from './teamorder'
 
 // Describes, in plain sentences, how one project differs from another.
 // Teams are matched by their position in the ROM, players and line members by
@@ -223,6 +224,15 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
   return sections
 }
 
+// Where each of `after`'s teams was in `before`, where the two are one opened
+// ROM and teams were moved in between; null where none was.
+function movedPlaces(before: RomProject, after: RomProject): number[] | null {
+  const identity = after.teams.map((_, n) => n)
+  const [was, now] = [before.teamOrder ?? identity, after.teamOrder ?? identity]
+  if (was.join() === now.join()) return null
+  return now.map((original) => was.indexOf(original))
+}
+
 // What changed going from `before` to `after`. Empty when nothing did.
 export function compareProjects(before: RomProject, after: RomProject): Difference[] {
   const sections: Difference[] = []
@@ -236,7 +246,14 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   const samePlatform = before.game.platform === after.game.platform
   const byName = !samePlatform || (after.game.platform === 'snes' && before.game.productCode !== after.game.productCode)
   const beforeNames = before.teams.map(teamDisplayName)
-  const counterpart = after.teams.map((team, i) => (byName ? beforeNames.indexOf(teamDisplayName(team)) : i < before.teams.length ? i : -1))
+  // One opened ROM whose teams were moved in between: each team is compared
+  // with itself, wherever it was (see teamorder.ts).
+  const moves = !byName && before.source === after.source && before.teams.length === after.teams.length ? movedPlaces(before, after) : null
+  const counterpart = after.teams.map((team, i) => (moves ? moves[i] : byName ? beforeNames.indexOf(teamDisplayName(team)) : i < before.teams.length ? i : -1))
+  if (moves) {
+    const shifted = moves.flatMap((was, n) => (was === n ? [] : [`${teamDisplayName(after.teams[n])} is now team ${n + 1} (was ${was + 1})`]))
+    general.push(`Teams were moved: ${shifted.join('; ')}.`)
+  }
   if (byName) {
     const unmatched = after.teams.filter((_, i) => counterpart[i] < 0).map(teamDisplayName)
     general.push(
@@ -267,6 +284,14 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
     if (samePlatform && (before.bytes !== after.bytes || before.teams !== after.teams)) changes.push(...photoDifferences(before, counterpart[i], after, i))
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
-  // Teams matched by name are in other places, so the menus' team choices cannot be compared.
-  return [...sections, ...(byName ? [] : compareSettings(before, after))]
+  // Teams matched by name are in other places, so the menus' team choices
+  // cannot be compared. Moved teams are compared by their new numbers.
+  const was = moves
+    ? {
+        ...before,
+        teams: moves.map((place) => before.teams[place]),
+        settings: settingsInTeamOrder(before.settings, before.game, (team) => (moves.indexOf(team) < 0 ? team : moves.indexOf(team))),
+      }
+    : before
+  return [...sections, ...(byName ? [] : compareSettings(was, after))]
 }

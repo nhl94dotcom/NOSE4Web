@@ -8,8 +8,10 @@ import {
   importCsvSet,
   importWorkbookSheets,
   workbookSheets,
+  tableRows,
   type CsvTable,
   type SetImportResult,
+  type TeamOrder,
 } from './core/tables'
 import { readWorkbook, writeWorkbook } from './core/workbook'
 import { download } from './download'
@@ -37,17 +39,19 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
   const tables = tablesFor(project.game)
   // Whether imported rows go to the team they name, or to the team at their number.
   const [byName, setByName] = useState(false)
+  // Whether exported tables list the teams as the ROM has them, or by name.
+  const [order, setOrder] = useState<TeamOrder>('rom')
   const [outcome, setOutcome] = useState<Outcome | null>(null)
 
   function exportTables(tables: CsvTable[]) {
     // Browsers drop downloads that start at the same instant, so they are spaced out.
     tables.forEach((table, i) => {
-      setTimeout(() => download(formatCsv(table.rows(project)), csvFileName(setName, table), 'text/csv'), i * 250)
+      setTimeout(() => download(formatCsv(tableRows(project, table, order)), csvFileName(setName, table), 'text/csv'), i * 250)
     })
   }
 
   async function exportWorkbook() {
-    download(await writeWorkbook(workbookSheets(project)), `${setName}.xlsx`, XLSX_TYPE)
+    download(await writeWorkbook(workbookSheets(project, order)), `${setName}.xlsx`, XLSX_TYPE)
   }
 
   // Runs an import and reports what happened, whichever kind of file it was.
@@ -129,6 +133,19 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
             </ul>
           </div>
         )}
+
+        <h2>Exporting</h2>
+        <p>
+          <label className="choice">
+            <input type="checkbox" checked={order === 'name'} onChange={(e) => setOrder(e.target.checked ? 'name' : 'rom')} /> List
+            teams in alphabetical order
+          </label>
+          <span className="note">
+            {order === 'name'
+              ? "The teams, players and lines tables list the teams by name. Each row keeps its team number, so the file imports just the same. To put the teams in this order in the ROM itself, use Move teams on the Game settings page."
+              : 'The teams, players and lines tables list the teams in the order the ROM has them, as the Game Setup menu does.'}
+          </span>
+        </p>
 
         <h2>Importing</h2>
         <p>

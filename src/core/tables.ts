@@ -652,6 +652,24 @@ const SETTINGS_TABLES: CsvTable[] = [playoffs, rules, clock, menu]
 
 // The tables a ROM has. Some hacks keep their game settings where the editor
 // cannot find them, and have no tables for those.
+// The order a table's teams are listed in: the ROM's, or by name. Either way
+// each row keeps its team number, so the file imports the same.
+export type TeamOrder = 'rom' | 'name'
+
+// A table's rows, with the teams in the order asked for. The rows of one team
+// keep their own order.
+export function tableRows(project: RomProject, table: CsvTable, order: TeamOrder = 'rom'): Cell[][] {
+  const rows = table.rows(project)
+  if (order === 'rom' || rows[0]?.[0] !== 'Team') return rows
+  const names = project.teams.map(teamDisplayName)
+  const key = (row: Cell[]) => names[Number(row[0]) - 1] ?? ''
+  const body = rows
+    .slice(1)
+    .map((row, i) => ({ row, i }))
+    .sort((a, b) => key(a.row).localeCompare(key(b.row), 'en', { sensitivity: 'base' }) || Number(a.row[0]) - Number(b.row[0]) || a.i - b.i)
+  return [rows[0], ...body.map(({ row }) => row)]
+}
+
 export function tablesFor(game: GameConfig): CsvTable[] {
   return game.settingsSupported ? CSV_TABLES : CSV_TABLES.filter((table) => !SETTINGS_TABLES.includes(table))
 }
@@ -797,8 +815,8 @@ function importTableRows(
 // The same tables as sheets of one spreadsheet file, each sheet named after
 // its table.
 
-export function workbookSheets(project: RomProject): { name: string; rows: Cell[][] }[] {
-  return tablesFor(project.game).map((table) => ({ name: table.id, rows: table.rows(project) }))
+export function workbookSheets(project: RomProject, order: TeamOrder = 'rom'): { name: string; rows: Cell[][] }[] {
+  return tablesFor(project.game).map((table) => ({ name: table.id, rows: tableRows(project, table, order) }))
 }
 
 // Sheets with other names, such as a user's own notes, are left alone.

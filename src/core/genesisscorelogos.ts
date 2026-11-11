@@ -385,6 +385,13 @@ function readAdded(rom: Uint8Array, teamCount: number): Added | null {
   return { at, size: built.code.length, table: built.table, original: s }
 }
 
+// Where the added code's table of each team's two score logos is (8 bytes a
+// team), or null where the ROM has none.
+export function genesisScoreLogoTable(rom: Uint8Array, teamCount: number): number | null {
+  return added(rom, teamCount)?.table ?? null
+}
+export const SCORE_LOGO_ENTRY = ENTRY
+
 export function hasGenesisScoreLogos(project: RomProject): boolean {
   return project.game.platform !== 'snes' && added(project.bytes, project.teams.length) !== null
 }

@@ -822,6 +822,36 @@ export function HelpPage() {
           old song gets the new one. Played in the game by the NHL94 Match Viewer project, on the original game and
           McMarkis's 32-team builds.
         </li>
+        <li>
+          <b>Move teams</b> (Genesis): gives teams new team numbers, so the Game Setup menu offers them in a new
+          order, the team list shows them so, and the spreadsheet files list them so. Use the arrows or{' '}
+          <b>Move to</b> beside a team, or <b>Put the first teams in alphabetical order</b> to sort the league's own
+          teams (those the menu offers, up to the last playoff team) by name, leaving the All-Star teams and any
+          others after them. Everything the game keeps by team number goes with each team: its players, lines,
+          names and colours, logos, banners and menu colours, player photos, organ songs and score logos, and the
+          team rating on its player cards. The playoff draws, the main menu's starting teams, the start of the
+          season and the league rules' exempt teams follow their teams too, and a project file saved afterwards
+          remembers the move. Compare pairs each team with itself and lists the moves.
+          <ul>
+            <li>
+              A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
+              with it start as the last one instead. Check ROM says if the draws need changing.
+            </li>
+            <li>
+              An emulator's battery save keeps saved lines and crowd records by team number, so start a new save
+              file after downloading.
+            </li>
+            <li>
+              The original game shows its two New York teams' locations with built-in text, kept for team numbers
+              14 and 15. A New York team moved elsewhere shows its own location, "New York", instead.
+            </li>
+            <li>
+              Not offered for NHL 94: EVO, whose own code rebuilds the menus and playoffs, nor for ROMs whose
+              logos, banners, photos or songs the editor cannot follow; the page says why. Not yet ready for the
+              SNES game.
+            </li>
+          </ul>
+        </li>
       </ul>
 
       <h4 id="help-midi">Preparing a MIDI file for an organ song</h4>
@@ -982,6 +1012,11 @@ export function HelpPage() {
         </li>
       </ol>
       <ul>
+        <li>
+          Tick <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
+          list the teams by name. Each row keeps its team number, so such a file imports just the same. To put the
+          teams in that order in the ROM itself, use <b>Move teams</b> on the Game settings page.
+        </li>
         <li>
           An import is all or nothing. If any row in any chosen file is wrong, nothing changes, and each problem is
           listed with its file and spreadsheet row number.

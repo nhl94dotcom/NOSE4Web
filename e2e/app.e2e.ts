@@ -661,6 +661,35 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(drawRows.nth(1))).toEqual(first)
   })
 
+  test('moves teams, with the menu choices and the team list following', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Move teams' }) })
+    // The original game's teams are in alphabetical order already.
+    const sort = section.getByRole('button', { name: 'Put the first 26 teams in alphabetical order' })
+    await expect(sort).toBeDisabled()
+    await section.getByLabel('Move Boston Bruins to number').selectOption({ label: 'To 5' })
+    await expect(section.getByText('Boston Bruins is now team 5. Undo takes it back.')).toBeVisible()
+    const nav = page.locator('nav button')
+    await expect(nav.filter({ hasText: 'Boston Bruins' })).toHaveCount(1)
+    expect(await section.locator('tbody tr').nth(4).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    await section.getByRole('button', { name: 'Move Boston Bruins up' }).click()
+    expect(await section.locator('tbody tr').nth(3).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    await section.screenshot({ path: 'test-results/shots/move-teams.png' })
+    // Sorting puts it back, and so does putting back the ROM's order.
+    await sort.click()
+    await expect(section.getByText('The first 26 teams are now in alphabetical order.', { exact: false })).toBeVisible()
+    expect(await section.locator('tbody tr').nth(1).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    await expect(section.getByRole('button', { name: 'Put the teams back as the ROM had them' })).toHaveCount(0)
+    // Moving the All-Star team to the front, then back.
+    await section.getByLabel('Move All Stars East to number').selectOption({ label: 'To 1' })
+    expect(await section.locator('tbody tr').nth(0).locator('td').nth(1).textContent()).toBe('All Stars East')
+    await section.getByRole('button', { name: 'Put the teams back as the ROM had them' }).click()
+    expect(await section.locator('tbody tr').nth(0).locator('td').nth(1).textContent()).toBe('Anaheim Mighty Ducks')
+    await entry(page, 'Check ROM').click()
+    await expect(page.getByText('Nothing to report.')).toBeVisible()
+  })
+
   test('replaces the splash screen with a picture, and puts the original back', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Game settings').click()
@@ -2269,7 +2298,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Organ songs'])
+    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Organ songs', 'Move teams'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })

@@ -21,6 +21,14 @@ export function writeU32(b: Uint8Array, o: number, v: number): void {
   b[o + 3] = v & 0xff
 }
 
+// Puts a table's entries, one of `size` bytes for each team, in a new order:
+// entry n becomes what entry order[n] was. `from` is the table as it was, and
+// may be `rom` itself.
+export function reorderEntries(from: Uint8Array, rom: Uint8Array, at: number, size: number, order: number[]): void {
+  const old = from.slice(at, at + size * order.length)
+  order.forEach((was, n) => rom.set(old.subarray(was * size, (was + 1) * size), at + n * size))
+}
+
 export function readAscii(b: Uint8Array, o: number, length: number): string {
   let s = ''
   for (let i = 0; i < length; i++) s += String.fromCharCode(b[o + i])

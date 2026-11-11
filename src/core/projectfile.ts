@@ -23,6 +23,7 @@ import type { Baseline } from './season'
 import { MAX_ROSTER } from './roster'
 import { hasSettings, type Settings } from './settings'
 import { teamDisplayName, type Team } from './team'
+import { withTeamOrder } from './teamorder'
 import type { FreeAgent } from './trade'
 
 const FORMAT = 1
@@ -47,6 +48,9 @@ interface ProjectFile {
   menuPalettes: Record<string, number[]>
   freeAgents: FreeAgent[]
   leagueRules?: LeagueRules
+  // Where the teams were moved: team n is the team that was team order[n] in
+  // the ROM as opened, whose teams were named `from`. Absent where none was.
+  teamOrder?: { order: number[]; from: string[] }
   // The hacks the ROM had, to be put into the ROM the project is opened over.
   hacks?: HackChoices
   // The same for an SNES ROM, with the amounts of those that hold one.
@@ -121,6 +125,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     menuPalettes: project.graphics.menuPalettes,
     freeAgents: project.freeAgents,
     leagueRules: project.leagueRules,
+    teamOrder: project.teamOrder && { order: project.teamOrder, from: opened.teams.map(teamDisplayName) },
     hacks: hackState(project)?.choices,
     snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
     snesHackAmounts: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).amounts : undefined,
@@ -281,6 +286,28 @@ function moveTeams(file: ProjectFile, places: number[], game: RomProject['game']
   }
 }
 
+// The ROM with its teams moved as the project moved them, with everything the
+// game keeps by team number, so that the project's teams then go to their own
+// places. A ROM already in that order, such as one downloaded after the move,
+// is left as it is.
+function withMovedTeams(opened: RomProject, stored: ProjectFile['teamOrder'], notes: string[]): RomProject {
+  if (stored === undefined || stored === null) return opened
+  const { order, from } = stored
+  if (!Array.isArray(order) || !Array.isArray(from) || order.length !== opened.teams.length || from.length !== order.length) {
+    throw new ProjectFileError('The project file is damaged: where its teams were moved cannot be read.')
+  }
+  const names = opened.teams.map(teamDisplayName)
+  if (names.every((name, n) => name === from[order[n]]) && !names.every((name, n) => name === from[n])) {
+    notes.push("This ROM already has the project's teams in their new places, so none was moved.")
+    return opened
+  }
+  try {
+    return withTeamOrder(opened, order)
+  } catch (e) {
+    throw new ProjectFileError(`This project moved teams, and they could not be moved in this ROM: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}
+
 export interface OpenedProjectFile {
   project: RomProject
   name: string
@@ -343,6 +370,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (!Array.isArray(file.teams) || file.teams.length !== opened.teams.length) {
     throw new ProjectFileError(`This project has ${file.teams?.length ?? 0} teams and the ROM has ${opened.teams.length}.`)
   }
+  opened = withMovedTeams(opened, file.teamOrder, notes)
   file.teams.forEach((team, i) => {
     if (!checkTeam(team, opened.teams[i])) throw new ProjectFileError(`The project file is damaged: team ${i + 1} cannot be read.`)
   })
