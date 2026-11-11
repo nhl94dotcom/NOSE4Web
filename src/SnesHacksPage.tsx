@@ -1,3 +1,5 @@
+import { SNES_HACK_GROUPS } from './core/hackgroups'
+import { HackSectionLinks } from './HackSectionLinks'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
@@ -125,13 +127,7 @@ const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
   manualPullGoalie: "NHL94SNESVault's reads the buttons only about every half second, so a quick tap is often missed and a long hold can pull the goalie and put him straight back, and NOSE4Web's of the morning of 9 November 2026 can act on a press made in a short pause once play resumes; NOSE4Web's now acts once on each press made in play.",
 }
 
-const GROUPS: { title: string; hacks: SnesHack[] }[] = [
-  { title: 'Fixes', hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'] },
-  { title: 'Statistics', hacks: ['stickShots'] },
-  { title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie'] },
-  { title: 'Rules and play', hacks: ['defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
-  { title: 'Starting up', hacks: ['skipEaIntro', 'skipPucksIntro'] },
-]
+const GROUPS = SNES_HACK_GROUPS
 
 const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every((hack) => a[hack] === b[hack])
 
@@ -168,13 +164,15 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
     <main className="team help">
       <h2>Hacks</h2>
       <p className="note">
-        Changes to the SNES game itself, from the patches of the community's disassembly of the game,{' '}
+        Changes to the SNES game itself. They come from the patches of the community's disassembly of the game,{' '}
         <a href="https://github.com/Mhopkinsinc/NHL94SNESVault" target="_blank" rel="noreferrer">
           NHL94SNESVault
         </a>
-        . The page shows what this ROM has now. Change what you like and press Apply; nothing is changed until you do.
-        Test a hacked ROM in a game before a league plays on it.
+        , and from the NHL94 Match Viewer project, which found many of the bugs in the game's code and tests hacks in
+        the game; each hack's note says whose it is. The page shows what this ROM has now. Change what you like and
+        press Apply; nothing is changed until you do. Test a hacked ROM in a game before a league plays on it.
       </p>
+      <HackSectionLinks groups={GROUPS} />
       <HackShortcuts
         onRecommended={
           !sameChoices(withRecommendedSnesFixes(wanted, state.unknown), wanted) &&
@@ -190,7 +188,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
         name={name}
       />
       {GROUPS.map((group) => (
-        <section key={group.title}>
+        <section key={group.id} id={`hacks-${group.id}`}>
           <h3>{group.title}</h3>
           {group.hacks.map((hack) => {
             const unknown = state.unknown.includes(hack)
@@ -281,7 +279,8 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
           )}
         </section>
       ))}
-      <section>
+      <section id="hacks-apply">
+        <h3>Apply</h3>
         <p>
           <button disabled={changed.length === 0} onClick={apply}>
             Apply

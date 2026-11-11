@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { WEIGHT_BASES } from './core/attributes'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
+import { GENESIS_HACK_GROUPS } from './core/hackgroups'
+import { HackSectionLinks } from './HackSectionLinks'
 import type { SeasonTies } from './core/hacks'
 import {
   applyHacks,
@@ -40,7 +42,6 @@ import {
 import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
-import { GenesisBloodSection } from './GenesisBloodSection'
 import { HackShortcuts } from './HackShortcuts'
 import { genesisHackSheet, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
@@ -199,7 +200,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -220,15 +221,19 @@ export function HacksPage({ project, name, onChange }: Props) {
     <main className="team help">
       <h2>Hacks</h2>
       <p className="note">
-        Changes to the game itself: bug fixes, extra statistics, finer ratings, and how it plays. Most are the work of
-        smozoma, from his program{' '}
+        Changes to the game itself: bug fixes, extra statistics, finer ratings, rules, and how it plays. They come
+        from smozoma's program{' '}
         <a href="https://github.com/nhl94dotcom/smozROM" target="_blank" rel="noreferrer">
           smozROM
-        </a>
-        , built in here with his permission; those under Play were found by members of the NHL94 forums, who are named
-        in Help. The page shows what this ROM has now. Change what you like and press
-        Apply; nothing is changed until you do. Test a hacked ROM in a game before a league plays on it.
+        </a>{' '}
+        (built in here with his permission), from members of the NHL94 forums, from the NHL94 Match Viewer project,
+        which found many of the bugs in the game's code and tests hacks in the game, and from chaos's fighting patch;
+        each hack's note says whose it is, and Help names everyone. The page shows what this ROM has now. Change what
+        you like and press Apply; nothing is changed until you do. Many of the settings under Energy, Goalies and
+        Skating are the game's own numbers, shown as its code holds them, so change them a little at a time and try
+        the result in a game. Test a hacked ROM in a game before a league plays on it.
       </p>
+      <HackSectionLinks groups={GENESIS_HACK_GROUPS} />
       <HackShortcuts
         onRecommended={
           !sameHacks(withRecommendedFixes(wanted, state.unknown), wanted) &&
@@ -243,7 +248,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         name={name}
       />
 
-      <section>
+      <section id="hacks-fixes">
         <h3>Fixes</h3>
         {hack(
           'checkFix',
@@ -470,23 +475,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             speed.
           </>,
         )}
-        {hack(
-          'fourthPeriodOvertime',
-          number('fourthPeriodOvertime'),
-          <>
-            An option, in seconds of overtime: 0 leaves it off. The main menu offers three of the game's four period
-            lengths; this offers the fourth too, and a regular-season game on it gets this much overtime instead of the
-            Clock's (5940 is 99 minutes, about as good as no limit). Set the fourth length and its menu text with the
-            others on the Game settings page: the original's is 30 seconds. The other lengths keep the Clock's overtime,
-            and playoff overtime stays as long as a period, as in the original game. McMarkis's "5 Minutes, 99 Min OT"
-            patch, made for any length; it can save a league a separate playoff ROM. Tested in the game by the NHL94
-            Match Viewer project: a regular-season overtime of 99:00 counts down and shows right, ends the game at 0:00 if
-            still tied, and the playoffs keep theirs. With 99 minutes, the faceoff song cannot play in its first half.
-          </>,
-        )}
       </section>
 
-      <section>
+      <section id="hacks-statistics">
         <h3>Statistics</h3>
         {hack(
           'stickShots',
@@ -536,7 +527,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
       </section>
 
-      <section>
+      <section id="hacks-ratings">
         <h3>Ratings</h3>
         {hack(
           'wideRatings',
@@ -549,6 +540,29 @@ export function HacksPage({ project, name, onChange }: Props) {
             differences between players, and brings overall rating formulas made for the new scale, which give more
             to the attributes that make or stop goals.
           </>,
+        )}
+        {hack(
+          'baseWeight',
+          <select aria-label={HACK_TITLES.baseWeight} disabled={unknown('baseWeight')} value={wanted.baseWeight} onChange={(e) => set({ baseWeight: Number(e.target.value) })}>
+              {WEIGHT_BASES.map((base) => (
+                <option key={base} value={base}>
+                  {base} pounds{base === NO_HACKS.baseWeight ? ' (original)' : ''}
+                </option>
+              ))}
+          </select>,
+          <>
+            A player's weight is one of sixteen steps of 8 pounds, counted up from this. Players have grown heavier
+            over the years, so a ROM for another era starts the count elsewhere, to spread its players across the
+            steps: from {wanted.baseWeight} to {wanted.baseWeight + 120} pounds as chosen. Give a season's year for
+            the weight smozROM suggests for it.
+          </>,
+          <span className="by-year">
+            or for the season of{' '}
+            <input className="num" inputMode="numeric" aria-label="Season year" placeholder="year" value={year} onChange={(e) => setYear(e.target.value)} />{' '}
+            <button disabled={suggested === null || unknown('baseWeight')} onClick={() => suggested !== null && set({ baseWeight: suggested })}>
+              {suggested === null ? 'Use that season' : `Use ${suggested} pounds`}
+            </button>
+          </span>,
         )}
         {hack(
           'bonuses',
@@ -577,152 +591,6 @@ export function HacksPage({ project, name, onChange }: Props) {
             {wanted.wideRatings && ' "Edit Lines matches players" is not offered with 0 to 15 ratings, where the code for it looks to be mistaken.'}
           </>,
         )}
-      </section>
-
-      <section>
-        <h3>Weights</h3>
-        {hack(
-          'baseWeight',
-          <select aria-label={HACK_TITLES.baseWeight} disabled={unknown('baseWeight')} value={wanted.baseWeight} onChange={(e) => set({ baseWeight: Number(e.target.value) })}>
-              {WEIGHT_BASES.map((base) => (
-                <option key={base} value={base}>
-                  {base} pounds{base === NO_HACKS.baseWeight ? ' (original)' : ''}
-                </option>
-              ))}
-          </select>,
-          <>
-            A player's weight is one of sixteen steps of 8 pounds, counted up from this. Players have grown heavier
-            over the years, so a ROM for another era starts the count elsewhere, to spread its players across the
-            steps: from {wanted.baseWeight} to {wanted.baseWeight + 120} pounds as chosen. Give a season's year for
-            the weight smozROM suggests for it.
-          </>,
-          <span className="by-year">
-            or for the season of{' '}
-            <input className="num" inputMode="numeric" aria-label="Season year" placeholder="year" value={year} onChange={(e) => setYear(e.target.value)} />{' '}
-            <button disabled={suggested === null || unknown('baseWeight')} onClick={() => suggested !== null && set({ baseWeight: suggested })}>
-              {suggested === null ? 'Use that season' : `Use ${suggested} pounds`}
-            </button>
-          </span>,
-        )}
-      </section>
-
-      <section>
-        <h3>Play</h3>
-        <p className="note">
-          How the game plays. Most of these are the game's own numbers, shown as its code holds them, so change them
-          a little at a time and try the result in a game.
-        </p>
-        {hack(
-          'goalieHold',
-          <>{number('goalieHold', 60)} seconds</>,
-          <>
-            How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(NO_HACKS.goalieHold)}{' '}
-            seconds. Put 0 for no whistle at all; a goalie the game controls still gives the puck up by himself.
-          </>,
-        )}
-        {hack(
-          'goalieWidth',
-          number('goalieWidth'),
-          <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
-        )}
-        {hack(
-          'goalieOut',
-          number('goalieOut'),
-          <>
-            How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
-            him come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
-          </>,
-        )}
-        {hack(
-          'goalieLine',
-          number('goalieLine'),
-          <>
-            The line a goalie you control may not skate past without a whistle, again as a distance from centre ice, so
-            a smaller number lets him go farther; 170 is about the top of the faceoff circles. The code whistles him
-            with or without the puck, but without it he is kept in the range above, so in practice it is the line he
-            may carry the puck to. {stock('goalieLine')}
-          </>,
-        )}
-        {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
-        {hack(
-          'energyDrain',
-          number('energyDrain'),
-          <>
-            How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more
-            line changes. {stock('energyDrain')} At least 16: below that a player with high endurance gets more back than he
-            loses, his energy climbs past full, and after a minute or two a fast skater drops to the slowest speed there is
-            (found in the game by the NHL94 Match Viewer project). For no tiring from skating at all, use Skating costs no
-            energy, below.
-          </>,
-        )}
-        {hack(
-          'energyRecovery',
-          number('energyRecovery'),
-          <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock('energyRecovery')}</>,
-        )}
-        {hack(
-          'noSkatingDrain',
-          onOff('noSkatingDrain'),
-          <>
-            With line changes on, skating costs no energy. Players then tire only from what else costs it: hits and holds
-            (Energy lost when knocked down, below) and speed bursts (the next setting), and they rest on the bench as usual.
-            With speed bursts set to cost nothing too, only hits tire a player. Unlike Unlimited stamina, which stops
-            every loss, hits still count. Tested in the game by the NHL94 Match Viewer project: a skater never hit keeps full energy through a whole shift of skating and bursts.
-          </>,
-        )}
-        {hack(
-          'burstEnergy',
-          number('burstEnergy'),
-          <>
-            The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none.
-            {' '}{stock('burstEnergy')} Tested in the game by the NHL94 Match Viewer project.
-          </>,
-        )}
-        {hack(
-          'speedBurst',
-          number('speedBurst'),
-          <>
-            The push the C button gives a player without the puck. Put 0 for the original game's, which is 32 for a
-            fresh player and less for a tired one. Any other number is the push for everybody, tired or not: 1 as
-            good as takes it away, 16 is half the original's, and much over 64 sends players the wrong way.
-          </>,
-        )}
-        {hack(
-          'turnRate',
-          number('turnRate'),
-          <>
-            How quickly a skater stops and turns when he reverses. A larger number stops him sooner; a small one gives
-            a long, sliding stop. {stock('turnRate')}
-          </>,
-        )}
-        {hack(
-          'realTime',
-          onOff('realTime'),
-          <>
-            The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
-            2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
-            seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
-          </>,
-        )}
-        {hack(
-          'injuries',
-          <select aria-label={HACK_TITLES.injuries} className="wide" disabled={unknown('injuries')} value={wanted.injuries} onChange={(e) => set({ injuries: e.target.value as Injuries })}>
-            {(Object.keys(INJURY_TEXTS) as Injuries[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {INJURY_TEXTS[choice]}
-              </option>
-            ))}
-          </select>,
-          <>
-            In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
-            checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
-            head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
-            but there is no injury box: the player lies down for about ten seconds and then skates on. The last two
-            choices make every injury last the period, or the game, whoever made the hit. From chaos's forum post, with
-            the period and penalty choices worked out in the game's code by the NHL94 Match Viewer project, and all
-            tested in the game.
-          </>,
-        )}
         {hack(
           'hotColdRange',
           number('hotColdRange'),
@@ -733,6 +601,84 @@ export function HacksPage({ project, name, onChange }: Props) {
             values; 0 makes them all 0. It goes with any of the hot and cold bonus choices above. From chaos's forum post,
             tested in the game by the NHL94 Match Viewer project: 4 changes about half as many working ratings as 9, and
             2 none. {stock('hotColdRange')}
+          </>,
+        )}
+      </section>
+
+      <section id="hacks-rules">
+        <h3>Rules</h3>
+        {hack(
+          'seasonTies',
+          <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
+            <option value="tie">End in a tie (as the original game)</option>
+            <option value="overtime">Overtime until a goal</option>
+            <option value="shootout">A shootout after one overtime</option>
+            <option value="shootoutNow">A shootout after period 3, no overtime</option>
+          </select>,
+          <>
+            In the original game a regular-season game still tied after its overtime ends in a tie, where a playoff
+            game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
+            regular season the same way: each overtime is as long as the regular season's (10:00, or the fourth period
+            length's with that option), and ties are no more, though a game can run long. <b>A shootout after one
+            overtime</b> settles it after the overtime instead, and <b>a shootout after period 3</b> straight after
+            regulation, with no overtime. Either is played as the game's own Shootout mode plays one, five shooters a
+            side and then a shooter each until one team is ahead; the winners get one goal more on the scoreboard, and
+            the game ends as any other. Playoffs always play overtime until a goal, as they did. Match Viewer found the two places in the game's
+            code that end a tied regular-season game, and has tested overtime until a goal in the game: a tied
+            game played three more overtimes before a goal ended it normally, and playoffs played as before. Both
+            shootouts are tested too, on the original game and on a league ROM with plus-minus: the winners' goal is
+            the only change to the score and stats, the saved record is the same as for a win in regulation, and
+            Shootout mode is as it was.
+          </>,
+        )}
+        {hack(
+          'fourthPeriodOvertime',
+          number('fourthPeriodOvertime'),
+          <>
+            An option, in seconds of overtime: 0 leaves it off. The main menu offers three of the game's four period
+            lengths; this offers the fourth too, and a regular-season game on it gets this much overtime instead of the
+            Clock's (5940 is 99 minutes, about as good as no limit). Set the fourth length and its menu text with the
+            others on the Game settings page: the original's is 30 seconds. The other lengths keep the Clock's overtime,
+            and playoff overtime stays as long as a period, as in the original game. McMarkis's "5 Minutes, 99 Min OT"
+            patch, made for any length; it can save a league a separate playoff ROM. Tested in the game by the NHL94
+            Match Viewer project: a regular-season overtime of 99:00 counts down and shows right, ends the game at 0:00 if
+            still tied, and the playoffs keep theirs. With 99 minutes, the faceoff song cannot play in its first half.
+          </>,
+        )}
+        {hack(
+          'fighting',
+          <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
+            {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {FIGHT_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            chaos's fighting patch (version 1.01), which brings NHLPA 93's fights into the game: after enough hard
+            checks, two players with high enough fighting ratings may drop the gloves, and both are given fighting
+            majors. The main menu gets a <b>Fighting</b> line, Off, On or On - Arcade Mode (more fights), whose
+            starting choice is set here; the roster screens show each player's fighting rating from 0 to 100. How fights
+            start and are won is in chaos's forum post, "How fighting works in the NHL94 fighting patch". Fighting
+            uses the H/F column's fighting half, which a league sets on the team pages: in the original game only a few
+            players rate high enough to start a fight. The patch's code goes past 2 MB, so the ROM becomes 3 MB, and
+            the game's saved records are switched in only when it uses them; Genesis Plus GX, which the leagues use,
+            plays such ROMs. It goes into league ROMs too: the main menu keeps the league's own captions, choices, teams
+            offered and period lengths, with the Fighting line added. Head bleeding goes with it either way round.
+            Made by chaos with
+            McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT licence; its title screen,
+            credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the
+            original game and a league ROM: the league's own menu with Fighting added, fights with their majors,
+            saved records kept, the fighting ratings page, shootouts and replays.
+          </>,
+        )}
+        {hack(
+          'realTime',
+          onOff('realTime'),
+          <>
+            The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
+            2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
+            seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
           </>,
         )}
         {hack(
@@ -767,65 +713,62 @@ export function HacksPage({ project, name, onChange }: Props) {
             on, where the original managed 10). A ROM with the forum's version shows it as such, and can be set back.
           </>,
         )}
-        {(() => {
-          // Offered for a ROM that leaves positions of its first line empty on every team.
-          const fitted = fewerSkaterLinesFor(emptyLineSlots(project.teams)[0])
-          if (fitted === 0 && wanted.fewerSkaterLines === 0) return null
-          return hack(
-            'fewerSkaterLines',
-            <select
-              aria-label={HACK_TITLES.fewerSkaterLines}
-              className="wide"
-              disabled={unknown('fewerSkaterLines') || (fitted === null && wanted.fewerSkaterLines === 0)}
-              value={wanted.fewerSkaterLines}
-              onChange={(e) => set({ fewerSkaterLines: Number(e.target.value) })}
-            >
-              <option value={0}>All five positions, as the original game</option>
-              {[...new Set([fitted, wanted.fewerSkaterLines].filter((value): value is number => !!value))].map((value) => (
-                <option key={value} value={value}>
-                  Only {fewerSkaterLinesText(value)}
-                </option>
-              ))}
-            </select>,
-            <>
-              For a ROM that puts fewer skaters on the ice. The game's Edit Lines and the Team Rosters line view still
-              show all five skaters' positions, and a position the ROM leaves empty crashes them as they open (an
-              address error). This makes them show only the positions this ROM plays, with line changes off or on, worked out
-              from the positions its first line leaves empty on every team
-              {fitted ? `: ${fewerSkaterLinesText(fitted)}` : ''}. It works only where those positions follow each other in
-              the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. From smozoma's forum post
-              for 2 on 2, worked out for any number of skaters, and for line changes on, in the game's code by the NHL94
-              Match Viewer project, and tested in the game for 1 on 1 and 2 on 2 with line changes off and on. A ROM with smozoma's version is updated to this when
-              its hacks are next applied.
-            </>,
-          )
-        })()}
         {hack(
-          'anyPosition',
-          onOff('anyPosition'),
+          'injuries',
+          <select aria-label={HACK_TITLES.injuries} className="wide" disabled={unknown('injuries')} value={wanted.injuries} onChange={(e) => set({ injuries: e.target.value as Injuries })}>
+            {(Object.keys(INJURY_TEXTS) as Injuries[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {INJURY_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
           <>
-            The game's own Edit Lines lists only forwards for the forward positions and only defencemen for the defence.
-            With this on it lists every skater for every position, and picking someone already on the line swaps the two,
-            as the game already does. A player plays the position the line gives him, faceoffs included, with his own
-            ratings. Lines saved from Edit Lines are kept in a new place in the save memory, a byte a position, so a
-            defenceman at forward comes back as himself; lines saved before it is on still load. The game's own place is
-            written as well, so the same save on a ROM without this loads those lines too, except that anyone saved out of
-            position is replaced by a forward or defenceman as the position needs (the team's first, or, if he is already
-            on the line, whoever that swap leaves), never by a skater who is on the line twice. NOSE4Web's own line editor
-            offers any skater at any position whatever the ROM has. As McMarkis's SNES hack in NHL94SNESVault, read from
-            the Genesis code by the NHL94 Match Viewer project, and tested in the game by them, loading on a ROM without it
-            included.
+            In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
+            checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
+            head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
+            but there is no injury box: the player lies down for about ten seconds and then skates on. The last two
+            choices make every injury last the period, or the game, whoever made the hit. From chaos's forum post, with
+            the period and penalty choices worked out in the game's code by the NHL94 Match Viewer project, and all
+            tested in the game.
+          </>,
+        )}
+      </section>
+
+      <section id="hacks-energy">
+        <h3>Energy and injury risk</h3>
+        {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
+        {hack(
+          'energyDrain',
+          number('energyDrain'),
+          <>
+            How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more
+            line changes. {stock('energyDrain')} At least 16: below that a player with high endurance gets more back than he
+            loses, his energy climbs past full, and after a minute or two a fast skater drops to the slowest speed there is
+            (found in the game by the NHL94 Match Viewer project). For no tiring from skating at all, use Skating costs no
+            energy, below.
           </>,
         )}
         {hack(
-          'puckFriction',
-          number('puckFriction'),
+          'energyRecovery',
+          number('energyRecovery'),
+          <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock('energyRecovery')}</>,
+        )}
+        {hack(
+          'noSkatingDrain',
+          onOff('noSkatingDrain'),
           <>
-            How fast the puck slows down on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller
-            number slows it faster (8 is twice as fast as the original 9, 10 half as fast). A player receiving a pass
-            slows the same way, and so does a skater caught by the runaway-speed bug. There is no friction in the air.
-            From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
-            0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
+            With line changes on, skating costs no energy. Players then tire only from what else costs it: hits and holds
+            (Energy lost when knocked down, below) and speed bursts (the next setting), and they rest on the bench as usual.
+            With speed bursts set to cost nothing too, only hits tire a player. Unlike Unlimited stamina, which stops
+            every loss, hits still count. Tested in the game by the NHL94 Match Viewer project: a skater never hit keeps full energy through a whole shift of skating and bursts.
+          </>,
+        )}
+        {hack(
+          'burstEnergy',
+          number('burstEnergy'),
+          <>
+            The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none.
+            {' '}{stock('burstEnergy')} Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -908,6 +851,41 @@ export function HacksPage({ project, name, onChange }: Props) {
             is more than 0.
           </>,
         )}
+      </section>
+
+      <section id="hacks-goalies">
+        <h3>Goalies</h3>
+        {hack(
+          'goalieHold',
+          <>{number('goalieHold', 60)} seconds</>,
+          <>
+            How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(NO_HACKS.goalieHold)}{' '}
+            seconds. Put 0 for no whistle at all; a goalie the game controls still gives the puck up by himself.
+          </>,
+        )}
+        {hack(
+          'goalieWidth',
+          number('goalieWidth'),
+          <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
+        )}
+        {hack(
+          'goalieOut',
+          number('goalieOut'),
+          <>
+            How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
+            him come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
+          </>,
+        )}
+        {hack(
+          'goalieLine',
+          number('goalieLine'),
+          <>
+            The line a goalie you control may not skate past without a whistle, again as a distance from centre ice, so
+            a smaller number lets him go farther; 170 is about the top of the faceoff circles. The code whistles him
+            with or without the puck, but without it he is kept in the range above, so in practice it is the line he
+            may carry the puck to. {stock('goalieLine')}
+          </>,
+        )}
         {hack(
           'goalieDelay',
           number('goalieDelay'),
@@ -922,7 +900,93 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
       </section>
 
-      <section>
+      <section id="hacks-skating">
+        <h3>Skating and the puck</h3>
+        {hack(
+          'speedBurst',
+          number('speedBurst'),
+          <>
+            The push the C button gives a player without the puck. Put 0 for the original game's, which is 32 for a
+            fresh player and less for a tired one. Any other number is the push for everybody, tired or not: 1 as
+            good as takes it away, 16 is half the original's, and much over 64 sends players the wrong way.
+          </>,
+        )}
+        {hack(
+          'turnRate',
+          number('turnRate'),
+          <>
+            How quickly a skater stops and turns when he reverses. A larger number stops him sooner; a small one gives
+            a long, sliding stop. {stock('turnRate')}
+          </>,
+        )}
+        {hack(
+          'puckFriction',
+          number('puckFriction'),
+          <>
+            How fast the puck slows down on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller
+            number slows it faster (8 is twice as fast as the original 9, 10 half as fast). A player receiving a pass
+            slows the same way, and so does a skater caught by the runaway-speed bug. There is no friction in the air.
+            From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
+            0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
+          </>,
+        )}
+      </section>
+
+      <section id="hacks-lines">
+        <h3>Edit Lines and controls</h3>
+        {(() => {
+          // Offered for a ROM that leaves positions of its first line empty on every team.
+          const fitted = fewerSkaterLinesFor(emptyLineSlots(project.teams)[0])
+          if (fitted === 0 && wanted.fewerSkaterLines === 0) return null
+          return hack(
+            'fewerSkaterLines',
+            <select
+              aria-label={HACK_TITLES.fewerSkaterLines}
+              className="wide"
+              disabled={unknown('fewerSkaterLines') || (fitted === null && wanted.fewerSkaterLines === 0)}
+              value={wanted.fewerSkaterLines}
+              onChange={(e) => set({ fewerSkaterLines: Number(e.target.value) })}
+            >
+              <option value={0}>All five positions, as the original game</option>
+              {[...new Set([fitted, wanted.fewerSkaterLines].filter((value): value is number => !!value))].map((value) => (
+                <option key={value} value={value}>
+                  Only {fewerSkaterLinesText(value)}
+                </option>
+              ))}
+            </select>,
+            <>
+              For a ROM that puts fewer skaters on the ice. The game's Edit Lines and the Team Rosters line view still
+              show all five skaters' positions, and a position the ROM leaves empty crashes them as they open (an
+              address error). This makes them show only the positions this ROM plays, with line changes off or on, worked out
+              from the positions its first line leaves empty on every team
+              {fitted ? `: ${fewerSkaterLinesText(fitted)}` : ''}. It works only where those positions follow each other in
+              the order LD, RD, LW, C, RW{fitted === null ? ', which they do not in this ROM' : ''}. From smozoma's forum post
+              for 2 on 2, worked out for any number of skaters, and for line changes on, in the game's code by the NHL94
+              Match Viewer project, and tested in the game for 1 on 1 and 2 on 2 with line changes off and on. A ROM with smozoma's version is updated to this when
+              its hacks are next applied.
+            </>,
+          )
+        })()}
+        {hack(
+          'anyPosition',
+          onOff('anyPosition'),
+          <>
+            The game's own Edit Lines lists only forwards for the forward positions and only defencemen for the defence.
+            With this on it lists every skater for every position, and picking someone already on the line swaps the two,
+            as the game already does. A player plays the position the line gives him, faceoffs included, with his own
+            ratings. Lines saved from Edit Lines are kept in a new place in the save memory, a byte a position, so a
+            defenceman at forward comes back as himself; lines saved before it is on still load. The game's own place is
+            written as well, so the same save on a ROM without this loads those lines too, except that anyone saved out of
+            position is replaced by a forward or defenceman as the position needs (the team's first, or, if he is already
+            on the line, whoever that swap leaves), never by a skater who is on the line twice. NOSE4Web's own line editor
+            offers any skater at any position whatever the ROM has. As McMarkis's SNES hack in NHL94SNESVault, read from
+            the Genesis code by the NHL94 Match Viewer project, and tested in the game by them, loading on a ROM without it
+            included.
+          </>,
+        )}
+      </section>
+
+      <section id="hacks-looks">
         <h3>Looks and screens</h3>
         {hack(
           'puckColours',
@@ -959,57 +1023,6 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
-          'seasonTies',
-          <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
-            <option value="tie">End in a tie (as the original game)</option>
-            <option value="overtime">Overtime until a goal</option>
-            <option value="shootout">A shootout after one overtime</option>
-            <option value="shootoutNow">A shootout after period 3, no overtime</option>
-          </select>,
-          <>
-            In the original game a regular-season game still tied after its overtime ends in a tie, where a playoff
-            game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
-            regular season the same way: each overtime is as long as the regular season's (10:00, or the fourth period
-            length's with that option), and ties are no more, though a game can run long. <b>A shootout after one
-            overtime</b> settles it after the overtime instead, and <b>a shootout after period 3</b> straight after
-            regulation, with no overtime. Either is played as the game's own Shootout mode plays one, five shooters a
-            side and then a shooter each until one team is ahead; the winners get one goal more on the scoreboard, and
-            the game ends as any other. Playoffs always play overtime until a goal, as they did. Match Viewer found the two places in the game's
-            code that end a tied regular-season game, and has tested overtime until a goal in the game: a tied
-            game played three more overtimes before a goal ended it normally, and playoffs played as before. Both
-            shootouts are tested too, on the original game and on a league ROM with plus-minus: the winners' goal is
-            the only change to the score and stats, the saved record is the same as for a win in regulation, and
-            Shootout mode is as it was.
-          </>,
-        )}
-        {hack(
-          'fighting',
-          <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
-            {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {FIGHT_TEXTS[choice]}
-              </option>
-            ))}
-          </select>,
-          <>
-            chaos's fighting patch (version 1.01), which brings NHLPA 93's fights into the game: after enough hard
-            checks, two players with high enough fighting ratings may drop the gloves, and both are given fighting
-            majors. The main menu gets a <b>Fighting</b> line, Off, On or On - Arcade Mode (more fights), whose
-            starting choice is set here; the roster screens show each player's fighting rating from 0 to 100. How fights
-            start and are won is in chaos's forum post, "How fighting works in the NHL94 fighting patch". Fighting
-            uses the H/F column's fighting half, which a league sets on the team pages: in the original game only a few
-            players rate high enough to start a fight. The patch's code goes past 2 MB, so the ROM becomes 3 MB, and
-            the game's saved records are switched in only when it uses them; Genesis Plus GX, which the leagues use,
-            plays such ROMs. It goes into league ROMs too: the main menu keeps the league's own captions, choices, teams
-            offered and period lengths, with the Fighting line added. Head bleeding goes with it either way round.
-            Made by chaos with
-            McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT licence; its title screen,
-            credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the
-            original game and a league ROM: the league's own menu with Fighting added, fights with their majors,
-            saved records kept, the fighting ratings page, shootouts and replays.
-          </>,
-        )}
-        {hack(
           'greenFan',
           onOff('greenFan'),
           "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post, tested in the game by the NHL94 Match Viewer project; several league ROMs have it.",
@@ -1024,9 +1037,23 @@ export function HacksPage({ project, name, onChange }: Props) {
             Viewer project. {stock('introWait')}
           </>,
         )}
+        {!unknown('headBleeding') &&
+          hack(
+            'headBleeding',
+            onOff('headBleeding'),
+            <>
+              In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took
+              the blood out. With this on, a player hurt for the game bleeds as he lies there: a little as he lands,
+              more half a second later. A player out for the period lies as before. Only the look changes, not how the
+              game plays. The blood is drawn in colours 13 and 14 of the arena palette, which are dark reds in the
+              original game. The ROM's sprite frame table is copied to the end of the ROM to make room, which grows a
+              1 MB ROM to 2 MB. Tested in the game by the NHL94 Match Viewer project, with and without the fighting
+              patch.
+            </>,
+          )}
       </section>
 
-      <section>
+      <section id="hacks-legacy">
         <h3>Legacy hacks</h3>
         <p className="note">Kept for league ROMs that already have them. A better fix has replaced each one, so leave them off in a new ROM.</p>
         {hack(
@@ -1048,7 +1075,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
       </section>
 
-      <section>
+      <section id="hacks-apply">
         <h3>Apply</h3>
         {changes.length === 0 ? (
           <p>Nothing is set to change.</p>
@@ -1066,6 +1093,9 @@ export function HacksPage({ project, name, onChange }: Props) {
                 {wanted.wideRatings ? '0, 1, 2, 3, 4, 5, 6 become 0, 3, 5, 8, 10, 13, 15' : 'each becomes the nearest of 0 to 6'}. Overall
                 ratings will read differently, since the two scales work them out differently.
               </p>
+            )}
+            {wanted.headBleeding && !state.choices.headBleeding && project.bytes.length < 0x200000 && (
+              <p>Head bleeding makes room by copying the sprite frame table to the end of the ROM, which grows it to 2 MB.</p>
             )}
             {reweighed && <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>}
             {wanted.checkFix === 'all120' && wanted.weightFix !== 'off' && (
@@ -1128,7 +1158,6 @@ export function HacksPage({ project, name, onChange }: Props) {
         {error && <p className="error">{error}</p>}
       </section>
 
-      <GenesisBloodSection project={project} onChange={onChange} />
-    </main>
+          </main>
   )
 }

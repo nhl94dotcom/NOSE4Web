@@ -24,7 +24,8 @@
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
-import { bloodAdded, bloodIn, bloodTakenOut } from './genesisblood'
+import { bloodAdded, bloodChoice, bloodIn, bloodTakenOut } from './genesisblood'
+import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
@@ -170,6 +171,8 @@ export interface HackChoices {
   netColours: PuckColours
   // The fan in green in the stands, with his arm and leg back.
   greenFan: boolean
+  // NOSE4Web's head bleeding for players hurt for the game (genesisblood.ts).
+  headBleeding: boolean
 }
 
 export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
@@ -237,6 +240,7 @@ export type HackPart =
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
+  | 'headBleeding'
 
 export interface HackState {
   choices: HackChoices
@@ -304,6 +308,7 @@ export const NO_HACKS: HackChoices = {
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
+  headBleeding: false,
 }
 
 // The least and most each number can be.
@@ -2381,6 +2386,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
+    headBleeding: found('headBleeding', bloodChoice(rom), NO_HACKS.headBleeding),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -2401,16 +2407,14 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
   // Fighting that stays in is left as it is, but for its menu's starting
-  // choice. Head bleeding, which goes on top of it, comes out around a change
-  // to it and goes back after.
+  // choice. Head bleeding goes on top of everything: it comes out first where
+  // it is not wanted, or where fighting (whose frames it goes into) changes,
+  // and goes in last.
   const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
-  let bloodBack = false
+  const bloodKnown = !unknown.includes('headBleeding')
+  if (bloodKnown && bloodIn(work.rom) && (!wanted.headBleeding || (!fightKept && choices.fighting !== wanted.fighting))) work.rom = bloodTakenOut(work.rom)
   const removeFight = () => {
     if (fightKept) return
-    if (choices.fighting !== wanted.fighting && bloodIn(work.rom)) {
-      work.rom = bloodTakenOut(work.rom)
-      bloodBack = true
-    }
     work.rom = withoutFight(work.rom)
   }
   const putFight = () => {
@@ -2419,7 +2423,6 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
       return
     }
     applyFight(work, wanted.fighting)
-    if (bloodBack) work.rom = bloodAdded(work.rom)
   }
   const steps: [HackPart, () => void, () => void][] = [
     ['weightFix', () => weightFix.remove(work.rom), () => weightFix.apply(work, wanted.weightFix)],
@@ -2486,6 +2489,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   const known = steps.filter(([part]) => !unknown.includes(part) && !kept.includes(part))
   for (const [, remove] of known) remove()
   for (const [, , apply] of known) apply()
+  if (bloodKnown && wanted.headBleeding && !bloodIn(work.rom)) work.rom = bloodAdded(work.rom)
   return work.rom
 }
 
@@ -2538,13 +2542,8 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
   return next
 }
 
-// The order the Hacks page has them in, smozoma's legacy fix last.
-const PAGE_ORDER: (keyof HackChoices)[] = [
-  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'faceoffFix', 'runawayFix',
-  'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
-  'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'seasonTies', 'anyPosition', 'fighting', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
-]
+// The order the Hacks page has them in (core/hackgroups.ts).
+const PAGE_ORDER: (keyof HackChoices)[] = GENESIS_HACK_GROUPS.flatMap((group) => group.hacks)
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
 // differs from the original game, and what the editor cannot read.
@@ -2710,6 +2709,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
+  headBleeding: 'Head bleeding',
 }
 
 // Which part's code each choice is kept in.
@@ -2772,6 +2772,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',
+  headBleeding: 'headBleeding',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {

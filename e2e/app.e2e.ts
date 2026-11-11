@@ -267,11 +267,18 @@ test.describe('with the NHL 94 ROM', () => {
   test('adds head bleeding on the Hacks page and takes it out again', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Hacks').click()
-    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Head bleeding' }) })
-    await section.getByRole('button', { name: 'Add head bleeding' }).click()
-    await expect(section.getByText('Head bleeding added: a player hurt for the game now bleeds. The ROM grew to 2 MB to make room.')).toBeVisible()
-    await section.getByRole('button', { name: 'Take head bleeding out' }).click()
-    await expect(section.getByRole('button', { name: 'Add head bleeding' })).toBeVisible()
+    const main = page.locator('main')
+    // A choice in Looks and screens, written by Apply with the rest.
+    const looks = main.locator('#hacks-looks')
+    await looks.getByLabel('Head bleeding').selectOption('on')
+    await expect(main.getByText('Head bleeding: Off to On.')).toBeVisible()
+    await expect(main.getByText('which grows it to 2 MB')).toBeVisible()
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(looks.getByLabel('Head bleeding')).toHaveValue('on')
+    await looks.getByLabel('Head bleeding').selectOption('off')
+    await main.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(looks.getByLabel('Head bleeding')).toHaveValue('off')
+    await expect(main.getByText('Nothing is set to change.')).toBeVisible()
   })
 
   test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
@@ -1809,7 +1816,7 @@ test.describe('with the NHL 94 ROM', () => {
     expect(sheet.suggestedFilename()).toBe('nhl94_hacks.html')
     const html = readFileSync(await sheet.path(), 'utf8')
     expect(html).toContain('<title>Hacks in nhl94</title>')
-    expect(html).toContain('<h2>Bug fixes</h2>')
+    expect(html).toContain('<h2>Fixes</h2>')
     expect(html).toContain('no more &quot;rocket passes&quot;')
     expect(html).toContain("A goalie may hold the puck 5 seconds before the whistle, longer than the original game's 2.33.")
     // Undone, the post follows the ROM.
@@ -2214,7 +2221,7 @@ test.describe('with the SNES game', () => {
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
-    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Bug fixes__\n- \*\*Second-assist bug fix\*\*: .*\n- \*\*Regained-puck assist fix\*\*: .*\n- \*\*Power play and penalty kill fix\*\*: /)
+    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Fixes__\n- \*\*Power play and penalty kill fix\*\*: (.*\n)*- \*\*Second-assist bug fix\*\*: .*\n- \*\*Regained-puck assist fix\*\*: /)
     await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
       '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Regained-puck assist fix**',

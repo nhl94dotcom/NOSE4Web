@@ -1,3 +1,4 @@
+import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
 import { detectSnesHacks, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesHack } from './sneshacks'
@@ -39,6 +40,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
+  headBleeding: () => 'A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA 93; only the look changes.',
   seasonTies: (c) =>
     c.seasonTies === 'shootoutNow'
       ? 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime, the winners getting one goal more, so it never ends in a tie.'
@@ -136,15 +138,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : "smozoma's weight bug fix, an older hack: both players' checking ratings count in every check, and the lighter checker does better.",
 }
 
-const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
-  ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
-  ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime', 'seasonTies']],
-  ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
-  ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'fighting', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
-  ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
-  ['Older hacks', ['weightFix']],
-]
+// The page's sections (core/hackgroups.ts), so a hack is in the same place on both.
+const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = GENESIS_HACK_GROUPS.map((group) => [group.title, group.hacks])
 
 export function genesisHackSheet(state: HackState, name: string): HackSheet {
   const unread: string[] = []
@@ -196,13 +191,7 @@ const SNES: Record<SnesHack, string> = {
   fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 
-const SNES_SECTIONS: [string, SnesHack[]][] = [
-  ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
-  ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
-  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus']],
-  ['Statistics', ['stickShots']],
-  ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
-]
+const SNES_SECTIONS: [string, SnesHack[]][] = SNES_HACK_GROUPS.map((group) => [group.title, group.hacks])
 
 export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   const { choices, unknown, amounts } = detectSnesHacks(rom)

@@ -63,8 +63,10 @@ export function HelpPage() {
           Click <b>Open ROM…</b> and choose your ROM file. It is read by this browser tab only. Nothing is uploaded.
         </li>
         <li>
-          Pick a page from the list on the left: <b>Game settings</b> and <b>Hacks</b> at the top, then the teams,
-          then the other pages, such as <b>Rink colours</b> or <b>Spreadsheet files</b>.
+          Pick a page from the list on the left. It is in groups: <b>Game</b> (Game settings, Hacks and Rink
+          colours), <b>Teams</b>, <b>League administration</b> (the League page, Trade, Bulk changes and Import a
+          team), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
+          Compare ROMs), then Help.
         </li>
         <li>Make your changes. They take effect in the editor straight away, with no Apply button.</li>
         <li>
@@ -666,12 +668,12 @@ export function HelpPage() {
       <h3 id="help-genesis-blood">Head bleeding (Genesis)</h3>
       <p>
         In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took the blood
-        out. <b>Add head bleeding</b>, at the foot of the Hacks page, brings it back for a player hurt for the game: he
+        out. <b>Head bleeding</b>, under Looks and screens on the Hacks page, brings it back for a player hurt for the game: he
         falls and lies still as before, now with a little blood as he lands and more half a second later. A player out
         for the period writhes as before, without blood. Only the look changes. The blood is NOSE4Web's own drawing,
         after '93's, in colours 13 and 14 of the arena palette (dark reds in the original game). To make room the
-        game's sprite frame table is copied to the end of the ROM, which makes the original game 2 MB. <b>Take head
-        bleeding out</b> puts the game back as it was. ROMs whose sprites are laid out differently, such as EVO, do not
+        game's sprite frame table is copied to the end of the ROM, which makes the original game 2 MB. Like every hack it goes in when
+        you press Apply, and turned off it puts the game back as it was. ROMs whose sprites are laid out differently, such as EVO, do not
         offer it.
       </p>
       <h3 id="help-photos">Player photos</h3>
@@ -1133,7 +1135,7 @@ export function HelpPage() {
         A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
         pictures you replaced (the splash screen and main menu background included), the organ songs you made from
         MIDI files, your free agents, and where you moved teams. Work the editor keeps only in the ROM itself (player
-        photos, score logos, head blood, and on the SNES banner and photo colours) goes in as a patch of the
+        photos, score logos, and on the SNES banner and photo colours) goes in as a patch of the
         finished ROM, made only for the copy of the ROM you opened. <b>Save project file</b> on the Project file page downloads it,
         named with the Name box at the top.
       </p>
@@ -1273,9 +1275,11 @@ export function HelpPage() {
         code, which found most of the fixes and tested every hack marked as played in the game. The page shows what
         the ROM has now, which for a league ROM is often several hacks already. Set what you want and press{' '}
         <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
-        takes it all back. The hacks are in groups: <b>Fixes</b> for the game's bugs, <b>Statistics</b>,{' '}
-        <b>Ratings</b>, <b>Weights</b>, <b>Play</b> (options that change how the game plays), <b>Looks and
-        screens</b>, and <b>Legacy hacks</b> kept for league ROMs that have them.
+        takes it all back. The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for
+        the game's bugs, <b>Statistics</b>, <b>Ratings</b>, <b>Rules</b>, <b>Energy and injury risk</b>,{' '}
+        <b>Goalies</b>, <b>Skating and the puck</b>, <b>Edit Lines and controls</b>, <b>Looks and screens</b>, and on
+        the Genesis <b>Legacy hacks</b> kept for league ROMs that have them; the links at the top of the page jump to
+        each.
       </p>
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
@@ -1641,7 +1645,7 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        <b>Legacy hacks</b>, at the foot of the page, are kept for league ROMs that already have them; a better fix
+        <b>Legacy hacks</b>, the last group before Apply, are kept for league ROMs that already have them; a better fix
         has replaced each one.
       </p>
       <ul>

@@ -494,6 +494,9 @@ export default function App() {
     setSelected(id)
     setNavOpen(false)
   }
+  const showSettings = hasSettings(project.game, project.settings)
+  const showHacks = hacksSupported(project.game) || project.game.platform === 'snes'
+  const showRink = project.rinkPalette.length > 0
   const entry = (id: number, label: string) => (
     <button className={selected === id ? 'active' : ''} onClick={() => go(id)}>
       {label}
@@ -579,9 +582,11 @@ export default function App() {
       <div className="body">
         {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
         <nav className={navOpen ? 'open' : ''}>
-          {/* The game as a whole first, then the teams (as league members asked). */}
-          {hasSettings(project.game, project.settings) && entry(SETTINGS, 'Game settings')}
-          {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
+          {/* The game as a whole first, then the teams (as league members asked), then the rest by what it is for. */}
+          {(showSettings || showHacks || showRink) && <div className="group">Game</div>}
+          {showSettings && entry(SETTINGS, 'Game settings')}
+          {showHacks && entry(HACKS, 'Hacks')}
+          {showRink && entry(RINK, 'Rink colours')}
           <div className="group">Teams</div>
           {project.teams.map((team, i) => (
             <Fragment key={i}>
@@ -591,14 +596,16 @@ export default function App() {
               </button>
             </Fragment>
           ))}
-          {project.rinkPalette.length > 0 && entry(RINK, 'Rink colours')}
+          <div className="group">League administration</div>
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
+          <div className="group">Files</div>
           {entry(CSV, 'Spreadsheet files')}
           {(project.graphicsSupported || snesPictureKinds(project).length > 0 || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}
+          <div className="group">Review</div>
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(CHANGES, changes > 0 ? `Changes (${changes})` : 'Changes')}
           {entry(COMPARE, 'Compare ROMs')}

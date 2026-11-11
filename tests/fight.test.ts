@@ -103,11 +103,11 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     expect(detectHacks(again.bytes).choices.fighting).toBe('on')
     expect(hasGenesisBlood(again)).toBe(true)
     // Another hack changed: both stay as they are.
-    const more = applyHacks(again, { ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true })
-    expect(detectHacks(more.bytes).choices).toEqual({ ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true })
+    const more = applyHacks(again, { ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true, headBleeding: true })
+    expect(detectHacks(more.bytes).choices).toEqual({ ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true, headBleeding: true })
     expect(hasGenesisBlood(more)).toBe(true)
     // Fighting out: blood stays, and the ROM is as blood alone makes it.
-    const noFight = applyHacks(again, NO_HACKS)
+    const noFight = applyHacks(again, { ...NO_HACKS, headBleeding: true })
     expect(detectHacks(noFight.bytes).choices.fighting).toBe('none')
     expect(hasGenesisBlood(noFight)).toBe(true)
     expect(noFight.bytes.length).toBe(blood.bytes.length)

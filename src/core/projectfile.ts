@@ -83,7 +83,8 @@ interface ProjectFile {
   // The finished ROM, as a patch to the ROM the project was made on, and that
   // ROM's fingerprint. Opened over the same ROM, it puts back everything,
   // including what is kept only in the ROM itself: player photos, score
-  // logos, head blood, and the SNES banner and photo colours.
+  // logos, and the SNES banner and photo colours. (Head blood was one until it
+  // became a hack choice; files from before then leave it as the ROM has it.)
   rom?: { fingerprint: string; patch: string }
 }
 
@@ -406,7 +407,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (exact) opened = exact
   else if (file.rom) {
     notes.push(
-      'This is not the copy of the ROM the project was made on, so what is kept only in the ROM itself (player photos, score logos, head blood, and on the SNES banner and photo colours) was left as this copy has it. Everything else was put in.',
+      'This is not the copy of the ROM the project was made on, so what is kept only in the ROM itself (player photos, score logos, and on the SNES banner and photo colours) was left as this copy has it. Everything else was put in.',
     )
   }
   // A project made on a hacked ROM brings its hacks with it.
