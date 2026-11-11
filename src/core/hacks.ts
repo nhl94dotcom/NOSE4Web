@@ -691,33 +691,64 @@ const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
 // it the editor's ($FFF082, free RAM on every league ROM, Match Viewer);
 // gsp stays 3, so the tie test sends the game on to the intermission and
 // StartPer, which plays it as a shootout. Not tied, gsp still becomes 4 at
-// that test. A shootout already on is left as it is.
+// that test. A shootout already on is left as it is. Two things Match Viewer
+// found in the game: the overtime's ends are kept unless gmode's gmdir (bit
+// 1) is cleared, and Goal's shootout test then throws out every goal; and a
+// shootout goal also goes through Goal's ordinary path, into the score, the
+// scorer's and goalie's stats, the goals by period and the scoring summary.
+// So both team structs (all of those are in them, $364 bytes each) and the
+// scoring summary's length are kept from $FFF084, to be put back at the end.
 //   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x
 //   btst #0,(gmode2).w; bne.s .x; bset #0,(gmode2).w; st ($F082).w
-//   movem.l d0-d7/a0-a6,-(sp); jsr ClearShootout
+//   movem.l d0-d7/a0-a6,-(sp)
+//   lea (tmstruct).w,a0; lea ($F084).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
+//   move.w (ScoreSumbytes).w,(a1); bclr #1,(gmode).w; jsr ClearShootout
 //   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (awtmstruct).w,a0; jsr Create_HotCold_Table
 //   movem.l (sp)+,d0-d7/a0-a6; .x rts
 const SHOOTOUT_START = bytes(
-  '3038 C6DA B078 CA3E 6634 0838 0000 C2FA 662C 08F8 0000 C2FA 50F8 F082 48E7 FFFE 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+  '3038 C6DA B078 CA3E 6650 0838 0000 C2FA 6648 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
 )
 // When the shootout is won, NextShooter jumps to ExitToOpening, back to the
 // title as Shootout mode does. For the editor's shootout that jump becomes a
 // call to the code below. Its shootout is told from Shootout mode's by the
 // mark and by gsp: 3 for it, 0 in Shootout mode, so that a mark left set (by a
 // reset during a shootout; nothing clears that RAM) never changes Shootout
-// mode. Then: the winners' score one more, the shootout's gmode2 bits (0, 1 and
-// 3) cleared, gsp 4, and on to the end of the game as PeriodOver goes there
-// (forceblack, PeriodOver_sp: the scores, the intermission, GameOver).
+// mode. Then: the team structs and scoring summary as they were at the end of
+// the overtime, the winners' score one more, the shootout's gmode2 bits (0, 1
+// and 3; a byte, as the game's btst and bset use it) cleared, gsp 4, and on
+// to the end of the game as PeriodOver goes there (forceblack, PeriodOver_sp:
+// the scores, the intermission, GameOver).
 //   addq.l #4,sp; tst.b ($F082).w; beq.s .title; cmpi.w #3,(gsp).w; beq.s .ours; .title jmp ExitToOpening
-//   .ours sf ($F082).w; move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
+//   .ours sf ($F082).w; lea ($F084).w,a0; lea (tmstruct).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
+//   move.w (a0),(ScoreSumbytes).w
+//   move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
 //   addq.w #1,(AwGoals).w; bra.s .done; .home addq.w #1,(HmGoals).w
-//   .done andi.w #$FFF4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
+//   .done andi.b #$F4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
 const SHOOTOUT_END_HOOK: Hook = { at: 0xfc4ca, original: bytes('4EF9 0001 72E4') }
 const SHOOTOUT_END_BEFORE = bytes('0838 0003 C2FA 6700 0008')
 const SHOOTOUT_END = bytes(
-  '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
+  '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 41F8 F084 43F8 C6CE 303C 01B1 22D8 51C8 FFFC 31D0 C472 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0238 00F4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
 )
+// The first test builds (2776621, 7bd813e), which Match Viewer found kept the
+// overtime's ends and the shootout's goals: recognised, and replaced.
+const SHOOTOUT_STARTS = [
+  SHOOTOUT_START,
+  bytes('3038 C6DA B078 CA3E 6634 0838 0000 C2FA 662C 08F8 0000 C2FA 50F8 F082 48E7 FFFE 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75'),
+]
+const SHOOTOUT_ENDS = [
+  SHOOTOUT_END,
+  bytes('588F 4A38 F082 6606 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278'),
+  bytes('588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278'),
+]
 const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
+// Where a hook calls one of these versions of its code, and which.
+const hookedAny = (rom: Uint8Array, at: Hook, codes: Uint8Array[]) => {
+  for (const code of codes) {
+    const target = hooked(rom, at, code)
+    if (target !== null) return { target, code }
+  }
+  return null
+}
 
 const seasonTies: Part<SeasonTies> = {
   detect(rom) {
@@ -725,7 +756,7 @@ const seasonTies: Part<SeasonTies> = {
     if (!is(rom, SHOOTOUT_END_HOOK.at - SHOOTOUT_END_BEFORE.length, SHOOTOUT_END_BEFORE)) return undefined
     const eop = is(rom, EOP_AT, EOP.original) ? 'tie' : is(rom, EOP_AT, EOP.overtime) ? 'overtime' : undefined
     const endOriginal = is(rom, SHOOTOUT_END_HOOK.at, SHOOTOUT_END_HOOK.original)
-    if (hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
+    if (hookedAny(rom, SHOOTOUT_START_HOOK, SHOOTOUT_STARTS) !== null && hookedAny(rom, SHOOTOUT_END_HOOK, SHOOTOUT_ENDS) !== null) {
       return eop === 'overtime' ? 'shootout' : undefined
     }
     if (!endOriginal) return undefined
@@ -733,11 +764,11 @@ const seasonTies: Part<SeasonTies> = {
     return is(rom, TIES_AT, TIES.overtime) && eop ? 'overtime' : undefined
   },
   remove(rom) {
-    const start = hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START)
-    if (start !== null) erase(rom, start, SHOOTOUT_START.length)
-    const end = hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END)
+    const start = hookedAny(rom, SHOOTOUT_START_HOOK, SHOOTOUT_STARTS)
+    if (start !== null) erase(rom, start.target, start.code.length)
+    const end = hookedAny(rom, SHOOTOUT_END_HOOK, SHOOTOUT_ENDS)
     if (end !== null) {
-      erase(rom, end, SHOOTOUT_END.length)
+      erase(rom, end.target, end.code.length)
       rom.set(SHOOTOUT_END_HOOK.original, SHOOTOUT_END_HOOK.at)
     }
     if (start !== null || is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
