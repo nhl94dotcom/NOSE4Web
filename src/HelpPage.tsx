@@ -1416,8 +1416,10 @@ export function HelpPage() {
           few are, so a league that wants fights raises some. chaos's forum post "How fighting works in the NHL94
           fighting patch" explains it. The patch's code goes past 2 MB, so the ROM becomes 3 MB, with the game's
           saved records switched in only when it uses them; Genesis Plus GX plays it. NOSE4Web leaves out the title
-          screen, credits, ROM name and players' ratings of chaos's own ROM. For now it goes only into ROMs with the
-          original game's teams and code, and not with head bleeding. Made by chaos, with McMarkis and AbdulBCRT
+          screen, credits, ROM name and players' ratings of chaos's own ROM. It goes into league ROMs too: the patch
+          has a main menu of its own, the original game's, so NOSE4Web makes it from the league's, keeping its
+          captions, choices, teams offered and period lengths, with the Fighting line added. Not with head bleeding
+          yet. Made by chaos, with McMarkis and AbdulBCRT
           (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81).
         </li>
         <li>

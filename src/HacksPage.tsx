@@ -976,9 +976,10 @@ export function HacksPage({ project, name, onChange }: Props) {
             uses the H/F column's fighting half, which a league sets on the team pages: in the original game only a few
             players rate high enough to start a fight. The patch's code goes past 2 MB, so the ROM becomes 3 MB, and
             the game's saved records are switched in only when it uses them; Genesis Plus GX, which the leagues use,
-            plays such ROMs. For now it goes only into ROMs with the original game's teams and code, and not with head
-            bleeding. Made by chaos with McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT
-            licence; its title screen, credits and fighting ratings are left out.
+            plays such ROMs. It goes into league ROMs too: the main menu keeps the league's own captions, choices, teams
+            offered and period lengths, with the Fighting line added. Not with head bleeding yet. Made by chaos with
+            McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT licence; its title screen,
+            credits and fighting ratings are left out.
           </>,
         )}
         {hack(

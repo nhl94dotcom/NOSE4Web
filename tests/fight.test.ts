@@ -13,6 +13,9 @@ const GENESIS = path('nhl94.bin')
 const fresh = () => openRom(new Uint8Array(readFileSync(GENESIS)))
 const same = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((x, i) => x === b[i])
 const decode = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0))
+const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
+const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const leagues = [local.league30Rom, ...(local.otherRoms ?? [])].filter((name): name is string => !!name && existsSync(path(name)))
 
 describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
   it("goes into the original game as chaos's build has it, and comes out again", () => {
@@ -20,7 +23,14 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     const fighting = applyHacks(opened, { ...NO_HACKS, fighting: 'on' })
     expect(fighting.bytes.length).toBe(0x300000)
     expect(detectHacks(fighting.bytes).choices.fighting).toBe('on')
-    for (const change of FIGHT_CHANGES) expect(same(fighting.bytes.subarray(change.at, change.at + decode(change.patched).length), decode(change.patched))).toBe(true)
+    // chaos's bytes at each place, but for the five menu pointers the editor points at the menu it makes.
+    const pointers = [0xf807c, 0xf7bba, 0xf79ac, 0xf79ba]
+    for (const change of FIGHT_CHANGES) {
+      const patched = decode(change.patched)
+      patched.forEach((byte, i) => {
+        if (!pointers.some((p) => change.at + i >= p && change.at + i < p + 4)) expect(fighting.bytes[change.at + i]).toBe(byte)
+      })
+    }
     for (const block of FIGHT_BLOCKS) expect(fighting.bytes[block.at]).toBe(decode(block.bytes)[0])
     // The menu's starting choice: 0 Off, 1 On, 2 Arcade, in loadDefFight.
     for (const [choice, value] of [['off', 0], ['on', 1], ['arcade', 2]] as const) {
@@ -55,8 +65,10 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     const periodLengths = fighting.settings.periodLengths.map((p, i) => (i === 0 ? { ...p, text: '4 Minutes' } : p))
     const again = openRom(buildRom({ ...fighting, settings: { ...fighting.settings, periodLengths } }))
     expect(again.settings.periodLengths[0].text).toBe('4 Minutes')
-    // The menu reads the patched copy.
-    expect(new TextDecoder().decode(again.bytes.subarray(0x209438 + 2, 0x209438 + 11))).toBe('4 Minutes')
+    // The menu reads the copy the editor made, where the cmpa.l at $F7BB8 points.
+    const periods = (again.bytes[0xf7bba] << 24) | (again.bytes[0xf7bbb] << 16) | (again.bytes[0xf7bbc] << 8) | again.bytes[0xf7bbd]
+    expect(periods).toBeGreaterThan(0x209640)
+    expect(new TextDecoder().decode(again.bytes.subarray(periods + 2, periods + 11))).toBe('4 Minutes')
   })
 
   it('does not go with head bleeding yet, either way round', () => {
@@ -70,5 +82,32 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     const { project } = openProjectFile(fresh(), saveProjectFile(fighting, fresh(), 'Fights'))
     expect(detectHacks(project.bytes).choices.fighting).toBe('off')
     expect(same(buildRom(project), buildRom(fighting))).toBe(true)
+  })
+})
+
+describe.skipIf(leagues.length === 0)("chaos's fighting patch in the ROMs on this computer", () => {
+  // Numbered, so that no ROM's name appears in the test results.
+  leagues.forEach((name, n) => {
+    it(`ROM ${n + 1}: goes in with the league's own menu kept, or says why not`, () => {
+      const opened = openRom(new Uint8Array(readFileSync(path(name))))
+      const choices = detectHacks(opened.bytes).choices
+      let fighting
+      try {
+        fighting = applyHacks(opened, { ...choices, fighting: 'arcade' })
+      } catch (e) {
+        expect((e as Error).message).toMatch(/\./)
+        return
+      }
+      const again = openRom(buildRom(fighting))
+      expect(detectHacks(again.bytes).choices.fighting).toBe('arcade')
+      // The menu as the league has it: captions, choices, starting values, the teams offered and the period lengths.
+      expect(again.settings.menu).toEqual(opened.settings.menu)
+      expect(again.settings.menuTeams).toEqual(opened.settings.menuTeams)
+      expect(again.settings.periodLengths).toEqual(opened.settings.periodLengths)
+      expect(again.teams.map((t) => t.names.join())).toEqual(opened.teams.map((t) => t.names.join()))
+      // Taken out, the ROM is as it is with its hacks put in again without it.
+      const out = applyHacks(again, choices)
+      expect(same(buildRom(out), buildRom(applyHacks(opened, choices)))).toBe(true)
+    })
   })
 })
