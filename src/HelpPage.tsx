@@ -1477,7 +1477,8 @@ export function HelpPage() {
           but never ends tied. Tested in the game by the NHL94 Match Viewer project. <b>A shootout</b> settles a game
           still tied after its overtime with the game's own shootout, as its Shootout mode plays one: five shooters a
           side, then one each until a team is ahead. The winners get one goal more on the scoreboard, and the game then
-          ends as any other, with its stats and Stars of the Game. Not yet tested in the game. Either way, playoffs are
+          ends as any other, with its stats and Stars of the Game. <b>A shootout after period 3</b> does the same
+          straight after regulation, with no overtime. Neither shootout is tested in the game yet. Either way, playoffs are
           unchanged. Both rest on two places in the game's end-of-period code that Match Viewer found.
         </li>
         <li>

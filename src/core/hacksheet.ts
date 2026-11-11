@@ -40,7 +40,9 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
   seasonTies: (c) =>
-    c.seasonTies === 'shootout'
+    c.seasonTies === 'shootoutNow'
+      ? 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime, the winners getting one goal more, so it never ends in a tie.'
+      : c.seasonTies === 'shootout'
       ? 'A regular-season game tied after overtime is settled by a shootout, the winners getting one goal more, so it never ends in a tie.'
       : 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   fighting: (choices) =>

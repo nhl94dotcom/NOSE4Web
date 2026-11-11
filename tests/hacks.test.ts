@@ -339,6 +339,20 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     // The start code clears gmdir, so the shooters attack Shootout mode's ends (Match Viewer), and keeps the team structs.
     const startAt = (shootout.bytes[0x1725e] << 24) | (shootout.bytes[0x1725f] << 16) | (shootout.bytes[0x17260] << 8) | shootout.bytes[0x17261]
     expect(at(shootout.bytes, startAt + 54, 6)).toBe('08b80001c2ea')
+    // Or straight after period 3: the tie test calls code that starts the shootout first; .eop and $1725C stay.
+    const now = applyHacks(opened, { ...NO_HACKS, seasonTies: 'shootoutNow' })
+    expect(detectHacks(now.bytes)).toEqual({ choices: { ...NO_HACKS, seasonTies: 'shootoutNow' }, unknown: [] })
+    expect(at(now.bytes, 0x17262, 2)).toBe('4eb9')
+    expect(at(now.bytes, 0x17268, 2)).toBe('4e71')
+    expect(at(now.bytes, 0x1725c, 6)).toBe('31fc0004c466')
+    expect(at(now.bytes, 0x7c4c, 2)).toBe('67c8')
+    expect(at(now.bytes, 0xfc4ca, 2)).toBe('4eb9')
+    for (const other of ['tie', 'overtime', 'shootout'] as const) {
+      const changed = applyHacks(now, { ...NO_HACKS, seasonTies: other })
+      expect(detectHacks(changed.bytes).choices.seasonTies).toBe(other)
+      expect(at(changed.bytes, 0x17262, 8)).toBe('3038c6da9078ca3e')
+    }
+    expect(Array.from(buildRom(applyHacks(now, NO_HACKS)))).toEqual(Array.from(buildRom(opened)))
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')

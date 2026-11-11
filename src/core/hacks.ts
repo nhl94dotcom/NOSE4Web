@@ -173,7 +173,7 @@ export interface HackChoices {
 }
 
 export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
-export type SeasonTies = 'tie' | 'overtime' | 'shootout'
+export type SeasonTies = 'tie' | 'overtime' | 'shootout' | 'shootoutNow'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
 export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
@@ -731,12 +731,43 @@ const SHOOTOUT_END = bytes(
 )
 const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
 
+// Or the shootout straight after period 3, with no overtime. PeriodOver's tie
+// test (.1: move.w (HmGoals).w,d0; sub.w (AwGoals).w,d0, then beq to play on)
+// runs after every period; it becomes a call to code that, in the regular
+// season (OptPlayMode 0) with period 3 just over (gsp 3), first runs the
+// shootout's start code above, then does the same test, so the beq that
+// follows sees its result. The start code itself checks the score is tied.
+// Overtime then never comes, so .eop and the move after overtime stay as
+// they are; the end code is the same.
+//   tst.w (OptPlayMode).w; bne.s .t; cmpi.w #3,(gsp).w; bne.s .t; jsr start
+//   .t move.w (HmGoals).w,d0; sub.w (AwGoals).w,d0; rts
+const TIE_TEST_HOOK: Hook = { at: 0x17262, original: bytes('3038 C6DA 9078 CA3E') }
+const hex8 = (value: number) => value.toString(16).padStart(8, '0')
+const nowCode = (start: number) =>
+  bytes(`4A78 D048 660E 0C78 0003 C466 6606 4EB9 ${hex8(start)} 3038 C6DA 9078 CA3E 4E75`)
+const NOW_JSR_AT = 16
+const NOW_LENGTH = 30
+// Where the tie test calls code for the shootout after period 3, and where that code's start code is.
+function nowHooked(rom: Uint8Array): { at: number; start: number } | null {
+  if (readU16(rom, TIE_TEST_HOOK.at) !== OP_JSR || readU16(rom, TIE_TEST_HOOK.at + 6) !== OP_NOP) return null
+  const at = readU32(rom, TIE_TEST_HOOK.at + 2)
+  if (at + NOW_LENGTH > rom.length) return null
+  const start = readU32(rom, at + NOW_JSR_AT)
+  if (!is(rom, at, nowCode(start)) || !is(rom, start, SHOOTOUT_START)) return null
+  return { at, start }
+}
+
 const seasonTies: Part<SeasonTies> = {
   detect(rom) {
     if (!is(rom, TIES_AT - TIES_BEFORE.length, TIES_BEFORE) || !is(rom, EOP_AT - EOP_BEFORE.length, EOP_BEFORE)) return undefined
     if (!is(rom, SHOOTOUT_END_HOOK.at - SHOOTOUT_END_BEFORE.length, SHOOTOUT_END_BEFORE)) return undefined
     const eop = is(rom, EOP_AT, EOP.original) ? 'tie' : is(rom, EOP_AT, EOP.overtime) ? 'overtime' : undefined
     const endOriginal = is(rom, SHOOTOUT_END_HOOK.at, SHOOTOUT_END_HOOK.original)
+    const now = nowHooked(rom)
+    if (now !== null) {
+      return hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null && eop === 'tie' && is(rom, TIES_AT, TIES.original) ? 'shootoutNow' : undefined
+    }
+    if (!is(rom, TIE_TEST_HOOK.at, TIE_TEST_HOOK.original)) return undefined
     if (hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
       return eop === 'overtime' ? 'shootout' : undefined
     }
@@ -745,6 +776,12 @@ const seasonTies: Part<SeasonTies> = {
     return is(rom, TIES_AT, TIES.overtime) && eop ? 'overtime' : undefined
   },
   remove(rom) {
+    const now = nowHooked(rom)
+    if (now !== null) {
+      erase(rom, now.at, NOW_LENGTH)
+      erase(rom, now.start, SHOOTOUT_START.length)
+      rom.set(TIE_TEST_HOOK.original, TIE_TEST_HOOK.at)
+    }
     const start = hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START)
     if (start !== null) erase(rom, start, SHOOTOUT_START.length)
     const end = hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END)
@@ -757,6 +794,12 @@ const seasonTies: Part<SeasonTies> = {
   },
   apply(work, value) {
     if (value === 'tie') return
+    if (value === 'shootoutNow') {
+      const start = place(work, SHOOTOUT_START)
+      hook(work, TIE_TEST_HOOK, nowCode(start))
+      hook(work, SHOOTOUT_END_HOOK, SHOOTOUT_END)
+      return
+    }
     work.rom.set(EOP.overtime, EOP_AT)
     if (value === 'overtime') {
       work.rom.set(TIES.overtime, TIES_AT)
