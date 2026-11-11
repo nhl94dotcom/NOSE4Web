@@ -1,4 +1,4 @@
-import { FRAMES_PER_SECOND, type SongEvent } from './core/genesismusic'
+import { DRUMS, FRAMES_PER_SECOND, isSampled, type SongEvent } from './core/genesismusic'
 
 // A rough preview of a song in the browser: each note an organ-like tone
 // (a few harmonics), at its volume. The console's FM organ sounds different,
@@ -30,8 +30,16 @@ export function playSong(events: SongEvent[], onEnd: () => void): () => void {
       oscillator.stop(to + 0.05)
     }
   }
+  // Channels on a sampled sound (the claps), and the drums', are not notes: they are left out.
+  const sampled = new Set<number>()
   for (const event of events) {
     const command = event.status & 0xf0
+    const channel = event.status & 0x0f
+    if (command === 0xc0) {
+      if (isSampled(event.data[0])) sampled.add(channel)
+      else sampled.delete(channel)
+    }
+    if (channel === DRUMS || sampled.has(channel)) continue
     const key = `${event.status & 0x0f}:${event.data[0]}`
     const at = start + event.frame / FRAMES_PER_SECOND
     if (command === 0x90 && event.data[1] > 0) on.set(key, { at, volume: event.data[1] })

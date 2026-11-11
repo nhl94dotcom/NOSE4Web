@@ -109,6 +109,41 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
     expect(Buffer.compare(openProjectFile(edited, text).project.bytes, edited.bytes)).toBe(0)
   })
 
+  it('keeps the tune over held chords, past four notes at once', () => {
+    // Four notes held for 2 s, then a melody above them, its notes running into each other; and a low note
+    // under the full chord, which is left out.
+    const chord = [48, 52, 55, 60].map((note) => ({ start: 0, length: 2, note, velocity: 100, channel: 0 }))
+    const tune = [72, 74].map((note, i) => ({ start: 0.5 + i * 0.5, length: 0.6, note, velocity: 100, channel: 0 }))
+    const low = { start: 0.6, length: 0.2, note: 40, velocity: 100, channel: 0 }
+    const made = songFromMidi([...chord, ...tune, low])
+    const ons = made.events.filter((e) => e.status === 0x90).map((e) => e.data[0])
+    expect(ons).toEqual([48, 52, 55, 60, 72, 74])
+    expect(made.dropped).toBe(3)
+    // The lowest held notes were cut short for the tune: 48 at its first note, 52 at its second.
+    const off = (note: number) => made.events.find((e) => e.status === 0x80 && e.data[0] === note)!.frame
+    expect([off(48), off(52), off(55)]).toEqual([30, 60, 120])
+  })
+
+  it("exports the game's claps as MIDI hand claps, and names a song by its track name over a comment", () => {
+    const rom = open().bytes
+    // Song 8, You Say It's Your Birthday {Claps}: its claps are on a sampled patch, on channel 7.
+    const claps = readSong(rom, 0x37)!
+    expect(claps.events.some((e) => (e.status & 0xf0) === 0xc0 && e.data[0] >= 0x60)).toBe(true)
+    const { notes } = readMidi(songToMidi(claps))
+    expect(notes.filter((n) => n.channel === 9).every((n) => n.note === 39)).toBe(true)
+    expect(notes.some((n) => n.channel === 9)).toBe(true)
+    // A text event before the track name: the track name wins.
+    const vlqMidi = Uint8Array.from([
+      ...[0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 96],
+      ...[0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, 30],
+      ...[0, 0xff, 0x01, 4, 0x28, 0x63, 0x29, 0x20],
+      ...[0, 0xff, 0x03, 4, 0x53, 0x6f, 0x6e, 0x67],
+      ...[0, 0x90, 60, 100, 48, 0x80, 60, 0],
+      ...[0, 0xff, 0x2f, 0],
+    ])
+    expect(readMidi(vlqMidi).name).toBe('Song')
+  })
+
   it('makes no song of drums alone, and takes very long files', () => {
     expect(() => songFromMidi([{ start: 0, length: 1, note: 36, velocity: 100, channel: 9 }])).toThrow('only drums')
     const many = Array.from({ length: 200000 }, (_, i) => ({ start: i * 0.01, length: 0.005, note: 60 + (i % 12), velocity: 90, channel: 0 }))

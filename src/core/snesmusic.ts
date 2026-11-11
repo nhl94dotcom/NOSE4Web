@@ -21,7 +21,7 @@ import type { RomProject } from './rom'
 import { loRomAddress, loRomBank, loRomOffset } from './snes'
 import { freeSpace, keptBanks } from './snespictures'
 import { snesSongPointerEntries } from './snessongs'
-import { FRAMES_PER_SECOND, MidiError, type MadeSong, type MidiNote, type SongEvent } from './genesismusic'
+import { DRUMS, FRAMES_PER_SECOND, MidiError, type MadeSong, type MidiNote, type SongEvent } from './genesismusic'
 
 const NOTE_OFFSET = 104
 const LOWEST_MIDI = 26
@@ -31,7 +31,6 @@ const HARMONY = 12
 const VELOCITY = 110
 const TEMPO = 157 // a tick a frame
 export const SNES_SONG_VOICES = 4
-const DRUMS = 9
 const MARK = 'N4W1'
 // Frames two notes may overlap and still count as one after the other.
 const LEGATO = 3
@@ -82,6 +81,8 @@ export function readSnesSong(rom: Uint8Array, pointer: number): SnesSong | null 
   tracks.forEach((start, track) => {
     const p = { at: start }
     let tick = 0
+    // A track on another instrument than the two organs (the claps, 106) is the drums', as hand claps.
+    let organ = true
     for (let i = 0; i < 5000 && p.at < rom.length; i++) {
       tick += readVarLen(rom, p)
       const code = rom[p.at++]
@@ -92,8 +93,9 @@ export function readSnesSong(rom: Uint8Array, pointer: number): SnesSong | null 
         if (note < 0 || note > 127) continue
         const on = Math.round((tick / perSecond) * FRAMES_PER_SECOND)
         const off = Math.round(((tick + Math.max(1, length)) / perSecond) * FRAMES_PER_SECOND)
-        events.push({ frame: on, status: 0x90 | track, data: [note, Math.max(1, Math.round(velocity / 3))] })
-        events.push({ frame: Math.max(on + 1, off), status: 0x80 | track, data: [note, 0x40] })
+        const channel = organ ? Math.min(track, 15) : DRUMS
+        events.push({ frame: on, status: 0x90 | channel, data: [note, Math.max(1, Math.round(velocity / 3))] })
+        events.push({ frame: Math.max(on + 1, off), status: 0x80 | channel, data: [note, 0x40] })
         continue
       }
       if (code === 0xd9 || code === 0xda || code === 0xdb) {
@@ -106,7 +108,8 @@ export function readSnesSong(rom: Uint8Array, pointer: number): SnesSong | null 
         if (track === 0 && text.startsWith(MARK)) custom = { replaced: parseInt(text.slice(4, 12), 16) >>> 0, name: text.slice(13).replace(/\0+$/, '') }
         p.at += length + 1
       } else if (code === 0xdf || code === 0xe5) p.at += 2
-      else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) p.at += 1
+      else if (code === 0xdc) organ = [MELODY, HARMONY].includes(rom[p.at++])
+      else if (code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) p.at += 1
     }
   })
   events.sort((a, b) => a.frame - b.frame || (a.status & 0xf0) - (b.status & 0xf0))
@@ -139,9 +142,13 @@ export function snesSongFromMidi(notes: MidiNote[]): MadeSong & { tracks: { tick
     active = active.filter((other) => other.off > on)
     for (const other of active) if (other.note === note) other.off = on
     active = active.filter((other) => other.off > on)
+    // Past the voices: the lowest note held is cut short for a higher one; one no higher is left out.
     if (active.length >= SNES_SONG_VOICES) {
       dropped++
-      continue
+      const lowest = active.reduce((low, o) => (o.note < low.note ? o : low))
+      if (note <= lowest.note) continue
+      lowest.off = on
+      active = active.filter((o) => o !== lowest)
     }
     const p = { on, off, note }
     played.push(p)

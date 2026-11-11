@@ -34,7 +34,10 @@ export const SONG_VOICES = 4
 const LOWEST = 12
 const HIGHEST = 95
 const MARK = [0x4e, 0x34, 0x57, 0x31] // N4W1
-const DRUMS = 9
+export const DRUMS = 9
+// Patches from $60 are sampled sounds (the claps), not notes; MIDI's hand clap stands for them.
+export const isSampled = (patch: number) => patch >= 0x60
+const HAND_CLAP = 39
 
 const u16 = (rom: Uint8Array, at: number) => (rom[at] << 8) | rom[at + 1]
 const u32 = (rom: Uint8Array, at: number) => ((rom[at] << 24) | (rom[at + 1] << 16) | (rom[at + 2] << 8) | rom[at + 3]) >>> 0
@@ -134,6 +137,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
   type Raw = { tick: number; order: number; kind: 'on' | 'off' | 'tempo'; channel: number; note: number; velocity: number; tempo: number }
   const raw: Raw[] = []
   let name = ''
+  let comment = ''
   let at = 8 + u32(bytes, 4)
   let order = 0
   for (let track = 0; track < trackCount && at + 8 <= bytes.length; track++) {
@@ -160,7 +164,10 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
         const type = bytes[p++]
         const length = vlq()
         if (type === 0x51 && length === 3) raw.push({ tick, order: order++, kind: 'tempo', channel: 0, note: 0, velocity: 0, tempo: (bytes[p] << 16) | (bytes[p + 1] << 8) | bytes[p + 2] })
-        if ((type === 0x03 || type === 0x01) && !name) name = text(p, length).replace(/[^\x20-\x7e]/g, '').trim()
+        // The first track name; a plain text only where there is none (it is often a copyright or a comment).
+        const said = () => text(p, length).replace(/[^\x20-\x7e]/g, '').trim()
+        if (type === 0x03 && !name) name = said()
+        if (type === 0x01 && !comment) comment = said()
         p += length
         continue
       }
@@ -203,7 +210,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
   }
   if (notes.length === 0) throw new MidiError('This MIDI file has no notes.')
   notes.sort((a, b) => a.start - b.start || a.note - b.note)
-  return { notes, name }
+  return { notes, name: name || comment }
 }
 
 export interface MadeSong {
@@ -242,9 +249,14 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
     active = active.filter((other) => other.off > on)
     for (const other of active) if (other.note === note) other.off = on
     active = active.filter((other) => other.off > on)
+    // Past the voices: the tune is usually on top, so the lowest note held is cut short for a higher one,
+    // and a note no higher than every one held is left out.
     if (active.length >= SONG_VOICES) {
       dropped++
-      continue
+      const lowest = active.reduce((low, o) => (o.note < low.note ? o : low))
+      if (note <= lowest.note) continue
+      lowest.off = on
+      active = active.filter((o) => o !== lowest)
     }
     // A third of the MIDI velocity, as songToMidi gives three times the game's volume: 105 is the organ's 35.
     const volume = Math.max(1, Math.min(127, Math.round(midi.velocity / 3)))
@@ -337,13 +349,21 @@ export function songToMidi(song: { events: SongEvent[] }, name = ''): Uint8Array
   vlq(0)
   track.push(0xff, 0x51, 3, 0x0f, 0x42, 0x40) // 1,000,000 microseconds a beat
   let frame = 0
+  // Channels on a sampled sound (the claps) go out on MIDI's drum channel, as hand claps.
+  const sampled = new Set<number>()
   for (const event of song.events) {
     const command = event.status & 0xf0
-    const channel = event.status & 0x0f
+    let channel = event.status & 0x0f
+    if (command === 0xc0) {
+      if (isSampled(event.data[0])) sampled.add(channel)
+      else sampled.delete(channel)
+    }
+    const clap = sampled.has(channel) || channel === DRUMS
+    if (clap) channel = DRUMS
     let bytes: number[] | null = null
-    if (command === 0x90) bytes = [0x90 | channel, event.data[0] & 0x7f, Math.min(127, event.data[1] * 3)]
-    else if (command === 0x80) bytes = [0x80 | channel, event.data[0] & 0x7f, 0x40]
-    else if (command === 0xc0) bytes = [0xc0 | channel, event.data[0] === ORGAN ? 16 : event.data[0] & 0x7f]
+    if (command === 0x90) bytes = [0x90 | channel, clap ? HAND_CLAP : event.data[0] & 0x7f, Math.min(127, event.data[1] * 3)]
+    else if (command === 0x80) bytes = [0x80 | channel, clap ? HAND_CLAP : event.data[0] & 0x7f, 0x40]
+    else if (command === 0xc0 && !clap) bytes = [0xc0 | channel, event.data[0] === ORGAN ? 16 : event.data[0] & 0x7f]
     else if (command === 0xb0 && event.data[0] === 7) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
     if (!bytes) continue
     vlq(event.frame - frame)

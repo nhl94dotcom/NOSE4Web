@@ -802,7 +802,7 @@ export function HelpPage() {
           <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts a MIDI file of your own in its place:
           <ul>
             <li>every note is played on the game's organ, at most four at once (the console has five voices,
-            shared with the sound effects), and later notes past four are left out;</li>
+            shared with the sound effects); where more sound at once, the highest are kept, as the tune is usually on top;</li>
             <li>drums are left out, and notes too low or too high are moved by octaves into the game's range;</li>
             <li>every team with that song in one of its slots plays the new one, which the team pages name;</li>
             <li><b>Put back the original</b> restores the game's song.</li>
