@@ -1,7 +1,19 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ANNOUNCER_HEIGHT, ANNOUNCER_WIDTH, genesisAnnouncer, genesisAnnouncerFromImage, withGenesisAnnouncer, withOriginalGenesisAnnouncer } from '../src/core/announcer'
+import {
+  ANNOUNCER_HEIGHT,
+  ANNOUNCER_WIDTH,
+  genesisAnnouncer,
+  genesisAnnouncerFromImage,
+  SNES_ANNOUNCER_VIEW,
+  snesAnnouncer,
+  snesAnnouncerFromImage,
+  withGenesisAnnouncer,
+  withOriginalGenesisAnnouncer,
+  withOriginalSnesAnnouncer,
+  withSnesAnnouncer,
+} from '../src/core/announcer'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 
@@ -60,5 +72,42 @@ describe.skipIf(!existsSync(GENESIS))('the announcer picture, Genesis', () => {
     other[0x150] ^= 1
     const { project: opened } = openProjectFile(openRom(other), text)
     expect(Array.from(genesisAnnouncer(opened)!.picture.pixels)).toEqual(Array.from(genesisAnnouncer(changed)!.picture.pixels))
+  })
+})
+
+const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
+const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const snesRoms = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
+
+describe.skipIf(snesRoms.length === 0)('the announcer picture, SNES', () => {
+  // Numbered, so that no ROM's name appears in the test results.
+  snesRoms.forEach((name, n) => {
+    it(`SNES ROM ${n + 1}: reads Ron Barr, puts in a picture of its own in the free corner, and the original back`, () => {
+      const project = openRom(new Uint8Array(readFileSync(path(name))))
+      const before = snesAnnouncer(project)!
+      expect(before.original).toBe(true)
+      expect(before.picture.pixels.some((c) => c !== 0)).toBe(true)
+      const made = snesAnnouncerFromImage(halves(90, 160), 90, 160)
+      expect(made.tiles.length).toBeLessThanOrEqual(152)
+      const changed = withSnesAnnouncer(project, made)
+      const reopened = openRom(buildRom(changed))
+      const after = snesAnnouncer({ ...reopened, source: project.source })!
+      expect(after.original).toBe(false)
+      const { width, left } = SNES_ANNOUNCER_VIEW
+      const at = (x: number, y: number) => after.picture.pixels[y * width + x]
+      // Left of the corner, the frame; in it, red then blue.
+      expect(at(left - 4, 60)).toBe(0)
+      expect(after.palette[at(left + 10, 60)]).toBe(0x001f)
+      expect(after.palette[at(left + 60, 60)]).toBe(0x7c00)
+      // Colour 0, see-through, as it was.
+      expect(after.palette[0]).toBe(before.palette[0])
+      // Put back, and kept in a project file.
+      expect(snesAnnouncer(withOriginalSnesAnnouncer(changed))!.original).toBe(true)
+      const text = saveProjectFile(changed, openRom(new Uint8Array(readFileSync(path(name)))), 'Work')
+      const other = new Uint8Array(readFileSync(path(name)))
+      other[other.length - 1] ^= 1
+      const { project: opened } = openProjectFile(openRom(other), text)
+      expect(Array.from(snesAnnouncer(opened)!.picture.pixels)).toEqual(Array.from(snesAnnouncer(changed)!.picture.pixels))
+    })
   })
 })

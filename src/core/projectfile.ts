@@ -5,7 +5,14 @@
 
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
-import { genesisAnnouncerBytes, withGenesisAnnouncerBytes, withOriginalGenesisAnnouncer } from './announcer'
+import {
+  genesisAnnouncerBytes,
+  snesAnnouncerBytes,
+  withGenesisAnnouncerBytes,
+  withOriginalGenesisAnnouncer,
+  withOriginalSnesAnnouncer,
+  withSnesAnnouncerBytes,
+} from './announcer'
 import { customSongBytes, withSongBytes } from './genesismusic'
 import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
 import { snesSongChoices } from './snessongs'
@@ -556,7 +563,11 @@ const sameBytes = (a: Uint8Array | null, b: Uint8Array | null) => a === b || (!!
 
 // The splash screen and main menu background, where the project has changed them from the ROM it opened.
 function savedScreens(project: RomProject, opened: RomProject): ProjectFile['screens'] {
-  if (project.game.platform !== 'genesis') return undefined
+  if (project.game.platform === 'snes') {
+    // The SNES has only the announcer's picture of these.
+    const announcer = snesAnnouncerBytes(project)
+    return sameBytes(announcer, snesAnnouncerBytes(opened)) ? undefined : { announcer: announcer ? { bytes: pack(announcer) } : { original: true } }
+  }
   const screens: NonNullable<ProjectFile['screens']> = {}
   const [splash, was] = [splashBytes(project.bytes), splashBytes(opened.bytes)]
   if (!sameBytes(splash?.bytes ?? null, was?.bytes ?? null) || splash?.ownColours !== was?.ownColours) {
@@ -571,7 +582,22 @@ function savedScreens(project: RomProject, opened: RomProject): ProjectFile['scr
 
 // The project's splash screen and main menu background put in, where this ROM can take them.
 function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], notes: string[]): RomProject {
-  if (project.game.platform !== 'genesis' || !screens) return project
+  if (!screens) return project
+  if (project.game.platform === 'snes') {
+    const announcer = screens.announcer
+    if (!announcer) return project
+    try {
+      if ('original' in announcer) {
+        if (snesAnnouncerBytes(project)) project = withOriginalSnesAnnouncer(project)
+      } else {
+        const bytes = unpack(announcer.bytes)
+        if (!sameBytes(snesAnnouncerBytes(project), bytes)) project = withSnesAnnouncerBytes(project, bytes)
+      }
+    } catch {
+      notes.push("The project's announcer picture could not be put into this ROM, and was left out.")
+    }
+    return project
+  }
   const left: string[] = []
   const splash = screens.splash
   if (splash) {

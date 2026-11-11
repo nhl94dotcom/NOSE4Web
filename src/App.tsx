@@ -370,7 +370,7 @@ export default function App() {
           >
             {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
-            {current.game.platform === 'genesis' && <AnnouncerSection project={current} onChange={change} />}
+            <AnnouncerSection project={current} onChange={change} />
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             <MoveTeamsSection project={current} onChange={change} />
