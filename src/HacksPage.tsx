@@ -976,8 +976,10 @@ export function HacksPage({ project, name, onChange }: Props) {
             side and then a shooter each until one team is ahead; the winners get one goal more on the scoreboard, and
             the game ends as any other. Playoffs always play overtime until a goal, as they did. Match Viewer found the two places in the game's
             code that end a tied regular-season game, and has tested overtime until a goal in the game: a tied
-            game played three more overtimes before a goal ended it normally, and playoffs played as before. The
-            shootouts are not yet tested in the game.
+            game played three more overtimes before a goal ended it normally, and playoffs played as before. Both
+            shootouts are tested too, on the original game and on a league ROM with plus-minus: the winners' goal is
+            the only change to the score and stats, the saved record is the same as for a win in regulation, and
+            Shootout mode is as it was.
           </>,
         )}
         {hack(

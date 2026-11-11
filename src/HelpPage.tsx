@@ -1478,7 +1478,8 @@ export function HelpPage() {
           still tied after its overtime with the game's own shootout, as its Shootout mode plays one: five shooters a
           side, then one each until a team is ahead. The winners get one goal more on the scoreboard, and the game then
           ends as any other, with its stats and Stars of the Game. <b>A shootout after period 3</b> does the same
-          straight after regulation, with no overtime. Neither shootout is tested in the game yet. Either way, playoffs are
+          straight after regulation, with no overtime. Both are tested in the game by Match Viewer: the winners'
+          goal is the only change to the score and stats, and the win is saved as a regulation win would be. Either way, playoffs are
           unchanged. Both rest on two places in the game's end-of-period code that Match Viewer found.
         </li>
         <li>
