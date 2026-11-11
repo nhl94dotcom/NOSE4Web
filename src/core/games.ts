@@ -62,6 +62,9 @@ export interface GameConfig {
   // What each of a strip's 16 colours is used for, and whether that is known:
   // hacks that repaint the players use the colours their own way.
   stripColorLabels: string[]
+  // The order the team page shows a strip's colours in: down the player from
+  // helmet and jersey to skates, then the rest. Stored order where absent.
+  stripColorOrder?: number[]
   stripColorsKnown: boolean
   // The 16 seedings in a playoff draw, in the order they are stored.
   playoffSlotLabels: string[]
@@ -140,6 +143,7 @@ export const NHL94: GameConfig = {
     'Shoulder/Trim fill', 'Helmet/Body/Leg (medium)', 'Helmet/Body/Leg (light)',
     'Helmet/Body/Leg (dark)', 'Stick', 'Shadow',
   ],
+  stripColorOrder: [12, 11, 13, 10, 9, 8, 5, 4, 3, 2, 1, 6, 7, 14, 15, 0],
   playoffSlotLabels: [
     'East 1', 'East 8', 'East 3', 'East 6', 'East 5', 'East 4', 'East 7', 'East 2',
     'West 1', 'West 8', 'West 3', 'West 6', 'West 5', 'West 4', 'West 7', 'West 2',
@@ -209,6 +213,7 @@ export const NHL94_EVO: GameConfig = {
   productCode: 'GM T-50656-F3V',
   headerName: 'NHL 94: EVO',
   stripColorsKnown: false,
+  stripColorOrder: undefined,
   title: 'NHL 94: EVO',
   teamCount: 64,
   teamNameRedirects: [],
@@ -265,6 +270,7 @@ export const NHL94_SNES: GameConfig = {
     'Not drawn on players', 'Skate blades', 'Skates and stick tape', 'Gloves', 'Pants', 'Socks', 'Shoulder trim',
     'Skin', 'Stripe 1', 'Stripe 2', 'Stripe 3', 'Jersey shading', 'Jersey and helmet', 'Shoulders', 'Stick', 'Shadow',
   ],
+  stripColorOrder: [12, 11, 13, 6, 8, 9, 10, 3, 4, 5, 2, 1, 7, 14, 15, 0],
   notice:
     "This ROM is NHL '94 for the SNES. The editor can change its rosters, lines, team names, team ratings, " +
     "colours and logos, the rink's colours and the game settings, and put in the hacks on the Hacks page. SNES " +

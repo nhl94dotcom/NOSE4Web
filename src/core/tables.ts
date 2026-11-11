@@ -304,12 +304,12 @@ const teams: CsvTable = {
     'Team names, team ratings, home and away colours, and on the SNES the overall rating shown. Only the columns present in the file are changed, and an empty cell keeps the current value.',
 
   rows(project) {
-    const snes = project.game.platform === 'snes'
     const format = colorFormat(project.game.platform)
     const colours = project.teams[0]?.palette.length ? COLOR_COLUMNS : []
-    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...ratingColumns(project), ...(snes ? [SHOWN_OVERALL_COLUMN] : []), ...colours]]
+    const shown = project.teams[0]?.shownOverall !== undefined
+    const rows: Cell[][] = [['Team', ...NAME_COLUMNS, ...GOALIE_BYTE_COLUMNS, ...ratingColumns(project), ...(shown ? [SHOWN_OVERALL_COLUMN] : []), ...colours]]
     project.teams.forEach((team, t) => {
-      const overall = snes ? [team.shownOverall ?? 0] : []
+      const overall = shown ? [team.shownOverall ?? 0] : []
       rows.push([t + 1, ...team.names, ...team.goalieNibbles, ...teamRatings(team), ...overall, ...team.palette.map((word) => cssHex(word, format))])
     })
     return rows

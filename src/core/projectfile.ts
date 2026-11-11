@@ -5,6 +5,7 @@
 
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
+import { genesisAnnouncerBytes, withGenesisAnnouncerBytes, withOriginalGenesisAnnouncer } from './announcer'
 import { customSongBytes, withSongBytes } from './genesismusic'
 import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
 import { snesSongChoices } from './snessongs'
@@ -67,7 +68,11 @@ interface ProjectFile {
   songs?: { genesis?: { number: number; bytes: string }[]; snes?: { pointer: number; bytes: string }[] }
   // The Genesis's splash screen and main menu background, where the project changed them: the original's
   // again, or a picture of the league's own as its bytes.
-  screens?: { splash?: { original: true } | { bytes: string; ownColours: boolean }; menuPicture?: { original: true } | { bytes: string } }
+  screens?: {
+    splash?: { original: true } | { bytes: string; ownColours: boolean }
+    menuPicture?: { original: true } | { bytes: string }
+    announcer?: { original: true } | { bytes: string }
+  }
   // The finished ROM, as a patch to the ROM the project was made on, and that
   // ROM's fingerprint. Opened over the same ROM, it puts back everything,
   // including what is kept only in the ROM itself: player photos, score
@@ -201,7 +206,8 @@ function checkPlayer(player: unknown): boolean {
 function checkTeam(team: StoredTeam, like: Team): boolean {
   return (
     isNumbers(team?.palette, like.palette.length, 0xffff) &&
-    (like.shownOverall === undefined || (Number.isInteger(team.shownOverall) && team.shownOverall! >= 0 && team.shownOverall! <= 0xff)) &&
+    // Files from before the Genesis's shown rating was read have none for it.
+    (like.shownOverall === undefined || team.shownOverall === undefined || (Number.isInteger(team.shownOverall) && team.shownOverall >= 0 && team.shownOverall <= 0xff)) &&
     isNumbers(team.teamBytes, like.teamBytes.length, 0xff) &&
     isNumbers(team.goalieNibbles, 4, 15) &&
     Number.isInteger(team.forwards) &&
@@ -477,6 +483,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     placeName: placeName(team, i),
     songs: songs(team, i),
     snesSongs: snesSongs(team, i),
+    shownOverall: team.shownOverall ?? project.teams[i].shownOverall,
   }))
   const settings = hasSettings(game, project.settings) && file.settings ? mergeSettings(project.settings, file.settings, teams.length, notes) : project.settings
   const freeAgents = (Array.isArray(file.freeAgents) ? file.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role))
@@ -557,7 +564,9 @@ function savedScreens(project: RomProject, opened: RomProject): ProjectFile['scr
   }
   const menu = menuPictureBytes(project.bytes)
   if (!sameBytes(menu, menuPictureBytes(opened.bytes))) screens.menuPicture = menu ? { bytes: pack(menu) } : { original: true }
-  return screens.splash || screens.menuPicture ? screens : undefined
+  const announcer = genesisAnnouncerBytes(project)
+  if (!sameBytes(announcer, genesisAnnouncerBytes(opened))) screens.announcer = announcer ? { bytes: pack(announcer) } : { original: true }
+  return screens.splash || screens.menuPicture || screens.announcer ? screens : undefined
 }
 
 // The project's splash screen and main menu background put in, where this ROM can take them.
@@ -589,6 +598,19 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
       }
     } catch {
       left.push('main menu background')
+    }
+  }
+  const announcer = screens.announcer
+  if (announcer) {
+    try {
+      if ('original' in announcer) {
+        if (genesisAnnouncerBytes(project)) project = withOriginalGenesisAnnouncer(project)
+      } else {
+        const bytes = unpack(announcer.bytes)
+        if (!sameBytes(genesisAnnouncerBytes(project), bytes)) project = withGenesisAnnouncerBytes(project, bytes)
+      }
+    } catch {
+      left.push('announcer picture')
     }
   }
   if (left.length > 0) notes.push(`The project's ${left.join(' and ')} could not be put into this ROM, and ${left.length === 1 ? 'was' : 'were'} left out.`)

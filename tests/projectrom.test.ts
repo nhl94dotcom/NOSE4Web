@@ -10,6 +10,7 @@ import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { snesBlockColours, withSnesBlockColours } from '../src/core/snesblockcolours'
 import { snesPhotoPalette, withSnesPhotoPalette } from '../src/core/snesphotos'
 import { teamMovedTo, withTeamOrder } from '../src/core/teamorder'
+import { rosterAverage, shownTeamRatings } from '../src/core/shownrating'
 
 // Project files keep what is kept only in the ROM itself (photos, score
 // logos, head blood, the SNES banner and photo colours) as a patch of the
@@ -79,5 +80,23 @@ describe.skipIf(!existsSync(SNES))('project files with work kept only in the ROM
     expect(JSON.parse(text).rom).toBeDefined()
     expect(notes).toEqual([])
     expect(exact).toBe(true)
+  })
+})
+
+describe.skipIf(!existsSync(GENESIS))('the overall shown, Genesis', () => {
+  it('reads the team rating the player cards show, sets it to the roster average, and writes it', () => {
+    const project = fresh(GENESIS)
+    expect(project.teams.slice(0, 3).map((team) => team.shownOverall)).toEqual([0x33, 0x4c, 0x49])
+    const average = rosterAverage(project.teams[0], project.game)
+    expect(average).toBeGreaterThan(30)
+    expect(average).toBeLessThanOrEqual(99)
+    const set = { ...project, teams: project.teams.map((team, t) => (t === 0 ? { ...team, shownOverall: average } : team)) }
+    const again = openRom(buildRom(set))
+    expect(again.teams[0].shownOverall).toBe(average)
+    expect(shownTeamRatings(again.bytes, 28)![0]).toBe(average)
+    // A project file from before the shown rating was read opens, keeping the ROM's.
+    const text = JSON.parse(saveProjectFile(project, fresh(GENESIS), 'Old'))
+    for (const team of text.teams) delete team.shownOverall
+    expect(openProjectFile(fresh(GENESIS), JSON.stringify(text)).project.teams[1].shownOverall).toBe(0x4c)
   })
 })

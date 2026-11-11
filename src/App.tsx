@@ -50,6 +50,7 @@ import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { MenuPictureSection } from './MenuPictureSection'
 import { MoveTeamsSection } from './MoveTeamsSection'
+import { AnnouncerSection } from './AnnouncerSection'
 import { OrganSongsSection, SnesOrganSongsSection } from './OrganSongsSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
@@ -369,6 +370,7 @@ export default function App() {
           >
             {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
+            {current.game.platform === 'genesis' && <AnnouncerSection project={current} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             <MoveTeamsSection project={current} onChange={change} />
@@ -577,21 +579,23 @@ export default function App() {
       <div className="body">
         {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
         <nav className={navOpen ? 'open' : ''}>
+          {/* The game as a whole first, then the teams (as league members asked). */}
+          {hasSettings(project.game, project.settings) && entry(SETTINGS, 'Game settings')}
+          {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
+          <div className="group">Teams</div>
           {project.teams.map((team, i) => (
             <Fragment key={i}>
               {groupStarts.has(i) && <div className="group">{groupStarts.get(i)}</div>}
-              <button className={i === selected ? 'active' : ''} onClick={() => go(i)}>
+              <button className={i === selected ? 'active' : ''} data-team={i} onClick={() => go(i)}>
                 {groupStarts.size > 0 ? teamDisplayName(team) : teamNames[i]}
               </button>
             </Fragment>
           ))}
           {project.rinkPalette.length > 0 && entry(RINK, 'Rink colours')}
-          {hasSettings(project.game, project.settings) && entry(SETTINGS, 'Game settings')}
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
-          {(hacksSupported(project.game) || project.game.platform === 'snes') && entry(HACKS, 'Hacks')}
           {entry(CSV, 'Spreadsheet files')}
           {(project.graphicsSupported || snesPictureKinds(project).length > 0 || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
           {entry(PROJECT, 'Project file')}

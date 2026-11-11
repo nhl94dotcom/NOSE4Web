@@ -88,11 +88,14 @@ interface EditorProps {
   labels: string[]
   onChange: (palette: number[]) => void
   format?: ColorFormat
+  // The order to show the swatches in, by colour number; stored order where absent.
+  order?: number[]
 }
 
 // A row of colour swatches with controls to change the selected one.
-export function PaletteEditor({ palette, labels, onChange, format = GENESIS_COLORS }: EditorProps) {
-  const [selected, setSelected] = useState(0)
+export function PaletteEditor({ palette, labels, onChange, format = GENESIS_COLORS, order }: EditorProps) {
+  const shown = order && order.length === palette.length ? order : palette.map((_, i) => i)
+  const [selected, setSelected] = useState(shown[0])
   const word = palette[selected]
   const levels = colorLevels(word, format)
 
@@ -139,12 +142,12 @@ export function PaletteEditor({ palette, labels, onChange, format = GENESIS_COLO
   return (
     <div className="palette-editor">
       <div className="palette">
-        {palette.map((w, i) => (
+        {shown.map((i) => (
           <button
             key={i}
             className={i === selected ? 'swatch selected' : 'swatch'}
-            title={`${labels[i]} (${hex(w, 4)})`}
-            style={{ background: cssColor(w, format) }}
+            title={`${labels[i]} (${hex(palette[i], 4)})`}
+            style={{ background: cssColor(palette[i], format) }}
             onClick={() => setSelected(i)}
           />
         ))}

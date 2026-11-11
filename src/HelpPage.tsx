@@ -63,8 +63,8 @@ export function HelpPage() {
           Click <b>Open ROM…</b> and choose your ROM file. It is read by this browser tab only. Nothing is uploaded.
         </li>
         <li>
-          Pick a team from the list on the left, or one of the entries below the teams, such as{' '}
-          <b>Rink colours</b>, <b>Game settings</b> or <b>Spreadsheet files</b>.
+          Pick a page from the list on the left: <b>Game settings</b> and <b>Hacks</b> at the top, then the teams,
+          then the other pages, such as <b>Rink colours</b> or <b>Spreadsheet files</b>.
         </li>
         <li>Make your changes. They take effect in the editor straight away, with no Apply button.</li>
         <li>
@@ -206,6 +206,13 @@ export function HelpPage() {
           These are on the game's own scale, where a rating point is worth 5, so 2 is less than half a point. In the
           Teams spreadsheet they are the six rating columns; files made before the change name the power play and
           penalty kill columns the old way round, and still go to the same values.
+        </li>
+        <li>
+          <b>Overall shown</b>: the team rating the game shows on the matchup screens and the player cards (on the
+          Genesis the cards' "Team Rating"). The game keeps this number for each team and does not work it out, so it
+          stays as it is when the roster changes (on the Genesis it is only shown, never used in play). <b>Use roster average</b> sets it to the
+          average overall rating of everyone on the roster, goalies included, and <b>Bulk changes</b> does that for
+          every team at once. The Genesis prints two digits, so it goes up to 99. It is in the Teams spreadsheet too.
         </li>
       </ul>
       <p>
@@ -1823,7 +1830,7 @@ export function HelpPage() {
         <li>
           <b>Overall shown:</b> the SNES game keeps each team's overall rating, the number on the matchup screen and the player cards,
           with the team rather than working it out. It is on the team page and in the Teams spreadsheet, and does
-          not change when the players do, so set it yourself if you want it to match.
+          not change when the players do; see below for setting it to the roster's average.
         </li>
         <li>
           <b>Ovr</b> for players is worked out as the SNES game does it on its roster screens. For skaters that is

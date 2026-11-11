@@ -12,6 +12,7 @@ import {
 } from './core/bulk'
 import { isRating, isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
 import type { RomProject } from './core/rom'
+import { rosterAverage } from './core/shownrating'
 import { teamLabels } from './core/team'
 
 const PREVIEW_LIMIT = 300
@@ -59,6 +60,18 @@ export function BulkPage({ project, onChange }: Props) {
   const names = teamLabels(project.teams, project.game)
   const text = (value: number) => values.find((v) => v.value === value)?.text ?? String(value)
   const people = (count: number) => (count === 1 ? '1 player' : `${count} players`)
+
+  // Each team's overall shown, set to its roster's average.
+  const shownTeams = project.teams.flatMap((t, i) => (t.shownOverall === undefined ? [] : [i]))
+  const shownChanges = shownTeams.flatMap((t) => {
+    const to = rosterAverage(project.teams[t], project.game)
+    return to === project.teams[t].shownOverall ? [] : [{ t, to }]
+  })
+  const labels = teamLabels(project.teams, project.game)
+  function applyAverages() {
+    const to = new Map(shownChanges.map(({ t, to }) => [t, to]))
+    onChange({ ...project, teams: project.teams.map((team, t) => (to.has(t) ? { ...team, shownOverall: to.get(t) } : team)) })
+  }
 
   return (
     <main className="team help">
@@ -206,6 +219,26 @@ export function BulkPage({ project, onChange }: Props) {
         <p className="note">
           The first {PREVIEW_LIMIT} are shown; all {effects.length} would change.
         </p>
+      )}
+      {shownTeams.length > 0 && (
+        <>
+          <h2>Overall shown</h2>
+          <p className="note">
+            The team rating the game shows on the matchup screens and the player cards is a number it keeps for each
+            team and does not work out, so it stays as it is when rosters change. This sets every team's to the average
+            overall rating of everyone on its roster, goalies included.
+          </p>
+          <p>
+            <button disabled={shownChanges.length === 0} onClick={applyAverages}>
+              Use each team's roster average
+            </button>{' '}
+            <span className="note">
+              {shownChanges.length === 0
+                ? 'Every team already shows its roster average.'
+                : `${shownChanges.length === 1 ? '1 team changes' : `${shownChanges.length} teams change`}: ${shownChanges.map(({ t, to }) => `${labels[t]} ${project.teams[t].shownOverall} to ${to}`).join(', ')}.`}
+            </span>
+          </p>
+        </>
       )}
     </main>
   )

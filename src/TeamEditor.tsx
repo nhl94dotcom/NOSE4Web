@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { readClipboard, writeClipboard } from './clipboard'
+import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
 import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
@@ -597,17 +598,26 @@ export function TeamEditor(props: Props) {
             </label>
           ))}
           {team.shownOverall !== undefined && (
-            <label title="The team's overall rating as the SNES game shows it on the matchup screen and the player cards. The game keeps this number with the team and does not work it out, so it does not change when the players do.">
-              Overall shown
-              <input
-                className="num"
-                type="number"
-                min={0}
-                max={255}
-                value={team.shownOverall}
-                onChange={(e) => onChange({ ...team, shownOverall: Math.max(0, Math.min(255, Math.trunc(Number(e.target.value) || 0))) })}
-              />
-            </label>
+            <>
+              <label title="The team's rating as the game shows it on the matchup screens and the player cards. The game keeps this number and does not work it out, so it does not change when the players do.">
+                Overall shown
+                <input
+                  className="num"
+                  type="number"
+                  min={0}
+                  max={shownRatingMost(game)}
+                  value={team.shownOverall}
+                  onChange={(e) => onChange({ ...team, shownOverall: Math.max(0, Math.min(shownRatingMost(game), Math.trunc(Number(e.target.value) || 0))) })}
+                />
+              </label>
+              <button
+                title="Sets the overall shown to the average overall rating of everyone on the roster, goalies included."
+                disabled={team.shownOverall === rosterAverage(team, game)}
+                onClick={() => onChange({ ...team, shownOverall: rosterAverage(team, game) })}
+              >
+                Use roster average ({rosterAverage(team, game)})
+              </button>
+            </>
           )}
           {reset('ratings', 'team ratings')}
         </div>
@@ -837,7 +847,7 @@ export function TeamEditor(props: Props) {
                 </>
               )}
               <div>
-                <PaletteEditor palette={colors} labels={game.stripColorLabels} onChange={setColors} format={format} />
+                <PaletteEditor palette={colors} labels={game.stripColorLabels} order={game.stripColorOrder} onChange={setColors} format={format} />
                 <button onClick={() => setColors(other)}>Copy from {strip === 0 ? 'away' : 'home'}</button>{' '}
                 {reset(strip === 0 ? 'home' : 'away', `${label.toLowerCase()} colours`)}
               </div>

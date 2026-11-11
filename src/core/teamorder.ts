@@ -1,10 +1,11 @@
-import { readU16, readU32, reorderEntries, writeU16 } from './bytes'
+import { readU16, reorderEntries, writeU16 } from './bytes'
 import type { GameConfig } from './games'
 import { bannersFollowable, graphicsInTeamOrder } from './graphics'
 import { genesisScoreLogoTable, SCORE_LOGO_ENTRY } from './genesisscorelogos'
 import { playoffLast } from './menuteams'
 import { teamSongsRoom, withRoomForTeamSongs } from './teamsongs'
 import { photoLayout } from './photos'
+import { ratingsTable } from './shownrating'
 import { snesBlockColourTable } from './snesblockcolours'
 import { SNES_PHOTO_SLOTS, snesPhotoTables } from './snesphotos'
 import { NO_SNES_PICTURE_EDITS, snesPicturesInTeamOrder, snesPicturesSupported } from './snespictures'
@@ -42,31 +43,6 @@ export type TeamOrder = number[]
 // How many of the first teams are the league's own, or why no team can be moved.
 // Also how many the Game Setup menu offers, and how many are playoff teams.
 export type MoveRange = { league: number; offered: number; playoffTeams: number } | { reason: string }
-
-// The team rating byte of each team: GetTeamRating's move.w tmteam(a2),d0;
-// movea.l #TeamRatings,a0; clr.w d1; move.b 0(a0,d0.w),d1.
-const RATINGS_CODE = [0x302a, 0x0028, 0x207c, -1, -1, 0x4241, 0x1230, 0x0000]
-
-function findRatings(rom: Uint8Array, teamCount: number): number | null {
-  const found: number[] = []
-  for (let at = 0; at + RATINGS_CODE.length * 2 <= rom.length; at += 2) {
-    if (rom[at] !== 0x30 || rom[at + 1] !== 0x2a) continue
-    if (RATINGS_CODE.every((word, i) => word < 0 || readU16(rom, at + i * 2) === word)) found.push(readU32(rom, at + 6))
-  }
-  return found.length === 1 && found[0] + teamCount <= rom.length ? found[0] : null
-}
-
-const ratingsAt = new WeakMap<Uint8Array, number | null>()
-function ratingsTable(rom: Uint8Array, teamCount: number): number | null {
-  if (!ratingsAt.has(rom)) ratingsAt.set(rom, findRatings(rom, teamCount))
-  return ratingsAt.get(rom)!
-}
-
-// The team rating each team's player cards show, as the ROM has it; null where it is not found.
-export function shownTeamRatings(rom: Uint8Array, teamCount: number): number[] | null {
-  const at = ratingsTable(rom, teamCount)
-  return at === null ? null : Array.from(rom.subarray(at, at + teamCount))
-}
 
 // Whether teams can be moved, and how many of the first are the league's own.
 export function teamMoveRange(project: RomProject): MoveRange {

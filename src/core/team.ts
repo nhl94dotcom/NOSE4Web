@@ -37,8 +37,9 @@ export interface Team {
   forwards: number
   defense: number
   goalieNibbles: number[]
-  // The team's overall rating as the SNES game shows it, which it keeps with
-  // the team. The Genesis game works its own out.
+  // The team's rating as the game shows it on the matchup screens and player
+  // cards, which the game keeps and does not work out (see shownrating.ts):
+  // on the SNES kept with the team, on the Genesis in a table of its own.
   shownOverall?: number
   lines: number[][]
   freeBytes: number

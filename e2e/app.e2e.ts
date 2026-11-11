@@ -142,7 +142,7 @@ test.describe('with the NHL 94 ROM', () => {
     const before = await colours()
     expect(before.length).toBeGreaterThan(5) // a real picture, not a blank box
 
-    // The first swatch is the ice behind the skater. Make it pure red.
+    // The first swatch is the jersey and helmet's lightest colour. Make it pure red.
     const home = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Home colours' }) })
     const sliders = home.locator('input[type=range]')
     await sliders.nth(0).fill('7')
@@ -1990,24 +1990,26 @@ test.describe('with the hacked ROMs on this computer', () => {
       const shot = `test-results/shots/${rom.game.title.replace(/[^A-Za-z0-9]+/g, '_')}`
       await page.screenshot({ path: `${shot}.png` })
 
-      // The last team, and each page in the list after the teams.
-      await page.locator('nav button').nth(rom.teams.length - 1).click()
+      // The last team, and each page in the list that is not a team's.
+      const teams = page.locator('nav button[data-team]')
+      await expect(teams).toHaveCount(rom.teams.length)
+      await teams.last().click()
       await expect(rows(page, 'Skaters').first()).toBeVisible()
-      const pages = page.locator('nav button')
-      for (let i = rom.teams.length; i < (await pages.count()); i++) {
+      const pages = page.locator('nav button:not([data-team])')
+      for (let i = 0; i < (await pages.count()); i++) {
         await pages.nth(i).click()
         await expect(page.locator('main h2').first()).toBeVisible()
         if ((await pages.nth(i).textContent()) === 'League') await page.screenshot({ path: `${shot}_league.png` })
       }
       if (!snes) {
-        await page.locator('nav button').first().click()
+        await teams.first().click()
         await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
         await page.screenshot({ path: `${shot}_pictures.png` })
       }
 
       // An edit, and the ROM still downloads and opens with it. An SNES ROM
       // may have no room to spare, so there the name keeps its length.
-      await page.locator('nav button').first().click()
+      await teams.first().click()
       const length = (await nameOf(rows(page, 'Skaters').first()).inputValue()).length
       const name = snes ? 'Test Player'.padEnd(length, 'x').slice(0, length) : 'Test Player'
       await nameOf(rows(page, 'Skaters').first()).fill(name)
@@ -2307,7 +2309,7 @@ test.describe('with the SNES game', () => {
     const home = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Home colours' }) })
     await expect(home.locator('canvas.preview')).toHaveCount(3)
     await home.screenshot({ path: 'test-results/shots/snes-colours.png' })
-    await home.locator('.swatch').nth(12).click()
+    await home.locator('.swatch[title^="Jersey and helmet"]').click()
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()

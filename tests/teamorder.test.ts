@@ -19,7 +19,8 @@ import { snesScoreLogo, snesScoreLogosSupported } from '../src/core/snesscorelog
 import { readU32 } from '../src/core/bytes'
 import { NHL94 } from '../src/core/games'
 import { redirectedTeam } from '../src/core/rom'
-import { snesLongNameTeams, alphabeticalOrder, shownTeamRatings, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
+import { shownTeamRatings } from '../src/core/shownrating'
+import { snesLongNameTeams, alphabeticalOrder, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
