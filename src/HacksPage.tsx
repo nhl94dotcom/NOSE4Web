@@ -77,6 +77,7 @@ const INJURY_TEXTS: Record<Injuries, string> = {
   penaltyOnly: 'The penalty, but no injury',
   period: 'Every injury for the period',
   game: 'Every injury for the game',
+  longFall: 'A long fall instead: down about 5 seconds',
 }
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 // What each choice of bonuses means where it shows: in play, and in the
@@ -688,8 +689,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a
             power-play goal letting a player out early are all as before. The time is counted on the game clock, as
             the period is. {stock('penaltySeconds')} Read from the
-            game's code: box time is the minutes times 60 in one place only, which this changes. Not yet tested in
-            the game.
+            game's code: box time is the minutes times 60 in one place only, which this changes. Tested in the game
+            by the NHL94 Match Viewer project at 30: minors served 60 seconds and majors 150, with 2 and 5 penalty
+            minutes, and power plays as before.
           </>,
         )}
         {hack(
@@ -746,10 +748,13 @@ export function HacksPage({ project, name, onChange }: Props) {
             In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
             checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
             head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
-            but there is no injury box: the player lies down for about ten seconds and then skates on. The last two
-            choices make every injury last the period, or the game, whoever made the hit. From chaos's forum post, with
-            the period and penalty choices worked out in the game's code by the NHL94 Match Viewer project, and all
-            tested in the game.
+            but there is no injury box: the player lies down for about ten seconds and then skates on. <b>Every injury
+            for the period</b> and <b>for the game</b> make every injury last that long, whoever made the hit. With <b>a long fall instead</b> a
+            hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts
+            under 2, then get up and play on: no injury, no injury box and no penalty, and he cannot be knocked down
+            again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
+            post, with the period, penalty and long-fall choices worked out in the game's code by the NHL94 Match
+            Viewer project; all but the long fall tested in the game.
           </>,
         )}
       </section>

@@ -311,6 +311,15 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(applyHacks(opened, { ...NO_HACKS, hotColdRange: 4 }).bytes, 0xf70aa, 4)).toBe('303c0004')
     expect(at(opened.bytes, 0x1023e, 8)).toBe('08f80002bf804e75')
     expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
+    // Injuries, a long fall instead: the call of setInjuryType becomes bra.w .22, and SPAinjuryfall's lists get up.
+    const long = applyHacks(opened, { ...NO_HACKS, injuries: 'longFall' })
+    expect(at(long.bytes, 0x14450, 4)).toBe('60000046')
+    expect(at(long.bytes, 0x6f8a, 16)).toBe('0112000601130' + '12c01140008015' + '1fff8')
+    expect(at(long.bytes, 0x6f9a, 16)).toBe('012200060123012c01240008015' + '5fff8')
+    expect(detectHacks(long.bytes).choices.injuries).toBe('longFall')
+    expect(at(applyHacks(long, { ...NO_HACKS, injuries: 'never' }).bytes, 0x6f8a, 16)).toBe('01110006011200060113001e0113fc00')
+    // Not with head bleeding, which draws in those lists.
+    expect(() => applyHacks(opened, { ...NO_HACKS, injuries: 'longFall', headBleeding: true })).toThrow(/head bleeding/)
     // Tied regular-season games: PeriodOver's move.w #4,(gsp).w becomes NOPs.
     expect(at(opened.bytes, 0x1725c, 6)).toBe('31fc0004c466')
     const ties = applyHacks(opened, { ...NO_HACKS, seasonTies: 'overtime' }).bytes

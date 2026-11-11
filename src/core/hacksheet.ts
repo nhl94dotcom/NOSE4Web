@@ -93,6 +93,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   injuries: (c) =>
     c.injuries === 'never'
       ? 'Hits never injure: a player knocked down gets up as from any other check.'
+      : c.injuries === 'longFall'
+        ? 'A hit that would injure has the player stay down about 5 seconds and then get up and play on: no injury, and no penalty.'
       : c.injuries === 'penaltyOnly'
         ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
@@ -214,6 +216,7 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
             'A hit that would injure still draws the call, but nobody is hurt: the player lies down and then plays on.',
             'Every injury keeps the player out for the rest of the period.',
             'Every injury keeps the player out for the rest of the game.',
+            'A hit that would injure has the player stay down about 5 seconds and then get up and play on: no injury, and no penalty.',
           ][amounts.injuries] || SNES[hack]
       : hack === 'fighting' && amounts
         ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`

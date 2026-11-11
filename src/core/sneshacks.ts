@@ -437,7 +437,14 @@ export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBon
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
-export const SNES_INJURY_TEXTS = ['As in the original game', 'Never: a hit is only a fall', 'The penalty, but no injury', 'Every injury for the period', 'Every injury for the game']
+export const SNES_INJURY_TEXTS = ['As in the original game', 'Never: a hit is only a fall', 'The penalty, but no injury', 'Every injury for the period', 'Every injury for the game', 'A long fall instead: down about 5 seconds']
+// SPAinjury1's two lists (SPFfallback 281 and +16, falling and lying for ever) and the long fall's: the back fall's
+// frames getting up (SPFduck 345, +4), lying 300 ticks, about 5 seconds (an ordinary fall lies 100; Match Viewer).
+const SNES_LONG_FALL = '2c01'
+const SNES_FALL_LISTS = [
+  { original: '19011400' + '1a011400' + '1b01e803' + '1b0118fc', longFall: '1a010600' + '1b01' + SNES_LONG_FALL + '1c010800' + '5901f8ff' },
+  { original: '29011400' + '2a011400' + '2b01e803' + '2b0118fc', longFall: '2a010600' + '2b01' + SNES_LONG_FALL + '2c010800' + '5d01f8ff' },
+]
 export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
@@ -448,7 +455,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 4] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -507,50 +514,53 @@ type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) =>
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code
-  // elsewhere). Its amount is the choice, SNES_INJURIES. The roll's clock test after it, bne .23 (when the clock
-  // runs the hit can injure), becomes bra for never: the fall and the loose puck stay. setInjuryType's lda #7 /
-  // jsl randoma8 / cmp #0 / bne .rtl picks the period (one in 7 the game): bra for every injury for the period,
-  // NOPs for the game. The penalty but no injury: FallDown's jsl setInjuryType and the sta InjCntDown that
-  // brings up the injury box 4 seconds later both go; the player lies down, the call stays, and he plays on.
+  // elsewhere). Its amount is the choice, SNES_INJURY_TEXTS. The roll's clock test after it, bne .23 (when the
+  // clock runs the hit can injure), becomes bra for never: the fall and the loose puck stay. setInjuryType's lda
+  // #7 / jsl randoma8 / cmp #0 / bne .rtl picks the period (one in 7 the game): bra for every injury for the
+  // period, NOPs for the game. The penalty but no injury: FallDown's jsl setInjuryType and the sta InjCntDown that
+  // brings up the injury box 4 seconds later both go; the player lies down, the call stays, and he plays on. A
+  // long fall instead: the jsl becomes jmp .25, the ordinary fall's end (no injury, box or penalty), and
+  // SPAinjury1's two lists, which fall and lie for ever, a back fall that gets up after LONG_FALL ticks lying.
   injuries: (rom, source, amount) => {
     const never = only(rom, '10..ad....' + '..' + '..b9....30..f0')
     const period = only(rom, 'a90700' + '22......c90000' + '....' + 'a9fcff')
     const call = only(rom, '9d....' + '........' + 'a90400' + '......' + 'a91600')
-    if (never < 0 || period < 0 || call < 0) return null
+    // .25: after jsl AddPenalty2 / jmp Stop4Pen, ldy a2 / lda SPA,y.
+    const tail = only(rom, '22......4c....a4..b9')
+    const lists = SNES_FALL_LISTS.map((list) => [list.original, list.longFall].map((bytes) => only(rom, bytes)).find((at) => at >= 0) ?? -1)
+    if (never < 0 || period < 0 || call < 0 || tail < 0 || lists.some((at) => at < 0)) return null
     const sites = { never: never + 5, period: period + 10, call: call + 3, count: call + 10 }
-    const ORIGINAL = { never: rom[sites.never] === 0x80 ? 0xd0 : rom[sites.never], period: rom.slice(sites.period, sites.period + 2), call: rom.slice(sites.call, sites.call + 4), count: rom.slice(sites.count, sites.count + 3) }
+    const end = loRomAddress(tail + 7) & 0xffff
+    const jump = bytesOf('4C', word(end), 'EA')
     if (![0xd0, 0x80].includes(rom[sites.never])) return null
-    // What the ROM has now: its choice, and the original bytes where it has them.
-    const periodNow = rom[sites.period] === 0x80 ? 3 : rom[sites.period] === 0xea && rom[sites.period + 1] === 0xea ? 4 : rom[sites.period] === 0xd0 ? 0 : -1
-    const callOut = rom.slice(sites.call, sites.call + 4).every((b) => b === 0xea) && rom.slice(sites.count, sites.count + 3).every((b) => b === 0xea)
-    const now = rom[sites.never] === 0x80 ? 1 : callOut ? 2 : periodNow
-    if (now < 0) return null
+    // What the ROM has now.
+    const at = (site: number, length: number) => rom.slice(site, site + length)
+    const nops = (bytes: Uint8Array) => bytes.every((b) => b === 0xea)
+    const longIn = same(rom, sites.call, jump) && lists.every((list, i) => same(rom, list, hexBytes(SNES_FALL_LISTS[i].longFall)))
+    const penaltyIn = nops(at(sites.call, 4)) && nops(at(sites.count, 3))
+    const periodNow = rom[sites.period] === 0x80 ? 3 : nops(at(sites.period, 2)) ? 4 : rom[sites.period] === 0xd0 ? 0 : -1
+    const now = rom[sites.never] === 0x80 ? 1 : penaltyIn ? 2 : longIn ? 5 : periodNow
+    if (now < 0 || (!longIn && !penaltyIn && rom[sites.call] !== 0x22)) return null
     const choice = amount ?? (now === 0 ? 1 : now)
-    // The original bytes: those of a ROM without the hack, as far as this one shows them.
-    // Where this ROM has them out, the ROM as opened may still have them, at the same places.
+    // The original bytes: this ROM's where it has them, else the ROM's as opened, at the same places.
     const opened = source && source.length === rom.length ? source : null
-    const fromOpened = (at: number, length: number, ok: (bytes: Uint8Array) => boolean) => {
-      const bytes = opened?.slice(at, at + length)
+    const fromOpened = (site: number, length: number, ok: (bytes: Uint8Array) => boolean) => {
+      const bytes = opened?.slice(site, site + length)
       return bytes && ok(bytes) ? bytes : null
     }
-    const periodOriginal = periodNow === 0 ? ORIGINAL.period : fromOpened(sites.period, 2, (b) => b[0] === 0xd0)
-    const callOriginal = callOut ? fromOpened(sites.call, 4, (b) => b[0] === 0x22) : ORIGINAL.call
-    const countOriginal = callOut ? fromOpened(sites.count, 3, (b) => b[0] === 0x8d) : ORIGINAL.count
-    const branch = periodOriginal ? periodOriginal[1] : rom[sites.period + 1] === 0xea ? null : rom[sites.period + 1]
-    if (branch === null && (choice === 0 || choice === 3)) return null
-    // The call taken out with its original bytes nowhere to be had: only that choice can stay.
-    if (choice !== 2 && (callOriginal === null || countOriginal === null)) return null
-    const places: Placed[] = [
+    const callOriginal = rom[sites.call] === 0x22 ? at(sites.call, 4) : fromOpened(sites.call, 4, (b) => b[0] === 0x22)
+    const countOriginal = rom[sites.count] === 0x8d ? at(sites.count, 3) : fromOpened(sites.count, 3, (b) => b[0] === 0x8d)
+    const branch = rom[sites.period] === 0xd0 || rom[sites.period] === 0x80 ? rom[sites.period + 1] : (fromOpened(sites.period, 2, (b) => b[0] === 0xd0)?.[1] ?? null)
+    if (branch === null && choice !== 4) return null
+    // A choice that needs the call or the count as they were, with them nowhere to be had: not offered.
+    if ((callOriginal === null && choice !== 2 && choice !== 5) || (countOriginal === null && choice !== 2)) return null
+    return [
       { at: sites.never, original: Uint8Array.of(0xd0), hacked: Uint8Array.of(choice === 1 ? 0x80 : 0xd0), amount: choice },
-      {
-        at: sites.period,
-        original: branch === null ? null : Uint8Array.of(0xd0, branch),
-        hacked: choice === 3 ? Uint8Array.of(0x80, branch!) : choice === 4 ? hexBytes('EAEA') : Uint8Array.of(0xd0, branch!),
-      },
-      { at: sites.call, original: callOriginal, hacked: choice === 2 ? hexBytes('EAEAEAEA') : callOriginal! },
+      { at: sites.period, original: branch === null ? null : Uint8Array.of(0xd0, branch), hacked: choice === 3 ? Uint8Array.of(0x80, branch!) : choice === 4 ? hexBytes('EAEA') : Uint8Array.of(0xd0, branch!) },
+      { at: sites.call, original: callOriginal, hacked: choice === 2 ? hexBytes('EAEAEAEA') : choice === 5 ? jump : callOriginal! },
       { at: sites.count, original: countOriginal, hacked: choice === 2 ? hexBytes('EAEAEA') : countOriginal! },
+      ...lists.map((list, i) => ({ at: list, original: hexBytes(SNES_FALL_LISTS[i].original), hacked: hexBytes(choice === 5 ? SNES_FALL_LISTS[i].longFall : SNES_FALL_LISTS[i].original) })),
     ]
-    return places
   },
   // InProgress, sending a player to the box: ldx #$003C / lda d2 (his penalty's minutes) / and #$FF / jsl
   // Mul8U / ora #$2000: the box time, in seconds of the game clock, is the minutes times 60, the only place

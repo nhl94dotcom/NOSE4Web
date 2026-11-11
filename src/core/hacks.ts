@@ -181,7 +181,7 @@ export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
 export type SeasonTies = 'tie' | 'overtime' | 'shootout' | 'shootoutNow'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
-export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
+export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game' | 'longFall'
 
 // 'ratings' covers the rating scale and the bonuses, whose code is shared.
 // 'goalieBox' covers both ways a goalie without the puck may roam.
@@ -2067,7 +2067,17 @@ const clock: Part<boolean> = {
 // the call of setInjuryType at $14450 and the injury countdown, move.w
 // #4,(InjCntDown).w at $1446A, become NOPs, so the penalty is called with no
 // injury box, and the player lies down for about 10 seconds and skates on.
-// All five tested in the game by Match Viewer.
+// All five tested in the game by Match Viewer. A long fall instead (Match
+// Viewer's): the call of setInjuryType at $14450 becomes bra.w .22, the
+// ordinary fall's end, so there is no injury, no box and no penalty; and
+// SPAinjuryfall's two lists, which fall and then lie for ever, become a back
+// fall that gets up (SPFfallback+1, 6; +2, the lying time; +3, 8; SPFduck,
+// -8; and +17 / +18 / +19 with SPFduck+4), lying 300 ticks (about 5 seconds;
+// an ordinary fall lies 100). Nothing else uses SPAinjuryfall with no
+// injuries; and FallDown skips a player in it, so he is not knocked down
+// again while he lies there. Head bleeding rewrites the same lists for its
+// frames, and with no injuries would never show, so the two do not go
+// together.
 
 const INJURY_SITES = [0x14440, 0x14508, 0x14520, 0x14450, 0x1446a]
 const INJURY_KEPT = ['6100005A', '31FC0004C3EC']
@@ -2077,12 +2087,37 @@ const INJURY_BYTES: Record<Injuries, string[]> = {
   penaltyOnly: ['66000052', '66000012', '67000018', '4E714E71', '4E714E714E71'],
   period: ['66000052', '4E714E71', '67000018', ...INJURY_KEPT],
   game: ['66000052', '60000012', '60000018', ...INJURY_KEPT],
+  longFall: ['66000052', '66000012', '67000018', '60000046', '31FC0004C3EC'],
 }
+const INJURY_LISTS = [0x6f8a, 0x6f9a]
+export const LONG_FALL_TICKS = 300
+const FALL_LISTS = {
+  original: ['0111 0006 0112 0006 0113 001E 0113 FC00', '0121 0006 0122 0006 0123 001E 0123 FC00'],
+  longFall: [`0112 0006 0113 ${LONG_FALL_TICKS.toString(16).padStart(4, '0')} 0114 0008 0151 FFF8`, `0122 0006 0123 ${LONG_FALL_TICKS.toString(16).padStart(4, '0')} 0124 0008 0155 FFF8`],
+}
+const listsAre = (rom: Uint8Array, which: keyof typeof FALL_LISTS) => INJURY_LISTS.every((at, i) => is(rom, at, bytes(FALL_LISTS[which][i])))
 
 const injuries: Part<Injuries> = {
-  detect: (rom) => (Object.keys(INJURY_BYTES) as Injuries[]).find((value) => INJURY_SITES.every((at, i) => is(rom, at, bytes(INJURY_BYTES[value][i])))),
-  remove: (rom) => INJURY_SITES.forEach((at, i) => rom.set(bytes(INJURY_BYTES.original[i]), at)),
-  apply: (work, value) => INJURY_SITES.forEach((at, i) => work.rom.set(bytes(INJURY_BYTES[value][i]), at)),
+  detect(rom) {
+    const value = (Object.keys(INJURY_BYTES) as Injuries[]).find((each) => INJURY_SITES.every((at, i) => is(rom, at, bytes(INJURY_BYTES[each][i]))))
+    if (value === 'longFall') return listsAre(rom, 'longFall') ? value : undefined
+    return value
+  },
+  remove(rom) {
+    INJURY_SITES.forEach((at, i) => rom.set(bytes(INJURY_BYTES.original[i]), at))
+    if (listsAre(rom, 'longFall')) INJURY_LISTS.forEach((at, i) => rom.set(bytes(FALL_LISTS.original[i]), at))
+  },
+  apply(work, value) {
+    if (value === 'longFall') {
+      if (!listsAre(work.rom, 'original')) {
+        throw new HackError(
+          "A long fall instead of an injury needs the injury animation as the original game has it. If this ROM has head bleeding, which draws its blood in that animation, take it out first: with no injuries it would never show.",
+        )
+      }
+      INJURY_LISTS.forEach((at, i) => work.rom.set(bytes(FALL_LISTS.longFall[i]), at))
+    }
+    INJURY_SITES.forEach((at, i) => work.rom.set(bytes(INJURY_BYTES[value][i]), at))
+  },
 }
 
 // ------------------------------------------------------- hot and cold range
@@ -2429,6 +2464,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   for (const key of Object.keys(HACK_RANGES) as (keyof typeof HACK_RANGES)[]) {
     const [least, most] = HACK_RANGES[key]
     if (!Number.isInteger(wanted[key]) || wanted[key] < least || wanted[key] > most) throw new HackError(`${HACK_TITLES[key]} has to be a whole number from ${least} to ${most}.`)
+  }
+  if (wanted.injuries === 'longFall' && wanted.headBleeding) {
+    throw new HackError('A long fall instead of an injury and head bleeding cannot both be on: the blood is drawn in the injury animation the long fall turns into a fall that gets up, and with no injuries it would never show.')
   }
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
