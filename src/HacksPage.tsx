@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { WEIGHT_BASES } from './core/attributes'
+import { FIGHT_TEXTS, type FightChoice } from './core/fight'
 import {
   applyHacks,
   baseWeightForYear,
@@ -955,6 +956,29 @@ export function HacksPage({ project, name, onChange }: Props) {
             sit in the same table of pieces as the puck, placed by the NHL94 Match Viewer project and tested in the game:
             both nets change, in play and in replays, and the puck stays exactly as it was. The crowd's gives an olive-grey
             net; a home team's can be heavy against the ice.
+          </>,
+        )}
+        {hack(
+          'fighting',
+          <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
+            {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {FIGHT_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            chaos's fighting patch (version 1.01), which brings NHLPA 93's fights into the game: after enough hard
+            checks, two players with high enough fighting ratings may drop the gloves, and both are given fighting
+            majors. The main menu gets a <b>Fighting</b> line, Off, On or On - Arcade Mode (more fights), whose
+            starting choice is set here; the roster screens show each player's fighting rating from 0 to 100. How fights
+            start and are won is in chaos's forum post, "How fighting works in the NHL94 fighting patch". Fighting
+            uses the H/F column's fighting half, which a league sets on the team pages: in the original game only a few
+            players rate high enough to start a fight. The patch's code goes past 2 MB, so the ROM becomes 3 MB, and
+            the game's saved records are switched in only when it uses them; Genesis Plus GX, which the leagues use,
+            plays such ROMs. For now it goes only into ROMs with the original game's teams and code, and not with head
+            bleeding. Made by chaos with McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT
+            licence; its title screen, credits and fighting ratings are left out.
           </>,
         )}
         {hack(

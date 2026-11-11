@@ -80,30 +80,82 @@ function parseRules(rom: Uint8Array, game: GameConfig): Rule[] {
     .filter((rule) => rule.maxLength > 0)
 }
 
+// The main menu's tables. A rebuilt menu (McMarkis's menu patch, as chaos's
+// fighting patch has it) moves the captions, keeping the pointer, and puts
+// the choices' movea.l #SubMenuItems,a0 in a routine of its own, called by a
+// jsr where it was, before its rts.
+const OP_JSR = 0x4eb9
+const OP_MOVEA_A0 = 0x207c
+const OP_RTS = 0x4e75
+function optionsTable(rom: Uint8Array, game: GameConfig): number {
+  const at = game.menuOptionsPointerOffset
+  if (readU16(rom, at - 6) === OP_JSR) {
+    const routine = readU32(rom, at - 4)
+    for (let o = routine; o < routine + 0x40 && o + 8 <= rom.length; o += 2) {
+      if (readU16(rom, o) === OP_MOVEA_A0 && readU16(rom, o + 6) === OP_RTS) return readU32(rom, o + 2)
+    }
+  }
+  return readU32(rom, at)
+}
+
 function menuAddresses(rom: Uint8Array, game: GameConfig) {
   return {
     defaults: readU32(rom, game.menuDefaultsPointerOffset),
     captions: readU32(rom, game.menuCaptionsPointerOffset),
-    options: readU32(rom, game.menuOptionsPointerOffset),
+    options: optionsTable(rom, game),
   }
+}
+
+// Where each period length's text is. ChangeOption compares against the
+// menu's (cmpa.l #PeriodLengths,a0 at $F7BB8), which in the original game is
+// the editor's own place for them, and which a rebuilt menu moves to a copy of
+// the first three; the fourth, which the menu never shows, stays where it was.
+const PERIOD_CMPA = 0xf7bb8
+const OP_CMPA_A0 = 0xb1fc
+function periodLabels(rom: Uint8Array, game: GameConfig): number[] {
+  const labels: number[] = []
+  let label = game.periodLengthTextOffset
+  for (let i = 0; i < PERIOD_LENGTHS; i++) {
+    labels.push(label)
+    label += readU16(rom, label)
+  }
+  if (rom.length >= PERIOD_CMPA + 6 && readU16(rom, PERIOD_CMPA) === OP_CMPA_A0) {
+    const moved = readU32(rom, PERIOD_CMPA + 2)
+    if (moved !== labels[0] && moved + 0x60 <= rom.length) {
+      let at = moved
+      for (let i = 0; i < PERIOD_LENGTHS - 1; i++) {
+        labels[i] = at
+        at += readU16(rom, at)
+      }
+    }
+  }
+  return labels
 }
 
 function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
   const at = menuAddresses(rom, game)
   const starts: number[] = []
   for (let i = 0; i < game.menuItemCount; i++) starts.push(at.options + readU16(rom, at.options + i * 2))
+  // The table's offsets come first, so the first says how many there are: a
+  // rebuilt menu has more items than the editor shows, whose choices follow.
+  const count = Math.min(32, readU16(rom, at.options) / 2)
+  const more: number[] = []
+  for (let i = game.menuItemCount; i < count; i++) more.push(at.options + readU16(rom, at.options + i * 2))
 
   // Every choice is the same size, so the list ends where that stops being true.
   const optionSize = readU16(rom, Math.min(...starts))
   let end = Math.max(...starts)
-  while (readU16(rom, end) === optionSize) end += optionSize
+  while (optionSize > 0 && end + 2 <= rom.length && readU16(rom, end) === optionSize) end += optionSize
 
   const items: MenuItem[] = []
   let caption = at.captions
   for (let i = 0; i < game.menuItemCount; i++) {
     let options: string[] | null = null
     if (!game.menuTeamItems.includes(i) && i !== game.menuPeriodLengthItem) {
-      const stop = Math.min(end, ...starts.filter((s) => s > starts[i]))
+      // The team lines have no choices of their own and point anywhere (into
+      // the penalties' in a rebuilt menu), so they end no other line's.
+      const ends = [...starts.filter((_, j) => !game.menuTeamItems.includes(j)), ...more]
+      const stop = Math.min(end, ...ends.filter((s) => s > starts[i]))
       options = []
       for (let o = starts[i]; o < stop; o += optionSize) options.push(readFixedText(rom, o).text)
     }
@@ -128,15 +180,10 @@ export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
     playoffDraws.push(Array.from(rom.subarray(o, o + PLAYOFF_SLOTS)))
   }
 
-  const periodLengths: PeriodLength[] = []
-  let label = game.periodLengthTextOffset
-  for (let i = 0; i < PERIOD_LENGTHS; i++) {
-    periodLengths.push({
-      seconds: readU16(rom, game.periodLengthSecondsOffset + i * 2),
-      ...readFixedText(rom, label),
-    })
-    label += readU16(rom, label)
-  }
+  const periodLengths: PeriodLength[] = periodLabels(rom, game).map((label, i) => ({
+    seconds: readU16(rom, game.periodLengthSecondsOffset + i * 2),
+    ...readFixedText(rom, label),
+  }))
 
   return {
     playoffDraws,
@@ -160,11 +207,10 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
     writeFixedText(rom, rule.offset + 2, rule)
   }
 
-  let label = game.periodLengthTextOffset
+  const labels = periodLabels(rom, game)
   settings.periodLengths.forEach((period, i) => {
     writeU16(rom, game.periodLengthSecondsOffset + i * 2, period.seconds)
-    writeFixedText(rom, label, period)
-    label += readU16(rom, label)
+    writeFixedText(rom, labels[i], period)
   })
   writeU16(rom, game.overtimeSecondsOffset, settings.overtimeSeconds)
   writeU16(rom, game.shootoutSecondsOffset, settings.shootoutSeconds)

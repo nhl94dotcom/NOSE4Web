@@ -1,5 +1,6 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { one } from './genesisscorelogos'
+import { fightState } from './fight'
 import type { RomProject } from './rom'
 import { claimSpace, fullRomReason, releaseSpace } from './space'
 
@@ -177,6 +178,9 @@ function state(rom: Uint8Array) {
 
 export function canAddGenesisBlood(project: RomProject): boolean {
   if (project.game.platform === 'snes') return false
+  // The fighting patch adds animation frames of its own; the two do not go together yet.
+  const fighting = fightState(project.bytes)
+  if (fighting !== undefined && fighting !== 'none') return false
   const s = state(project.bytes)
   return s !== null && s.added === null
 }

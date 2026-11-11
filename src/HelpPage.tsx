@@ -1409,6 +1409,18 @@ export function HelpPage() {
           stick.
         </li>
         <li>
+          <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
+          game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
+          Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
+          players whose fighting ratings (the second half of the H/F column) are high enough; in the original game
+          few are, so a league that wants fights raises some. chaos's forum post "How fighting works in the NHL94
+          fighting patch" explains it. The patch's code goes past 2 MB, so the ROM becomes 3 MB, with the game's
+          saved records switched in only when it uses them; Genesis Plus GX plays it. NOSE4Web leaves out the title
+          screen, credits, ROM name and players' ratings of chaos's own ROM. For now it goes only into ROMs with the
+          original game's teams and code, and not with head bleeding. Made by chaos, with McMarkis and AbdulBCRT
+          (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81).
+        </li>
+        <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
           NHL rules have them. Only since the 2007–08 season has the NHL required every faceoff to be on one of the
           nine dots. Before that, in the NHL's words when it made the change, a puck that left the ice could cause

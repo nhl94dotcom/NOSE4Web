@@ -23,6 +23,7 @@
 
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
+import { fightState, withFight, withoutFight, type FightChoice } from './fight'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
@@ -86,6 +87,9 @@ export interface HackChoices {
   // Lets a checker hit the same player again once he has got up, where the
   // original ignores the pair until some other pair's check lands.
   repeatCheckFix: boolean
+  // chaos's fighting patch (fight.ts): not in the ROM, or in it with the main
+  // menu's Fighting line starting at Off, On or On - Arcade Mode.
+  fighting: FightChoice
   // Holds every faceoff on one of the nine dots, as the NHL rules place them.
   faceoffFix: boolean
   // Stops a skater keeping the gliding a pass receiver or a fall gets.
@@ -188,6 +192,7 @@ export type HackPart =
   | 'passFix'
   | 'openNetFix'
   | 'repeatCheckFix'
+  | 'fighting'
   | 'faceoffFix'
   | 'runawayFix'
   | 'penaltyShotTableFix'
@@ -252,6 +257,7 @@ export const NO_HACKS: HackChoices = {
   passFix: false,
   openNetFix: false,
   repeatCheckFix: false,
+  fighting: 'none',
   faceoffFix: false,
   runawayFix: false,
   penaltyShotTableFix: false,
@@ -1390,6 +1396,16 @@ const openNetFix: Part<boolean> = {
   apply: (work, value) => void (value && work.rom.set(OPEN_NET.hacked, OPEN_NET_AT)),
 }
 
+// chaos's fighting patch: see fight.ts.
+function applyFight(work: Work, choice: FightChoice): void {
+  if (choice === 'none') return
+  try {
+    work.rom = withFight(work.rom, choice)
+  } catch (e) {
+    throw new HackError(e instanceof Error ? e.message : String(e))
+  }
+}
+
 // Repeated checks (Match Viewer's GENESIS_MECHANICS.md 7.3; known bug 8).
 // FallDown, which every knockdown and wobble goes through, ignores the same
 // checker and target as the last call anywhere on the ice: after a hit, the
@@ -2165,6 +2181,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
     openNetFix: found('openNetFix', openNetFix.detect(rom), NO_HACKS.openNetFix),
     repeatCheckFix: found('repeatCheckFix', repeatCheckFix.detect(rom), NO_HACKS.repeatCheckFix),
+    fighting: found('fighting', fightState(rom), NO_HACKS.fighting),
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
@@ -2278,6 +2295,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
+    // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
+    ['fighting', () => (work.rom = withoutFight(work.rom)), () => applyFight(work, wanted.fighting)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -2342,7 +2361,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
+  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'fighting', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -2468,6 +2487,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   passFix: 'Rocket pass fix',
   openNetFix: 'One-timer open net fix',
   repeatCheckFix: 'Repeated checks fix',
+  fighting: 'Fighting',
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
@@ -2528,6 +2548,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   passFix: 'passFix',
   openNetFix: 'openNetFix',
   repeatCheckFix: 'repeatCheckFix',
+  fighting: 'fighting',
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',

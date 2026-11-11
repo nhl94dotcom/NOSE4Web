@@ -20,8 +20,17 @@ const GAP = 4
 // change, a ROM grows to 2 MB and no further.
 export const LARGEST_ROM = 0x200000
 
+// chaos's fighting patch makes a ROM of 3 MB that has had that change, with
+// its save memory switching code at $1F9A00 and its own code from 2 MB. What
+// NOSE4Web adds to a 3 MB ROM goes below that code, so that none of it is ever
+// where the save memory is switched in. (EVO's 4 MB has its own arrangement,
+// and is left as it was.)
+const FIGHT_ROM = 0x300000
+const SWITCHED_BELOW = 0x1f9a00
+
 // Said where a ROM has no room left because it is as large as it may be.
 export function fullRomReason(rom: Uint8Array): string {
+  if (rom.length === FIGHT_ROM) return " The room under 2 MB is full, and past it is the fighting patch's."
   return rom.length >= LARGEST_ROM
     ? ' It is 2 MB, the largest a ROM can be while the game can still save its records, which it keeps just past 2 MB.'
     : ''
@@ -32,6 +41,7 @@ export function fullRomReason(rom: Uint8Array): string {
 // and the file cannot grow. Code a hack adds goes after the end mark, which
 // stays where it is, as the hack program smozROM leaves it: `keepMark`.
 export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { rom: Uint8Array; at: number } | null {
+  if (rom.length === FIGHT_ROM) return claimBelow(rom, size, SWITCHED_BELOW)
   let last = rom.length - 1
   while (last >= 0 && rom[last] === UNUSED) last--
   // NOSE marks the end of the used part of a ROM it has edited. Where that
@@ -48,6 +58,15 @@ export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { r
   grown.set(rom)
   if (marked) grown.set([0x60, 0xfe], at + size)
   return { rom: grown, at }
+}
+
+// Room for `size` bytes after the last used byte below `limit`, in a ROM that is not to grow.
+function claimBelow(rom: Uint8Array, size: number, limit: number): { rom: Uint8Array; at: number } | null {
+  let last = limit - 1
+  while (last >= 0 && rom[last] === UNUSED) last--
+  const at = last + 1 + ((last + 1) % 2) + GAP
+  if (at + size > limit) return null
+  return { rom: rom.slice(), at }
 }
 
 // Where room freed in the middle of the ROM, with something added after it,

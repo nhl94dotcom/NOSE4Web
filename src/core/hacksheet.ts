@@ -39,6 +39,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
+  fighting: (choices) =>
+    `Players can fight, as in NHLPA 93 (chaos's fighting patch): the main menu has a Fighting line, starting at ${choices.fighting === 'off' ? 'Off' : choices.fighting === 'arcade' ? 'On - Arcade Mode (more fights)' : 'On'}.`,
   repeatCheckFix: () =>
     'A player can check the same opponent again once that opponent has got up, where the original game ignored the pair until some other check landed.',
   openNetFix: () => 'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
@@ -133,7 +135,7 @@ const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
-  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
+  ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'fighting', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],
   ['Looks and screens', ['puckColours', 'netColours', 'greenFan', 'introWait']],
   ['Older hacks', ['weightFix']],
 ]
