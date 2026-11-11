@@ -268,6 +268,11 @@ export function HelpPage() {
             </li>
             <li>The scoring weights say who scores on a team, not how much more the team scores; the team test is what supports them.</li>
             <li>Defencemen are valued on offence only; their effect on goals against is not measured yet.</li>
+            <li>
+              Off. and Def. Awareness count for next to nothing, and rightly: in Match Viewer's test of 80 computer
+              games, the best awareness against the worst moved goals by less than a tenth of a goal a game a step,
+              too little to measure. Awareness also acts only on the skaters a person is not controlling.
+            </li>
             <li>A goalie's Agility counts only while the computer plays him. A person in net always has the longest reach.</li>
           </ul>
           <p>
