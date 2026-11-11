@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:browser": "playwright test",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify": "node scripts/verify-clean.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
