@@ -311,7 +311,7 @@ export function TeamEditor(props: Props) {
       name: (index) => team.players[index].name.toLowerCase(),
       jersey: (index) => team.players[index].jersey,
       overall: (index) => -overallRating(team.players[index].attributes, isGoalies, game),
-      value: (index) => -leagueValue(team.players[index].attributes, position(index)),
+      value: (index) => -leagueValue(team.players[index].attributes, position(index), game.platform),
     }
     const key = sortKey[rosterSort]
     const shown = Array.from({ length: to - from }, (_, row) => from + row)
@@ -320,7 +320,7 @@ export function TeamEditor(props: Props) {
     const moveHint = plainView ? '' : ' (show the roster in roster order, unfiltered, to move players)'
     const overall = (index: number) => overallRating(team.players[index].attributes, isGoalies, game)
     const showValue = hasLeagueValue(game)
-    const value = (index: number) => leagueValue(team.players[index].attributes, position(index))
+    const value = (index: number) => leagueValue(team.players[index].attributes, position(index), game.platform)
     const tickBox = (index: number) => (
       <input
         type="checkbox"

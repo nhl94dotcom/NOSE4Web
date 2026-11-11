@@ -238,10 +238,16 @@ export function HelpPage() {
           cannot be typed in.
         </li>
         <li>
-          <b>LV</b> (Genesis only): the <b>league value</b>, Match Viewer's 0–99 rating built from what each rating
-          step was worth in the Classic leagues' results since 2013. It predicts a team's strength far better than
-          the game's Overall, which leaves Weight out entirely. Like Ovr it is worked out as you edit, and <b>Show in
-          order of</b> can put a roster in its order. What it counts:
+          <b>LV</b>: the <b>league value</b>, Match Viewer's 0–99 rating built from what each rating step was worth
+          in the leagues' own results. The two systems play differently, so each has its own formula, and the same
+          player can be worth very different things on the two; the editor shows the one for the ROM's system. Like Ovr
+          it is worked out as you edit, and <b>Show in order of</b> can put a roster in its order. Each scale is fixed,
+          its ends that system's original game's weakest and strongest players, so a value means the same in every ROM
+          of that system. ROMs with 0–15 ratings are on another scale and do not show it.
+          <p>
+            <b>Genesis</b>, from the Classic leagues' games since 2013. It predicts a team's strength far better than
+            the game's Overall, which leaves Weight out entirely.
+          </p>
           <ul>
             <li>
               <b>Forwards</b>: Shot Power most, then Speed, Shot Accuracy, Stickhandling and Agility; each Weight step
@@ -255,10 +261,6 @@ export function HelpPage() {
             <li>
               <b>Goalies</b>: Agility alone, about a quarter of a goal a game a step.
             </li>
-          </ul>
-          The scale is fixed, its ends the original game's weakest and strongest players, so a value means the same in
-          every ROM. Its limits, as Match Viewer gives them:
-          <ul>
             <li>
               The size of Weight's effect is uncertain: tested over resampled teams it runs from about a sixth of a
               point to 1.3 points a step, around half a point. Heavy stars fall much less at the low end, but fall at
@@ -267,9 +269,28 @@ export function HelpPage() {
             <li>The scoring weights say who scores on a team, not how much more the team scores; the team test is what supports them.</li>
             <li>Defencemen are valued on offence only; their effect on goals against is not measured yet.</li>
             <li>A goalie's Agility counts only while the computer plays him. A person in net always has the longest reach.</li>
+          </ul>
+          <p>
+            <b>SNES</b>. Here Weight counts <i>for</i> a player: the SNES game has no weight bug, checks everyone
+            with one formula, in which a heavier checker does a little better, and makes weight cost less
+            acceleration. The leagues' results agree: heavier forwards score a little more and go with stronger teams.
+          </p>
+          <ul>
             <li>
-              It is for the Genesis game with its own ratings. The SNES game plays differently and needs weights of its
-              own, and ROMs with 0–15 ratings are on another scale, so neither shows it.
+              <b>Forwards</b>: Speed, Shot Power, Shot Accuracy, Agility and Stickhandling, nearly evenly, and a little
+              for Weight.
+            </li>
+            <li>
+              <b>Defencemen</b>: Stickhandling and Speed most, then Off. Awareness, Weight and Checking, with Pass
+              Accuracy and a little Agility, Shot Power and Shot Accuracy against.
+            </li>
+            <li>
+              <b>Goalies</b>: Agility alone, but it is worth little on the SNES, so goalies' values give an order, not a
+              size.
+            </li>
+            <li>
+              The SNES teams' strengths repeat poorly from season to season, so the team test confirms neither the league
+              value nor the game's Overall. The SNES value rests on the players' own results.
             </li>
           </ul>
         </li>

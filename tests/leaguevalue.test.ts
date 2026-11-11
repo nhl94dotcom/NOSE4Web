@@ -29,10 +29,18 @@ describe('league value', () => {
     expect(leagueValue(goalie(4), 'G')).toBe(70)
   })
 
-  it('is for the Genesis game with its own ratings only', () => {
-    expect(hasLeagueValue({ platform: 'genesis', overallIsEstimate: false })).toBe(true)
-    expect(hasLeagueValue({ platform: 'genesis', overallIsEstimate: true })).toBe(false)
-    expect(hasLeagueValue({ platform: 'snes', overallIsEstimate: false })).toBe(false)
+  it('is left out only on ROMs with 0-15 ratings', () => {
+    expect(hasLeagueValue({ overallIsEstimate: false })).toBe(true)
+    expect(hasLeagueValue({ overallIsEstimate: true })).toBe(false)
+  })
+
+  it('has its own formula on the SNES, where Weight counts for a player', () => {
+    const forward = (wgt: number) => [wgt, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    expect(leagueValue(forward(10), 'F', 'snes')).toBeGreaterThan(leagueValue(forward(5), 'F', 'snes'))
+    expect(leagueValue(forward(10), 'F', 'genesis')).toBeLessThan(leagueValue(forward(5), 'F', 'genesis'))
+    // Goalies: Agility 2 and 6 at the scale's ends, as on the Genesis.
+    const goalie = (agl: number) => [5, agl, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    expect([2, 4, 6].map((agl) => leagueValue(goalie(agl), 'G', 'snes'))).toEqual([40, 69, 99])
   })
 })
 
@@ -67,9 +75,20 @@ describe.skipIf(!existsSync(GENESIS))('league value in the original game', () =>
   })
 })
 
-describe.skipIf(!existsSync(SNES))('league value on the SNES', () => {
-  it('is left out of the spreadsheet', () => {
-    const project = openRom(new Uint8Array(readFileSync(SNES)))
-    expect(CSV_TABLES.find((t) => t.id === 'players')!.rows(project)[0]).not.toContain('League value')
+describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () => {
+  const project = openRom(new Uint8Array(readFileSync(SNES)))
+  const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(project)
+  const at = rows[0].indexOf('League value')
+  const of = (name: string) => rows.find((row) => String(row[4]).trim() === name)?.[at]
+
+  it("is in the spreadsheet, worked out the SNES's way", () => {
+    expect(at).toBe(rows[0].indexOf('Overall') + 1)
+    // Among the bigger moves against Overall that Match Viewer lists: Klima up, Gilmour and Fleury down.
+    expect(of('Petr Klima')).toBe(93)
+    expect(of('Doug Gilmour')).toBe(82)
+    expect(of('Theoren Fleury')).toBe(81)
+    for (const position of ['F', 'D', 'G']) {
+      expect(Math.max(...rows.slice(1).filter((row) => row[3] === position).map((row) => Number(row[at])))).toBe(99)
+    }
   })
 })

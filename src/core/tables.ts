@@ -176,7 +176,7 @@ function remapLines(old: Team, players: Player[]): { lines: number[][]; lost: nu
 const LEAGUE_VALUE_COLUMN = 'League value'
 const valueHeading = (project: RomProject): Cell[] => (hasLeagueValue(project.game) ? [LEAGUE_VALUE_COLUMN] : [])
 const valueCell = (project: RomProject, attributes: number[], role: Role): Cell[] =>
-  hasLeagueValue(project.game) ? [leagueValue(attributes, role)] : []
+  hasLeagueValue(project.game) ? [leagueValue(attributes, role, project.game.platform)] : []
 
 const players: CsvTable = {
   id: 'players',
