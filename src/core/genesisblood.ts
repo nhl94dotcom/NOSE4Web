@@ -1,6 +1,5 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
-import { one } from './genesisscorelogos'
-import { fightState } from './fight'
+import { find, one } from './genesisscorelogos'
 import type { RomProject } from './rom'
 import { claimSpace, fullRomReason, releaseSpace } from './space'
 
@@ -121,10 +120,26 @@ interface Sites {
   fallLists: number
 }
 
+// updateanim's movea.l #SPAList,a0 at $AEFA, which the fighting patch points
+// at its own copy of the animation lists, leaving the original's in place.
+const SPA_LIST_AT = 0xaefa
+const SPA_LIST_BYTES = 0x2000
+
+// SPAinjuryfall's lists: the one place, or where there are two (the fighting
+// patch's copy and the original's), the one in the lists the game reads.
+function fallLists(rom: Uint8Array): { at: number } | null {
+  const all = find(rom, FALL_LISTS)
+  if (all.length === 1) return all[0]
+  if (rom.length < SPA_LIST_AT + 6 || readU16(rom, SPA_LIST_AT) !== 0x207c) return null
+  const lists = readU32(rom, SPA_LIST_AT + 2)
+  const used = all.filter((f) => f.at >= lists && f.at < lists + SPA_LIST_BYTES)
+  return used.length === 1 ? used[0] : null
+}
+
 function readSites(rom: Uint8Array): Sites | null {
   const add = one(rom, ADDFRAME)
   const hot = one(rom, GET_HOT)
-  const fall = one(rom, FALL_LISTS)
+  const fall = fallLists(rom)
   const tile = one(rom, TILE_CODE)
   if (!add || !hot || !fall || !tile) return null
   if (tile.groups[0] !== SIGNED && tile.groups[0] !== UNSIGNED) return null
@@ -178,9 +193,6 @@ function state(rom: Uint8Array) {
 
 export function canAddGenesisBlood(project: RomProject): boolean {
   if (project.game.platform === 'snes') return false
-  // The fighting patch adds animation frames of its own; the two do not go together yet.
-  const fighting = fightState(project.bytes)
-  if (fighting !== undefined && fighting !== 'none') return false
   const s = state(project.bytes)
   return s !== null && s.added === null
 }
@@ -190,10 +202,18 @@ export function hasGenesisBlood(project: RomProject): boolean {
 }
 
 export function withGenesisBloodAdded(project: RomProject): RomProject {
-  const found = canAddGenesisBlood(project) ? state(project.bytes) : null
-  if (!found) throw new Error('This ROM does not have the frames and animation that head bleeding goes into.')
+  if (!canAddGenesisBlood(project)) throw new Error('This ROM does not have the frames and animation that head bleeding goes into.')
+  return { ...project, bytes: bloodAdded(project.bytes) }
+}
+
+// Whether a Genesis ROM has the head bleeding NOSE4Web adds.
+export const bloodIn = (rom: Uint8Array) => state(rom)?.added != null
+
+// The ROM with head bleeding added.
+export function bloodAdded(rom0: Uint8Array): Uint8Array {
+  const found = state(rom0)
+  if (!found || found.added) throw new Error('This ROM does not have the frames and animation that head bleeding goes into.')
   const s = found.sites
-  const rom0 = project.bytes
   const table = tableOf(rom0, s)
   const count = frameCount(rom0, table)
   const tiles = ART.map((art) => artTiles(art.rows))
@@ -265,15 +285,20 @@ export function withGenesisBloodAdded(project: RomProject): RomProject {
   writeU16(rom, s.fallLists + 12, SLOTS[1])
   writeU16(rom, s.fallLists + 24, SLOTS[2])
   writeU16(rom, s.fallLists + 28, SLOTS[3])
-  return { ...project, bytes: rom }
+  return rom
 }
 
 // Taken out: the game as it was, but for the ROM's size.
 export function withGenesisBloodTakenOut(project: RomProject): RomProject {
-  const found = state(project.bytes)
+  return { ...project, bytes: bloodTakenOut(project.bytes) }
+}
+
+// The ROM with the head bleeding NOSE4Web added taken out.
+export function bloodTakenOut(rom0: Uint8Array): Uint8Array {
+  const found = state(rom0)
   if (!found?.added) throw new Error('This ROM has no head bleeding that NOSE4Web added.')
   const { sites: s, added } = found
-  const rom = project.bytes.slice()
+  const rom = rom0.slice()
   writeU32(rom, s.sprites + 4, readU32(rom, added.header + 8))
   writeU32(rom, s.tileCode, readU32(rom, added.header + 28))
   SLOTS.forEach((frame, i) => writeU16(rom, s.hotList + frame * 2, readU16(rom, added.header + 12 + i * 2)))
@@ -287,5 +312,5 @@ export function withGenesisBloodTakenOut(project: RomProject): RomProject {
   const written = table + offset(rom, table, frameCount(rom, table) - 1)
   // NOSE's end mark, where adding moved it to follow the room and nothing follows it, goes back.
   releaseSpace(rom, [{ start: added.start, end: written }])
-  return { ...project, bytes: rom }
+  return rom
 }

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
 import { FIGHT_BLOCKS, FIGHT_CHANGES } from '../src/core/fightdata'
-import { canAddGenesisBlood, withGenesisBloodAdded } from '../src/core/genesisblood'
+import { canAddGenesisBlood, hasGenesisBlood, withGenesisBloodAdded, withGenesisBloodTakenOut } from '../src/core/genesisblood'
 import { applyHacks, detectHacks, NO_HACKS, RECOMMENDED_FIXES } from '../src/core/hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
@@ -71,10 +71,37 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     expect(new TextDecoder().decode(again.bytes.subarray(periods + 2, periods + 11))).toBe('4 Minutes')
   })
 
-  it('does not go with head bleeding yet, either way round', () => {
-    const blood = withGenesisBloodAdded(fresh())
-    expect(() => applyHacks(blood, { ...detectHacks(blood.bytes).choices, fighting: 'on' })).toThrow(/Head bleeding/)
-    expect(canAddGenesisBlood(applyHacks(fresh(), { ...NO_HACKS, fighting: 'on' }))).toBe(false)
+  it('goes with head bleeding, either way round, and either comes out leaving the other', () => {
+    const plain = fresh()
+    // Blood first, then fighting: blood is taken out, the patch put in, and blood put back on it.
+    const blood = withGenesisBloodAdded(plain)
+    const both = applyHacks(blood, { ...detectHacks(blood.bytes).choices, fighting: 'on' })
+    expect(detectHacks(both.bytes).choices.fighting).toBe('on')
+    expect(hasGenesisBlood(both)).toBe(true)
+    // Fighting first, then blood.
+    const fighting = applyHacks(plain, { ...NO_HACKS, fighting: 'on' })
+    expect(canAddGenesisBlood(fighting)).toBe(true)
+    const both2 = withGenesisBloodAdded(fighting)
+    expect(detectHacks(both2.bytes).choices.fighting).toBe('on')
+    expect(hasGenesisBlood(both2)).toBe(true)
+    // The ROM opens again so, with the blood frames in the patch's frame table's copy.
+    const again = openRom(buildRom(both2))
+    expect(detectHacks(again.bytes).choices.fighting).toBe('on')
+    expect(hasGenesisBlood(again)).toBe(true)
+    // Another hack changed: both stay as they are.
+    const more = applyHacks(again, { ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true })
+    expect(detectHacks(more.bytes).choices).toEqual({ ...NO_HACKS, fighting: 'arcade', repeatCheckFix: true })
+    expect(hasGenesisBlood(more)).toBe(true)
+    // Fighting out: blood stays, and the ROM is as blood alone makes it.
+    const noFight = applyHacks(again, NO_HACKS)
+    expect(detectHacks(noFight.bytes).choices.fighting).toBe('none')
+    expect(hasGenesisBlood(noFight)).toBe(true)
+    expect(noFight.bytes.length).toBe(blood.bytes.length)
+    // Blood out: fighting stays, as it was before blood.
+    const noBlood = withGenesisBloodTakenOut(again)
+    expect(hasGenesisBlood(noBlood)).toBe(false)
+    expect(detectHacks(noBlood.bytes).choices.fighting).toBe('on')
+    expect(same(buildRom(noBlood), buildRom(openRom(buildRom(fighting))))).toBe(true)
   })
 
   it('is kept in a project file', () => {
@@ -105,6 +132,8 @@ describe.skipIf(leagues.length === 0)("chaos's fighting patch in the ROMs on thi
       expect(again.settings.menuTeams).toEqual(opened.settings.menuTeams)
       expect(again.settings.periodLengths).toEqual(opened.settings.periodLengths)
       expect(again.teams.map((t) => t.names.join())).toEqual(opened.teams.map((t) => t.names.join()))
+      // Head bleeding goes on top.
+      expect(hasGenesisBlood(withGenesisBloodAdded(again))).toBe(true)
       // Taken out, the ROM is as it is with its hacks put in again without it.
       const out = applyHacks(again, choices)
       expect(same(buildRom(out), buildRom(applyHacks(opened, choices)))).toBe(true)

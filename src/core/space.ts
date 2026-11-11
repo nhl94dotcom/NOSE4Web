@@ -94,7 +94,8 @@ function freedBefore(rom: Uint8Array, end: number): number | null {
 // taken back with it. Room with something after it is left marked as freed.
 export function releaseSpace(rom: Uint8Array, parts: { start: number; end: number }[]): void {
   for (const { start, end } of parts) rom.fill(UNUSED, start, end)
-  let last = rom.length - 1
+  // In a 3 MB ROM, NOSE4Web's room ends below the fighting patch's code.
+  let last = (rom.length === FIGHT_ROM ? SWITCHED_BELOW : rom.length) - 1
   while (last >= 0 && rom[last] === UNUSED) last--
   const marked = last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
   // The end of what is used, and how far back it can go.

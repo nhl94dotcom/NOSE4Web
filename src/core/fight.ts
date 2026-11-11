@@ -60,9 +60,18 @@ const ORIGINAL_CHOICES_AT = 0xf7bb0
 // The sprites' colours: SprTbl's first long is their distance from it.
 const SPRITE_TABLE = 0x5de7a
 const SPRITE_COLOURS = 0x80
-// What may differ in a ROM with the patch: the starting choice, the menu's pointers and the sprites' colours.
+// The patch's animation tables (its SPAList, frame table, pieces and HotList,
+// $200B00 to $208FE4), which head bleeding added on top of the patch changes,
+// and the sprite header's frame table offset ($5DE7E), which it points at its
+// copy.
+const TABLES: [number, number] = [0x200b00, 0x208fe4]
+const FRAME_TABLE_OFFSET = 0x5de7e
+// What may differ in a ROM with the patch: the starting choice, the menu's
+// pointers, the sprites' colours, and what head bleeding changes.
 const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
+  TABLES,
+  [FRAME_TABLE_OFFSET, FRAME_TABLE_OFFSET + 4],
   [CHOICES_AT, CHOICES_AT + 4],
   [CAPTIONS_AT, CAPTIONS_AT + 4],
   [PERIODS_AT, PERIODS_AT + 4],
@@ -145,6 +154,13 @@ export function fightBlocked(rom: Uint8Array): string | null {
   if (rom.length > FIGHT_ROM_SIZE) return 'This ROM is larger than 3 MB.'
   if (!blocks.every((b) => unused(rom, b.at, b.bytes.length))) return 'Something is already in this ROM where the fighting patch puts its code (at 2 MB).'
   return null
+}
+
+// The ROM with the patch in already, its menu's starting choice changed.
+export function withFightChoice(rom: Uint8Array, choice: Exclude<FightChoice, 'none'>): Uint8Array {
+  const out = rom.slice()
+  put16(out, DEFAULT_AT, DEFAULTS.indexOf(choice))
+  return out
 }
 
 // The ROM with the patch in, its menu starting at `choice`.

@@ -23,7 +23,8 @@
 
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { fightState, withFight, withoutFight, type FightChoice } from './fight'
+import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
+import { bloodAdded, bloodIn, bloodTakenOut } from './genesisblood'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
@@ -2240,6 +2241,27 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   }
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
+  // Fighting that stays in is left as it is, but for its menu's starting
+  // choice. Head bleeding, which goes on top of it, comes out around a change
+  // to it and goes back after.
+  const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
+  let bloodBack = false
+  const removeFight = () => {
+    if (fightKept) return
+    if (choices.fighting !== wanted.fighting && bloodIn(work.rom)) {
+      work.rom = bloodTakenOut(work.rom)
+      bloodBack = true
+    }
+    work.rom = withoutFight(work.rom)
+  }
+  const putFight = () => {
+    if (fightKept && wanted.fighting !== 'none') {
+      work.rom = withFightChoice(work.rom, wanted.fighting)
+      return
+    }
+    applyFight(work, wanted.fighting)
+    if (bloodBack) work.rom = bloodAdded(work.rom)
+  }
   const steps: [HackPart, () => void, () => void][] = [
     ['weightFix', () => weightFix.remove(work.rom), () => weightFix.apply(work, wanted.weightFix)],
     ['bodychecks', () => bodychecks.remove(work.rom), () => bodychecks.apply(work, wanted.bodychecks)],
@@ -2296,7 +2318,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
-    ['fighting', () => (work.rom = withoutFight(work.rom)), () => applyFight(work, wanted.fighting)],
+    ['fighting', removeFight, putFight],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')

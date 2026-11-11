@@ -45,7 +45,7 @@ const VISITOR_ATTRIBUTE = 0x8000 | 0x6000 // priority, palette line 3
 // ---------------------------------------------------------------- finding the code
 
 // A pattern of hex bytes, '..' any byte, '(....)' a big-endian group.
-function find(rom: Uint8Array, pattern: string): { at: number; groups: number[] }[] {
+export function find(rom: Uint8Array, pattern: string): { at: number; groups: number[] }[] {
   const bytes: (number | null)[] = []
   const groups: { at: number; size: number }[] = []
   for (const [, fixed, group] of pattern.replace(/\s/g, '').matchAll(/([0-9a-f]{2})|\(((?:\.\.)+)\)|\.\./g)) {

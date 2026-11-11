@@ -1418,8 +1418,9 @@ export function HelpPage() {
           saved records switched in only when it uses them; Genesis Plus GX plays it. NOSE4Web leaves out the title
           screen, credits, ROM name and players' ratings of chaos's own ROM. It goes into league ROMs too: the patch
           has a main menu of its own, the original game's, so NOSE4Web makes it from the league's, keeping its
-          captions, choices, teams offered and period lengths, with the Fighting line added. Not with head bleeding
-          yet. Made by chaos, with McMarkis and AbdulBCRT
+          captions, choices, teams offered and period lengths, with the Fighting line added. Head bleeding goes with
+          it, added before or after; changing fighting takes it out and puts it back. Made by chaos, with McMarkis and
+          AbdulBCRT
           (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81).
         </li>
         <li>
