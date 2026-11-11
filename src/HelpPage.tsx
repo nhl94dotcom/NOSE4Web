@@ -1194,6 +1194,17 @@ export function HelpPage() {
           at a number to see its forwards and its defence pair apart.
         </li>
         <li>
+          <b>Strength</b> (Genesis): how strong a team should play, from the NHL94 Match Viewer project's study of
+          the Classic leagues' results. It is 71% the average league value of the team's four best forwards, 15% its
+          three best defencemen and 14% its best goalie, so on the same 0–99 scale as the league value (see{' '}
+          <b>LV</b> under the team pages). Built only on the best players, it does not depend on how the lines are
+          set. It explains about 69% of the differences in strength between the leagues' teams, and 50% of a team
+          left out of the fit, where the game's Overall explains almost none of a team it has not seen; so it is
+          the better measure of whether a league is balanced. <b>League balance</b> can be measured by it too. It
+          is for the Genesis game with its own ratings; the SNES teams' strengths repeat too poorly from season to
+          season to fit one.
+        </li>
+        <li>
           <b>Two teams side by side</b> puts any two teams' ratings next to each other: the overall, every line,
           the starting goalie, the forwards, the defence and the best goalie, with the higher of each marked and the
           difference between them. Use it to preview a playoff series, or to see what a trade did to two teams.

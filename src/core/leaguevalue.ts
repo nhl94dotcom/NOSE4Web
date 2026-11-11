@@ -55,3 +55,34 @@ export function hasLeagueValue(game: { overallIsEstimate: boolean }): boolean {
 
 export const LEAGUE_VALUE_TITLE =
   "League value: Match Viewer's 0-99 rating from what each rating was worth in the leagues' results, worked out for this ROM's system. See Help."
+
+// A team's strength from its best players' league values (Match Viewer's team
+// fit on the Classic leagues' results, 2026-11-11): 0.71 x the average of its
+// top four forwards, 0.15 x its top three defencemen, 0.14 x its best goalie.
+// It explains about 69% of the teams' strength, and 50% of a team left out of
+// its own fit. On the 0-99 scale of the league value. The Genesis only so far:
+// the SNES teams' strengths repeat too poorly to fit one.
+const STRENGTH_PARTS: { role: Role; count: number; share: number }[] = [
+  { role: 'F', count: 4, share: 0.71 },
+  { role: 'D', count: 3, share: 0.15 },
+  { role: 'G', count: 1, share: 0.14 },
+]
+
+export function hasTeamStrength(game: { overallIsEstimate: boolean; platform?: Platform }): boolean {
+  return hasLeagueValue(game) && game.platform !== 'snes'
+}
+
+// From each player's league value and role; null for a team missing a position.
+export function teamStrength(players: { role: Role; value: number }[]): number | null {
+  let total = 0
+  for (const part of STRENGTH_PARTS) {
+    const best = players
+      .filter((p) => p.role === part.role)
+      .map((p) => p.value)
+      .sort((a, b) => b - a)
+      .slice(0, part.count)
+    if (best.length === 0) return null
+    total += part.share * (best.reduce((sum, v) => sum + v, 0) / best.length)
+  }
+  return total
+}

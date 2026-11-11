@@ -492,9 +492,10 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByLabel('Second team to compare').selectOption({ label: 'Los Angeles Kings' })
     await expect(matchup.locator('thead')).toContainText('Montreal Canadiens')
     await expect(matchup.locator('thead')).toContainText('Los Angeles Kings')
-    // Overall, every line, the goalie, the forwards, the defence and the best goalie.
-    await expect(matchup.locator('tbody tr')).toHaveCount(1 + 8 + 4)
-    const overallRow = matchup.locator('tbody tr').first().locator('td')
+    // Strength, overall, every line, the goalie, the forwards, the defence and the best goalie.
+    await expect(matchup.locator('tbody tr')).toHaveCount(1 + 1 + 8 + 4)
+    await expect(matchup.locator('tbody tr').first()).toContainText('Strength')
+    const overallRow = matchup.locator('tbody tr').nth(1).locator('td')
     const [montreal, kings, difference] = await overallRow.allTextContents()
     expect(Number(difference)).toBeCloseTo(Number(montreal) - Number(kings), 1)
     // The same overall as the table of every team.
@@ -1024,7 +1025,8 @@ test.describe('with the NHL 94 ROM', () => {
     const table = leagueTable(page)
     await expect(table.locator('tbody tr')).toHaveCount(28)
     await expect(table.locator('tfoot')).toContainText('League average')
-    const firstLine = () => table.locator('tbody tr td:nth-child(3)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    // Team, Overall, Strength, then First line.
+    const firstLine = () => table.locator('tbody tr td:nth-child(4)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
     await table.getByRole('button', { name: /^First line/ }).click()
     const down = await firstLine()
     expect(down).toEqual([...down].sort((a, b) => b - a))
@@ -1038,9 +1040,9 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByLabel(/Show every line/).check()
     for (const label of ['Sc1', 'Sc2', 'Chk', 'PP1', 'PP2', 'PK1', 'PK2']) await expect(table.getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible()
     await table.getByRole('button', { name: /^Sc2/ }).click()
-    const sc2 = await table.locator('tbody tr td:nth-child(5)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    const sc2 = await table.locator('tbody tr td:nth-child(6)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
     expect(sc2).toEqual([...sc2].sort((x, y) => y - x))
-    await expect(table.locator('tbody tr td:nth-child(5)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
+    await expect(table.locator('tbody tr td:nth-child(6)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
     await page.screenshot({ path: 'test-results/shots/league_lines.png', fullPage: true })
 
     await found.first().getByRole('button', { name: 'Los Angeles Kings' }).click()

@@ -1,6 +1,7 @@
 // Views across every team at once: finding players, and how the teams compare.
 
 import type { GameConfig } from './games'
+import { hasTeamStrength, leagueValue, teamStrength } from './leaguevalue'
 import { emptyLineSlots } from './lines'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
@@ -57,6 +58,8 @@ export interface TeamSummary {
   defence: number | null
   skaters: number | null
   bestGoalie: number | null
+  // Match Viewer's team strength from the league value (leaguevalue.ts), where the ROM has one.
+  strength: number | null
   // Bytes the team takes in the ROM.
   size: number
   // For each of the team's lines, in the ROM's order (the first is the
@@ -123,6 +126,7 @@ export function lineupRatings(team: Team, game: GameConfig, empty: boolean[][]):
 export function teamSummaries(project: RomProject): TeamSummary[] {
   const everyone = leaguePlayers(project)
   const empty = emptyLineSlots(project.teams)
+  const withStrength = hasTeamStrength(project.game)
   return project.teams.map((team, t) => {
     const roster = everyone.filter((p) => p.team === t)
     const overalls = (role: Role) => roster.filter((p) => p.role === role).map((p) => p.overall)
@@ -138,6 +142,7 @@ export function teamSummaries(project: RomProject): TeamSummary[] {
       defence: average(overalls('D')),
       skaters: average([...overalls('F'), ...overalls('D')]),
       bestGoalie: overalls('G').length > 0 ? Math.max(...overalls('G')) : null,
+      strength: withStrength ? teamStrength(roster.map((p) => ({ role: p.role, value: leagueValue(p.player.attributes, p.role, project.game.platform) }))) : null,
       size: teamContentSize(team, project.layout),
       lines,
     }
@@ -165,6 +170,7 @@ export function leagueAverages(summaries: TeamSummary[]): Record<SummaryColumn, 
     defence: column('defence'),
     skaters: column('skaters'),
     bestGoalie: column('bestGoalie'),
+    strength: column('strength'),
     size: column('size'),
   }
 }

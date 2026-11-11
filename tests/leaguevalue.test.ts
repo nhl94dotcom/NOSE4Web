@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { hasLeagueValue, leagueValue, type Role } from '../src/core/leaguevalue'
+import { hasLeagueValue, leagueValue, teamStrength, type Role } from '../src/core/leaguevalue'
+import { teamSummaries } from '../src/core/league'
 import { openRom } from '../src/core/rom'
 import { goalieCount } from '../src/core/team'
 import { CSV_TABLES } from '../src/core/tables'
@@ -38,6 +39,19 @@ describe('league value', () => {
     const snes = [6, 7, 10].map((w) => leagueValue(defenceman(w), 'D', 'snes'))
     expect(snes[1]).toBeGreaterThan(snes[0] + 10)
     expect(snes[2]).toBeGreaterThan(snes[0] + 10)
+  })
+
+  it("rates a team from its best players: 71% top four forwards, 15% top three defencemen, 14% best goalie", () => {
+    const players = [
+      ...[90, 80, 70, 60, 10].map((value) => ({ role: 'F' as Role, value })),
+      ...[50, 40, 30, 0].map((value) => ({ role: 'D' as Role, value })),
+      ...[99, 20].map((value) => ({ role: 'G' as Role, value })),
+    ]
+    // 0.71 x 75 + 0.15 x 40 + 0.14 x 99
+    expect(teamStrength(players)).toBeCloseTo(0.71 * 75 + 0.15 * 40 + 0.14 * 99, 6)
+    // Fewer than four forwards: the average of those there are. No goalie: no strength.
+    expect(teamStrength([{ role: 'F', value: 60 }, { role: 'D', value: 60 }, { role: 'G', value: 60 }])).toBeCloseTo(60, 6)
+    expect(teamStrength([{ role: 'F', value: 60 }, { role: 'D', value: 60 }])).toBeNull()
   })
 
   it('is left out only on ROMs with 0-15 ratings', () => {
@@ -82,6 +96,11 @@ describe.skipIf(!existsSync(GENESIS))('league value in the original game', () =>
     for (const role of ['F', 'D', 'G'] as const) expect(Math.max(...players().filter((p) => p.role === role).map((p) => p.value))).toBe(99)
   })
 
+  it('gives every team a strength on the League page', () => {
+    const summaries = teamSummaries(genesisProject())
+    expect(summaries.every((s) => s.strength !== null && s.strength > 30 && s.strength < 99)).toBe(true)
+  })
+
   it('is in the Players spreadsheet beside Overall', () => {
     const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(genesisProject())
     const at = rows[0].indexOf('League value')
@@ -97,6 +116,10 @@ describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () 
   // Two Stephane Richers are in the game (the leagues call the defenceman StephaneD), so a team can be given too.
   const of = (name: string, team = '') =>
     rows().find((row) => String(row[4]).trim() === name && String(row[1]).includes(team))?.[at()]
+
+  it('has no team strength on the SNES yet', () => {
+    expect(teamSummaries(snesProject()).every((s) => s.strength === null)).toBe(true)
+  })
 
   it("is in the spreadsheet, worked out the SNES's way", () => {
     expect(at()).toBe(rows()[0].indexOf('Overall') + 1)

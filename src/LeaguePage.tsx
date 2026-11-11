@@ -11,6 +11,13 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
     title: "Average overall of every skater on the Sc1, Sc2 and Chk lines, each counted once, and the first line's goalie: the team as it plays with line changes",
     decimals: 1,
   },
+  {
+    key: 'strength',
+    label: 'Strength',
+    title:
+      "Match Viewer's team strength, from the league value: 71% the average of the team's top four forwards, 15% its top three defencemen and 14% its best goalie. It explains about half of how strong the leagues' teams have played, where the game's Overall explains almost none. Genesis only; see Help",
+    decimals: 1,
+  },
   { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
   { key: 'startingGoalie', label: 'Its goalie', title: 'Overall of the goalie on the first line', decimals: 0 },
   { key: 'skaters', label: 'Skaters', title: 'Average overall of every skater on the roster', decimals: 1 },
@@ -23,7 +30,7 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
 ]
 
 // More than this far from the league average is marked as standing out.
-const STANDS_OUT = { overall: 4, startingSkaters: 4, startingGoalie: 8, skaters: 4, forwards: 4, defence: 4, bestGoalie: 8 } as Partial<Record<SummaryColumn, number>>
+const STANDS_OUT = { overall: 4, strength: 4, startingSkaters: 4, startingGoalie: 8, skaters: 4, forwards: 4, defence: 4, bestGoalie: 8 } as Partial<Record<SummaryColumn, number>>
 const LINE_STANDS_OUT = 4
 
 // A column of the table: how to read it from a team's summary, its league
@@ -43,6 +50,7 @@ const SEARCH_LIMIT = 200
 
 // The ratings the league's balance can be measured by.
 const BALANCE_BY: { key: SummaryColumn; label: string }[] = [
+  { key: 'strength', label: 'Strength (from the league value)' },
   { key: 'overall', label: 'Overall (with line changes)' },
   { key: 'startingSkaters', label: 'First line (without line changes)' },
   { key: 'skaters', label: 'All skaters' },
@@ -80,7 +88,9 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
     const rating = summary.lines[line]
     return rating && `Forwards ${number(rating.forwards, 1)}, defence ${number(rating.defence, 1)}`
   }
-  const summaryColumns: Column[] = COLUMNS.map((column) => ({
+  // Strength only where the ROM has it.
+  const shownColumns = COLUMNS.filter((column) => column.key !== 'strength' || averages.strength !== null)
+  const summaryColumns: Column[] = shownColumns.map((column) => ({
     ...column,
     id: column.key,
     value: (summary) => summary[column.key],
@@ -266,7 +276,7 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
           <label>
             Measured by{' '}
             <select value={balanceBy} onChange={(e) => setBalanceBy(e.target.value as SummaryColumn)}>
-              {BALANCE_BY.map((by) => (
+              {BALANCE_BY.filter((by) => by.key !== 'strength' || averages.strength !== null).map((by) => (
                 <option key={by.key} value={by.key}>
                   {by.label}
                 </option>
@@ -354,6 +364,9 @@ interface MatchupProps {
 function Matchup({ project, summaries, names, pair, onPair, onGoToTeam }: MatchupProps) {
   const [a, b] = pair.map((t) => summaries[Math.min(t, summaries.length - 1)])
   const rows: { label: string; title: string; value: (s: TeamSummary) => number | null; decimals: number }[] = [
+    ...(summaries.some((s) => s.strength !== null)
+      ? [{ label: 'Strength', title: COLUMNS.find((c) => c.key === 'strength')!.title, value: (s: TeamSummary) => s.strength, decimals: 1 }]
+      : []),
     { label: 'Overall', title: COLUMNS[0].title, value: (s) => s.overall, decimals: 1 },
     ...project.game.lineLabels.map((label, l) => ({
       label: `${label} line`,
