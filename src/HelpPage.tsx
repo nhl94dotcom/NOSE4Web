@@ -1978,6 +1978,11 @@ export function HelpPage() {
               <b>Goalie poke check reaches the ice</b>: in the original game a goalie's poke (X) straight up or down
               the ice never reaches the puck; with this on it knocks it loose, as a sideways poke can.
             </li>
+            <li>
+              <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
+              overtime plays more overtime until someone scores, as a playoff game does, instead of ending in a tie.
+              The same two changes as the Genesis option; not yet tested in the SNES game.
+            </li>
           </ul>
         </li>
         <li>

@@ -187,6 +187,7 @@ const SNES: Record<SnesHack, string> = {
   holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',
   noSkatingDrain: 'With line changes on, skating costs no energy: players tire only from hits (if set) and speed bursts, and rest on the bench as usual.',
   freeBurst: 'A speed burst costs no energy.',
+  seasonOvertime: 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
   injuryBonus: 'Each knockdown a skater takes makes a hit a little more likely to injure him, its own included (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
@@ -196,7 +197,7 @@ const SNES: Record<SnesHack, string> = {
 const SNES_SECTIONS: [string, SnesHack[]][] = [
   ['Bug fixes', ['hotColdFix', 'secondAssist', 'regainAssist', 'ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix']],
   ['Edit Lines and controls', ['forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie']],
-  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus']],
+  ['Rules and options', ['faceoffFix', 'awarenessFix', 'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus']],
   ['Statistics', ['stickShots']],
   ['Starting up', ['skipEaIntro', 'skipPucksIntro']],
 ]

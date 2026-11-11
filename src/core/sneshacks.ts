@@ -44,6 +44,7 @@ export type SnesHack =
   | 'freeBurst'
   | 'energySpeed'
   | 'goaliePoke'
+  | 'seasonOvertime'
 
 interface Site {
   // The game's address.
@@ -271,6 +272,7 @@ export const SNES_HACKS: SnesHack[] = [
   'freeBurst',
   'energySpeed',
   'goaliePoke',
+  'seasonOvertime',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -304,6 +306,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   freeBurst: 'Speed bursts cost no energy',
   energySpeed: "Energy takes all of a skater's speed",
   goaliePoke: 'Goalie poke check reaches the ice',
+  seasonOvertime: 'Overtime until a goal in the regular season',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -570,6 +573,21 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // cannot knock down a raised shot. Nothing else changes: his stance and stick saves are as before,
   // and a poke that reaches the puck knocks it loose, as a sideways one does. sta d3 / ldx curobj after the
   // height becomes jsr / nop. SPA and the poke's animation are read from puckglue and assgoalie.
+  // Tied regular-season games, as the Genesis's (hacks.ts): the game decides game over twice at the end of an
+  // overtime. PeriodOver: after overtime gsp goes back to 3, and lda.l OptPlayMode / bne .2 lets only a playoff
+  // game on to the tie test, a regular-season one getting gsp 4 first; the bne becomes bra. clockcont_0's .8:
+  // lda gsp / cmp #3 / bne / lda.l OptPlayMode / beq .7 ends a regular-season overtime; the beq goes. Each
+  // regular-season overtime is ResetClock's, 5:00.
+  seasonOvertime: (rom) => {
+    const period = only(rom, 'ee....ad....c90300f0..90..a903008d....af........06a904008d....ad....cd....')
+    const clock = only(rom, 'ad....c90300d006af..........22')
+    if (period < 0 || clock < 0) return null
+    // The beq goes back 97 bytes, to .7, in every build.
+    return [
+      { at: period + 23, original: hexBytes('D0'), hacked: hexBytes('80') },
+      { at: clock + 12, original: hexBytes('F09F'), hacked: hexBytes('EAEA') },
+    ]
+  },
   goaliePoke: (rom) => {
     const found = only(rom, '9822......a5a589008' + '0f00449ffff1a85ad0aaabf......85b5a5a989008' + '0f00449ffff1a0aaabf......')
     const spa = only(rom, 'a491a98c0099....b9....c9....')
@@ -1088,7 +1106,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
