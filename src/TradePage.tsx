@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { attributeText, isRating } from './core/attributes'
 import { hex } from './core/bytes'
 import { playerRole, teamSummaries } from './core/league'
+import { hasLeagueValue, leagueValue, LEAGUE_VALUE_TITLE, type Role } from './core/leaguevalue'
 import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import { overfullTeams, teamLabels, teamSpace } from './core/team'
@@ -25,6 +26,8 @@ interface Row {
   role: string
   jersey: number
   overall: number
+  // Match Viewer's league value, where the ROM has one.
+  value: number | null
   attributes: number[]
 }
 
@@ -43,6 +46,8 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
   const [notice, setNotice] = useState('')
   const labels = teamLabels(project.teams, project.game)
   const label = (team: number) => (team === FREE_AGENTS ? 'Free agents' : labels[team])
+  const showValue = hasLeagueValue(project.game)
+  const valueOf = (attributes: number[], role: string) => (showValue ? leagueValue(attributes, role as Role, project.game.platform) : null)
 
   // Undo can shorten a roster under the ticks, so ticks past its end are dropped.
   const rowsOf = (team: number): Row[] =>
@@ -53,12 +58,13 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
           role: agent.role,
           jersey: agent.player.jersey,
           overall: overallRating(agent.player.attributes, agent.role === 'G', project.game),
+          value: valueOf(agent.player.attributes, agent.role),
           attributes: agent.player.attributes,
         }))
       : project.teams[team].players.map((player, index) => {
           const role = playerRole(project.teams[team], index)
           const overall = overallRating(player.attributes, role === 'G', project.game)
-          return { index, name: player.name, role, jersey: player.jersey, overall, attributes: player.attributes }
+          return { index, name: player.name, role, jersey: player.jersey, overall, value: valueOf(player.attributes, role), attributes: player.attributes }
         })
   const live = sides.map((side) => ({ ...side, picks: side.picks.filter((i) => i < rowsOf(side.team).length) })) as [TradeSide, TradeSide]
 
@@ -233,6 +239,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                           <th className="pin">{isGoalies ? 'Goalies' : 'Skaters'}</th>
                           <th>No.</th>
                           <th>Ovr</th>
+                          {showValue && <th title={LEAGUE_VALUE_TITLE}>LV</th>}
                           {showAttributes &&
                             attributeLabels.map((text, a) => (
                               <th key={a} title={attributeNames[a]}>
@@ -263,6 +270,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                             <td className="pin">{row.name}</td>
                             <td>{hex(row.jersey)}</td>
                             <td>{row.overall}</td>
+                            {showValue && <td>{row.value}</td>}
                             {showAttributes &&
                               row.attributes.map((value, a) => (
                                 <td key={a}>{rawAttributes ? value : (attributeText(kinds[a], value) ?? `! ${value}`)}</td>
