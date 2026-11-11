@@ -11,6 +11,9 @@ import { freeSpace, keptBanks } from './snespictures'
 const LOADER = '0a0aaabf......850ebf(....)(..)850ca2100022'
 const COLOURS = 16
 
+// Where the table of each team's block colours is (4 bytes a team), or null.
+export const snesBlockColourTable = (rom: Uint8Array, teamCount: number) => table(rom, teamCount)
+
 function table(rom: Uint8Array, teamCount: number): number | null {
   const code = findCode(rom, LOADER)
   if (!code || code.groups[0] < 0x8000) return null

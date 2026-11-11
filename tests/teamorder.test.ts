@@ -10,11 +10,15 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { tableRows, tablesFor } from '../src/core/tables'
 import { teamDisplayName } from '../src/core/team'
+import { snesBlockColours } from '../src/core/snesblockcolours'
+import { snesPhotoPalette, snesTeamPhotos } from '../src/core/snesphotos'
+import { snesCentreIce, snesLogo } from '../src/core/snespictures'
+import { snesScoreLogo, snesScoreLogosSupported } from '../src/core/snesscorelogos'
 import { alphabeticalOrder, shownTeamRatings, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
-const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const local: { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
 const GENESIS = path('nhl94.bin')
 const open = (file: string) => openRom(new Uint8Array(readFileSync(file)))
 const reopen = (project: RomProject) => openRom(buildRom(project))
@@ -39,8 +43,33 @@ function looks(project: RomProject, team: number) {
   }
 }
 
+const pixels = (value: unknown) => JSON.stringify(value, (_, v) => (v instanceof Uint8Array ? Array.from(v).join('') : v))
+
+// The same on the SNES.
+function snesLooks(project: RomProject, team: number) {
+  const t = project.teams[team]
+  const count = project.teams.length
+  const edits = project.snesPictures!
+  return {
+    name: teamDisplayName(t),
+    players: t.players.map((player) => player.name).join(','),
+    lines: t.lines.join('|'),
+    palette: t.palette.join(),
+    overall: t.shownOverall,
+    placeName: t.placeName,
+    songs: t.snesSongs?.join(),
+    logo: pixels(snesLogo(project.bytes, count, edits, team)),
+    centreIce: pixels(snesCentreIce(project.bytes, count, edits, team)),
+    blockColours: snesBlockColours(project, team)?.join(),
+    photos: pixels(snesTeamPhotos(project, team).map((photo) => photo.picture)),
+    photoColours: snesPhotoPalette(project, team).join(),
+    scoreLogo: snesScoreLogosSupported(project) ? pixels(snesScoreLogo(project, team)) : null,
+  }
+}
+
 function expectMoved(before: RomProject, after: RomProject, order: number[]) {
-  order.forEach((was, n) => expect(looks(after, n), `team ${n + 1}`).toEqual(looks(before, was)))
+  const of = before.game.platform === 'snes' ? snesLooks : looks
+  order.forEach((was, n) => expect(of(after, n), `team ${n + 1}`).toEqual(of(before, was)))
   // The draws and the menu's teams name the same teams as before.
   const named = (project: RomProject) => project.settings.playoffDraws.map((draw) => draw.map((team) => teamDisplayName(project.teams[team])))
   expect(named(after)).toEqual(named(before))
@@ -136,6 +165,28 @@ describe.skipIf(others.length === 0)('moving teams in the ROMs on this computer'
       expectMoved(project, reopen(withTeamOrder(project, order)), order)
       const last = teamMovedTo(project.teams.length, project.teams.length - 1, 0)
       expectMoved(project, reopen(withTeamOrder(project, last)), last)
+    })
+  })
+})
+
+const snes = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
+describe.skipIf(snes.length === 0)('moving teams, SNES', () => {
+  // Numbered, so that no ROM's name appears in the test results.
+  snes.forEach((name, i) => {
+    it(`SNES ROM ${i + 1}: moves every team's tables, or says why not`, () => {
+      const project = open(path(name))
+      const range = teamMoveRange(project)
+      if ('reason' in range) throw new Error(range.reason)
+      const order = alphabeticalOrder(project, range.league)
+      const moved = withTeamOrder(project, order)
+      expectMoved(project, moved, order)
+      const again = reopen(moved)
+      expectMoved(project, again, order)
+      const last = teamMovedTo(project.teams.length, project.teams.length - 1, 0)
+      expectMoved(project, reopen(withTeamOrder(project, last)), last)
+      // Moved back, the ROM is as it was.
+      const back = withTeamOrder(again, order.map((_, n) => order.indexOf(n)))
+      expect(Array.from(buildRom(back)).join() === Array.from(buildRom(project)).join()).toBe(true)
     })
   })
 })

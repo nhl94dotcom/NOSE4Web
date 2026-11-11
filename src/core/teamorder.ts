@@ -5,6 +5,10 @@ import { genesisScoreLogoTable, SCORE_LOGO_ENTRY } from './genesisscorelogos'
 import { playoffLast } from './menuteams'
 import { teamSongsRoom, withRoomForTeamSongs } from './teamsongs'
 import { photoLayout } from './photos'
+import { snesBlockColourTable } from './snesblockcolours'
+import { SNES_PHOTO_SLOTS, snesPhotoTables } from './snesphotos'
+import { NO_SNES_PICTURE_EDITS, snesPicturesInTeamOrder, snesPicturesSupported } from './snespictures'
+import { SNES_SCORE_LOGO_ENTRY, snesScoreLogoTable } from './snesscorelogos'
 import type { RomProject } from './rom'
 import type { Settings } from './settings'
 import { teamDisplayName, type TeamLayout } from './team'
@@ -66,7 +70,7 @@ export function shownTeamRatings(rom: Uint8Array, teamCount: number): number[] |
 // Whether teams can be moved, and how many of the first are the league's own.
 export function teamMoveRange(project: RomProject): MoveRange {
   const { game, bytes } = project
-  if (game.platform === 'snes') return { reason: 'Moving teams is not yet ready for the SNES game.' }
+  if (game.platform === 'snes') return snesMoveRange(project)
   if (!game.settingsSupported) {
     return { reason: "This ROM's hack rebuilds the menus and playoffs, so the editor cannot follow every place it keeps a team's number." }
   }
@@ -78,8 +82,29 @@ export function teamMoveRange(project: RomProject): MoveRange {
   if (project.teams.some((team) => !team.songs)) return { reason: "This ROM's organ songs are not where the editor expects, so they could not move with their teams." }
   const last = playoffLast(bytes, game)
   if (last === null) return { reason: 'The editor cannot tell which teams are the playoff teams in this ROM.' }
+  return leagueRange(project, last)
+}
+
+const leagueRange = (project: RomProject, last: number): MoveRange => {
   const offered = project.settings.menuTeams?.offered ?? project.teams.length
   return { league: Math.max(1, Math.min(last + 1, offered, project.teams.length)) }
+}
+
+// The SNES game keeps its team colours, place names and songs apart from its
+// team data, and the editor holds them with each team; the rest are tables.
+function snesMoveRange(project: RomProject): MoveRange {
+  const { game, bytes } = project
+  const count = project.teams.length
+  if (!snesPicturesSupported(bytes, count)) return { reason: "This ROM keeps its logos in a way the editor cannot follow, so they could not move with their teams." }
+  if (snesBlockColourTable(bytes, count) === null) return { reason: "This ROM's banner colours are not where the editor expects, so they could not move with their teams." }
+  if (!snesPhotoTables(bytes, count)) return { reason: "This ROM keeps its player photos in a way the editor cannot follow, so they could not move with their teams." }
+  if (project.teams.some((team) => !team.snesSongs || team.placeName === undefined)) {
+    return { reason: "This ROM's organ songs or banner names are not where the editor expects, so they could not move with their teams." }
+  }
+  if (project.settings.playoffDraws.length === 0) return { reason: "This ROM's playoff draws are not where the editor expects, so they could not follow their teams." }
+  const last = playoffLast(bytes, game)
+  if (last === null) return { reason: 'The editor cannot tell which teams are the playoff teams in this ROM.' }
+  return leagueRange(project, last)
 }
 
 // The settings with team numbers changed as the teams move: `place` gives
@@ -108,15 +133,13 @@ export function withTeamOrder(project: RomProject, order: TeamOrder): RomProject
   if (order.every((team, n) => team === n)) return project
   const { game } = project
   const count = project.teams.length
+  if (game.platform === 'snes') return withSnesTeamOrder(project, order)
   // In 30-team ROMs the songs table has room for 28, the last two teams
   // reading what follows it; a team moved there needs a table with room for all.
   const room = teamSongsRoom(project.bytes, count) ?? count
   const from = order.some((was, n) => was !== n && (n >= room || was >= room)) ? withRoomForTeamSongs(project.bytes, count) : project.bytes
   if (!from) throw new Error('There is no room in the ROM to give every team organ songs of its own, which moving these teams needs.')
   const rom = from.slice()
-  const newNumber = new Array<number>(count)
-  order.forEach((was, n) => (newNumber[was] = n))
-  const place = (team: number) => (team >= 0 && team < count ? newNumber[team] : team)
 
   // The game's own tables, read from the ROM as it was.
   const graphics = graphicsInTeamOrder(from, rom, game, project.graphics, order)
@@ -124,7 +147,32 @@ export function withTeamOrder(project: RomProject, order: TeamOrder): RomProject
   reorderEntries(from, rom, ratingsTable(from, game.teamCount)!, 1, order)
   const scoreLogos = genesisScoreLogoTable(from, count)
   if (scoreLogos !== null) reorderEntries(from, rom, scoreLogos, SCORE_LOGO_ENTRY, order)
+  return { ...followers(project, order), bytes: rom, graphics }
+}
 
+// The same for the SNES game.
+function withSnesTeamOrder(project: RomProject, order: TeamOrder): RomProject {
+  const from = project.bytes
+  const rom = from.slice()
+  const count = project.teams.length
+  const snesPictures = snesPicturesInTeamOrder(from, rom, count, project.snesPictures ?? NO_SNES_PICTURE_EDITS, order)
+  reorderEntries(from, rom, snesBlockColourTable(from, count)!, 4, order)
+  const photos = snesPhotoTables(from, count)!
+  reorderEntries(from, rom, photos.photos, SNES_PHOTO_SLOTS * 4, order)
+  reorderEntries(from, rom, photos.palettes, 4, order)
+  const scoreLogos = snesScoreLogoTable(from, count)
+  if (scoreLogos !== null) reorderEntries(from, rom, scoreLogos, SNES_SCORE_LOGO_ENTRY, order)
+  return { ...followers(project, order), bytes: rom, snesPictures }
+}
+
+// What moves with the teams on either game: the teams themselves, and what
+// names them by number.
+function followers(project: RomProject, order: TeamOrder): RomProject {
+  const { game } = project
+  const count = project.teams.length
+  const newNumber = new Array<number>(count)
+  order.forEach((was, n) => (newNumber[was] = n))
+  const place = (team: number) => (team >= 0 && team < count ? newNumber[team] : team)
   // The team data goes where it was, each team's own place with it, and the
   // team table is rewritten from it when the ROM is built.
   const layout: TeamLayout = {
@@ -136,10 +184,8 @@ export function withTeamOrder(project: RomProject, order: TeamOrder): RomProject
   const before = project.teamOrder ?? project.teams.map((_, n) => n)
   return {
     ...project,
-    bytes: rom,
     teams: moved(project.teams),
     layout,
-    graphics,
     settings: settingsInTeamOrder(project.settings, game, place),
     leagueRules: { ...project.leagueRules, exempt: project.leagueRules.exempt.map(place).sort((a, b) => a - b) },
     baseline: project.baseline && {

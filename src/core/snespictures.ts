@@ -1,4 +1,4 @@
-import { readU16LE, writeU16LE } from './bytes'
+import { readU16LE, reorderEntries, writeU16LE } from './bytes'
 import { colorRgb, nearestColorWord, SNES_COLORS } from './color'
 import type { Picture } from './graphics'
 import { HuffmanError, isHuffman, packHuffman, unpackHuffman } from './huffman'
@@ -174,6 +174,40 @@ export function snesPicturesSupported(rom: Uint8Array, teamCount: number): boole
 export function snesLogoTable(rom: Uint8Array, teamCount: number): number | null {
   const c = read(rom, teamCount)
   return c && !c.set ? c.tables.logoSet : null
+}
+
+// Gives the teams' pictures new team numbers: team n's become those team
+// order[n] has. The ROM's tables are changed in `rom` (read from `from`, the
+// ROM as it was): the logo frames' order (in the original game's packed set,
+// which is packed again and must still fit; in a rebuilt ROM, the table of
+// distances), the logo colours, the centre ice logos, and the SA-1 build's
+// own centre ice colours. The edits not yet written go with their teams.
+export function snesPicturesInTeamOrder(from: Uint8Array, rom: Uint8Array, teamCount: number, edits: SnesPictureEdits, order: number[]): SnesPictureEdits {
+  const c = need(from, teamCount)
+  if (c.set) {
+    const set = c.set.slice()
+    reorderEntries(c.set, set, 0, 4, order)
+    const { packedSize } = unpackHuffman(from, c.tables.logoSet)
+    const packed = packHuffman(set)
+    if (packed.length > roomAt(from, c.tables.logoSet, packedSize) || !sameBank(c.tables.logoSet, packed.length)) {
+      throw new SnesPictureRoomError(`The logos are kept packed in a space of their own, and in the new order they need ${packed.length - packedSize} bytes more than it has.`)
+    }
+    rom.fill(0xff, c.tables.logoSet, c.tables.logoSet + packedSize)
+    rom.set(packed, c.tables.logoSet)
+  } else {
+    reorderEntries(from, rom, c.tables.logoSet, 4, order)
+  }
+  reorderEntries(from, rom, c.tables.logoPalettes, 4, order)
+  reorderEntries(from, rom, c.tables.centreIce, 8, order)
+  const own = findCode(from, ICE_COLOUR_LOADER)
+  if (own && own.groups[0] >= 0x8000 && own.groups[2] >= 0x8002) {
+    reorderEntries(from, rom, loRomOffset(own.groups[1], own.groups[0]), COLOURS, order)
+    reorderEntries(from, rom, loRomOffset(own.groups[3], own.groups[2] - 2), COLOURS * 2, order)
+  }
+  const place = new Map(order.map((was, n) => [was, n]))
+  const moved = <T>(record: Record<number, T>): Record<number, T> =>
+    Object.fromEntries(Object.entries(record).map(([team, value]) => [place.get(Number(team)) ?? Number(team), value]))
+  return { logos: moved(edits.logos), centreIce: moved(edits.centreIce) }
 }
 
 function need(rom: Uint8Array, teamCount: number, remember = true): Contents {

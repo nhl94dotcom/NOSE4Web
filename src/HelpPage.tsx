@@ -823,13 +823,14 @@ export function HelpPage() {
           McMarkis's 32-team builds.
         </li>
         <li>
-          <b>Move teams</b> (Genesis): gives teams new team numbers, so the Game Setup menu offers them in a new
+          <b>Move teams</b>: gives teams new team numbers, so the Game Setup menu offers them in a new
           order, the team list shows them so, and the spreadsheet files list them so. Use the arrows or{' '}
           <b>Move to</b> beside a team, or <b>Put the first teams in alphabetical order</b> to sort the league's own
           teams (those the menu offers, up to the last playoff team) by name, leaving the All-Star teams and any
           others after them. Everything the game keeps by team number goes with each team: its players, lines,
-          names and colours, logos, banners and menu colours, player photos, organ songs and score logos, and the
-          team rating on its player cards. The playoff draws, the main menu's starting teams, the start of the
+          names and colours, logos, banners and menu colours, player photos, organ songs and score logos, and on the
+          Genesis the team rating on its player cards; on the SNES its centre ice logo, banner name and colours,
+          and photo colours too. The playoff draws, the main menu's starting teams, the start of the
           season and the league rules' exempt teams follow their teams too, and a project file saved afterwards
           remembers the move. Compare pairs each team with itself and lists the moves.
           <ul>
@@ -838,17 +839,18 @@ export function HelpPage() {
               with it start as the last one instead. Check ROM says if the draws need changing.
             </li>
             <li>
-              An emulator's battery save keeps saved lines and crowd records by team number, so start a new save
-              file after downloading.
+              An emulator's battery save keeps what it saves for a team (saved lines, and on the Genesis crowd
+              records) by team number, so start a new save file after downloading.
             </li>
             <li>
-              The original game shows its two New York teams' locations with built-in text, kept for team numbers
-              14 and 15. A New York team moved elsewhere shows its own location, "New York", instead.
+              The original Genesis game shows its two New York teams' locations with built-in text, kept for team
+              numbers 14 and 15. A New York team moved elsewhere shows its own location, "New York", instead.
             </li>
             <li>
               Not offered for NHL 94: EVO, whose own code rebuilds the menus and playoffs, nor for ROMs whose
-              logos, banners, photos or songs the editor cannot follow; the page says why. Not yet ready for the
-              SNES game.
+              logos, banners, photos or songs the editor cannot follow; the page says why. On the original SNES
+              game the logos are packed together and are packed again in the new order; where replaced logos have
+              already filled their room, the move may not fit, and the page says so.
             </li>
           </ul>
         </li>

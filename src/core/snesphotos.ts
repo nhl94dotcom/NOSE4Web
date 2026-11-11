@@ -45,6 +45,13 @@ interface Layout {
 
 const layouts = new WeakMap<Uint8Array, Layout | null>()
 
+// Where the photos' table (26 long addresses a team) and the table of each
+// team's photo colours (one a team) are, or null.
+export function snesPhotoTables(rom: Uint8Array, teamCount: number): { photos: number; palettes: number } | null {
+  const layout = layoutOf(rom, teamCount)
+  return layout && { photos: layout.table, palettes: layout.palettes }
+}
+
 function layoutOf(rom: Uint8Array, teamCount: number): Layout | null {
   if (layouts.has(rom)) return layouts.get(rom)!
   let found: Layout | null = null

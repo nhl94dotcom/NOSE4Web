@@ -32,6 +32,12 @@ const TABLE_LOADER = '0a0a0aaabf(....)(..)f0..85..bf......85..'
 
 const tables = new WeakMap<Uint8Array, number | null>()
 
+// Where the table of each team's score logo is (8 bytes a team), or null for a ROM without them.
+export function snesScoreLogoTable(rom: Uint8Array, teamCount: number): number | null {
+  return tableOf(rom, teamCount)
+}
+export const SNES_SCORE_LOGO_ENTRY = 8
+
 function tableOf(rom: Uint8Array, teamCount: number): number | null {
   if (tables.has(rom)) return tables.get(rom)!
   const code = findCode(rom, TABLE_LOADER)
