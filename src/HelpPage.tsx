@@ -1468,8 +1468,12 @@ export function HelpPage() {
         <li>
           <b>Tied regular-season games</b> (Genesis): the original game ends a regular-season game still tied after its
           overtime as a tie, where a playoff game plays more overtime until a goal. <b>Overtime until a goal</b> makes
-          the regular season the same, each overtime as long as the regular season's; playoffs are unchanged. One
-          instruction in the game's end-of-period code, found by the NHL94 Match Viewer project.
+          the regular season the same, each overtime as long as the regular season's (10:00); a game can run long,
+          but never ends tied. Tested in the game by the NHL94 Match Viewer project. <b>A shootout</b> settles a game
+          still tied after its overtime with the game's own shootout, as its Shootout mode plays one: five shooters a
+          side, then one each until a team is ahead. The winners get one goal more on the scoreboard, and the game then
+          ends as any other, with its stats and Stars of the Game. Not yet tested in the game. Either way, playoffs are
+          unchanged. Both rest on two places in the game's end-of-period code that Match Viewer found.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
