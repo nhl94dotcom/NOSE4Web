@@ -1,3 +1,4 @@
+import { SNES_FIGHT_BONUS_DEFAULT } from './core/snesfight'
 import { penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
@@ -34,6 +35,8 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   injuryBonus: RECOMMENDED_SNES_INJURY_BONUS,
   // Not a recommendation: the original game's.
   penaltyTime: 60,
+  // McMarkis's default bonus.
+  fighting: SNES_FIGHT_BONUS_DEFAULT,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -80,6 +83,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It needs Skating costs no energy, which turns on with it: goalies never go to the bench, so the skating drain would slow them more than in the original game. Line changes Auto keeps everyone at full speed. Read from the game's code and tested in the game by the NHL94 Match Viewer project, on the original and the SA-1 build: a leg-speed-15 skater's speed class is 15, 10, 5 and 0 after none to three knockdowns, and goalies keep full speed.",
   seasonOvertime:
     "A regular-season game still tied after its overtime plays another overtime, and another, until someone scores, as a playoff game does, instead of ending in a tie. Each overtime is the regular season's 5:00; playoffs are as they were. The same two changes as the Genesis option, which the NHL94 Match Viewer project found and tested there; not yet tested in the SNES game.",
+  fighting:
+    "McMarkis's port of the NHLPA 93 SNES fights to NHL '94, built in with his permission. A fight can start after enough hard checks between two opponents, when both players' fighting ratings (the second half of the H/F column) are high enough: the two drop their gloves, the crowd gathers, and they fight with A for a high punch, B for a low one and Y to grab, the computer for players it controls, until one goes down. Both get a fighting major (the instigator a minor as well), shown in the penalty box and the stats, and a box names the two fighters. The game asks for a fighting rating of 10 or more; the bonus is added to every player's first, and the 94 rosters rate fighters about 2 lower than NHLPA 93's, so McMarkis's patch adds 2, the default here: 0 leaves the ratings as they are, so only the toughest fight, and a higher bonus makes fights more common (at 8 nearly anyone can). The fight frames, the punches' sounds and the code go in a bank of their own past the first megabyte, which grows a 1 MB ROM to 2 MB; taking it out gives the ROM back as it was. For ROMs built on the original game (not the SA-1 builds). Checked in the game by McMarkis in his build; NOSE4Web's build of his source is his byte for byte but for the bank it goes in, and has not yet been tested in the game.",
   penaltyTime:
     "How long a penalty keeps a player in the box. Each penalty has its minutes (2 for a minor, 5 for a major, and so on, which you can change one by one under Rule messages on the Game settings page), and the game keeps the player off for that many minutes of the game clock. This sets how long each of those minutes is: at 60, as in the original game, a minute is a minute; at 30 every penalty lasts half as long. It suits a league that plays short periods and wants penalties to match: with 5-minute periods, 30 makes a minor 1:00, as a 2-minute minor is to a 20-minute period. Only the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a power-play goal letting a player out early are all as before. It goes with the one-minute penalties hack, which halves the minors' minutes. Read from the game's code: box time is the minutes times 60 in one place only, which this changes, in every build. Not yet tested in the game.",
   goaliePoke:
@@ -147,7 +152,10 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const wantedAmounts = draft.rom === project.bytes ? draft.amounts : hadAmounts
   const setAmount = (hack: SnesAmount, value: number) => {
-    setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: value !== SNES_AMOUNT_OFF[hack] }, amounts: { ...wantedAmounts, [hack]: value } })
+    // With the hacks that go with it or cannot, as a choice made by its own select would be.
+    const choices = withSnesHackChoice(wanted, hack, value !== SNES_AMOUNT_OFF[hack])
+    const amounts = Object.fromEntries(SNES_AMOUNTS.map((h) => [h, h === hack ? value : choices[h] ? wantedAmounts[h] : SNES_AMOUNT_OFF[h]])) as Record<SnesAmount, number>
+    setDraft({ rom: project.bytes, choices, amounts })
     setNotice('')
     setError('')
   }
@@ -201,7 +209,38 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>
-                {isAmount(hack) ? (
+                {hack === 'fighting' ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <select
+                      aria-label={SNES_HACK_TITLES[hack]}
+                      disabled={unknown}
+                      value={wanted.fighting ? 'on' : 'off'}
+                      onChange={(e) => setAmount('fighting', e.target.value === 'on' ? (state.choices.fighting ? hadAmounts.fighting : SNES_FIGHT_BONUS_DEFAULT) : SNES_AMOUNT_OFF.fighting)}
+                    >
+                      <option value="off">Off</option>
+                      <option value="on">On</option>
+                    </select>
+                    {wanted.fighting && (
+                      <>
+                        {' '}with a bonus of{' '}
+                        <input
+                          type="number"
+                          aria-label="Fighting rating bonus"
+                          disabled={unknown}
+                          min={SNES_AMOUNT_RANGES.fighting[0]}
+                          max={SNES_AMOUNT_RANGES.fighting[1]}
+                          value={wantedAmounts.fighting}
+                          onChange={(e) => setAmount('fighting', Math.max(SNES_AMOUNT_RANGES.fighting[0], Math.min(SNES_AMOUNT_RANGES.fighting[1], Math.round(Number(e.target.value) || 0))))}
+                        />{' '}
+                        <span className="note">on every player's fighting rating.</span>{' '}
+                        <button type="button" disabled={unknown || wantedAmounts.fighting === SNES_FIGHT_BONUS_DEFAULT} onClick={() => setAmount('fighting', SNES_FIGHT_BONUS_DEFAULT)}>
+                          Use the default {SNES_FIGHT_BONUS_DEFAULT}
+                        </button>
+                      </>
+                    )}
+                  </label>
+                ) : isAmount(hack) ? (
                   <label>
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                     <input

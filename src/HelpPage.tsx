@@ -2007,6 +2007,13 @@ export function HelpPage() {
               the ice never reaches the puck; with this on it knocks it loose, as a sideways poke can.
             </li>
             <li>
+              <b>Fighting</b>: McMarkis's port of the NHLPA 93 SNES fights, built in with his permission, with a
+              bonus to every player's fighting rating (2 by default, as in his patch; higher makes fights more common).
+              It adds its frames and code in a bank past the first megabyte, growing a 1 MB ROM to 2 MB, and comes out
+              cleanly. Not with the injury risk, which hooks the same place in the game's code; for ROMs built on the
+              original game, not the SA-1 builds.
+            </li>
+            <li>
               <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
               overtime plays more overtime until someone scores, as a playoff game does, instead of ending in a tie.
               The same two changes as the Genesis option; not yet tested in the SNES game.

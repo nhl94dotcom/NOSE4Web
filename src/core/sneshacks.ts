@@ -1,6 +1,7 @@
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
+import { SNES_FIGHT_BONUS_RANGE, SNES_FIGHT_SHARED_SITE, snesFightBlocked, snesFightState, withoutSnesFight, withSnesFight } from './snesfight'
 import { snesPeriodCountPlace } from './snesmenu'
 import { refreshSnesSettings } from './snessettings'
 
@@ -46,6 +47,7 @@ export type SnesHack =
   | 'goaliePoke'
   | 'seasonOvertime'
   | 'penaltyTime'
+  | 'fighting'
 
 interface Site {
   // The game's address.
@@ -275,6 +277,7 @@ export const SNES_HACKS: SnesHack[] = [
   'goaliePoke',
   'seasonOvertime',
   'penaltyTime',
+  'fighting',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -310,6 +313,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   goaliePoke: 'Goalie poke check reaches the ice',
   seasonOvertime: 'Overtime until a goal in the regular season',
   penaltyTime: 'Penalty time',
+  fighting: 'Fighting',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -317,7 +321,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
 const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain' }
-const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
+// The fights and the injury risk both hook FallDown where a check is counted ($9E:9BD2), each with code of its own.
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['fighting', 'injuryBonus']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
 export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
@@ -424,10 +429,11 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60 }
+// Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -437,7 +443,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -1015,8 +1021,14 @@ function detect(rom: Uint8Array): SnesHackState {
   const inPlace = snesCodeInPlace(rom)
   const unknown: SnesHack[] = []
   const vaultVersions: SnesHack[] = []
+  const fight = snesFightState(rom)
   const choices = Object.fromEntries(
     SNES_HACKS.map((hack) => {
+      // The fights are a block of their own (snesfight.ts), not places as the other hacks are.
+      if (hack === 'fighting') {
+        if (fight === undefined) unknown.push(hack)
+        return [hack, fight?.kind === 'in']
+      }
       const places = placesOf(rom, hack, null, inPlace)
       if (places && places.every((place) => holds(rom, place, 'original'))) return [hack, false]
       if (places && places.every((place) => holds(rom, place, 'hacked'))) {
@@ -1032,7 +1044,12 @@ function detect(rom: Uint8Array): SnesHackState {
       return [hack, false]
     }),
   ) as SnesHackChoices
-  const amounts = Object.fromEntries(SNES_AMOUNTS.map((hack) => [hack, choices[hack] ? amountIn(rom, hack) : SNES_AMOUNT_OFF[hack]])) as Record<SnesAmount, number>
+  // With the fights in, the injury risk's place holds their hook: it is off, not some other code; and the other way round.
+  if (fight?.kind === 'in' && unknown.includes('injuryBonus')) unknown.splice(unknown.indexOf('injuryBonus'), 1)
+  if (fight === undefined && choices.injuryBonus && snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none') unknown.splice(unknown.indexOf('fighting'), 1)
+  const amounts = Object.fromEntries(
+    SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),
+  ) as Record<SnesAmount, number>
   return { choices, unknown, vaultVersions, amounts }
 }
 
@@ -1052,16 +1069,22 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
     const amount = amounts[hack]
     if (amount === undefined) continue
     const [least, most] = SNES_AMOUNT_RANGES[hack]
-    if (amount < least || amount > most || !Number.isInteger(amount)) {
+    if (amount !== SNES_AMOUNT_OFF[hack] && (amount < least || amount > most || !Number.isInteger(amount))) {
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} must be a whole number from ${least} to ${most}.`)
     }
     wanted[hack] = amount !== SNES_AMOUNT_OFF[hack]
   }
   const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
   if (problem) throw new SnesHackError(problem)
-  const rom = project.bytes.slice()
+  // The fights come out first, so that hacks whose places they hook (the injury risk) can go in, and go in last.
+  const fightWanted = wanted.fighting
+  const bonus = amounts.fighting !== undefined && amounts.fighting !== SNES_AMOUNT_OFF.fighting ? amounts.fighting : undefined
+  const fightChanges = fightWanted !== undefined && (fightWanted !== choices.fighting || (fightWanted && bonus !== undefined && bonus !== had?.fighting))
+  if (fightChanges && unknown.includes('fighting')) throw new SnesHackError(`${SNES_HACK_TITLES.fighting} cannot be changed: ${snesFightBlocked(project.bytes) ?? 'this ROM has other code in its place.'}`)
+  const rom = fightChanges && !fightWanted ? (withoutSnesFight(project.bytes) as typeof project.bytes).slice() : project.bytes.slice()
   const source = splitSnesFile(project.source)?.rom ?? null
   for (const hack of SNES_HACKS) {
+    if (hack === 'fighting') continue
     const want = wanted[hack]
     const update = updateVault && want === true && vaultVersions.includes(hack)
     const amount = isAmount(hack) ? amounts[hack] : undefined
@@ -1084,8 +1107,17 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       rom.set(bytes, place.at)
     }
   }
+  // The fights in last, as they grow the ROM, or their bonus changed.
+  let out = rom
+  if (fightChanges && fightWanted) {
+    try {
+      out = withSnesFight(rom, bonus ?? (choices.fighting ? had?.fighting : undefined)) as typeof rom
+    } catch (e) {
+      throw new SnesHackError(e instanceof Error ? e.message : String(e))
+    }
+  }
   // The 30-second periods add a choice to the menu's Period line, and the one-minute penalties change their lengths.
-  return { ...project, bytes: rom, settings: refreshSnesSettings(project.bytes, rom, project.settings) }
+  return { ...project, bytes: out, settings: refreshSnesSettings(project.bytes, out, project.settings) }
 }
 
 // This ROM's choices set to another SNES ROM's hacks. A hack either ROM has
@@ -1135,7 +1167,7 @@ export function snesAnyPosition(project: RomProject): boolean {
 // Hacks found only where the code is as the original game has it, so not
 // missed in a ROM whose code has moved.
 export function snesHackInPlaceOnly(hack: SnesHack): boolean {
-  return !RELOCATED[hack]
+  return hack === 'fighting' || !RELOCATED[hack]
 }
 
 // What this ROM has, as a Discord post for a league's owners. Hacks found

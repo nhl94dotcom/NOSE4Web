@@ -53,7 +53,7 @@ describe.skipIf(names.length === 0)('the SNES penalty shot fixes', () => {
     it(`goes in and out alongside every other SNES hack, in SNES ROM ${n + 1}`, () => {
       const project = openRom(new Uint8Array(readFileSync(path(name))))
       const { choices, unknown } = detectSnesHacks(project.bytes)
-      const all = Object.fromEntries(Object.keys(choices).filter((hack) => hack !== 'showMaxBoost' && !unknown.includes(hack as never)).map((hack) => [hack, true]))
+      const all = Object.fromEntries(Object.keys(choices).filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && !unknown.includes(hack as never)).map((hack) => [hack, true]))
       const hacked = applySnesHacks(project, all)
       const after = detectSnesHacks(hacked.bytes)
       expect(after.unknown).toEqual(unknown)
