@@ -48,6 +48,7 @@ export type SnesHack =
   | 'seasonOvertime'
   | 'penaltyTime'
   | 'fighting'
+  | 'injuries'
 
 interface Site {
   // The game's address.
@@ -278,6 +279,7 @@ export const SNES_HACKS: SnesHack[] = [
   'seasonOvertime',
   'penaltyTime',
   'fighting',
+  'injuries',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -314,6 +316,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   seasonOvertime: 'Overtime until a goal in the regular season',
   penaltyTime: 'Penalty time',
   fighting: 'Fighting',
+  injuries: 'Injuries',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -429,11 +432,13 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1 }
+// The injuries choice's amount: 0 the original game.
+export const SNES_INJURY_TEXTS = ['As in the original game', 'Never: a hit is only a fall', 'The penalty, but no injury', 'Every injury for the period', 'Every injury for the game']
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -443,7 +448,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 4] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -501,6 +506,52 @@ const MINOR_PENALTIES = [
 type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) => Placed[] | null
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code
+  // elsewhere). Its amount is the choice, SNES_INJURIES. The roll's clock test after it, bne .23 (when the clock
+  // runs the hit can injure), becomes bra for never: the fall and the loose puck stay. setInjuryType's lda #7 /
+  // jsl randoma8 / cmp #0 / bne .rtl picks the period (one in 7 the game): bra for every injury for the period,
+  // NOPs for the game. The penalty but no injury: FallDown's jsl setInjuryType and the sta InjCntDown that
+  // brings up the injury box 4 seconds later both go; the player lies down, the call stays, and he plays on.
+  injuries: (rom, source, amount) => {
+    const never = only(rom, '10..ad....' + '..' + '..b9....30..f0')
+    const period = only(rom, 'a90700' + '22......c90000' + '....' + 'a9fcff')
+    const call = only(rom, '9d....' + '........' + 'a90400' + '......' + 'a91600')
+    if (never < 0 || period < 0 || call < 0) return null
+    const sites = { never: never + 5, period: period + 10, call: call + 3, count: call + 10 }
+    const ORIGINAL = { never: rom[sites.never] === 0x80 ? 0xd0 : rom[sites.never], period: rom.slice(sites.period, sites.period + 2), call: rom.slice(sites.call, sites.call + 4), count: rom.slice(sites.count, sites.count + 3) }
+    if (![0xd0, 0x80].includes(rom[sites.never])) return null
+    // What the ROM has now: its choice, and the original bytes where it has them.
+    const periodNow = rom[sites.period] === 0x80 ? 3 : rom[sites.period] === 0xea && rom[sites.period + 1] === 0xea ? 4 : rom[sites.period] === 0xd0 ? 0 : -1
+    const callOut = rom.slice(sites.call, sites.call + 4).every((b) => b === 0xea) && rom.slice(sites.count, sites.count + 3).every((b) => b === 0xea)
+    const now = rom[sites.never] === 0x80 ? 1 : callOut ? 2 : periodNow
+    if (now < 0) return null
+    const choice = amount ?? (now === 0 ? 1 : now)
+    // The original bytes: those of a ROM without the hack, as far as this one shows them.
+    // Where this ROM has them out, the ROM as opened may still have them, at the same places.
+    const opened = source && source.length === rom.length ? source : null
+    const fromOpened = (at: number, length: number, ok: (bytes: Uint8Array) => boolean) => {
+      const bytes = opened?.slice(at, at + length)
+      return bytes && ok(bytes) ? bytes : null
+    }
+    const periodOriginal = periodNow === 0 ? ORIGINAL.period : fromOpened(sites.period, 2, (b) => b[0] === 0xd0)
+    const callOriginal = callOut ? fromOpened(sites.call, 4, (b) => b[0] === 0x22) : ORIGINAL.call
+    const countOriginal = callOut ? fromOpened(sites.count, 3, (b) => b[0] === 0x8d) : ORIGINAL.count
+    const branch = periodOriginal ? periodOriginal[1] : rom[sites.period + 1] === 0xea ? null : rom[sites.period + 1]
+    if (branch === null && (choice === 0 || choice === 3)) return null
+    // The call taken out with its original bytes nowhere to be had: only that choice can stay.
+    if (choice !== 2 && (callOriginal === null || countOriginal === null)) return null
+    const places: Placed[] = [
+      { at: sites.never, original: Uint8Array.of(0xd0), hacked: Uint8Array.of(choice === 1 ? 0x80 : 0xd0), amount: choice },
+      {
+        at: sites.period,
+        original: branch === null ? null : Uint8Array.of(0xd0, branch),
+        hacked: choice === 3 ? Uint8Array.of(0x80, branch!) : choice === 4 ? hexBytes('EAEA') : Uint8Array.of(0xd0, branch!),
+      },
+      { at: sites.call, original: callOriginal, hacked: choice === 2 ? hexBytes('EAEAEAEA') : callOriginal! },
+      { at: sites.count, original: countOriginal, hacked: choice === 2 ? hexBytes('EAEAEA') : countOriginal! },
+    ]
+    return places
+  },
   // InProgress, sending a player to the box: ldx #$003C / lda d2 (his penalty's minutes) / and #$FF / jsl
   // Mul8U / ora #$2000: the box time, in seconds of the game clock, is the minutes times 60, the only place
   // minutes become time, as on the Genesis (hacks.ts). The 60 becomes the seconds wanted for each minute.
@@ -730,7 +781,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const env = energyEnv(rom)
     if (!env || !snesCodeInPlace(rom)) return null
     const count = only(rom, 'a4..' + '......' + '99....bd....38f9....85..bd....38f9....85..22')
-    const roll = only(rom, 'a99600' + '22......0aa4..38' + '......' + '10..ad....d0..b9....')
+    // The bne after the clock's lda may be the injuries choice's bra (never injured).
+    const roll = ['d0', '80'].map((branch) => only(rom, 'a99600' + '22......0aa4..38' + '......' + `10..ad....${branch}..b9....`)).find((at) => at >= 0) ?? -1
     const start = only(rom, 'a9....0c....' + '........' + '22......22......a9..00')
     const period = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
     if (count < 0 || roll < 0 || start < 0 || period < 0) return null

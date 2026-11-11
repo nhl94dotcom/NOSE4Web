@@ -189,6 +189,7 @@ const SNES: Record<SnesHack, string> = {
   freeBurst: 'A speed burst costs no energy.',
   seasonOvertime: 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   fighting: "Players can fight, as in NHLPA 93 (McMarkis's port of its fights): a fight can start after enough hard checks between two players with high enough fighting ratings, and both get fighting majors.",
+  injuries: 'Injuries work differently from the original game.',
   penaltyTime: 'Penalties last a different time from what they say: each penalty minute is a set number of seconds in the box. The penalty minutes in the statistics are as before.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
@@ -206,6 +207,14 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   const textOf = (hack: SnesHack) =>
     (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
       ? SNES[hack].replace('some of his energy', `${amounts[hack]} units of his energy (${energyText(amounts[hack])})`)
+      : hack === 'injuries' && amounts
+        ? [
+            '',
+            'Hits never injure: a player knocked down gets up as from any other check.',
+            'A hit that would injure still draws the call, but nobody is hurt: the player lies down and then plays on.',
+            'Every injury keeps the player out for the rest of the period.',
+            'Every injury keeps the player out for the rest of the game.',
+          ][amounts.injuries] || SNES[hack]
       : hack === 'fighting' && amounts
         ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
         : hack === 'penaltyTime' && amounts
