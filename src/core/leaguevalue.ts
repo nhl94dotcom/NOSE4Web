@@ -3,7 +3,8 @@
 // Classic leagues' own results, where the game's Overall predicts little.
 // A weighted sum of the stored ratings (steps 0-6, Weight as stored), by
 // position, put on a fixed scale whose ends are the retail roster's lowest and
-// highest sums, so that a value means the same on any ROM.
+// highest sums (each position as the roster's own order has it, the All-Star
+// teams left out), so that a value means the same on any ROM of that system.
 
 export type Role = 'G' | 'F' | 'D'
 
@@ -16,12 +17,10 @@ const WEIGHTS: Record<Platform, Record<Role, [number, number][]>> = {
   genesis: {
     F: [[5, 0.29], [2, 0.22], [9, 0.15], [8, 0.1], [1, 0.09], [0, -0.52]],
     D: [[12, 0.06], [6, 0.042], [1, 0.033], [2, 0.026], [5, 0.013], [9, 0.009], [0, -0.022], [3, -0.018], [8, -0.01]],
-    G: [[1, 0.27]],
+    G: [[1, 0.2655]],
   },
   // On the SNES Weight counts for a player: there is no weight bug, one checking
-  // formula for everyone, and a heavier checker does a little better. A
-  // goalie's step is given as 0.04; 0.0358 is what the scale's ends (Agility
-  // 2 and 6) make it, so that those come out at 40 and 99.
+  // formula for everyone, and a heavier checker does a little better.
   snes: {
     F: [[2, 0.18], [5, 0.16], [9, 0.14], [1, 0.14], [8, 0.14], [0, 0.08]],
     D: [[8, 0.182], [2, 0.176], [3, 0.102], [0, 0.067], [6, 0.057], [1, -0.027], [5, -0.016], [9, -0.014], [12, -0.087]],
@@ -29,8 +28,8 @@ const WEIGHTS: Record<Platform, Record<Role, [number, number][]>> = {
   },
 }
 const SCALE: Record<Platform, Record<Role, [number, number]>> = {
-  genesis: { F: [-5.29, 2.17], D: [-0.089, 0.589], G: [0.54, 1.62] },
-  snes: { F: [0.94, 4.54], D: [0.837, 2.422], G: [0.072, 0.215] },
+  genesis: { F: [-6.344, 2.175], D: [-0.187, 0.589], G: [0.531, 1.594] },
+  snes: { F: [1.16, 4.54], D: [0.815, 2.422], G: [0.072, 0.215] },
 }
 
 export function leagueValue(attributes: number[], role: Role, platform: Platform = 'genesis'): number {

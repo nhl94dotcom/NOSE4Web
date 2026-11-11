@@ -19,14 +19,14 @@ describe('league value', () => {
       return a
     }
     expect(leagueValue(forward(6, 6, 6, 6, 6, 0), 'F')).toBe(99)
-    // The heaviest with no ratings: −7.8, below the retail low of −5.29.
-    expect(leagueValue(forward(0, 0, 0, 0, 0, 15), 'F')).toBe(20)
+    // The heaviest with no ratings: −7.8, below the retail low of −6.344.
+    expect(leagueValue(forward(0, 0, 0, 0, 0, 15), 'F')).toBe(30)
     expect(leagueValue(forward(0, 0, 0, 0, 0, 100), 'F')).toBe(0)
-    // Goalies: Agility alone, 0.54 at 2 steps (40) and 1.62 at 6 (99).
+    // Goalies: Agility alone, 0.2655 a step, 0.531 at 2 steps (40) and 1.594 at 6 (99).
     const goalie = (agl: number) => [5, agl, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     expect(leagueValue(goalie(2), 'G')).toBe(40)
     expect(leagueValue(goalie(6), 'G')).toBe(99)
-    expect(leagueValue(goalie(4), 'G')).toBe(70)
+    expect(leagueValue(goalie(4), 'G')).toBe(69)
   })
 
   it('is left out only on ROMs with 0-15 ratings', () => {
@@ -79,14 +79,15 @@ describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () 
   const project = openRom(new Uint8Array(readFileSync(SNES)))
   const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(project)
   const at = rows[0].indexOf('League value')
-  const of = (name: string) => rows.find((row) => String(row[4]).trim() === name)?.[at]
+  // Two Stephane Richers are in the game, so a team can be given too.
+  const of = (name: string, team = '') =>
+    rows.find((row) => String(row[4]).trim() === name && String(row[1]).includes(team))?.[at]
 
   it("is in the spreadsheet, worked out the SNES's way", () => {
     expect(at).toBe(rows[0].indexOf('Overall') + 1)
-    // Among the bigger moves against Overall that Match Viewer lists: Klima up, Gilmour and Fleury down.
-    expect(of('Petr Klima')).toBe(93)
-    expect(of('Doug Gilmour')).toBe(82)
-    expect(of('Theoren Fleury')).toBe(81)
+    // Match Viewer's values for the bigger moves against Overall: Klima, Carson and Richer up; Gilmour, Fleury and LaFontaine down.
+    const values = [of('Petr Klima'), of('Jimmy Carson'), of('Stephane Richer', 'New Jersey'), of('Doug Gilmour'), of('Theoren Fleury'), of('Pat LaFontaine')]
+    expect(values).toEqual([93, 88, 86, 81, 80, 82])
     for (const position of ['F', 'D', 'G']) {
       expect(Math.max(...rows.slice(1).filter((row) => row[3] === position).map((row) => Number(row[at])))).toBe(99)
     }
