@@ -133,20 +133,43 @@ export function parseMenuTeams(rom: Uint8Array, game: GameConfig): MenuTeams | n
   return offered >= FEWEST_MENU_TEAMS && offered <= game.teamCount ? { offered } : null
 }
 
-// How many teams new playoffs can start with: those the menu offers, as far
-// as the playoff draws have them. The game looks through the draws for the
-// team, and freezes if no draw has it.
+// How many teams new playoffs can start with, as the editor sets it when the
+// menu's count changes: those the menu offers, as far as the playoff draws
+// have them.
 export function playoffTeamCount(offered: number, draws: number[][]): number {
-  const highest = Math.max(-1, ...draws.flat())
+  const highest = draws.flat().reduce((top, team) => Math.max(top, team), -1)
   return Math.min(offered, highest + 1)
 }
 
-// The teams the menu offers that no playoff draw has: picking one of these
-// for new playoffs freezes the game.
-export function teamsMissingFromDraws(offered: number, draws: number[][]): number[] {
+// The last team new playoffs start with as the ROM has it: NewPO takes a team
+// past it as this one. Null where the code is not found.
+export function playoffLast(rom: Uint8Array, game: GameConfig): number | null {
+  const last = placesFor(rom, game).find((place) => place.kind === 'lastPlayoff')
+  return last ? read(rom, game, last) : null
+}
+
+// The last team new playoffs start with once the ROM is downloaded: the ROM's
+// own, unless the menu's count changes, when the editor sets it (see
+// writeMenuTeams); null where the editor cannot tell.
+export function playoffLastWritten(rom: Uint8Array, game: GameConfig, menuTeams: MenuTeams | null, draws: number[][]): number | null {
+  const now = parseMenuTeams(rom, game)
+  if (menuTeams && now && menuTeams.offered !== now.offered && draws.length > 0) {
+    const offered = Math.max(FEWEST_MENU_TEAMS, Math.min(game.teamCount, menuTeams.offered))
+    const count = playoffTeamCount(offered, draws)
+    if (count >= 1) return count - 1
+  }
+  return playoffLast(rom, game)
+}
+
+// The teams the menu offers that start new playoffs as a team no draw has,
+// which freezes the game: NewPO takes a team past `last` as `last`, then looks
+// through the draws for it. `last` is the ROM's (playoffLastWritten), or, where
+// the editor cannot tell, as far as the draws have teams.
+export function teamsMissingFromDraws(offered: number, draws: number[][], last: number | null = null): number[] {
   if (draws.length === 0) return []
   const drawn = new Set(draws.flat())
-  return Array.from({ length: playoffTeamCount(offered, draws) }, (_, team) => team).filter((team) => !drawn.has(team))
+  const limit = last ?? playoffTeamCount(offered, draws) - 1
+  return Array.from({ length: offered }, (_, team) => team).filter((team) => !drawn.has(Math.min(team, limit)))
 }
 
 // Writes the number only when it changed, so a ROM whose counts were set by
@@ -181,17 +204,24 @@ export function leagueDraws(teams: number[], drawCount: number, slots: number, r
     return out.slice(0, slots)
   }
   const draws = Array.from({ length: drawCount }, shuffled)
-  // Put any team no draw has in place of a team that more than one draw has.
+  // Put any team no draw has in place of a team that more than one draw has, in
+  // the first draw from its own on that has such a place; a team no draw has
+  // would freeze new playoffs started with it.
   const times = new Map<number, number>()
   draws.flat().forEach((team) => times.set(team, (times.get(team) ?? 0) + 1))
   teams.forEach((team, i) => {
     if (times.has(team)) return
-    const draw = draws[i % drawCount]
-    const slot = draw.findIndex((other) => (times.get(other) ?? 0) > 1)
-    if (slot < 0) return
-    times.set(draw[slot], times.get(draw[slot])! - 1)
-    draw[slot] = team
-    times.set(team, 1)
+    for (let k = 0; k < drawCount; k++) {
+      const draw = draws[(i + k) % drawCount]
+      const slot = draw.findIndex((other) => (times.get(other) ?? 0) > 1)
+      if (slot < 0) continue
+      times.set(draw[slot], times.get(draw[slot])! - 1)
+      draw[slot] = team
+      times.set(team, 1)
+      return
+    }
   })
+  const missing = teams.filter((team) => !times.has(team))
+  if (missing.length > 0) throw new Error(`${drawCount} draws of ${slots} have no room for all ${teams.length} teams.`)
   return draws
 }

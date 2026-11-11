@@ -1937,10 +1937,12 @@ test.describe('with the hacked ROMs on this computer', () => {
       await expect(page.locator('nav button').first()).toBeVisible()
       await expect(page.locator('header')).toContainText(rom.game.title)
       // Every team is listed, and nothing about the ROM as it stands is a
-      // problem, but for a player twice on a line, as some league ROMs have.
+      // problem, but for a player twice on a line, as some league ROMs have, and
+      // the 2-on-2 ROMs' playoff draws, which leave out their first two teams.
       expect(await page.locator('nav button').count()).toBeGreaterThanOrEqual(rom.teams.length + 6)
       const problems = checkProject(rom).filter((finding) => finding.level === 'problem')
-      expect(problems.filter((finding) => !/ at both \w+ and \w+\./.test(finding.message))).toEqual([])
+      const asMade = /2on2/.test(path) ? ['Playoff draws'] : []
+      expect(problems.filter((finding) => !/ at both \w+ and \w+\./.test(finding.message) && !asMade.includes(finding.where))).toEqual([])
       await expect(entry(page, /Check ROM/)).toHaveText(problems.length > 0 ? `Check ROM (${problems.length})` : 'Check ROM')
       await expect(rows(page, 'Goalies').first()).toBeVisible()
       const shot = `test-results/shots/${rom.game.title.replace(/[^A-Za-z0-9]+/g, '_')}`

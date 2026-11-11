@@ -5,7 +5,7 @@ import { isSong, teamSongsRoom } from './teamsongs'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
-import { teamsMissingFromDraws } from './menuteams'
+import { playoffLastWritten, teamsMissingFromDraws } from './menuteams'
 import { photoLayout, setupCardCount } from './photos'
 import { snesPlaceNameRoom } from './snesplacenames'
 import { snesLogosThatSpill } from './snespictures'
@@ -267,6 +267,21 @@ export function checkProject(project: RomProject): Finding[] {
     }
   })
 
+  // New playoffs with a team no draw has freeze the game, whatever the menu offers.
+  {
+    const offered = settings.menuTeams?.offered ?? teams.length
+    const last = playoffLastWritten(project.bytes, project.game, settings.menuTeams, settings.playoffDraws)
+    const missing = teamsMissingFromDraws(offered, settings.playoffDraws, last)
+    if (missing.length > 0) {
+      const one = missing.length === 1
+      findings.push({
+        level: 'problem',
+        where: 'Playoff draws',
+        message: `Starting new playoffs with ${missing.map((team) => names[team]).join(', ')} freezes the game: ${one ? 'it is' : 'they are'} in none of the playoff draws${last !== null && missing.some((team) => team > last) ? ` (a team after ${names[last]} starts them as ${names[last]})` : ''}. Put ${one ? 'it' : 'them'} in a draw, or use "Fill the draws with the league's teams" on the Game settings page.`,
+      })
+    }
+  }
+
   if (settings.menuTeams) {
     const { offered } = settings.menuTeams
     game.menuTeamItems.forEach((i) => {
@@ -279,21 +294,32 @@ export function checkProject(project: RomProject): Finding[] {
         })
       }
     })
-    const missing = teamsMissingFromDraws(offered, settings.playoffDraws)
-    if (missing.length > 0) {
-      const one = missing.length === 1
-      findings.push({
-        level: 'note',
-        where: 'Playoff draws',
-        message: `${missing.map((team) => names[team]).join(', ')} ${one ? 'is' : 'are'} in none of the playoff draws. Starting new playoffs with ${one ? 'it' : 'one of them'} freezes the game.`,
-      })
-    }
     const outside = settings.playoffDraws.flatMap((draw, d) => (draw.some((team) => team >= offered && team < teams.length) ? [d + 1] : []))
     if (offered < teams.length && outside.length > 0) {
       findings.push({
         level: 'note',
         where: 'Playoff draws',
         message: `${plural(outside.length, 'draw')} ${outside.length === 1 ? 'has' : 'have'} teams the menu does not offer, who would play in those playoffs: ${outside.length === settings.playoffDraws.length ? 'every draw' : `draw ${outside.join(', ')}`}. "Fill the draws with the league's teams" on the Game settings page fixes this.`,
+      })
+    }
+  }
+
+  // Draws themselves: a team the ROM does not have, or one team twice.
+  if (settings.playoffDraws.length > 0) {
+    const invalid = settings.playoffDraws.flatMap((draw, d) => (draw.some((team) => team >= teams.length) ? [d + 1] : []))
+    if (invalid.length > 0) {
+      findings.push({
+        level: 'problem',
+        where: 'Playoff draws',
+        message: `${plural(invalid.length, 'draw')} ${invalid.length === 1 ? 'has' : 'have'} a team this ROM does not have (shown as Invalid): draw ${invalid.join(', ')}. Playoffs drawn so would read team data that is not there; choose a team in its place.`,
+      })
+    }
+    const twice = settings.playoffDraws.flatMap((draw, d) => (new Set(draw).size < draw.length ? [d + 1] : []))
+    if (twice.length > 0) {
+      findings.push({
+        level: 'problem',
+        where: 'Playoff draws',
+        message: `A team is in ${twice.length === 1 ? 'draw' : 'draws'} ${twice.join(', ')} twice, which the game was not made for: such playoffs can pit a team against itself. Choose another team for one of the places.`,
       })
     }
   }

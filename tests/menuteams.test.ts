@@ -36,6 +36,10 @@ describe('playoff draws for a smaller league', () => {
     expect(playoffTeamCount(4, draws)).toBe(4)
     expect(teamsMissingFromDraws(10, [[0, 2, 3, 5]])).toEqual([1, 4])
     expect(teamsMissingFromDraws(10, [])).toEqual([])
+    // With the ROM's own last playoff team: a team past it starts as it, so if no draw has that team,
+    // every team from it on freezes the game.
+    expect(teamsMissingFromDraws(10, [[0, 1, 2, 3, 4, 5]], 7)).toEqual([6, 7, 8, 9])
+    expect(teamsMissingFromDraws(10, [[0, 1, 2, 3, 4, 5]], 5)).toEqual([])
   })
 
   it('makes draws of different teams from the league only, every team in one', () => {
@@ -54,6 +58,39 @@ describe('playoff draws for a smaller league', () => {
     const draws = leagueDraws(teams, 2, 16, () => 0)
     expect(new Set(draws.flat()).size).toBe(20)
     expect(() => leagueDraws(teams.slice(0, 12), 32, 16)).toThrow(/16 different teams/)
+  })
+
+  it('puts every team in a draw, whatever chance gives, for any league size', () => {
+    for (let size = 16; size <= 64; size++) {
+      const league = Array.from({ length: size }, (_, t) => t)
+      for (const seed of [1, 7, 42]) {
+        for (const drawCount of [4, 8, 32]) {
+          if (drawCount * 16 < size) continue
+          const draws = leagueDraws(league, drawCount, 16, seeded(seed * size + drawCount))
+          expect(new Set(draws.flat()).size, `${size} teams, ${drawCount} draws`).toBe(size)
+          for (const draw of draws) expect(new Set(draw).size).toBe(16)
+        }
+      }
+    }
+    // More teams than the draws have places: said, not left to freeze the game.
+    expect(() => leagueDraws(Array.from({ length: 40 }, (_, t) => t), 2, 16)).toThrow(/no room/)
+  })
+})
+
+describe.skipIf(!existsSync(GENESIS))('playoff draws that would freeze the game, Genesis', () => {
+  it("are a problem in Check ROM, by the ROM's own last playoff team", () => {
+    const project = openRom(new Uint8Array(readFileSync(GENESIS)))
+    expect(checkProject(project).filter((f) => f.where === 'Playoff draws')).toEqual([])
+    // Take team 25, the last playoff team, out of every draw: new playoffs with it, or with the
+    // All-Star teams after it, which start as it, freeze the game.
+    const draws = project.settings.playoffDraws.map((draw) => draw.map((team) => (team === 25 ? 24 : team)))
+    const findings = checkProject({ ...project, settings: { ...project.settings, playoffDraws: draws } }).filter((f) => f.where === 'Playoff draws')
+    expect(findings.find((f) => f.level === 'problem' && f.message.startsWith('Starting new playoffs with'))?.message).toContain('freezes the game')
+    // And the draws now have team 24 twice.
+    expect(findings.some((f) => f.message.includes('twice'))).toBe(true)
+    // A team the ROM does not have.
+    const invalid = project.settings.playoffDraws.map((draw, d) => (d === 0 ? [40, ...draw.slice(1)] : draw))
+    expect(checkProject({ ...project, settings: { ...project.settings, playoffDraws: invalid } }).some((f) => f.message.includes('a team this ROM does not have'))).toBe(true)
   })
 })
 
@@ -113,7 +150,8 @@ describe.skipIf(!existsSync(GENESIS))('teams in the menu, Genesis', () => {
     // Take team 3 out of every draw: picking it for new playoffs would freeze the game.
     const without = filled.settings.playoffDraws.map((draw) => draw.map((team) => (team === 3 ? 19 : team)))
     const frozen = { ...filled, settings: { ...filled.settings, playoffDraws: without } }
-    expect(playoffNotes(frozen).map((finding) => finding.message)).toEqual([expect.stringMatching(/freezes the game/)])
+    // (Team 19 is now twice in some draws, which is a problem too.)
+    expect(playoffNotes(frozen).filter((finding) => /freezes the game/.test(finding.message)).map((finding) => finding.level)).toEqual(['problem'])
   })
 
   it('is compared, reset, and kept in a project file and a spreadsheet', () => {
