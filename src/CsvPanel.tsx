@@ -154,8 +154,8 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
           </label>
           <span className="note">
             {byName
-              ? 'Rows of the teams, players and lines tables go to the team they name, wherever it is in this ROM. If any row names a team that is not here, nothing is imported.'
-              : 'Rows go to the team at their team number. Tick this for files from a ROM that lists the same teams in another order.'}
+              ? "Rows of the teams, players and lines tables go to the team they name, wherever it is in this ROM (Boston's rows to Boston). If any row names a team that is not here, nothing is imported."
+              : 'Only needed for a file from a ROM that lists the teams in a different order, such as one saved before you moved teams. Normally each row goes to the team at its team number; ticked, it goes to the team it names instead.'}
           </span>
         </p>
 
