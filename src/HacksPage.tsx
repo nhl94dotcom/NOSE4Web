@@ -197,7 +197,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -324,6 +324,18 @@ export function HacksPage({ project, name, onChange }: Props) {
             stick. Found and tested in the game by the NHL94 Match Viewer project: over 140 one-timers at an open net,
             goals went from 56% to 86% (from 15 in 20 to all 20 close in), and one-timers with the goalie in position
             came out exactly as before.
+          </>,
+        )}
+        {hack(
+          'repeatCheckFix',
+          onOff('repeatCheckFix'),
+          <>
+            After a player knocks someone down or makes him wobble, the original game ignores every later hit by the
+            same player on the same man until some other pair's hit lands anywhere on the ice, however long that
+            takes: you can line him up again a minute later and nothing happens. With this, the same checker is kept
+            off him only while he recovers, about 2 seconds after a knockdown and 1 after a wobble, so he cannot be
+            flattened again as he gets up; after that a check works as any other. Genesis only. Found by the NHL94
+            Match Viewer project.
           </>,
         )}
         {hack(

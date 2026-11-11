@@ -83,6 +83,9 @@ export interface HackChoices {
   // Aims a one-timer at an open net (the goalie out of the puck's line) at the
   // middle, mid-height, where the original aims it high and it often sails over.
   openNetFix: boolean
+  // Lets a checker hit the same player again once he has got up, where the
+  // original ignores the pair until some other pair's check lands.
+  repeatCheckFix: boolean
   // Holds every faceoff on one of the nine dots, as the NHL rules place them.
   faceoffFix: boolean
   // Stops a skater keeping the gliding a pass receiver or a fall gets.
@@ -184,6 +187,7 @@ export type HackPart =
   | 'comebackFix'
   | 'passFix'
   | 'openNetFix'
+  | 'repeatCheckFix'
   | 'faceoffFix'
   | 'runawayFix'
   | 'penaltyShotTableFix'
@@ -247,6 +251,7 @@ export const NO_HACKS: HackChoices = {
   comebackFix: false,
   passFix: false,
   openNetFix: false,
+  repeatCheckFix: false,
   faceoffFix: false,
   runawayFix: false,
   penaltyShotTableFix: false,
@@ -1385,6 +1390,39 @@ const openNetFix: Part<boolean> = {
   apply: (work, value) => void (value && work.rom.set(OPEN_NET.hacked, OPEN_NET_AT)),
 }
 
+// Repeated checks (Match Viewer's GENESIS_MECHANICS.md 7.3; known bug 8).
+// FallDown, which every knockdown and wobble goes through, ignores the same
+// checker and target as the last call anywhere on the ice: after a hit, the
+// same checker can do nothing to that player until some other pair's hit
+// lands, however long that takes (11 such checks in recorded games, none
+// knocked anyone down, against 22% otherwise). FallDown already ignores a
+// target that is falling or stumbling; the pair test is what stops a checker
+// flattening a player again as he gets up. The fix keeps the pair test only
+// while the target is still recovering: a knockdown sets his nopuck byte to
+// 120 and a wobble his nopuckb to 60, each counting down every frame, so the
+// pair is ignored while that word is not zero, and a later check counts. The
+// 18 bytes at $140A8 (cmpa.l PlayerChked,a2; bne.w .cont; cmpa.l
+// PlayerChking,a3; bne.w .cont; rts) become a call to the same tests with
+// the extra one; where the pair is ignored, it drops its return and returns
+// from FallDown, as the rts did.
+const REPEAT_HOOK: Hook = { at: 0x140a8, original: bytes('B5F8 DEDC 6600 000C B7F8 DEE0 6600 0004 4E75') }
+export const REPEAT_CODE = bytes('B5F8 DEDC 660E B7F8 DEE0 6608 4A6A 005E 6702 588F 4E75')
+const repeatCheckFix: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, REPEAT_HOOK.at, REPEAT_HOOK.original)) return false
+    return hooked(rom, REPEAT_HOOK, REPEAT_CODE) !== null ? true : undefined
+  },
+  remove(rom) {
+    const target = hooked(rom, REPEAT_HOOK, REPEAT_CODE)
+    if (target === null) return
+    erase(rom, target, REPEAT_CODE.length)
+    rom.set(REPEAT_HOOK.original, REPEAT_HOOK.at)
+  },
+  apply(work, value) {
+    if (value) hook(work, REPEAT_HOOK, REPEAT_CODE)
+  },
+}
+
 // Faceoffs off the dots. Every stoppage goes through Stop4Pen, which takes a
 // raw spot (centre for a goal, where the last player to touch the puck stood
 // for a puck out of play, the icing team's end for icing, the puck for the
@@ -2116,6 +2154,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
     openNetFix: found('openNetFix', openNetFix.detect(rom), NO_HACKS.openNetFix),
+    repeatCheckFix: found('repeatCheckFix', repeatCheckFix.detect(rom), NO_HACKS.repeatCheckFix),
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
@@ -2202,6 +2241,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
     ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
     ['openNetFix', () => openNetFix.remove(work.rom), () => openNetFix.apply(work, wanted.openNetFix)],
+    ['repeatCheckFix', () => repeatCheckFix.remove(work.rom), () => repeatCheckFix.apply(work, wanted.repeatCheckFix)],
     ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
     ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
     ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
@@ -2289,7 +2329,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
-  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'faceoffFix', 'runawayFix',
+  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
@@ -2417,6 +2457,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   comebackFix: 'Comeback bonus fix',
   passFix: 'Rocket pass fix',
   openNetFix: 'One-timer open net fix',
+  repeatCheckFix: 'Repeated checks fix',
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
@@ -2476,6 +2517,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   comebackFix: 'comebackFix',
   passFix: 'passFix',
   openNetFix: 'openNetFix',
+  repeatCheckFix: 'repeatCheckFix',
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',

@@ -246,6 +246,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { crowdFix: true },
       { stickShots: true },
       { openNetFix: true },
+      { repeatCheckFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },
@@ -312,6 +313,14 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')
+    // Repeated checks: FallDown's pair test becomes a call, the rest NOPs, falling through to .cont.
+    const repeat = applyHacks(opened, { ...NO_HACKS, repeatCheckFix: true }).bytes
+    expect(at(opened.bytes, 0x140a8, 18)).toBe('b5f8dedc6600000cb7f8dee0660000044e75')
+    expect(at(repeat, 0x140a8, 2)).toBe('4eb9')
+    expect(at(repeat, 0x140ae, 12)).toBe('4e714e714e714e714e714e71')
+    expect(at(repeat, (repeat[0x140aa] << 24 | repeat[0x140ab] << 16 | repeat[0x140ac] << 8 | repeat[0x140ad]) >>> 0, 22)).toBe(
+      'b5f8dedc660eb7f8dee066084a6a005e6702588f4e75',
+    )
     // The forum's version, bra.s +2, is recognised and taken out.
     const forum = opened.bytes.slice()
     forum.set([0x60, 0x02], 0x1023e)
