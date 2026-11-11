@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -32,7 +32,10 @@ jobs:
       - run: npm run lint
       # Tests that need a ROM skip themselves here, since none is in the repository.
       - run: npm test
-      - run: npx playwright install --with-deps chromium
+      # The runner already has the libraries Chromium needs; installing them
+      # again goes through Ubuntu's mirrors, which are sometimes unreachable
+      # from GitHub's machines. Then the browser alone is enough.
+      - run: npx playwright install --with-deps chromium || npx playwright install chromium
       - run: npm run test:browser
       - run: npm run build
       - uses: actions/upload-pages-artifact@v5
@@ -41,7 +44,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
