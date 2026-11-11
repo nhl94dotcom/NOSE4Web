@@ -1504,6 +1504,12 @@ export function HelpPage() {
           unchanged. Both rest on two places in the game's end-of-period code that Match Viewer found.
         </li>
         <li>
+          <b>Penalty time</b> (both systems): the seconds a player spends in the box for each penalty minute, 60 in
+          the original game. Each penalty keeps its minutes (set one by one under Rule messages on the Game settings
+          page), so at 30 a 2-minute minor lasts 1:00 and a major 2:30, to suit short periods; the penalty minutes in
+          the statistics stay as they are.
+        </li>
+        <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
           game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
@@ -1631,8 +1637,9 @@ export function HelpPage() {
           game leaves out, after a one-timer and when a player wins the puck back himself and passes to the scorer.
         </li>
         <li>
-          <b>Injuries</b>: none, as the original game has them, or each one lasting only the period or the whole
-          game. <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          <b>Injuries</b>: as in the original game; <b>never</b>, a hit only a fall; <b>the penalty, but no
+          injury</b>, the hit still called and the player lying down about ten seconds before he skates on; or every
+          injury lasting the period, or the whole game. <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
           <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
           is held before you take the goalie.
         </li>
@@ -1981,7 +1988,8 @@ export function HelpPage() {
             <li>
               From NHL94SNESVault, by McMarkis and its contributors: the <b>hot and cold bug fix</b> (in the original
               game a bug puts about half of every player's ratings at the maximum each game, whatever they are in
-              the ROM; the fix makes the ratings you set the ones that play), defence control on from the start,
+              the ROM; the fix makes the ratings you set the ones that play), defence control on from the start (among
+              the recommended hacks, as leagues play with it),
               one-minute penalties, 30-second periods, no interference penalties, no penalty shots, no goal posts,
               skipping the intros, the extra attacker fix, any skater at any position in Edit Lines, showing the
               maximum boost in Edit Lines, and pulling the goalie with L and R (the last two in NOSE4Web's versions,

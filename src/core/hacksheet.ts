@@ -94,7 +94,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     c.injuries === 'never'
       ? 'Hits never injure: a player knocked down gets up as from any other check.'
       : c.injuries === 'penaltyOnly'
-        ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies down for a few seconds and skates on.'
+        ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
   hotColdRange: (c) =>
     c.hotColdRange <= 2
