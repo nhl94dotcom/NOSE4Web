@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
+import { fightRam } from '../src/core/fight'
 import { FIGHT_BLOCKS, FIGHT_CHANGES } from '../src/core/fightdata'
 import { canAddGenesisBlood, hasGenesisBlood, withGenesisBloodAdded, withGenesisBloodTakenOut } from '../src/core/genesisblood'
 import { applyHacks, detectHacks, NO_HACKS, RECOMMENDED_FIXES } from '../src/core/hacks'
@@ -48,6 +49,19 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     const out = applyHacks(again, NO_HACKS)
     expect(out.bytes.length).toBe(0x100000)
     expect(same(buildRom(out), buildRom(opened))).toBe(true)
+  })
+
+  it('keeps the Fighting choice clear of the plus-minus log, also in a ROM made before it was moved', () => {
+    const both = applyHacks(fresh(), { ...NO_HACKS, plusMinus: true, fighting: 'on' })
+    expect(fightRam(both.bytes)).toBe(0xf080)
+    for (const at of [0x2001e0, 0x2002c6, 0x200442, 0x2004b8, 0x200806, 0x200af2]) expect((both.bytes[at] << 8) | both.bytes[at + 1]).toBe(0xf080)
+    for (const at of [0x2095e2, 0x209602, 0x209626]) expect((both.bytes[at] << 8) | both.bytes[at + 1]).toBe(0xf080 - 0xd048 - 18)
+    // A ROM from before: the choice at $DF00, put right when its hacks are next applied.
+    const old = both.bytes.slice()
+    for (const at of [0x2001e0, 0x2002c6, 0x200442, 0x2004b8, 0x200806, 0x200af2]) old.set([0xdf, 0x00], at)
+    for (const at of [0x2095e2, 0x209602, 0x209626]) old.set([0x0e, 0xa6], at)
+    expect(detectHacks(old).choices.fighting).toBe('on')
+    expect(fightRam(applyHacks({ ...both, bytes: old }, { ...NO_HACKS, plusMinus: true, fighting: 'on' }).bytes)).toBe(0xf080)
   })
 
   it("keeps the other hacks' code below 2 MB, and goes with them", () => {

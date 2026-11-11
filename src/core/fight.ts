@@ -66,10 +66,30 @@ const SPRITE_COLOURS = 0x80
 // copy.
 const TABLES: [number, number] = [0x200b00, 0x208fe4]
 const FRAME_TABLE_OFFSET = 0x5de7e
+// Where the menu's Fighting choice is kept while the game runs. chaos's patch
+// keeps it at $FFDF00 (McMarkis's NewMenuRAM), in the room below the stack
+// where smozROM's plus-minus statistic keeps its log from $FFDEF4, 14 bytes
+// a goal, which every league ROM with plus-minus has: the first goal would
+// write over it, and the log's clearing at each game's start clears it. The
+// editor moves it to $FFF080, past NOSE4Web's own there (the injury counts at
+// $FFF000, the any-position lines at $FFF040), in room Match Viewer found
+// unused in every recorded game: the six instructions that name it
+// (tst.w / cmpi.w #2 / move.w d0 with ($DF00).w), and the three addi.w
+// #NewMenuRAM-OptPlayMode-18,d7 of McMarkis's menu code.
+const FIGHT_RAM = 0xf080
+const FIGHT_RAM_NAMED = [0x2001e0, 0x2002c6, 0x200442, 0x2004b8, 0x200806, 0x200af2]
+const FIGHT_RAM_OFFSETS = [0x2095e2, 0x209602, 0x209626]
+const OPT_PLAY_MODE = 0xd048
+const moveFightRam = (rom: Uint8Array) => {
+  for (const at of FIGHT_RAM_NAMED) put16(rom, at, FIGHT_RAM)
+  for (const at of FIGHT_RAM_OFFSETS) put16(rom, at, FIGHT_RAM - OPT_PLAY_MODE - 18)
+}
 // What may differ in a ROM with the patch: the starting choice, the menu's
-// pointers, the sprites' colours, and what head bleeding changes.
+// pointers, the sprites' colours, what head bleeding changes, and where the
+// choice is kept.
 const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
+  ...[...FIGHT_RAM_NAMED, ...FIGHT_RAM_OFFSETS].map((at): [number, number] => [at, at + 2]),
   TABLES,
   [FRAME_TABLE_OFFSET, FRAME_TABLE_OFFSET + 4],
   [CHOICES_AT, CHOICES_AT + 4],
@@ -160,8 +180,13 @@ export function fightBlocked(rom: Uint8Array): string | null {
 export function withFightChoice(rom: Uint8Array, choice: Exclude<FightChoice, 'none'>): Uint8Array {
   const out = rom.slice()
   put16(out, DEFAULT_AT, DEFAULTS.indexOf(choice))
+  // ROMs made before the choice was moved get it moved too.
+  moveFightRam(out)
   return out
 }
+
+// Where the ROM keeps the menu's Fighting choice while the game runs (as the first instruction names it).
+export const fightRam = (rom: Uint8Array) => u16(rom, FIGHT_RAM_NAMED[0])
 
 // The ROM with the patch in, its menu starting at `choice`.
 export function withFight(rom: Uint8Array, choice: Exclude<FightChoice, 'none'>): Uint8Array {
@@ -176,6 +201,7 @@ export function withFight(rom: Uint8Array, choice: Exclude<FightChoice, 'none'>)
   for (const c of changes) out.set(c.patched, c.at)
   for (const b of blocks) out.set(b.bytes, b.at)
   put16(out, DEFAULT_AT, DEFAULTS.indexOf(choice))
+  moveFightRam(out)
   out.set(colours, coloursAt(out))
   const end = writeMenu(out, menu)
   // The ROM's size before the patch, so that taking it out gives it back.
