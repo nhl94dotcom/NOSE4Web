@@ -973,7 +973,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             it after the overtime instead, played as the game's own Shootout mode plays one, five shooters a side and
             then a shooter each until one team is ahead; the winners get one goal more on the scoreboard, and the game
             ends as any other. Playoffs are as they were either way. Match Viewer found the two places in the game's
-            code that end a tied regular-season game.
+            code that end a tied regular-season game, and has tested overtime until a goal in the game: a tied
+            game played three more overtimes before a goal ended it normally, and playoffs played as before. The
+            shootout is not yet tested in the game.
           </>,
         )}
         {hack(
