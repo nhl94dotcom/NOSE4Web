@@ -828,7 +828,8 @@ export function HelpPage() {
           <b>Move to</b> beside a team, or <b>Put the first teams in alphabetical order</b> to sort the league's own
           teams (those the menu offers, up to the last playoff team) by name, leaving the All-Star teams and any
           others after them. Everything the game keeps by team number goes with each team: its players, lines,
-          names and colours, logos, banners and menu colours, player photos, organ songs and score logos, and on the
+          names and colours (the two New York teams' full names too), logos, banners and menu colours, player
+          photos, organ songs and score logos, and on the
           Genesis the team rating on its player cards; on the SNES its centre ice logo, banner name and colours,
           and photo colours too. The playoff draws, the main menu's starting teams, the start of the
           season and the league rules' exempt teams follow their teams too, and a project file saved afterwards
@@ -847,10 +848,6 @@ export function HelpPage() {
             <li>
               An emulator's battery save keeps what it saves for a team (saved lines, and on the Genesis crowd
               records) by team number, so start a new save file after downloading.
-            </li>
-            <li>
-              The original Genesis game shows its two New York teams' locations with built-in text, kept for team
-              numbers 14 and 15. A New York team moved elsewhere shows its own location, "New York", instead.
             </li>
             <li>
               Not offered for NHL 94: EVO, whose own code rebuilds the menus and playoffs, nor for ROMs whose

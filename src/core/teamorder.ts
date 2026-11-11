@@ -1,4 +1,4 @@
-import { readU16, readU32, reorderEntries } from './bytes'
+import { readU16, readU32, reorderEntries, writeU16 } from './bytes'
 import type { GameConfig } from './games'
 import { bannersFollowable, graphicsInTeamOrder } from './graphics'
 import { genesisScoreLogoTable, SCORE_LOGO_ENTRY } from './genesisscorelogos'
@@ -9,7 +9,7 @@ import { snesBlockColourTable } from './snesblockcolours'
 import { SNES_PHOTO_SLOTS, snesPhotoTables } from './snesphotos'
 import { NO_SNES_PICTURE_EDITS, snesPicturesInTeamOrder, snesPicturesSupported } from './snespictures'
 import { SNES_SCORE_LOGO_ENTRY, snesScoreLogoTable } from './snesscorelogos'
-import type { RomProject } from './rom'
+import { redirectedTeam, type RomProject } from './rom'
 import type { Settings } from './settings'
 import { teamDisplayName, type TeamLayout } from './team'
 
@@ -150,6 +150,11 @@ export function withTeamOrder(project: RomProject, order: TeamOrder): RomProject
   reorderEntries(from, rom, ratingsTable(from, game.teamCount)!, 1, order)
   const scoreLogos = genesisScoreLogoTable(from, count)
   if (scoreLogos !== null) reorderEntries(from, rom, scoreLogos, SCORE_LOGO_ENTRY, order)
+  // The Game Setup menu's full names of the two New York teams, by number.
+  for (const redirect of game.teamNameRedirects) {
+    const team = redirectedTeam(from, game, redirect)
+    if (readU16(from, redirect.pointerOffset - 10) === 0xb67c) writeU16(rom, redirect.pointerOffset - 8, newNumberOf(order, team))
+  }
   return { ...followers(project, order), bytes: rom, graphics }
 }
 
@@ -165,7 +170,28 @@ function withSnesTeamOrder(project: RomProject, order: TeamOrder): RomProject {
   reorderEntries(from, rom, photos.palettes, 4, order)
   const scoreLogos = snesScoreLogoTable(from, count)
   if (scoreLogos !== null) reorderEntries(from, rom, scoreLogos, SNES_SCORE_LOGO_ENTRY, order)
+  // GetTeamLongName's two teams with full names of their own, the New York
+  // teams, by number.
+  const longNames = snesLongNameTeams(from)
+  if (longNames !== null) {
+    for (const at of [longNames + 1, longNames + 6]) if (from[at] < count) rom[at] = newNumberOf(order, from[at])
+  }
   return { ...followers(project, order), bytes: rom, snesPictures }
+}
+
+// Team `team`'s number once the teams are in `order`.
+const newNumberOf = (order: TeamOrder, team: number) => (order.indexOf(team) < 0 ? team : order.indexOf(team))
+
+// GetTeamLongName (SNES): cmp #a; beq; cmp #b; beq; asl; asl; tay, where a and b
+// are the teams whose full names are its own (LongNYI and LongNYR in the
+// original game). Where it is: the first cmp; null where it is not found once.
+export function snesLongNameTeams(rom: Uint8Array): number | null {
+  const found: number[] = []
+  for (let at = 0; at + 13 <= rom.length; at++) {
+    if (rom[at] !== 0xc9 || rom[at + 2] !== 0 || rom[at + 3] !== 0xf0 || rom[at + 5] !== 0xc9 || rom[at + 7] !== 0) continue
+    if (rom[at + 8] === 0xf0 && rom[at + 10] === 0x0a && rom[at + 11] === 0x0a && rom[at + 12] === 0xa8) found.push(at)
+  }
+  return found.length === 1 ? found[0] : null
 }
 
 // What moves with the teams on either game: the teams themselves, and what

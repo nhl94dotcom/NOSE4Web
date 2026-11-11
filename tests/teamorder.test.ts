@@ -16,7 +16,10 @@ import { snesBlockColours } from '../src/core/snesblockcolours'
 import { snesPhotoPalette, snesTeamPhotos } from '../src/core/snesphotos'
 import { snesCentreIce, snesLogo } from '../src/core/snespictures'
 import { snesScoreLogo, snesScoreLogosSupported } from '../src/core/snesscorelogos'
-import { alphabeticalOrder, shownTeamRatings, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
+import { readU32 } from '../src/core/bytes'
+import { NHL94 } from '../src/core/games'
+import { redirectedTeam } from '../src/core/rom'
+import { snesLongNameTeams, alphabeticalOrder, shownTeamRatings, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -120,6 +123,18 @@ describe.skipIf(!existsSync(GENESIS))('moving teams, Genesis', () => {
     const differences = compareProjects(project, moved)
     expect(differences.find((d) => d.heading === 'In general')?.changes.join(' ')).toMatch(/moved/)
     expect(differences.filter((d) => d.heading !== 'In general' && d.heading !== 'Team order')).toEqual([])
+  })
+
+  it("keeps the New York teams' full names on the Game Setup menu", () => {
+    const project = open(GENESIS)
+    // The Rangers to team 4, then the Islanders (team 15 after that) to team 1.
+    const moved = reopen(withTeamOrder(withTeamOrder(project, teamMovedTo(28, 14, 3)), teamMovedTo(28, 14, 0)))
+    const [islanders, rangers] = NHL94.teamNameRedirects
+    expect([redirectedTeam(moved.bytes, moved.game, islanders), redirectedTeam(moved.bytes, moved.game, rangers)]).toEqual([0, 4])
+    expect(teamDisplayName(moved.teams[redirectedTeam(moved.bytes, moved.game, islanders)])).toBe('New York Islanders')
+    expect(teamDisplayName(moved.teams[redirectedTeam(moved.bytes, moved.game, rangers)])).toBe('New York Rangers')
+    expect(readU32(moved.bytes, islanders.pointerOffset)).toBe(islanders.defaultTextOffset)
+    expect(readU32(moved.bytes, rangers.pointerOffset)).toBe(rangers.defaultTextOffset)
   })
 
   it('moves any team, and refuses an order that is not one', () => {
@@ -232,6 +247,10 @@ describe.skipIf(snes.length === 0)('moving teams, SNES', () => {
       expectMoved(project, moved, order)
       const again = reopen(moved)
       expectMoved(project, again, order)
+      // The teams GetTeamLongName gives full names of their own (New York's) keep them.
+      const site = snesLongNameTeams(project.bytes)
+      expect(site).not.toBeNull()
+      expect([again.bytes[site! + 1], again.bytes[site! + 6]]).toEqual([order.indexOf(project.bytes[site! + 1]), order.indexOf(project.bytes[site! + 6])])
       const last = teamMovedTo(project.teams.length, project.teams.length - 1, 0)
       expectMoved(project, reopen(withTeamOrder(project, last)), last)
       // Moved back, the ROM is as it was.

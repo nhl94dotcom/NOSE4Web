@@ -187,10 +187,19 @@ export function openRom(file: Uint8Array): RomProject {
 // Points the game's built-in team text at the right place. While a redirected
 // team's location still begins the built-in text ("New York" in "New York
 // Rangers") the built-in text is used; once renamed, the team's own name is.
+// The team a built-in name is for: the number PrintOptTeamName compares with
+// (cmp.w #team,d3 eight bytes before the address, moved with the team when
+// teams are moved; see teamorder.ts), or the game's own where that is not there.
+const OP_CMP_D3 = 0xb67c
+export function redirectedTeam(rom: Uint8Array, game: GameConfig, redirect: GameConfig['teamNameRedirects'][number]): number {
+  const team = readU16(rom, redirect.pointerOffset - 8)
+  return readU16(rom, redirect.pointerOffset - 10) === OP_CMP_D3 && team < game.teamCount ? team : redirect.team
+}
+
 function updateTeamNameRedirects(rom: Uint8Array, game: GameConfig): void {
   for (const redirect of game.teamNameRedirects) {
     if (readU16(rom, redirect.pointerOffset - 2) !== OP_MOVEA_A1) continue // removed by a hack
-    const team = readU32(rom, game.teamTableOffset + redirect.team * 4)
+    const team = readU32(rom, game.teamTableOffset + redirectedTeam(rom, game, redirect) * 4)
     const names = team + readU16(rom, team + 4)
     const usesBuiltIn = readText(rom, redirect.defaultTextOffset).text.startsWith(readText(rom, names).text)
     writeU32(rom, redirect.pointerOffset, usesBuiltIn ? redirect.defaultTextOffset : names)
