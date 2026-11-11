@@ -79,7 +79,7 @@ describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () 
   const project = openRom(new Uint8Array(readFileSync(SNES)))
   const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(project)
   const at = rows[0].indexOf('League value')
-  // Two Stephane Richers are in the game, so a team can be given too.
+  // Two Stephane Richers are in the game (the leagues call the defenceman StephaneD), so a team can be given too.
   const of = (name: string, team = '') =>
     rows.find((row) => String(row[4]).trim() === name && String(row[1]).includes(team))?.[at]
 
