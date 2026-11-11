@@ -321,7 +321,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             upwards, close in about 4 in 10 of those one-timers at an open net go over or off the bar. This aims them
             at the middle, at mid-height, as the game already does with the goalie pulled. Computer players' shots,
             which the game aims the same way, get the same aim. Genesis only: the SNES game lets one-timers follow the
-            stick. Found by the NHL94 Match Viewer project.
+            stick. Found and tested in the game by the NHL94 Match Viewer project: over 140 one-timers at an open net,
+            goals went from 56% to 86% (from 15 in 20 to all 20 close in), and one-timers with the goalie in position
+            came out exactly as before.
           </>,
         )}
         {hack(
