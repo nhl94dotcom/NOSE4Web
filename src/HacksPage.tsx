@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { WEIGHT_BASES } from './core/attributes'
+import { penaltyLengths } from './core/penaltytime'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
 import { GENESIS_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
@@ -670,6 +671,25 @@ export function HacksPage({ project, name, onChange }: Props) {
             credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the
             original game and a league ROM: the league's own menu with Fighting added, fights with their majors,
             saved records kept, the fighting ratings page, shootouts and replays.
+          </>,
+        )}
+        {hack(
+          'penaltySeconds',
+          <>
+            {number('penaltySeconds')} seconds in the box for each penalty minute
+          </>,
+          <>
+            How long a penalty keeps a player in the box. Each penalty has its minutes (2 for a minor, 5 for a major,
+            and so on, which you can change one by one under Rule messages on the Game settings page), and the game
+            keeps the player off for that many minutes of the game clock. This sets how long each of those minutes
+            is: at 60, as in the original game, a minute is a minute; at 30 every penalty lasts half as long. Now{' '}
+            {penaltyLengths(wanted.penaltySeconds)}. It suits a league that plays short periods and wants penalties to
+            match: with 5-minute periods, 30 makes a minor 1:00, as a 2-minute minor is to a 20-minute period. Only
+            the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a
+            power-play goal letting a player out early are all as before. The time is counted on the game clock, as
+            the period is. {stock('penaltySeconds')} Read from the
+            game's code: box time is the minutes times 60 in one place only, which this changes. Not yet tested in
+            the game.
           </>,
         )}
         {hack(

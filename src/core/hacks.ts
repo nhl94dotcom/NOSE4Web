@@ -165,6 +165,8 @@ export interface HackChoices {
   injuryCap: number
   // How fast the puck slows on the ice: it loses 1 / 2^n of its speed a frame, 9 in the original game.
   puckFriction: number
+  // Seconds in the penalty box for each penalty minute (60 in the original).
+  penaltySeconds: number
   // Which of the game's colour sets the puck is drawn in.
   puckColours: PuckColours
   // The colours both nets are drawn in, from the same choices.
@@ -237,6 +239,7 @@ export type HackPart =
   | 'injuryBonus'
   | 'injuryCap'
   | 'puckFriction'
+  | 'penaltySeconds'
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
@@ -305,6 +308,7 @@ export const NO_HACKS: HackChoices = {
   injuryBonus: 0,
   injuryCap: 10,
   puckFriction: 9,
+  penaltySeconds: 60,
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
@@ -334,6 +338,7 @@ export const HACK_RANGES = {
   injuryBonus: [0, 10],
   injuryCap: [1, 60],
   puckFriction: [1, 12],
+  penaltySeconds: [1, 255],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}
@@ -2260,6 +2265,26 @@ const puckFriction: Part<number> = {
   apply: (work, value) => void (work.rom[FRICTION_AT + 1] = value),
 }
 
+// ------------------------------------------------------------- penalty time
+// penalty94's .Sa, sending a player to the box: ext.w d2 (his penalty's
+// minutes, from the penalty table); mulu.w #$3C,d2; bset #$D,d2: the box
+// time, in seconds of the game clock, is the minutes times 60. This is the
+// only place minutes become time. The minutes themselves still go into the
+// penalty minutes statistics, and the 5-minute test for coincidental majors
+// reads them, not the time. The time word keeps flags from bit 12 up, so a
+// penalty must stay under 4096 seconds: with up to 255 seconds a minute, any
+// penalty of 16 minutes or less does.
+const PENALTY_TIME_AT = 0x1230c
+const penaltySeconds: Part<number> = {
+  detect(rom) {
+    if (!is(rom, PENALTY_TIME_AT, bytes('4882 C4FC')) || !is(rom, PENALTY_TIME_AT + 6, bytes('08C2 000D'))) return undefined
+    const value = readU16(rom, PENALTY_TIME_AT + 4)
+    return value >= 1 && value <= 255 ? value : undefined
+  },
+  remove: (rom) => writeU16(rom, PENALTY_TIME_AT + 4, NO_HACKS.penaltySeconds),
+  apply: (work, value) => writeU16(work.rom, PENALTY_TIME_AT + 4, value),
+}
+
 // -------------------------------------------------------------- puck colours
 // Frames 395 to 404, the puck and its flip, are one piece each: X, Y, tile,
 // then the attribute word, whose high byte at $A1670 to $A16B8 (every 8)
@@ -2383,6 +2408,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     injuryBonus: found('injuryBonus', injury?.bonus, NO_HACKS.injuryBonus),
     injuryCap: found('injuryCap', injury?.cap, NO_HACKS.injuryCap),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
+    penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
@@ -2477,6 +2503,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['injuryBonus', () => injuryRisk.remove(work.rom), () => injuryRisk.apply(work, { bonus: wanted.injuryBonus, cap: wanted.injuryCap })],
     ['holdEnergy', () => holdEnergy.remove(work.rom), () => holdEnergy.apply(work, wanted.holdEnergy)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
+    ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
@@ -2706,6 +2733,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   injuryCap: 'Most injury risk knockdowns can add',
   holdEnergy: 'Energy lost when held or hooked',
   puckFriction: 'Puck friction',
+  penaltySeconds: 'Penalty time',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
@@ -2769,6 +2797,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   injuryCap: 'injuryCap',
   holdEnergy: 'holdEnergy',
   puckFriction: 'puckFriction',
+  penaltySeconds: 'penaltySeconds',
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',

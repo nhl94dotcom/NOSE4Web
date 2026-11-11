@@ -1,3 +1,4 @@
+import { penaltyLengths } from './penaltytime'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
@@ -40,6 +41,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
+  penaltySeconds: (c) =>
+    `Penalties last ${c.penaltySeconds < NO_HACKS.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
   headBleeding: () => 'A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA 93; only the look changes.',
   seasonTies: (c) =>
     c.seasonTies === 'shootoutNow'
@@ -185,6 +188,7 @@ const SNES: Record<SnesHack, string> = {
   noSkatingDrain: 'With line changes on, skating costs no energy: players tire only from hits (if set) and speed bursts, and rest on the bench as usual.',
   freeBurst: 'A speed burst costs no energy.',
   seasonOvertime: 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
+  penaltyTime: 'Penalties last a different time from what they say: each penalty minute is a set number of seconds in the box. The penalty minutes in the statistics are as before.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
   injuryBonus: 'Each knockdown a skater takes makes a hit a little more likely to injure him, its own included (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
@@ -201,7 +205,9 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   const textOf = (hack: SnesHack) =>
     (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
       ? SNES[hack].replace('some of his energy', `${amounts[hack]} units of his energy (${energyText(amounts[hack])})`)
-      : SNES[hack]
+      : hack === 'penaltyTime' && amounts
+        ? `Penalties last ${amounts.penaltyTime < 60 ? 'less' : 'longer'} than they say: each penalty minute is ${amounts.penaltyTime} seconds in the box, so ${penaltyLengths(amounts.penaltyTime)}. The penalty minutes in the statistics are as before.`
+        : SNES[hack]
   const sections = SNES_SECTIONS.map(([heading, hacks]) => ({
     heading,
     items: hacks.flatMap((hack) => {

@@ -1,3 +1,4 @@
+import { penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -16,6 +17,7 @@ import {
   withSnesHackChoice,
   RECOMMENDED_SNES_HIT_ENERGY,
   RECOMMENDED_SNES_HOLD_ENERGY,
+  SNES_AMOUNT_OFF,
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
   SNES_AMOUNTS,
@@ -30,6 +32,8 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   hitEnergy: RECOMMENDED_SNES_HIT_ENERGY,
   holdEnergy: RECOMMENDED_SNES_HOLD_ENERGY,
   injuryBonus: RECOMMENDED_SNES_INJURY_BONUS,
+  // Not a recommendation: the original game's.
+  penaltyTime: 60,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -37,7 +41,8 @@ const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHa
 const energyShare = (units: number) => (units === 0 ? 'Off: none taken.' : `${units} units, ${Math.round((units / FULL_ENERGY) * 1000) / 10}% of full energy.`)
 // The injury risk: what it adds to a hit that can injure, at most.
 const riskShare = (bonus: number) => (bonus === 0 ? 'Off.' : `Up to ${bonus * 5} impact after 5 knockdowns: about ${Math.round(((bonus * 5) / 300) * 100)} in 100 more on a hit that can injure.`)
-const amountText = (hack: SnesAmount, value: number) => (hack === 'injuryBonus' ? riskShare(value) : energyShare(value))
+const amountText = (hack: SnesAmount, value: number) =>
+  hack === 'penaltyTime' ? `seconds for each penalty minute: ${penaltyLengths(value)}.` : hack === 'injuryBonus' ? riskShare(value) : energyShare(value)
 
 interface Props {
   project: RomProject
@@ -75,6 +80,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It needs Skating costs no energy, which turns on with it: goalies never go to the bench, so the skating drain would slow them more than in the original game. Line changes Auto keeps everyone at full speed. Read from the game's code and tested in the game by the NHL94 Match Viewer project, on the original and the SA-1 build: a leg-speed-15 skater's speed class is 15, 10, 5 and 0 after none to three knockdowns, and goalies keep full speed.",
   seasonOvertime:
     "A regular-season game still tied after its overtime plays another overtime, and another, until someone scores, as a playoff game does, instead of ending in a tie. Each overtime is the regular season's 5:00; playoffs are as they were. The same two changes as the Genesis option, which the NHL94 Match Viewer project found and tested there; not yet tested in the SNES game.",
+  penaltyTime:
+    "How long a penalty keeps a player in the box. Each penalty has its minutes (2 for a minor, 5 for a major, and so on, which you can change one by one under Rule messages on the Game settings page), and the game keeps the player off for that many minutes of the game clock. This sets how long each of those minutes is: at 60, as in the original game, a minute is a minute; at 30 every penalty lasts half as long. It suits a league that plays short periods and wants penalties to match: with 5-minute periods, 30 makes a minor 1:00, as a 2-minute minor is to a 20-minute period. Only the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a power-play goal letting a player out early are all as before. It goes with the one-minute penalties hack, which halves the minors' minutes. Read from the game's code: box time is the minutes times 60 in one place only, which this changes, in every build. Not yet tested in the game.",
   goaliePoke:
     "A fix as an option, from a community report that the goalie's poke check (X) seems useless. In the original game a goalie's stick can only touch a puck on the ice when he holds it out to the side, so a poke straight up or down the ice, the way he usually faces, never reaches it. The poke's stick also reaches only about 2 units around its tip. With this on, while poking his stick reaches the ice, about 6 units around its tip (as far as a skater's steal reaches), whichever way he faces, and knocks the puck loose, as a sideways poke already can; it still cannot knock down a raised shot, and his stance and stick saves are as before. It also fixes a poke straight up the ice, which in the original game never reaches full stretch (his facing is left unlocked, so he stands up again at once). Computer goalies poke too. Read from the game's code by the NHL94 Match Viewer project and tested in the game, the poke straight up the ice included.",
   freeBurst:
@@ -134,13 +141,13 @@ const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every
 export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
-  const hadAmounts: Record<SnesAmount, number> = state.amounts ?? { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0 }
+  const hadAmounts: Record<SnesAmount, number> = state.amounts ?? SNES_AMOUNT_OFF
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
   if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const wantedAmounts = draft.rom === project.bytes ? draft.amounts : hadAmounts
   const setAmount = (hack: SnesAmount, value: number) => {
-    setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: value > 0 }, amounts: { ...wantedAmounts, [hack]: value } })
+    setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: value !== SNES_AMOUNT_OFF[hack] }, amounts: { ...wantedAmounts, [hack]: value } })
     setNotice('')
     setError('')
   }
@@ -208,7 +215,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     />{' '}
                     <span className="note">{amountText(hack, wantedAmounts[hack])}</span>{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>
-                      Use the recommended {RECOMMENDED_AMOUNTS[hack]}
+                      {hack === 'penaltyTime' ? 'Use the original 60' : `Use the recommended ${RECOMMENDED_AMOUNTS[hack]}`}
                     </button>
                   </label>
                 ) : (
@@ -305,7 +312,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
               setDraft({
                 rom: project.bytes,
                 choices: copied.choices,
-                amounts: Object.fromEntries(SNES_AMOUNTS.map((hack) => [hack, copied.choices[hack] ? otherAmounts[hack] : 0])) as Record<SnesAmount, number>,
+                amounts: Object.fromEntries(SNES_AMOUNTS.map((hack) => [hack, copied.choices[hack] ? otherAmounts[hack] : SNES_AMOUNT_OFF[hack]])) as Record<SnesAmount, number>,
               })
               setNotCopied(copied.notCopied)
               setNotice(`Set to ${fileName}'s hacks. Check the choices above and press Apply.`)
