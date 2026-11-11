@@ -1056,7 +1056,9 @@ export function HelpPage() {
       <p>
         A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
         pictures you replaced (the splash screen and main menu background included), the organ songs you made from
-        MIDI files, and your free agents. <b>Save project file</b> on the Project file page downloads it,
+        MIDI files, your free agents, and where you moved teams. Work the editor keeps only in the ROM itself (player
+        photos, score logos, head blood, and on the SNES banner and photo colours) goes in as a patch of the
+        finished ROM, made only for the copy of the ROM you opened. <b>Save project file</b> on the Project file page downloads it,
         named with the Name box at the top.
       </p>
       <p>Use one to:</p>
@@ -1069,9 +1071,10 @@ export function HelpPage() {
         <b>Open a project file</b> lays the project over the ROM as you opened it, replacing whatever you have done
         in the editor since; Undo brings that back. Any roster or picture room you had made is made again first. The
         ROM has to be the same kind the project was made with, with the same number of teams, but it need not be the
-        very same file: opened over a different copy, the project's teams, colours and settings replace that copy's,
-        and the pictures you had replaced are replaced there too, while pictures you had left alone stay as that
-        copy has them.
+        very same file. Opened over the same copy, everything comes back exactly as it was. Opened over a different
+        copy, the project's teams, colours and settings replace that copy's, and the pictures you had replaced are
+        replaced there too, while pictures you had left alone stay as that copy has them; the work kept only in the
+        ROM itself stays as that copy has it, and the page says so.
       </p>
       <p>
         Tick <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,

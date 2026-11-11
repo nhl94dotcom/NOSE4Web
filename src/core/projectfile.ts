@@ -18,7 +18,8 @@ import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesP
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
 import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, type GraphicsEdits, type Picture } from './graphics'
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
-import type { RomProject } from './rom'
+import { applyIps, createIps } from './ips'
+import { buildRom, openRom, type RomProject } from './rom'
 import type { Baseline } from './season'
 import { MAX_ROSTER } from './roster'
 import { hasSettings, type Settings } from './settings'
@@ -67,6 +68,49 @@ interface ProjectFile {
   // The Genesis's splash screen and main menu background, where the project changed them: the original's
   // again, or a picture of the league's own as its bytes.
   screens?: { splash?: { original: true } | { bytes: string; ownColours: boolean }; menuPicture?: { original: true } | { bytes: string } }
+  // The finished ROM, as a patch to the ROM the project was made on, and that
+  // ROM's fingerprint. Opened over the same ROM, it puts back everything,
+  // including what is kept only in the ROM itself: player photos, score
+  // logos, head blood, and the SNES banner and photo colours.
+  rom?: { fingerprint: string; patch: string }
+}
+
+// A ROM file's fingerprint: its length and an FNV-1a hash of its bytes.
+function fingerprint(bytes: Uint8Array): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < bytes.length; i++) hash = Math.imul(hash ^ bytes[i], 0x01000193) >>> 0
+  return `${bytes.length}:${hash.toString(16).padStart(8, '0')}`
+}
+
+// The finished ROM as a patch to the ROM as opened, where the rest of the file
+// opened over a fresh copy of that ROM would not give it exactly: where some
+// of the work is kept only in the ROM itself. None where it cannot be built.
+function romPatch(project: RomProject, opened: RomProject, rest: ProjectFile): ProjectFile['rom'] {
+  let built: Uint8Array
+  try {
+    built = buildRom(project)
+  } catch {
+    return undefined
+  }
+  try {
+    const replayed = buildRom(openProjectFile(openRom(opened.source), JSON.stringify(rest)).project)
+    if (replayed.length === built.length && replayed.every((byte, i) => byte === built[i])) return undefined
+  } catch {
+    // The rest of the file alone does not give the ROM, so the patch is needed.
+  }
+  return { fingerprint: fingerprint(opened.source), patch: pack(createIps(opened.source, built)) }
+}
+
+// The finished ROM the project was saved with, opened, where `given` is the
+// very ROM the project was made on; null where it is not, or the patch does
+// not open.
+function exactRom(given: RomProject, stored: ProjectFile['rom']): RomProject | null {
+  if (!stored || typeof stored.patch !== 'string' || stored.fingerprint !== fingerprint(given.source)) return null
+  try {
+    return openRom(applyIps(given.source, unpack(stored.patch)))
+  } catch {
+    return null
+  }
 }
 
 const PICTURE_SETS: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, PictureKind> = {
@@ -141,7 +185,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     songs: savedSongs(project),
     screens: savedScreens(project, opened),
   }
-  return JSON.stringify(file)
+  return JSON.stringify({ ...file, rom: romPatch(project, opened, file) })
 }
 
 export class ProjectFileError extends Error {}
@@ -290,6 +334,14 @@ function moveTeams(file: ProjectFile, places: number[], game: RomProject['game']
 // game keeps by team number, so that the project's teams then go to their own
 // places. A ROM already in that order, such as one downloaded after the move,
 // is left as it is.
+// A stored team order, where it is one: every team once.
+function storedOrder(stored: ProjectFile['teamOrder'], count: number): number[] | undefined {
+  const order = stored?.order
+  return Array.isArray(order) && order.length === count && order.every((team) => Number.isInteger(team) && team >= 0 && team < count) && new Set(order).size === count
+    ? order
+    : undefined
+}
+
 function withMovedTeams(opened: RomProject, stored: ProjectFile['teamOrder'], teams: StoredTeam[], notes: string[]): RomProject {
   if (stored === undefined || stored === null) return opened
   const { order, from } = stored
@@ -335,8 +387,17 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (file?.file !== MARK) throw new ProjectFileError('This is not a project file.')
   if (file.format > FORMAT) throw new ProjectFileError('This project file was made by a newer version of the editor. Reload the page to get it, and try again.')
   const notes: string[] = []
+  // Over the very ROM the project was made on, the finished ROM is put back
+  // whole: its hacks, room, moved teams, pictures, songs and screens are in it.
+  const exact = exactRom(given, file.rom)
+  if (exact) opened = exact
+  else if (file.rom) {
+    notes.push(
+      'This is not the copy of the ROM the project was made on, so what is kept only in the ROM itself (player photos, score logos, head blood, and on the SNES banner and photo colours) was left as this copy has it. Everything else was put in.',
+    )
+  }
   // A project made on a hacked ROM brings its hacks with it.
-  const hacksNow = hackState(opened)
+  const hacksNow = exact ? null : hackState(opened)
   // Files from before the checking fix had three choices kept it as on or off.
   if (file.hacks && typeof (file.hacks.checkFix as unknown) === 'boolean') {
     file.hacks = { ...file.hacks, checkFix: (file.hacks.checkFix as unknown) === true ? 'all240' : 'off' }
@@ -349,7 +410,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
       throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
-  if (file.snesHacks && opened.game.platform === 'snes') {
+  if (!exact && file.snesHacks && opened.game.platform === 'snes') {
     const { choices: now, amounts: nowAmounts } = detectSnesHacks(opened.bytes)
     // Only amounts that are whole numbers in range.
     const amounts = Object.fromEntries(
@@ -376,7 +437,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (!Array.isArray(file.teams) || file.teams.length !== opened.teams.length) {
     throw new ProjectFileError(`This project has ${file.teams?.length ?? 0} teams and the ROM has ${opened.teams.length}.`)
   }
-  opened = withMovedTeams(opened, file.teamOrder, file.teams, notes)
+  opened = exact ? { ...opened, teamOrder: storedOrder(file.teamOrder, opened.teams.length) } : withMovedTeams(opened, file.teamOrder, file.teams, notes)
   file.teams.forEach((team, i) => {
     if (!checkTeam(team, opened.teams[i])) throw new ProjectFileError(`The project file is damaged: team ${i + 1} cannot be read.`)
   })
@@ -385,14 +446,14 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
 
   // First the room the user had made, then the work that needs it.
   let project = opened
-  for (let i = 0; i < (file.expansions?.rosterSpace ?? 0); i++) {
+  for (let i = 0; i < (exact ? 0 : (file.expansions?.rosterSpace ?? 0)); i++) {
     if (!nextExpansion(project)) {
       notes.push('This ROM could not be given as much roster space as the project had. Check the bytes free at the top of the page.')
       break
     }
     project = expandTeamSpace(project)
   }
-  if (file.expansions?.pictureSpace && project.graphicsSupported) project = expandPictureSpace(project)
+  if (!exact && file.expansions?.pictureSpace && project.graphicsSupported) project = expandPictureSpace(project)
 
   // A banner name from the file where it has a usable one, else the ROM's (files saved before there were any).
   const placeName = (stored: StoredTeam, i: number) =>
@@ -441,7 +502,9 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
       : null
   project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents, leagueRules, baseline }
 
-  if (project.graphicsSupported) {
+  if (exact) {
+    // The pictures are in the ROM already.
+  } else if (project.graphicsSupported) {
     const kinds = pictureKinds(project)
     const graphics: GraphicsEdits = { ...NO_GRAPHICS_EDITS }
     let skipped = 0
@@ -471,9 +534,14 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   } else if (SET_NAMES.some((set) => Object.keys(file.pictures?.[set] ?? {}).length > 0)) {
     notes.push('The project has pictures, but this ROM keeps its pictures in a way the editor cannot read, so they were left out.')
   }
-  if (game.platform === 'snes') project = withSnesPictures(project, file.snesPictures, notes)
-  project = withSavedSongs(project, file.songs, notes)
-  project = withSavedScreens(project, file.screens, notes)
+  if (exact) {
+    // The ROM the work goes on is still the one opened, for Reset, patches and Changes.
+    project = { ...project, source: given.source, wasSmd: given.wasSmd }
+  } else {
+    if (game.platform === 'snes') project = withSnesPictures(project, file.snesPictures, notes)
+    project = withSavedSongs(project, file.songs, notes)
+    project = withSavedScreens(project, file.screens, notes)
+  }
   return { project, name: typeof file.name === 'string' ? file.name : '', notes }
 }
 
