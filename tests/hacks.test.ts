@@ -313,7 +313,17 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
     // Tied regular-season games: PeriodOver's move.w #4,(gsp).w becomes NOPs.
     expect(at(opened.bytes, 0x1725c, 6)).toBe('31fc0004c466')
-    expect(at(applyHacks(opened, { ...NO_HACKS, seasonTies: 'overtime' }).bytes, 0x1725c, 6)).toBe('4e714e714e71')
+    const ties = applyHacks(opened, { ...NO_HACKS, seasonTies: 'overtime' }).bytes
+    expect(at(ties, 0x1725c, 6)).toBe('4e714e714e71')
+    // And .eop's beq.s to .eog, which would mark the game over at the end of the first overtime.
+    expect(at(opened.bytes, 0x7c4c, 2)).toBe('67c8')
+    expect(at(ties, 0x7c4c, 2)).toBe('4e71')
+    // A ROM with only the first change, as the editor first made it: read as overtime, and mended.
+    const half = ties.slice()
+    half.set([0x67, 0xc8], 0x7c4c)
+    expect(detectHacks(half).choices.seasonTies).toBe('overtime')
+    expect(at(applyHacks({ ...opened, bytes: half }, { ...NO_HACKS, seasonTies: 'overtime' }).bytes, 0x7c4c, 2)).toBe('4e71')
+    expect(at(applyHacks({ ...opened, bytes: half }, NO_HACKS).bytes, 0x1725c, 6)).toBe('31fc0004c466')
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')

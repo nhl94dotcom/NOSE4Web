@@ -668,20 +668,36 @@ const fourthPeriodOvertime: Part<number> = {
 // that move.w #4,(gsp).w at $1725C (6 bytes, made NOPs) the regular season
 // plays on as the playoffs do, each overtime as long as the Clock's (10:00, or
 // the fourth period length's where that option is on), until a goal.
+// The end of a period decides game over a second time: hockey94's .eop, at
+// the end of an overtime (gsp 3), sends a regular-season game (OptPlayMode 0)
+// to .eog with the beq.s at $7C4C, which marks the game over and calls the
+// Stars of the Game. With only the first change the next overtime starts with
+// the game already over and never resumes (Match Viewer), so that beq.s goes
+// too. A ROM made with only the first (as the editor first did) is read as
+// overtime, and given the second when its hacks are next applied.
 const TIES_AT = 0x1725c
 const TIES = { original: bytes('31FC 0004 C466'), overtime: bytes('4E71 4E71 4E71') }
 // What comes before it: move.w #3,(gsp).w; tst.w (OptPlayMode).w; bne.w .1.
 const TIES_BEFORE = bytes('31FC 0003 C466 4A78 D048 6600 0008')
+const EOP_AT = 0x7c4c
+const EOP = { original: bytes('67C8'), overtime: bytes('4E71') }
+// What comes before it: cmpi.w #3,(gsp).w; bne.w; tst.w (OptPlayMode).w.
+const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
 const seasonTies: Part<SeasonTies> = {
   detect(rom) {
-    if (!is(rom, TIES_AT - TIES_BEFORE.length, TIES_BEFORE)) return undefined
-    return is(rom, TIES_AT, TIES.original) ? 'tie' : is(rom, TIES_AT, TIES.overtime) ? 'overtime' : undefined
+    if (!is(rom, TIES_AT - TIES_BEFORE.length, TIES_BEFORE) || !is(rom, EOP_AT - EOP_BEFORE.length, EOP_BEFORE)) return undefined
+    const eop = is(rom, EOP_AT, EOP.original) ? 'tie' : is(rom, EOP_AT, EOP.overtime) ? 'overtime' : undefined
+    if (is(rom, TIES_AT, TIES.original)) return eop === 'tie' ? 'tie' : undefined
+    return is(rom, TIES_AT, TIES.overtime) && eop ? 'overtime' : undefined
   },
   remove(rom) {
     if (is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
+    if (is(rom, EOP_AT, EOP.overtime)) rom.set(EOP.original, EOP_AT)
   },
   apply(work, value) {
-    if (value === 'overtime') work.rom.set(TIES.overtime, TIES_AT)
+    if (value !== 'overtime') return
+    work.rom.set(TIES.overtime, TIES_AT)
+    work.rom.set(EOP.overtime, EOP_AT)
   },
 }
 

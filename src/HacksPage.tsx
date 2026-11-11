@@ -969,7 +969,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
             regular season the same way: each overtime is as long as the regular season's (10:00, or the fourth period
             length's with that option), and ties are no more, though a game can run long. Playoffs are as they were.
-            Match Viewer found the one place in the game's code that makes the difference.
+            Match Viewer found the two places in the game's code that end a tied regular-season game.
           </>,
         )}
         {hack(
