@@ -702,17 +702,20 @@ const SHOOTOUT_START = bytes(
 )
 // When the shootout is won, NextShooter jumps to ExitToOpening, back to the
 // title as Shootout mode does. For the editor's shootout that jump becomes a
-// call to: the winners' score one more, the shootout's gmode2 bits (0, 1 and
+// call to the code below. Its shootout is told from Shootout mode's by the
+// mark and by gsp: 3 for it, 0 in Shootout mode, so that a mark left set (by a
+// reset during a shootout; nothing clears that RAM) never changes Shootout
+// mode. Then: the winners' score one more, the shootout's gmode2 bits (0, 1 and
 // 3) cleared, gsp 4, and on to the end of the game as PeriodOver goes there
 // (forceblack, PeriodOver_sp: the scores, the intermission, GameOver).
-//   addq.l #4,sp; tst.b ($F082).w; bne.s .ours; jmp ExitToOpening
+//   addq.l #4,sp; tst.b ($F082).w; beq.s .title; cmpi.w #3,(gsp).w; beq.s .ours; .title jmp ExitToOpening
 //   .ours sf ($F082).w; move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
 //   addq.w #1,(AwGoals).w; bra.s .done; .home addq.w #1,(HmGoals).w
 //   .done andi.w #$FFF4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
 const SHOOTOUT_END_HOOK: Hook = { at: 0xfc4ca, original: bytes('4EF9 0001 72E4') }
 const SHOOTOUT_END_BEFORE = bytes('0838 0003 C2FA 6700 0008')
 const SHOOTOUT_END = bytes(
-  '588F 4A38 F082 6606 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
+  '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
 )
 const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
 
