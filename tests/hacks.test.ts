@@ -339,13 +339,6 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     // The start code clears gmdir, so the shooters attack Shootout mode's ends (Match Viewer), and keeps the team structs.
     const startAt = (shootout.bytes[0x1725e] << 24) | (shootout.bytes[0x1725f] << 16) | (shootout.bytes[0x17260] << 8) | shootout.bytes[0x17261]
     expect(at(shootout.bytes, startAt + 54, 6)).toBe('08b80001c2ea')
-    // A first test build's code: read as a shootout, and replaced when the hacks are next applied.
-    const first = shootout.bytes.slice()
-    first.set(Uint8Array.from('3038C6DAB078CA3E663408380000C2FA662C08F80000C2FA50F8F08248E7FFFE4EB9000FC47C41F8C6CE4EB9000F70A241F8CA324EB9000F70A24CDF7FFF4E75'.match(/../g)!.map((h) => parseInt(h, 16))), startAt)
-    expect(detectHacks(first).choices.seasonTies).toBe('shootout')
-    const mended = applyHacks({ ...shootout, bytes: first }, { ...NO_HACKS, seasonTies: 'shootout' })
-    const mendedAt = (mended.bytes[0x1725e] << 24) | (mended.bytes[0x1725f] << 16) | (mended.bytes[0x17260] << 8) | mended.bytes[0x17261]
-    expect(at(mended.bytes, mendedAt + 54, 6)).toBe('08b80001c2ea')
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')

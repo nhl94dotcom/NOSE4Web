@@ -729,26 +729,7 @@ const SHOOTOUT_END_BEFORE = bytes('0838 0003 C2FA 6700 0008')
 const SHOOTOUT_END = bytes(
   '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 41F8 F084 43F8 C6CE 303C 01B1 22D8 51C8 FFFC 31D0 C472 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0238 00F4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
 )
-// The first test builds (2776621, 7bd813e), which Match Viewer found kept the
-// overtime's ends and the shootout's goals: recognised, and replaced.
-const SHOOTOUT_STARTS = [
-  SHOOTOUT_START,
-  bytes('3038 C6DA B078 CA3E 6634 0838 0000 C2FA 662C 08F8 0000 C2FA 50F8 F082 48E7 FFFE 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75'),
-]
-const SHOOTOUT_ENDS = [
-  SHOOTOUT_END,
-  bytes('588F 4A38 F082 6606 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278'),
-  bytes('588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278'),
-]
 const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
-// Where a hook calls one of these versions of its code, and which.
-const hookedAny = (rom: Uint8Array, at: Hook, codes: Uint8Array[]) => {
-  for (const code of codes) {
-    const target = hooked(rom, at, code)
-    if (target !== null) return { target, code }
-  }
-  return null
-}
 
 const seasonTies: Part<SeasonTies> = {
   detect(rom) {
@@ -756,7 +737,7 @@ const seasonTies: Part<SeasonTies> = {
     if (!is(rom, SHOOTOUT_END_HOOK.at - SHOOTOUT_END_BEFORE.length, SHOOTOUT_END_BEFORE)) return undefined
     const eop = is(rom, EOP_AT, EOP.original) ? 'tie' : is(rom, EOP_AT, EOP.overtime) ? 'overtime' : undefined
     const endOriginal = is(rom, SHOOTOUT_END_HOOK.at, SHOOTOUT_END_HOOK.original)
-    if (hookedAny(rom, SHOOTOUT_START_HOOK, SHOOTOUT_STARTS) !== null && hookedAny(rom, SHOOTOUT_END_HOOK, SHOOTOUT_ENDS) !== null) {
+    if (hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
       return eop === 'overtime' ? 'shootout' : undefined
     }
     if (!endOriginal) return undefined
@@ -764,11 +745,11 @@ const seasonTies: Part<SeasonTies> = {
     return is(rom, TIES_AT, TIES.overtime) && eop ? 'overtime' : undefined
   },
   remove(rom) {
-    const start = hookedAny(rom, SHOOTOUT_START_HOOK, SHOOTOUT_STARTS)
-    if (start !== null) erase(rom, start.target, start.code.length)
-    const end = hookedAny(rom, SHOOTOUT_END_HOOK, SHOOTOUT_ENDS)
+    const start = hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START)
+    if (start !== null) erase(rom, start, SHOOTOUT_START.length)
+    const end = hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END)
     if (end !== null) {
-      erase(rom, end.target, end.code.length)
+      erase(rom, end, SHOOTOUT_END.length)
       rom.set(SHOOTOUT_END_HOOK.original, SHOOTOUT_END_HOOK.at)
     }
     if (start !== null || is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
