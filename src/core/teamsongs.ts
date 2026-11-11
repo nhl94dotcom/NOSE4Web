@@ -127,6 +127,8 @@ interface SongTable {
   pointerAt: number
   at: number
   room: number
+  // Where RandomSongs is.
+  random: number
 }
 
 const readLong = (rom: Uint8Array, at: number) => ((rom[at] << 24) | (rom[at + 1] << 16) | (rom[at + 2] << 8) | rom[at + 3]) >>> 0
@@ -140,7 +142,7 @@ function findSongTable(rom: Uint8Array, teamCount: number): SongTable | null {
     if (at <= 0 || at + SLOTS > rom.length) return null
     // Just before RandomSongs: room up to it. Elsewhere it was moved for this many teams.
     const room = random > at && (random - at) % SLOTS === 0 && random - at <= SLOTS * 64 ? (random - at) / SLOTS : teamCount
-    return { pointerAt: o + 2, at, room }
+    return { pointerAt: o + 2, at, room, random }
   }
   return null
 }
@@ -151,6 +153,13 @@ export function readTeamSongs(rom: Uint8Array, teamCount: number): number[][] | 
   const table = findSongTable(rom, teamCount)
   if (!table || table.at + teamCount * SLOTS > rom.length) return null
   return Array.from({ length: teamCount }, (_, t) => Array.from(rom.subarray(table.at + t * SLOTS, table.at + (t + 1) * SLOTS)))
+}
+
+// The eight songs Random picks from.
+export function readRandomSongs(rom: Uint8Array, teamCount: number): number[] {
+  const table = findSongTable(rom, teamCount)
+  if (!table || table.random + 8 > rom.length) return []
+  return Array.from(rom.subarray(table.random, table.random + 8)).filter(isSong)
 }
 
 // How many teams the table has room for, or null where it is not found.

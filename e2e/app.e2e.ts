@@ -680,11 +680,15 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Game settings').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     const brass = songs.locator('tr').filter({ hasText: 'Brass Bonanza (HFD)' })
+    // Who uses each song, and the ones nobody does, to replace first.
+    await expect(songs.getByText(/^2 songs are used by no team and not picked by Random, so replacing one changes nothing else: 51, 67\./)).toBeVisible()
+    await expect(brass).toContainText('HFD')
+    await expect(songs.locator('tr').filter({ hasText: 'Go Team Go [C] (Longer)' })).toContainText('No team: a good one to replace')
     const midi = await downloadFrom(page, brass.getByRole('button', { name: 'Export MIDI' }))
     expect(midi.suggestedFilename()).toBe('song_17.mid')
     await songs.getByLabel('Replace song 2', { exact: true }).setInputFiles(await midi.path())
     await expect(songs.getByText(/^Song 2 is now "Brass Bonanza \(HFD\)", \d:\d\d long, on the organ\./)).toBeVisible()
-    const second = songs.locator('tr').nth(1)
+    const second = songs.locator('tbody tr').nth(1)
     await expect(second).toContainText('Brass Bonanza (HFD) (in place of Here We Go [E-flat] (BOS))')
     // The team pages offer it by its name.
     await team(page, 'Boston Bruins').click()

@@ -132,6 +132,13 @@ function customSongName(rom: Uint8Array, pointer: number): string | null {
   return text.startsWith('N4W1') ? text.slice(13) : null
 }
 
+// The eight songs Random picks from.
+export function readSnesRandomSongs(rom: Uint8Array): number[] {
+  const tables = findTables(rom)
+  if (!tables) return []
+  return Array.from({ length: 8 }, (_, i) => long(rom, tables.defaultSongs + i * 4)).filter((p) => !isRandom(p))
+}
+
 // Where each song pointer of the tables is (every team's six, then the eight random songs).
 export function snesSongPointerEntries(rom: Uint8Array): number[] {
   const tables = findTables(rom)

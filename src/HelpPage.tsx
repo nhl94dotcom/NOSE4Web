@@ -807,8 +807,10 @@ export function HelpPage() {
             <li>every team with that song in one of its slots plays the new one, which the team pages name;</li>
             <li><b>Put back the original</b> restores the game's song.</li>
           </ul>
-          Song 1 cannot be replaced, as the game uses it to tell which song is playing. Short tunes of 10 to 30
-          seconds suit the game, as its own are. Played in the game by the NHL94 Match Viewer project. A team's
+          Song 1 cannot be replaced, as the game uses it to tell which song is playing. <b>Used by</b> shows which
+          teams have each song in a slot, and whether Random picks from it; the list above it names the songs no team
+          uses, the best ones to replace, since nothing else changes. Short tunes of 10 to 30 seconds suit the game,
+          as its own are. Played in the game by the NHL94 Match Viewer project. A team's
           page chooses its six songs (for the start of a period, a home goal and so on), with a <b>Play</b> button
           beside each, so you can hear a song before you settle on it.
         </li>

@@ -2,14 +2,34 @@ import { useEffect, useRef, useState } from 'react'
 import { FIRST_SONG, genesisSongsSupported, MidiError, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, SongError, withOriginalSong, withSong } from './core/genesismusic'
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
-import { snesSongChoices, snesSongName } from './core/snessongs'
-import { SONG_NAMES, SONG_NUMBERS } from './core/teamsongs'
+import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
+import { readRandomSongs, SONG_NAMES, SONG_NUMBERS } from './core/teamsongs'
 import { download } from './download'
 import { playSong } from './songpreview'
 
 interface Props {
   project: RomProject
   onChange: (project: RomProject) => void
+}
+
+// Who uses each song: the teams that have it in a slot, by their initials, and whether Random picks from it.
+function usage(project: RomProject, slotsOf: (team: RomProject['teams'][number]) => number[] | undefined, random: number[]) {
+  const users = new Map<number, string[]>()
+  project.teams.forEach((team) => {
+    for (const song of new Set(slotsOf(team) ?? [])) users.set(song >>> 0, [...(users.get(song >>> 0) ?? []), team.names[1] || team.names[0]])
+  })
+  const randomSet = new Set(random.map((r) => r >>> 0))
+  const text = (song: number) => {
+    const teams = users.get(song >>> 0) ?? []
+    const parts = [...(teams.length ? [teams.join(', ')] : []), ...(randomSet.has(song >>> 0) ? ['Random'] : [])]
+    return parts.length ? parts.join('; ') : null
+  }
+  return text
+}
+
+// The used-by cell: who plays it, or that nobody does, which makes it a good one to replace.
+function UsedBy({ text }: { text: string | null }) {
+  return <td>{text ?? <b>No team: a good one to replace</b>}</td>
 }
 
 const seconds = (value: number) => `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`
@@ -23,6 +43,8 @@ export function OrganSongsSection({ project, onChange }: Props) {
   const stopRef = useRef<(() => void) | null>(null)
   useEffect(() => () => stopRef.current?.(), [])
   if (!genesisSongsSupported(project.bytes)) return null
+  const usedBy = usage(project, (team) => team.songs, readRandomSongs(project.bytes, project.teams.length))
+  const unused = SONG_NUMBERS.filter((number) => number > FIRST_SONG && !usedBy(number))
 
   function stop() {
     stopRef.current?.()
@@ -75,7 +97,22 @@ export function OrganSongsSection({ project, onChange }: Props) {
         to know which song is playing. Played in the game by the NHL94 Match Viewer project.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      <p className="note">
+        {unused.length
+          ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else: ${unused.map((n) => n - FIRST_SONG + 1).join(', ')}.`
+          : 'Every song is used by a team or picked by Random, so replacing one changes it for them too.'}{' '}
+        <b>Used by</b> lists the teams that have each song in a slot, by their initials, and Random where it picks from it.
+      </p>
       <table className="left">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Song</th>
+            <th>Length</th>
+            <th>Used by</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
           {SONG_NUMBERS.map((number) => {
             const song = readSong(project.bytes, number)
@@ -86,6 +123,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
                 <td>{number - FIRST_SONG + 1}.</td>
                 <td>{name}</td>
                 <td>{seconds(song.seconds)}</td>
+                <UsedBy text={usedBy(number)} />
                 <td>
                   <button onClick={() => (playing === number ? stop() : play(number))}>{playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? SONG_NAMES[number]), `song_${number - FIRST_SONG + 1}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
@@ -136,6 +174,8 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
   useEffect(() => () => stopRef.current?.(), [])
   const choices = snesSongChoices(project.bytes)
   if (choices.length === 0) return null
+  const usedBy = usage(project, (team) => team.snesSongs, readSnesRandomSongs(project.bytes))
+  const unused = choices.filter((c) => !usedBy(c.pointer))
 
   function stop() {
     stopRef.current?.()
@@ -188,7 +228,21 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
         game and McMarkis's 32-team builds.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      <p className="note">
+        {unused.length
+          ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else.`
+          : 'Every song is used by a team or picked by Random, so replacing one changes it for them too.'}{' '}
+        <b>Used by</b> lists the teams that have each song in a slot, by their initials, and Random where it picks from it.
+      </p>
       <table className="left">
+        <thead>
+          <tr>
+            <th>Song</th>
+            <th>Length</th>
+            <th>Used by</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody>
           {choices.map(({ pointer, name }) => {
             const song = readSnesSong(project.bytes, pointer)
@@ -197,6 +251,7 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
               <tr key={pointer}>
                 <td>{song.custom ? `${song.custom.name} (in place of ${snesSongName(project.bytes, song.custom.replaced)})` : name}</td>
                 <td>{seconds(song.seconds)}</td>
+                <UsedBy text={usedBy(pointer)} />
                 <td>
                   <button onClick={() => (playing === pointer ? stop() : play(pointer))}>{playing === pointer ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? name), `${(song.custom?.name ?? name).replace(/[^A-Za-z0-9]+/g, '_')}.mid`, 'audio/midi')}>
