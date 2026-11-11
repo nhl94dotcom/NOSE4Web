@@ -795,3 +795,14 @@ button:disabled {
 tr.divider td {
   border-top: 3px solid var(--line);
 }
+
+/* The playing organ song: its name, where it is, and the volume. */
+.song-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+.song-controls input[type='range'] {
+  width: min(16rem, 100%);
+}

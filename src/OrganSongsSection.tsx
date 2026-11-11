@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { FIRST_SONG, genesisSongsSupported, MidiError, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, SongError, withOriginalSong, withSong } from './core/genesismusic'
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
 import { readRandomSongs, SONG_NAMES, SONG_NUMBERS } from './core/teamsongs'
 import { download } from './download'
-import { playSong } from './songpreview'
+import { SongControls, useSongPlayer } from './SongPlayer'
 
 interface Props {
   project: RomProject
@@ -39,26 +39,13 @@ const seconds = (value: number) => `${Math.floor(value / 60)}:${String(Math.roun
 export function OrganSongsSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
-  const [playing, setPlaying] = useState<number | null>(null)
-  const stopRef = useRef<(() => void) | null>(null)
-  useEffect(() => () => stopRef.current?.(), [])
+  const player = useSongPlayer<number>()
   if (!genesisSongsSupported(project.bytes)) return null
   const usedBy = usage(project, (team) => team.songs, readRandomSongs(project.bytes, project.teams.length))
   const unused = SONG_NUMBERS.filter((number) => number > FIRST_SONG && !usedBy(number))
 
-  function stop() {
-    stopRef.current?.()
-    stopRef.current = null
-    setPlaying(null)
-  }
+  const stop = () => player.stop()
 
-  function play(number: number) {
-    stop()
-    const song = readSong(project.bytes, number)
-    if (!song) return
-    setPlaying(number)
-    stopRef.current = playSong(song.events, () => setPlaying((now) => (now === number ? null : now)))
-  }
 
   async function replace(number: number, file: File) {
     stop()
@@ -127,7 +114,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
                 <td>{seconds(song.seconds)}</td>
                 <UsedBy text={usedBy(number)} />
                 <td>
-                  <button onClick={() => (playing === number ? stop() : play(number))}>{playing === number ? 'Stop' : 'Play'}</button>{' '}
+                  <button onClick={() => player.toggle(number, song.events, name)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? SONG_NAMES[number]), `song_${number - FIRST_SONG + 1}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
                   {number > FIRST_SONG && (
                     <label className="button">
@@ -163,6 +150,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
           })}
         </tbody>
       </table>
+      <SongControls player={player} />
     </section>
   )
 }
@@ -171,27 +159,14 @@ export function OrganSongsSection({ project, onChange }: Props) {
 export function SnesOrganSongsSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
-  const [playing, setPlaying] = useState<number | null>(null)
-  const stopRef = useRef<(() => void) | null>(null)
-  useEffect(() => () => stopRef.current?.(), [])
+  const player = useSongPlayer<number>()
   const choices = snesSongChoices(project.bytes)
   if (choices.length === 0) return null
   const usedBy = usage(project, (team) => team.snesSongs, readSnesRandomSongs(project.bytes))
   const unused = choices.filter((c) => !usedBy(c.pointer))
 
-  function stop() {
-    stopRef.current?.()
-    stopRef.current = null
-    setPlaying(null)
-  }
+  const stop = () => player.stop()
 
-  function play(pointer: number) {
-    stop()
-    const song = readSnesSong(project.bytes, pointer)
-    if (!song) return
-    setPlaying(pointer)
-    stopRef.current = playSong(song.events, () => setPlaying((now) => (now === pointer ? null : now)))
-  }
 
   async function replace(pointer: number, oldName: string, file: File) {
     stop()
@@ -257,7 +232,7 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
                 <td>{seconds(song.seconds)}</td>
                 <UsedBy text={usedBy(pointer)} />
                 <td>
-                  <button onClick={() => (playing === pointer ? stop() : play(pointer))}>{playing === pointer ? 'Stop' : 'Play'}</button>{' '}
+                  <button onClick={() => player.toggle(pointer, song.events, song.custom?.name ?? name)}>{player.playing === pointer ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? name), `${(song.custom?.name ?? name).replace(/[^A-Za-z0-9]+/g, '_')}.mid`, 'audio/midi')}>
                     Export MIDI
                   </button>{' '}
@@ -293,6 +268,7 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
           })}
         </tbody>
       </table>
+      <SongControls player={player} />
     </section>
   )
 }

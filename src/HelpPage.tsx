@@ -886,7 +886,9 @@ export function HelpPage() {
         </li>
         <li>
           <b>Organ songs</b> (Genesis): the songs the organ plays, which each team's page chooses from.{' '}
-          <b>Play</b> gives a rough idea of a song in the browser (the console's organ sounds different),{' '}
+          <b>Play</b> gives a rough idea of a song in the browser (the console's organ sounds different); while it
+          plays, a bar under the list shows where it is, which you can drag to move about the song, and a volume,
+          which this browser remembers. The same bar is on each team's page, under its songs.{' '}
           <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts a MIDI file of your own in its place:
           <ul>
             <li>every note is played on the game's organ, at most four at once (the console has five voices,

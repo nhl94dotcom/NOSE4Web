@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { readSong, type SongEvent } from './core/genesismusic'
 import { readSnesSong } from './core/snesmusic'
-import { playSong } from './songpreview'
+import { SongControls, useSongPlayer } from './SongPlayer'
 import type { RomProject } from './core/rom'
 import { resetTeamPart, teamPartChanged } from './core/reset'
 import { splitSnesFile } from './core/snes'
@@ -21,23 +21,10 @@ interface Props {
 // A Genesis team's six organ songs, played in its home games.
 // A button that plays a song in the browser, a rough idea of it (the console's organ sounds different).
 // Pressed again, or when another starts, it stops.
+// The team page's song player: a slot's song, or stopped if it is the one playing.
 function usePlayer() {
-  const [playing, setPlaying] = useState<number | null>(null)
-  const stopRef = useRef<(() => void) | null>(null)
-  useEffect(() => () => stopRef.current?.(), [])
-  const stop = () => {
-    stopRef.current?.()
-    stopRef.current = null
-    setPlaying(null)
-  }
-  const play = (slot: number, events: SongEvent[] | null) => {
-    const was = playing
-    stop()
-    if (was === slot || !events) return
-    setPlaying(slot)
-    stopRef.current = playSong(events, () => setPlaying((now) => (now === slot ? null : now)))
-  }
-  return { playing, play }
+  const player = useSongPlayer<number>()
+  return { ...player, play: (slot: number, events: SongEvent[] | null, title: string) => player.toggle(slot, events, title) }
 }
 
 export function TeamSongsSection({ project, team, original, onChange }: Props) {
@@ -101,7 +88,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
                 <button
                   disabled={songs[slot] === RANDOM_SONG || !isSong(songs[slot])}
                   aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
-                  onClick={() => player.play(slot, readSong(project.bytes, songs[slot])?.events ?? null)}
+                  onClick={() => player.play(slot, readSong(project.bytes, songs[slot])?.events ?? null, songName(songs[slot], project.bytes))}
                 >
                   {player.playing === slot ? 'Stop' : 'Play'}
                 </button>
@@ -110,6 +97,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
           ))}
         </tbody>
       </table>
+      <SongControls player={player} />
       {error && <p className="error">{error}</p>}
     </section>
   )
@@ -165,7 +153,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
                 <button
                   disabled={songs[slot] === SNES_RANDOM_SONG}
                   aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
-                  onClick={() => player.play(slot, readSnesSong(project.bytes, songs[slot])?.events ?? (opened ? (readSnesSong(opened, songs[slot])?.events ?? null) : null))}
+                  onClick={() => player.play(slot, readSnesSong(project.bytes, songs[slot])?.events ?? (opened ? (readSnesSong(opened, songs[slot])?.events ?? null) : null), snesSongName(project.bytes, songs[slot]))}
                 >
                   {player.playing === slot ? 'Stop' : 'Play'}
                 </button>
@@ -174,6 +162,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
           ))}
         </tbody>
       </table>
+      <SongControls player={player} />
     </section>
   )
 }
