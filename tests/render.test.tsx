@@ -39,7 +39,7 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   for (const team of project.teams) {
     const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
     const raw = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} rawAttributes />)
-    expect(html).toContain('title="Stick Handling. In play: stealing and keeping the puck')
+    expect(html).toContain('title="Stick Handling. In play: catching passes and loose pucks')
     expect(html).toContain('title="Stick Right. In play: nothing: the game looks it up and never uses it."')
     expect(html).toContain('title="Weight (pounds). In play: how quickly he speeds up')
     expect(raw).toContain('<option value="15">15</option>')
