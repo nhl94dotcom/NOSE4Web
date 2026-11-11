@@ -801,8 +801,8 @@ export function HelpPage() {
           the SNES in the bottom right of the screen, 72 by 128 pixels, in 15 colours, the desk going and the screen's
           frame showing where it was. A picture is scaled to fill the space and cropped to fit, so a head-and-shoulders
           photo (Genesis) or a taller one (SNES) works best. <b>Export as PNG</b> saves the picture, and{' '}
-          <b>Put back the original</b> brings back the one the ROM was opened with. Measured by the NHL94 Match Viewer
-          project, and tested by them in the game on the Genesis.
+          <b>Put back the original</b> brings back the one the ROM was opened with. Measured and tested in the game by the
+          NHL94 Match Viewer project on the Genesis and on the SNES (the original game and the 2026 build).
         </li>
         <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your

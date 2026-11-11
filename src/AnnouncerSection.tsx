@@ -87,7 +87,8 @@ export function AnnouncerSection({ project, onChange }: Props) {
           it is scaled to fill that, cropped at the sides or the top and bottom to fit, so a tall picture, such as a
           person from the waist up, works best. The desk and the rest of the original go. It has up to 15 colours of
           its own, which nothing else on the screen uses. It goes into free room in the ROM, and{' '}
-          <b>Put back the original</b> brings back the picture the ROM was opened with.
+          <b>Put back the original</b> brings back the picture the ROM was opened with. Tested in the game by the
+          NHL94 Match Viewer project: the rest of the screen, its text included, stays exactly as it was.
         </p>
       ) : (
         <p className="note">
