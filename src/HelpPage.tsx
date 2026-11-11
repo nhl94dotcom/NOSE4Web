@@ -1409,6 +1409,12 @@ export function HelpPage() {
           stick.
         </li>
         <li>
+          <b>Tied regular-season games</b> (Genesis): the original game ends a regular-season game still tied after its
+          overtime as a tie, where a playoff game plays more overtime until a goal. <b>Overtime until a goal</b> makes
+          the regular season the same, each overtime as long as the regular season's; playoffs are unchanged. One
+          instruction in the game's end-of-period code, found by the NHL94 Match Viewer project.
+        </li>
+        <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
           game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
@@ -1421,7 +1427,8 @@ export function HelpPage() {
           captions, choices, teams offered and period lengths, with the Fighting line added. Head bleeding goes with
           it, added before or after; changing fighting takes it out and puts it back. Made by chaos, with McMarkis and
           AbdulBCRT
-          (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81).
+          (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81). Tested in the game by the NHL94
+          Match Viewer project on the original game and a league ROM.
         </li>
         <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's

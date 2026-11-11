@@ -39,6 +39,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
+  seasonTies: () => 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   fighting: (choices) =>
     `Players can fight, as in NHLPA 93 (chaos's fighting patch): the main menu has a Fighting line, starting at ${choices.fighting === 'off' ? 'Off' : choices.fighting === 'arcade' ? 'On - Arcade Mode (more fights)' : 'On'}.`,
   repeatCheckFix: () =>
@@ -132,7 +133,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
 
 const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
   ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
-  ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
+  ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime', 'seasonTies']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],
   ['How the game plays', ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'anyPosition', 'fighting', 'puckFriction', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap']],

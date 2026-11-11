@@ -246,6 +246,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { crowdFix: true },
       { stickShots: true },
       { openNetFix: true },
+      { seasonTies: 'overtime' },
       { repeatCheckFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
@@ -310,6 +311,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(applyHacks(opened, { ...NO_HACKS, hotColdRange: 4 }).bytes, 0xf70aa, 4)).toBe('303c0004')
     expect(at(opened.bytes, 0x1023e, 8)).toBe('08f80002bf804e75')
     expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
+    // Tied regular-season games: PeriodOver's move.w #4,(gsp).w becomes NOPs.
+    expect(at(opened.bytes, 0x1725c, 6)).toBe('31fc0004c466')
+    expect(at(applyHacks(opened, { ...NO_HACKS, seasonTies: 'overtime' }).bytes, 0x1725c, 6)).toBe('4e714e714e71')
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')
@@ -318,14 +322,14 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(opened.bytes, 0x140a8, 18)).toBe('b5f8dedc6600000cb7f8dee0660000044e75')
     expect(at(repeat, 0x140a8, 2)).toBe('4eb9')
     expect(at(repeat, 0x140ae, 12)).toBe('4e714e714e714e714e714e71')
-    // The first version is recognised, and taken out cleanly.
+    // The version with the bench falls is recognised, and taken out cleanly.
     const v1 = opened.bytes.slice()
     v1.set([0x4e, 0xb9, 0x00, 0x0f, 0xfa, 0xc6, 0x4e, 0x71, 0x4e, 0x71, 0x4e, 0x71, 0x4e, 0x71, 0x4e, 0x71, 0x4e, 0x71], 0x140a8)
-    v1.set([0xb5, 0xf8, 0xde, 0xdc, 0x66, 0x0e, 0xb7, 0xf8, 0xde, 0xe0, 0x66, 0x08, 0x4a, 0x6a, 0x00, 0x5e, 0x67, 0x02, 0x58, 0x8f, 0x4e, 0x75], 0xffac6)
+    v1.set(Buffer.from('b5f8dedc661eb7f8dee066184a6a005e66100c6a193e005867080c6a1a0000586602588f4e75', 'hex'), 0xffac6)
     expect(detectHacks(v1)?.choices.repeatCheckFix).toBe(true)
     expect(at(applyHacks({ ...opened, bytes: v1 }, NO_HACKS).bytes, 0x140a8, 18)).toBe('b5f8dedc6600000cb7f8dee0660000044e75')
-    expect(at(repeat, (repeat[0x140aa] << 24 | repeat[0x140ab] << 16 | repeat[0x140ac] << 8 | repeat[0x140ad]) >>> 0, 38)).toBe(
-      'b5f8dedc661eb7f8dee066184a6a005e66100c6a193e005867080c6a1a0000586602588f4e75',
+    expect(at(repeat, (repeat[0x140aa] << 24 | repeat[0x140ab] << 16 | repeat[0x140ac] << 8 | repeat[0x140ad]) >>> 0, 22)).toBe(
+      'b5f8dedc660eb7f8dee066084a6a005e6702588f4e75',
     )
     // The forum's version, bra.s +2, is recognised and taken out.
     const forum = opened.bytes.slice()

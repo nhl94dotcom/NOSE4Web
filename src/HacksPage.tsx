@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { WEIGHT_BASES } from './core/attributes'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
+import type { SeasonTies } from './core/hacks'
 import {
   applyHacks,
   baseWeightForYear,
@@ -334,9 +335,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             After a player knocks someone down or makes him wobble, the original game ignores every later hit by the
             same player on the same man until some other pair's hit lands anywhere on the ice, however long that
             takes: you can line him up again a minute later and nothing happens. With this, the same checker is kept
-            off him only while he recovers, about 2 seconds after a knockdown, 1 after a wobble, and while he is
-            falling into the bench, so he cannot be flattened again as he gets up; after that a check works as any
-            other. Genesis only: the SNES game has no such block. Found and tested in the game by the NHL94 Match
+            off him only while he recovers, about 2 seconds after a knockdown and 1 after a wobble, so he cannot be
+            flattened again as he gets up; after that a check works as any other. Genesis only: the SNES game has no such block. Found and tested in the game by the NHL94 Match
             Viewer project: a repeated check by the same player now lands exactly as a first one, where the original
             never lands it, and a single collision is still counted once.
           </>,
@@ -959,6 +959,20 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'seasonTies',
+          <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
+            <option value="tie">End in a tie (as the original game)</option>
+            <option value="overtime">Overtime until a goal</option>
+          </select>,
+          <>
+            In the original game a regular-season game still tied after its overtime ends in a tie, where a playoff
+            game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
+            regular season the same way: each overtime is as long as the regular season's (10:00, or the fourth period
+            length's with that option), and ties are no more, though a game can run long. Playoffs are as they were.
+            Match Viewer found the one place in the game's code that makes the difference.
+          </>,
+        )}
+        {hack(
           'fighting',
           <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
             {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
@@ -980,7 +994,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             offered and period lengths, with the Fighting line added. Head bleeding goes with it either way round.
             Made by chaos with
             McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT licence; its title screen,
-            credits and fighting ratings are left out.
+            credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the
+            original game and a league ROM: the league's own menu with Fighting added, fights with their majors,
+            saved records kept, the fighting ratings page, shootouts and replays.
           </>,
         )}
         {hack(

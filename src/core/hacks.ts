@@ -151,6 +151,9 @@ export interface HackChoices {
   introWait: number
   // Offer the menu's fourth period length, and the regular season's overtime on it in seconds: 0 is the original game (three lengths).
   fourthPeriodOvertime: number
+  // How a regular-season game tied after overtime ends: as a tie, as the
+  // original game has it, or with more overtime until a goal.
+  seasonTies: SeasonTies
   // Edit Lines lists every skater for every position, and saves such lines.
   anyPosition: boolean
   // Energy a skater loses when knocked down, and when a hold or hook catches him (0 to $1000 is empty to full): 0 is the original game.
@@ -170,6 +173,7 @@ export interface HackChoices {
 }
 
 export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
+export type SeasonTies = 'tie' | 'overtime'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
 export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
@@ -223,6 +227,7 @@ export type HackPart =
   | 'fewerSkaterLines'
   | 'introWait'
   | 'fourthPeriodOvertime'
+  | 'seasonTies'
   | 'anyPosition'
   | 'hitEnergy'
   | 'holdEnergy'
@@ -289,6 +294,7 @@ export const NO_HACKS: HackChoices = {
   fewerSkaterLines: 0,
   introWait: 80,
   fourthPeriodOvertime: 0,
+  seasonTies: 'tie',
   anyPosition: false,
   hitEnergy: 0,
   holdEnergy: 0,
@@ -651,6 +657,31 @@ const fourthPeriodOvertime: Part<number> = {
     if (genesisOptionLimits(work.rom).length === 0) throw new HackError("The main menu's table of choices is not where the original game has it.")
     hook(work, OT4_HOOK, ot4Code(value))
     setPeriodChoices(work.rom, OT4_LENGTHS.hacked)
+  },
+}
+
+// ------------------------------------------- tied regular-season games
+// PeriodOver (setup94.asm): when overtime ends, gsp goes back to 3; a playoff
+// game (OptPlayMode not 0) branches to the tie test, which plays another
+// overtime while the score is tied; a regular-season game first sets gsp to
+// 4, game over, so it ends tied. Match Viewer's GENESIS STUDY_NOTES: without
+// that move.w #4,(gsp).w at $1725C (6 bytes, made NOPs) the regular season
+// plays on as the playoffs do, each overtime as long as the Clock's (10:00, or
+// the fourth period length's where that option is on), until a goal.
+const TIES_AT = 0x1725c
+const TIES = { original: bytes('31FC 0004 C466'), overtime: bytes('4E71 4E71 4E71') }
+// What comes before it: move.w #3,(gsp).w; tst.w (OptPlayMode).w; bne.w .1.
+const TIES_BEFORE = bytes('31FC 0003 C466 4A78 D048 6600 0008')
+const seasonTies: Part<SeasonTies> = {
+  detect(rom) {
+    if (!is(rom, TIES_AT - TIES_BEFORE.length, TIES_BEFORE)) return undefined
+    return is(rom, TIES_AT, TIES.original) ? 'tie' : is(rom, TIES_AT, TIES.overtime) ? 'overtime' : undefined
+  },
+  remove(rom) {
+    if (is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
+  },
+  apply(work, value) {
+    if (value === 'overtime') work.rom.set(TIES.overtime, TIES_AT)
   },
 }
 
@@ -1417,20 +1448,20 @@ function applyFight(work: Work, choice: FightChoice): void {
 // flattening a player again as he gets up. The fix keeps the pair test only
 // while the target is still recovering: a knockdown sets his nopuck byte to
 // 120 and a wobble his nopuckb to 60, each counting down every frame, so the
-// pair is ignored while that word is not zero, and a later check counts. A
-// fall into the bench (SPAbenchcheckl $193E, SPAbenchcheckr $1A00), which
-// FallDown does not ignore, lasts about 155 frames (Match Viewer), so the
-// pair is also ignored while the target is in either. The
+// pair is ignored while that word is not zero, and a later check counts. (A
+// fall into the bench lasts longer, about 155 frames, but carries the man over
+// the boards out of any checker's reach for all of it: Match Viewer.) The
 // 18 bytes at $140A8 (cmpa.l PlayerChked,a2; bne.w .cont; cmpa.l
 // PlayerChking,a3; bne.w .cont; rts) become a call to the same tests with
 // the extra one; where the pair is ignored, it drops its return and returns
 // from FallDown, as the rts did.
 const REPEAT_HOOK: Hook = { at: 0x140a8, original: bytes('B5F8 DEDC 6600 000C B7F8 DEE0 6600 0004 4E75') }
-export const REPEAT_CODE = bytes('B5F8 DEDC 661E B7F8 DEE0 6618 4A6A 005E 6610 0C6A 193E 0058 6708 0C6A 1A00 0058 6602 588F 4E75')
-// The first version (b03835c), without the bench falls: recognised, and replaced.
-const REPEAT_CODE_V1 = bytes('B5F8 DEDC 660E B7F8 DEE0 6608 4A6A 005E 6702 588F 4E75')
+export const REPEAT_CODE = bytes('B5F8 DEDC 660E B7F8 DEE0 6608 4A6A 005E 6702 588F 4E75')
+// A version (774efea) that also kept the checker off a man falling into the
+// bench, which no checker can reach then: recognised, and replaced.
+const REPEAT_CODE_BENCH = bytes('B5F8 DEDC 661E B7F8 DEE0 6618 4A6A 005E 6610 0C6A 193E 0058 6708 0C6A 1A00 0058 6602 588F 4E75')
 const repeatHooked = (rom: Uint8Array) =>
-  [REPEAT_CODE, REPEAT_CODE_V1].flatMap((code) => {
+  [REPEAT_CODE, REPEAT_CODE_BENCH].flatMap((code) => {
     const target = hooked(rom, REPEAT_HOOK, code)
     return target === null ? [] : [{ target, code }]
   })[0] ?? null
@@ -2213,6 +2244,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
     introWait: found('introWait', introWait.detect(rom), NO_HACKS.introWait),
     fourthPeriodOvertime: found('fourthPeriodOvertime', fourthPeriodOvertime.detect(rom), NO_HACKS.fourthPeriodOvertime),
+    seasonTies: found('seasonTies', seasonTies.detect(rom), NO_HACKS.seasonTies),
     anyPosition: found('anyPosition', anyPosition.detect(rom), NO_HACKS.anyPosition),
     hitEnergy: found('hitEnergy', hit?.energy, NO_HACKS.hitEnergy),
     holdEnergy: found('holdEnergy', holdEnergy.detect(rom), NO_HACKS.holdEnergy),
@@ -2309,6 +2341,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
     ['introWait', () => introWait.remove(work.rom), () => introWait.apply(work, wanted.introWait)],
     ['fourthPeriodOvertime', () => fourthPeriodOvertime.remove(work.rom), () => fourthPeriodOvertime.apply(work, wanted.fourthPeriodOvertime)],
+    ['seasonTies', () => seasonTies.remove(work.rom), () => seasonTies.apply(work, wanted.seasonTies)],
     ['anyPosition', () => anyPosition.remove(work.rom), () => anyPosition.apply(work, wanted.anyPosition)],
     ['hitEnergy', () => hitHook.remove(work.rom), () => hitHook.apply(work, { energy: wanted.hitEnergy, counting: wanted.injuryBonus > 0 })],
     ['injuryBonus', () => injuryRisk.remove(work.rom), () => injuryRisk.apply(work, { bonus: wanted.injuryBonus, cap: wanted.injuryCap })],
@@ -2383,7 +2416,7 @@ const PAGE_ORDER: (keyof HackChoices)[] = [
   'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'repeatCheckFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
-  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'fighting', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
+  'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'seasonTies', 'anyPosition', 'fighting', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
 ]
 
 // What this ROM has, as a Discord post for a league's owners: each hack that
@@ -2510,6 +2543,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   openNetFix: 'One-timer open net fix',
   repeatCheckFix: 'Repeated checks fix',
   fighting: 'Fighting',
+  seasonTies: 'Tied regular-season games',
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
@@ -2571,6 +2605,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   openNetFix: 'openNetFix',
   repeatCheckFix: 'repeatCheckFix',
   fighting: 'fighting',
+  seasonTies: 'seasonTies',
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',
