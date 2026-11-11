@@ -374,7 +374,13 @@ export function withOriginalGenesisAnnouncer(project: RomProject): RomProject {
 // word is a tile number counted from the first tile (0 is blank) with the row
 // and the tile base added. Ron Barr is drawn at his desk in the bottom right.
 // Nothing else is ever in columns 23 to 31 of rows 12 to 27, so a new picture
-// fills that rectangle, 72 x 128 pixels, and leaves the rest of the map empty.
+// can fill that rectangle, 72 x 128 pixels, and leave the rest of the map
+// empty. Or it can take Ron Barr's whole place, the bottom right from column
+// 6, 208 x 128: the scouting text's box is on its own layer (BG1) over him
+// (BG2), so it shares none of his tiles and draws over a new picture as it
+// does over him (Match Viewer). His picture is a cut-out, 162 cells from 147
+// tiles; with room for 152, a picture there has to be one too, its
+// see-through parts costing nothing.
 // It is packed as the original is, put in free space, and the three loaders
 // repointed; the original stays where it is.
 
@@ -383,6 +389,12 @@ export const SNES_ANNOUNCER_HEIGHT = 128
 // What the editor shows: the bottom right, where the original is.
 const S_VIEW = { col: 6, row: 12, across: 26, down: 16 }
 const S_RECT = { col: 23, row: 12, across: 9, down: 16 }
+export type SnesAnnouncerArea = 'beside' | 'whole'
+const S_AREAS: Record<SnesAnnouncerArea, typeof S_RECT> = { beside: S_RECT, whole: S_VIEW }
+export const SNES_ANNOUNCER_AREAS: Record<SnesAnnouncerArea, { width: number; height: number }> = {
+  beside: { width: S_RECT.across * 8, height: S_RECT.down * 8 },
+  whole: { width: S_VIEW.across * 8, height: S_VIEW.down * 8 },
+}
 const S_ACROSS = 32
 const S_DOWN = 28
 const S_HEADER = 6
@@ -550,41 +562,66 @@ function cut(counts: Map<number, number>, most: number): number[] {
 
 export interface SnesAnnouncerImage {
   palette: number[]
-  // The 9 x 16 cells' map words (tile numbers from 1, and flips) and the tiles they name, tile 0 blank first.
+  // The area's cells' map words, row by row (tile numbers from 1, and flips), and the tiles they name, tile 0 blank first.
   words: number[]
+  area: SnesAnnouncerArea
   tiles: Uint8Array[]
   colours: number
   kept: number
 }
 
-// The image made into the picture: scaled to cover 72 x 128, centred and
-// cropped, its colours cut to the 15 of row 2 (colour 0 being see-through).
-export function snesAnnouncerFromImage(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): SnesAnnouncerImage {
-  const scale = Math.max(SNES_ANNOUNCER_WIDTH / width, SNES_ANNOUNCER_HEIGHT / height)
-  const left = (width - SNES_ANNOUNCER_WIDTH / scale) / 2
-  const top = (height - SNES_ANNOUNCER_HEIGHT / scale) / 2
+// The image made into the picture. Beside the box: scaled to cover 72 x 128,
+// centred and cropped. Ron Barr's whole place: scaled to fit 208 x 128 whole,
+// in its bottom right as he is, its see-through pixels (and the rest)
+// see-through. Its colours cut to the 15 of row 2, colour 0 being see-through.
+export function snesAnnouncerFromImage(
+  rgba: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  area: SnesAnnouncerArea = 'beside',
+): SnesAnnouncerImage {
+  const rect = S_AREAS[area]
+  const [areaWidth, areaHeight] = [rect.across * 8, rect.down * 8]
+  const whole = area === 'whole'
+  const scale = whole ? Math.min(areaWidth / width, areaHeight / height) : Math.max(areaWidth / width, areaHeight / height)
+  // The image's top left in the area's pixels (whole), or the crop's in the image's (beside).
+  const left = whole ? areaWidth - width * scale : (width - areaWidth / scale) / 2
+  const top = whole ? areaHeight - height * scale : (height - areaHeight / scale) / 2
   const SAMPLES = 3
+  // -1: see-through.
   const colours: number[] = []
-  for (let y = 0; y < SNES_ANNOUNCER_HEIGHT; y++) {
-    for (let x = 0; x < SNES_ANNOUNCER_WIDTH; x++) {
+  for (let y = 0; y < areaHeight; y++) {
+    for (let x = 0; x < areaWidth; x++) {
       const sum = [0, 0, 0]
+      let opaque = 0
       for (let sy = 0; sy < SAMPLES; sy++) {
         for (let sx = 0; sx < SAMPLES; sx++) {
-          const ix = Math.min(width - 1, Math.max(0, Math.floor(left + (x + (sx + 0.5) / SAMPLES) / scale)))
-          const iy = Math.min(height - 1, Math.max(0, Math.floor(top + (y + (sy + 0.5) / SAMPLES) / scale)))
+          const fx = whole ? (x + (sx + 0.5) / SAMPLES - left) / scale : left + (x + (sx + 0.5) / SAMPLES) / scale
+          const fy = whole ? (y + (sy + 0.5) / SAMPLES - top) / scale : top + (y + (sy + 0.5) / SAMPLES) / scale
+          if (whole && (fx < 0 || fy < 0 || fx >= width || fy >= height)) continue
+          const ix = Math.min(width - 1, Math.max(0, Math.floor(fx)))
+          const iy = Math.min(height - 1, Math.max(0, Math.floor(fy)))
           const p = (iy * width + ix) * 4
-          for (let c = 0; c < 3; c++) sum[c] += rgba[p + c] * (rgba[p + 3] / 255)
+          const alpha = rgba[p + 3] / 255
+          if (whole && alpha < 0.5) continue
+          opaque++
+          for (let c = 0; c < 3; c++) sum[c] += rgba[p + c] * (whole ? 1 : alpha)
         }
       }
-      const [r, g, b] = sum.map((v) => Math.round((v / (SAMPLES * SAMPLES) / 255) * 31))
+      if (whole && opaque * 2 < SAMPLES * SAMPLES) {
+        colours.push(-1)
+        continue
+      }
+      const [r, g, b] = sum.map((v) => Math.round((v / (whole ? opaque : SAMPLES * SAMPLES) / 255) * 31))
       colours.push(r | (g << 5) | (b << 10))
     }
   }
   const counts = new Map<number, number>()
-  for (const w of colours) counts.set(w, (counts.get(w) ?? 0) + 1)
+  for (const w of colours) if (w >= 0) counts.set(w, (counts.get(w) ?? 0) + 1)
   const chosen = counts.size > S_COLOURS - 1 ? cut(counts, S_COLOURS - 1) : [...counts.keys()]
   const nearestOf = new Map<number, number>()
   const index = (w: number) => {
+    if (w < 0) return 0
     if (!nearestOf.has(w)) {
       const [r, g, b] = snesLevels(w)
       let best = 0
@@ -601,10 +638,15 @@ export function snesAnnouncerFromImage(rgba: Uint8Array | Uint8ClampedArray, wid
   const known = new Map<string, number>()
   const tiles: Uint8Array[] = [new Uint8Array(S_TILE)]
   const words: number[] = []
-  for (let cell = 0; cell < S_RECT.across * S_RECT.down; cell++) {
-    const cx = (cell % S_RECT.across) * 8
-    const cy = Math.floor(cell / S_RECT.across) * 8
-    const pixels = Array.from({ length: 64 }, (_, i) => index(colours[(cy + (i >> 3)) * SNES_ANNOUNCER_WIDTH + cx + (i & 7)]))
+  for (let cell = 0; cell < rect.across * rect.down; cell++) {
+    const cx = (cell % rect.across) * 8
+    const cy = Math.floor(cell / rect.across) * 8
+    const pixels = Array.from({ length: 64 }, (_, i) => index(colours[(cy + (i >> 3)) * areaWidth + cx + (i & 7)]))
+    // A see-through cell is left empty.
+    if (pixels.every((p) => p === 0)) {
+      words.push(0)
+      continue
+    }
     let entry = -1
     for (const [h, v] of [[false, false], [true, false], [false, true], [true, true]] as const) {
       const flipped = pixels.map((_, i) => pixels[(v ? 7 - (i >> 3) : i >> 3) * 8 + (h ? 7 - (i & 7) : i & 7)])
@@ -623,18 +665,24 @@ export function snesAnnouncerFromImage(rgba: Uint8Array | Uint8ClampedArray, wid
   }
   const palette = [0, ...chosen]
   while (palette.length < S_COLOURS) palette.push(0)
-  return { palette, words, tiles, colours: counts.size, kept: new Set(colours.map(index)).size }
+  return { palette, words, area, tiles, colours: counts.size, kept: new Set(colours.filter((w) => w >= 0).map(index)).size }
 }
 
 // The project with the scouting screen's picture `made`.
 export function withSnesAnnouncer(project: RomProject, made: SnesAnnouncerImage): RomProject {
   const parts = snesParts(project.bytes)
   if (!parts) throw new Error("This ROM's scouting screen is not as the original game has it, so its announcer cannot be changed.")
-  if (made.tiles.length > S_MOST_TILES) throw new Error(`The picture has ${made.tiles.length} squares; the screen has room for ${S_MOST_TILES}.`)
+  if (made.tiles.length > S_MOST_TILES) {
+    throw new Error(
+      `The picture has ${made.tiles.length - 1} different squares; the screen has room for ${S_MOST_TILES - 1}.` +
+        (made.area === 'whole' ? " In Ron Barr's whole place a picture works as a cut-out, as his is: give it a see-through background, which costs nothing, or a smaller figure." : ''),
+    )
+  }
+  const rect = S_AREAS[made.area ?? 'beside']
   const map = parts.map.slice()
   map.fill(0, S_HEADER, S_HEADER + S_ACROSS * S_DOWN * 2)
   made.words.forEach((entry, cell) => {
-    const at = ((S_RECT.row + Math.floor(cell / S_RECT.across)) * S_ACROSS + S_RECT.col + (cell % S_RECT.across)) * 2
+    const at = ((rect.row + Math.floor(cell / rect.across)) * S_ACROSS + rect.col + (cell % rect.across)) * 2
     writeU16LE(map, S_HEADER + at, entry)
   })
   const palette = parts.palette.slice()

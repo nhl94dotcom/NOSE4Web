@@ -6,8 +6,8 @@ import {
   ANNOUNCER_WIDTH,
   genesisAnnouncer,
   genesisAnnouncerFromImage,
-  SNES_ANNOUNCER_HEIGHT,
-  SNES_ANNOUNCER_WIDTH,
+  SNES_ANNOUNCER_AREAS,
+  type SnesAnnouncerArea,
   snesAnnouncer,
   snesAnnouncerFromImage,
   withGenesisAnnouncer,
@@ -32,6 +32,8 @@ interface Props {
 export function AnnouncerSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
+  // Where a SNES picture goes: beside the scouting text's box, or Ron Barr's whole place.
+  const [area, setArea] = useState<SnesAnnouncerArea>('beside')
   const snes = project.game.platform === 'snes'
   const shown = snes ? snesAnnouncer(project) : genesisAnnouncer(project)
   if (!shown) return null
@@ -52,7 +54,7 @@ export function AnnouncerSection({ project, onChange }: Props) {
       }
       let made: { tiles: Uint8Array[]; colours: number; kept: number }
       if (snes) {
-        const picture = snesAnnouncerFromImage(image.rgba, image.width, image.height)
+        const picture = snesAnnouncerFromImage(image.rgba, image.width, image.height, area)
         onChange(withSnesAnnouncer(project, picture))
         made = { ...picture, tiles: picture.tiles.slice(1) }
       } else {
@@ -82,13 +84,20 @@ export function AnnouncerSection({ project, onChange }: Props) {
       {snes ? (
         <p className="note">
           Ron Barr at the EA SPORTS desk, in the bottom right of the scouting screen before each game. Shown here is
-          that corner of the screen; where it is empty, the screen's own frame shows. A picture of your own fills the
-          right of it, {SNES_ANNOUNCER_WIDTH} by {SNES_ANNOUNCER_HEIGHT} pixels, which nothing else on the screen covers:
-          it is scaled to fill that, cropped at the sides or the top and bottom to fit, so a tall picture, such as a
-          person from the waist up, works best. The desk and the rest of the original go. It has up to 15 colours of
-          its own, which nothing else on the screen uses. It goes into free room in the ROM, and{' '}
-          <b>Put back the original</b> brings back the picture the ROM was opened with. Tested in the game by the
-          NHL94 Match Viewer project: the rest of the screen, its text included, stays exactly as it was.
+          that corner of the screen; where it is empty, the screen's own frame shows. The scouting report's
+          see-through box is drawn over him on a layer of its own, so a picture of yours can go in one of two places:{' '}
+          <b>beside the box</b>, the {SNES_ANNOUNCER_AREAS.beside.width} by {SNES_ANNOUNCER_AREAS.beside.height} pixels at
+          the right that nothing covers, where it is scaled to fill and cropped to fit, so a tall picture (a person
+          from the waist up) works best; or <b>Ron Barr's whole place</b>, {SNES_ANNOUNCER_AREAS.whole.width} by{' '}
+          {SNES_ANNOUNCER_AREAS.whole.height} pixels, behind the box too, where it is fitted in whole and set in the
+          bottom right as he is, and the box and its text show over it as they do over him. The screen has room for
+          only 152 different 8 by 8 squares, and Ron Barr is a cut-out: to fill his whole place a picture has to be
+          one too, a figure on a see-through background (a PNG with transparency), since see-through squares cost
+          nothing; a photo that is all picture is too much for it. Either way it has up to 15 colours of its own,
+          which nothing else on the screen uses, and the desk and the rest of the original go. It goes into free room
+          in the ROM, and <b>Put back the original</b> brings back the picture the ROM was opened with. Tested in the
+          game by the NHL94 Match Viewer project beside the box: the rest of the screen, its text included, stays
+          exactly as it was; the whole place is not yet tested.
         </p>
       ) : (
         <p className="note">
@@ -103,6 +112,17 @@ export function AnnouncerSection({ project, onChange }: Props) {
         </p>
       )}
       <PictureView picture={shown.picture} palette={shown.palette} scale={snes ? 2 : 3} format={format} />
+      {snes && (
+        <p>
+          <label>
+            A picture goes{' '}
+            <select aria-label="Where a picture goes" value={area} onChange={(e) => setArea(e.target.value as SnesAnnouncerArea)}>
+              <option value="beside">beside the box ({SNES_ANNOUNCER_AREAS.beside.width} x {SNES_ANNOUNCER_AREAS.beside.height}, cropped to fill)</option>
+              <option value="whole">in Ron Barr's whole place ({SNES_ANNOUNCER_AREAS.whole.width} x {SNES_ANNOUNCER_AREAS.whole.height}, a cut-out)</option>
+            </select>
+          </label>
+        </p>
+      )}
       <p>
         <label className="button">
           Import a picture

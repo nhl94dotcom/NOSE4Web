@@ -110,4 +110,30 @@ describe.skipIf(snesRoms.length === 0)('the announcer picture, SNES', () => {
       expect(Array.from(snesAnnouncer(opened)!.picture.pixels)).toEqual(Array.from(snesAnnouncer(changed)!.picture.pixels))
     })
   })
+
+  it("puts a cut-out in Ron Barr's whole place, behind the box too, and refuses a photo too detailed for it", () => {
+    const project = openRom(new Uint8Array(readFileSync(path(snesRoms[0]))))
+    // A 60 x 100 figure, red and blue halves, on a see-through background of 200 x 120.
+    const [w, h] = [200, 120]
+    const rgba = new Uint8Array(w * h * 4)
+    for (let y = 10; y < 110; y++) for (let x = 120; x < 180; x++) rgba.set(x < 150 ? [255, 0, 0, 255] : [0, 0, 255, 255], (y * w + x) * 4)
+    const made = snesAnnouncerFromImage(rgba, w, h, 'whole')
+    expect(made.area).toBe('whole')
+    expect(made.words).toHaveLength(26 * 16)
+    // The see-through squares are left empty, and cost no tiles.
+    expect(made.words.filter((word) => word === 0).length).toBeGreaterThan(200)
+    expect(made.tiles.length).toBeLessThan(152)
+    const after = snesAnnouncer({ ...openRom(buildRom(withSnesAnnouncer(project, made))), source: project.source })!
+    const { width } = SNES_ANNOUNCER_VIEW
+    const at = (x: number, y: number) => after.picture.pixels[y * width + x]
+    // Fitted whole, 200 x 120 into 208 x 128 (x 1.04), set in the bottom right: the figure x 125-187, red to 156.
+    expect(after.palette[at(140, 70)]).toBe(0x001f)
+    expect(after.palette[at(172, 70)]).toBe(0x7c00)
+    expect(at(195, 70)).toBe(0)
+    // Left of the figure, inside the area: see-through, so the screen's frame shows.
+    expect(at(40, 70)).toBe(0)
+    // A photo that is all picture is too much for 152 squares there.
+    const noisy = new Uint8Array(208 * 128 * 4).map((_, i) => (i % 4 === 3 ? 255 : (i * 7919) % 251))
+    expect(() => withSnesAnnouncer(project, snesAnnouncerFromImage(noisy, 208, 128, 'whole'))).toThrow(/see-through background/)
+  })
 })
