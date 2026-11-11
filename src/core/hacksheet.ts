@@ -39,7 +39,10 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
-  seasonTies: () => 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
+  seasonTies: (c) =>
+    c.seasonTies === 'shootout'
+      ? 'A regular-season game tied after overtime is settled by a shootout, the winners getting one goal more, so it never ends in a tie.'
+      : 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   fighting: (choices) =>
     `Players can fight, as in NHLPA 93 (chaos's fighting patch): the main menu has a Fighting line, starting at ${choices.fighting === 'off' ? 'Off' : choices.fighting === 'arcade' ? 'On - Arcade Mode (more fights)' : 'On'}.`,
   repeatCheckFix: () =>

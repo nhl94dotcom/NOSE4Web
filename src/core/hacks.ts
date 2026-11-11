@@ -173,7 +173,7 @@ export interface HackChoices {
 }
 
 export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
-export type SeasonTies = 'tie' | 'overtime'
+export type SeasonTies = 'tie' | 'overtime' | 'shootout'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
 export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game'
@@ -683,21 +683,72 @@ const EOP_AT = 0x7c4c
 const EOP = { original: bytes('67C8'), overtime: bytes('4E71') }
 // What comes before it: cmpi.w #3,(gsp).w; bne.w; tst.w (OptPlayMode).w.
 const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
+
+// Or a shootout, as the game's own Shootout mode plays one. With .eop's
+// branch gone as above, PeriodOver's move.w #4,(gsp).w becomes a call: in a
+// tied game it turns the shootout on as SetupStart does for Shootout mode
+// (gmode2 bit 0, ClearShootout, both teams' Create_HotCold_Table) and marks
+// it the editor's ($FFF082, free RAM on every league ROM, Match Viewer);
+// gsp stays 3, so the tie test sends the game on to the intermission and
+// StartPer, which plays it as a shootout. Not tied, gsp still becomes 4 at
+// that test. A shootout already on is left as it is.
+//   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x
+//   btst #0,(gmode2).w; bne.s .x; bset #0,(gmode2).w; st ($F082).w
+//   movem.l d0-d7/a0-a6,-(sp); jsr ClearShootout
+//   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (awtmstruct).w,a0; jsr Create_HotCold_Table
+//   movem.l (sp)+,d0-d7/a0-a6; .x rts
+const SHOOTOUT_START = bytes(
+  '3038 C6DA B078 CA3E 6634 0838 0000 C2FA 662C 08F8 0000 C2FA 50F8 F082 48E7 FFFE 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+)
+// When the shootout is won, NextShooter jumps to ExitToOpening, back to the
+// title as Shootout mode does. For the editor's shootout that jump becomes a
+// call to: the winners' score one more, the shootout's gmode2 bits (0, 1 and
+// 3) cleared, gsp 4, and on to the end of the game as PeriodOver goes there
+// (forceblack, PeriodOver_sp: the scores, the intermission, GameOver).
+//   addq.l #4,sp; tst.b ($F082).w; bne.s .ours; jmp ExitToOpening
+//   .ours sf ($F082).w; move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
+//   addq.w #1,(AwGoals).w; bra.s .done; .home addq.w #1,(HmGoals).w
+//   .done andi.w #$FFF4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
+const SHOOTOUT_END_HOOK: Hook = { at: 0xfc4ca, original: bytes('4EF9 0001 72E4') }
+const SHOOTOUT_END_BEFORE = bytes('0838 0003 C2FA 6700 0008')
+const SHOOTOUT_END = bytes(
+  '588F 4A38 F082 6606 4EF9 0001 72E4 51F8 F082 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0278 FFF4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
+)
+const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
+
 const seasonTies: Part<SeasonTies> = {
   detect(rom) {
     if (!is(rom, TIES_AT - TIES_BEFORE.length, TIES_BEFORE) || !is(rom, EOP_AT - EOP_BEFORE.length, EOP_BEFORE)) return undefined
+    if (!is(rom, SHOOTOUT_END_HOOK.at - SHOOTOUT_END_BEFORE.length, SHOOTOUT_END_BEFORE)) return undefined
     const eop = is(rom, EOP_AT, EOP.original) ? 'tie' : is(rom, EOP_AT, EOP.overtime) ? 'overtime' : undefined
+    const endOriginal = is(rom, SHOOTOUT_END_HOOK.at, SHOOTOUT_END_HOOK.original)
+    if (hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
+      return eop === 'overtime' ? 'shootout' : undefined
+    }
+    if (!endOriginal) return undefined
     if (is(rom, TIES_AT, TIES.original)) return eop === 'tie' ? 'tie' : undefined
     return is(rom, TIES_AT, TIES.overtime) && eop ? 'overtime' : undefined
   },
   remove(rom) {
-    if (is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
+    const start = hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START)
+    if (start !== null) erase(rom, start, SHOOTOUT_START.length)
+    const end = hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END)
+    if (end !== null) {
+      erase(rom, end, SHOOTOUT_END.length)
+      rom.set(SHOOTOUT_END_HOOK.original, SHOOTOUT_END_HOOK.at)
+    }
+    if (start !== null || is(rom, TIES_AT, TIES.overtime)) rom.set(TIES.original, TIES_AT)
     if (is(rom, EOP_AT, EOP.overtime)) rom.set(EOP.original, EOP_AT)
   },
   apply(work, value) {
-    if (value !== 'overtime') return
-    work.rom.set(TIES.overtime, TIES_AT)
+    if (value === 'tie') return
     work.rom.set(EOP.overtime, EOP_AT)
+    if (value === 'overtime') {
+      work.rom.set(TIES.overtime, TIES_AT)
+      return
+    }
+    hook(work, SHOOTOUT_START_HOOK, SHOOTOUT_START)
+    hook(work, SHOOTOUT_END_HOOK, SHOOTOUT_END)
   },
 }
 

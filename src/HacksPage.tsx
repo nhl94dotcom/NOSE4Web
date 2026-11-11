@@ -963,13 +963,17 @@ export function HacksPage({ project, name, onChange }: Props) {
           <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
             <option value="tie">End in a tie (as the original game)</option>
             <option value="overtime">Overtime until a goal</option>
+            <option value="shootout">A shootout</option>
           </select>,
           <>
             In the original game a regular-season game still tied after its overtime ends in a tie, where a playoff
             game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
             regular season the same way: each overtime is as long as the regular season's (10:00, or the fourth period
-            length's with that option), and ties are no more, though a game can run long. Playoffs are as they were.
-            Match Viewer found the two places in the game's code that end a tied regular-season game.
+            length's with that option), and ties are no more, though a game can run long. <b>A shootout</b> settles
+            it after the overtime instead, played as the game's own Shootout mode plays one, five shooters a side and
+            then a shooter each until one team is ahead; the winners get one goal more on the scoreboard, and the game
+            ends as any other. Playoffs are as they were either way. Match Viewer found the two places in the game's
+            code that end a tied regular-season game.
           </>,
         )}
         {hack(

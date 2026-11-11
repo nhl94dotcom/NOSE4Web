@@ -324,6 +324,18 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(detectHacks(half).choices.seasonTies).toBe('overtime')
     expect(at(applyHacks({ ...opened, bytes: half }, { ...NO_HACKS, seasonTies: 'overtime' }).bytes, 0x7c4c, 2)).toBe('4e71')
     expect(at(applyHacks({ ...opened, bytes: half }, NO_HACKS).bytes, 0x1725c, 6)).toBe('31fc0004c466')
+    // Or a shootout: PeriodOver's move and NextShooter's jump to the title become calls, and .eop's branch goes.
+    const shootout = applyHacks(opened, { ...NO_HACKS, seasonTies: 'shootout' })
+    expect(detectHacks(shootout.bytes)).toEqual({ choices: { ...NO_HACKS, seasonTies: 'shootout' }, unknown: [] })
+    expect(at(shootout.bytes, 0x1725c, 2)).toBe('4eb9')
+    expect(at(shootout.bytes, 0xfc4ca, 2)).toBe('4eb9')
+    expect(at(shootout.bytes, 0x7c4c, 2)).toBe('4e71')
+    for (const other of ['tie', 'overtime'] as const) {
+      const changed = applyHacks(shootout, { ...NO_HACKS, seasonTies: other })
+      expect(detectHacks(changed.bytes).choices.seasonTies).toBe(other)
+      expect(at(changed.bytes, 0xfc4ca, 6)).toBe('4ef9000172e4')
+    }
+    expect(Array.from(buildRom(applyHacks(shootout, NO_HACKS)))).toEqual(Array.from(buildRom(opened)))
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')
