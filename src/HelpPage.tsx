@@ -258,7 +258,8 @@ export function HelpPage() {
             </li>
             <li>
               <b>Defencemen</b>: Pass Accuracy, Checking, Agility and Speed most, then a little Shot Power and Shot
-              Accuracy, with Weight, Off. Awareness and Stickhandling a little against.
+              Accuracy, with Weight, Off. Awareness and Stickhandling a little against. A middleweight (Weight stored
+              as 7 to 9) also loses about 10 points of league value, since he suits neither kind of check well.
             </li>
             <li>
               <b>Goalies</b>: Agility alone, about a quarter of a goal a game a step.
@@ -269,7 +270,11 @@ export function HelpPage() {
               any value in that range.
             </li>
             <li>The scoring weights say who scores on a team, not how much more the team scores; the team test is what supports them.</li>
-            <li>Defencemen are valued on offence only; their effect on goals against is not measured yet.</li>
+            <li>
+              Defencemen are valued on offence, plus the Weight bands, which Match Viewer measured by comparing the
+              defencemen each coach chose from the same roster; their other effects on goals against are not measured
+              yet. Fitting every rating that way too was tried, and failed the fair test.
+            </li>
             <li>
               Off. and Def. Awareness count for next to nothing, and rightly: in Match Viewer's test of 80 computer
               games, the best awareness against the worst moved goals by less than a tenth of a goal a game a step,
@@ -289,7 +294,8 @@ export function HelpPage() {
             </li>
             <li>
               <b>Defencemen</b>: Stickhandling and Speed most, then Off. Awareness, Weight and Checking, with Pass
-              Accuracy and a little Agility, Shot Power and Shot Accuracy against.
+              Accuracy and a little Agility, Shot Power and Shot Accuracy against. Being light costs too: a defenceman
+              with Weight stored as 7 or more is worth about 15 points more than a lighter one.
             </li>
             <li>
               <b>Goalies</b>: Agility alone, but it is worth little on the SNES, so goalies' values give an order, not a

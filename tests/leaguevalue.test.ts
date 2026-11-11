@@ -29,6 +29,17 @@ describe('league value', () => {
     expect(leagueValue(goalie(4), 'G')).toBe(69)
   })
 
+  it("counts a defenceman's Weight by band too, each system its own way", () => {
+    // All ratings 3: only Weight changes. Genesis: a middleweight (7-9) loses 0.138; SNES: 7-9 gains 0.552, 10+ 0.486.
+    const defenceman = (wgt: number) => [wgt, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    const genesis = [6, 7, 9, 10].map((w) => leagueValue(defenceman(w), 'D', 'genesis'))
+    expect(genesis[1]).toBeLessThan(genesis[0])
+    expect(genesis[3]).toBeGreaterThan(genesis[2])
+    const snes = [6, 7, 10].map((w) => leagueValue(defenceman(w), 'D', 'snes'))
+    expect(snes[1]).toBeGreaterThan(snes[0] + 10)
+    expect(snes[2]).toBeGreaterThan(snes[0] + 10)
+  })
+
   it('is left out only on ROMs with 0-15 ratings', () => {
     expect(hasLeagueValue({ overallIsEstimate: false })).toBe(true)
     expect(hasLeagueValue({ overallIsEstimate: true })).toBe(false)

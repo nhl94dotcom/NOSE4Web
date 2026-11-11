@@ -65,7 +65,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
             set these ratings as the editor showed them before the fix should check them after it.
     </>
   ),
-  defenceControl: 'Turns defence control on for both teams at the start of every game, where the original game starts with it off.',
+  defenceControl: 'Turns defence control on for both teams at the start of every game, where the original game starts with it off. Not a fix, but among the recommended hacks, as leagues play with it on.',
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',

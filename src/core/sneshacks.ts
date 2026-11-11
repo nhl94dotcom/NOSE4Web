@@ -1093,7 +1093,8 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
 // hot and cold bug fix, since without the bug every player plays lower than
 // leagues are used to (it suits rosters whose ratings are set higher); and
 // the Y button fix, a habit players expect.
-export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots']
+// Defence control on from the start is not a fix, but the commissioner's choice for every league (2026-11-11).
+export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots', 'defenceControl']
 
 // `choices` with the recommended fixes on, except where this ROM has other code.
 export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {

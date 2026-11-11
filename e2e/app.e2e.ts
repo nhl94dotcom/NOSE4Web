@@ -2212,6 +2212,8 @@ test.describe('with the SNES game', () => {
     // Nor the hot and cold and Y button fixes, which leagues may not want.
     await expect(main.locator('.outcome li')).toHaveText([
       'Power play and penalty kill fix: off to on.',
+      // Not a fix, but recommended for every league (the commissioner's choice).
+      'Defence control on: off to on.',
       'Penalty shot fixes: off to on.',
       'Extra attacker fix: off to on.',
       'Comeback bonus fix: off to on.',

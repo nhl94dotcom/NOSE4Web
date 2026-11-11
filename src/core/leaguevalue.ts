@@ -15,7 +15,7 @@ export type Role = 'G' | 'F' | 'D'
 type Platform = 'genesis' | 'snes'
 const WEIGHTS: Record<Platform, Record<Role, [number, number][]>> = {
   genesis: {
-    F: [[5, 0.29], [2, 0.22], [9, 0.15], [8, 0.1], [1, 0.09], [0, -0.52]],
+    F: [[5, 0.29], [2, 0.22], [9, 0.15], [8, 0.1], [1, 0.09], [0, -0.6]],
     D: [[12, 0.06], [6, 0.042], [1, 0.033], [2, 0.026], [5, 0.013], [9, 0.009], [0, -0.022], [3, -0.018], [8, -0.01]],
     G: [[1, 0.2655]],
   },
@@ -28,12 +28,22 @@ const WEIGHTS: Record<Platform, Record<Role, [number, number][]>> = {
   },
 }
 const SCALE: Record<Platform, Record<Role, [number, number]>> = {
-  genesis: { F: [-6.344, 2.175], D: [-0.187, 0.589], G: [0.531, 1.594] },
-  snes: { F: [1.16, 4.54], D: [0.815, 2.422], G: [0.072, 0.215] },
+  genesis: { F: [-7.486, 1.848], D: [-0.226, 0.589], G: [0.531, 1.594] },
+  snes: { F: [1.16, 4.54], D: [0.806, 2.974], G: [0.072, 0.215] },
+}
+
+// A defenceman's Weight also counts by band, on top of its weight above
+// (Match Viewer, comparing the defencemen each coach chose from the same
+// roster): on the Genesis a middleweight (stored 7-9) suits neither kind of
+// check well; on the SNES being light (6 and under) is the cost.
+const DEFENCE_WEIGHT_BANDS: Record<Platform, (weight: number) => number> = {
+  genesis: (weight) => (weight >= 7 && weight <= 9 ? -0.138 : 0),
+  snes: (weight) => (weight <= 6 ? 0 : weight <= 9 ? 0.552 : 0.486),
 }
 
 export function leagueValue(attributes: number[], role: Role, platform: Platform = 'genesis'): number {
-  const sum = WEIGHTS[platform][role].reduce((total, [at, weight]) => total + weight * attributes[at], 0)
+  const band = role === 'D' ? DEFENCE_WEIGHT_BANDS[platform](attributes[0]) : 0
+  const sum = WEIGHTS[platform][role].reduce((total, [at, weight]) => total + weight * attributes[at], band)
   const [low, high] = SCALE[platform][role]
   return Math.min(99, Math.max(0, Math.round(40 + (59 * (sum - low)) / (high - low))))
 }
