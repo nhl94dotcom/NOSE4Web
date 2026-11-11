@@ -696,38 +696,40 @@ const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
 // 1) is cleared, and Goal's shootout test then throws out every goal; and a
 // shootout goal also goes through Goal's ordinary path, into the score, the
 // scorer's and goalie's stats, the goals by period and the scoring summary.
-// So both team structs (all of those are in them, $364 bytes each) and the
-// scoring summary's length are kept from $FFF084, to be put back at the end.
+// So both team structs (all of those are in them, $364 bytes each), the
+// scoring summary's length and the plus-minus log's length word ($FFDEF4,
+// which the plus-minus hack's log starts with) are kept from $FFF084, to be
+// put back at the end.
 //   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x
 //   btst #0,(gmode2).w; bne.s .x; bset #0,(gmode2).w; st ($F082).w
 //   movem.l d0-d7/a0-a6,-(sp)
 //   lea (tmstruct).w,a0; lea ($F084).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
-//   move.w (ScoreSumbytes).w,(a1); bclr #1,(gmode).w; jsr ClearShootout
+//   move.w (ScoreSumbytes).w,(a1); move.w ($DEF4).w,($F74E).w; bclr #1,(gmode).w; jsr ClearShootout
 //   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (awtmstruct).w,a0; jsr Create_HotCold_Table
 //   movem.l (sp)+,d0-d7/a0-a6; .x rts
 const SHOOTOUT_START = bytes(
-  '3038 C6DA B078 CA3E 6650 0838 0000 C2FA 6648 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+  '3038 C6DA B078 CA3E 6656 0838 0000 C2FA 664E 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
 )
 // When the shootout is won, NextShooter jumps to ExitToOpening, back to the
 // title as Shootout mode does. For the editor's shootout that jump becomes a
 // call to the code below. Its shootout is told from Shootout mode's by the
 // mark and by gsp: 3 for it, 0 in Shootout mode, so that a mark left set (by a
 // reset during a shootout; nothing clears that RAM) never changes Shootout
-// mode. Then: the team structs and scoring summary as they were at the end of
-// the overtime, the winners' score one more, the shootout's gmode2 bits (0, 1
+// mode. Then: the team structs, scoring summary and plus-minus log as they
+// were before the shootout, the winners' score one more, the shootout's gmode2 bits (0, 1
 // and 3; a byte, as the game's btst and bset use it) cleared, gsp 4, and on
 // to the end of the game as PeriodOver goes there (forceblack, PeriodOver_sp:
 // the scores, the intermission, GameOver).
 //   addq.l #4,sp; tst.b ($F082).w; beq.s .title; cmpi.w #3,(gsp).w; beq.s .ours; .title jmp ExitToOpening
 //   .ours sf ($F082).w; lea ($F084).w,a0; lea (tmstruct).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
-//   move.w (a0),(ScoreSumbytes).w
+//   move.w (a0),(ScoreSumbytes).w; move.w ($F74E).w,($DEF4).w
 //   move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
 //   addq.w #1,(AwGoals).w; bra.s .done; .home addq.w #1,(HmGoals).w
 //   .done andi.b #$F4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
 const SHOOTOUT_END_HOOK: Hook = { at: 0xfc4ca, original: bytes('4EF9 0001 72E4') }
 const SHOOTOUT_END_BEFORE = bytes('0838 0003 C2FA 6700 0008')
 const SHOOTOUT_END = bytes(
-  '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 41F8 F084 43F8 C6CE 303C 01B1 22D8 51C8 FFFC 31D0 C472 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0238 00F4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
+  '588F 4A38 F082 6708 0C78 0003 C466 6706 4EF9 0001 72E4 51F8 F082 41F8 F084 43F8 C6CE 303C 01B1 22D8 51C8 FFFC 31D0 C472 31F8 F74E DEF4 3038 D574 B078 D576 6E06 5278 CA3E 6004 5278 C6DA 0238 00F4 C2FA 31FC 0004 C466 4EB9 0001 0F32 4EF9 0001 7278',
 )
 const SHOOTOUT_START_HOOK: Hook = { at: TIES_AT, original: TIES.original }
 

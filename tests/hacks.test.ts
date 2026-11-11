@@ -338,7 +338,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(Array.from(buildRom(applyHacks(shootout, NO_HACKS)))).toEqual(Array.from(buildRom(opened)))
     // The start code clears gmdir, so the shooters attack Shootout mode's ends (Match Viewer), and keeps the team structs.
     const startAt = (shootout.bytes[0x1725e] << 24) | (shootout.bytes[0x1725f] << 16) | (shootout.bytes[0x17260] << 8) | shootout.bytes[0x17261]
-    expect(at(shootout.bytes, startAt + 54, 6)).toBe('08b80001c2ea')
+    expect(at(shootout.bytes, startAt + 60, 6)).toBe('08b80001c2ea')
+    // ... and the plus-minus log's length word, which the end code puts back.
+    expect(at(shootout.bytes, startAt + 54, 6)).toBe('31f8def4f74e')
     // Or straight after period 3: the tie test calls code that starts the shootout first; .eop and $1725C stay.
     const now = applyHacks(opened, { ...NO_HACKS, seasonTies: 'shootoutNow' })
     expect(detectHacks(now.bytes)).toEqual({ choices: { ...NO_HACKS, seasonTies: 'shootoutNow' }, unknown: [] })
