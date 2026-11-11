@@ -44,16 +44,21 @@ describe('league value', () => {
   })
 })
 
+// Opened when a test runs, not when the file is read, so that the tests skip where the ROMs are not.
+let genesis: ReturnType<typeof openRom> | undefined
+const genesisProject = () => (genesis ??= openRom(new Uint8Array(readFileSync(GENESIS))))
+let snes: ReturnType<typeof openRom> | undefined
+const snesProject = () => (snes ??= openRom(new Uint8Array(readFileSync(SNES))))
+
 describe.skipIf(!existsSync(GENESIS))('league value in the original game', () => {
-  const project = openRom(new Uint8Array(readFileSync(GENESIS)))
-  const all = project.teams.flatMap((team) => {
+  const players = () => genesisProject().teams.flatMap((team) => {
     const goalies = goalieCount(team)
     return team.players.map((p, i) => {
       const role: Role = i < goalies ? 'G' : i - goalies < team.forwards ? 'F' : 'D'
       return { name: p.name, role, value: leagueValue(p.attributes, role) }
     })
   })
-  const of = (name: string) => all.find((p) => p.name.trim() === name)?.value
+  const of = (name: string) => players().find((p) => p.name.trim() === name)?.value
 
   it("gives the values Match Viewer's study gives", () => {
     // Top forwards, defencemen and goalies, as Match Viewer lists them.
@@ -63,11 +68,11 @@ describe.skipIf(!existsSync(GENESIS))('league value in the original game', () =>
     expect(of('Ed Belfour')).toBe(99)
     expect(of('Patrick Roy')).toBe(99)
     expect(of('Grant Fuhr')).toBe(84)
-    for (const role of ['F', 'D', 'G'] as const) expect(Math.max(...all.filter((p) => p.role === role).map((p) => p.value))).toBe(99)
+    for (const role of ['F', 'D', 'G'] as const) expect(Math.max(...players().filter((p) => p.role === role).map((p) => p.value))).toBe(99)
   })
 
   it('is in the Players spreadsheet beside Overall', () => {
-    const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(project)
+    const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(genesisProject())
     const at = rows[0].indexOf('League value')
     expect(at).toBe(rows[0].indexOf('Overall') + 1)
     const roy = rows.find((row) => String(row[4]).trim() === 'Patrick Roy')!
@@ -76,20 +81,19 @@ describe.skipIf(!existsSync(GENESIS))('league value in the original game', () =>
 })
 
 describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () => {
-  const project = openRom(new Uint8Array(readFileSync(SNES)))
-  const rows = CSV_TABLES.find((t) => t.id === 'players')!.rows(project)
-  const at = rows[0].indexOf('League value')
+  const rows = () => CSV_TABLES.find((t) => t.id === 'players')!.rows(snesProject())
+  const at = () => rows()[0].indexOf('League value')
   // Two Stephane Richers are in the game (the leagues call the defenceman StephaneD), so a team can be given too.
   const of = (name: string, team = '') =>
-    rows.find((row) => String(row[4]).trim() === name && String(row[1]).includes(team))?.[at]
+    rows().find((row) => String(row[4]).trim() === name && String(row[1]).includes(team))?.[at()]
 
   it("is in the spreadsheet, worked out the SNES's way", () => {
-    expect(at).toBe(rows[0].indexOf('Overall') + 1)
+    expect(at()).toBe(rows()[0].indexOf('Overall') + 1)
     // Match Viewer's values for the bigger moves against Overall: Klima, Carson and Richer up; Gilmour, Fleury and LaFontaine down.
     const values = [of('Petr Klima'), of('Jimmy Carson'), of('Stephane Richer', 'New Jersey'), of('Doug Gilmour'), of('Theoren Fleury'), of('Pat LaFontaine')]
     expect(values).toEqual([93, 88, 86, 81, 80, 82])
     for (const position of ['F', 'D', 'G']) {
-      expect(Math.max(...rows.slice(1).filter((row) => row[3] === position).map((row) => Number(row[at])))).toBe(99)
+      expect(Math.max(...rows().slice(1).filter((row) => row[3] === position).map((row) => Number(row[at()])))).toBe(99)
     }
   })
 })
