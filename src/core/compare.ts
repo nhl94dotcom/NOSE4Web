@@ -226,11 +226,40 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
 
 // Where each of `after`'s teams was in `before`, where the two are one opened
 // ROM and teams were moved in between; null where none was.
-function movedPlaces(before: RomProject, after: RomProject): number[] | null {
+export function movedPlaces(before: RomProject, after: RomProject): number[] | null {
   const identity = after.teams.map((_, n) => n)
   const [was, now] = [before.teamOrder ?? identity, after.teamOrder ?? identity]
   if (was.join() === now.join()) return null
   return now.map((original) => was.indexOf(original))
+}
+
+// Which of `before`'s teams each of `after`'s is compared with (-1 for none).
+// One game's ROMs keep their teams in one order, so teams are compared by
+// place; but where teams were moved in one opened ROM, each is compared with
+// itself (see teamorder.ts), and where two ROMs list the same teams in other
+// orders, as after teams are put in alphabetical order, by name. The Genesis
+// and SNES games keep theirs in different orders, as do SNES ROMs rebuilt with
+// other teams, so there teams are always matched by name.
+export function teamPairing(before: RomProject, after: RomProject): { counterpart: number[]; how: 'place' | 'moved' | 'name'; gamesDiffer: boolean } {
+  const gamesDiffer = before.game.platform !== after.game.platform || (after.game.platform === 'snes' && before.game.productCode !== after.game.productCode)
+  if (!gamesDiffer && before.source === after.source && before.teams.length === after.teams.length) {
+    const moves = movedPlaces(before, after)
+    if (moves) return { counterpart: moves, how: 'moved', gamesDiffer }
+  }
+  const beforeNames = before.teams.map(teamDisplayName)
+  const afterNames = after.teams.map(teamDisplayName)
+  const taken = new Set<number>()
+  // Of several teams with one name, the one in the same place is preferred.
+  const byName = afterNames.map((name, i) => {
+    const matches = beforeNames.flatMap((other, b) => (other === name && !taken.has(b) ? [b] : []))
+    const found = matches.includes(i) ? i : (matches[0] ?? -1)
+    if (found >= 0) taken.add(found)
+    return found
+  })
+  if (gamesDiffer) return { counterpart: byName, how: 'name', gamesDiffer }
+  const byPlace = afterNames.map((_, i) => (i < beforeNames.length ? i : -1))
+  const agree = (counterpart: number[]) => counterpart.filter((b, i) => b >= 0 && beforeNames[b] === afterNames[i]).length
+  return agree(byName) > agree(byPlace) ? { counterpart: byName, how: 'name', gamesDiffer } : { counterpart: byPlace, how: 'place', gamesDiffer }
 }
 
 // What changed going from `before` to `after`. Empty when nothing did.
@@ -240,16 +269,11 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   if (before.game.productCode !== after.game.productCode && before.source !== after.source) {
     general.push(`These are different games: ${before.game.title} and ${after.game.title}.`)
   }
-  // One game's ROMs keep their teams in one order, so teams are compared by
-  // place. The Genesis and SNES games keep theirs in different orders, as do
-  // SNES ROMs rebuilt with other teams, so there teams are matched by name.
   const samePlatform = before.game.platform === after.game.platform
-  const byName = !samePlatform || (after.game.platform === 'snes' && before.game.productCode !== after.game.productCode)
-  const beforeNames = before.teams.map(teamDisplayName)
-  // One opened ROM whose teams were moved in between: each team is compared
-  // with itself, wherever it was (see teamorder.ts).
-  const moves = !byName && before.source === after.source && before.teams.length === after.teams.length ? movedPlaces(before, after) : null
-  const counterpart = after.teams.map((team, i) => (moves ? moves[i] : byName ? beforeNames.indexOf(teamDisplayName(team)) : i < before.teams.length ? i : -1))
+  const pairing = teamPairing(before, after)
+  const byName = pairing.how === 'name'
+  const moves = pairing.how === 'moved' ? pairing.counterpart : null
+  const { counterpart } = pairing
   if (moves) {
     const shifted = moves.flatMap((was, n) => (was === n ? [] : [`${teamDisplayName(after.teams[n])} is now team ${n + 1} (was ${was + 1})`]))
     general.push(`Teams were moved: ${shifted.join('; ')}.`)
@@ -257,7 +281,7 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   if (byName) {
     const unmatched = after.teams.filter((_, i) => counterpart[i] < 0).map(teamDisplayName)
     general.push(
-      `Teams are matched by name, as the two games keep them in different orders.${unmatched.length > 0 ? ` No match was found for ${unmatched.join(', ')}.` : ''}`,
+      `Teams are matched by name, as the two ${pairing.gamesDiffer ? 'games keep' : 'ROMs list'} them in different orders.${unmatched.length > 0 ? ` No match was found for ${unmatched.join(', ')}.` : ''}`,
     )
   } else if (before.teams.length !== after.teams.length) {
     general.push(`One ROM has ${before.teams.length} teams and the other ${after.teams.length}. Only the teams both have are compared.`)
@@ -284,14 +308,20 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
     if (samePlatform && (before.bytes !== after.bytes || before.teams !== after.teams)) changes.push(...photoDifferences(before, counterpart[i], after, i))
     if (changes.length > 0) sections.push({ heading: labels[i], changes })
   })
-  // Teams matched by name are in other places, so the menus' team choices
-  // cannot be compared. Moved teams are compared by their new numbers.
-  const was = moves
-    ? {
-        ...before,
-        teams: moves.map((place) => before.teams[place]),
-        settings: settingsInTeamOrder(before.settings, before.game, (team) => (moves.indexOf(team) < 0 ? team : moves.indexOf(team))),
-      }
-    : before
-  return [...sections, ...(byName ? [] : compareSettings(was, after))]
+  // Where every team has its counterpart in one game, teams in other places
+  // are compared by their numbers in `after`: the draws and menu choices too.
+  // Teams matched only in part, or across games, leave the menus' team
+  // choices out, as they cannot be compared.
+  const whole =
+    !pairing.gamesDiffer && before.teams.length === after.teams.length && counterpart.every((b) => b >= 0) && new Set(counterpart).size === counterpart.length
+  if (pairing.how !== 'place' && !whole) return sections
+  const was =
+    pairing.how === 'place'
+      ? before
+      : {
+          ...before,
+          teams: counterpart.map((place) => before.teams[place]),
+          settings: settingsInTeamOrder(before.settings, before.game, (team) => (counterpart.indexOf(team) < 0 ? team : counterpart.indexOf(team))),
+        }
+  return [...sections, ...compareSettings(was, after)]
 }

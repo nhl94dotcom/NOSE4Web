@@ -290,14 +290,20 @@ function moveTeams(file: ProjectFile, places: number[], game: RomProject['game']
 // game keeps by team number, so that the project's teams then go to their own
 // places. A ROM already in that order, such as one downloaded after the move,
 // is left as it is.
-function withMovedTeams(opened: RomProject, stored: ProjectFile['teamOrder'], notes: string[]): RomProject {
+function withMovedTeams(opened: RomProject, stored: ProjectFile['teamOrder'], teams: StoredTeam[], notes: string[]): RomProject {
   if (stored === undefined || stored === null) return opened
   const { order, from } = stored
   if (!Array.isArray(order) || !Array.isArray(from) || order.length !== opened.teams.length || from.length !== order.length) {
     throw new ProjectFileError('The project file is damaged: where its teams were moved cannot be read.')
   }
+  // Which the ROM's teams look like, going by their names: the ROM the
+  // project was made on, or one downloaded after the move (whose teams may
+  // since have been renamed, as the project's own are).
   const names = opened.teams.map(teamDisplayName)
-  if (names.every((name, n) => name === from[order[n]]) && !names.every((name, n) => name === from[n])) {
+  const storedName = (n: number) => `${teams[n]?.names?.[0] ?? ''} ${teams[n]?.names?.[2] ?? ''}`.trim()
+  const asMoved = names.filter((name, n) => name === from[order[n]] || name === storedName(n)).length
+  const asMade = names.filter((name, n) => name === from[n]).length
+  if (asMoved > asMade) {
     notes.push("This ROM already has the project's teams in their new places, so none was moved.")
     return opened
   }
@@ -370,7 +376,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   if (!Array.isArray(file.teams) || file.teams.length !== opened.teams.length) {
     throw new ProjectFileError(`This project has ${file.teams?.length ?? 0} teams and the ROM has ${opened.teams.length}.`)
   }
-  opened = withMovedTeams(opened, file.teamOrder, notes)
+  opened = withMovedTeams(opened, file.teamOrder, file.teams, notes)
   file.teams.forEach((team, i) => {
     if (!checkTeam(team, opened.teams[i])) throw new ProjectFileError(`The project file is damaged: team ${i + 1} cannot be read.`)
   })

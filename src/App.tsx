@@ -11,6 +11,7 @@ import { emptyLineSlots } from './core/lines'
 import { overallRating } from './core/rating'
 import { resetTeam, teamChanged } from './core/reset'
 import { buildPatch, buildRom, openRom, type RomProject } from './core/rom'
+import { withTeamOrder } from './core/teamorder'
 import { transferPlayers } from './core/roster'
 import { snesPreviewSprites } from './core/snes'
 import { hasSettings } from './core/settings'
@@ -166,6 +167,18 @@ export default function App() {
     [asOpened, hackedBytes, hackedGame],
   )
 
+  // The same with its teams moved as the work's have been, so that each team
+  // is compared with and reset to itself (see teamorder.ts).
+  const teamOrder = project?.teamOrder
+  const inOrder = useMemo(() => {
+    if (!original || !teamOrder) return original
+    try {
+      return withTeamOrder(original, teamOrder)
+    } catch {
+      return original
+    }
+  }, [original, teamOrder])
+
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
     reset(opened)
     setSaved(hasUnsavedWork ? null : opened)
@@ -253,7 +266,7 @@ export default function App() {
     )
   }
 
-  if (!project || !original) {
+  if (!project || !original || !inOrder) {
     return (
       <main className="welcome">
         <h1>NOSE4Web</h1>
@@ -316,7 +329,9 @@ export default function App() {
   // What wants attention: trouble for the game, and breaches of the league's rules.
   const problems = findings.filter((finding) => finding.level !== 'note').length
 
-  function page(current: RomProject, opened: RomProject) {
+  // `opened` has the teams in the work's order; `asOpenedRaw` is the ROM as
+  // opened, which project files are laid over and changes are counted from.
+  function page(current: RomProject, opened: RomProject, asOpenedRaw: RomProject) {
     switch (selected) {
       case RINK:
         return current.game.platform === 'snes' ? (
@@ -365,7 +380,7 @@ export default function App() {
         return (
           <ProjectPage
             project={current}
-            opened={opened}
+            opened={asOpenedRaw}
             name={name || 'rom'}
             onOpen={(next, projectName) => {
               change(next)
@@ -374,7 +389,7 @@ export default function App() {
           />
         )
       case CHANGES:
-        return <ChangesPage project={current} opened={opened} name={name || 'rom'} onChange={change} onNameChange={setName} />
+        return <ChangesPage project={current} opened={asOpenedRaw} name={name || 'rom'} onChange={change} onNameChange={setName} />
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
@@ -566,7 +581,7 @@ export default function App() {
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}
         </nav>
-        {page(project, original)}
+        {page(project, inOrder, original)}
       </div>
     </div>
   )

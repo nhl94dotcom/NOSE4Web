@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { checkProject } from './core/check'
 import type { RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 import { alphabeticalOrder, teamMovedTo, teamMoveRange, withTeamOrder, type TeamOrder } from './core/teamorder'
@@ -21,8 +22,12 @@ export function MoveTeamsSection({ project, onChange }: Props) {
 
   function move(order: TeamOrder, done: string) {
     try {
-      onChange(withTeamOrder(project, order))
-      setNotice(`${done} Undo takes it back.`)
+      const next = withTeamOrder(project, order)
+      onChange(next)
+      // A team moved into or out of the playoff teams can leave one that no draw has.
+      const freezes = (p: RomProject) => checkProject(p).filter((f) => f.where === 'Playoff draws' && f.level === 'problem').length
+      const warning = freezes(next) > freezes(project) ? ' Check ROM now finds a problem with the playoff draws: see it before downloading.' : ''
+      setNotice(`${done} Undo takes it back.${warning}`)
       setFailed(false)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e))
@@ -53,7 +58,7 @@ export function MoveTeamsSection({ project, onChange }: Props) {
       </section>
     )
   }
-  const { league } = range
+  const { league, offered, playoffTeams } = range
   const sorted = alphabeticalOrder(project, league)
   const isSorted = sorted.every((team, n) => team === n)
   const moved = project.teamOrder?.some((team, n) => team !== n) ?? false
@@ -73,9 +78,11 @@ export function MoveTeamsSection({ project, onChange }: Props) {
         )}
       </p>
       <p className="note">
-        The first {league} are the league's teams: those the menu offers, up to the last playoff team. The rest, such as
-        the All-Star teams, stay after them when sorting. A playoff team moved past team {league} is no longer one, and
-        Check ROM says if the playoff draws need changing for it.
+        The first {league} are the league's teams: those the Game Setup menu offers, up to the last playoff team. The
+        rest, such as the All-Star teams, stay after them when sorting.
+        {offered < count && ` The menu offers the first ${offered} teams, so a team moved past team ${offered} cannot be picked there.`}
+        {playoffTeams < count &&
+          ` New playoffs are for the first ${playoffTeams}: a team moved past team ${playoffTeams} is not a playoff team, and Check ROM says if the playoff draws need changing for it.`}
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <table className="left">

@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
 import { compareProjects } from '../src/core/compare'
+import { changesSince } from '../src/core/season'
+import { changeReport } from '../src/core/report'
 import { banner, menuLogo, menuLogoPalette, menuPalette, rinkLogo, withRinkLogo } from '../src/core/graphics'
 import { genesisScoreLogo, hasGenesisScoreLogos, withGenesisScoreLogosAdded } from '../src/core/genesisscorelogos'
 import { teamPhotos } from '../src/core/photos'
@@ -82,7 +84,7 @@ describe.skipIf(!existsSync(GENESIS))('moving teams, Genesis', () => {
   it('moves every table the game keeps by team, and the ROM reopens so', () => {
     const project = open(GENESIS)
     const range = teamMoveRange(project)
-    expect(range).toEqual({ league: 26 })
+    expect(range).toEqual({ league: 26, offered: 28, playoffTeams: 26 })
     const order = alphabeticalOrder(project, 26)
     expect(order.slice(26)).toEqual([26, 27])
     const moved = withTeamOrder(project, order)
@@ -136,6 +138,54 @@ describe.skipIf(!existsSync(GENESIS))('moving teams, Genesis', () => {
     expect(notes).toEqual([])
     expectMoved(project, restored, order)
     expectMoved(project, reopen(restored), order)
+  })
+
+  it('reports no player as having changed teams because his team moved', () => {
+    const project = open(GENESIS)
+    const moved = withTeamOrder(project, teamMovedTo(28, 1, 9))
+    const report = changesSince(moved, project)
+    expect(report.moves).toEqual([])
+    expect(report.details.map((d) => d.heading)).toEqual(['In general'])
+    // A real trade still shows.
+    const traded = { ...moved, teams: moved.teams.map((team, t) => (t === 9 ? { ...team, players: team.players.slice(0, -1) } : t === 0 ? { ...team, players: [...team.players, moved.teams[9].players.at(-1)!] } : team)) }
+    expect(changesSince(traded, project).moves.map((m) => [m.from, m.to])).toEqual([['Boston Bruins', 'Anaheim Mighty Ducks']])
+  })
+
+  it('compares a downloaded ROM with its teams moved with the ROM before, team by team', () => {
+    const project = open(GENESIS)
+    // Boston moved to the end of the league, Buffalo to Winnipeg up one, in a ROM downloaded so:
+    // compared with the original by name, nothing differs.
+    const downloaded = reopen(withTeamOrder(project, teamMovedTo(28, 1, 25)))
+    const report = changeReport(project, downloaded)
+    expect(report.details.map((d) => d.heading)).toEqual(['In general'])
+    expect(report.details[0].changes.join(' ')).toMatch(/matched by name, as the two ROMs list them in different orders/)
+    expect(report.moves).toEqual([])
+    // A plain move: nothing differs but the order.
+    const moved = reopen(withTeamOrder(project, teamMovedTo(28, 1, 9)))
+    const plain = changeReport(project, moved)
+    expect(plain.moves).toEqual([])
+    expect(plain.details.map((d) => d.heading)).toEqual(['In general'])
+  })
+
+  it('does not move teams twice when a project is opened over the ROM downloaded after the move', () => {
+    const project = open(GENESIS)
+    const order = teamMovedTo(28, 1, 9)
+    let moved = withTeamOrder(project, order)
+    // Boston renamed after the move.
+    moved = { ...moved, teams: moved.teams.map((team, t) => (t === 9 ? { ...team, names: ['Hub', ...team.names.slice(1)] } : team)) }
+    const text = saveProjectFile(moved, project, 'Moved')
+    const downloaded = openRom(buildRom(moved))
+    const { project: over, notes } = openProjectFile(downloaded, text)
+    expect(notes.join(' ')).toMatch(/already has/)
+    expect(over.teams.map(teamDisplayName)).toEqual(moved.teams.map(teamDisplayName))
+    const { project: onOriginal } = openProjectFile(open(GENESIS), text)
+    expect(onOriginal.teams.map(teamDisplayName)).toEqual(moved.teams.map(teamDisplayName))
+    // Over the original ROM the move is made, Boston's pictures and photos going with it.
+    for (const opened of [over, onOriginal]) {
+      const { name: _name, ...rest } = looks(opened, 9)
+      const { name: _was, ...boston } = looks(project, 1)
+      expect(rest).toEqual(boston)
+    }
   })
 
   it('lists teams by name in the spreadsheet files when asked, numbers kept', () => {

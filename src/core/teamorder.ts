@@ -40,7 +40,8 @@ import { teamDisplayName, type TeamLayout } from './team'
 export type TeamOrder = number[]
 
 // How many of the first teams are the league's own, or why no team can be moved.
-export type MoveRange = { league: number } | { reason: string }
+// Also how many the Game Setup menu offers, and how many are playoff teams.
+export type MoveRange = { league: number; offered: number; playoffTeams: number } | { reason: string }
 
 // The team rating byte of each team: GetTeamRating's move.w tmteam(a2),d0;
 // movea.l #TeamRatings,a0; clr.w d1; move.b 0(a0,d0.w),d1.
@@ -86,8 +87,10 @@ export function teamMoveRange(project: RomProject): MoveRange {
 }
 
 const leagueRange = (project: RomProject, last: number): MoveRange => {
-  const offered = project.settings.menuTeams?.offered ?? project.teams.length
-  return { league: Math.max(1, Math.min(last + 1, offered, project.teams.length)) }
+  const count = project.teams.length
+  const offered = Math.min(project.settings.menuTeams?.offered ?? count, count)
+  const playoffTeams = Math.min(last + 1, count)
+  return { league: Math.max(1, Math.min(playoffTeams, offered)), offered, playoffTeams }
 }
 
 // The SNES game keeps its team colours, place names and songs apart from its

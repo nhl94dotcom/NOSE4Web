@@ -676,6 +676,13 @@ test.describe('with the NHL 94 ROM', () => {
     await section.getByRole('button', { name: 'Move Boston Bruins up' }).click()
     expect(await section.locator('tbody tr').nth(3).locator('td').nth(1).textContent()).toBe('Boston Bruins')
     await section.screenshot({ path: 'test-results/shots/move-teams.png' })
+    // Each team is compared with itself as opened: nothing to reset, and no change but the move.
+    await team(page, 'Boston Bruins').click()
+    await expect(page.getByRole('button', { name: 'Reset whole team' })).toBeDisabled()
+    await team(page, 'Calgary Flames').click()
+    await expect(page.getByRole('button', { name: 'Reset whole team' })).toBeDisabled()
+    await expect(entry(page, /^Changes/)).toHaveText('Changes (1)')
+    await entry(page, 'Game settings').click()
     // Sorting puts it back, and so does putting back the ROM's order.
     await sort.click()
     await expect(section.getByText('The first 26 teams are now in alphabetical order.', { exact: false })).toBeVisible()

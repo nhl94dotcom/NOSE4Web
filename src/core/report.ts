@@ -1,7 +1,7 @@
 // A summary of what changed between two ROMs, written to be read by the
 // people in a league: who moved, who is new, whose ratings changed.
 
-import { compareProjects } from './compare'
+import { compareProjects, teamPairing } from './compare'
 import { leaguePlayers, ROLE_NAMES, type LeaguePlayer } from './league'
 import type { RomProject } from './rom'
 import { teamLabels } from './team'
@@ -43,7 +43,8 @@ export interface ChangeReport {
 // Players are matched by name. Where a name appears more than once, players
 // who stayed on their team are paired first, so a common name on two teams
 // does not read as two trades.
-function pairPlayers(before: LeaguePlayer[], after: LeaguePlayer[]) {
+// `newNumber` gives a team's number in `after`, where teams were moved in between.
+function pairPlayers(before: LeaguePlayer[], after: LeaguePlayer[], newNumber: (team: number) => number) {
   const pairs: [LeaguePlayer, LeaguePlayer][] = []
   const left = new Set(before)
   const unmatched: LeaguePlayer[] = []
@@ -54,7 +55,7 @@ function pairPlayers(before: LeaguePlayer[], after: LeaguePlayer[]) {
   }
   const later: LeaguePlayer[] = []
   for (const now of after) {
-    const old = take((p) => p.player.name === now.player.name && p.team === now.team)
+    const old = take((p) => p.player.name === now.player.name && newNumber(p.team) === now.team)
     if (old) pairs.push([old, now])
     else later.push(now)
   }
@@ -69,7 +70,6 @@ function pairPlayers(before: LeaguePlayer[], after: LeaguePlayer[]) {
 export function changeReport(before: RomProject, after: RomProject): ChangeReport {
   const labels = new Map([before, after].map((project) => [project, teamLabels(project.teams, project.game)]))
   const teamName = (project: RomProject, team: number) => labels.get(project)![team]
-  const { pairs, arrived, departed } = pairPlayers(leaguePlayers(before), leaguePlayers(after))
   // `pool` is the other project's free agents: where a new player came from, or a gone one went.
   const arrival = (project: RomProject, pool: RomProject) => (p: LeaguePlayer): Arrival => ({
     name: p.player.name,
@@ -79,11 +79,16 @@ export function changeReport(before: RomProject, after: RomProject): ChangeRepor
     freeAgent: pool.freeAgents.some((agent) => agent.player.name === p.player.name),
   })
   const byName = <T extends { name: string }>(list: T[]) => list.sort((a, b) => a.name.localeCompare(b.name))
+  // A player's old team by its number in `after`, where the teams are in
+  // other places there (see teamPairing); free agents stay free agents.
+  const { counterpart, how } = teamPairing(before, after)
+  const newNumber = (team: number) => (how === 'place' || team < 0 ? team : counterpart.indexOf(team))
+  const { pairs, arrived, departed } = pairPlayers(leaguePlayers(before), leaguePlayers(after), newNumber)
 
   return {
     moves: byName(
       pairs
-        .filter(([old, now]) => old.team !== now.team)
+        .filter(([old, now]) => newNumber(old.team) !== now.team)
         .map(([old, now]) => ({ name: now.player.name, from: teamName(before, old.team), to: teamName(after, now.team), overall: now.overall })),
     ),
     arrivals: byName(arrived.map(arrival(after, before))),

@@ -832,8 +832,14 @@ export function HelpPage() {
           Genesis the team rating on its player cards; on the SNES its centre ice logo, banner name and colours,
           and photo colours too. The playoff draws, the main menu's starting teams, the start of the
           season and the league rules' exempt teams follow their teams too, and a project file saved afterwards
-          remembers the move. Compare pairs each team with itself and lists the moves.
+          remembers the move. The Reset buttons and Changes compare each team with itself as opened, and Changes
+          lists the moves; Compare ROMs matches teams by name where two ROMs list them in different orders, as
+          last season's and this season's may.
           <ul>
+            <li>
+              Spreadsheet, picture and project files made before the move name teams by their old numbers: import
+              them with <b>Match teams by name</b> ticked (see below).
+            </li>
             <li>
               A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
               with it start as the last one instead. Check ROM says if the draws need changing.
