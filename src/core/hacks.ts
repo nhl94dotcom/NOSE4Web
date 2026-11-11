@@ -80,6 +80,9 @@ export interface HackChoices {
   // Times a pass to a teammate in 64ths of a second, where the original game
   // rounds down to eighths and so sometimes sends it twice as fast.
   passFix: boolean
+  // Aims a one-timer at an open net (the goalie out of the puck's line) at the
+  // middle, mid-height, where the original aims it high and it often sails over.
+  openNetFix: boolean
   // Holds every faceoff on one of the nine dots, as the NHL rules place them.
   faceoffFix: boolean
   // Stops a skater keeping the gliding a pass receiver or a fall gets.
@@ -180,6 +183,7 @@ export type HackPart =
   | 'ppPkFix'
   | 'comebackFix'
   | 'passFix'
+  | 'openNetFix'
   | 'faceoffFix'
   | 'runawayFix'
   | 'penaltyShotTableFix'
@@ -242,6 +246,7 @@ export const NO_HACKS: HackChoices = {
   ppPkFix: false,
   comebackFix: false,
   passFix: false,
+  openNetFix: false,
   faceoffFix: false,
   runawayFix: false,
   penaltyShotTableFix: false,
@@ -1359,6 +1364,27 @@ const passFix: Part<boolean> = {
   },
 }
 
+// One-timers at an open net (Match Viewer's GENESIS_SHOOTING.md, 4.4). The
+// game aims a one-timer itself (shotdiradj, logic94.asm), and computer
+// shooters the same way: where the sightline from the puck through the
+// opposing goalie passes within 22 of the net's middle, just inside the post
+// away from him (2 or 6); with no goalie, the middle at mid-height (8); and
+// where the sightline misses the net, the goalie having wandered out of the
+// puck's line, high in the middle (0). That is the worst aim at an open net:
+// the target is just under the crossbar and the scatter only goes up, so
+// close in about 4 in 10 sail over or hit the bar. The clr.w d0 that gives
+// the 0 at $C5FC becomes moveq #8,d0, the pulled goalie's aim; the other
+// cases set d0 after it, and the penalty shot and shootout aim still follow.
+const OPEN_NET_AT = 0xc5fc
+const OPEN_NET = { original: bytes('4240 B87C 002C'), hacked: bytes('7008 B87C 002C') }
+const openNetFix: Part<boolean> = {
+  detect: (rom) => (is(rom, OPEN_NET_AT, OPEN_NET.original) ? false : is(rom, OPEN_NET_AT, OPEN_NET.hacked) ? true : undefined),
+  remove: (rom) => {
+    if (is(rom, OPEN_NET_AT, OPEN_NET.hacked)) rom.set(OPEN_NET.original, OPEN_NET_AT)
+  },
+  apply: (work, value) => void (value && work.rom.set(OPEN_NET.hacked, OPEN_NET_AT)),
+}
+
 // Faceoffs off the dots. Every stoppage goes through Stop4Pen, which takes a
 // raw spot (centre for a goal, where the last player to touch the puck stood
 // for a puck out of play, the icing team's end for icing, the puck for the
@@ -2089,6 +2115,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     ppPkFix: found('ppPkFix', ppPkFix.detect(rom), NO_HACKS.ppPkFix),
     comebackFix: found('comebackFix', comebackFix.detect(rom), NO_HACKS.comebackFix),
     passFix: found('passFix', passFix.detect(rom), NO_HACKS.passFix),
+    openNetFix: found('openNetFix', openNetFix.detect(rom), NO_HACKS.openNetFix),
     faceoffFix: found('faceoffFix', faceoffFix.detect(rom), NO_HACKS.faceoffFix),
     runawayFix: found('runawayFix', runawayFix.detect(rom), NO_HACKS.runawayFix),
     penaltyShotTableFix: found('penaltyShotTableFix', penaltyShotTableFix.detect(rom), NO_HACKS.penaltyShotTableFix),
@@ -2174,6 +2201,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['turnRate', () => turnRate.remove(work.rom), () => turnRate.apply(work, wanted.turnRate)],
     ['clock', () => clock.remove(work.rom), () => clock.apply(work, wanted.realTime)],
     ['passFix', () => passFix.remove(work.rom), () => passFix.apply(work, wanted.passFix)],
+    ['openNetFix', () => openNetFix.remove(work.rom), () => openNetFix.apply(work, wanted.openNetFix)],
     ['faceoffFix', () => faceoffFix.remove(work.rom), () => faceoffFix.apply(work, wanted.faceoffFix)],
     ['runawayFix', () => runawayFix.remove(work.rom), () => runawayFix.apply(work, wanted.runawayFix)],
     ['penaltyShotTableFix', () => penaltyShotTableFix.remove(work.rom), () => penaltyShotTableFix.apply(work, wanted.penaltyShotTableFix)],
@@ -2261,7 +2289,7 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]):
 
 // The order the Hacks page has them in, smozoma's legacy fix last.
 const PAGE_ORDER: (keyof HackChoices)[] = [
-  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'faceoffFix', 'runawayFix',
+  'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'faceoffFix', 'runawayFix',
   'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'stickShots', 'bodychecks', 'plusMinus', 'threeStars',
   'wideRatings', 'bonuses', 'baseWeight', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'stamina',
   'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'speedBurst', 'turnRate', 'realTime', 'injuries', 'hotColdRange', 'noIcing', 'bCheckPenaltiesOff', 'goalieDelay', 'fewerSkaterLines', 'puckFriction', 'puckColours', 'netColours', 'greenFan', 'introWait', 'fourthPeriodOvertime', 'anyPosition', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap', 'weightFix',
@@ -2388,6 +2416,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   ppPkFix: 'Power play and penalty kill fix',
   comebackFix: 'Comeback bonus fix',
   passFix: 'Rocket pass fix',
+  openNetFix: 'One-timer open net fix',
   faceoffFix: 'Faceoff spot fix',
   runawayFix: 'Runaway speed fix',
   penaltyShotTableFix: 'Penalty shot table fix',
@@ -2446,6 +2475,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   ppPkFix: 'ppPkFix',
   comebackFix: 'comebackFix',
   passFix: 'passFix',
+  openNetFix: 'openNetFix',
   faceoffFix: 'faceoffFix',
   runawayFix: 'runawayFix',
   penaltyShotTableFix: 'penaltyShotTableFix',

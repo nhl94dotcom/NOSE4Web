@@ -39,6 +39,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   ppPkFix: () => "Each team's power play and penalty kill ratings work the way the rosters give them.",
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
+  openNetFix: () => 'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   faceoffFix: () =>
     "Every faceoff is on one of the nine dots, as in today's NHL: at centre after a goal, in the offending team's end after a penalty, and otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral dot.",
   runawayFix: () => 'A skater no longer keeps gliding after a fall into the boards, a missed one-timer, or being taken over as a pass comes to him, and so no longer shoots off at up to twice top speed.',
@@ -126,7 +127,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
 }
 
 const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = [
-  ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
+  ['Bug fixes', ['checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'passFix', 'openNetFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes']],
   ['Rules and options', ['faceoffFix', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix', 'fourthPeriodOvertime']],
   ['Statistics', ['stickShots', 'bodychecks', 'plusMinus', 'threeStars']],
   ['Ratings and weights', ['wideRatings', 'bonuses', 'baseWeight']],

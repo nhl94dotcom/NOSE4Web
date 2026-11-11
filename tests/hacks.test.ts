@@ -245,6 +245,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { awarenessFix: true },
       { crowdFix: true },
       { stickShots: true },
+      { openNetFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },
@@ -308,6 +309,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(applyHacks(opened, { ...NO_HACKS, hotColdRange: 4 }).bytes, 0xf70aa, 4)).toBe('303c0004')
     expect(at(opened.bytes, 0x1023e, 8)).toBe('08f80002bf804e75')
     expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
+    // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
+    expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
+    expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')
     // The forum's version, bra.s +2, is recognised and taken out.
     const forum = opened.bytes.slice()
     forum.set([0x60, 0x02], 0x1023e)

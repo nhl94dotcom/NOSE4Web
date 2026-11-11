@@ -197,7 +197,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -309,6 +309,19 @@ export function HacksPage({ project, name, onChange }: Props) {
             readily its computer players shoot. The original game checks the clock the wrong way round, so the boost
             comes in the first half of the period and goes for the second. This gives it in the second half, as
             meant. Overtime is unchanged: both teams have it throughout.
+          </>,
+        )}
+        {hack(
+          'openNetFix',
+          onOff('openNetFix'),
+          <>
+            The game aims a one-timer itself, whatever the d-pad says, along the line from the puck through the goalie:
+            with him in that line, just inside the far post. When he has wandered out of it, having dived or skated out
+            of position, it aims high in the middle, just under the crossbar, and as the game only ever scatters a shot
+            upwards, close in about 4 in 10 of those one-timers at an open net go over or off the bar. This aims them
+            at the middle, at mid-height, as the game already does with the goalie pulled. Computer players' shots,
+            which the game aims the same way, get the same aim. Genesis only: the SNES game lets one-timers follow the
+            stick. Found by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
