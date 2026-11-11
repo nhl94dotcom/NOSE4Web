@@ -13,7 +13,9 @@ export const SKATER_RATING_USES: Record<string, string> = {
   ShP: 'shot speed; at 3 or less he cannot wind up a full slapshot',
   Chk: 'how often his checks knock a man down, whether he can upend a man (4 or more), and how often a computer player tries to check or goes after the man with the puck',
   'H/F': 'shooting hand, and how long the players he injures are out',
-  StH: 'stealing and keeping the puck, catching hard passes, and stumbling rather than falling when hit',
+  // puckstick's catch limit is 13,000 + 350 x his working value (0-30); FallDown's stumble needs 24 or more, a
+  // roll of 16-31 above the hit's impact, and not a hit into the boards. Steals: Match Viewer's test.
+  StH: 'catching passes and loose pucks: the higher it is, the faster a puck he can stop on his stick rather than have it bounce off, up to about 1.8 times as fast at 6 as at 0 (shots get no help); stumbling rather than falling when hit, only at 5 or more (4 with the power play, home or hot bonuses), a chance that shrinks the harder the hit, and never when knocked into the boards; and, after a steal, how long before either player can touch the puck again. Whether a steal happens barely depends on it',
   ShA: 'how often a shot goes exactly where it is aimed, and how far it strays if not',
   End: 'how fast he tires, which only matters with line changes on',
   Rgh: 'for a computer puck carrier, how readily he shoots rather than passes (the game calls it the pass / shoot bias)',
@@ -45,6 +47,9 @@ export const SNES_SKATER_RATING_USES: Record<string, string> = {
   ShP: 'shot speed; unlike on the Genesis, a weak shooter can still take a full slapshot',
   Chk: 'how often his checks knock a man down, and how often a computer player tries to check, which on the SNES is very often',
   'H/F': 'shooting hand only: the SNES never reads the fighting half',
+  // puckstick: 10,000 + 700 x his working value (0-15), 3,000 more for the man the pass is aimed at; FallDown:
+  // 12 or more, a roll of 10-25 at least the impact, not with the clock stopped.
+  StH: 'catching passes and loose pucks: the higher it is, the faster a puck he can stop on his stick, up to about twice as fast at 6 as at 0, and the man a pass is aimed at gets a little more (shots get no help); stumbling rather than falling when hit, only at 5 or more (4 when hot or with bonuses), a chance that shrinks the harder the hit, and never after the whistle; and, after a steal, how long before either player can touch the puck again',
   Pas: 'how steady a pass\'s speed is, the speed of a pass to nobody, and how accurately the flip goes',
   Agr: 'how often he takes penalties; a bug in the SNES penalty roll makes a player you control at a working value of 12 (about a rating of 5) draw a penalty on every contact',
 }
