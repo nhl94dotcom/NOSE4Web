@@ -34,8 +34,10 @@ jobs:
       - run: npm test
       # The runner already has the libraries Chromium needs; installing them
       # again goes through Ubuntu's mirrors, which are sometimes unreachable
-      # from GitHub's machines. Then the browser alone is enough.
-      - run: npx playwright install --with-deps chromium || npx playwright install chromium
+      # from GitHub's machines, failing or (as on 2026-11-11) hanging. So that
+      # try gets three minutes, and then the browser alone is enough.
+      - run: timeout 180 npx playwright install --with-deps chromium || npx playwright install chromium
+        timeout-minutes: 10
       - run: npm run test:browser
       - run: npm run build
       - uses: actions/upload-pages-artifact@v5
