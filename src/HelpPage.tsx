@@ -24,6 +24,7 @@ const SECTIONS = [
   ['picturefiles', 'Picture files'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
+  ['midi', 'MIDI files for organ songs'],
   ['byname', 'Matching teams by name'],
   ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
@@ -820,6 +821,59 @@ export function HelpPage() {
           a chord, the highest note on one and the rest on the other, at most four at once. Every team that had the
           old song gets the new one. Played in the game by the NHL94 Match Viewer project, on the original game and
           McMarkis's 32-team builds.
+        </li>
+      </ul>
+
+      <h4 id="help-midi">Preparing a MIDI file for an organ song</h4>
+      <p>
+        Any ordinary MIDI file can be imported, but the game's organ is a simple instrument, so a file made for it
+        sounds best. In short: a clear tune with a few chords under it, 10 to 30 seconds long.
+      </p>
+      <ul>
+        <li>
+          <b>The file:</b> a standard MIDI file (<code>.mid</code>), of the usual kinds, one track or several (format 0
+          or 1), timed in beats, as music programs save them. A file timed in SMPTE frames, or holding several separate
+          songs (format 2), is refused with a message saying so.
+        </li>
+        <li>
+          <b>Length:</b> the game's own songs last 10 to 30 seconds, and that suits it best: a goal, a faceoff or the
+          end of a period starts another song and stops the one playing. A longer song plays until then.
+        </li>
+        <li>
+          <b>Notes at once:</b> the organ plays at most four. Where more sound at once, the highest are kept and the
+          lowest cut short or left out, so keep the tune on top and the chords under it, and leave out pads, strings
+          and other held notes that would crowd it. The message after importing says how many notes were affected.
+        </li>
+        <li>
+          <b>Instruments:</b> every note is played on the organ, whatever instrument the file gives it. Drums (MIDI
+          channel 10) are left out, as the organ has none.
+        </li>
+        <li>
+          <b>Range:</b> notes too low or too high for the organ move up or down by octaves: on the Genesis the range is
+          C0 to B6 (MIDI 12 to 95), on the SNES D1 to G5 (MIDI 26 to 79). A tune near middle C (MIDI 60) is safe on
+          both.
+        </li>
+        <li>
+          <b>Timing:</b> tempo and its changes are followed. The game times notes in 60ths of a second, so very fast
+          runs and trills may blur. The sustain pedal, pitch bends and other controls are ignored: give each note its
+          full length in the file.
+        </li>
+        <li>
+          <b>Loudness:</b> on the Genesis, a note's velocity sets its volume (the game's own songs use about 105 in
+          MIDI terms); on the SNES every note plays at the game's own volume.
+        </li>
+        <li>
+          <b>Name:</b> the song is named from the file's track name, or else from the file name, and the team pages
+          show it by that.
+        </li>
+        <li>
+          <b>Where to make one:</b> a free music notation program, such as MuseScore, can write out a tune from sheet
+          music and save it as MIDI. <b>Export MIDI</b> gives any of the game's songs as a starting point, to change in
+          such a program and import again.
+        </li>
+        <li>
+          <b>Try it:</b> <b>Play</b> gives a rough idea in the browser (the console's organ sounds different), and
+          the downloaded ROM in an emulator gives the real thing.
         </li>
       </ul>
 

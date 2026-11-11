@@ -94,7 +94,8 @@ export function OrganSongsSection({ project, onChange }: Props) {
         your own in its place: every note is played on the game's organ, at most {SONG_VOICES} at once (the console has
         five voices, shared with the sound effects; where more sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's
         range; the new song goes into free room at the end of the ROM, and every team with that song in a slot plays it.
-        Short tunes of 10 to 30 seconds suit the game, as its own are. Song 1 cannot be replaced, as the game uses it
+        Short tunes of 10 to 30 seconds suit the game, as its own are; Help, in the list on the left, has tips on preparing a MIDI
+        file. Song 1 cannot be replaced, as the game uses it
         to know which song is playing. Played in the game by the NHL94 Match Viewer project.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
@@ -226,7 +227,8 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
         own in its place, on the game's two organs, one to the left and one to the right: a note on its own on both,
         and in a chord the highest note on one and the rest on the other, at most {SNES_SONG_VOICES} at once (the console has eight voices, shared with the sound effects; where more sound at once the highest are kept), drums
         left out, notes moved by octaves into the organ's range. The new song goes into free room in the ROM, and every
-        team with that song in a slot plays it. Played in the game by the NHL94 Match Viewer project, on the original
+        team with that song in a slot plays it. Help, in the list on the left, has tips on preparing a MIDI file. Played in the game
+        by the NHL94 Match Viewer project, on the original
         game and McMarkis's 32-team builds.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
