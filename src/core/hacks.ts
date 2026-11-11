@@ -1400,22 +1400,32 @@ const openNetFix: Part<boolean> = {
 // flattening a player again as he gets up. The fix keeps the pair test only
 // while the target is still recovering: a knockdown sets his nopuck byte to
 // 120 and a wobble his nopuckb to 60, each counting down every frame, so the
-// pair is ignored while that word is not zero, and a later check counts. The
+// pair is ignored while that word is not zero, and a later check counts. A
+// fall into the bench (SPAbenchcheckl $193E, SPAbenchcheckr $1A00), which
+// FallDown does not ignore, lasts about 155 frames (Match Viewer), so the
+// pair is also ignored while the target is in either. The
 // 18 bytes at $140A8 (cmpa.l PlayerChked,a2; bne.w .cont; cmpa.l
 // PlayerChking,a3; bne.w .cont; rts) become a call to the same tests with
 // the extra one; where the pair is ignored, it drops its return and returns
 // from FallDown, as the rts did.
 const REPEAT_HOOK: Hook = { at: 0x140a8, original: bytes('B5F8 DEDC 6600 000C B7F8 DEE0 6600 0004 4E75') }
-export const REPEAT_CODE = bytes('B5F8 DEDC 660E B7F8 DEE0 6608 4A6A 005E 6702 588F 4E75')
+export const REPEAT_CODE = bytes('B5F8 DEDC 661E B7F8 DEE0 6618 4A6A 005E 6610 0C6A 193E 0058 6708 0C6A 1A00 0058 6602 588F 4E75')
+// The first version (b03835c), without the bench falls: recognised, and replaced.
+const REPEAT_CODE_V1 = bytes('B5F8 DEDC 660E B7F8 DEE0 6608 4A6A 005E 6702 588F 4E75')
+const repeatHooked = (rom: Uint8Array) =>
+  [REPEAT_CODE, REPEAT_CODE_V1].flatMap((code) => {
+    const target = hooked(rom, REPEAT_HOOK, code)
+    return target === null ? [] : [{ target, code }]
+  })[0] ?? null
 const repeatCheckFix: Part<boolean> = {
   detect(rom) {
     if (is(rom, REPEAT_HOOK.at, REPEAT_HOOK.original)) return false
-    return hooked(rom, REPEAT_HOOK, REPEAT_CODE) !== null ? true : undefined
+    return repeatHooked(rom) !== null ? true : undefined
   },
   remove(rom) {
-    const target = hooked(rom, REPEAT_HOOK, REPEAT_CODE)
-    if (target === null) return
-    erase(rom, target, REPEAT_CODE.length)
+    const found = repeatHooked(rom)
+    if (found === null) return
+    erase(rom, found.target, found.code.length)
     rom.set(REPEAT_HOOK.original, REPEAT_HOOK.at)
   },
   apply(work, value) {

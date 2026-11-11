@@ -333,9 +333,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             After a player knocks someone down or makes him wobble, the original game ignores every later hit by the
             same player on the same man until some other pair's hit lands anywhere on the ice, however long that
             takes: you can line him up again a minute later and nothing happens. With this, the same checker is kept
-            off him only while he recovers, about 2 seconds after a knockdown and 1 after a wobble, so he cannot be
-            flattened again as he gets up; after that a check works as any other. Genesis only. Found by the NHL94
-            Match Viewer project.
+            off him only while he recovers, about 2 seconds after a knockdown, 1 after a wobble, and while he is
+            falling into the bench, so he cannot be flattened again as he gets up; after that a check works as any
+            other. Genesis only: the SNES game has no such block. Found and tested in the game by the NHL94 Match
+            Viewer project: a repeated check by the same player now lands exactly as a first one, where the original
+            never lands it, and a single collision is still counted once.
           </>,
         )}
         {hack(
