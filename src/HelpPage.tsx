@@ -795,6 +795,16 @@ export function HelpPage() {
           project.
         </li>
         <li>
+          <b>Announcer picture</b>: Ron Barr's picture before each game, on the Genesis's matchup screen and the
+          SNES's scouting screen. <b>Import a picture</b> puts one of your own in its place: on the Genesis inside the
+          original grey frame, 58 by 67 pixels, with 8 colours of its own besides those it shares with the screen; on
+          the SNES in the bottom right of the screen, 72 by 128 pixels, in 15 colours, the desk going and the screen's
+          frame showing where it was. A picture is scaled to fill the space and cropped to fit, so a head-and-shoulders
+          photo (Genesis) or a taller one (SNES) works best. <b>Export as PNG</b> saves the picture, and{' '}
+          <b>Put back the original</b> brings back the one the ROM was opened with. Measured by the NHL94 Match Viewer
+          project, and tested by them in the game on the Genesis.
+        </li>
+        <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your
           own and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8
           squares and 25 colours of its own, besides the menu's white, greys and black. A detailed picture has its
@@ -1387,6 +1397,16 @@ export function HelpPage() {
           a second and takes the right answer. Replaying 2,535 passes from 29 recorded games, none went more than
           1.23 times its speed with it, where 69 reached rocket speed without. Lift is unchanged. The SNES game sets
           pass speed another way and never had the bug.
+        </li>
+        <li>
+          <b>One-timer open net fix</b> (an option, Genesis only, not among the recommended fixes): the game aims a
+          one-timer itself, whatever the d-pad says, along the line from the puck through the goalie. When the goalie
+          is out of that line, having dived or skated out of position, it aims just under the crossbar, and as the
+          game only scatters a shot upwards, many go over. The fix aims them at the middle, mid-height, as the game
+          does with the goalie pulled. Computer players' shots, aimed the same way, get the same aim. Tested in the
+          game by the NHL94 Match Viewer project: open-net one-timers went in 86% of the time with it, 56% without,
+          and those with the goalie in position came out exactly as before. The SNES game lets one-timers follow the
+          stick.
         </li>
         <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
