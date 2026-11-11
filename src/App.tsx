@@ -168,16 +168,35 @@ export default function App() {
   )
 
   // The same with its teams moved as the work's have been, so that each team
-  // is compared with and reset to itself (see teamorder.ts).
+  // is compared with and reset to itself (see teamorder.ts). The move is made
+  // once for each order, and the hacks put on it as they are on `original`.
   const teamOrder = project?.teamOrder
-  const inOrder = useMemo(() => {
-    if (!original || !teamOrder) return original
+  const orderedOpened = useMemo(() => {
+    if (!asOpened || !teamOrder) return asOpened
     try {
-      return withTeamOrder(original, teamOrder)
+      return withTeamOrder(asOpened, teamOrder)
     } catch {
-      return original
+      return null
     }
-  }, [original, teamOrder])
+  }, [asOpened, teamOrder])
+  const inOrder = useMemo(() => {
+    if (!orderedOpened || orderedOpened === asOpened || !hackedBytes || !hackedGame) return original
+    return withHacksOf(orderedOpened, { ...orderedOpened, bytes: hackedBytes, game: hackedGame })
+  }, [orderedOpened, asOpened, original, hackedBytes, hackedGame])
+  // The team page shown, and the last team, follow their team when teams are
+  // moved, or a move is undone or done again.
+  const [shownOrder, setShownOrder] = useState({ source, teamOrder })
+  if (shownOrder.source !== source || shownOrder.teamOrder !== teamOrder) {
+    setShownOrder({ source, teamOrder })
+    const count = project?.teams.length ?? 0
+    if (shownOrder.source === source && count > 0) {
+      const identity = Array.from({ length: count }, (_, n) => n)
+      const [was, now] = [shownOrder.teamOrder ?? identity, teamOrder ?? identity]
+      const follow = (team: number) => (team >= 0 && team < count && was.length === count ? now.indexOf(was[team]) : team)
+      if (selected >= 0) setSelected(follow(selected))
+      setLastTeam(follow(lastTeam))
+    }
+  }
 
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
     reset(opened)

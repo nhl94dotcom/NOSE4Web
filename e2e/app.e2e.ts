@@ -682,6 +682,12 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Calgary Flames').click()
     await expect(page.getByRole('button', { name: 'Reset whole team' })).toBeDisabled()
     await expect(entry(page, /^Changes/)).toHaveText('Changes (1)')
+    // Undoing and redoing the move, the page stays on its team.
+    await team(page, 'Boston Bruins').click()
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(page.locator('nav button.active')).toHaveText('Boston Bruins')
+    await page.getByRole('button', { name: 'Redo', exact: true }).click()
+    await expect(page.locator('nav button.active')).toHaveText('Boston Bruins')
     await entry(page, 'Game settings').click()
     // Sorting puts it back, and so does putting back the ROM's order.
     await sort.click()
