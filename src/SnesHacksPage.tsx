@@ -1,4 +1,5 @@
 import { SNES_FIGHT_BONUS_DEFAULT } from './core/snesfight'
+import { snesCodeInPlace } from './core/snes'
 import { penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
@@ -14,6 +15,7 @@ import {
   SNES_HACKS,
   snesHacksCopiedFrom,
   snesHacksForDiscord,
+  snesHackInPlaceOnly,
   withRecommendedSnesFixes,
   withSnesHackChoice,
   RECOMMENDED_SNES_HIT_ENERGY,
@@ -145,6 +147,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 
 // What NOSE4Web's version of a hack does better than NHL94SNESVault's.
 const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
+  seasonShootout: "NOSE4Web's of the morning of 12 November 2026 did not keep the 2 MB builds' own checks, posts and time on ice through the shootout (they came back as 0); this one does.",
   bodychecksShown: "NHL94SNESVault's shows the checks but still sorts that column by penalty minutes; NOSE4Web's sorts it by the checks.",
   hitEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
   holdEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
@@ -156,10 +159,25 @@ const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
 
 const GROUPS = SNES_HACK_GROUPS
 
+// Why a hack cannot be changed in this ROM. A hack made for the original game's layout is not offered in a build whose
+// code is elsewhere (McMarkis's SA-1 and 32-team builds), which is not "something else in its place"; those builds
+// have fights of their own.
+function whyNotHere(project: RomProject, hack: SnesHack): string {
+  const moved = !snesCodeInPlace(project.bytes)
+  if (moved && hack === 'fighting' && project.settings.menu.some((item) => /fight/i.test(item.caption))) {
+    return "This build has fights of its own (McMarkis's), set by its main menu's Fighting line on the Game settings page, so NOSE4Web's are not added."
+  }
+  if (moved && snesHackInPlaceOnly(hack)) {
+    return "Made for ROMs laid out like the original game. This build's game code is elsewhere (as in McMarkis's SA-1 and 32-team builds), so it is not offered here."
+  }
+  return 'This ROM has something else in its place, so it is left exactly as it is.'
+}
+
 const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every((hack) => a[hack] === b[hack])
 
 export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
+  const notHere = (hack: SnesHack) => whyNotHere(project, hack)
   // The choices being made, which start again from the ROM whenever it changes.
   const hadAmounts: Record<SnesAmount, number> = state.amounts ?? SNES_AMOUNT_OFF
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
@@ -319,7 +337,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 )}
                 <p className="note">
                   {ABOUT[hack]}
-                  {unknown && <b> This ROM has something else in its place, so it is left exactly as it is.</b>}
+                  {unknown && <b> {notHere(hack)}</b>}
                 </p>
                 {state.vaultVersions?.includes(hack) && (
                   <p className="note">

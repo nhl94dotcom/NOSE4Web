@@ -606,8 +606,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       }
       if (end > from && end - from <= 0x100) extra = { from, length: end - from }
     }
-    const saveExtra = (back: boolean) =>
-      extra ? bytesOf('A9', word(extra.length - 1), 'A2', word(back ? ram.extra : extra.from), 'A0', word(back ? extra.from : ram.extra), '54', b, b) : []
+    const saveExtra = (back: boolean, use: boolean) =>
+      use && extra ? bytesOf('A9', word(extra.length - 1), 'A2', word(back ? ram.extra : extra.from), 'A0', word(back ? extra.from : ram.extra), '54', b, b) : []
     const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12, exit: exit + 10 }
     const original = { afterOvertime: bytesOf('A90400 8D', gsp), clock: hexBytes('F09F') }
     const hooked = (site: number) => rom[site] === 0x22 && rom[site + 4] === 0xea && rom[site + 5] === 0xea
@@ -632,16 +632,17 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const now3 = (run: number) =>
       bytesOf('AF', mark, '29FF00', 'D01C', 'AF', playMode, 'D01D', 'AD', gsp, 'C90300', 'D015', 'AD', word(score), 'CD', word(score + 2), 'D00D',
         'A20200', '4C', word(run), 'A90000', '8F', mark, tieTest, '6B')
-    const run = bytesOf(
+    // `extras`: with the 2 MB builds' player stats saved too; NOSE4Web's of the morning of 12 November 2026 had not.
+    const runOf = (extras: boolean) => bytesOf(
       'C230', '8B', 'DA', 'A9FF00', '8F', mark,
       // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08, a 2 MB build's player stats to $FC10 (as the layout has them).
-      '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, saveExtra(false), 'AB',
+      '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, saveExtra(false, extras), 'AB',
       'AF', long(0x1ead + ram.shift), '8F', long(ram.last),
       '22', playShootout,
       // The winner: X 0 the home team, 2 the visitors.
       'A20000', 'AF', long(score), 'CF', long(score + 2), 'B003', 'A20200', 'DA',
       // Put back.
-      '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, saveExtra(true), 'AB',
+      '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, saveExtra(true, extras), 'AB',
       'AF', long(ram.last), '8F', long(0x1ead + ram.shift),
       // The winners' goal; gsp to come back with; PeriodOver from the top, the jsl's return dropped.
       'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, b, 'AB', '3B', '18', '690300', '1B', '5C', periodOver,
@@ -649,6 +650,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     // The code as it is in, where it is (to take out, or to read), or as it is to go in.
     const shape = now && (choice === 0 || choice === now) ? now : choice
     const hookLength = shape === 1 ? SHOOTOUT_A_LENGTH : SHOOTOUT_B_LENGTH
+    // In, the version is the one whose Exit Shootout lock (after RUN) the exit's jsl calls.
+    const locksAt = (runLength: number) => now && codeAt >= 0 && rom[sites.exit] === 0x22 && readU16(rom, sites.exit + 1) === (loRomAddress(codeAt + hookLength + runLength) & 0xffff)
+    const extras = !(now && extra && !locksAt(runOf(true).length) && locksAt(runOf(false).length))
+    const run = runOf(extras)
     // Exit Shootout locked: while the mark is set, AskExitGame's call answers No at once (lda #0), so the menu stays
     // for Resume and a league game cannot be left from its shootout; with the mark clear it is AskExitGame (jml).
     const askAt = codeAt >= 0 ? codeAt + hookLength + run.length : -1
@@ -666,7 +671,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       { at: sites.afterOvertime, original: original.afterOvertime, hacked: choice === 1 ? jsl : original.afterOvertime, amount: choice },
       { at: sites.tieTest, original: tieTest, hacked: choice === 2 ? jsl : tieTest },
       { at: sites.clock, original: original.clock, hacked: choice === 1 ? hexBytes('EAEA') : original.clock },
-      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock) },
+      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock), ...(extras ? {} : { earlier: true }) },
     ]
   },
   // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code
