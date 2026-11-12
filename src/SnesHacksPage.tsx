@@ -220,7 +220,12 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
       {GROUPS.map((group) => (
         <section key={group.id} id={`hacks-${group.id}`}>
           <h3>{group.title}</h3>
-          {group.hacks.map((hack) => {
+          {[...new Set(group.hacks.map((hack) => state.notOffered?.[hack]).filter(Boolean))].map((why) => (
+            <p className="note" key={why}>
+              {why}
+            </p>
+          ))}
+          {group.hacks.filter((hack) => !state.notOffered?.[hack]).map((hack) => {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>

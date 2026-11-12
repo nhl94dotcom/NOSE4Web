@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
-import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { applySnesHacks, detectSnesHacks, snesHacksCopiedFrom } from '../src/core/sneshacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -63,19 +63,28 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES bodycheck statistics', () 
     }
   })
 
-  it('goes into every build, with its variables', () => {
+  it("goes into every 1 MB build; not offered where the build counts each player's checks itself", () => {
     for (const name of names) {
       const rom = open(name)
       const state = detectSnesHacks(rom.bytes)
       expect(state.unknown, name).not.toContain('bodychecks')
       expect(state.unknown, name).not.toContain('bodychecksShown')
+      // The 2 MB builds' ClearPlayerChecks: their own checks for and against.
+      const own = Buffer.from(rom.bytes).indexOf(Buffer.from('daa90000a232009f88e7', 'hex')) >= 0
+      if (own) {
+        expect(Object.keys(state.notOffered ?? {}), name).toEqual(['bodychecks', 'bodychecksShown'])
+        expect(() => applySnesHacks(rom, { bodychecks: true }), name).toThrow(/counts each player's checks/)
+        const other = detectSnesHacks(applySnesHacks(open('NHL94.smc'), { bodychecks: true }).bytes)
+        const copied = snesHacksCopiedFrom(state, other)
+        expect(copied.choices.bodychecks, name).toBe(false)
+        expect(copied.notCopied.join(' '), name).toMatch(/counts each player's checks/)
+        continue
+      }
+      expect(state.notOffered, name).toBeUndefined()
       if (state.choices.bodychecksShown) continue
       const shown = applySnesHacks(rom, { bodychecks: true, bodychecksShown: true })
       expect(detectSnesHacks(shown.bytes).choices, name).toMatchObject({ bodychecks: true, bodychecksShown: true })
-      // SA-1 builds keep their low variables $6000 on.
-      const sa1 = Buffer.from(rom.bytes).indexOf(Buffer.from('b9b6771a99b677', 'hex')) >= 0
-      const given = sa1 ? '8e76' : '8e16'
-      expect(Buffer.from(shown.bytes).indexOf(Buffer.from(`e220b9${given}dd${given}c220`, 'hex')), name).toBeGreaterThan(0)
+      expect(Buffer.from(shown.bytes).indexOf(Buffer.from('e220b98e16dd8e16c220', 'hex')), name).toBeGreaterThan(0)
       const back = applySnesHacks(shown, { bodychecks: state.choices.bodychecks, bodychecksShown: false })
       expect(Buffer.compare(buildRom(back), buildRom(rom)), name).toBe(0)
     }

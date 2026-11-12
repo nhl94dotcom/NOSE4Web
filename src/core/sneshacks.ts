@@ -370,6 +370,8 @@ export interface SnesHackState {
   unknown: SnesHack[]
   // Hacks the ROM has in NHL94SNESVault's version, where NOSE4Web's differs.
   vaultVersions?: SnesHack[]
+  // Hacks not offered for this build, which has its own of the same (off, and not to be put in), with why.
+  notOffered?: Partial<Record<SnesHack, string>>
   // The amount each hack that holds one has, 0 where it is off.
   amounts?: Record<SnesAmount, number>
 }
@@ -587,7 +589,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     // The 2 MB builds' own player stats, which ClearTeamStats' jsl ClearPlayerChecks also clears (Match Viewer):
     // checks for and against ($E788, $E7BC), posts ($E7F0) and, where it calls ClearPlayerIceTime, time on ice
     // ($E800), all in the game state's bank. Saved as one run from the checks to the last of them.
-    const clearChecks = only(rom, 'daa90000a2..009f......9f......caca10..8f......8f......')
+    const clearChecks = only(rom, CLEAR_PLAYER_CHECKS)
     let extra: { from: number; length: number } | null = null
     if (clearChecks >= 0 && rom[clearChecks + 10] === b && rom[clearChecks + 22] === b) {
       const from = readU16(rom, clearChecks + 8)
@@ -1335,7 +1337,10 @@ function detect(rom: Uint8Array): SnesHackState {
   const amounts = Object.fromEntries(
     SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),
   ) as Record<SnesAmount, number>
-  return { choices, unknown, vaultVersions, amounts }
+  // A build with its own player checks: the bodycheck counts are not offered (while they are off).
+  const notOffered: Partial<Record<SnesHack, string>> = {}
+  if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) for (const hack of ['bodychecks', 'bodychecksShown'] as const) if (!choices[hack]) notOffered[hack] = OWN_CHECKS
+  return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
 
 const placedSite = (site: Site): Placed => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) })
@@ -1347,7 +1352,8 @@ export class SnesHackError extends Error {}
 // `updateVault`: hacks the ROM has in NHL94SNESVault's version, where
 // NOSE4Web's differs, are replaced by NOSE4Web's if they are to stay on.
 export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoices>, updateVault = false, amounts: Partial<Record<SnesAmount, number>> = {}): RomProject {
-  const { choices, unknown, vaultVersions = [], amounts: had } = detectSnesHacks(project.bytes)
+  const { choices, unknown, vaultVersions = [], amounts: had, notOffered = {} } = detectSnesHacks(project.bytes)
+  for (const [hack, why] of Object.entries(notOffered) as [SnesHack, string][]) if (wanted[hack]) throw new SnesHackError(why)
   // An amount is the hack on, or off at SNES_AMOUNT_OFF (0, or 60 for penalty time).
   wanted = { ...wanted }
   for (const hack of SNES_AMOUNTS) {
@@ -1425,6 +1431,11 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
   const notCopied: string[] = []
   for (const hack of SNES_HACKS) {
     if (other.choices[hack] === current.choices[hack]) continue
+    const notOffered = current.notOffered?.[hack]
+    if (notOffered && other.choices[hack]) {
+      notCopied.push(`${SNES_HACK_TITLES[hack]}: ${notOffered}`)
+      continue
+    }
     if (other.unknown.includes(hack) || current.unknown.includes(hack)) {
       notCopied.push(`${SNES_HACK_TITLES[hack]}: one of the two ROMs has other code in its place.`)
     } else {
@@ -1520,6 +1531,11 @@ const STILL_BEFORE = 'a9060085a5ce....10..'
 const END_PENALTY_SHOT = 'ad....f0..ad....f0..da9c....a9ffff8d....a90a0085a522'
 const NET_CODE_SIZE = 12
 const STILL_CODE_SIZE = 13
+
+// The 2 MB builds' ClearPlayerChecks (ClearTeamStats calls it): phx; lda #0; ldx #$32; sta.l pchf,x; sta.l pcha,x;
+// dex x2; bpl; sta.l tmposts; sta.l tmposts+2. Those builds count each player's checks for and against themselves.
+const CLEAR_PLAYER_CHECKS = 'daa90000a2..009f......9f......caca10..8f......8f......'
+const OWN_CHECKS = "This build counts each player's checks for and against itself (the SA-1 builds show them in Player Stats as CF and CA), so NOSE4Web's bodycheck counts are not offered."
 
 // Where the Vault's bodycheck counts are, in the original game: the checks given, then those taken, 26 a team.
 const BODYCHECKS_GIVEN = 0x168e

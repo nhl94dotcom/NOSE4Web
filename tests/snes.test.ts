@@ -150,7 +150,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(changedElsewhere).toEqual([])
         // The hacks still go in, none of their new code into the teams' room (the bank also holds the Player Stats
         // code, which the bodychecks shown change in place).
-        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !detectSnesHacks(reopened.bytes).unknown.includes(hack)).map((hack) => [hack, true]))
+        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !detectSnesHacks(reopened.bytes).unknown.includes(hack) && !detectSnesHacks(reopened.bytes).notOffered?.[hack]).map((hack) => [hack, true]))
         const hacked = applySnesHacks(reopened, hacks)
         const roomOf = (rom: Uint8Array) => [rom.subarray(layout.start, layout.end), rom.subarray(overflow.start, overflow.end)]
         expect(roomOf(hacked.bytes)).toEqual(roomOf(reopened.bytes))
@@ -380,7 +380,7 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
       // work memory, the hacks of Edit Lines and the pads, and the injury risk (its counts in the original's free memory),
       // all offered only in ROMs laid out as the original.
       expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['extraAttackerFix', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting'])
-      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !before.unknown.includes(hack)).map((hack) => [hack, true]))
+      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !before.unknown.includes(hack) && !before.notOffered?.[hack]).map((hack) => [hack, true]))
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
       // The 30-second periods offer a fourth period length on the menu.
