@@ -19,7 +19,7 @@ import { snesSongChoices } from './snessongs'
 import { SONG_NUMBERS } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
-import { type Scouting } from './scouting'
+import { type Scouting, scoutingWithMissingLines } from './scouting'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
@@ -730,10 +730,14 @@ function withSnesPictures(project: RomProject, stored: ProjectFile['snesPictures
 
 // A file's lines for Ron Barr, where they are as many as this ROM has. They are kept as typed
 // even where they don't fit, as on the page: the check says so, and nothing is written until they do.
+// A file saved after the missing line was put back (Put the missing line back) has that many more: the lines go
+// onto the script with it put back.
 function fileScouting(value: unknown, base: Scouting): Scouting {
   const lines = (value as Scouting | undefined)?.lines
-  if (!Array.isArray(lines) || lines.length !== base.lines.length || !lines.every((line) => typeof line?.text === 'string')) return base
-  return { ...base, lines: base.lines.map((line, i) => ({ ...line, text: lines[i].text })) }
+  if (!Array.isArray(lines) || !lines.every((line) => typeof line?.text === 'string')) return base
+  const into = base.missing && lines.length === base.lines.length + base.missing ? scoutingWithMissingLines(base) : base
+  if (lines.length !== into.lines.length) return base
+  return { ...into, lines: into.lines.map((line, i) => ({ ...line, text: lines[i].text })) }
 }
 
 // A file's credits, where they are lines of text that fit this ROM's room.

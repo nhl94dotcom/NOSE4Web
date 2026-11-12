@@ -25,7 +25,7 @@ import { penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
-import { bloodAdded, bloodChoice, bloodIn, bloodTakenOut } from './genesisblood'
+import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
@@ -638,6 +638,10 @@ const ot4Code = (seconds: number) => bytes(`4A78 D048 660C 0C78 0003 D050 6608 3
 const OT4_VALUE_AT = 16
 const OT4_LINE = 4
 const OT4_LENGTHS = { original: 3, hacked: 4 }
+// After the code (never run): 'N4' and the count the menu had before, as league ROMs (CDL, RGDL) already offer the
+// fourth length; taking the hack out gives that back. ROMs made before it have none, and get 3 back.
+const OT4_TAG = 0x4e34
+const ot4Before = (rom: Uint8Array, target: number) => (target + 28 <= rom.length && readU16(rom, target + 24) === OT4_TAG ? readU16(rom, target + 26) : OT4_LENGTHS.original)
 
 function ot4Target(rom: Uint8Array): number | null {
   if (readU16(rom, OT4_HOOK.at) !== OP_JSR || readU16(rom, OT4_HOOK.at + 6) !== OP_NOP) return null
@@ -659,14 +663,17 @@ const fourthPeriodOvertime: Part<number> = {
   remove(rom) {
     const target = ot4Target(rom)
     if (target === null) return
-    erase(rom, target, 24)
+    const before = ot4Before(rom, target)
+    erase(rom, target, readU16(rom, target + 24) === OT4_TAG ? 28 : 24)
     rom.set(OT4_HOOK.original, OT4_HOOK.at)
-    setPeriodChoices(rom, OT4_LENGTHS.original)
+    setPeriodChoices(rom, before)
   },
   apply(work, value) {
     if (value <= 0) return
-    if (genesisOptionLimits(work.rom).length === 0) throw new HackError("The main menu's table of choices is not where the original game has it.")
-    hook(work, OT4_HOOK, ot4Code(value))
+    const tables = genesisOptionLimits(work.rom)
+    if (tables.length === 0) throw new HackError("The main menu's table of choices is not where the original game has it.")
+    const before = readU16(work.rom, tables[0] + OT4_LINE * 2)
+    hook(work, OT4_HOOK, Uint8Array.from([...ot4Code(value), OT4_TAG >> 8, OT4_TAG & 0xff, before >> 8, before & 0xff]))
     setPeriodChoices(work.rom, OT4_LENGTHS.hacked)
   },
 }
@@ -2450,7 +2457,8 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
-    headBleeding: found('headBleeding', bloodChoice(rom), NO_HACKS.headBleeding),
+    // With the long fall the injury animation is not the original's, so the blood cannot go in: off, not unknown.
+    headBleeding: found('headBleeding', bloodChoice(rom) ?? (injuries.detect(rom) === 'longFall' ? false : undefined), NO_HACKS.headBleeding),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -2479,7 +2487,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   // and goes in last.
   const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
   const bloodKnown = !unknown.includes('headBleeding')
-  if (bloodKnown && bloodIn(work.rom) && (!wanted.headBleeding || (!fightKept && choices.fighting !== wanted.fighting))) work.rom = bloodTakenOut(work.rom)
+  // Read afresh: work.rom changes in place below, and a state remembered for it would go stale.
+  if (bloodKnown && bloodInNow(rom) && (!wanted.headBleeding || (!fightKept && choices.fighting !== wanted.fighting))) work.rom = bloodTakenOut(work.rom)
   const removeFight = () => {
     if (fightKept) return
     work.rom = withoutFight(work.rom)
@@ -2557,8 +2566,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   const known = steps.filter(([part]) => !unknown.includes(part) && !kept.includes(part))
   for (const [, remove] of known) remove()
   for (const [, , apply] of known) apply()
-  if (bloodKnown && wanted.headBleeding && !bloodIn(work.rom)) work.rom = bloodAdded(work.rom)
-  return work.rom
+  if (bloodKnown && wanted.headBleeding && !bloodInNow(work.rom)) work.rom = bloodAdded(work.rom.slice())
+  // A fresh array, so nothing remembered about the one changed in place goes with it.
+  return work.rom.slice()
 }
 
 // ------------------------------------------------------------ in the editor

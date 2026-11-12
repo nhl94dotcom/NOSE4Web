@@ -77,7 +77,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
   })
 
   it('does not go with overtime until a goal', () => {
-    expect(() => applySnesHacks(retail(), { seasonOvertime: true }, false, { seasonShootout: 1 })).toThrow(/cannot both be on/)
+    expect(() => applySnesHacks(retail(), { seasonOvertime: true }, false, { seasonShootout: 1 })).toThrow(/and a shootout for tied regular-season games cannot both be on/)
+    // Either shootout shows overtime until a goal as off, not unknown, and the one can be swapped for the other at once.
+    for (const choice of [1, 2]) {
+      const shootout = applySnesHacks(retail(), {}, false, { seasonShootout: choice })
+      expect(detectSnesHacks(shootout.bytes).unknown).not.toContain('seasonOvertime')
+      const swapped = applySnesHacks(shootout, { seasonOvertime: true }, false, { seasonShootout: 0 })
+      expect(detectSnesHacks(swapped.bytes).choices).toMatchObject({ seasonOvertime: true, seasonShootout: false })
+      const back = applySnesHacks(swapped, { seasonOvertime: false }, false, { seasonShootout: choice })
+      expect(detectSnesHacks(back.bytes).amounts?.seasonShootout).toBe(choice)
+      expect(Buffer.compare(buildRom(applySnesHacks(back, {}, false, { seasonShootout: 0 })), buildRom(retail()))).toBe(0)
+    }
   })
 
   names.forEach((name, n) => {

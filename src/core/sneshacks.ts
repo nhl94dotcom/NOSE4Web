@@ -353,12 +353,18 @@ export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on:
   return next
 }
 
+// A hack's title inside a sentence: "the hot and cold bug fix", but "a shootout for ..." as it is.
+const theTitle = (hack: SnesHack) => {
+  const title = SNES_HACK_TITLES[hack].toLowerCase()
+  return /^(a|an) /.test(title) ? title : `the ${title}`
+}
+
 // Why these choices cannot go into a ROM together, if they cannot.
 function clash(choices: SnesHackChoices): string | null {
   for (const [needer, needed] of Object.entries(NEEDS) as [SnesHack, SnesHack][]) {
-    if (choices[needer] && !choices[needed]) return `${SNES_HACK_TITLES[needer]} needs the ${SNES_HACK_TITLES[needed].toLowerCase()} on.`
+    if (choices[needer] && !choices[needed]) return `${SNES_HACK_TITLES[needer]} needs ${theTitle(needed)} on.`
   }
-  for (const [a, b] of EXCLUDES) if (choices[a] && choices[b]) return `${SNES_HACK_TITLES[a]} and the ${SNES_HACK_TITLES[b].toLowerCase()} cannot both be on.`
+  for (const [a, b] of EXCLUDES) if (choices[a] && choices[b]) return `${SNES_HACK_TITLES[a]} and ${theTitle(b)} cannot both be on.`
   return null
 }
 
@@ -1333,6 +1339,8 @@ function detect(rom: Uint8Array): SnesHackState {
   if (fight?.kind === 'in' && unknown.includes('injuryBonus')) unknown.splice(unknown.indexOf('injuryBonus'), 1)
   // Overtime until a goal takes clockcont_0's game over out, as the shootout after one overtime does: the shootout is off then.
   if (choices.seasonOvertime && unknown.includes('seasonShootout')) unknown.splice(unknown.indexOf('seasonShootout'), 1)
+  // And the other way round: the shootout's hooks take the places overtime until a goal is found by.
+  if (choices.seasonShootout && unknown.includes('seasonOvertime')) unknown.splice(unknown.indexOf('seasonOvertime'), 1)
   if (fight === undefined && choices.injuryBonus && snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none') unknown.splice(unknown.indexOf('fighting'), 1)
   const amounts = Object.fromEntries(
     SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),
@@ -1386,7 +1394,10 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   if (fightChanges && unknown.includes('fighting')) throw new SnesHackError(`${SNES_HACK_TITLES.fighting} cannot be changed: ${snesFightBlocked(project.bytes) ?? 'this ROM has other code in its place.'}`)
   const rom = fightChanges && !fightWanted ? (withoutSnesFight(project.bytes) as typeof project.bytes).slice() : project.bytes.slice()
   const source = splitSnesFile(project.source)?.rom ?? null
-  for (const hack of SNES_HACKS) {
+  // Those coming out first, so that one going in finds the places another one leaves (the shootout and overtime
+  // until a goal share theirs); otherwise in the usual order.
+  const order = [...SNES_HACKS.filter((hack) => wanted[hack] === false), ...SNES_HACKS.filter((hack) => wanted[hack] !== false)]
+  for (const hack of order) {
     if (hack === 'fighting') continue
     const want = wanted[hack]
     const update = updateVault && want === true && vaultVersions.includes(hack)

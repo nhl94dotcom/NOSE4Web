@@ -85,6 +85,19 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     expect(new TextDecoder().decode(again.bytes.subarray(periods + 2, periods + 11))).toBe('4 Minutes')
   })
 
+  it('menu changes made while it is in stay when it comes out: the period texts and the choice counts', () => {
+    const fighting = applyHacks(fresh(), { ...NO_HACKS, fighting: 'on' })
+    const periodLengths = fighting.settings.periodLengths.map((p, i) => (i === 0 ? { ...p, text: '4 Minutes' } : p))
+    const edited = openRom(buildRom({ ...fighting, settings: { ...fighting.settings, periodLengths } }))
+    // The 99-minute overtime adds the fourth length to the menu's count, in the copy while the fights are in.
+    const both = applyHacks(edited, { ...detectHacks(edited.bytes).choices, fourthPeriodOvertime: 300 })
+    const out = applyHacks(both, { ...detectHacks(both.bytes).choices, fighting: 'none' })
+    expect(detectHacks(out.bytes).choices).toMatchObject({ fighting: 'none', fourthPeriodOvertime: 300 })
+    expect(out.settings.periodLengths[0].text).toBe('4 Minutes')
+    // Taking the overtime out too gives back the original game.
+    expect(same(applyHacks(applyHacks(both, NO_HACKS), NO_HACKS).bytes.subarray(0xf7900, 0xf7c00), fresh().bytes.subarray(0xf7900, 0xf7c00))).toBe(true)
+  })
+
   it('goes with head bleeding, either way round, and either comes out leaving the other', () => {
     const plain = fresh()
     // Blood first, then fighting: blood is taken out, the patch put in, and blood put back on it.

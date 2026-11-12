@@ -154,12 +154,36 @@ export function withoutFight(rom: Uint8Array): Uint8Array {
   // The size the ROM had, which the editor noted after its menu.
   const noted = menuEnd + SIZE_MARK.length + 4 <= rom.length && SIZE_MARK.every((b, i) => rom[menuEnd + i] === b) ? u32(rom, menuEnd + SIZE_MARK.length) : 0
   for (const c of changes) out.set(c.original, c.at)
+  menuBack(rom, out)
   for (const b of blocks) out.fill(0xff, b.at, b.at + b.bytes.length)
   if (menuEnd > MENU_AT && menuEnd + SIZE_MARK.length + 4 <= out.length) out.fill(0xff, MENU_AT, menuEnd + SIZE_MARK.length + 4)
   let length = out.length
   if (noted > 0 && noted < length && unused(out, noted, length - noted)) length = noted
   for (const size of [0x200000, 0x100000]) if (length > size && unused(out, size, length - size)) length = size
   return length === out.length ? out : out.slice(0, length)
+}
+
+// While the patch is in, the menu the game reads is the editor's copy (writeMenu): changes made to it then (its
+// captions, choices and period lengths' texts, how many choices each line has, as the 99-minute overtime and the
+// menu's number of teams set) go back into the ROM's own menu, which `out` points at again, before the copy goes.
+// Each part only where it has the size the ROM's own has.
+function menuBack(rom: Uint8Array, out: Uint8Array) {
+  const own = ownMenu(out)
+  if (!own) return
+  const captionsFrom = u32(rom, CAPTIONS_AT)
+  const nine = own.captions.length - 4
+  let end = captionsFrom
+  for (let i = 0; i < LINES && end + 2 <= rom.length; i++) end += u16(rom, end)
+  if (end - captionsFrom === nine) out.set(rom.subarray(captionsFrom, end), u32(out, CAPTIONS_AT))
+  const choicesFrom = u32(rom, CHOICES_AT)
+  const words = (LINES + 1) * 2
+  if (u16(rom, choicesFrom + LINES * 2) === words + own.texts.length) {
+    out.set(rom.subarray(choicesFrom + words, choicesFrom + words + own.texts.length), u32(out, ORIGINAL_CHOICES_AT) + LINES * 2)
+  }
+  LIMITS_AT.forEach((pointer) => {
+    const [from, to] = [u32(rom, pointer), u32(out, pointer)]
+    if (from !== to && from + LINES * 2 <= rom.length) out.set(rom.subarray(from, from + LINES * 2), to)
+  })
 }
 
 // Why the patch cannot go into this ROM, or null where it can.

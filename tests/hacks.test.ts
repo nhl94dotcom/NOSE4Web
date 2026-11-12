@@ -918,3 +918,26 @@ describe.skipIf(!hasRom)('the power play and penalty kill fix', () => {
     expect(rows[1][rows[0].indexOf('Penalty kill cost')]).toBe(2)
   })
 })
+
+describe.skipIf(!hasRom)('hacks going in and out together (found by trying every pair)', () => {
+  it('with the long fall, head bleeding is off, not unknown, whatever else goes in with it', () => {
+    for (const extra of [{}, { secondAssist: true }, { fighting: 'on' as const }]) {
+      const rom = applyHacks(openRom(stock()), { ...NO_HACKS, ...extra, injuries: 'longFall' })
+      const state = detectHacks(rom.bytes)
+      expect(state.unknown).toEqual([])
+      expect(state.choices.headBleeding).toBe(false)
+      // Taking the long fall out, head bleeding can go in again at once.
+      const blood = applyHacks(rom, { ...NO_HACKS, ...extra, headBleeding: true })
+      expect(detectHacks(blood.bytes).choices).toMatchObject({ injuries: 'original', headBleeding: true })
+    }
+  })
+
+  it.skipIf(!hasLeague)("the 99-minute overtime gives back a league menu's own fourth length when it comes out", () => {
+    const opened = openRom(new Uint8Array(readFileSync(path(local.league30Rom!))))
+    const choices = detectHacks(opened.bytes).choices
+    const base = applyHacks(opened, choices)
+    const on = applyHacks(base, { ...choices, fourthPeriodOvertime: 300 })
+    expect(detectHacks(on.bytes).choices.fourthPeriodOvertime).toBe(300)
+    expect(Buffer.compare(applyHacks(on, choices).bytes, base.bytes)).toBe(0)
+  })
+})

@@ -208,6 +208,8 @@ export function withGenesisBloodAdded(project: RomProject): RomProject {
 
 // Whether a Genesis ROM has the head bleeding NOSE4Web adds.
 export const bloodIn = (rom: Uint8Array) => state(rom)?.added != null
+// The same, read afresh, for a ROM that is being changed in place (hackRom's work), where the remembered state would be stale.
+export const bloodInNow = (rom: Uint8Array) => readState(rom)?.added != null
 // For the Hacks page: whether it is in, or undefined where the ROM lacks the frames and animation it goes into.
 export const bloodChoice = (rom: Uint8Array): boolean | undefined => {
   const found = state(rom)

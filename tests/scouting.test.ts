@@ -228,6 +228,15 @@ describe.skipIf(!existsSync(path('CDL_Season_12.bin')))('a script with a line ta
       expect(Buffer.compare(built.subarray(end, end + 0x2000), rom.bytes.subarray(end, end + 0x2000)), name).toBe(0)
     }
   })
+
+  it('the line put back comes back through a project file on the ROM as it was', () => {
+    const cdl = open('CDL_Season_12.bin')
+    const fixed = { ...cdl, settings: { ...cdl.settings, scouting: scoutingWithMissingLines(cdl.settings.scouting!) } }
+    const back = openProjectFile(cdl, saveProjectFile(fixed, cdl, 'test')).project
+    expect(back.settings.scouting!.lines.map((l) => l.text)).toEqual(fixed.settings.scouting!.lines.map((l) => l.text))
+    expect(back.settings.scouting!.missing).toBeUndefined()
+    expect(openRom(buildRom(back)).settings.scouting!.missing).toBeUndefined()
+  })
 })
 
 describe('the font', () => {

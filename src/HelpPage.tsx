@@ -885,9 +885,12 @@ export function HelpPage() {
           preview shows the box with example names. The text is rewritten in the room the original takes: on the
           Genesis the line the game never shows (the goalies) is room if you empty it; on the SNES the team places
           stored before the script, which nothing shows, are emptied when a longer text needs their room. Some league
-          ROMs have a line added or removed by hand, so their later lines show in the wrong places; the check points
-          that out. Not offered on EVO, which has a matchup screen of its own. Code-tested; waiting on a test in the
-          game by the NHL94 Match Viewer project.
+          ROMs (CDL, the CDL dynasty ROM, DPWM3, IDL5, RGDL) have a line taken out by hand, so their later lines show
+          in the wrong places and, when one team is much hotter, the game freezes reading its last line from past the
+          script; Put the missing line back, in the section, fixes it (taking one space from the longest run of spaces,
+          as those scripts fill their room). The game has no &amp;, and the Genesis shows ( and ) as small angle
+          brackets. Not offered on EVO, which has a matchup screen of its own. Tested in the game by the NHL94 Match
+          Viewer project on both systems, the missing line put back included.
         </li>
         <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your
@@ -2050,9 +2053,11 @@ export function HelpPage() {
               <b>A shootout for tied regular-season games</b>: the game's own shootout, after one overtime or straight
               after period 3, as the Genesis choices. The winners get one goal more on the scoreboard, the stats and
               scoring summary are the game's, and Exit Shootout is locked while it plays, as leaving would throw away
-              the whole game. Tested in the game by Match Viewer on the original game and Classic; the 32-team and
-              SA-1 builds get it too (on the SA-1 builds NOSE4Web keeps the game's state in their BW-RAM while the
-              shootout plays), code-tested there and waiting on a test in the game.
+              the whole game. Tested in the game by Match Viewer on the original game and Classic, and on the 32-team
+              and SA-1 builds (on the SA-1 builds NOSE4Web keeps the game's state in their BW-RAM while the shootout
+              plays, and on both it keeps their own checks, posts and time on ice), with a pad on a team. With the
+              computer on both sides the 32-team build's shootouts crash, in its own Shootout mode too, and so does
+              the SA-1 build's shootout after period 3.
             </li>
             <li>
               <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
