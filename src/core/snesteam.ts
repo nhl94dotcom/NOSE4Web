@@ -191,6 +191,24 @@ function fitFree(content: number[], free: number[], order: number[], room: numbe
 // longer do go into the room at the end of the bank. Where no such split fits,
 // any teams that fill that room best go there, the rest staying in ROM order.
 function placeTeams(teams: Team[], layout: TeamLayout): { at: number[]; free: number[] } {
+  const plan = planTeams(teams, layout)
+  if ('at' in plan) return plan
+  if (plan.over > 0) throw new Error(`The team data is ${plan.over} bytes too large to fit in the ROM.`)
+  // A team's block cannot be split, and the room is in two places in the bank.
+  throw new Error(
+    `The team data fits the room in the ROM in total, but not as whole teams: it is in two places, and no choice of teams fills them closely enough. Make it ${plan.short} bytes smaller (each letter of a name is 1 byte, a player about 22).`,
+  )
+}
+
+// How many bytes the teams must lose before they can be placed: 0 where they fit.
+export function snesTeamsShort(teams: Team[], layout: TeamLayout): number {
+  const plan = planTeams(teams, layout)
+  return 'at' in plan ? 0 : plan.over > 0 ? plan.over : plan.short
+}
+
+type Plan = { at: number[]; free: number[] } | { over: number; short: number }
+
+function planTeams(teams: Team[], layout: TeamLayout): Plan {
   const content = teams.map(snesTeamContentSize)
   const free = teams.map((team) => team.freeBytes)
   const order = layout.fileOrder
@@ -224,12 +242,7 @@ function placeTeams(teams: Team[], layout: TeamLayout): { at: number[]; free: nu
     const keptRest = kept && fitFree(content, kept, rest, overflowRoom, false)
     if (keptRest) return place(main, rest, keptRest)
   }
-  const over = total - mainRoom - overflowRoom
-  if (over > 0) throw new Error(`The team data is ${over} bytes too large to fit in the ROM.`)
-  // A team's block cannot be split, and the room is in two places in the bank.
-  throw new Error(
-    `The team data fits the room in the ROM in total, but not as whole teams: it is in two places, and no choice of teams fills them closely enough. Make it ${short} bytes smaller (each letter of a name is 1 byte, a player about 22).`,
-  )
+  return { over: total - mainRoom - overflowRoom, short: Math.max(short, 1) }
 }
 
 // The teams (in `order`'s order) whose blocks together come closest to `room`

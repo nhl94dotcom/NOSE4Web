@@ -1,6 +1,6 @@
 import { readText, readU16, readU32, textSize, writeText, writeU16, writeU32 } from './bytes'
 import type { GameConfig } from './games'
-import { parseSnesTeams, snesTeamContentSize, writeSnesTeams } from './snesteam'
+import { parseSnesTeams, snesTeamContentSize, snesTeamsShort, writeSnesTeams } from './snesteam'
 
 // A team block in the Genesis ROM, in order (the SNES game's are in snesteam.ts):
 //   0x00  six offset words (roster, palette, names, lines, team bytes, goalie bytes)
@@ -221,7 +221,14 @@ export function teamSpace(teams: Team[], layout: TeamLayout): { used: number; av
   }
   const used = teams.reduce((sum, team) => sum + teamContentSize(team, layout), 0)
   const overflow = layout.overflow ? layout.overflow.end - layout.overflow.start : 0
-  return { used, available: layout.end - layout.start + overflow }
+  const available = layout.end - layout.start + overflow
+  // SNES: the room is in two places and a team cannot be split, so the total can fit while no choice of whole
+  // teams does; then what is available is what they can use, short of the used by what they must lose.
+  if (layout.snes && layout.overflow && used <= available && used > layout.end - layout.start) {
+    const short = snesTeamsShort(teams, layout)
+    if (short > 0) return { used, available: used - short }
+  }
+  return { used, available }
 }
 
 // Decides how many free bytes each team gets so the blocks exactly fill the

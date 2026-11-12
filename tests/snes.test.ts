@@ -732,5 +732,13 @@ describe.skipIf(!existsSync(path(STOCK)))('full SNES rosters in the two places t
     // Fits in total, not as whole teams: how many bytes to cut.
     const tight = crowded(project, 0)
     expect(() => buildRom({ ...project, teams: tight })).toThrow(/fits the room in the ROM in total, but not as whole teams.*Make it \d+ bytes smaller/)
+    // The room shown says the same as the save: over by what must be cut, and the check calls it a problem.
+    const cut = Number(/Make it (\d+) bytes smaller/.exec((() => { try { buildRom({ ...project, teams: tight }) } catch (e) { return String(e) } return '' })())![1])
+    const space = teamSpace(tight, project.layout)
+    expect(space.used - space.available).toBe(cut)
+    const total = project.layout.end - project.layout.start + project.layout.overflow!.end - project.layout.overflow!.start
+    expect(space.used).toBeLessThanOrEqual(total)
+    expect(checkProject({ ...project, teams: tight }).some((f) => f.where === 'Space' && f.level === 'problem')).toBe(true)
+    expect(teamSpace(teams, project.layout).available).toBe(total)
   })
 })
