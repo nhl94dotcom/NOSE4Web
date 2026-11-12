@@ -724,10 +724,13 @@ export function HacksPage({ project, name, onChange }: Props) {
             <b> LW, C and RD</b> (two forwards and a defenceman, a centre for the draws, one player on each side). A
             penalty gives the other team a skater more, as the NHL does: 4 on 3, and 5 on 3 for a second. When it
             ends the teams play 4 on 4 until the next whistle, then 3 on 3 again. The lines are not changed, so it
-            works with line changes On or Off, and the players come from whichever line is on. A shootout after
-            overtime is as before. Choose <b>in the regular season</b> to keep the playoffs 5 on 5, as the NHL does.
-            The overtime's length is set as before. Worked out from the game's code with the NHL94 Match Viewer
-            project; waiting on a test in the game.
+            works with line changes On or Off, and the players come from whichever line is on. Choose <b>in the
+            regular season</b> to keep the playoffs 5 on 5, as the NHL does. The overtime's length is set as before.
+            Worked out from the game's code with the NHL94 Match Viewer project and tested in the game by them: 3 on 3
+            at every draw with line changes On and Off, 4 on 3 and 5 on 3, 4 on 4 after a penalty ends, a third-period
+            penalty carried into overtime, and playoff overtime kept 5 on 5. Still being looked into: one draw went
+            without a centre when a team had three players in the box. A shootout after overtime has not been tried
+            with it yet.
           </>,
         )}
         {hack(
