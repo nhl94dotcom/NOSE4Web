@@ -27,6 +27,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('3 on 3 overtime', () => {
       expect(detectHacks(on).choices.threeOnThree).toBe(choice)
       const season = choice === 'season'
       // The order: movea.l #priolist,a0 first, then the tests, then lea to the overtime order G, C, LW, RD, LD, RW, EA.
+      // releasepl, getlinee and SetPlList.
       for (const at of [0x12a00, 0x12ec4, 0x1583c]) {
         const code = target(on, at)
         expect(hex(on, code, 6)).toBe('207c00019286')
@@ -65,6 +66,15 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('3 on 3 overtime', () => {
       expect(hex(on, loop, 2)).toBe('1418')
       expect(hex(on, loop + 4 + on[loop + 3], 4)).toBe('42424e75')
       expect(loop + 12 + (on[loop + 11] << 24 >> 24)).toBe(loop)
+      // setpersonel's free object: the hook and 10 nops in place of the 26-byte loop; in overtime it skips boxed
+      // players' objects (tst.w $66(a2,d1.w) / bgt), else the original loop, copied whole, its branches relative.
+      expect(hex(on, 0x15800 + 6, 20)).toBe('4e71'.repeat(10))
+      const pers = target(on, 0x15800)
+      const persCode = Buffer.from(on.subarray(pers, pers + 120)).toString('hex')
+      expect(persCode).toContain('4a7210666e')
+      expect(persCode).toContain('d6fc00804a2b00615bcbfff66a000004304b4a6b00345acbffe84e75')
+      const dbf = persCode.indexOf('51c8') / 2
+      expect(hex(on, pers + dbf + 2 + s16(on, pers + dbf + 2), 4)).toBe('d2fc0080')
     })
   }
 

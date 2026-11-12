@@ -2194,7 +2194,7 @@ const delayedCalls: Part<boolean> = {
 // tmap players (goalie included; 6 at full strength) in priolist's order
 // (G, LD, RD, C, LW, RW, extra attacker), as it does for a team short-handed,
 // so the lines stay whole and line changes On or Off make no difference:
-// - SetPlList, releasepl and getlinee each take priolist (movea.l #priolist,a0,
+// - releasepl, getlinee and SetPlList each take priolist (movea.l #priolist,a0,
 //   at $12A00, $12EC4 and $1583C); in overtime they take an order of their
 //   own, G, C, LW, RD, LD, RW, extra attacker, so 4 is G, C, LW and RD, the
 //   next on the ice LD, and with the goalie pulled the four skaters.
@@ -2216,6 +2216,15 @@ const delayedCalls: Part<boolean> = {
 //   have its own man in the box too (cmpi.w #6,tmap(a3) at $12A50), and at
 //   4 on 3 showed 0:00 (Match Viewer); in overtime it asks the box list
 //   itself whether the team has anyone in it but for coincidental penalties.
+// - setpersonel gives each listed player not yet on the ice a free sort
+//   object (.4 to its dbpl at $15800): the first free one whose position tests
+//   non-negative, else the last free one. A boxed player's object (position
+//   $FF) qualifies, and a substitute put there is lost: a draw went 4 on 2 when
+//   the centre's substitute went to a boxed player's object (Match Viewer, seed
+//   11). 3 on 3 makes it likely, as a line player in the box always needs a
+//   substitute while the boxed still hold objects. In overtime it passes over
+//   objects of boxed players (tmpdst of the object's pnum above 0); with none
+//   left, and outside overtime, the original's loop as it was.
 // Only when not a shootout (gmode2 bit 0); 'season' only in the regular
 // season (OptPlayMode 0), as the NHL's playoffs play 5 on 5.
 export type ThreeOnThree = 'off' | 'season' | 'all'
@@ -2229,6 +2238,7 @@ const OT3_RECOUNT_HOOK: Hook = { at: 0x123a2, original: bytes('347C C6CE 6100 00
 const OT3_START_HOOK: Hook = { at: 0x7870, original: bytes('08F8 0001 C2FC') }
 const OT3_FACEOFF_HOOK: Hook = { at: 0xfa6e, original: bytes('4444 5C44 E744') }
 const OT3_BOX_HOOK: Hook = { at: 0x12a50, original: bytes('0C6B 0006 0024') }
+const OT3_PERS_HOOK: Hook = { at: 0x15800, original: bytes('D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8') }
 const OT3_PRIO_SEASON = bytes('207C 0001 9286 0838 0001 C2FC 6712 0838 0000 C2FA 660A 4A78 D048 6604 41FA 0004 4E75 0004 0302 0105 06FF')
 const OT3_RECOUNT_SEASON = bytes('0838 0001 C2FC 6746 0838 0000 C2FA 663E 4A78 D048 6638 48E7 3000 347C C6CE 6100 0044 3601 D4FC 0364 6100 003A 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 347C C6CE 4EB9 0001 23DE D4FC 0364 4EB9 0001 23DE 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
 const OT3_START_SEASON = bytes('08F8 0001 C2FC 0838 0000 C2FA 663E 4A78 D048 6644 48E7 3000 347C C6CE 6100 003C 3601 D4FC 0364 6100 0032 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 31FC 0006 C6F2 31FC 0006 CA56 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
@@ -2239,6 +2249,8 @@ const OT3_START_ALL = bytes('08F8 0001 C2FC 0838 0000 C2FA 6638 48E7 3000 347C C
 const OT3_FACEOFF_ALL = bytes('0838 0001 C2FC 670C 0838 0000 C2FA 6604 7800 4E75 4444 5C44 E744 4E75')
 const OT3_BOX_SEASON = bytes('0838 0001 C2FC 6728 0838 0000 C2FA 6620 4A78 D048 661A 41EB 009A 4242 1418 6B0C 0833 0006 2066 66F4 7401 4E75 4242 4E75 0C6B 0006 0024 4E75')
 const OT3_BOX_ALL = bytes('0838 0001 C2FC 6722 0838 0000 C2FA 661A 41EB 009A 4242 1418 6B0C 0833 0006 2066 66F4 7401 4E75 4242 4E75 0C6B 0006 0024 4E75')
+const OT3_PERS_SEASON = bytes('0838 0001 C2FC 674E 0838 0000 C2FA 6646 4A78 D048 6640 48E7 C040 91C8 7005 224B D2FC 0080 4A29 0061 6A18 7200 1229 0066 6B08 D241 4A72 1066 6E08 2049 4A69 0034 6A0E 51C8 FFDC 2008 6606 4CDF 0203 6006 4CDF 0203 4E75 D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8 4E75')
+const OT3_PERS_ALL = bytes('0838 0001 C2FC 6748 0838 0000 C2FA 6640 48E7 C040 91C8 7005 224B D2FC 0080 4A29 0061 6A18 7200 1229 0066 6B08 D241 4A72 1066 6E08 2049 4A69 0034 6A0E 51C8 FFDC 2008 6606 4CDF 0203 6006 4CDF 0203 4E75 D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8 4E75')
 const OT3_PARTS = (choice: Exclude<ThreeOnThree, 'off'>): [Hook, Uint8Array][] => {
   const season = choice === 'season'
   return [
@@ -2247,6 +2259,7 @@ const OT3_PARTS = (choice: Exclude<ThreeOnThree, 'off'>): [Hook, Uint8Array][] =
     [OT3_START_HOOK, season ? OT3_START_SEASON : OT3_START_ALL],
     [OT3_FACEOFF_HOOK, season ? OT3_FACEOFF_SEASON : OT3_FACEOFF_ALL],
     [OT3_BOX_HOOK, season ? OT3_BOX_SEASON : OT3_BOX_ALL],
+    [OT3_PERS_HOOK, season ? OT3_PERS_SEASON : OT3_PERS_ALL],
   ]
 }
 const threeOnThree: Part<ThreeOnThree> = {
