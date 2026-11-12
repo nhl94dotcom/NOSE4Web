@@ -540,6 +540,11 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText(/^Built from the ratings: (NLC|Sc1|Sc2|Chk|PP1|PP2|PK1|PK2)(, (NLC|Sc1|Sc2|Chk|PP1|PP2|PK1|PK2))*\. Undo takes it back\./)).toBeVisible()
     await page.getByRole('button', { name: 'Build all lines' }).click()
     await expect(page.getByText('Already as the builder makes them.')).toBeVisible()
+    // Wingers on their off side: a different build, then back.
+    await page.getByLabel('Wingers for the line builder').selectOption('off')
+    await page.getByRole('button', { name: 'Build all lines' }).click()
+    await expect(page.getByText(/^Built from the ratings: /)).toBeVisible()
+    await page.getByLabel('Wingers for the line builder').selectOption('shooting')
     await expect(page.getByRole('button', { name: 'Fix broken lines' })).toBeDisabled()
   })
 

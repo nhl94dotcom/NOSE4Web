@@ -509,7 +509,10 @@ export function HelpPage() {
         by what each line is for: the best defence pair and forwards on NLC, the best scorers on Sc1 and Sc2 and the
         power plays, checking forwards and defencemen the scoring lines do not need on Chk, and defensive players on
         the penalty kill, with the power play's forwards resting there where the roster has enough. The playmaker of
-        three forwards plays centre, and a left shot goes to the left side where there is one. The extra attacker is
+        three forwards plays centre. Where a line's two wingers, or its defence pair, shoot with different hands,
+        <b>Wingers</b> and <b>Defence</b> choose their sides: each on his shooting side (a left shot on the left), each on
+        his off side (a left shot on the right, as many players like their wingers), or either. They only swap the two
+        players chosen, never change who is chosen, and the choice is kept in this browser. The extra attacker is
         the best scorer not on the line, and the goalie stays the team's current starter. Fix broken lines builds only
         the lines with a mistake: an empty position the ROM does not leave empty, a player past the end of the roster,
         a goalie out of goal or a skater in goal, or a skater twice. Positions a 3 on 3 or smaller ROM leaves empty stay

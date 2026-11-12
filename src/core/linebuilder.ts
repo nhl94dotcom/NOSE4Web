@@ -41,6 +41,27 @@ const DEFENCE_PENALTY_KILL: Weights = { DfA: 2, Chk: 1.5, Spd: 1, Agl: 1, Wgt: 0
 // The centre of three forwards: the one who sets up the others.
 const CENTRE: Weights = { Pas: 2, StH: 1.5, OfA: 1 }
 
+// Which side of the ice a player goes to by the hand he shoots with: his
+// shooting side (a left shot on the left), his off side (a left shot on the
+// right, as many players like their wingers), or either.
+export type HandSide = 'shooting' | 'off' | 'either'
+export interface LineBuilderOptions {
+  wings: HandSide
+  defence: HandSide
+}
+export const DEFAULT_LINE_OPTIONS: LineBuilderOptions = { wings: 'shooting', defence: 'shooting' }
+export const HAND_SIDES: { value: HandSide; label: string }[] = [
+  { value: 'shooting', label: 'Shooting side (left shot on the left)' },
+  { value: 'off', label: 'Off side (left shot on the right)' },
+  { value: 'either', label: 'Either side' },
+]
+
+// Whether this ROM's players have a shooting hand the builder can read.
+export function knowsHands(game: GameConfig): boolean {
+  const hand = game.playerAttributeLabels.indexOf('H/F')
+  return hand >= 0 && game.playerAttributeKinds[hand] === 'handedFighting'
+}
+
 export interface BuiltLines {
   lines: number[][]
   // The lines that changed.
@@ -50,8 +71,8 @@ export interface BuiltLines {
 // A team's lines built afresh, for the lines in `which` only (the others kept
 // as they are). `empty` is the positions this ROM leaves empty on every team
 // (emptyLineSlots): those stay empty.
-export function buildLines(team: Team, game: GameConfig, which: number[], empty: boolean[][] = []): BuiltLines {
-  const plan = planLines(team, game)
+export function buildLines(team: Team, game: GameConfig, which: number[], empty: boolean[][] = [], options: LineBuilderOptions = DEFAULT_LINE_OPTIONS): BuiltLines {
+  const plan = planLines(team, game, options)
   const lines = team.lines.map((line, l) => {
     if (!which.includes(l) || !plan[l]) return line
     const next = line.slice()
@@ -84,7 +105,7 @@ export function brokenLines(team: Team, empty: boolean[][] = []): number[] {
 
 // Every line's positions (roster positions counted from 1), by what each line
 // is for; null for a line this does not know.
-function planLines(team: Team, game: GameConfig): (number[] | null)[] {
+function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (number[] | null)[] {
   const labels = game.playerAttributeLabels
   const score = (position: number, weights: Weights) =>
     labels.reduce((sum, label, a) => sum + (weights[label] ?? 0) * team.players[position - 1].attributes[a], 0)
@@ -115,15 +136,22 @@ function planLines(team: Team, game: GameConfig): (number[] | null)[] {
     return chosen
   }
   const hand = labels.indexOf('H/F')
-  const shootsRight = (p: number) => hand >= 0 && game.playerAttributeKinds[hand] === 'handedFighting' && team.players[p - 1].attributes[hand] % 2 === 1
+  const shootsRight = (p: number) => knowsHands(game) && team.players[p - 1].attributes[hand] % 2 === 1
+  // Two players to the left and right of a pair of positions, as `side` has it; where both shoot with the same
+  // hand, or it is either side, in the order given.
+  const sides = (two: number[], side: HandSide) => {
+    if (two.length < 2 || side === 'either' || shootsRight(two[0]) === shootsRight(two[1])) return two
+    const leftShotFirst = shootsRight(two[1])
+    return leftShotFirst === (side === 'shooting') ? two : [two[1], two[0]]
+  }
   // Three forwards to LW, C, RW: the best playmaker at centre, a left shot on the left wing where there is one.
   const forwardSlots = (trio: number[]) => {
     const [centre, ...wings] = trio.slice().sort((a, b) => score(b, CENTRE) - score(a, CENTRE) || trio.indexOf(a) - trio.indexOf(b))
-    const ordered = wings.length === 2 && !shootsRight(wings[1]) && shootsRight(wings[0]) ? [wings[1], wings[0]] : wings
+    const ordered = sides(wings, options.wings)
     return { lw: ordered[0] ?? 0, c: centre ?? 0, rw: ordered[1] ?? 0 }
   }
   const pairSlots = (pair: number[]) => {
-    const ordered = pair.length === 2 && !shootsRight(pair[1]) && shootsRight(pair[0]) ? [pair[1], pair[0]] : pair
+    const ordered = sides(pair, options.defence)
     return { ld: ordered[0] ?? 0, rd: ordered[1] ?? 0 }
   }
   const line = (pair: number[], trio: number[], extra: number) => {

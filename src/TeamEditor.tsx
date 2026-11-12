@@ -11,7 +11,9 @@ import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { lineupRatings } from './core/league'
-import { brokenLines, buildLines } from './core/linebuilder'
+import { brokenLines, buildLines, knowsHands } from './core/linebuilder'
+import { LineOptionsPicker } from './LineOptions'
+import { useLineOptions } from './useLineOptions'
 import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot as suitsSlotFor } from './core/lines'
 import { hasLeagueValue, leagueValue, LEAGUE_VALUE_TITLE } from './core/leaguevalue'
 import { overallRating } from './core/rating'
@@ -174,9 +176,10 @@ export function TeamEditor(props: Props) {
   // Each line's rating and the team's overall, as the League page has them.
   const lineup = lineupRatings(team, game, emptySlots)
   const broken = brokenLines(team, emptySlots)
+  const [lineOptions, setLineOptions] = useLineOptions()
   // Builds the lines in `which` from the players' ratings.
   const build = (which: number[]) => {
-    const built = buildLines(team, game, which, emptySlots)
+    const built = buildLines(team, game, which, emptySlots, lineOptions)
     if (built.changed.length > 0) onChange({ ...team, lines: built.lines })
     const named = built.changed.map((l) => game.lineLabels[l]).join(', ')
     setLineNotice(built.changed.length > 0 ? `Built from the ratings: ${named}. Undo takes it back.` : 'Already as the builder makes them.')
@@ -792,6 +795,7 @@ export function TeamEditor(props: Props) {
           >
             Fix broken lines{broken.length > 0 ? ` (${broken.length})` : ''}
           </button>{' '}
+          {knowsHands(game) && <LineOptionsPicker options={lineOptions} onChange={setLineOptions} />}{' '}
           {reset('lines', 'lines')}{' '}
           <span className="note">
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}

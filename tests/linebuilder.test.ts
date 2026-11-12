@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
-import { brokenLines, buildLines } from '../src/core/linebuilder'
+import { brokenLines, buildLines, knowsHands, type HandSide } from '../src/core/linebuilder'
 import { emptyLineSlots, playerRole, SKATER_LINE_SLOTS } from '../src/core/lines'
 import { buildRom, openRom } from '../src/core/rom'
 import { goalieCount } from '../src/core/team'
@@ -78,6 +78,43 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('building lines from the ratings
     expect(brokenLines({ ...bad, lines: fixed.lines })).toEqual([])
     expect(fixed.changed).toEqual([2, 5, 6, 7])
     expect(fixed.lines[0]).toEqual(team.lines[0])
+  })
+})
+
+describe.skipIf(!existsSync(path('nhl94.bin')))('the side each hand goes to', () => {
+  it('puts a left shot on the left, on the right, or as it comes, for the wingers and the defence apart', () => {
+    const project = open('nhl94.bin')
+    expect(knowsHands(project.game)).toBe(true)
+    const right = (team: (typeof project.teams)[number], p: number) => team.players[p - 1].attributes[7] % 2 === 1
+    let wingPairs = 0
+    let defencePairs = 0
+    for (const team of project.teams) {
+      const all = team.lines.map((_, l) => l)
+      const built = (wings: HandSide, defence: HandSide) => buildLines(team, project.game, all, [], { wings, defence }).lines
+      const shooting = built('shooting', 'shooting')
+      const off = built('off', 'off')
+      const mixed = built('off', 'shooting')
+      shooting.forEach((line, l) => {
+        // The same players either way, only their sides swapped.
+        expect(new Set([off[l][LW], off[l][RW]])).toEqual(new Set([line[LW], line[RW]]))
+        expect(new Set([off[l][LD], off[l][RD]])).toEqual(new Set([line[LD], line[RD]]))
+        const penaltyKill = ['PK1', 'PK2'].includes(project.game.lineLabels[l])
+        if (!penaltyKill && right(team, line[LW]) !== right(team, line[RW])) {
+          wingPairs++
+          expect(right(team, line[LW])).toBe(false)
+          expect(right(team, off[l][LW])).toBe(true)
+          expect(mixed[l][LW]).toBe(off[l][LW])
+        }
+        if (right(team, line[LD]) !== right(team, line[RD])) {
+          defencePairs++
+          expect(right(team, line[LD])).toBe(false)
+          expect(right(team, off[l][LD])).toBe(true)
+          expect(mixed[l][LD]).toBe(line[LD])
+        }
+      })
+    }
+    expect(wingPairs).toBeGreaterThan(20)
+    expect(defencePairs).toBeGreaterThan(20)
   })
 })
 

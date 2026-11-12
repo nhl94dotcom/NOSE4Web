@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
 import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
 import { setTeamRating, teamRatings } from './core/teamratings'
-import { brokenLines, buildLines } from './core/linebuilder'
+import { brokenLines, buildLines, knowsHands } from './core/linebuilder'
+import { LineOptionsPicker } from './LineOptions'
+import { useLineOptions } from './useLineOptions'
 import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
@@ -364,6 +366,7 @@ const HOME = 4
 const AWAY = 5
 function LineBuilder({ project, names, onChange }: { project: RomProject; names: string[]; onChange: (project: RomProject) => void }) {
   const [done, setDone] = useState('')
+  const [options, setOptions] = useLineOptions()
   const empty = emptyLineSlots(project.teams)
   const broken = project.teams.map((team) => brokenLines(team, empty))
   const brokenTeams = broken.filter((lines) => lines.length > 0).length
@@ -372,7 +375,7 @@ function LineBuilder({ project, names, onChange }: { project: RomProject; names:
     let teams = 0
     const next = project.teams.map((team, t) => {
       const which = onlyBroken ? broken[t] : team.lines.map((_, l) => l)
-      const built = buildLines(team, project.game, which, empty)
+      const built = buildLines(team, project.game, which, empty, options)
       if (built.changed.length === 0) return team
       lines += built.changed.length
       teams++
@@ -391,6 +394,12 @@ function LineBuilder({ project, names, onChange }: { project: RomProject; names:
         ratings are only a guide to how a player plays, so take it as a starting point; each team's page has the same
         for one team or chosen lines.
       </p>
+      {knowsHands(project.game) && (
+        <p>
+          <LineOptionsPicker options={options} onChange={setOptions} />{' '}
+          <span className="note">Which side each player goes to by the hand he shoots with, where a line's two wingers or its pair shoot differently.</span>
+        </p>
+      )}
       <p>
         <button type="button" onClick={() => run(false)}>
           Build every team's lines
