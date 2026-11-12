@@ -84,6 +84,25 @@ function letterOf(c: string): number {
   return index >= 0 && index < 26 ? index : -1
 }
 
+// What is wrong with a banner name, or null. PrintTeamSprites knows only A to Z (either case), 0 to 9, space, "."
+// and "@"; for any other character it takes a letter number below A's, so it draws some other sprite frame of the
+// game's in its place and reads a width from before the widths table: the banner's screens show stray graphics.
+// A name wider than the block (72 pixels; the original's widest is All Stars W., 67) runs off both its ends.
+export function snesBannerNameProblem(name: string): { level: 'problem' | 'note'; message: string } | null {
+  const bad = [...new Set([...name].filter((c) => c !== ' ' && c !== '.' && letterOf(c) < 0))]
+  if (bad.length > 0) {
+    return { level: 'problem', message: `has ${bad.map((c) => `"${c}"`).join(', ')}, which the game cannot draw: in its place it draws a stray picture on the team's banners (the matchup screen, Game Setup, the playoffs). Only letters, digits, spaces, "." and "@" can be used.` }
+  }
+  const width = snesBannerNameWidth(name)
+  if (width > SNES_BLOCK_SIZE.width) return { level: 'note', message: `is ${width} pixels wide, wider than the banner (${SNES_BLOCK_SIZE.width}), so it runs off both ends.` }
+  return null
+}
+
+// How wide the game draws a banner name: each letter's width, a space 5 pixels (a first one nothing), "." 3.
+export function snesBannerNameWidth(name: string): number {
+  return [...name].reduce((sum, c, i) => sum + (c === ' ' ? (i === 0 ? 0 : 5) : c === '.' ? 3 : letterOf(c) >= 0 ? LETTER_WIDTHS[letterOf(c)] : 0), 0)
+}
+
 // The block with `name` on it. Colours 0 to 15 are the block's, 16 to 31 the
 // letters'; `palette` gives both, the block's as given and the letters' from the ROM.
 export function snesBlockPicture(rom: Uint8Array, colours: number[], name: string): { picture: Picture; palette: number[] } | null {
@@ -99,7 +118,7 @@ export function snesBlockPicture(rom: Uint8Array, colours: number[], name: strin
     // Its width first, then each letter drawn from the left: a space is 5 pixels, a first space nothing.
     const widthOf = (c: string, i: number) => (c === ' ' ? (i === 0 ? 0 : 5) : c === '.' ? 3 : letterOf(c) >= 0 ? LETTER_WIDTHS[letterOf(c)] : 0)
     const chars = [...name]
-    let x = NAME_X - (chars.reduce((sum, c, i) => sum + widthOf(c, i), 0) >> 1)
+    let x = NAME_X - (snesBannerNameWidth(name) >> 1)
     chars.forEach((c, i) => {
       const letter = letterOf(c)
       if (c !== ' ' && letter >= 0) {

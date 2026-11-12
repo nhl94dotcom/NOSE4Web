@@ -13,6 +13,7 @@ import { snesLogosThatSpill } from './snespictures'
 import { anyPosition } from './anyposition'
 import { menuOptions } from './settings'
 import { goalieCount, overfullTeams, teamLabels, teamSpace, type Team } from './team'
+import { snesBannerNameProblem } from './snesblockpicture'
 
 // Looks over a project for things that are likely to cause trouble in the
 // game. Nothing here stops a download; it is a list for the user to review.
@@ -191,6 +192,10 @@ export function checkProject(project: RomProject): Finding[] {
   checkStrips(project, labels, findings)
   checkPhotos(project, labels, findings)
   if (project.game.platform === 'snes' && teams.every((team) => team.placeName !== undefined)) {
+    teams.forEach((team, i) => {
+      const problem = snesBannerNameProblem(team.placeName!)
+      if (problem) findings.push({ level: problem.level, where: labels[i], message: `Its banner name, "${team.placeName}", ${problem.message} Change it under Banner name on the team page.` })
+    })
     const room = snesPlaceNameRoom(project.bytes, teams.map((team) => team.placeName!), project.layout.overflow)
     if (room && room.used > room.room) {
       findings.push({

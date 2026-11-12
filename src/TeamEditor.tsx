@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { snesBannerNameProblem } from './core/snesblockpicture'
 import { readClipboard, writeClipboard } from './clipboard'
 import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
@@ -567,6 +568,11 @@ export function TeamEditor(props: Props) {
               Banner name
               <input value={team.placeName} onChange={(e) => onChange({ ...team, placeName: cleanText(e.target.value) })} />
             </label>
+          )}
+          {team.placeName !== undefined && snesBannerNameProblem(team.placeName) && (
+            <span className={snesBannerNameProblem(team.placeName)!.level === 'problem' ? 'error' : 'note'}>
+              The banner name {snesBannerNameProblem(team.placeName)!.message}
+            </span>
           )}
         </div>
         <div className="fields">
