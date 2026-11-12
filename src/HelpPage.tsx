@@ -2056,8 +2056,8 @@ export function HelpPage() {
               the whole game. Tested in the game by Match Viewer on the original game and Classic, and on the 32-team
               and SA-1 builds (on the SA-1 builds NOSE4Web keeps the game's state in their BW-RAM while the shootout
               plays, and on both it keeps their own checks, posts and time on ice), with a pad on a team. With the
-              computer on both sides the 32-team build's shootouts crash, in its own Shootout mode too, and so does
-              the SA-1 build's shootout after period 3.
+              computer on both sides the 2 MB builds' own shootout hangs at its first round, in their Shootout mode
+              too, with or without NOSE4Web; with a person on a team it plays, as in every league game.
             </li>
             <li>
               <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
