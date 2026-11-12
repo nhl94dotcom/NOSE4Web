@@ -1273,10 +1273,15 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const turnOver = rom.slice(turn + 10, turn + 13)
     const beepAt = rom.slice(beep[0].at + 9, beep[0].at + 12)
     const counts = 0x1ef0 + s
+    // The team's pad: the original game's code reads it from the table at the code's end (lda table,y), with the data
+    // bank the code's own. The SA-1 builds run this on the SA-1 CPU with their caller's data bank (SA1Call), so that
+    // read finds other bytes and the goalie is never pulled (Match Viewer): there it is worked out from the team,
+    // tya / lsr / inc (team 0 pad 1, team 2 pad 2), in the same three bytes. The table stays, unread.
+    const padOf = (address: number) => (snesCodeInPlace(rom) ? bytesOf('B9', word(address + 0x53)) : hexBytes('98 4A 1A'))
     const checkOriginal = bytesOf('A491 B9', tmgoalie)
     const checkCode = (address: number) =>
       bytesOf(
-        'A20000 AC', word(DIRECT_PAGE + 0x91), 'B9', tmgoalie, 'C900FF D001 60 B9', word(address + 0x53), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
+        'A20000 AC', word(DIRECT_PAGE + 0x91), 'B9', tmgoalie, 'C900FF D001 60', padOf(address), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
         'F028 9E', word(counts), 'EA EA EA B9', tmgoalie, 'F007 C9FFFF F002 8016 49FFFF 99', tmgoalie, '22', turnOver, 'A90070 8564 A90500 22', beepAt,
         'A491 B9', tmgoalie, '60 0100 0200',
       )

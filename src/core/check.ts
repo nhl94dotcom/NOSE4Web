@@ -197,17 +197,19 @@ export function checkProject(project: RomProject): Finding[] {
       if (problem) findings.push({ level: problem.level, where: labels[i], message: `Its banner name, "${team.placeName}", ${problem.message} Change it under Banner name on the team page.` })
     })
     // Ron Barr's matchup screen text types a team's Location, Name and Stadium a word at a time (ScoutAppend /
-    // ScoutTypeText), which takes a word to have at least one letter: an empty one is read past its end and the box's
-    // text lands in the wrong places, jumbling the screen (a commissioner's ROM with an empty Name, Boston "").
+    // ScoutTypeText), which starts by reading the word's second byte: for an empty one that is whatever the word
+    // before left in mesarea. A letter there is harmless (the original All-Stars' empty Name, Match Viewer); a space
+    // cuts the word to a length below its length word's own 2, and print then runs on across the screen (a
+    // commissioner's ROM with an empty Name, Boston ""; giving it a letter fixed it). So it depends on the script.
     teams.forEach((team, i) => {
-      // The original game's All-Star teams have no Name, as it shipped: left alone until Match Viewer has seen their matchup screen.
+      // The original game's All-Star teams have no Name, as it shipped, and Match Viewer saw their matchup text type out whole.
       if (/^All Stars/.test(team.names[0] ?? '')) return
       const empty = [0, 2, 3].filter((n) => (team.names[n] ?? '').trim() === '').map((n) => project.game.teamNameLabels[n])
       if (empty.length) {
         findings.push({
           level: 'problem',
           where: labels[i],
-          message: `Its ${empty.join(' and ')} ${empty.length === 1 ? 'is' : 'are'} empty. Ron Barr's matchup screen text types each of these, and an empty one jumbles the screen there: give ${empty.length === 1 ? 'it' : 'each'} at least one letter.`,
+          message: `Its ${empty.join(' and ')} ${empty.length === 1 ? 'is' : 'are'} empty. Ron Barr's matchup screen text types each of these, and an empty one can jumble the screen there, depending on the words before it: give ${empty.length === 1 ? 'it' : 'each'} at least one letter.`,
         })
       }
     })

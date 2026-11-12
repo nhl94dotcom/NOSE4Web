@@ -1236,6 +1236,11 @@ export function HelpPage() {
           are, the more even the league. Teams more than one standard deviation from the average are marked. The
           original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
         </li>
+        <li>
+          <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
+          and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
+          sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
+        </li>
       </ul>
 
       <h3 id="help-trade">Trades and free agents</h3>

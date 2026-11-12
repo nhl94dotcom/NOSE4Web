@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
 import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
+import { setTeamRating, teamRatings } from './core/teamratings'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
 
@@ -61,9 +62,11 @@ interface Props {
   onGoToTeam: (team: number) => void
   // Moves skaters to another team, as on a team's page; returns a message if they cannot go.
   onMovePlayers: (from: number, indexes: number[], to: number) => string
+  // Changes the project, as Undo can take back.
+  onChange?: (project: RomProject) => void
 }
 
-export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
+export function LeaguePage({ project, onGoToTeam, onMovePlayers, onChange }: Props) {
   const [search, setSearch] = useState('')
   const [moved, setMoved] = useState<{ text: string; failed: boolean } | null>(null)
   const [sort, setSort] = useState<{ key: string; down: boolean }>({ key: 'team', down: false })
@@ -346,7 +349,78 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
           <p className="note">Fewer than two teams have this rating.</p>
         )}
       </section>
+      {onChange && <HomeAway project={project} names={names} onChange={onChange} />}
     </main>
+  )
+}
+
+// The Home and Away team ratings, which the game adds to the home team's and takes off the away team's
+// Offensive and Defensive Awareness, Stickhandling, Shot Accuracy and Passing as each player comes on the ice
+// (teamratings.ts): how they differ across the league, and one pair set for every team.
+const HOME = 4
+const AWAY = 5
+function HomeAway({ project, names, onChange }: { project: RomProject; names: string[]; onChange: (project: RomProject) => void }) {
+  const [home, setHome] = useState(0)
+  const [away, setAway] = useState(0)
+  const [done, setDone] = useState('')
+  const pairs = project.teams.map((team) => [teamRatings(team)[HOME], teamRatings(team)[AWAY]] as const)
+  const counts = (index: 0 | 1) => {
+    const tally = new Map<number, number>()
+    for (const pair of pairs) tally.set(pair[index], (tally.get(pair[index]) ?? 0) + 1)
+    return [...tally.entries()].sort((a, b) => a[0] - b[0]).map(([value, n]) => `${value} (${n} ${n === 1 ? 'team' : 'teams'})`).join(', ')
+  }
+  const same = pairs.every((pair) => pair[0] === pairs[0][0] && pair[1] === pairs[0][1])
+  const apply = () => {
+    onChange({ ...project, teams: project.teams.map((team) => setTeamRating(setTeamRating(team, HOME, home), AWAY, away)) })
+    setDone(`Every team now has Home ${home} and Away ${away}. Undo takes it back.`)
+  }
+  return (
+    <section id="home-away">
+      <h3>Home and away</h3>
+      <p className="note">
+        As each player comes on the ice, the home team adds its <b>Home</b> rating to his Offensive and Defensive
+        Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes its <b>Away</b> rating off the
+        same five (on the game's scale, where a rating point is 5). In the original game they differ by team. Give
+        every team the same pair to make the advantage the same in every game, or 0 and 0 to have none.
+      </p>
+      <p>
+        Now: Home {counts(0)}; Away {counts(1)}.{same ? ' Every team has the same pair.' : ''}
+      </p>
+      <p>
+        <label>
+          Home{' '}
+          <select aria-label="Home rating for every team" value={home} onChange={(e) => setHome(Number(e.target.value))}>
+            {[0, 1, 2].map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </label>{' '}
+        <label>
+          Away{' '}
+          <select aria-label="Away rating for every team" value={away} onChange={(e) => setAway(Number(e.target.value))}>
+            {[0, 1, 2, 3].map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </label>{' '}
+        <button type="button" onClick={apply}>
+          Set for every team
+        </button>{' '}
+        {done && <span className="note">{done}</span>}
+      </p>
+      {!same && (
+        <details>
+          <summary>Each team's</summary>
+          <ul>
+            {pairs.map((pair, t) => (
+              <li key={t}>
+                {names[t]}: Home {pair[0]}, Away {pair[1]}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   )
 }
 

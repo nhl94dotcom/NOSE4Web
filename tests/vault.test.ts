@@ -60,6 +60,8 @@ describe('on the SA-1 builds, the direct page stays at $0000', () => {
     expect(code('showMaxBoost')).toContain('8da500')
     expect(code('extraAttackerFix')).toContain('6daf00')
     expect(code('manualPullGoalie')).toContain('ac9100')
+    // The team's pad worked out (tya / lsr / inc), not read from the code's table with the caller's data bank.
+    expect(code('manualPullGoalie')).toContain('d00160984a1add')
     expect(code('manualPullGoalie')).toContain('add875')
   })
 })

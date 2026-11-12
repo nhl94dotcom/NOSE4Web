@@ -515,6 +515,16 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(balance.locator('tbody tr')).toHaveCount(28)
     await matchup.screenshot({ path: 'test-results/shots/league-matchup.png' })
     await balance.screenshot({ path: 'test-results/shots/league-balance.png' })
+
+    // Home and away: the original game's differ by team; one pair for every team, and Undo takes it back.
+    const homeAway = page.locator('#home-away')
+    await expect(homeAway.getByText('Every team has the same pair.')).toHaveCount(0)
+    await page.getByLabel('Home rating for every team').selectOption('1')
+    await page.getByLabel('Away rating for every team').selectOption('1')
+    await homeAway.getByRole('button', { name: 'Set for every team' }).click()
+    await expect(homeAway.getByText(/^Now: Home 1 \(28 teams\); Away 1 \(28 teams\)\. Every team has the same pair\./)).toBeVisible()
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(homeAway.getByText('Every team has the same pair.')).toHaveCount(0)
   })
 
   test('changes ticked players with quick edit keys', async ({ page }) => {

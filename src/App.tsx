@@ -385,7 +385,7 @@ export default function App() {
       case COMPARE:
         return <ComparePage project={current} name={name || 'rom'} />
       case LEAGUE:
-        return <LeaguePage project={current} onGoToTeam={setSelected} onMovePlayers={movePlayers} />
+        return <LeaguePage project={current} onGoToTeam={setSelected} onMovePlayers={movePlayers} onChange={change} />
       case BULK:
         return <BulkPage project={current} onChange={change} />
       case TRADE:
