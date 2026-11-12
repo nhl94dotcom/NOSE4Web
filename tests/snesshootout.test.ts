@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { snesCodeInPlace } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
@@ -87,5 +88,20 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
         expect(Buffer.compare(buildRom(applySnesHacks(on, {}, false, { seasonShootout: 0 })), buildRom(rom))).toBe(0)
       }
     })
+  })
+})
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a project file', () => {
+  it('fighting with its bonus, the injuries choice and the shootout come back over another copy of the ROM', () => {
+    const fresh = () => openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
+    const made = applySnesHacks(fresh(), { fighting: true }, false, { fighting: 4, injuries: 5, seasonShootout: 2 })
+    const text = saveProjectFile(made, fresh(), 'Work')
+    // Another copy: one byte of it differs, so the file is played over it, not patched.
+    const other = new Uint8Array(readFileSync(path('NHL94.smc')))
+    other[other.length - 1] ^= 1
+    const { project } = openProjectFile(openRom(other), text)
+    const state = detectSnesHacks(project.bytes)
+    expect(state.amounts).toMatchObject({ fighting: 4, injuries: 5, seasonShootout: 2 })
+    expect(state.choices).toMatchObject({ fighting: true, injuries: true, seasonShootout: true })
   })
 })
