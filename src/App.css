@@ -825,3 +825,20 @@ tr.divider td {
 .song-controls input[type='range'] {
   width: min(16rem, 100%);
 }
+
+/* Knockdowns to empty a skater, beside the hit energy hack. */
+.hits-table table {
+  width: auto;
+}
+.hits-table caption {
+  text-align: left;
+  font-weight: bold;
+  padding-bottom: 0.25rem;
+}
+.hits-table td:not(:last-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hits-table tr.current td {
+  font-weight: bold;
+}

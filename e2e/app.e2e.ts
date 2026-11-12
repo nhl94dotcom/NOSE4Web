@@ -1898,6 +1898,17 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Goalie hold time')).toHaveValue('2.33')
   })
 
+  test('sets the hit energy by how many knockdowns empty a skater', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    await entry(page, 'Hacks').click()
+    await main.getByRole('button', { name: 'Use 5 knockdowns to empty a skater' }).click()
+    await expect(main.getByLabel('Energy lost when knocked down')).toHaveValue('819')
+    await expect(main.getByLabel('Energy lost when held or hooked')).toHaveValue('410')
+    await expect(main.getByRole('button', { name: 'Use 5 knockdowns to empty a skater' })).toHaveText('Set')
+    await expect(main.getByRole('button', { name: 'Apply', exact: true })).toBeEnabled()
+  })
+
   test('applies hacks to the game, undoes them, and reopens a hacked ROM', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')

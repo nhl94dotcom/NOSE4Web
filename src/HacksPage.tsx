@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { HitsTable } from './HitsTable'
 import { WEIGHT_BASES } from './core/attributes'
 import { penaltyLengths } from './core/penaltytime'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
@@ -861,6 +862,12 @@ export function HacksPage({ project, name, onChange }: Props) {
             Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Tested in the game by the NHL94 Match Viewer project: each knockdown and hold costs exactly that, and the bench works as before. Over 12 computer games against the original: as many line changes, the average skater on the ice as fresh, about a third more knockdowns, and more than one skater a game emptied; the computer then often leaves him on the ice, for up to about four minutes of game time.
           </span>
         </p>
+        <HitsTable
+          knockdown={wanted.hitEnergy}
+          hold={wanted.holdEnergy}
+          disabled={unknown('hitEnergy') || unknown('holdEnergy')}
+          onUse={(knockdown, hold) => set({ hitEnergy: knockdown, holdEnergy: hold })}
+        />
         {hack(
           'holdEnergy',
           number('holdEnergy'),

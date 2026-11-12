@@ -1,4 +1,5 @@
 import { SNES_FIGHT_BONUS_DEFAULT } from './core/snesfight'
+import { HitsTable } from './HitsTable'
 import { snesCodeInPlace } from './core/snes'
 import { penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
@@ -382,6 +383,22 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 Players get it back on the bench as usual. Then Apply. The energy costs were tested in the game by the NHL94 Match Viewer project; with the original's speed an average skater was 8%, 14% and 22% slower after one, two and three knockdowns, which is why energy now takes all of his speed (about 14%, 29% and 43%, also tested in the game). Over 12 computer games against the original: as many line changes, the average skater on the ice as fresh, about a third more knockdowns, and about one skater a game emptied; the computer then often leaves him on the ice, for up to two minutes of game time.
               </span>
             </p>
+          )}
+          {group.hacks.includes('hitEnergy') && (
+            <HitsTable
+              knockdown={wantedAmounts.hitEnergy}
+              hold={wantedAmounts.holdEnergy}
+              disabled={['hitEnergy', 'holdEnergy'].some((hack) => state.unknown.includes(hack as SnesHack))}
+              onUse={(knockdown, hold) => {
+                setDraft({
+                  rom: project.bytes,
+                  choices: { ...wanted, hitEnergy: true, holdEnergy: true },
+                  amounts: { ...wantedAmounts, hitEnergy: knockdown, holdEnergy: hold },
+                })
+                setNotice('')
+                setError('')
+              }}
+            />
           )}
         </section>
       ))}
