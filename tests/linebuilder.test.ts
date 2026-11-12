@@ -81,7 +81,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('building lines from the ratings
   })
 })
 
-describe('building every team\'s lines on every ROM', () => {
+describe.skipIf(names.length === 0)('building every team\'s lines on every ROM', () => {
   names.forEach((name) => {
     it(`${name}: nothing broken, no new problems, the positions this ROM leaves empty still empty`, () => {
       const project = open(name)
