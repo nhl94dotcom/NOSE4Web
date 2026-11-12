@@ -148,12 +148,12 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
           return !(o >= layout.start && o < layout.end) && !(o >= overflow.start && o < overflow.end) && !(o >= table && o < table + project.teams.length * 4)
         })
         expect(changedElsewhere).toEqual([])
-        // The hacks still go in, none of them into the teams' bank.
+        // The hacks still go in, none of their new code into the teams' room (the bank also holds the Player Stats
+        // code, which the bodychecks shown change in place).
         const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !detectSnesHacks(reopened.bytes).unknown.includes(hack)).map((hack) => [hack, true]))
         const hacked = applySnesHacks(reopened, hacks)
-        expect(hacked.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000)).toEqual(
-          reopened.bytes.subarray(bank(layout.start) * 0x8000, bank(layout.start) * 0x8000 + 0x8000),
-        )
+        const roomOf = (rom: Uint8Array) => [rom.subarray(layout.start, layout.end), rom.subarray(overflow.start, overflow.end)]
+        expect(roomOf(hacked.bytes)).toEqual(roomOf(reopened.bytes))
         expect(openRom(buildRom(hacked)).teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
 
         // Taken out again, every team is back where the game had it.
@@ -460,7 +460,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
     // The hacks are found by the code around them; those that need to know where the game's variables are cannot
     // be put in, as that is read from the colour loader changed here.
-    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting'])
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)

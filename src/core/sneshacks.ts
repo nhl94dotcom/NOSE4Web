@@ -34,6 +34,8 @@ export type SnesHack =
   | 'awarenessFix'
   | 'secondAssist'
   | 'stickShots'
+  | 'bodychecks'
+  | 'bodychecksShown'
   | 'forwardsAndDefence'
   | 'showMaxBoost'
   | 'manualPullGoalie'
@@ -211,6 +213,12 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
 // NHL94SNESVault puts in, and NOSE4Web's own earlier ones. Recognised as the
 // hack, and replaced by NOSE4Web's when asked.
 const VAULT_VERSIONS: Partial<Record<SnesHack, Site[][]>> = {
+  // NHL94SNESVault's PlayerStat_BodyChecks_Display (SDL16 has it), which leaves the column's sort on penalty minutes.
+  bodychecksShown: [[
+    { at: 0x9c8a60, original: 'BD8A19', hacked: 'BD8E16' },
+    { at: 0x9cf32a, original: '504D', hacked: '4366' },
+    { at: 0x9c8c18, original: '50656E616C74696573', hacked: '20436865636B732020' },
+  ]],
   extraAttackerFix: [[
     { at: 0x9b8c96, original: 'C90100', hacked: '2078CE' },
     { at: 0x9bce78, original: free(66), hacked: '48 A5A5 18 6D9F1D 8595 AE9F1D E8 A595 20728D CF8F1D9F F007 C695 CA D0F0 801E CA A5A5 18 6D9F1D ED8B1D 8595 20728D 48 A5A5 86AF 18 6DAF00 8595 68 207C8D 68 C90100 60' },
@@ -266,6 +274,8 @@ export const SNES_HACKS: SnesHack[] = [
   'awarenessFix',
   'secondAssist',
   'stickShots',
+  'bodychecks',
+  'bodychecksShown',
   'forwardsAndDefence',
   'showMaxBoost',
   'manualPullGoalie',
@@ -304,6 +314,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   awarenessFix: "Computer forwards' awareness fix",
   secondAssist: 'Second-assist bug fix',
   stickShots: 'Count stick deflections as shots',
+  bodychecks: 'Bodycheck counts for each player',
+  bodychecksShown: 'Bodychecks in Player Stats',
   forwardsAndDefence: 'Any skater at any position in Edit Lines',
   showMaxBoost: 'Show the maximum boost in Edit Lines',
   manualPullGoalie: 'Pull the goalie with L and R',
@@ -327,7 +339,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // on, and two that cannot both be.
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain' }
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
@@ -1158,6 +1170,47 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const code = bytesOf(head, word(loRomAddress(shot)), loRomBank(shot, 0x80), '4C', word(dot3))
     return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), original, code)
   },
+  // Each player's bodychecks, given and taken, as NHL94SNESVault's PlayerStat_BodyChecks counts them (NHL94_Classic
+  // and SDL16 have it, byte for byte): FallDown's team count (ldy a0 / lda tmchecks,y / inc / sta, a check made
+  // in play) has its lda become jsr to code that adds 1 to the checker's (a3) byte at $168E and the player hit's
+  // (a2) at $16C2, 26 a team (the roster place, from pnum), then does the lda. Both lists are in the game state
+  // StartGame clears each game, the shootout's save included. They lie in the penalty log's room past its 20th
+  // entry ($163E, 4 bytes an entry, room for 65), where the Vault put them, and where league tools read them from
+  // save states; a game with more than 20 penalties shares those bytes. Found by the code around it, the
+  // variables moved as the build has them.
+  bodychecks: (rom) => {
+    const s = shift(rom)
+    const found = only(rom, 'ad....d0..a489' + '......' + '1a99')
+    if (s === null || found < 0) return null
+    const site = found + 7
+    const tmchecks = readU16(rom, found + 12)
+    if (tmchecks !== 0x17b6 + s) return null
+    const code = bodycheckCode(s)
+    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('B9', word(tmchecks)), code)
+  },
+  // The checks given shown in Player Stats in place of penalty minutes (PM becomes Cf, the sort title Checks), as
+  // the Vault's PlayerStat_BodyChecks_Display, and sorted by them too: ComparePlayerStats' penalty minutes
+  // (sep / lda ppenmin,y / cmp ppenmin,x) read the checks, where the Vault's still sorts by penalty minutes.
+  bodychecksShown: (rom) => {
+    const s = shift(rom)
+    if (s === null) return null
+    const ppenmin = word(0x198a + s)
+    const given = word(BODYCHECKS_GIVEN + s)
+    const draw = only(rom, 'a91d008d....e220bd' + hexOf(Uint8Array.from(ppenmin)) + 'c220')
+    const drawn = draw >= 0 ? draw : only(rom, 'a91d008d....e220bd' + hexOf(Uint8Array.from(given)) + 'c220')
+    const sortOf = (stat: number[]) => only(rom, 'e220b9' + hexOf(Uint8Array.from(stat)) + 'dd' + hexOf(Uint8Array.from(stat)) + 'c220')
+    const sorted = [sortOf(ppenmin), sortOf(given)].find((at) => at >= 0) ?? -1
+    const heading = ['Pt Sh PM', 'Pt Sh Cf'].map((text) => only(rom, hexOf(new TextEncoder().encode(text)))).find((at) => at >= 0) ?? -1
+    const titles = ['5b20', '5b'].flatMap((open) => ['Penalties', ' Checks  '].map((text) => only(rom, open + hexOf(new TextEncoder().encode(text)) + (open === '5b' ? '20' : ''))).map((at) => (at < 0 ? -1 : at + open.length / 2)))
+    const title = titles.find((at) => at >= 0) ?? -1
+    if (drawn < 0 || sorted < 0 || heading < 0 || title < 0) return null
+    return [
+      { at: drawn + 8, original: bytesOf('BD', ppenmin), hacked: bytesOf('BD', given) },
+      { at: sorted + 2, original: bytesOf('B9', ppenmin, 'DD', ppenmin), hacked: bytesOf('B9', given, 'DD', given) },
+      { at: heading + 6, original: hexBytes('504D'), hacked: hexBytes('4366') },
+      { at: title, original: new TextEncoder().encode('Penalties'), hacked: new TextEncoder().encode(' Checks  ') },
+    ]
+  },
   // Holdplayer: lda position,x; beq; lda pfalock,x; beq .t1; lda SPA,x; cmp #SPAburst; bne .t1; rtl.
   yButtonFix: (rom) => {
     const found = only(rom, 'bd....f00dbd....f009bd....c9....' + '....' + '6b')
@@ -1383,7 +1436,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
-  'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
+  'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
 
@@ -1451,6 +1504,16 @@ const STILL_BEFORE = 'a9060085a5ce....10..'
 const END_PENALTY_SHOT = 'ad....f0..ad....f0..da9c....a9ffff8d....a90a0085a522'
 const NET_CODE_SIZE = 12
 const STILL_CODE_SIZE = 13
+
+// Where the Vault's bodycheck counts are, in the original game: the checks given, then those taken, 26 a team.
+const BODYCHECKS_GIVEN = 0x168e
+const BODYCHECKS_TAKEN = 0x16c2
+// The Vault's counting code, with a build's variables (moved by `s`).
+function bodycheckCode(s: number): Uint8Array {
+  const pnum = word(0x12a3 + s)
+  const count = (team: string, list: number) => bytesOf('BD', pnum, 'A689 E0', team, 'D004 18 691A00 AA E220 FE', word(list + s), 'C220')
+  return bytesOf('48 DA A695', count('0200', BODYCHECKS_GIVEN), 'A691', count('0000', BODYCHECKS_TAKEN), 'FA 68 B9', word(0x17b6 + s), '60')
+}
 
 const hexOf = (bytes: Uint8Array) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 const long = (at: number) => bytesOf(word(loRomAddress(at)), loRomBank(at, 0x80))

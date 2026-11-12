@@ -43,7 +43,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
     title: 'Fixes',
     hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'regainAssist'],
   },
-  { id: 'statistics', title: 'Statistics', hacks: ['stickShots'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown'] },
   { id: 'rules', title: 'Rules', hacks: ['fighting', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'noInterference', 'noPenaltyShots', 'noGoalPosts'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke'] },

@@ -119,6 +119,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "When a player loses the puck to an opponent, wins it back himself, and passes to a teammate who scores, the original game loses his assist: a flag left from before the opponent's touch makes the scorer take his place among the last players to touch the puck. This clears the flag when he wins it back, so he keeps his place and gets the assist. About 1 goal in 29 in recorded games. Found by the NHL94 Match Viewer project and tested in the game; it goes with the second-assist fix or without it, in every build, and is among the recommended fixes.",
   stickShots:
     "A hard shot the goalie knocks away with his stick or glove, too fast for him to catch, is not counted as a shot on goal in the original game, only one he catches or stops with his body is, so those go missing from the totals. With this on they count once, for the shooter and his team and against the goalie. On the SNES this covers hard high shots off his stick or glove as well as low ones, more than on the Genesis: up to about 4 more shots on goal a game. Only the statistics change. Found by the NHL94 Match Viewer project and tested in the game.",
+  bodychecks:
+    "Counts each player's bodychecks during a game: the checks he gives and the checks he takes. The game itself only counts each team's. A check counts as the game's own team count does: one that knocks a player down while the clock runs. McMarkis's PlayerStat_BodyChecks from NHL94SNESVault, byte for byte, so the counts are where league tools reading save states expect them, and NHL94_Classic and SDL16 show up as having it. The counts sit in the room of the penalty summary's 21st to 47th entries, as the Vault has them, so in a game with more than 20 penalties the two get mixed up: later penalties change the counts, and checks change those penalties in the summary. Found by the code around it, so it goes into every build.",
+  bodychecksShown:
+    "Player Stats shows each player's checks given as Cf in place of penalty minutes (PM), and the sort title says Checks. It needs the counts, which turn on with it. McMarkis's PlayerStat_BodyChecks_Display from NHL94SNESVault, in NOSE4Web's version: sorting by that column sorts by the checks, where the Vault's still sorts by penalty minutes. Penalty minutes are still counted, and the team stats and penalty summary are as before.",
   penaltyShotFixes:
     'A penalty shot whistled dead because the net was knocked off, or because the loose puck stopped moving for two seconds, is taken all over again, from the side, as the original game leaves it pending. With the fix those whistles end the penalty shot, as a goal or the puck hitting the boards does, and play goes on to a faceoff.',
   forwardsAndDefence:
@@ -141,6 +145,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
 
 // What NOSE4Web's version of a hack does better than NHL94SNESVault's.
 const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
+  bodychecksShown: "NHL94SNESVault's shows the checks but still sorts that column by penalty minutes; NOSE4Web's sorts it by the checks.",
   hitEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
   holdEnergy: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
   injuryBonus: "NOSE4Web's first version (9 November 2026) also counted hits after the whistle, which the game itself never lets injure; this one counts only hits in play.",
