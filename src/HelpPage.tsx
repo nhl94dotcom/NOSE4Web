@@ -505,6 +505,18 @@ export function HelpPage() {
         with line changes. They change as you change the lines or the players.
       </p>
       <p>
+        <b>Build ticked</b>, <b>Build all lines</b> and <b>Fix broken lines</b> fill lines from the players' ratings,
+        by what each line is for: the best defence pair and forwards on NLC, the best scorers on Sc1 and Sc2 and the
+        power plays, checking forwards and defencemen the scoring lines do not need on Chk, and defensive players on
+        the penalty kill, with the power play's forwards resting there where the roster has enough. The playmaker of
+        three forwards plays centre, and a left shot goes to the left side where there is one. The extra attacker is
+        the best scorer not on the line, and the goalie stays the team's current starter. Fix broken lines builds only
+        the lines with a mistake: an empty position the ROM does not leave empty, a player past the end of the roster,
+        a goalie out of goal or a skater in goal, or a skater twice. Positions a 3 on 3 or smaller ROM leaves empty stay
+        empty. The ratings are only a guide to how a player plays, so take the result as a starting point and change
+        what you like; Undo takes it back. The League page does the same for every team at once.
+      </p>
+      <p>
         Each position offers only the players it is for, as the game's own Edit Lines does: goalies in the G column,
         defencemen at LD and RD, and forwards at LW, C and RW and as the extra attacker (EA). Whether a skater
         is a forward or a defenceman comes from the roster: the forwards come first. Choosing a player who is already
@@ -1240,6 +1252,11 @@ export function HelpPage() {
           <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
           and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
           sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
+        </li>
+        <li>
+          <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
+          lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
+          back.
         </li>
       </ul>
 

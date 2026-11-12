@@ -525,6 +525,22 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(homeAway.getByText(/^Now: Home 1 \(28 teams\); Away 1 \(28 teams\)\. Every team has the same pair\./)).toBeVisible()
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
     await expect(homeAway.getByText('Every team has the same pair.')).toHaveCount(0)
+
+    // Lines for every team: the original game has no broken line; building them all, then Undo.
+    const builder = page.locator('#line-builder')
+    await expect(builder.getByText('No team has a broken line.')).toBeVisible()
+    await expect(builder.getByRole('button', { name: 'Fix broken lines only' })).toBeDisabled()
+    await builder.getByRole('button', { name: "Build every team's lines" }).click()
+    await expect(builder.getByText(/^Built \d+ lines on 28 teams\. Undo takes it back\./)).toBeVisible()
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+
+    // One team's: its page builds the ticked lines or all of them, and says which changed.
+    await team(page, 'Boston Bruins').click()
+    await page.getByRole('button', { name: 'Build all lines' }).click()
+    await expect(page.getByText(/^Built from the ratings: (NLC|Sc1|Sc2|Chk|PP1|PP2|PK1|PK2)(, (NLC|Sc1|Sc2|Chk|PP1|PP2|PK1|PK2))*\. Undo takes it back\./)).toBeVisible()
+    await page.getByRole('button', { name: 'Build all lines' }).click()
+    await expect(page.getByText('Already as the builder makes them.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Fix broken lines' })).toBeDisabled()
   })
 
   test('changes ticked players with quick edit keys', async ({ page }) => {

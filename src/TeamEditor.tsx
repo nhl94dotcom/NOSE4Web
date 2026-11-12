@@ -11,6 +11,7 @@ import type { GameConfig } from './core/games'
 import type { SpriteImage } from './core/snes'
 import { QUICK_EDIT_JERSEY_LABEL, QUICK_EDIT_KEY_LABELS, quickEdit } from './core/quickedit'
 import { lineupRatings } from './core/league'
+import { brokenLines, buildLines } from './core/linebuilder'
 import { freeSkater, playerRole, repeatedLineSlots, SKATER_LINE_SLOTS, slotRole, suitsSlot as suitsSlotFor } from './core/lines'
 import { hasLeagueValue, leagueValue, LEAGUE_VALUE_TITLE } from './core/leaguevalue'
 import { overallRating } from './core/rating'
@@ -172,6 +173,14 @@ export function TeamEditor(props: Props) {
 
   // Each line's rating and the team's overall, as the League page has them.
   const lineup = lineupRatings(team, game, emptySlots)
+  const broken = brokenLines(team, emptySlots)
+  // Builds the lines in `which` from the players' ratings.
+  const build = (which: number[]) => {
+    const built = buildLines(team, game, which, emptySlots)
+    if (built.changed.length > 0) onChange({ ...team, lines: built.lines })
+    const named = built.changed.map((l) => game.lineLabels[l]).join(', ')
+    setLineNotice(built.changed.length > 0 ? `Built from the ratings: ${named}. Undo takes it back.` : 'Already as the builder makes them.')
+  }
   const rated = (value: number | null) => (value === null ? '–' : value.toFixed(1))
   const lineSplit = (l: number) => {
     const line = lineup.lines[l]
@@ -769,6 +778,19 @@ export function TeamEditor(props: Props) {
           </button>{' '}
           <button disabled={tickedLines.length === 0} onClick={() => void pasteOverTickedLines()}>
             Paste over ticked
+          </button>{' '}
+          <button title="Each ticked line's skaters picked from the players' ratings, by what the line is for" disabled={tickedLines.length === 0} onClick={() => build(tickedLines)}>
+            Build ticked
+          </button>{' '}
+          <button title="Every line's skaters picked from the players' ratings, by what the line is for" onClick={() => build(team.lines.map((_, l) => l))}>
+            Build all lines
+          </button>{' '}
+          <button
+            title="Build only the lines with a mistake: an empty position, a player past the end of the roster, a goalie out of goal or a skater twice"
+            disabled={broken.length === 0}
+            onClick={() => build(broken)}
+          >
+            Fix broken lines{broken.length > 0 ? ` (${broken.length})` : ''}
           </button>{' '}
           {reset('lines', 'lines')}{' '}
           <span className="note">

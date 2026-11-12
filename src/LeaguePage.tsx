@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { hex } from './core/bytes'
 import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
 import { setTeamRating, teamRatings } from './core/teamratings'
+import { brokenLines, buildLines } from './core/linebuilder'
+import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
 
@@ -350,6 +352,7 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers, onChange }: Pro
         )}
       </section>
       {onChange && <HomeAway project={project} names={names} onChange={onChange} />}
+      {onChange && <LineBuilder project={project} names={names} onChange={onChange} />}
     </main>
   )
 }
@@ -359,6 +362,53 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers, onChange }: Pro
 // (teamratings.ts): how they differ across the league, and one pair set for every team.
 const HOME = 4
 const AWAY = 5
+function LineBuilder({ project, names, onChange }: { project: RomProject; names: string[]; onChange: (project: RomProject) => void }) {
+  const [done, setDone] = useState('')
+  const empty = emptyLineSlots(project.teams)
+  const broken = project.teams.map((team) => brokenLines(team, empty))
+  const brokenTeams = broken.filter((lines) => lines.length > 0).length
+  const run = (onlyBroken: boolean) => {
+    let lines = 0
+    let teams = 0
+    const next = project.teams.map((team, t) => {
+      const which = onlyBroken ? broken[t] : team.lines.map((_, l) => l)
+      const built = buildLines(team, project.game, which, empty)
+      if (built.changed.length === 0) return team
+      lines += built.changed.length
+      teams++
+      return { ...team, lines: built.lines }
+    })
+    if (teams > 0) onChange({ ...project, teams: next })
+    setDone(teams > 0 ? `Built ${lines} ${lines === 1 ? 'line' : 'lines'} on ${teams} ${teams === 1 ? 'team' : 'teams'}. Undo takes it back.` : 'Nothing to change.')
+  }
+  return (
+    <section id="line-builder">
+      <h3>Lines for every team</h3>
+      <p className="note">
+        Builds teams' lines from the players' ratings, by what each line is for: the best players on the first line
+        (NLC, the one played with line changes off), scorers on the scoring and power-play lines, checkers on the
+        checking line, defensive players on the penalty kill, and the team's current starting goalie in goal. The
+        ratings are only a guide to how a player plays, so take it as a starting point; each team's page has the same
+        for one team or chosen lines.
+      </p>
+      <p>
+        <button type="button" onClick={() => run(false)}>
+          Build every team's lines
+        </button>{' '}
+        <button type="button" disabled={brokenTeams === 0} onClick={() => run(true)}>
+          Fix broken lines only
+        </button>{' '}
+        <span className="note">
+          {brokenTeams === 0
+            ? 'No team has a broken line.'
+            : `Broken: ${broken.flatMap((lines, t) => (lines.length > 0 ? [`${names[t]} (${lines.map((l) => project.game.lineLabels[l]).join(', ')})`] : [])).join('; ')}.`}
+        </span>{' '}
+        {done && <span className="note">{done}</span>}
+      </p>
+    </section>
+  )
+}
+
 function HomeAway({ project, names, onChange }: { project: RomProject; names: string[]; onChange: (project: RomProject) => void }) {
   const [home, setHome] = useState(0)
   const [away, setAway] = useState(0)
