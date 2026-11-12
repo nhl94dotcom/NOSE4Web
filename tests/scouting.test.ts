@@ -214,7 +214,7 @@ describe.skipIf(!existsSync(path('CDL_Season_12.bin')))('a script with a line ta
       expect(line(fixed, 29), name).toMatchObject({ text: '', blank: true })
       expect(line(fixed, 30).text, name).toMatch(/^For \{home city\}/)
       expect(line(fixed, 35).text, name).toMatch(/extremely well/)
-      expect(line(fixed, 35).role, name).toMatch(/much better/)
+      expect(line(fixed, 35).role, name).toMatch(/much hotter/)
       expect(scoutingUsed(fixed)!, name).toBeLessThanOrEqual(fixed.room)
       // The room is full, so one space came out of the longest run of spaces, and nothing else.
       const all = (sc: Scouting) => sc.lines.map((l) => l.text).join('')

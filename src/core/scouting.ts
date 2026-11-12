@@ -110,7 +110,7 @@ export const SCOUTING_STAND_NOTES: Record<ScoutingPlatform, Record<string, strin
   genesis: {
     'home hot player': 'the next of the home team’s hot players each time it is used',
     'home cold player': 'the next of its cold players',
-    'hotter team': 'the city of the team playing better lately',
+    'hotter team': 'the city of the team that came out hotter this game',
     'crowd record': 'the home crowd’s record noise, in dB',
     'home played by': '"(played by <name>)" for a person with a saved record playing the home team, else nothing',
   },
@@ -137,8 +137,10 @@ const GENESIS_ROLES: Record<number, string> = {
   31: 'The visitors’ hot and cold players (not when a team plays itself)',
   32: 'The crowd record',
   33: 'Last: how to start',
-  34: 'When one team has been playing better lately',
-  35: 'When one team has been playing much better lately',
+  // ScoutingReport's CompareHotColdTotals: one of these only when the teams' totals of this game's hot and cold
+  // values (new random tables each game) differ by $5E or more ($BD for 35), so they come and go.
+  34: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game',
+  35: 'Instead of the line above when one team comes out much hotter this game',
 }
 const GENESIS_BLANK = 29
 const SNES_LIST = 'a91d0087..e6..e6..a91c0087'
