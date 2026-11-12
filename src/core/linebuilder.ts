@@ -59,8 +59,8 @@ export const HAND_SIDES: { value: HandSide; label: string }[] = [
 // hand decides which way he turns on a straight reversal (doplayeracc's
 // noturn0: a left shot clockwise, to his right; a right shot to his left), so
 // a left-shot LD and a right-shot RD turn toward the middle, whichever way the
-// team attacks (Match Viewer, from the code of both systems and in play on the
-// Genesis: 19 of 19 and 8 of 8).
+// team attacks (Match Viewer, from the code of both systems and in play on both:
+// Genesis 19 of 19 and 8 of 8, SNES 7 of 7 and 6 of 6).
 export const DEFENCE_SIDES: { value: HandSide; label: string }[] = [
   { value: 'shooting', label: 'Shooting side: they turn toward the middle' },
   { value: 'off', label: 'Off side: they turn toward the boards' },

@@ -518,7 +518,7 @@ export function HelpPage() {
         boards, whichever way the team attacks. It is only on a straight reversal: a turn that is not quite one goes
         the shorter way, and a defenceman going straight back toward his own net with the puck ahead of him often
         skates backwards instead (found by the NHL94 Match Viewer project in the code of both systems, and tested in
-        play on the Genesis). The extra attacker is
+        play on both). The extra attacker is
         the best scorer not on the line, and the goalie stays the team's current starter. Fix broken lines builds only
         the lines with a mistake: an empty position the ROM does not leave empty, a player past the end of the roster,
         a goalie out of goal or a skater in goal, or a skater twice. Positions a 3 on 3 or smaller ROM leaves empty stay
