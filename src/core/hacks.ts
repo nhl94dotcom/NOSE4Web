@@ -2175,7 +2175,8 @@ const noIcing: Part<boolean> = {
 // already copes: PenBuf, the boxes and the log are per entry and team, a foul
 // by the team with the puck stops play at once, and two minors at one whistle
 // are both served, 4 on 4. Goalie interference and roughing after an injury
-// never went through this test. The SNES game has no such test.
+// never went through this test. The SNES game has no such test. Tested in
+// the game by Match Viewer: 2 such calls in six games, the original none.
 const DELAYED_AT = 0x13ec4
 const DELAYED = { original: bytes('0838 0002'), hacked: bytes('6000 001A') }
 const delayedCalls: Part<boolean> = {

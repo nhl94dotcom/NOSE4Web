@@ -733,7 +733,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'delayedCalls',
           onOff('delayedCalls'),
-          "An option, a matter of taste. In the original game, while one team has a penalty pending (the referee's arm up, play going on until it touches the puck), the other team cannot be called for anything: its checks, holds, hooks and pokes are never penalties until the whistle. With this on they can be. A foul by the team with the puck stops play at once, and both players go to the box, 4 on 4. Goalie interference was already called. The SNES game has no such rule. Known bug 12; read from the game's code by the NHL94 Match Viewer project, waiting on a test in the game.",
+          "An option, a matter of taste. In the original game, while one team has a penalty pending (the referee's arm up, play going on until it touches the puck), the other team cannot be called for anything: its checks, holds, hooks and pokes are never penalties until the whistle. With this on they can be. A foul by the team with the puck stops play at once, and both players go to the box, 4 on 4. Goalie interference was already called. The SNES game has no such rule. Known bug 12; read from the game's code by the NHL94 Match Viewer project and tested in the game: over six computer games on the same seeds, the original called no one while the other team's penalty was pending (184 penalties) and this called 2 such (181), with the penalty log matching the teams' counts in every game.",
         )}
         {hack(
           'bCheckPenaltiesOff',
