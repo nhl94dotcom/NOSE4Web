@@ -49,3 +49,17 @@ describe.skipIf(names.length === 0)('the extra attacker and Y button fixes', () 
     })
   })
 })
+
+describe('on the SA-1 builds, the direct page stays at $0000', () => {
+  const sa1 = (local.snesRoms ?? []).find((name: string) => /SA1/.test(name) && existsSync(path(name)))
+  it.skipIf(!sa1)('names the scratch variables at $00xx, the game variables $6000 on', () => {
+    const project = openRom(new Uint8Array(readFileSync(path(sa1!))))
+    const hex = (b: Uint8Array) => Buffer.from(b).toString('hex')
+    const code = (hack: 'showMaxBoost' | 'extraAttackerFix' | 'manualPullGoalie') => relocatedSnesHack(project.bytes, hack)!.map((p) => hex(p.hacked)).join(' ')
+    // sta $00A5 (d0), adc $00AF, ldy $0091 (a2): Match Viewer found them failing when shifted to $60xx.
+    expect(code('showMaxBoost')).toContain('8da500')
+    expect(code('extraAttackerFix')).toContain('6daf00')
+    expect(code('manualPullGoalie')).toContain('ac9100')
+    expect(code('manualPullGoalie')).toContain('add875')
+  })
+})
