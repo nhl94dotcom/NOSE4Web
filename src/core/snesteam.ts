@@ -188,33 +188,70 @@ function fitFree(content: number[], free: number[], order: number[], room: numbe
 
 // Where each team's block goes and how many free bytes it keeps. Teams stay
 // where the game has them while they fit; those last in ROM order that no
-// longer do go into the room at the end of the bank.
+// longer do go into the room at the end of the bank. Where no such split fits,
+// any teams that fill that room best go there, the rest staying in ROM order.
 function placeTeams(teams: Team[], layout: TeamLayout): { at: number[]; free: number[] } {
   const content = teams.map(snesTeamContentSize)
   const free = teams.map((team) => team.freeBytes)
   const order = layout.fileOrder
   const mainRoom = layout.end - layout.start
-  const place = (split: number, kept: number[]) => {
+  const place = (main: number[], rest: number[], kept: number[]) => {
     const at: number[] = []
-    let p = layout.start
-    order.forEach((index, i) => {
-      if (i === split) p = layout.overflow!.start
-      at[index] = p
-      p += content[index] + kept[index]
-    })
+    const run = (indexes: number[], start: number) =>
+      indexes.reduce((p, index) => {
+        at[index] = p
+        return p + content[index] + kept[index]
+      }, start)
+    run(main, layout.start)
+    if (rest.length > 0) run(rest, layout.overflow!.start)
     return { at, free: kept }
   }
   const all = fitFree(content, free, order, mainRoom, true)
-  if (all) return place(order.length, all)
+  if (all) return place(order, [], all)
   const total = order.reduce((sum, index) => sum + content[index], 0)
   const overflowRoom = layout.overflow ? layout.overflow.end - layout.overflow.start : 0
   for (let split = order.length - 1; split > 0 && overflowRoom > 0; split--) {
     const [main, rest] = [order.slice(0, split), order.slice(split)]
     const kept = fitFree(content, free, main, mainRoom, true)
     const keptRest = kept && fitFree(content, kept, rest, overflowRoom, false)
-    if (keptRest) return place(split, keptRest)
+    if (keptRest) return place(main, rest, keptRest)
   }
-  throw new Error(`The team data is ${total - mainRoom - overflowRoom} bytes too large to fit in the ROM.`)
+  const rest = fullestSubset(order, content, overflowRoom) ?? []
+  const short = total - rest.reduce((sum, index) => sum + content[index], 0) - mainRoom
+  if (short <= 0) {
+    const main = order.filter((index) => !rest.includes(index))
+    const kept = fitFree(content, free, main, mainRoom, true)
+    const keptRest = kept && fitFree(content, kept, rest, overflowRoom, false)
+    if (keptRest) return place(main, rest, keptRest)
+  }
+  const over = total - mainRoom - overflowRoom
+  if (over > 0) throw new Error(`The team data is ${over} bytes too large to fit in the ROM.`)
+  // A team's block cannot be split, and the room is in two places in the bank.
+  throw new Error(
+    `The team data fits the room in the ROM in total, but not as whole teams: it is in two places, and no choice of teams fills them closely enough. Make it ${short} bytes smaller (each letter of a name is 1 byte, a player about 22).`,
+  )
+}
+
+// The teams (in `order`'s order) whose blocks together come closest to `room`
+// without passing it, or null if none fit.
+function fullestSubset(order: number[], content: number[], room: number): number[] | null {
+  if (room <= 0) return null
+  // by[sum]: the last team added to reach that sum, or -1; -2 for the empty start.
+  const by = new Int32Array(room + 1).fill(-1)
+  const from = new Int32Array(room + 1)
+  by[0] = -2
+  for (const index of order) {
+    const size = content[index]
+    for (let sum = room; sum >= size; sum--) {
+      if (by[sum] === -1 && by[sum - size] !== -1) [by[sum], from[sum]] = [index, sum - size]
+    }
+  }
+  let best = room
+  while (best > 0 && by[best] === -1) best--
+  if (best === 0) return null
+  const chosen: number[] = []
+  for (let sum = best; sum > 0; sum = from[sum]) chosen.push(by[sum])
+  return order.filter((index) => chosen.includes(index))
 }
 
 // Bytes a team needs, not counting its free bytes.

@@ -40,6 +40,7 @@ import { csvFileName, importCsvSet, tablesFor } from '../src/core/tables'
 import { goalieCount, teamDisplayName, teamSpace } from '../src/core/team'
 import { overallRating } from '../src/core/rating'
 import { trade } from '../src/core/trade'
+import { addPlayer } from '../src/core/roster'
 
 // SNES ROMs are checked against whatever copies are on this computer: the
 // original game as NHL94.smc, and league ROMs named in tests/local.json as
@@ -698,5 +699,38 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
     const reopened = openProjectFile(openRom(read(STOCK)), saveProjectFile(edited, project, 'Set'))
     expect(reopened.notes).toEqual([])
     expect(buildRom(reopened.project)).toEqual(buildRom(edited))
+  })
+})
+
+describe.skipIf(!existsSync(path(STOCK)))('full SNES rosters in the two places the teams have room', () => {
+  // Every team at 26 players, the most the game holds, with names of 11 to 13 letters drawn at random: the total fits
+  // the room, the teams last in ROM order do not fill the room at the end of the bank closely enough, but another
+  // choice of teams does.
+  const crowded = (project: RomProject, trial: number) => {
+    let seed = 7
+    const random = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+    let teams = project.teams
+    for (let t = 0; t <= trial; t++) {
+      teams = project.teams.map((team) => {
+        let full = team
+        while (full.players.length < 26) full = addPlayer(full)
+        return { ...full, players: full.players.map((p) => ({ ...p, name: `A ${'B'.repeat(9 + Math.floor(random() * 3))}` })) }
+      })
+    }
+    return teams
+  }
+
+  it('puts any teams that fill it best there, and says how much to cut when none do', () => {
+    const project = openRom(read(STOCK))
+    const teams = crowded(project, 4)
+    const reopened = openRom(buildRom({ ...project, teams }))
+    expect(reopened.teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
+    // Not just the last in ROM order: some team before another that stayed is in the room at the end.
+    const at = (i: number) => readU16LE(reopened.bytes, reopened.game.teamTableOffset + i * 4)
+    const moved = project.layout.fileOrder.map((i) => at(i) >= ((reopened.layout.overflow!.start & 0x7fff) | 0x8000))
+    expect(moved.indexOf(true)).toBeLessThan(moved.lastIndexOf(false))
+    // Fits in total, not as whole teams: how many bytes to cut.
+    const tight = crowded(project, 0)
+    expect(() => buildRom({ ...project, teams: tight })).toThrow(/fits the room in the ROM in total, but not as whole teams.*Make it \d+ bytes smaller/)
   })
 })
