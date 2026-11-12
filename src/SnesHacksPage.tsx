@@ -379,7 +379,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
               </button>{' '}
               <span className="note">
                 Skating and speed bursts cost nothing; a knockdown costs {SNES_HITS_ONLY.hitEnergy} (a third of full energy) and a hold {SNES_HITS_ONLY.holdEnergy}; and energy takes all of a skater's speed, so three knockdowns leave him at the slowest speed there is.
-                Players get it back on the bench as usual. Then Apply. The energy costs were tested in the game by the NHL94 Match Viewer project; with the original's speed an average skater was 8%, 14% and 22% slower after one, two and three knockdowns, which is why energy now takes all of his speed (about 14%, 29% and 43%, also tested in the game).
+                Players get it back on the bench as usual. Then Apply. The energy costs were tested in the game by the NHL94 Match Viewer project; with the original's speed an average skater was 8%, 14% and 22% slower after one, two and three knockdowns, which is why energy now takes all of his speed (about 14%, 29% and 43%, also tested in the game). Over 12 computer games against the original: as many line changes, the average skater on the ice as fresh, about a third more knockdowns, and about one skater a game emptied; the computer then often leaves him on the ice, for up to two minutes of game time.
               </span>
             </p>
           )}

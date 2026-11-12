@@ -828,7 +828,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             Energy from hits only
           </button>{' '}
           <span className="note">
-            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Tested in the game by the NHL94 Match Viewer project: each knockdown and hold costs exactly that, and the bench works as before.
+            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Tested in the game by the NHL94 Match Viewer project: each knockdown and hold costs exactly that, and the bench works as before. Over 12 computer games against the original: as many line changes, the average skater on the ice as fresh, about a third more knockdowns, and more than one skater a game emptied; the computer then often leaves him on the ice, for up to about four minutes of game time.
           </span>
         </p>
         {hack(
