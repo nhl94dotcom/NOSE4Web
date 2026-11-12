@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
-import { snesCodeInPlace } from '../src/core/snes'
+import { findCodeAll } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -81,13 +81,9 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
   })
 
   names.forEach((name, n) => {
-    it(`SNES ROM ${n + 1}: both choices go in and out where the code is the original's, and it is not offered elsewhere`, () => {
+    it(`SNES ROM ${n + 1}: both choices go in and out, on every build`, () => {
       const rom = open(name)
       const state = detectSnesHacks(rom.bytes)
-      if (!snesCodeInPlace(rom.bytes)) {
-        expect(state.unknown).toContain('seasonShootout')
-        return
-      }
       expect(state.unknown).not.toContain('seasonShootout')
       for (const choice of [1, 2]) {
         const on = openRom(buildRom(applySnesHacks(rom, {}, false, { seasonShootout: choice })))
@@ -110,5 +106,31 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a proje
     const state = detectSnesHacks(project.bytes)
     expect(state.amounts).toMatchObject({ fighting: 4, injuries: 5, seasonShootout: 2 })
     expect(state.choices).toMatchObject({ fighting: true, injuries: true, seasonShootout: true })
+  })
+
+  // The SA-1 builds: their low variables in BW-RAM at $6000 on and bank $7E's game state in bank $40, so the state is
+  // saved to $40:4810 up; the mark stays in WRAM ($7E:F0F0), which the game clears when it starts.
+  const sa1 = names.find((name) => /SA1/.test(name))
+  it.skipIf(!sa1)('on the SA-1 build: the state saved in BW-RAM, the mark in WRAM', () => {
+    const rom = open(sa1!)
+    const on = applySnesHacks(rom, {}, false, { seasonShootout: 1 })
+    const tail = findCodeAll(on.bytes, 'ee....ad....c90300f0..90..a903008d....af........06')[0].at
+    const hook = tail + 25
+    expect(on.bytes[hook]).toBe(0x22)
+    const code = offset(on.bytes[hook + 3], on.bytes[hook + 1] | (on.bytes[hook + 2] << 8))
+    const all = hex(on.bytes, code, 37 + 120)
+    // A reads and clears the mark in WRAM.
+    expect(hex(on.bytes, code, 4)).toBe('aff0f07e')
+    // RUN: gsp ($7630) and the scores ($778E) are the SA-1's; low $75D3 to $40:4810, $30F4 to $40:4F90, both in bank $40;
+    // lastperiod ($40:7EAD) to $40:5318; back the other way.
+    expect(all).toContain('a97f07a2d375a0104854' + '4040')
+    expect(all).toContain('a98703a2f430a0904f544040')
+    expect(all).toContain('afad7e408f185340')
+    expect(all).toContain('a97f07a21048a0d37554' + '4040')
+    expect(all).toContain('af1853408fad7e40')
+    expect(all).toContain('bf8e7740' + '1a' + '9f8e7740')
+    expect(all).toContain('8f307640')
+    expect(all).not.toContain('7e7e')
+    expect(detectSnesHacks(buildRom(on)).amounts?.seasonShootout).toBe(1)
   })
 })

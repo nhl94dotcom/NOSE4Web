@@ -532,6 +532,12 @@ const MINOR_PENALTIES = [
 
 type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) => Placed[] | null
 
+// Where the shootout keeps what it saves, by the ROM's RAM: the original's (and its rebuilds'), in bank $7E; the
+// SA-1 builds', with the low variables `shift` on and the game state and the saved state in bank $40 (BW-RAM).
+const SHOOTOUT_RAM = [
+  { shift: 0, bank: 0x7e, low: 0xf100, game: 0xf880, last: 0xfc08 },
+  { shift: 0x6000, bank: 0x40, low: 0x4810, game: 0x4f90, last: 0x5318 },
+]
 // The shootout's two hooks' lengths, and where B keeps the tie test it does after.
 const SHOOTOUT_A_LENGTH = 37
 const SHOOTOUT_B_LENGTH = 51
@@ -548,9 +554,11 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // PeriodOver again from the top, the jsl's return dropped. There A or B finds the mark, clears it, and the
   // game, no longer tied, ends as any other. After one overtime also needs clockcont_0's regular-season game
   // over gone, as for overtime until a goal. The free RAM is Match Viewer's, past the injury risk's counts
-  // ($7E:F034-$F0B3); for the 1 MB builds, laid out as the original.
+  // ($7E:F034-$F0B3). In the SA-1 builds the low variables are in BW-RAM at $6000 on ($40:6000 up) and bank $7E's
+  // game state in bank $40, so the state is saved in BW-RAM's free $40:4810 up (Match Viewer's $40:4800-$5FFF);
+  // the mark stays in WRAM, which the game clears when it starts, as BW-RAM keeps what it had (a mark left by a
+  // reset would last). Which layout a ROM has is read from its code: gsp's address and OptPlayMode's bank.
   seasonShootout: (rom, _source, amount) => {
-    if (!snesCodeInPlace(rom)) return null
     // The tail of PeriodOver, its two places (12 bytes) left open, as either may be hooked.
     const tail = only(rom, 'ee....ad....c90300f0..90..a903008d....af........06' + '.'.repeat(24) + 'f0..a904008d')
     const start = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
@@ -561,6 +569,9 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     if (tail < 0 || start < 0 || clock < 0 || call < 0 || exit < 0) return null
     const gsp = rom.slice(tail + 1, tail + 3)
     const playMode = rom.slice(tail + 20, tail + 23)
+    const ram = SHOOTOUT_RAM.find((layout) => readU16(gsp, 0) === 0x1630 + layout.shift && playMode[2] === layout.bank)
+    if (!ram) return null
+    const b = ram.bank
     const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12, exit: exit + 10 }
     const original = { afterOvertime: bytesOf('A90400 8D', gsp), clock: hexBytes('F09F') }
     const hooked = (site: number) => rom[site] === 0x22 && rom[site + 4] === 0xea && rom[site + 5] === 0xea
@@ -574,7 +585,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     if (tieTest[0] !== 0xad || tieTest[3] !== 0xcd || readU16(tieTest, 4) !== readU16(tieTest, 1) + 2) return null
     const score = readU16(tieTest, 1)
     const mark = hexBytes('F0F07E')
-    const long = (address: number) => bytesOf(word(address), 0x7e)
+    const long = (address: number) => bytesOf(word(address), b)
     const playShootout = rom.slice(call + 10, call + 13)
     const periodOver = bytesOf(word(loRomAddress(start)), loRomBank(start, 0x80))
     // A, after one overtime: the mark set (back from the shootout): clear it; tied: the shootout; else as before.
@@ -587,17 +598,17 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
         'A20200', '4C', word(run), 'A90000', '8F', mark, tieTest, '6B')
     const run = bytesOf(
       'C230', '8B', 'DA', 'A9FF00', '8F', mark,
-      // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08.
-      '8B', 'A97F07', 'A2D315', 'A000F1', '547E7E', 'A98703', 'A2F430', 'A080F8', '547E7E', 'AB',
-      'AFAD1E7E', '8F08FC7E',
+      // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08 (as the layout has them).
+      '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, 'AB',
+      'AF', long(0x1ead + ram.shift), '8F', long(ram.last),
       '22', playShootout,
       // The winner: X 0 the home team, 2 the visitors.
       'A20000', 'AF', long(score), 'CF', long(score + 2), 'B003', 'A20200', 'DA',
       // Put back.
-      '8B', 'A97F07', 'A200F1', 'A0D315', '547E7E', 'A98703', 'A280F8', 'A0F430', '547E7E', 'AB',
-      'AF08FC7E', '8FAD1E7E',
+      '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, 'AB',
+      'AF', long(ram.last), '8F', long(0x1ead + ram.shift),
       // The winners' goal; gsp to come back with; PeriodOver from the top, the jsl's return dropped.
-      'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, '7E', 'AB', '3B', '18', '690300', '1B', '5C', periodOver,
+      'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, b, 'AB', '3B', '18', '690300', '1B', '5C', periodOver,
     )
     // The code as it is in, where it is (to take out, or to read), or as it is to go in.
     const shape = now && (choice === 0 || choice === now) ? now : choice
@@ -1250,7 +1261,7 @@ function detect(rom: Uint8Array): SnesHackState {
   // With the fights in, the injury risk's place holds their hook: it is off, not some other code; and the other way round.
   if (fight?.kind === 'in' && unknown.includes('injuryBonus')) unknown.splice(unknown.indexOf('injuryBonus'), 1)
   // Overtime until a goal takes clockcont_0's game over out, as the shootout after one overtime does: the shootout is off then.
-  if (inPlace && choices.seasonOvertime && unknown.includes('seasonShootout')) unknown.splice(unknown.indexOf('seasonShootout'), 1)
+  if (choices.seasonOvertime && unknown.includes('seasonShootout')) unknown.splice(unknown.indexOf('seasonShootout'), 1)
   if (fight === undefined && choices.injuryBonus && snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none') unknown.splice(unknown.indexOf('fighting'), 1)
   const amounts = Object.fromEntries(
     SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),

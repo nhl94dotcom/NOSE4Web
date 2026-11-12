@@ -2050,7 +2050,9 @@ export function HelpPage() {
               <b>A shootout for tied regular-season games</b>: the game's own shootout, after one overtime or straight
               after period 3, as the Genesis choices. The winners get one goal more on the scoreboard, the stats and
               scoring summary are the game's, and Exit Shootout is locked while it plays, as leaving would throw away
-              the whole game. For ROMs built on the original game; tested in the game by Match Viewer.
+              the whole game. Tested in the game by Match Viewer on the original game and Classic; the 32-team and
+              SA-1 builds get it too (on the SA-1 builds NOSE4Web keeps the game's state in their BW-RAM while the
+              shootout plays), code-tested there and waiting on a test in the game.
             </li>
             <li>
               <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
