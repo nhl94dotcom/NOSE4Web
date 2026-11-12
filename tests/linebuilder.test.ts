@@ -118,6 +118,35 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the side each hand goes to', ()
   })
 })
 
+const SMALL = ['NHL94 3vs3 [Spring 2006 GENS].bin', '2on2_update.bin', 'NHL941on1.bin'].filter((name) => existsSync(path(name)))
+describe.skipIf(SMALL.length === 0)('on a ROM with fewer skaters', () => {
+  SMALL.forEach((name) => {
+    it(`${name}: the best take the open positions, and the hand never decides who plays`, () => {
+      const project = open(name)
+      const empty = emptyLineSlots(project.teams)
+      const who = (line: number[]) => SKATER_LINE_SLOTS.map((slot) => line[slot]).filter(Boolean).sort((a, b) => a - b).join()
+      for (const team of project.teams) {
+        const all = team.lines.map((_, l) => l)
+        const sides = (side: HandSide) => buildLines(team, project.game, all, empty, { wings: side, defence: side }).lines
+        const [shooting, off, either] = [sides('shooting'), sides('off'), sides('either')]
+        shooting.forEach((line, l) => {
+          expect(who(off[l])).toBe(who(line))
+          expect(who(either[l])).toBe(who(line))
+        })
+      }
+    })
+  })
+  it.skipIf(!SMALL.includes('NHL94 3vs3 [Spring 2006 GENS].bin'))("3 on 3: Boston's best defenceman plays the one defence position", () => {
+    const project = open('NHL94 3vs3 [Spring 2006 GENS].bin')
+    const empty = emptyLineSlots(project.teams)
+    const team = project.teams[1]
+    const sc1 = project.game.lineLabels.indexOf('Sc1')
+    expect([empty[sc1][LD], empty[sc1][RD]]).toEqual([true, false])
+    const { lines } = buildLines(team, project.game, [sc1], empty)
+    expect(team.players[lines[sc1][RD] - 1].name).toMatch(/Bourque/)
+  })
+})
+
 describe.skipIf(names.length === 0)('building every team\'s lines on every ROM', () => {
   names.forEach((name) => {
     it(`${name}: nothing broken, no new problems, the positions this ROM leaves empty still empty`, () => {

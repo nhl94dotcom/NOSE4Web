@@ -83,7 +83,7 @@ export interface BuiltLines {
 // as they are). `empty` is the positions this ROM leaves empty on every team
 // (emptyLineSlots): those stay empty.
 export function buildLines(team: Team, game: GameConfig, which: number[], empty: boolean[][] = [], options: LineBuilderOptions = DEFAULT_LINE_OPTIONS): BuiltLines {
-  const plan = planLines(team, game, options)
+  const plan = planLines(team, game, options, empty)
   const lines = team.lines.map((line, l) => {
     if (!which.includes(l) || !plan[l]) return line
     const next = line.slice()
@@ -116,7 +116,7 @@ export function brokenLines(team: Team, empty: boolean[][] = []): number[] {
 
 // Every line's positions (roster positions counted from 1), by what each line
 // is for; null for a line this does not know.
-function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (number[] | null)[] {
+function planLines(team: Team, game: GameConfig, options: LineBuilderOptions, empty: boolean[][]): (number[] | null)[] {
   const labels = game.playerAttributeLabels
   const score = (position: number, weights: Weights) =>
     labels.reduce((sum, label, a) => sum + (weights[label] ?? 0) * team.players[position - 1].attributes[a], 0)
@@ -155,21 +155,30 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (
     const leftShotFirst = shootsRight(two[1])
     return leftShotFirst === (side === 'shooting') ? two : [two[1], two[0]]
   }
-  // Three forwards to LW, C, RW: the best playmaker at centre, a left shot on the left wing where there is one.
-  const forwardSlots = (trio: number[]) => {
-    const [centre, ...wings] = trio.slice().sort((a, b) => score(b, CENTRE) - score(a, CENTRE) || trio.indexOf(a) - trio.indexOf(b))
-    const ordered = sides(wings, options.wings)
-    return { lw: ordered[0] ?? 0, c: centre ?? 0, rw: ordered[1] ?? 0 }
+  // Players, best first, into a line's open positions: where a ROM with fewer skaters leaves some empty, the best
+  // take the open ones, so the hand never decides who plays. `centre` is the position for the best playmaker, and
+  // the hand chooses the sides only where both of `pair` are open.
+  const fill = (next: number[], row: boolean[] | undefined, ranked: number[], slots: number[], pair: [number, number], side: HandSide, centre?: number) => {
+    const open = slots.filter((slot) => !row?.[slot])
+    const chosen = ranked.slice(0, open.length)
+    let rest = chosen
+    if (centre !== undefined && open.includes(centre) && chosen.length > 0) {
+      const best = chosen.slice().sort((a, b) => score(b, CENTRE) - score(a, CENTRE) || chosen.indexOf(a) - chosen.indexOf(b))[0]
+      next[centre] = best
+      rest = chosen.filter((p) => p !== best)
+    }
+    const others = open.filter((slot) => slot !== centre || next[centre] === 0)
+    const bothOpen = pair.every((slot) => others.includes(slot))
+    const ordered = bothOpen ? sides(rest, side) : rest
+    const targets = bothOpen ? [...pair, ...others.filter((slot) => !pair.includes(slot))] : others
+    targets.forEach((slot, i) => (next[slot] = ordered[i] ?? 0))
   }
-  const pairSlots = (pair: number[]) => {
-    const ordered = sides(pair, options.defence)
-    return { ld: ordered[0] ?? 0, rd: ordered[1] ?? 0 }
-  }
-  const line = (pair: number[], trio: number[], extra: number) => {
-    const d = pairSlots(pair)
-    const f = forwardSlots(trio)
+  const line = (l: number, pair: number[], trio: number[], extra: number) => {
     const next = new Array<number>(LINE_SLOTS).fill(0)
-    ;[next[G], next[LD], next[RD], next[LW], next[C], next[RW], next[EA]] = [goalie, d.ld, d.rd, f.lw, f.c, f.rw, extra]
+    next[G] = goalie
+    fill(next, empty[l], pair, [LD, RD], [LD, RD], options.defence)
+    fill(next, empty[l], trio, [LW, C, RW], [LW, RW], options.wings, C)
+    next[EA] = extra
     return next
   }
   // The extra attacker, who comes on for the goalie: the best scoring forward not on the line.
@@ -192,7 +201,7 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (
   }
   // The checking line takes forwards the scoring lines do not need, and defence after theirs.
   const scoringLines = game.lineLabels.filter((label) => LINE_KINDS[label] === 'scoring').length
-  return game.lineLabels.map((label) => {
+  return game.lineLabels.map((label, l) => {
     const kind = LINE_KINDS[label]
     if (!kind) return null
     const onLine = new Set<number>()
@@ -204,12 +213,12 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (
     if (kind === 'best') {
       const pair = take(byOverall(defence), 2, used.best.d, skaters)
       const trio = take(byOverall(forwards), 3, used.best.f, skaters)
-      return line(pair, trio, extraFor(onLine))
+      return line(l, pair, trio, extraFor(onLine))
     }
     if (kind === 'scoring') {
       const pair = take(byOverall(defence), 2, used.scoring.d, skaters)
       const trio = take(scorers, 3, used.scoring.f, skaters)
-      return line(pair, trio, extraFor(onLine))
+      return line(l, pair, trio, extraFor(onLine))
     }
     if (kind === 'checking') {
       const avoidF = new Set([...used.checking.f, ...scorers.slice(0, 3 * scoringLines)])
@@ -218,12 +227,12 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (
       const trio = take(checkers, 3, avoidF, skaters)
       pair.forEach((p) => used.checking.d.add(p))
       trio.forEach((p) => used.checking.f.add(p))
-      return line(pair, trio, extraFor(onLine))
+      return line(l, pair, trio, extraFor(onLine))
     }
     if (kind === 'powerPlay') {
       const pair = take(pointMen, 2, used.powerPlay.d, skaters)
       const trio = take(scorers, 3, used.powerPlay.f, skaters)
-      return line(pair, trio, extraFor(onLine))
+      return line(l, pair, trio, extraFor(onLine))
     }
     // Penalty kill: two defence and two forwards on the ice (LW and C, as Edit Lines shows them), and in RW the
     // forward who comes on when the team pulls its goalie while short-handed.
@@ -231,11 +240,14 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions): (
     const pair = take(killingD, 2, used.penaltyKill.d, skaters)
     const pairOut = take(killers, 2, new Set([...used.penaltyKill.f, ...used.powerPlay.f]), skaters)
     pairOut.forEach((p) => used.penaltyKill.f.add(p))
-    const [first, second] = pairOut.slice().sort((a, b) => score(b, CENTRE) - score(a, CENTRE) || a - b)
     const pulled = pick(scorers, 1, new Set(), onLine, skaters)[0] ?? 0
-    const d = pairSlots(pair)
     const next = new Array<number>(LINE_SLOTS).fill(0)
-    ;[next[G], next[LD], next[RD], next[LW], next[C], next[RW], next[EA]] = [goalie, d.ld, d.rd, second ?? 0, first ?? 0, pulled, extraFor(onLine)]
+    next[G] = goalie
+    fill(next, empty[l], pair, [LD, RD], [LD, RD], options.defence)
+    // The two forwards to LW and C, the playmaker at C; the hand does not place them (Edit Lines shows no RW here).
+    fill(next, empty[l], pairOut, [LW, C], [LW, C], 'either', C)
+    next[RW] = empty[l]?.[RW] ? 0 : pulled
+    next[EA] = extraFor(onLine)
     return next
   })
 }
