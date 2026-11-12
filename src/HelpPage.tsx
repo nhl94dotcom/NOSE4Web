@@ -868,9 +868,12 @@ export function HelpPage() {
           <b>Announcer picture</b>: Ron Barr's picture before each game, on the Genesis's matchup screen and the
           SNES's scouting screen. <b>Import a picture</b> puts one of your own in its place: on the Genesis inside the
           original grey frame, 58 by 67 pixels, with 8 colours of its own besides those it shares with the screen; on
-          the SNES in the bottom right of the screen, 72 by 128 pixels, in 15 colours, the desk going and the screen's
-          frame showing where it was. A picture is scaled to fill the space and cropped to fit, so a head-and-shoulders
-          photo (Genesis) or a taller one (SNES) works best. <b>Export as PNG</b> saves the picture, and{' '}
+          the SNES in 15 colours, either beside the scouting report's box (72 by 128 pixels at the right, where it is
+          scaled to fill and cropped to fit, so a tall picture works best) or in Ron Barr's whole place (208 by 128,
+          behind the see-through box too, fitted in whole in the bottom right, the box and its text drawing over it as
+          over him). The SNES screen has room for only 152 different squares, so a picture in the whole place has to be
+          a cut-out, as Ron Barr is: a figure on a see-through background. The desk goes, and the screen's frame shows
+          where a picture leaves it. On the Genesis a head-and-shoulders photo works best. <b>Export as PNG</b> saves the picture, and{' '}
           <b>Put back the original</b> brings back the one the ROM was opened with. Measured and tested in the game by the
           NHL94 Match Viewer project on the Genesis and on the SNES (the original game and the 2026 build).
         </li>
@@ -1640,8 +1643,10 @@ export function HelpPage() {
         </li>
         <li>
           <b>Injuries</b>: as in the original game; <b>never</b>, a hit only a fall; <b>the penalty, but no
-          injury</b>, the hit still called and the player lying down about ten seconds before he skates on; or every
-          injury lasting the period, or the whole game. <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          injury</b>, the hit still called and the player lying down about ten seconds before he skates on; every
+          injury lasting the period, or the whole game; or <b>a long fall instead</b>, a hit that would injure keeping
+          the player down about 5 seconds before he gets up and plays on, with no injury and no penalty (not with head
+          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
           <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
           is held before you take the goalie.
         </li>
@@ -2027,7 +2032,17 @@ export function HelpPage() {
             <li>
               <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
               overtime plays more overtime until someone scores, as a playoff game does, instead of ending in a tie.
-              The same two changes as the Genesis option; not yet tested in the SNES game.
+              The same two changes as the Genesis option, tested in the game by Match Viewer.
+            </li>
+            <li>
+              <b>A shootout for tied regular-season games</b>: the game's own shootout, after one overtime or straight
+              after period 3, as the Genesis choices. The winners get one goal more on the scoreboard, the stats and
+              scoring summary are the game's, and Exit Shootout is locked while it plays, as leaving would throw away
+              the whole game. For ROMs built on the original game; tested in the game by Match Viewer.
+            </li>
+            <li>
+              <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
+              Match Viewer found, and tested by them on the original and the SA-1 build.
             </li>
           </ul>
         </li>
