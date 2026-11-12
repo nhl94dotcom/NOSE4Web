@@ -21,6 +21,7 @@ import {
   SNES_AMOUNT_OFF,
   SNES_INJURY_TEXTS,
   SNES_SHOOTOUT_TEXTS,
+  snesAmountText,
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
   SNES_AMOUNTS,
@@ -399,7 +400,10 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
               {changed.map((hack) => (
                 <li key={hack}>
                   {SNES_HACK_TITLES[hack]}:{' '}
-                  {isAmount(hack) ? `${hadAmounts[hack]} to ${wantedAmounts[hack]}` : `${state.choices[hack] ? 'on' : 'off'} to ${wanted[hack] ? 'on' : 'off'}`}.
+                  {isAmount(hack)
+                    ? `${snesAmountText(hack, hadAmounts[hack])} to ${snesAmountText(hack, wantedAmounts[hack])}`
+                    : `${state.choices[hack] ? 'on' : 'off'} to ${wanted[hack] ? 'on' : 'off'}`}
+                  .
                 </li>
               ))}
             </ul>

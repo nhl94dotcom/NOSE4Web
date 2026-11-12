@@ -449,6 +449,21 @@ const SNES_FALL_LISTS = [
 ]
 // The shootout's choice: none, after one overtime, or after period 3 with no overtime.
 export const SNES_SHOOTOUT_TEXTS = ['None: as the original game', 'A shootout after one overtime', 'A shootout after period 3, no overtime']
+// An amount in words, for the Apply list, Changes and the Discord post.
+export function snesAmountText(hack: SnesAmount, value: number): string {
+  switch (hack) {
+    case 'fighting':
+      return value === SNES_AMOUNT_OFF.fighting ? 'off' : `on, with a bonus of ${value}`
+    case 'injuries':
+      return SNES_INJURY_TEXTS[value]?.toLowerCase() ?? String(value)
+    case 'seasonShootout':
+      return SNES_SHOOTOUT_TEXTS[value]?.toLowerCase() ?? String(value)
+    case 'penaltyTime':
+      return `${value} seconds a penalty minute`
+    default:
+      return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
+  }
+}
 export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
@@ -1370,7 +1385,7 @@ export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string
   const inPlace = snesCodeInPlace(rom)
   const { amounts } = detectSnesHacks(rom)
   const lines = SNES_PAGE_ORDER.filter((hack) => choices[hack] && !unknown.includes(hack)).map(
-    (hack) => `- **${SNES_HACK_TITLES[hack]}**${isAmount(hack) && amounts ? `: ${amounts[hack]}${hack === 'penaltyTime' ? ' seconds a penalty minute' : ''}` : ''}`,
+    (hack) => `- **${SNES_HACK_TITLES[hack]}**${isAmount(hack) && amounts ? `: ${snesAmountText(hack, amounts[hack])}` : ''}`,
   )
   const unread = SNES_PAGE_ORDER.filter((hack) => unknown.includes(hack) && (inPlace || !snesHackInPlaceOnly(hack))).map((hack) => SNES_HACK_TITLES[hack])
   return discordPost(name, [...lines, ...extra], unread)
@@ -1383,7 +1398,7 @@ export function snesHackDifferences(before: Uint8Array, after: Uint8Array): stri
   const differs = (hack: SnesHack) => was.choices[hack] !== now.choices[hack] || (isAmount(hack) && was.amounts?.[hack] !== now.amounts?.[hack])
   return SNES_HACKS.filter((hack) => differs(hack) && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map((hack) =>
     isAmount(hack)
-      ? `${SNES_HACK_TITLES[hack]}: ${was.amounts?.[hack] ?? SNES_AMOUNT_OFF[hack]} to ${now.amounts?.[hack] ?? SNES_AMOUNT_OFF[hack]}.`
+      ? `${SNES_HACK_TITLES[hack]}: ${snesAmountText(hack, was.amounts?.[hack] ?? SNES_AMOUNT_OFF[hack])} to ${snesAmountText(hack, now.amounts?.[hack] ?? SNES_AMOUNT_OFF[hack])}.`
       : `${SNES_HACK_TITLES[hack]}: ${onOff(was.choices[hack])} to ${onOff(now.choices[hack])}.`,
   )
 }

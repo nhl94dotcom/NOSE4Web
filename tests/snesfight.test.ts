@@ -34,6 +34,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("McMarkis's SNES fighting", () =
     const out = applySnesHacks(fiercer, { fighting: false })
     expect(out.bytes.length).toBe(0x100000)
     expect(same(buildRom(out), buildRom(project))).toBe(true)
+    // Something else put past the first megabyte since: the ROM stays 2 MB, and its header says so.
+    const used = fiercer.bytes.slice()
+    used[0x1f0000] = 0x12
+    const kept = applySnesHacks({ ...fiercer, bytes: used }, { fighting: false })
+    expect(kept.bytes.length).toBe(0x200000)
+    expect(kept.bytes[0x7fd7]).toBe(0x0b)
+    expect(snesFightState(kept.bytes)).toEqual({ kind: 'none' })
   })
 
   it('goes with every other SNES hack, theirs in bank $9B free space and its in the second megabyte', () => {

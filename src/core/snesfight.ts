@@ -69,7 +69,8 @@ export function snesFightCountJump(bank: number): Uint8Array {
 // `ignore`: places another hack may hold (the injury risk's hook), for telling that the fights are out.
 export function snesFightState(rom: Uint8Array, ignore: number[] = []): SnesFightState | undefined {
   if (rom.length < SECOND_MB || !snesCodeInPlace(rom)) return undefined
-  if (CHANGES.every((c) => ignore.includes(c.at) || same(rom, c.at, c.original))) return { kind: 'none' }
+  // Out, the header's ROM size may say 2 MB all the same: a ROM can be 2 MB for other reasons.
+  if (CHANGES.every((c) => ignore.includes(c.at) || c.at === SIZE_BYTE || same(rom, c.at, c.original))) return { kind: 'none' }
   const probe = SNES_FIGHT.relocFirst[0]
   const change = CHANGES.find((c) => probe >= c.at && probe < c.at + c.patched.length)!
   const bank = BASE_BANK + ((rom[probe] - change.patched[probe - change.at]) & 0xff)
@@ -148,9 +149,13 @@ export function withoutSnesFight(rom0: Uint8Array): Uint8Array {
   const at = bankAt(state.bank)
   const mark = at + BLOCK.length
   const length = new DataView(rom.buffer).getUint32(mark + 4, true)
-  rom[SIZE_BYTE] = rom0[mark + 8]
+  const sizeBefore = rom0[mark + 8]
   rom.fill(0xff, at, mark + MARK_SIZE)
-  // Back to its length, if nothing else has been put past it since.
-  if (length >= SECOND_MB && length < rom.length && rom.subarray(length).every((byte) => byte === 0xff)) return rom.slice(0, length)
+  // Back to its length and its header's ROM size, if nothing else has been put past it since; else it stays 2 MB, as its header says.
+  if (length >= SECOND_MB && length < rom.length && rom.subarray(length).every((byte) => byte === 0xff)) {
+    rom[SIZE_BYTE] = sizeBefore
+    return rom.slice(0, length)
+  }
+  rom[SIZE_BYTE] = rom0[SIZE_BYTE]
   return rom
 }
