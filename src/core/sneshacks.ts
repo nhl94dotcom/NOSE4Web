@@ -556,10 +556,12 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const start = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
     const clock = only(rom, 'ad....c90300d006af..........22')
     const call = only(rom, 'af......c90400d0..22......')
-    if (tail < 0 || start < 0 || clock < 0 || call < 0) return null
+    // PauseExitGame, the shootout menus' Exit Shootout: lda d1 / bit #$8080 / bne / jmp PauseMenuPoll / jsl AskExitGame.
+    const exit = only(rom, 'a5..898080d0..4c....22......c90000d0..4c....9c....5c......')
+    if (tail < 0 || start < 0 || clock < 0 || call < 0 || exit < 0) return null
     const gsp = rom.slice(tail + 1, tail + 3)
     const playMode = rom.slice(tail + 20, tail + 23)
-    const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12 }
+    const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12, exit: exit + 10 }
     const original = { afterOvertime: bytesOf('A90400 8D', gsp), clock: hexBytes('F09F') }
     const hooked = (site: number) => rom[site] === 0x22 && rom[site + 4] === 0xea && rom[site + 5] === 0xea
     const now = hooked(sites.afterOvertime) ? 1 : hooked(sites.tieTest) ? 2 : 0
@@ -600,17 +602,24 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     // The code as it is in, where it is (to take out, or to read), or as it is to go in.
     const shape = now && (choice === 0 || choice === now) ? now : choice
     const hookLength = shape === 1 ? SHOOTOUT_A_LENGTH : SHOOTOUT_B_LENGTH
-    const length = hookLength + run.length
+    // Exit Shootout locked: while the mark is set, AskExitGame's call answers No at once (lda #0), so the menu stays
+    // for Resume and a league game cannot be left from its shootout; with the mark clear it is AskExitGame (jml).
+    const askAt = codeAt >= 0 ? codeAt + hookLength + run.length : -1
+    const askExit = now && rom[sites.exit] === 0x22 && askAt >= 0 && readU16(rom, sites.exit + 1) === (loRomAddress(askAt) & 0xffff) ? rom.slice(askAt + 14, askAt + 17) : rom.slice(sites.exit + 1, sites.exit + 4)
+    const lock = bytesOf('AF', mark, '29FF00', 'F004', 'A90000', '6B', '5C', askExit)
+    const length = hookLength + run.length + lock.length
     const codeRoom = now ? codeAt : roomInBank(rom, sites.afterOvertime, length)
     if (codeRoom < 0) return null
     const address = loRomAddress(codeRoom)
     const hook = shape === 1 ? after(address + hookLength) : now3(address + hookLength)
     const jsl = bytesOf('22', word(address), loRomBank(codeRoom, 0x80), 'EAEA')
+    const lockCall = bytesOf('22', word(address + hookLength + run.length), loRomBank(codeRoom, 0x80))
     return [
+      { at: sites.exit, original: bytesOf('22', askExit), hacked: choice ? lockCall : bytesOf('22', askExit) },
       { at: sites.afterOvertime, original: original.afterOvertime, hacked: choice === 1 ? jsl : original.afterOvertime, amount: choice },
       { at: sites.tieTest, original: tieTest, hacked: choice === 2 ? jsl : tieTest },
       { at: sites.clock, original: original.clock, hacked: choice === 1 ? hexBytes('EAEA') : original.clock },
-      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run) },
+      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock) },
     ]
   },
   // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code

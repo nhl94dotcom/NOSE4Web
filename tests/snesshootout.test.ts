@@ -45,6 +45,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
     expect(code).toContain('5cb18c9f')
     // The winner: bcs +3 over ldx #2.
     expect(code).toContain('b003a20200da')
+    // Exit Shootout locked: PauseExitGame's jsl AskExitGame ($9F:F00B, at $9F:E74B) goes to the stub after RUN,
+    // which with the mark set answers No (lda #0 / rtl) and else is AskExitGame (beq +4 to jml $9F:F00B).
+    const EXIT = 0xfe74b
+    expect(hex(retail().bytes, EXIT, 4)).toBe('220bf09f')
+    expect(on.bytes[EXIT]).toBe(0x22)
+    const lock = offset(on.bytes[EXIT + 3], on.bytes[EXIT + 1] | (on.bytes[EXIT + 2] << 8))
+    expect(hex(on.bytes, lock, 17)).toBe('aff0f07e29ff00f004a900006b5c0bf09f')
     // Out: the original game.
     expect(Buffer.compare(buildRom(applySnesHacks(on, {}, false, { seasonShootout: 0 })), buildRom(retail()))).toBe(0)
   })
