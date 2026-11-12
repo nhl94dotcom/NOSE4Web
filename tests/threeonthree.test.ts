@@ -55,6 +55,16 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('3 on 3 overtime', () => {
       // The faceoff row: in overtime d4 = 0, the full row; else the original's three instructions.
       const faceoff = target(on, 0xfa6e)
       expect(Buffer.from(on.subarray(faceoff, faceoff + 34)).toString('hex')).toContain('78004e7544445c44e7444e75')
+      // The power-play clock's full-strength test: in overtime the box list (lea $9A(a3),a0), else cmpi.w #6,tmap(a3).
+      const box = target(on, 0x12a50)
+      const boxCode = Buffer.from(on.subarray(box, box + 56)).toString('hex')
+      expect(boxCode).toContain('41eb009a4242')
+      expect(boxCode).toContain('0c6b000600244e75')
+      // Its loop's branches: bmi to clr.w d2 / rts (Z set: nobody in the box), bne back to move.b (a0)+,d2.
+      const loop = box + (season ? 28 : 22)
+      expect(hex(on, loop, 2)).toBe('1418')
+      expect(hex(on, loop + 4 + on[loop + 3], 4)).toBe('42424e75')
+      expect(loop + 12 + (on[loop + 11] << 24 >> 24)).toBe(loop)
     })
   }
 
