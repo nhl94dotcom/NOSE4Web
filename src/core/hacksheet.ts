@@ -192,6 +192,7 @@ const SNES: Record<SnesHack, string> = {
   seasonOvertime: 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
   fighting: "Players can fight, as in NHLPA 93 (McMarkis's port of its fights): a fight can start after enough hard checks between two players with high enough fighting ratings, and both get fighting majors.",
   injuries: 'Injuries work differently from the original game.',
+  seasonShootout: 'A regular-season game still tied is settled by a shootout, the winners getting one goal more, so it never ends in a tie.',
   penaltyTime: 'Penalties last a different time from what they say: each penalty minute is a set number of seconds in the box. The penalty minutes in the statistics are as before.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
@@ -209,6 +210,8 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   const textOf = (hack: SnesHack) =>
     (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
       ? SNES[hack].replace('some of his energy', `${amounts[hack]} units of his energy (${energyText(amounts[hack])})`)
+      : hack === 'seasonShootout' && amounts
+        ? `A regular-season game tied ${amounts.seasonShootout === 2 ? 'after period 3 goes straight to a shootout, with no overtime' : 'after overtime is settled by a shootout'}; the winners get one goal more, so it never ends in a tie.`
       : hack === 'injuries' && amounts
         ? [
             '',

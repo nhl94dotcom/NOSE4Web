@@ -49,6 +49,7 @@ export type SnesHack =
   | 'penaltyTime'
   | 'fighting'
   | 'injuries'
+  | 'seasonShootout'
 
 interface Site {
   // The game's address.
@@ -280,6 +281,7 @@ export const SNES_HACKS: SnesHack[] = [
   'penaltyTime',
   'fighting',
   'injuries',
+  'seasonShootout',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -317,6 +319,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   penaltyTime: 'Penalty time',
   fighting: 'Fighting',
   injuries: 'Injuries',
+  seasonShootout: 'A shootout for tied regular-season games',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -324,7 +327,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
 const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain' }
-const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
 export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
@@ -431,8 +434,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -444,7 +447,9 @@ const SNES_FALL_LISTS = [
   { original: '19011400' + '1a011400' + '1b01e803' + '1b0118fc', longFall: '1a010600' + '1b01' + SNES_LONG_FALL + '1c010800' + '5901f8ff' },
   { original: '29011400' + '2a011400' + '2b01e803' + '2b0118fc', longFall: '2a010600' + '2b01' + SNES_LONG_FALL + '2c010800' + '5d01f8ff' },
 ]
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0 }
+// The shootout's choice: none, after one overtime, or after period 3 with no overtime.
+export const SNES_SHOOTOUT_TEXTS = ['None: as the original game', 'A shootout after one overtime', 'A shootout after period 3, no overtime']
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -454,7 +459,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -511,7 +516,87 @@ const MINOR_PENALTIES = [
 
 type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) => Placed[] | null
 
+// The shootout's two hooks' lengths, and where B keeps the tie test it does after.
+const SHOOTOUT_A_LENGTH = 37
+const SHOOTOUT_B_LENGTH = 51
+const SHOOTOUT_B_TEST = 44
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one
+  // overtime, its lda #4 / sta gsp (a regular-season game after overtime) becomes jsl A; after period 3, its tie
+  // test lda tmscore / cmp tmscore+2 becomes jsl B, which does the test after (so the beq after it is as it was).
+  // Either, for a tied game (B: in the regular season, period 3 just over), goes to RUN with the gsp to come back
+  // with: the mark set ($7E:F0F0), the state PlayShootout's StartGame_go clears saved to $7E:F100 up (Match
+  // Viewer: $15D3-$1D52, which has gsp, the scores, the team stats and lines; $30F4-$347B, the scoring summary and
+  // the games-started count; and lastperiod, $1EAD), PlayShootout, the winner read from its tally in the scores,
+  // all put back, the winners' score one more, gsp set so that PeriodOver comes back to the same test, and
+  // PeriodOver again from the top, the jsl's return dropped. There A or B finds the mark, clears it, and the
+  // game, no longer tied, ends as any other. After one overtime also needs clockcont_0's regular-season game
+  // over gone, as for overtime until a goal. The free RAM is Match Viewer's, past the injury risk's counts
+  // ($7E:F034-$F0B3); for the 1 MB builds, laid out as the original.
+  seasonShootout: (rom, _source, amount) => {
+    if (!snesCodeInPlace(rom)) return null
+    // The tail of PeriodOver, its two places (12 bytes) left open, as either may be hooked.
+    const tail = only(rom, 'ee....ad....c90300f0..90..a903008d....af........06' + '.'.repeat(24) + 'f0..a904008d')
+    const start = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
+    const clock = only(rom, 'ad....c90300d006af..........22')
+    const call = only(rom, 'af......c90400d0..22......')
+    if (tail < 0 || start < 0 || clock < 0 || call < 0) return null
+    const gsp = rom.slice(tail + 1, tail + 3)
+    const playMode = rom.slice(tail + 20, tail + 23)
+    const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12 }
+    const original = { afterOvertime: bytesOf('A90400 8D', gsp), clock: hexBytes('F09F') }
+    const hooked = (site: number) => rom[site] === 0x22 && rom[site + 4] === 0xea && rom[site + 5] === 0xea
+    const now = hooked(sites.afterOvertime) ? 1 : hooked(sites.tieTest) ? 2 : 0
+    if (now !== 1 && !same(rom, sites.clock, original.clock)) return null
+    const choice = amount ?? (now === 0 ? 1 : now)
+    const site = now === 1 ? sites.afterOvertime : sites.tieTest
+    const codeAt = now ? loRomOffset(rom[site + 3], readU16(rom, site + 1)) : -1
+    // The tie test as the original has it, lda tmscore / cmp tmscore+2: read from B where it is in.
+    const tieTest = now === 2 ? rom.slice(codeAt + SHOOTOUT_B_TEST, codeAt + SHOOTOUT_B_TEST + 6) : rom.slice(sites.tieTest, sites.tieTest + 6)
+    if (tieTest[0] !== 0xad || tieTest[3] !== 0xcd || readU16(tieTest, 4) !== readU16(tieTest, 1) + 2) return null
+    const score = readU16(tieTest, 1)
+    const mark = hexBytes('F0F07E')
+    const long = (address: number) => bytesOf(word(address), 0x7e)
+    const playShootout = rom.slice(call + 10, call + 13)
+    const periodOver = bytesOf(word(loRomAddress(start)), loRomBank(start, 0x80))
+    // A, after one overtime: the mark set (back from the shootout): clear it; tied: the shootout; else as before.
+    const after = (run: number) =>
+      bytesOf('AF', mark, '29FF00', 'D00E', 'AD', word(score), 'CD', word(score + 2), 'D00D', 'A20300', '4C', word(run),
+        'A90000', '8F', mark, 'A90400', '8D', gsp, '6B')
+    // B, after period 3: the shootout only for a tied regular-season game with period 3 just over; then the test.
+    const now3 = (run: number) =>
+      bytesOf('AF', mark, '29FF00', 'D01C', 'AF', playMode, 'D01D', 'AD', gsp, 'C90300', 'D015', 'AD', word(score), 'CD', word(score + 2), 'D00D',
+        'A20200', '4C', word(run), 'A90000', '8F', mark, tieTest, '6B')
+    const run = bytesOf(
+      'C230', '8B', 'DA', 'A9FF00', '8F', mark,
+      // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08.
+      '8B', 'A97F07', 'A2D315', 'A000F1', '547E7E', 'A98703', 'A2F430', 'A080F8', '547E7E', 'AB',
+      'AFAD1E7E', '8F08FC7E',
+      '22', playShootout,
+      // The winner: X 0 the home team, 2 the visitors.
+      'A20000', 'AF', long(score), 'CF', long(score + 2), 'B003', 'A20200', 'DA',
+      // Put back.
+      '8B', 'A97F07', 'A200F1', 'A0D315', '547E7E', 'A98703', 'A280F8', 'A0F430', '547E7E', 'AB',
+      'AF08FC7E', '8FAD1E7E',
+      // The winners' goal; gsp to come back with; PeriodOver from the top, the jsl's return dropped.
+      'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, '7E', 'AB', '3B', '18', '690300', '1B', '5C', periodOver,
+    )
+    // The code as it is in, where it is (to take out, or to read), or as it is to go in.
+    const shape = now && (choice === 0 || choice === now) ? now : choice
+    const hookLength = shape === 1 ? SHOOTOUT_A_LENGTH : SHOOTOUT_B_LENGTH
+    const length = hookLength + run.length
+    const codeRoom = now ? codeAt : roomInBank(rom, sites.afterOvertime, length)
+    if (codeRoom < 0) return null
+    const address = loRomAddress(codeRoom)
+    const hook = shape === 1 ? after(address + hookLength) : now3(address + hookLength)
+    const jsl = bytesOf('22', word(address), loRomBank(codeRoom, 0x80), 'EAEA')
+    return [
+      { at: sites.afterOvertime, original: original.afterOvertime, hacked: choice === 1 ? jsl : original.afterOvertime, amount: choice },
+      { at: sites.tieTest, original: tieTest, hacked: choice === 2 ? jsl : tieTest },
+      { at: sites.clock, original: original.clock, hacked: choice === 1 ? hexBytes('EAEA') : original.clock },
+      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run) },
+    ]
+  },
   // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code
   // elsewhere). Its amount is the choice, SNES_INJURY_TEXTS. The roll's clock test after it, bne .23 (when the
   // clock runs the hit can injure), becomes bra for never: the fall and the loose puck stay. setInjuryType's lda
@@ -1139,6 +1224,8 @@ function detect(rom: Uint8Array): SnesHackState {
   ) as SnesHackChoices
   // With the fights in, the injury risk's place holds their hook: it is off, not some other code; and the other way round.
   if (fight?.kind === 'in' && unknown.includes('injuryBonus')) unknown.splice(unknown.indexOf('injuryBonus'), 1)
+  // Overtime until a goal takes clockcont_0's game over out, as the shootout after one overtime does: the shootout is off then.
+  if (inPlace && choices.seasonOvertime && unknown.includes('seasonShootout')) unknown.splice(unknown.indexOf('seasonShootout'), 1)
   if (fight === undefined && choices.injuryBonus && snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none') unknown.splice(unknown.indexOf('fighting'), 1)
   const amounts = Object.fromEntries(
     SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),

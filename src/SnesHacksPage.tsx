@@ -20,6 +20,7 @@ import {
   RECOMMENDED_SNES_HOLD_ENERGY,
   SNES_AMOUNT_OFF,
   SNES_INJURY_TEXTS,
+  SNES_SHOOTOUT_TEXTS,
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
   SNES_AMOUNTS,
@@ -40,6 +41,7 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   fighting: SNES_FIGHT_BONUS_DEFAULT,
   // Not a recommendation: the original game.
   injuries: 0,
+  seasonShootout: 0,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -86,6 +88,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It needs Skating costs no energy, which turns on with it: goalies never go to the bench, so the skating drain would slow them more than in the original game. Line changes Auto keeps everyone at full speed. Read from the game's code and tested in the game by the NHL94 Match Viewer project, on the original and the SA-1 build: a leg-speed-15 skater's speed class is 15, 10, 5 and 0 after none to three knockdowns, and goalies keep full speed.",
   seasonOvertime:
     "A regular-season game still tied after its overtime plays another overtime, and another, until someone scores, as a playoff game does, instead of ending in a tie. Each overtime is the regular season's 5:00; playoffs are as they were. The same two changes as the Genesis option, which the NHL94 Match Viewer project found and tested there; not yet tested in the SNES game.",
+  seasonShootout:
+    "A regular-season game still tied is settled by the game's own shootout, as its Shootout mode plays one: after one 5:00 overtime, or straight after period 3 with no overtime. It begins with the shootout's set-up screen (the pause menu, as in Shootout mode), then five shooters a side and one each after until a team is ahead. The winners get one goal more on the scoreboard, everything else about the game (its stats, the scoring summary, the lines) is as it was at the end of play, and the game then ends as any other. Playoff games play overtime until a goal, as they always have. Not with overtime until a goal, which settles ties its own way. Built from the NHL94 Match Viewer project's reading of the game's code; for ROMs built on the original game (not the SA-1 builds); not yet tested in the game.",
   injuries:
     "In the original game a hit that knocks a puck carrier onto his back with the clock running can injure him: out for the rest of the period, or one time in 7 the rest of the game. With never a hit is only a fall, and the puck still comes loose. With the penalty, but no injury the hit is still called (roughing with penalties on, the injury stoppage with them off), but there is no injury and no injury box: the player lies down and plays on after the faceoff. Every injury for the period and for the game make every injury last that long. With a long fall instead a hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts under 2, then get up and play on: no injury, no injury box and no penalty. The places in the game's code were found by the NHL94 Match Viewer project, as for the Genesis choices, and all six tested in the game on the original and the SA-1 build.",
   fighting:
@@ -214,7 +218,18 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>
-                {hack === 'injuries' ? (
+                {hack === 'seasonShootout' ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.seasonShootout} onChange={(e) => setAmount('seasonShootout', Number(e.target.value))}>
+                      {SNES_SHOOTOUT_TEXTS.map((text, choice) => (
+                        <option key={choice} value={choice}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : hack === 'injuries' ? (
                   <label>
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.injuries} onChange={(e) => setAmount('injuries', Number(e.target.value))}>

@@ -38,7 +38,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("McMarkis's SNES fighting", () =
 
   it('goes with every other SNES hack, theirs in bank $9B free space and its in the second megabyte', () => {
     const project = open('NHL94.smc')
-    const all = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost').map((hack) => [hack, true]))
+    const all = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'seasonShootout').map((hack) => [hack, true]))
     const on = applySnesHacks(project, all)
     expect(detectSnesHacks(on.bytes).choices).toMatchObject(all)
     expect(detectSnesHacks(on.bytes).unknown).toEqual([])
