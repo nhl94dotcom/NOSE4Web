@@ -38,3 +38,15 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES shootout winners' box"
     expect(found[1].message).toMatch(/"_"/)
   })
 })
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('SNES team names', () => {
+  it('an empty Location, Name or Stadium is a problem, as Ron Barr types them', () => {
+    const rom = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
+    expect(checkProject(rom).filter((f) => /is empty|are empty/.test(f.message))).toEqual([])
+    const teams = rom.teams.map((team, i) => (i === 1 ? { ...team, names: [team.names[0], team.names[1], '', team.names[3]] } : team))
+    const found = checkProject({ ...rom, teams }).filter((f) => /empty/.test(f.message))
+    expect(found).toHaveLength(1)
+    expect(found[0].level).toBe('problem')
+    expect(found[0].message).toMatch(/Name is empty/)
+  })
+})

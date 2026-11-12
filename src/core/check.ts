@@ -196,6 +196,21 @@ export function checkProject(project: RomProject): Finding[] {
       const problem = snesBannerNameProblem(team.placeName!)
       if (problem) findings.push({ level: problem.level, where: labels[i], message: `Its banner name, "${team.placeName}", ${problem.message} Change it under Banner name on the team page.` })
     })
+    // Ron Barr's matchup screen text types a team's Location, Name and Stadium a word at a time (ScoutAppend /
+    // ScoutTypeText), which takes a word to have at least one letter: an empty one is read past its end and the box's
+    // text lands in the wrong places, jumbling the screen (a commissioner's ROM with an empty Name, Boston "").
+    teams.forEach((team, i) => {
+      // The original game's All-Star teams have no Name, as it shipped: left alone until Match Viewer has seen their matchup screen.
+      if (/^All Stars/.test(team.names[0] ?? '')) return
+      const empty = [0, 2, 3].filter((n) => (team.names[n] ?? '').trim() === '').map((n) => project.game.teamNameLabels[n])
+      if (empty.length) {
+        findings.push({
+          level: 'problem',
+          where: labels[i],
+          message: `Its ${empty.join(' and ')} ${empty.length === 1 ? 'is' : 'are'} empty. Ron Barr's matchup screen text types each of these, and an empty one jumbles the screen there: give ${empty.length === 1 ? 'it' : 'each'} at least one letter.`,
+        })
+      }
+    })
     // ShootoutWonBy prints the winners' Location in the big font (printbig), two columns a letter in a frame centred
     // on the 32-column screen: past 15 letters it runs off. BigFontIndex covers space to Z (lower case made upper);
     // [ \ ] ^ _ ` { | } ~ are read from past its end, a stray tile.
