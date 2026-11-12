@@ -26,7 +26,18 @@ thanks to **smozoma** and **kingraph**; and
 [NHL94SNESVault](https://github.com/Mhopkinsinc/NHL94SNESVault) by
 **McMarkis** (Mhopkinsinc), whose patches are the SNES hacks. The score box
 logos it can add to the original SNES game are adapted, with his permission,
-from McMarkis's 32-team SNES build.
+from McMarkis's 32-team SNES build, and its SNES fighting is McMarkis's port of
+the NHLPA 93 SNES fights, built in with his permission.
+
+Fighting on the Genesis is **chaos**'s
+[fighting patch](https://github.com/Chaos81/nhl94-patches), made with
+**McMarkis** and **AbdulBCRT**, under the MIT licence (Copyright (c) 2025
+Chaos81).
+
+Most of the fixes, and the tests in the game of every hack, come from the
+[NHL94 Match Viewer](https://github.com/nhl94dotcom/NHL94MatchViewer) project,
+which reads the game's code in the community's disassemblies, by
+**abdulahmad** for the Genesis and the SNES.
 
 ## Licence
 
@@ -50,6 +61,9 @@ That licence does not cover:
 - the files in `public/templates`, which are derived from the game's own
   artwork by way of NOSE's preview templates;
 - NOSE itself, which is wboy's work;
+- chaos's fighting patch, whose code and data (in `src/core/fightdata.ts`)
+  stay under its MIT licence, Copyright (c) 2025 Chaos81, given in full in that
+  file;
 - any ROM. None is included, and you need your own.
 
 ## What it edits
@@ -72,17 +86,29 @@ That licence does not cover:
 - Players and goalies: names, jersey numbers and all attributes, with the
   overall rating shown as you edit
 - Adding, deleting and reordering players, and the lines they play on, each
-  position offering only the players it is for and no one on a line twice
+  position offering only the players it is for and no one on a line twice;
+  and lines built from the ratings, for one team or every team, with wingers
+  and defence on the side of the ice you choose by their shooting hand
+- What Ron Barr says on the matchup screen, on both systems
+- The credits rolled on the title screen, and each team's songs (on the
+  Genesis the organ's, with MIDI files)
 - Rink colours
 - Hacks to the game itself, from smozoma's smozROM: the second-assist fix,
   bodycheck and plus-minus statistics, the improved three stars, 0 to 15
-  ratings, the hot and cold bonuses, the base weight for another era, and
-  smozoma's weight bug fix, kept as a legacy hack for league ROMs that have it
-- Hacks to how the game plays, from findings on the NHL94 forums: the weight
-  bug and C-then-B fix (the fix for the weight bug, which fixes the C-then-B
-  check too, as found by the NHL94 Match Viewer project), the goalie's range
-  and hold time, energy and stamina, the speed burst, stopping and turning,
-  and a real-time clock
+  ratings, the hot and cold bonuses and the base weight for another era (and
+  his weight bug fix, kept as a legacy hack for league ROMs that have it)
+- Hacks to how the game plays, from findings on the NHL94 forums: the goalie's
+  range and hold time, energy and stamina, the speed burst, stopping and
+  turning, and a real-time clock; and the weight bug and C-then-B fix, which
+  the NHL94 Match Viewer project found mends both
+- Fighting on the Genesis (chaos's patch) and on the SNES (McMarkis's port),
+  with head bleeding for the Genesis
+- Rules: a shootout or overtime until a goal for tied regular-season games,
+  3 on 3 overtime as the NHL plays it (Genesis), penalties called on either
+  team during a delayed penalty (Genesis), and the injuries choices
+- Energy and injury options from a community idea: hits that cost the skater
+  hit energy (or energy from hits only), and knockdowns that make a later
+  injury a little likelier
 - NHL '94 for the SNES too: rosters (with the unused room at the end of
   the teams' bank as more room for them), lines, team names and ratings, team
   colours shown on the game's own players, the team overall the SNES shows,
@@ -113,7 +139,8 @@ That licence does not cover:
   fix, all tested in the game with the NHL94 Match Viewer project
 - On the SNES, NHL94SNESVault's hacks for Edit Lines (any skater at any
   position, and the maximum boost of the hot and cold bug shown) and for
-  pulling the goalie with L and R, and when the computer pulls its goalie
+  pulling the goalie with L and R, and when the computer pulls its goalie;
+  and each player's bodychecks given and taken, shown in Player Stats
 - From the same project's readings, also tested in the game: the comeback
   bonus fix for the SNES, and options for pulled-goalie sniping (every shot
   exact while the shooter's own goalie is off the ice), the computer
@@ -140,8 +167,9 @@ It can also:
 - describe the differences between two ROMs, with a summary of player moves
   and rating changes to post for a league
 - find a player on any team, compare the teams' ratings (every line too),
-  put two teams side by side, see how balanced the league is, and change one
-  attribute for many players at once
+  put two teams side by side, see how balanced the league is, give every team
+  the same home and away ratings, and change one attribute for many players at
+  once
 - bring a team in from another ROM, or copy one team's colours and pictures to
   another
 - reset any one part of a team to how it was in the ROM you opened

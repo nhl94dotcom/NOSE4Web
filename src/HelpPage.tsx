@@ -153,10 +153,20 @@ export function HelpPage() {
         the 30-team hack, do not offer the button and usually have plenty of room already.
       </p>
       <p>
-        A Genesis ROM never grows past 2 MB in the editor. The game keeps its saved records just past 2 MB, and in a
-        larger ROM the console finds the ROM there instead, so saving would stop working. A ROM that is full at 2 MB
-        says so when something needs more room (more roster space, room for logos, a hack's code or a new player
-        photo), and nothing is changed.
+        A Genesis ROM never grows past 2 MB in the editor, with one exception. The game keeps its saved records just
+        past 2 MB, and in a larger ROM the console finds the ROM there instead, so saving would stop working. A ROM
+        that is full at 2 MB says so when something needs more room (more roster space, room for logos, a hack's code
+        or a new player photo), and nothing is changed. The exception is chaos's fighting patch (on the Hacks page):
+        its code goes past 2 MB, so it makes the ROM 3 MB, and it switches the saved records in only while the game
+        uses them.
+      </p>
+      <p>
+        On the SNES the teams' room is in two places in one part of the ROM: where the game keeps the teams, and the
+        unused room at the end of that part. Teams that no longer fit in the first go into the second, whole, as a
+        team cannot be split between them. So the rosters can fit in total and still not fit as whole teams; then
+        the figure at the top says how many bytes over, as the download would, and shortening a few names or taking
+        out a player makes it fit. The original game has room for every team at 26 players, the most it holds, with
+        names averaging about 11 letters.
       </p>
 
       <h3 id="help-teams">Teams</h3>
@@ -1693,6 +1703,10 @@ export function HelpPage() {
           injury lasting the period, or the whole game; or <b>a long fall instead</b>, a hit that would injure keeping
           the player down about 5 seconds before he gets up and plays on, with no injury and no penalty (not with head
           bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD in overtime, in the regular season or
+          in every overtime; a penalty gives the other team a skater more (4 on 3, 5 on 3), and when it ends the teams
+          play 4 on 4 until the next whistle, as in the NHL. <b>Calls during a delayed penalty</b>: while one team has a
+          penalty pending, the other can be called too (known bug 12; the SNES game never had it).{' '}
           <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
           is held before you take the goalie.
         </li>
@@ -1948,7 +1962,10 @@ export function HelpPage() {
       <p>
         Hacks that put fewer skaters on the ice are played with line changes off, and are known to crash with them
         on. That is how those hacks behave, not something the editor causes or can fix. Only the first line, NLC,
-        is used in them. Roster edits to one of these ROMs have been checked in the game. A team's page has a
+        is used in them. They get fewer skaters by leaving positions of every line empty, which the game's penalties
+        do not know: in a 3 on 3 ROM a first penalty takes off a position that is already empty, so no one gets a
+        power play, and a second leaves the team two skaters (from the NHL94 Match Viewer project's reading of the
+        code). The Genesis option <b>3 on 3 overtime</b> works another way, and its penalties work as the NHL's. Roster edits to one of these ROMs have been checked in the game. A team's page has a
         notice at the top when the ROM is one of these.
       </p>
       <p>
@@ -2252,6 +2269,14 @@ export function HelpPage() {
         credited beside it on the Hacks page (among them chaos, TheTome, CoachMac, clockwise, kingraph, Drezz,
         AdamCatalyst, Sean and McMarkis, whose Genesis patches gave the fourth period's overtime). Most of the fixes,
         and every hack's test in the game, are the NHL94 Match Viewer project's.
+      </p>
+      <p>
+        Fighting on the Genesis is chaos's fighting patch, made by chaos with McMarkis and AbdulBCRT
+        (github.com/Chaos81/nhl94-patches), under the MIT licence: Copyright (c) 2025 Chaos81. Head bleeding follows
+        NHLPA '93's. Fighting on the SNES is McMarkis's port of the NHLPA 93 SNES fights, built in with his
+        permission. McMarkis's own SNES builds (32 teams, 60 FPS, fighting, the SA-1 chip) are his releases; NOSE4Web
+        edits them and puts its hacks into them, and their score box logos, with his permission, gave the original
+        game's.
       </p>
       <p>
         The Play hacks on that page come from findings posted on the NHL94 forums: the C-then-B check finding and
