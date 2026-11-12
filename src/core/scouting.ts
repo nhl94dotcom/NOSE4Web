@@ -13,8 +13,9 @@ import { findCodeAll, loRomOffset } from './snes'
 // columns. Its stand-ins are single characters, so those can't be words.
 // SNES (UpdateScoutingDisplay.asm): lda #PregameText>>16 / lda #PregameText,
 // $97:88DC in every build; lines 0-27 are the team places, which nothing
-// reads, the script from line 28; the box wraps at 21 columns. Its stand-ins
-// are % and a letter or digit.
+// reads, the script from line 28; the box wraps at 20 columns (Match Viewer:
+// a 21st letter lands on the frame and stays there as the text scrolls). Its
+// stand-ins are % and a letter or digit.
 //
 // Neither game can start a line with a stand-in: it would carry on from the
 // script's start, so the rest of the line is lost (the SNES original starts
@@ -122,7 +123,7 @@ export const SCOUTING_STAND_NOTES: Record<ScoutingPlatform, Record<string, strin
 
 const FIRST_LINE: Record<ScoutingPlatform, number> = { genesis: 26, snes: 28 }
 // Where the box wraps to a new line: longer words don't fit.
-export const SCOUTING_WIDTH: Record<ScoutingPlatform, number> = { genesis: 30, snes: 21 }
+export const SCOUTING_WIDTH: Record<ScoutingPlatform, number> = { genesis: 30, snes: 20 }
 const MOST_BYTES = 0x1000
 
 // The original games' choices of lines, from their code, with what each is for.

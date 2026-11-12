@@ -2026,8 +2026,8 @@ export function HelpPage() {
             <li>
               On McMarkis's SA-1 and 32-team builds, whose game code is elsewhere, the hacks are found by the code
               around them, those first made for the original game's layout included (the extra attacker fix, any
-              skater at any position, the maximum boost, the L and R goalie pull and the injury risk: code-tested on
-              those builds, waiting on a test in the game). NOSE4Web's fighting and bodycheck counts are not offered
+              skater at any position, the maximum boost, the L and R goalie pull and the injury risk, each tested in
+              the game on those builds by the NHL94 Match Viewer project). NOSE4Web's fighting and bodycheck counts are not offered
               there, as those builds have their own.
             </li>
             <li>

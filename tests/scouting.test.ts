@@ -53,6 +53,9 @@ describe('stand-ins', () => {
     expect(scoutingLineProblem('snes', '50% of the time')).toMatch(/"%"/)
     expect(scoutingLineProblem('snes', 'It costs $5 (or #3).')).toBeNull()
     expect(scoutingLineProblem('snes', 'Supercalifragilisticexpialidocious')).toMatch(/longer than the box/)
+    // 20 letters a row on the SNES (Match Viewer): a 21st lands on the box's frame.
+    expect(scoutingLineProblem('snes', 'a'.repeat(20))).toBeNull()
+    expect(scoutingLineProblem('snes', 'a'.repeat(21))).toContain('longer than the box is wide (20)')
     expect(scoutingLineProblem('genesis', 'café')).toMatch(/can't show "é"/)
     expect(scoutingToGame('genesis', 'It costs $5.')).toBeNull()
   })
