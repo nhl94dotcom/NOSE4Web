@@ -26,3 +26,15 @@ describe('SNES banner names', () => {
     expect(found[0].message).toMatch(/"-"/)
   })
 })
+
+describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES shootout winners' box", () => {
+  it('notes a Location too long for it, or with a character its big font has not', () => {
+    const rom = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
+    expect(checkProject(rom).filter((f) => /shootout's winners/.test(f.message))).toEqual([])
+    const teams = rom.teams.map((team, i) => (i === 2 ? { ...team, names: ['Saskatchewan Rivers', ...team.names.slice(1)] } : i === 5 ? { ...team, names: ['Big_Town', ...team.names.slice(1)] } : team))
+    const found = checkProject({ ...rom, teams }).filter((f) => /shootout's winners/.test(f.message))
+    expect(found.map((f) => f.level)).toEqual(['note', 'note'])
+    expect(found[0].message).toMatch(/19 letters/)
+    expect(found[1].message).toMatch(/"_"/)
+  })
+})

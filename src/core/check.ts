@@ -196,6 +196,18 @@ export function checkProject(project: RomProject): Finding[] {
       const problem = snesBannerNameProblem(team.placeName!)
       if (problem) findings.push({ level: problem.level, where: labels[i], message: `Its banner name, "${team.placeName}", ${problem.message} Change it under Banner name on the team page.` })
     })
+    // ShootoutWonBy prints the winners' Location in the big font (printbig), two columns a letter in a frame centred
+    // on the 32-column screen: past 15 letters it runs off. BigFontIndex covers space to Z (lower case made upper);
+    // [ \ ] ^ _ ` { | } ~ are read from past its end, a stray tile.
+    teams.forEach((team, i) => {
+      const city = team.names[0] ?? ''
+      const stray = [...new Set([...city].filter((c) => c > 'Z' && !(c >= 'a' && c <= 'z')))]
+      const why = [
+        ...(city.length > 15 ? [`is ${city.length} letters long, and the box that names a shootout's winners has room for 15, so it runs off the screen there`] : []),
+        ...(stray.length ? [`has ${stray.map((c) => `"${c}"`).join(', ')}, which the big font of the box that names a shootout's winners has no letter for, so a stray tile shows there`] : []),
+      ]
+      if (why.length) findings.push({ level: 'note', where: labels[i], message: `Its Location, "${city}", ${why.join('; it also ')}.` })
+    })
     const room = snesPlaceNameRoom(project.bytes, teams.map((team) => team.placeName!), project.layout.overflow)
     if (room && room.used > room.room) {
       findings.push({
