@@ -512,7 +512,13 @@ export function HelpPage() {
         three forwards plays centre. Where a line's two wingers, or its defence pair, shoot with different hands,
         <b>Wingers</b> and <b>Defence</b> choose their sides: each on his shooting side (a left shot on the left), each on
         his off side (a left shot on the right, as many players like their wingers), or either. They only swap the two
-        players chosen, never change who is chosen, and the choice is kept in this browser. The extra attacker is
+        players chosen, never change who is chosen, and the choice is kept in this browser. For the defence the hand
+        also decides which way a skater turns when he turns right around: a left shot turns to his right, a right shot
+        to his left. So defencemen on their shooting side turn toward the middle, and on their off side toward the
+        boards, whichever way the team attacks. It is only on a straight reversal: a turn that is not quite one goes
+        the shorter way, and a defenceman going straight back toward his own net with the puck ahead of him often
+        skates backwards instead (found by the NHL94 Match Viewer project in the code of both systems, and tested in
+        play on the Genesis). The extra attacker is
         the best scorer not on the line, and the goalie stays the team's current starter. Fix broken lines builds only
         the lines with a mistake: an empty position the ROM does not leave empty, a player past the end of the roster,
         a goalie out of goal or a skater in goal, or a skater twice. Positions a 3 on 3 or smaller ROM leaves empty stay
