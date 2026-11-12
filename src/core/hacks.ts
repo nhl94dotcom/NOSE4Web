@@ -21,6 +21,7 @@
 // at a hack's places is neither the original game's nor the hack's is left
 // alone there: the editor does not guess at code it does not know.
 
+import { penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
@@ -2627,7 +2628,7 @@ export function hacksForDiscord(state: HackState, name: string, extra: string[] 
     if (value === NO_HACKS[key]) continue
     if ((value === true && key !== 'wideRatings') || value === 'on' || (key === 'checkFix' && value === 'all120')) lines.push(`- **${HACK_TITLES[key]}**`)
     // The original speed burst depends on how tired the player is, so there is no one number to give for it.
-    else if (typeof value === 'number' && key !== 'speedBurst') lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)} (the original game has ${hackValueText(key, NO_HACKS)})`)
+    else if (typeof value === 'number' && key !== 'speedBurst' && key !== 'penaltySeconds') lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)} (the original game has ${hackValueText(key, NO_HACKS)})`)
     else lines.push(`- **${HACK_TITLES[key]}**: ${hackValueText(key, state.choices)}`)
   }
   return discordPost(name, [...lines, ...extra], unread)
@@ -2869,6 +2870,7 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'baseWeight') return `${choices.baseWeight} pounds`
   if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
   if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
+  if (key === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
   if (typeof value === 'number') return String(value)
   if (key === 'checkFix') return choices.checkFix === 'all120' ? 'everyone checks as the computer' : choices.checkFix === 'all240' ? 'everyone checks as a person' : 'off'
   if (value === 'simple') return 'the earlier, simpler fix'

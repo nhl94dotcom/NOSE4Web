@@ -1,3 +1,4 @@
+import { penaltyTimeText } from './penaltytime'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
@@ -459,7 +460,7 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
     case 'seasonShootout':
       return SNES_SHOOTOUT_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'penaltyTime':
-      return `${value} seconds a penalty minute`
+      return penaltyTimeText(value)
     default:
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
   }

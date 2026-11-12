@@ -7,3 +7,7 @@ export const clockTime = (seconds: number) => `${Math.floor(seconds / 60)}:${Str
 // "a 2-minute minor lasts 1:30 and a 5-minute major 3:45".
 export const penaltyLengths = (secondsPerMinute: number) =>
   `a 2-minute minor lasts ${clockTime(2 * secondsPerMinute)} and a 5-minute major ${clockTime(5 * secondsPerMinute)}`
+
+// For lists of changes: "minors 1:00 and majors 2:30", or the original game's.
+export const penaltyTimeText = (secondsPerMinute: number) =>
+  `minors ${clockTime(2 * secondsPerMinute)} and majors ${clockTime(5 * secondsPerMinute)}${secondsPerMinute === 60 ? ' (as the original game)' : ''}`
