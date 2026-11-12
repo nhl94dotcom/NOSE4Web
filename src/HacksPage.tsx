@@ -666,7 +666,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             players rate high enough to start a fight. The patch's code goes past 2 MB, so the ROM becomes 3 MB, and
             the game's saved records are switched in only when it uses them; Genesis Plus GX, which the leagues use,
             plays such ROMs. It goes into league ROMs too: the main menu keeps the league's own captions, choices, teams
-            offered and period lengths, with the Fighting line added. Head bleeding goes with it either way round.
+            offered and period lengths, with the Fighting line added. Head bleeding goes with it either way round (the two together are code-tested only, waiting on a test in the game).
             Made by chaos with
             McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches under the MIT licence; its title screen,
             credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the

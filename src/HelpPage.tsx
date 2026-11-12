@@ -2015,7 +2015,15 @@ export function HelpPage() {
               one-minute penalties, 30-second periods, no interference penalties, no penalty shots, no goal posts,
               skipping the intros, the extra attacker fix, any skater at any position in Edit Lines, showing the
               maximum boost in Edit Lines, and pulling the goalie with L and R (the last two in NOSE4Web's versions,
-              which fix gaps in the Vault's).
+              which fix gaps in the Vault's), and the bodycheck counts for each player, shown in Player Stats (sorted by
+              them too, where the Vault's sorts by penalty minutes; the counts stay where nhl94online.com reads them).
+            </li>
+            <li>
+              On McMarkis's SA-1 and 32-team builds, whose game code is elsewhere, the hacks are found by the code
+              around them, those first made for the original game's layout included (the extra attacker fix, any
+              skater at any position, the maximum boost, the L and R goalie pull and the injury risk: code-tested on
+              those builds, waiting on a test in the game). NOSE4Web's fighting and bodycheck counts are not offered
+              there, as those builds have their own.
             </li>
             <li>
               As on the Genesis: the power play and penalty kill, comeback bonus, faceoff spot, second-assist and
@@ -2042,7 +2050,7 @@ export function HelpPage() {
               It adds its frames and code in a bank past the first megabyte, growing a 1 MB ROM to 2 MB, and comes out
               cleanly. It goes with the injury risk, the two sharing the place in the game's code where a check is
               counted, each counting in turn (tested in the game by Match Viewer); for ROMs built on the
-              original game, not the SA-1 builds.
+              original game, not McMarkis's SA-1 and 32-team builds, which have fights of their own.
             </li>
             <li>
               <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
