@@ -878,6 +878,18 @@ export function HelpPage() {
           NHL94 Match Viewer project on the Genesis and on the SNES (the original game and the 2026 build).
         </li>
         <li>
+          <b>Ron Barr's matchup screen text</b>: what the announcer says in the box before each game, line by line,
+          with what the game shows each line for and in which order. The game picks its lines by number, so you change
+          what each line says, not how many there are. Stand-ins in braces, as <code>{'{home goalie}'}</code> or{' '}
+          <code>{'{crowd record}'}</code>, are filled in by the game; the list of them is under the lines, and the
+          preview shows the box with example names. The text is rewritten in the room the original takes: on the
+          Genesis the line the game never shows (the goalies) is room if you empty it; on the SNES the team places
+          stored before the script, which nothing shows, are emptied when a longer text needs their room. Some league
+          ROMs have a line added or removed by hand, so their later lines show in the wrong places; the check points
+          that out. Not offered on EVO, which has a matchup screen of its own. Code-tested; waiting on a test in the
+          game by the NHL94 Match Viewer project.
+        </li>
+        <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your
           own and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8
           squares and 25 colours of its own, besides the menu's white, greys and black. A detailed picture has its

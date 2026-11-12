@@ -1,6 +1,7 @@
 import { attributeText } from './attributes'
 import { colorRgb } from './color'
 import { creditsFit } from './credits'
+import { scoutingLineProblem, scoutingUsed } from './scouting'
 import { isSong, teamSongsRoom } from './teamsongs'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
@@ -241,6 +242,33 @@ export function checkProject(project: RomProject): Finding[] {
           ? 'A credit title has no name under it, which the game cannot show, so the credits are not written: give each title a name on the Game settings page.'
           : `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
     })
+  }
+
+  const scouting = settings.scouting
+  if (scouting) {
+    const where = "Ron Barr's matchup screen text"
+    const bad = scouting.lines.findIndex((line) => scoutingLineProblem(scouting.platform, line.text))
+    const used = scoutingUsed(scouting)
+    if (bad >= 0) {
+      findings.push({ level: 'problem', where, message: `Line ${bad + 1}: ${scoutingLineProblem(scouting.platform, scouting.lines[bad].text)} The text is not written until it is put right on the Game settings page.` })
+    } else if (used !== null && used > scouting.room) {
+      findings.push({ level: 'problem', where, message: `The lines take ${used} letters and the ROM has room for ${scouting.room}, so they are not written: shorten them on the Game settings page.` })
+    }
+    if (scouting.missing) {
+      findings.push({
+        level: 'note',
+        where,
+        message: `The script has ${scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand, so the lines after it show in the wrong places, and the game reads its last line from whatever follows the script in the ROM.`,
+      })
+    }
+    const blank = scouting.lines.findIndex((line) => line.blank && line.text.trim())
+    if (blank >= 0) {
+      findings.push({
+        level: 'note',
+        where,
+        message: `Line ${blank + 1} is the one the game shows as the empty line between paragraphs, several times over, and it has text, so that text shows each time. Lines that come after an added or removed line move up or down, so this is usually a line in the wrong place.`,
+      })
+    }
   }
 
   settings.playoffDraws.forEach((draw, d) => {

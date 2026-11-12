@@ -2296,6 +2296,26 @@ test.describe('with the SNES game', () => {
     expect(rom.teams[1].snesSongs![3]).not.toBe(0xffffffff)
   })
 
+  test("edits Ron Barr's scouting report text and downloads it", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Game settings').click()
+    const greeting = page.getByLabel('First: the greeting', { exact: true })
+    await expect(greeting).toHaveValue("Hi, I'm Ron Barr for EA Sports.")
+    await expect(page.getByText('447 of 701 letters used.', { exact: true })).toBeVisible()
+    // A label that is not a stand-in is a problem until put right.
+    await greeting.fill("Hi, I'm Ace, with {home goalkeeper}.")
+    await expect(page.getByText('{home goalkeeper} is not one of the stand-ins.')).toBeVisible()
+    await greeting.fill("Hi, I'm Ace for NHL94.com, with {home name} tonight.")
+    await page.getByText('Preview, with example names').click()
+    await expect(page.locator('pre.scouting-preview')).toContainText('Montreal Canadiens')
+    await page.locator('#scouting').screenshot({ path: 'test-results/shots/scouting.png' })
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const rom = readRom(new Uint8Array(readFileSync(await download.path())))
+    expect(rom.settings.scouting!.lines[1].text).toBe("Hi, I'm Ace for NHL94.com, with {home name} tonight.")
+    expect(rom.settings.scouting!.lines[0].text).toMatch(/^Welcome to a sold out/)
+  })
+
   test('edits the title screen credits, a box for each title, and downloads them', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
@@ -2334,7 +2354,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Announcer picture', 'Organ songs', 'Move teams'])
+    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Announcer picture', "Ron Barr's matchup screen text", 'Organ songs', 'Move teams'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })

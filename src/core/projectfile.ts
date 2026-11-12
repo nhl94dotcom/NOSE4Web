@@ -19,6 +19,7 @@ import { snesSongChoices } from './snessongs'
 import { SONG_NUMBERS } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
+import { type Scouting } from './scouting'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
 import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
@@ -274,6 +275,7 @@ function mergeSettings(base: Settings, from: Settings, teamCount: number, notes:
       secondsUnder: Math.min(0xffff, number(from.cpuPullGoalie?.secondsUnder, base.cpuPullGoalie.secondsUnder)),
     },
     credits: base.credits && fileCredits(from.credits, base.credits),
+    scouting: base.scouting && fileScouting(from.scouting, base.scouting),
   }
 }
 
@@ -724,6 +726,14 @@ function withSnesPictures(project: RomProject, stored: ProjectFile['snesPictures
     notes.push(`The project's logos were left out: ${e instanceof Error ? e.message : String(e)}`)
     return project
   }
+}
+
+// A file's lines for Ron Barr, where they are as many as this ROM has. They are kept as typed
+// even where they don't fit, as on the page: the check says so, and nothing is written until they do.
+function fileScouting(value: unknown, base: Scouting): Scouting {
+  const lines = (value as Scouting | undefined)?.lines
+  if (!Array.isArray(lines) || lines.length !== base.lines.length || !lines.every((line) => typeof line?.text === 'string')) return base
+  return { ...base, lines: base.lines.map((line, i) => ({ ...line, text: lines[i].text })) }
 }
 
 // A file's credits, where they are lines of text that fit this ROM's room.

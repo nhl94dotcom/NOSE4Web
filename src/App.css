@@ -158,6 +158,25 @@ ol.credits textarea {
   vertical-align: top;
 }
 
+ol.scouting textarea {
+  max-width: 100%;
+}
+
+ol.scouting li {
+  margin-bottom: 0.5em;
+}
+
+/* Ron Barr's text box, roughly as the game wraps it. */
+pre.scouting-preview {
+  display: inline-block;
+  padding: 0.5em 1em;
+  border: 1px solid var(--line, #888);
+  font-family: monospace;
+  white-space: pre;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 select.hidden-slot {
   border-style: dashed;
 }

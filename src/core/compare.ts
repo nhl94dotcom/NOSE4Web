@@ -178,6 +178,13 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     if (creditsWas.pages.length > creditsNow.pages.length) lines.push(`${creditsWas.pages.length - creditsNow.pages.length} pages fewer, ${creditsNow.pages.length} in all.`)
     add('Title screen credits', lines)
   }
+  const [scoutNow, scoutWas] = [now.scouting, old.scouting]
+  if (scoutNow && scoutWas) {
+    add(
+      "Ron Barr's matchup screen text",
+      scoutNow.lines.flatMap((line, i) => (line.text === scoutWas.lines[i]?.text ? [] : [`Line ${i + 1}: ${line.text.trim() || '(empty)'}`])),
+    )
+  }
   if (before.game.platform === 'genesis' && after.game.platform === 'genesis') {
     const [was, now] = [readSplash(before.bytes), readSplash(after.bytes)]
     const same = was && now && was.palette.every((c, i) => c === now.palette[i]) && was.picture.pixels.every((p, i) => p === now.picture.pixels[i])

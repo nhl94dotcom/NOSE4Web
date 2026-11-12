@@ -2,6 +2,7 @@ import { readAscii, readU16, readU32, writeAscii, writeU16 } from './bytes'
 import { parseCredits, writeCredits, type Credits } from './credits'
 import type { GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams, type MenuTeams } from './menuteams'
+import { parseScouting, type Scouting, writeScoutingIfChanged } from './scouting'
 
 // Game-wide data outside the team blocks: playoff draws, on-screen rule
 // messages, clock lengths and the main menu's starting choices. Unlike names
@@ -49,6 +50,8 @@ export interface Settings {
   cpuPullGoalie?: CpuPullGoalie | null
   // The credits on the title screen, where the editor finds them (credits.ts, snescredits.ts).
   credits?: Credits | null
+  // What Ron Barr says on the pregame matchup screen, where the editor finds it (scouting.ts).
+  scouting?: Scouting | null
 }
 
 // A computer team pulls its goalie in the third period when it is behind by
@@ -194,6 +197,7 @@ export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
     menu: parseMenu(rom, game),
     menuTeams: parseMenuTeams(rom, game),
     credits: parseCredits(rom),
+    scouting: parseScouting(rom, 'genesis'),
   }
 }
 
@@ -221,6 +225,7 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
   // Only when changed, so that credits as the ROM has them keep their bytes.
   const credits = settings.credits
   if (credits && JSON.stringify(parseCredits(rom)?.pages) !== JSON.stringify(credits.pages)) writeCredits(rom, credits)
+  writeScoutingIfChanged(rom, settings.scouting)
 }
 
 // Whether the project has game settings to edit: all of them, or for the
