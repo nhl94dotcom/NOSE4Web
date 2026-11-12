@@ -46,14 +46,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES injury risk from knockdown
     expect(applySnesHacks(all, {}, false, { injuryBonus: 0, hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
   })
 
-  it.each(names)('in %s goes in and out where the code is in place, and is not offered elsewhere', (name) => {
+  it.each(names)('in %s goes in and out, its counts where the build has room', (name) => {
     const project = open(name)
     const state = detectSnesHacks(project.bytes)
-    if (!snesCodeInPlace(project.bytes)) {
-      expect(state.unknown).toContain('injuryBonus')
-      return
-    }
     expect(state.unknown).not.toContain('injuryBonus')
+    // The counts: $7E:F034 where the code is in place, else $7E:F040 (LoROM) or $40:5400 (SA-1 BW-RAM).
+    const counts = snesCodeInPlace(project.bytes) ? '34f07e' : Buffer.from(project.bytes).indexOf(Buffer.from('b9b6771a99b677', 'hex')) >= 0 ? '005440' : '40f07e'
+    expect(Buffer.from(applySnesHacks(project, {}, false, { injuryBonus: 4 }).bytes).toString('hex')).toContain(`bf${counts}`)
     const on = applySnesHacks(project, {}, false, { injuryBonus: 4 })
     expect(detectSnesHacks(openRom(buildRom(on)).bytes).amounts).toMatchObject({ injuryBonus: 4 })
     expect(applySnesHacks(on, {}, false, { injuryBonus: 0 }).bytes).toEqual(project.bytes)

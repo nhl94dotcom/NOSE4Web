@@ -376,10 +376,8 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
     it(`are recognised in SNES ROM ${n + 1}, and go in and come out again, wherever its code is`, () => {
       const project = openRom(read(name))
       const before = detectSnesHacks(project.bytes)
-      // Every hack is found, wherever the ROM's code is, but the extra attacker fix, which uses the original game's
-      // work memory, the hacks of Edit Lines and the pads, and the injury risk (its counts in the original's free memory),
-      // all offered only in ROMs laid out as the original.
-      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['extraAttackerFix', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting'])
+      // Every hack is found, wherever the ROM's code is, but NOSE4Web's fighting, which the rebuilt builds have their own of.
+      expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['fighting'])
       const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && !before.unknown.includes(hack) && !before.notOffered?.[hack]).map((hack) => [hack, true]))
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })

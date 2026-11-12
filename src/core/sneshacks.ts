@@ -950,7 +950,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // the counts first. The four pieces are one block in FallDown's bank.
   injuryBonus: (rom, _source, amount) => {
     const env = energyEnv(rom)
-    if (!env || !snesCodeInPlace(rom)) return null
+    const s = shift(rom)
+    if (!env || s === null) return null
     const COUNT_AFTER = '99....bd....38f9....85..bd....38f9....85..22'
     const count = only(rom, 'a4..' + '......' + COUNT_AFTER)
     // With the fights in, their jml F_countcheck has taken the ldy a2 / lda #$78 (Match Viewer): the two share the
@@ -984,7 +985,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       block = hooked ? loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, sites.count + 1)) : -1
     }
     const position = word(readU16(rom, roll + 22))
-    const table = '34F07E'
+    // The counts: $7E:F034 in the original game and its 1 MB edits; in the rebuilt builds, whose title screen keeps its
+    // team list at $7E:F000-$F03F, past it at $7E:F040 (the 32-team LoROM build: Match Viewer found $7E:F03F-$FFFF
+    // never written), or in BW-RAM at $40:5400, past the shootout's save (the SA-1 builds: $40:4800-$5FFF free).
+    const table = snesCodeInPlace(rom) ? '34F07E' : s === 0 ? '40F07E' : '005440'
     const ofY = bytesOf('B9', env.pnum, '29FF00 0A AA B9', env.pfteam, 'F006 8A 18 694000 AA')
     // This version counts only while the clock runs (lda gmclock / bne, after the whistle nothing); the first counted after it too.
     const offsets = (clocked: boolean) => {
@@ -1198,6 +1202,105 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const original = bytesOf('4C', word(dot3))
     const code = bytesOf(head, word(loRomAddress(shot)), loRomBank(shot, 0x80), '4C', word(dot3))
     return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), original, code)
+  },
+  // The five made first for the original game's layout (SITES), found by the code around them in the builds whose
+  // code is elsewhere, with their variables moved (`shift`) and the routines they call read from that build's code.
+  // On the original game each gives exactly the bytes SITES has (the new code where the free room is).
+  showMaxBoost: (rom) => {
+    const s = shift(rom)
+    const found = only(rom, 'c964009003a9640085a5fa4c....a5b185a5fa4c')
+    if (s === null || found < 0) return null
+    const site = found + 11
+    const head = hexBytes('A516 C98000 B003 4C')
+    const target = loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
+    const back = same(rom, target, head) ? readU16(rom, target + head.length) : readU16(rom, site + 1)
+    return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), bytesOf('4C', word(back)), bytesOf(head, word(back), 'A96400 8D', word(0xa5 + s), '6B'))
+  },
+  extraAttackerFix: (rom) => {
+    const s = shift(rom)
+    const found = only(rom, '22......3865a585a5ad....38ed....' + '......' + 'f0..c90200f0..c90300f0..c90400f0..a5a51a1a859520....cd....')
+    if (s === null || found < 0) return null
+    const site = found + 16
+    const [lines, slots] = [readU16(rom, found + 10), readU16(rom, found + 14)]
+    const tail = found + 16 + 3 + 2 + 5 * 3 + 6
+    const byte = readU16(rom, tail + 1)
+    const lineSlot = readU16(rom, tail + 4)
+    // The byte at [$95] read (8D72 in the original) and written (8D7C) by two routines, one after the other.
+    if (!same(rom, loRomOffset(loRomBank(site, 0x80), byte), hexBytes('E220A795C22029FF0060 29FF00E2208795C22060'))) return null
+    const code = bytesOf(
+      '48 A5A5 18 690500 8595 A20600 EA A595 20', word(byte), 'CF', word(lineSlot), '9F F007 C695 CA D0F0 801E CA A5A5 18 6D', word(lines), 'ED', word(slots),
+      '8595 20', word(byte), '48 A5A5 86AF 18 6D', word(0xaf + s), '8595 68 20', word(byte + 10), '68 C90100 60',
+    )
+    return withNewCode(rom, site, (to) => bytesOf('20', word(to)), hexBytes('C90100'), code)
+  },
+  forwardsAndDefence: (rom) => {
+    const s = shift(rom)
+    const found = only(rom, 'ad....38ed....c90300' + '............' + 'a5a58d....22......a5a58d....22......ad....1865a58d')
+    if (s === null || found < 0) return null
+    const site = found + 10
+    const [count, saved] = [readU16(rom, site + 9), readU16(rom, site + 18)]
+    const [second, third] = [rom.slice(site + 12, site + 15), rom.slice(site + 21, site + 24)]
+    // The first jsl: in its place, or the new code's first instruction where the hack is in.
+    const hooked = same(rom, site, hexBytes('EAEAEA4C'))
+    const target = hooked ? loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 4)) : -1
+    if (hooked && rom[target] !== 0x22) return null
+    if (!hooked && !same(rom, site, hexBytes('1021 22'))) return null
+    const first = hooked ? rom.slice(target + 1, target + 4) : rom.slice(site + 3, site + 6)
+    const back = loRomAddress(site) + 0x21
+    const code = bytesOf('22', first, '8D', word(count), '22', second, 'A5A5 8D', word(saved), '22', third, '18 6D', word(count), '8D', word(count), 'AD', word(saved), '4C', word(back))
+    // The jmp comes after three nops, so withNewCode (a call first) does not fit.
+    const room = hooked ? target : roomInBank(rom, site, code.length)
+    if (room < 0) return null
+    return [
+      { at: site, original: bytesOf('1021 22', first), hacked: bytesOf('EAEAEA 4C', word(loRomAddress(room))) },
+      { at: room, original: unused(code.length), hacked: code },
+    ]
+  },
+  manualPullGoalie: (rom) => {
+    const s = shift(rom)
+    const check = only(rom, 'a90200858d22......648da9020085..' + '..........' + '30')
+    const presses = only(rom, 'ad....8d....ad....8d....ad....' + '......' + '60da0aaabd')
+    const turn = only(rom, 'b9....0900ff99....22......6b6491')
+    const beep = findCodeAll(rom, 'a900708564a9050022(......)')
+    if (s === null || check < 0 || presses < 0 || turn < 0 || beep.length === 0) return null
+    const bank = (at: number) => loRomBank(at, 0x80)
+    const site = check + 16
+    const tmgoalie = word(readU16(rom, turn + 1))
+    const turnOver = rom.slice(turn + 10, turn + 13)
+    const beepAt = rom.slice(beep[0].at + 9, beep[0].at + 12)
+    const counts = 0x1ef0 + s
+    const checkOriginal = bytesOf('A491 B9', tmgoalie)
+    const checkCode = (address: number) =>
+      bytesOf(
+        'A20000 AC', word(0x91 + s), 'B9', tmgoalie, 'C900FF D001 60 B9', word(address + 0x53), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
+        'F028 9E', word(counts), 'EA EA EA B9', tmgoalie, 'F007 C9FFFF F002 8016 49FFFF 99', tmgoalie, '22', turnOver, 'A90070 8564 A90500 22', beepAt,
+        'A491 B9', tmgoalie, '60 0100 0200',
+      )
+    const pressSite = presses + 15
+    const stored = readU16(rom, presses + 10) + 2
+    const pressOriginal = bytesOf('8D', word(stored))
+    const pressCode = bytesOf(
+      '8D', word(stored), 'AD', word(0x15d8 + s), '4A 9007 9C', word(counts), '9C', word(counts + 2), '60 A20000 BD', word(0x0ab8 + s), '293000 F013 BD', word(0x0776 + s),
+      '29FF00 C93000 D008 A91800 9D', word(counts), '8009 BD', word(counts), 'F004 3A 9D', word(counts), 'E8 E8 E00400 D0D5 60',
+    )
+    const CHECK_LENGTH = 87
+    const placed = (at: number, original: Uint8Array) => {
+      const hooked = !same(rom, at, original)
+      if (hooked && rom[at] !== 0x20) return -2
+      return hooked ? loRomOffset(bank(at), readU16(rom, at + 1)) : -1
+    }
+    const checkAt = placed(site, checkOriginal)
+    const pressAt = placed(pressSite, pressOriginal)
+    if (checkAt === -2 || pressAt === -2) return null
+    const checkRoom = checkAt >= 0 ? checkAt : roomInBank(rom, site, CHECK_LENGTH)
+    const pressRoom = pressAt >= 0 ? pressAt : roomInBank(rom, pressSite, pressCode.length)
+    if (checkRoom < 0 || pressRoom < 0) return null
+    return [
+      { at: site, original: checkOriginal, hacked: bytesOf('20', word(loRomAddress(checkRoom)), 'EAEA') },
+      { at: checkRoom, original: unused(CHECK_LENGTH), hacked: checkCode(loRomAddress(checkRoom)) },
+      { at: pressSite, original: pressOriginal, hacked: bytesOf('20', word(loRomAddress(pressRoom))) },
+      { at: pressRoom, original: unused(pressCode.length), hacked: pressCode },
+    ]
   },
   // Each player's bodychecks, given and taken, as NHL94SNESVault's PlayerStat_BodyChecks counts them (NHL94_Classic
   // and SDL16 have it, byte for byte): FallDown's team count (ldy a0 / lda tmchecks,y / inc / sta, a check made

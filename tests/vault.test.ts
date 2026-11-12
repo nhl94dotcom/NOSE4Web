@@ -27,23 +27,22 @@ describe.skipIf(names.length === 0)('the extra attacker and Y button fixes', () 
       expect(hex(withY.subarray(y.at, y.at + 3))).toBe('eaea6b')
       expect(detectSnesHacks(withY).choices.yButtonFix).toBe(true)
 
-      // The extra attacker: only in ROMs laid out as the original.
-      if (!snesCodeInPlace(project.bytes)) {
-        expect(state.unknown).toContain('extraAttackerFix')
-        return
-      }
+      // The extra attacker: in every build, found by the code around it.
       expect(state.unknown).not.toContain('extraAttackerFix')
       const both = applySnesHacks(project, { yButtonFix: true, extraAttackerFix: true }).bytes
-      const hook = loRomOffset(0x9b, 0x8c96)
-      const code = loRomOffset(0x9b, 0xce78)
+      // At $9B:8C96, the code at $9B:CE78, where the code is in place; found by the code around it elsewhere.
+      const inPlace = snesCodeInPlace(project.bytes)
+      const hook = inPlace ? loRomOffset(0x9b, 0x8c96) : relocatedSnesHack(project.bytes, 'extraAttackerFix')![0].at
+      const code = inPlace ? loRomOffset(0x9b, 0xce78) : loRomOffset(0x9b, both[hook + 1] | (both[hook + 2] << 8))
       expect(hex(project.bytes.subarray(hook, hook + 3))).toBe('c90100')
-      expect(hex(both.subarray(hook, hook + 3))).toBe('2078ce')
+      expect(both[hook]).toBe(0x20)
+      if (inPlace) expect(hex(both.subarray(hook, hook + 3))).toBe('2078ce')
       // The Vault's routine: its branches land where its listing says, and it ends by making the hooked test.
       expect(both[code]).toBe(0x48)
       expect(hex(both.subarray(code + 0x16, code + 0x18))).toBe('f007')
       expect(hex(both.subarray(code + 0x1b, code + 0x1f))).toBe('d0f0801e')
       expect(hex(both.subarray(code + 0x3d, code + 0x42))).toBe('68c9010060')
-      expect(both[code + 0x42]).toBe(0xff)
+      if (inPlace) expect(both[code + 0x42]).toBe(0xff)
       expect(detectSnesHacks(both).choices).toMatchObject({ extraAttackerFix: true, yButtonFix: true })
       const off = applySnesHacks({ ...project, bytes: both }, { yButtonFix: false, extraAttackerFix: false })
       expect(Buffer.compare(Buffer.from(off.bytes), Buffer.from(project.bytes))).toBe(0)
