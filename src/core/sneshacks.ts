@@ -1175,7 +1175,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // in play) has its lda become jsr to code that adds 1 to the checker's (a3) byte at $168E and the player hit's
   // (a2) at $16C2, 26 a team (the roster place, from pnum), then does the lda. Both lists are in the game state
   // StartGame clears each game, the shootout's save included. They lie in the penalty log's room past its 20th
-  // entry ($163E, 4 bytes an entry, room for 65), where the Vault put them, and where league tools read them from
+  // entry ($163E, 4 bytes an entry, room for 65), where the Vault put them, and where nhl94online.com reads them from
   // save states; a game with more than 20 penalties shares those bytes. Found by the code around it, the
   // variables moved as the build has them.
   bodychecks: (rom) => {
