@@ -12,7 +12,7 @@ describe('SNES banner names', () => {
     expect(snesBannerNameWidth('All Stars W.')).toBe(67)
     expect(snesBannerNameProblem('Los Angeles')).toBeNull()
     expect(snesBannerNameProblem('St. Louis')).toBeNull()
-    for (const name of ['St-Louis', "Hell's", 'A&M', 'N/A']) expect(snesBannerNameProblem(name)?.level, name).toBe('problem')
+    for (const name of ['St-Louis', "Hell's", 'A&M', 'N/A', 'Team 2', 'Q@Z']) expect(snesBannerNameProblem(name)?.level, name).toBe('problem')
     expect(snesBannerNameProblem('Saskatchewan Wheat Kings')?.level).toBe('note')
   })
 

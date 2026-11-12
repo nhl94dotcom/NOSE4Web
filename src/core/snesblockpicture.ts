@@ -84,14 +84,16 @@ function letterOf(c: string): number {
   return index >= 0 && index < 26 ? index : -1
 }
 
-// What is wrong with a banner name, or null. PrintTeamSprites knows only A to Z (either case), 0 to 9, space, "."
-// and "@"; for any other character it takes a letter number below A's, so it draws some other sprite frame of the
-// game's in its place and reads a width from before the widths table: the banner's screens show stray graphics.
-// A name wider than the block (72 pixels; the original's widest is All Stars W., 67) runs off both its ends.
+// What is wrong with a banner name, or null. PrintTeamSprites (the banners) knows only A to Z (either case), 0 to 9,
+// space, "." and "@"; for any other character it takes a letter number below A's, so it draws some other sprite frame
+// of the game's in its place (Match Viewer saw a whole skater over the banner and the matchup screen's Overall).
+// RenderBigText, which draws the same names in the playoff bracket and Game Setup's team select, knows only A to Z,
+// space and ".": a digit or "@" there gives a stray tile too. A name wider than the block (72 pixels; the
+// original's widest is All Stars W., 67) runs off both its ends.
 export function snesBannerNameProblem(name: string): { level: 'problem' | 'note'; message: string } | null {
-  const bad = [...new Set([...name].filter((c) => c !== ' ' && c !== '.' && letterOf(c) < 0))]
+  const bad = [...new Set([...name].filter((c) => c !== ' ' && c !== '.' && !/[A-Za-z]/.test(c)))]
   if (bad.length > 0) {
-    return { level: 'problem', message: `has ${bad.map((c) => `"${c}"`).join(', ')}, which the game cannot draw: in its place it draws a stray picture on the team's banners (the matchup screen, Game Setup, the playoffs). Only letters, digits, spaces, "." and "@" can be used.` }
+    return { level: 'problem', message: `has ${bad.map((c) => `"${c}"`).join(', ')}, which the game cannot draw on every screen: in its place it draws a stray picture on the team's banners (the matchup screen, Game Setup) or in the playoff bracket. Only letters, spaces and "." can be used.` }
   }
   const width = snesBannerNameWidth(name)
   if (width > SNES_BLOCK_SIZE.width) return { level: 'note', message: `is ${width} pixels wide, wider than the banner (${SNES_BLOCK_SIZE.width}), so it runs off both ends.` }
