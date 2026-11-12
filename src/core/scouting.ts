@@ -145,7 +145,9 @@ const SNES_LIST = 'a91d0087..e6..e6..a91c0087'
 const SNES_ROLES: Record<number, string> = {
   28: 'Second: the welcome',
   29: 'First: the greeting',
-  30: 'When one team has been playing better lately',
+  // ScoutingReport queues it only when hotterteam is set: the two teams' sums of this game's hot and cold values
+  // differ by 4 or more (8 or more is "extremely"). Those values are rolled afresh each game, so it comes and goes.
+  30: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game',
   31: 'The home team’s hot and cold players',
   32: 'The visitors’ hot and cold players (not when a team plays itself)',
   33: 'Last: how to start',
