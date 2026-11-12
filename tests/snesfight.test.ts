@@ -38,17 +38,45 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("McMarkis's SNES fighting", () =
 
   it('goes with every other SNES hack, theirs in bank $9B free space and its in the second megabyte', () => {
     const project = open('NHL94.smc')
-    // But the injury risk, which hooks the same place in FallDown, so that the two cannot both be on.
-    expect(() => applySnesHacks(project, { fighting: true, injuryBonus: true })).toThrow(/cannot both be on/)
-    const all = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'injuryBonus').map((hack) => [hack, true]))
+    const all = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost').map((hack) => [hack, true]))
     const on = applySnesHacks(project, all)
     expect(detectSnesHacks(on.bytes).choices).toMatchObject(all)
     expect(detectSnesHacks(on.bytes).unknown).toEqual([])
-    // Swapped for the injury risk in one go: the fights come out before it goes in.
-    const swapped = applySnesHacks(on, { fighting: false, injuryBonus: true })
-    expect(detectSnesHacks(swapped.bytes).choices).toMatchObject({ fighting: false, injuryBonus: true })
     const off = applySnesHacks(on, Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])))
     expect(same(buildRom(off), buildRom(project))).toBe(true)
+  })
+
+  it("shares FallDown's count with the injury risk: chained in either order, and either comes out leaving the other", () => {
+    const project = open('NHL94.smc')
+    // The shared place, $9E:9BD2: ldy a2 / lda #$78 in the original game.
+    const SHARED = 0xf1bd2
+    const injury = applySnesHacks(project, { injuryBonus: true })
+    const both = applySnesHacks(injury, { fighting: true })
+    const bothOther = applySnesHacks(applySnesHacks(project, { fighting: true }), { injuryBonus: true })
+    for (const rom of [both, bothOther]) {
+      const state = detectSnesHacks(rom.bytes)
+      expect(state.choices).toMatchObject({ fighting: true, injuryBonus: true })
+      expect(state.unknown).toEqual([])
+      expect(state.amounts?.injuryBonus).toBe(6)
+      // The fights' jml goes to the stub: ldy a2 / jsr the injury count / jml F_countcheck in bank $A0.
+      expect(rom.bytes[SHARED]).toBe(0x5c)
+      const stub = ((rom.bytes[SHARED + 3] & 0x7f) << 15) | ((rom.bytes[SHARED + 1] | (rom.bytes[SHARED + 2] << 8)) & 0x7fff)
+      expect(rom.bytes[stub]).toBe(0xa4)
+      expect(rom.bytes[stub + 2]).toBe(0x20)
+      expect(rom.bytes[stub + 5]).toBe(0x5c)
+      expect(rom.bytes[stub + 8]).toBe(0xa0)
+    }
+    // Each comes out, leaving the other as it is alone.
+    const noFight = applySnesHacks(both, { fighting: false })
+    expect(detectSnesHacks(noFight.bytes).choices).toMatchObject({ fighting: false, injuryBonus: true })
+    expect(Buffer.compare(buildRom(noFight), buildRom(injury))).toBe(0)
+    const noInjury = applySnesHacks(both, { injuryBonus: false })
+    expect(detectSnesHacks(noInjury.bytes).choices).toMatchObject({ fighting: true, injuryBonus: false })
+    expect(Buffer.compare(buildRom(noInjury), buildRom(applySnesHacks(project, { fighting: true })))).toBe(0)
+    // Its bonus changed with both in.
+    expect(detectSnesHacks(applySnesHacks(both, {}, false, { injuryBonus: 9 }).bytes).amounts?.injuryBonus).toBe(9)
+    // And both out: the original game.
+    expect(Buffer.compare(buildRom(applySnesHacks(both, { fighting: false, injuryBonus: false })), buildRom(project))).toBe(0)
   })
 
   const leagues = (local.snesRoms ?? []).filter((name) => existsSync(path(name)))

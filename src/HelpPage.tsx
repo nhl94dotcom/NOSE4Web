@@ -2020,7 +2020,8 @@ export function HelpPage() {
               <b>Fighting</b>: McMarkis's port of the NHLPA 93 SNES fights, built in with his permission, with a
               bonus to every player's fighting rating (2 by default, as in his patch; higher makes fights more common).
               It adds its frames and code in a bank past the first megabyte, growing a 1 MB ROM to 2 MB, and comes out
-              cleanly. Not with the injury risk, which hooks the same place in the game's code; for ROMs built on the
+              cleanly. It goes with the injury risk, the two sharing the place in the game's code where a check is
+              counted, each counting in turn; for ROMs built on the
               original game, not the SA-1 builds.
             </li>
             <li>

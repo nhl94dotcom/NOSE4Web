@@ -58,7 +58,12 @@ const same = (rom: Uint8Array, at: number, bytes: Uint8Array, skip: (i: number) 
 export type SnesFightState = { kind: 'none' } | { kind: 'in'; bank: number; bonus: number }
 
 // FallDown's place where a check is counted ($9E:9BD2), which the fights and the SNES injury risk both hook.
+// With both, the fights' jml goes instead to the injury risk's stub, which jumps on to F_countcheck (sneshacks.ts).
 export const SNES_FIGHT_SHARED_SITE = 0xf1bd2
+// The fights' 5 bytes there for a bank: jml F_countcheck, nop.
+export function snesFightCountJump(bank: number): Uint8Array {
+  return patchedFor(CHANGES.find((c) => c.at === SNES_FIGHT_SHARED_SITE)!, bank)
+}
 
 // Whether the fights are in, and their bank and bonus; undefined where the ROM's code there is something else.
 // `ignore`: places another hack may hold (the injury risk's hook), for telling that the fights are out.
@@ -69,7 +74,7 @@ export function snesFightState(rom: Uint8Array, ignore: number[] = []): SnesFigh
   const change = CHANGES.find((c) => probe >= c.at && probe < c.at + c.patched.length)!
   const bank = BASE_BANK + ((rom[probe] - change.patched[probe - change.at]) & 0xff)
   if (bank > LAST_BANK) return undefined
-  if (!CHANGES.every((c) => same(rom, c.at, patchedFor(c, bank)))) return undefined
+  if (!CHANGES.every((c) => ignore.includes(c.at) || same(rom, c.at, patchedFor(c, bank)))) return undefined
   const at = bankAt(bank)
   const bonus = rom[at + BONUS[0]] | (rom[at + BONUS[0] + 1] << 8)
   const expected = blockFor(bank, bonus)

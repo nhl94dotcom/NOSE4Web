@@ -1,7 +1,7 @@
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
-import { SNES_FIGHT_BONUS_RANGE, SNES_FIGHT_SHARED_SITE, snesFightBlocked, snesFightState, withoutSnesFight, withSnesFight } from './snesfight'
+import { SNES_FIGHT_BONUS_RANGE, SNES_FIGHT_SHARED_SITE, snesFightBlocked, snesFightCountJump, snesFightState, withoutSnesFight, withSnesFight } from './snesfight'
 import { snesPeriodCountPlace } from './snesmenu'
 import { refreshSnesSettings } from './snessettings'
 
@@ -324,8 +324,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
 const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain' }
-// The fights and the injury risk both hook FallDown where a check is counted ($9E:9BD2), each with code of its own.
-const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['fighting', 'injuryBonus']]
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
 export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
@@ -790,15 +789,38 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   injuryBonus: (rom, _source, amount) => {
     const env = energyEnv(rom)
     if (!env || !snesCodeInPlace(rom)) return null
-    const count = only(rom, 'a4..' + '......' + '99....bd....38f9....85..bd....38f9....85..22')
+    const COUNT_AFTER = '99....bd....38f9....85..bd....38f9....85..22'
+    const count = only(rom, 'a4..' + '......' + COUNT_AFTER)
+    // With the fights in, their jml F_countcheck has taken the ldy a2 / lda #$78 (Match Viewer): the two share the
+    // place, the fights' jml going to a stub of this code, ldy a2 / jsr count / jml F_countcheck.
+    const fight = count < 0 ? snesFightState(rom, [SNES_FIGHT_SHARED_SITE]) : undefined
+    const shared = fight?.kind === 'in' ? only(rom, '5c......ea' + COUNT_AFTER) : -1
     // The bne after the clock's lda may be the injuries choice's bra (never injured).
     const roll = ['d0', '80'].map((branch) => only(rom, 'a99600' + '22......0aa4..38' + '......' + `10..ad....${branch}..b9....`)).find((at) => at >= 0) ?? -1
     const start = only(rom, 'a9....0c....' + '........' + '22......22......a9..00')
     const period = only(rom, '22......22......22......22......ad....d0..ad....d0..22......ad....d0..22......af')
-    if (count < 0 || roll < 0 || start < 0 || period < 0) return null
-    const sites = { count: count + 2, roll: roll + 11, start: start + 10, period }
-    const hooked = rom[sites.count] === 0x20
-    const block = hooked ? loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, sites.count + 1)) : -1
+    if ((count < 0 && shared < 0) || roll < 0 || start < 0 || period < 0) return null
+    const chained = count < 0
+    const sites = { count: chained ? shared : count + 2, roll: roll + 11, start: start + 10, period }
+    const fightJump = fight?.kind === 'in' ? snesFightCountJump(fight.bank) : null
+    // The stub, where a chained one is in: ldy a2 (the ldy of the place, as the fights' F_countcheck has it); jsr; jml.
+    const stubOf = (blockAddress: number, a2: number) => bytesOf('A4', a2, '20', word(blockAddress), fightJump!.subarray(0, 4))
+    let hooked: boolean
+    let block = -1
+    let a2 = rom[count >= 0 ? count + 1 : -1] ?? 0x91
+    if (chained) {
+      hooked = !same(rom, sites.count, fightJump!)
+      if (hooked) {
+        const stub = loRomOffset(rom[sites.count + 3], readU16(rom, sites.count + 1))
+        if (rom[stub] !== 0xa4 || rom[stub + 2] !== 0x20) return null
+        a2 = rom[stub + 1]
+        block = loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, stub + 3))
+        if (!same(rom, stub, stubOf(loRomAddress(block), a2))) return null
+      } else a2 = 0x91
+    } else {
+      hooked = rom[sites.count] === 0x20
+      block = hooked ? loRomOffset(loRomBank(sites.count, 0x80), readU16(rom, sites.count + 1)) : -1
+    }
     const position = word(readU16(rom, roll + 22))
     const table = '34F07E'
     const ofY = bytesOf('B9', env.pnum, '29FF00 0A AA B9', env.pfteam, 'F006 8A 18 694000 AA')
@@ -839,14 +861,20 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const impact = found?.impact ?? word(readU16(rom, sites.roll + 1))
     const restore = found?.restore ?? rom.slice(sites.start + 1, sites.start + 4)
     const fade = found?.fade ?? rom.slice(sites.period + 1, sites.period + 4)
-    const code = build(clocked, bonus, impact, restore, fade)
-    const at = hooked ? block : roomInBank(rom, sites.count, code.length)
+    const plain = build(clocked, bonus, impact, restore, fade)
+    // Chained, the stub follows the code.
+    const length = plain.length + (chained ? 9 : 0)
+    const at = hooked ? block : roomInBank(rom, sites.count, length)
     if (at < 0) return null
     const address = loRomAddress(at)
+    const code = chained ? bytesOf(plain, stubOf(address, a2)) : plain
     const { rollAt, startAt, periodAt } = offsets(clocked)
     const long = (offset: number) => bytesOf('22', word(address + offset), 0x80 | Math.floor(at / 0x8000))
+    const countPlace: Placed = chained
+      ? { at: sites.count, original: fightJump!, hacked: bytesOf('5C', word(address + plain.length), 0x80 | Math.floor(at / 0x8000), 'EA') }
+      : { at: sites.count, original: hexBytes('A97800'), hacked: bytesOf('20', word(address)) }
     return [
-      { at: sites.count, original: hexBytes('A97800'), hacked: bytesOf('20', word(address)) },
+      countPlace,
       { at, original: unused(code.length), hacked: code, amount: bonus, earlier: !clocked },
       { at: sites.roll, original: bytesOf('F9', impact), hacked: bytesOf('20', word(address + rollAt)) },
       { at: sites.start, original: bytesOf('22', restore), hacked: long(startAt) },
@@ -1083,7 +1111,10 @@ function detect(rom: Uint8Array): SnesHackState {
   const inPlace = snesCodeInPlace(rom)
   const unknown: SnesHack[] = []
   const vaultVersions: SnesHack[] = []
-  const fight = snesFightState(rom)
+  // With the injury risk chained after the fights (see injuryBonus), their shared place holds its jml, not theirs.
+  const fightPlain = snesFightState(rom)
+  const fightShared = fightPlain === undefined && rom[SNES_FIGHT_SHARED_SITE] === 0x5c ? snesFightState(rom, [SNES_FIGHT_SHARED_SITE]) : undefined
+  const fight = fightPlain ?? (fightShared?.kind === 'in' ? fightShared : undefined)
   const choices = Object.fromEntries(
     SNES_HACKS.map((hack) => {
       // The fights are a block of their own (snesfight.ts), not places as the other hacks are.
@@ -1135,6 +1166,18 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} must be a whole number from ${least} to ${most}.`)
     }
     wanted[hack] = amount !== SNES_AMOUNT_OFF[hack]
+  }
+  // The fights going in or out with the injury risk on: they share FallDown's count ($9E:9BD2), the injury risk
+  // chained after the fights' jml where both are in. So the injury risk comes out, the rest is done, and it goes
+  // back in, chained or not as the fights now are.
+  const fightToggles = wanted.fighting !== undefined && wanted.fighting !== choices.fighting && !unknown.includes('fighting')
+  const injuryAfter = wanted.injuryBonus ?? choices.injuryBonus
+  if (fightToggles && (injuryAfter || choices.injuryBonus) && !unknown.includes('injuryBonus')) {
+    // Its amount: the one asked for, else the ROM's if it is on, else the recommended.
+    const bonus = amounts.injuryBonus ?? (choices.injuryBonus ? had?.injuryBonus : undefined) ?? RECOMMENDED_SNES_INJURY_BONUS
+    const out = choices.injuryBonus ? applySnesHacks(project, { injuryBonus: false }) : project
+    const rest = applySnesHacks(out, { ...wanted, injuryBonus: false }, updateVault, { ...amounts, injuryBonus: SNES_AMOUNT_OFF.injuryBonus })
+    return injuryAfter ? applySnesHacks(rest, { injuryBonus: true }, false, { injuryBonus: bonus }) : rest
   }
   const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
   if (problem) throw new SnesHackError(problem)
