@@ -547,8 +547,8 @@ type Relocate = (rom: Uint8Array, source: Uint8Array | null, amount?: number) =>
 // Where the shootout keeps what it saves, by the ROM's RAM: the original's (and its rebuilds'), in bank $7E; the
 // SA-1 builds', with the low variables `shift` on and the game state and the saved state in bank $40 (BW-RAM).
 const SHOOTOUT_RAM = [
-  { shift: 0, bank: 0x7e, low: 0xf100, game: 0xf880, last: 0xfc08 },
-  { shift: 0x6000, bank: 0x40, low: 0x4810, game: 0x4f90, last: 0x5318 },
+  { shift: 0, bank: 0x7e, low: 0xf100, game: 0xf880, last: 0xfc08, extra: 0xfc10 },
+  { shift: 0x6000, bank: 0x40, low: 0x4810, game: 0x4f90, last: 0x5318, extra: 0x5320 },
 ]
 // The shootout's two hooks' lengths, and where B keeps the tie test it does after.
 const SHOOTOUT_A_LENGTH = 37
@@ -584,6 +584,22 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const ram = SHOOTOUT_RAM.find((layout) => readU16(gsp, 0) === 0x1630 + layout.shift && playMode[2] === layout.bank)
     if (!ram) return null
     const b = ram.bank
+    // The 2 MB builds' own player stats, which ClearTeamStats' jsl ClearPlayerChecks also clears (Match Viewer):
+    // checks for and against ($E788, $E7BC), posts ($E7F0) and, where it calls ClearPlayerIceTime, time on ice
+    // ($E800), all in the game state's bank. Saved as one run from the checks to the last of them.
+    const clearChecks = only(rom, 'daa90000a2..009f......9f......caca10..8f......8f......')
+    let extra: { from: number; length: number } | null = null
+    if (clearChecks >= 0 && rom[clearChecks + 10] === b && rom[clearChecks + 22] === b) {
+      const from = readU16(rom, clearChecks + 8)
+      let end = readU16(rom, clearChecks + 24) + 2
+      const ice = rom[clearChecks + 27] === 0x22 ? loRomOffset(rom[clearChecks + 30], readU16(rom, clearChecks + 28)) : -1
+      if (ice >= 0 && rom[ice] === 0xa2 && rom[ice + 3] === 0x9f && rom[ice + 6] === b && same(rom, ice + 7, hexBytes('CACA10F86B'))) {
+        end = readU16(rom, ice + 4) + readU16(rom, ice + 1) + 2
+      }
+      if (end > from && end - from <= 0x100) extra = { from, length: end - from }
+    }
+    const saveExtra = (back: boolean) =>
+      extra ? bytesOf('A9', word(extra.length - 1), 'A2', word(back ? ram.extra : extra.from), 'A0', word(back ? extra.from : ram.extra), '54', b, b) : []
     const sites = { afterOvertime: tail + 25, tieTest: tail + 31, clock: clock + 12, exit: exit + 10 }
     const original = { afterOvertime: bytesOf('A90400 8D', gsp), clock: hexBytes('F09F') }
     const hooked = (site: number) => rom[site] === 0x22 && rom[site + 4] === 0xea && rom[site + 5] === 0xea
@@ -610,14 +626,14 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
         'A20200', '4C', word(run), 'A90000', '8F', mark, tieTest, '6B')
     const run = bytesOf(
       'C230', '8B', 'DA', 'A9FF00', '8F', mark,
-      // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08 (as the layout has them).
-      '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, 'AB',
+      // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08, a 2 MB build's player stats to $FC10 (as the layout has them).
+      '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, saveExtra(false), 'AB',
       'AF', long(0x1ead + ram.shift), '8F', long(ram.last),
       '22', playShootout,
       // The winner: X 0 the home team, 2 the visitors.
       'A20000', 'AF', long(score), 'CF', long(score + 2), 'B003', 'A20200', 'DA',
       // Put back.
-      '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, 'AB',
+      '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, saveExtra(true), 'AB',
       'AF', long(ram.last), '8F', long(0x1ead + ram.shift),
       // The winners' goal; gsp to come back with; PeriodOver from the top, the jsl's return dropped.
       'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, b, 'AB', '3B', '18', '690300', '1B', '5C', periodOver,

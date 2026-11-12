@@ -258,7 +258,7 @@ export function checkProject(project: RomProject): Finding[] {
       findings.push({
         level: 'note',
         where,
-        message: `The script has ${scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand, so the lines after it show in the wrong places, and the game reads its last line from whatever follows the script in the ROM.`,
+        message: `The script has ${scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand, so the lines after it show in the wrong places, and when one team is much hotter the game reads its last line from past the script and freezes. "Put the missing line back" in Ron Barr's matchup screen text, on the Game settings page, fixes it.`,
       })
     }
     const blank = scouting.lines.findIndex((line) => line.blank && line.text.trim())

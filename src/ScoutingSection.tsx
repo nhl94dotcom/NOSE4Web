@@ -7,6 +7,7 @@ import {
   scoutingPreview,
   scoutingStands,
   scoutingUsed,
+  scoutingWithMissingLines,
 } from './core/scouting'
 import type { Settings } from './core/settings'
 import { ResetButton } from './ResetButton'
@@ -44,10 +45,22 @@ export function ScoutingSection({ settings, original, onChange }: Props) {
         What the announcer says in the text box before each game, typed out a word at a time. The game picks its lines by number, so the lines stay as
         many as they are: change what each says, or leave one empty. Words in braces are stand-ins the game fills in, as{' '}
         <code>{'{home city}'}</code>; type them as listed below. The box is {SCOUTING_WIDTH[platform]} letters wide and wraps between words.
+        {snes ? ' The game has no "&".' : ' The game has no "&", and shows ( and ) as small angle brackets.'}
         {snes
           ? ' The room counts the team places stored before the script, which the game never shows: they are emptied if the lines need their room.'
           : ' The line the original game never shows is room too: empty it to make others longer.'}
       </p>
+      {scouting.missing ? (
+        <p className="error">
+          This ROM's script has {scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand: the
+          lines after show in the wrong places, the home team's hot and cold line between every paragraph, and when one team is much hotter the game
+          reads its last line from past the script and freezes (found by the NHL94 Match Viewer project).{' '}
+          <button type="button" onClick={() => onChange({ ...settings, scouting: scoutingWithMissingLines(scouting) })}>
+            Put the missing {scouting.missing === 1 ? 'line' : 'lines'} back
+          </button>{' '}
+          adds {scouting.missing === 1 ? 'it' : 'them'}, empty, as the empty line between paragraphs, so every line is where the game reads it. Where the text fills the room, each line put back takes a space from the longest run of spaces.
+        </p>
+      ) : null}
       {scouting.lines.some((line) => line.role === null) && (
         <p className="note">This ROM chooses its lines with code of its own, so which line shows when is not known here: they are listed in order.</p>
       )}

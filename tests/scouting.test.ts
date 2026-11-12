@@ -14,6 +14,7 @@ import {
   scoutingPreview,
   scoutingToGame,
   scoutingUsed,
+  scoutingWithMissingLines,
   writeScouting,
 } from '../src/core/scouting'
 
@@ -195,7 +196,43 @@ describe.skipIf(!existsSync(path('CDL_Season_12.bin')))('a script with a line ta
     expect(scouting.missing).toBe(1)
     expect(scouting.lines).toHaveLength(9)
     expect(scoutingUsed(scouting)).toBeLessThanOrEqual(scouting.room)
-    expect(checkProject(cdl).some((f) => f.level === 'note' && /one line fewer/.test(f.message))).toBe(true)
-    expect(checkProject(cdl).some((f) => f.level === 'problem' && /Ron Barr/.test(f.where))).toBe(false)
+    // Match Viewer: the last line is read past the script and freezes the game.
+    expect(checkProject(cdl).some((f) => f.level === 'note' && /one line fewer/.test(f.message) && /freezes/.test(f.message))).toBe(true)
+  })
+
+  it('the missing line put back: empty where the line between paragraphs is, every line where the game reads it', () => {
+    for (const name of ['CDL_Season_12.bin', 'CDL_dynasty_03_FINAL.bin', 'DPWM3RegularSeason.bin', 'IDL5_v02.bin', 'RGDL_S01_FINAL.bin'].filter((n) => existsSync(path(n)))) {
+      const rom = open(name)
+      const before = rom.settings.scouting!
+      const fixed = scoutingWithMissingLines(before)
+      expect(fixed.missing, name).toBeUndefined()
+      expect(fixed.lines, name).toHaveLength(10)
+      expect(fixed.room, name).toBe(before.room - 1)
+      expect(line(fixed, 29), name).toMatchObject({ text: '', blank: true })
+      expect(line(fixed, 30).text, name).toMatch(/^For \{home city\}/)
+      expect(line(fixed, 35).text, name).toMatch(/extremely well/)
+      expect(line(fixed, 35).role, name).toMatch(/much better/)
+      expect(scoutingUsed(fixed)!, name).toBeLessThanOrEqual(fixed.room)
+      // The room is full, so one space came out of the longest run of spaces, and nothing else.
+      const all = (sc: Scouting) => sc.lines.map((l) => l.text).join('')
+      expect(all(fixed).length, name).toBe(all(before).length - 1)
+      expect(all(fixed).replace(/ +/g, ' '), name).toBe(all(before).replace(/ +/g, ' '))
+      if (name.startsWith('CDL')) expect(line(fixed, 27).text, name).toContain('Ace here.' + ' '.repeat(21) + "Tonight's")
+      const built = buildRom({ ...rom, settings: { ...rom.settings, scouting: fixed } })
+      // Only the script's room and the checksum change; the menu picture after it is as it was.
+      const reopened = openRom(built)
+      expect(reopened.settings.scouting!.missing, name).toBeUndefined()
+      expect(reopened.settings.scouting!.lines.map((l) => l.text), name).toEqual(fixed.lines.map((l) => l.text))
+      expect(checkProject(reopened).some((f) => /Ron Barr/.test(f.where)), name).toBe(false)
+      const end = 0x4b5c0 + 454
+      expect(Buffer.compare(built.subarray(end, end + 0x2000), rom.bytes.subarray(end, end + 0x2000)), name).toBe(0)
+    }
+  })
+})
+
+describe('the font', () => {
+  it('has no &, on either system', () => {
+    expect(scoutingLineProblem('genesis', 'Rock & roll')).toMatch(/&/)
+    expect(scoutingLineProblem('snes', 'Rock & roll')).toMatch(/&/)
   })
 })

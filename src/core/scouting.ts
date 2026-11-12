@@ -114,7 +114,7 @@ export const SCOUTING_STAND_NOTES: Record<ScoutingPlatform, Record<string, strin
     'home played by': '"(played by <name>)" for a person with a saved record playing the home team, else nothing',
   },
   snes: {
-    'home name': 'city and nickname',
+    'home name': 'the team’s place, as "Montreal" ("New York Islanders" and "New York Rangers" for the two New York teams)',
     'hotter team has': 'the hotter team’s name and "has" (or "have")',
     extremely: '"extremely " when one team is much hotter, else nothing',
   },
@@ -222,6 +222,8 @@ export function scoutingLineProblem(platform: ScoutingPlatform, text: string): s
   }
   const rest = text.replace(/\{[^{}]*\}/g, '')
   if (/[{}]/.test(rest)) return 'A { or } is only for a stand-in, as {home city}.'
+  // The font has no &: it shows as a blank (Match Viewer), and on the SNES one starting a row indents it.
+  if (rest.includes('&')) return 'The game has no "&": it shows as a blank. Write "and".'
   const bad = Array.from(rest).find((char) => !isText(char.charCodeAt(0)) || (platform === 'genesis' ? GENESIS_CODES.has(char) : char === '%'))
   if (bad) return `The game can't show "${bad}" here${platform === 'genesis' && GENESIS_CODES.has(bad) ? ': it is one of its stand-ins' : ''}.`
   const width = SCOUTING_WIDTH[platform]
@@ -301,7 +303,8 @@ export function writeScouting(rom: Uint8Array, scouting: Scouting): boolean {
   const script = gameLines(scouting)
   if (!found || !script) return false
   const first = FIRST_LINE[scouting.platform]
-  const needed = neededLines(found)
+  // Up to every line the code reads: a script missing a line can have it put back (scoutingWithMissingLines).
+  const needed = Math.max(neededLines(found), Math.min(shownLines(found), first + script.length))
   if (first + script.length > needed) return false
   // The needed lines after the editor's, as they are (empty ones).
   const after = found.lines.slice(first + script.length, needed)
@@ -316,6 +319,38 @@ export function writeScouting(rom: Uint8Array, scouting: Scouting): boolean {
   rom.fill(0x0d, found.at, found.at + found.size)
   rom.set(bytes, found.at)
   return true
+}
+
+// The script with its missing lines put back, empty, where the empty line between paragraphs is (as on the five
+// league ROMs that merged two lines by hand), so that every line is where the game reads it again. Each needs a
+// letter of the room. Match Viewer found that on those ROMs the last line, read past the script's end, freezes the game.
+export function scoutingWithMissingLines(scouting: Scouting): Scouting {
+  if (!scouting.missing) return scouting
+  const { platform } = scouting
+  const blank = scouting.lines.findIndex((line) => line.blank)
+  const at = blank >= 0 ? blank : scouting.lines.length
+  const texts = [...scouting.lines.slice(0, at).map((line) => line.text), ...Array<string>(scouting.missing).fill(''), ...scouting.lines.slice(at).map((line) => line.text)]
+  // The texts move down; each place keeps the role the game gives it.
+  const roles = platform === 'genesis' ? GENESIS_ROLES : SNES_ROLES
+  const lines = texts.map((text, i) => {
+    const n = FIRST_LINE[platform] + i
+    const line: ScoutingLine = { text, role: roles[n] ?? null }
+    if (platform === 'genesis' && n === GENESIS_BLANK) line.blank = true
+    return line
+  })
+  const fixed: Scouting = { platform, lines, room: scouting.room - scouting.missing }
+  // Those ROMs fill the room to the letter, so each line put back costs a letter of the text: a space from the
+  // longest run of two or more (CDL's greeting pads with 22; the others have a double space after a full stop).
+  for (let over = (scoutingUsed(fixed) ?? 0) - fixed.room; over > 0; over--) {
+    let best: { line: number; at: number; length: number } | null = null
+    fixed.lines.forEach((line, i) => {
+      for (const run of line.text.matchAll(/ {2,}/g)) if (!best || run[0].length > best.length) best = { line: i, at: run.index!, length: run[0].length }
+    })
+    if (!best) break
+    const { line, at } = best as { line: number; at: number }
+    fixed.lines[line] = { ...fixed.lines[line], text: fixed.lines[line].text.slice(0, at) + fixed.lines[line].text.slice(at + 1) }
+  }
+  return fixed
 }
 
 // Ron Barr's lines, only when changed, so that lines as the ROM has them keep their bytes.

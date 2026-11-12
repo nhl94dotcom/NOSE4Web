@@ -118,7 +118,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a proje
     const hook = tail + 25
     expect(on.bytes[hook]).toBe(0x22)
     const code = offset(on.bytes[hook + 3], on.bytes[hook + 1] | (on.bytes[hook + 2] << 8))
-    const all = hex(on.bytes, code, 37 + 120)
+    const all = hex(on.bytes, code, 37 + 160)
     // A reads and clears the mark in WRAM.
     expect(hex(on.bytes, code, 4)).toBe('aff0f07e')
     // RUN: gsp ($7630) and the scores ($778E) are the SA-1's; low $75D3 to $40:4810, $30F4 to $40:4F90, both in bank $40;
@@ -131,6 +131,21 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a proje
     expect(all).toContain('bf8e7740' + '1a' + '9f8e7740')
     expect(all).toContain('8f307640')
     expect(all).not.toContain('7e7e')
+    // Its own player stats (Match Viewer): checks for $40:E788 to the time on ice's end, $E868 ($E0 bytes), to
+    // $40:5320 after the game state, and back.
+    const more = hex(on.bytes, code, 37 + 160)
+    expect(more).toContain('a9df00a288e7a02053544040')
+    expect(more).toContain('a9df00a22053a088e7544040')
     expect(detectSnesHacks(buildRom(on)).amounts?.seasonShootout).toBe(1)
+  })
+
+  // The LoROM 32-team build: checks and posts ($7E:E788-$E7F3, no time on ice) to $7E:FC10; the 1 MB game has none.
+  it.skipIf(!names.includes('nhl94snes_2026.sfc'))("on the 32-team LoROM build: its checks and posts saved; the original game's code as before", () => {
+    const on = applySnesHacks(open('nhl94snes_2026.sfc'), {}, false, { seasonShootout: 1 })
+    const all = Buffer.from(on.bytes).toString('hex')
+    expect(all).toContain('a96b00a288e7a010fc547e7e')
+    expect(all).toContain('a96b00a210fca088e7547e7e')
+    const plain = Buffer.from(applySnesHacks(open('NHL94.smc'), {}, false, { seasonShootout: 1 }).bytes).toString('hex')
+    expect(plain).not.toContain('a288e7')
   })
 })
