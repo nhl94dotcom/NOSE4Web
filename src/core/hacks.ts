@@ -140,6 +140,8 @@ export interface HackChoices {
   // The range of each player's hot and cold values: from -n to n - 1.
   hotColdRange: number
   noIcing: boolean
+  // Penalties called on the other team while one is pending (known bug 12).
+  delayedCalls: boolean
   // B-checks with penalties off: 'asPenaltiesOn' plays them as with penalties
   // on; 'forum' is the forum's version, which changes the computer's with them on.
   bCheckPenaltiesOff: BCheckPenaltiesOff
@@ -228,6 +230,7 @@ export type HackPart =
   | 'injuries'
   | 'hotColdRange'
   | 'noIcing'
+  | 'delayedCalls'
   | 'bCheckPenaltiesOff'
   | 'goalieDelay'
   | 'fewerSkaterLines'
@@ -297,6 +300,7 @@ export const NO_HACKS: HackChoices = {
   injuries: 'original',
   hotColdRange: 9,
   noIcing: false,
+  delayedCalls: false,
   bCheckPenaltiesOff: 'original',
   goalieDelay: 17,
   fewerSkaterLines: 0,
@@ -2156,6 +2160,26 @@ const noIcing: Part<boolean> = {
   apply: (work, value) => void (value && work.rom.set(ICING.hacked, ICING_AT)),
 }
 
+// ---------------------------------------------- calls during a delayed penalty
+// Known bug 12, from the disassembly (Match Viewer): checkagr, the penalty roll
+// behind body checks, holds, hooks and pokes, gives the checker d0 = $7F (no
+// penalty) at .teamchk ($13EBE) when the other team has a penalty pending
+// (DelayedPen, $FFC300: bit 2 visitors pending against a home checker, bit 1
+// the other way), so while one team's call is delayed the other cannot be
+// called. Its first test, btst #2,($C300).w at $13EC4, becomes bra.w to the
+// routine's rts at $13EE0, so the roll goes on as at any other time. The rest
+// already copes: PenBuf, the boxes and the log are per entry and team, a foul
+// by the team with the puck stops play at once, and two minors at one whistle
+// are both served, 4 on 4. Goalie interference and roughing after an injury
+// never went through this test. The SNES game has no such test.
+const DELAYED_AT = 0x13ec4
+const DELAYED = { original: bytes('0838 0002'), hacked: bytes('6000 001A') }
+const delayedCalls: Part<boolean> = {
+  detect: (rom) => (is(rom, DELAYED_AT, DELAYED.original) ? false : is(rom, DELAYED_AT, DELAYED.hacked) ? true : undefined),
+  remove: (rom) => rom.set(DELAYED.original, DELAYED_AT),
+  apply: (work, value) => void (value && work.rom.set(DELAYED.hacked, DELAYED_AT)),
+}
+
 // ------------------------------------------------ B-checks with penalties off
 // From the forum (CoachMac) and the disassembly (Match Viewer). In Bcheck,
 // with penalties off and a person making the B-check, the trip works only
@@ -2441,6 +2465,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
+    delayedCalls: found('delayedCalls', delayedCalls.detect(rom), NO_HACKS.delayedCalls),
     bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
     goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
@@ -2542,6 +2567,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
     ['hotColdRange', () => hotColdRange.remove(work.rom), () => hotColdRange.apply(work, wanted.hotColdRange)],
     ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
+    ['delayedCalls', () => delayedCalls.remove(work.rom), () => delayedCalls.apply(work, wanted.delayedCalls)],
     ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
     ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
@@ -2773,6 +2799,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   injuries: 'Injuries',
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
+  delayedCalls: 'Calls during a delayed penalty',
   bCheckPenaltiesOff: 'B-checks with penalties off',
   goalieDelay: 'Goalie control delay',
   fewerSkaterLines: 'Edit Lines for fewer skaters',
@@ -2837,6 +2864,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   injuries: 'injuries',
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
+  delayedCalls: 'delayedCalls',
   bCheckPenaltiesOff: 'bCheckPenaltiesOff',
   goalieDelay: 'goalieDelay',
   fewerSkaterLines: 'fewerSkaterLines',

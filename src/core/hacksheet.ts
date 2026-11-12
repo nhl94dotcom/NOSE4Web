@@ -103,6 +103,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
+  delayedCalls: () => 'While one team has a penalty pending, the other can be called too.',
   hitEnergy: (c) =>
     `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
   injuryBonus: (c) =>

@@ -202,7 +202,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -707,6 +707,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'noIcing',
           onOff('noIcing'),
           "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, tested in the game by the NHL94 Match Viewer project; NOSE4Web's version branches cleanly past the instruction the post's skips half of, and a ROM with the post's version is recognised.",
+        )}
+        {hack(
+          'delayedCalls',
+          onOff('delayedCalls'),
+          "An option, a matter of taste. In the original game, while one team has a penalty pending (the referee's arm up, play going on until it touches the puck), the other team cannot be called for anything: its checks, holds, hooks and pokes are never penalties until the whistle. With this on they can be. A foul by the team with the puck stops play at once, and both players go to the box, 4 on 4. Goalie interference was already called. The SNES game has no such rule. Known bug 12; read from the game's code by the NHL94 Match Viewer project, waiting on a test in the game.",
         )}
         {hack(
           'bCheckPenaltiesOff',
