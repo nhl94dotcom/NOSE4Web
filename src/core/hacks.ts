@@ -2068,7 +2068,7 @@ const clock: Part<boolean> = {
 // #4,(InjCntDown).w at $1446A, become NOPs, so the penalty is called with no
 // injury box, and the player lies down for about 10 seconds and skates on.
 // All five tested in the game by Match Viewer. A long fall instead (Match
-// Viewer's): the call of setInjuryType at $14450 becomes bra.w .22, the
+// Viewer's): the call of setInjuryType at $14450 becomes bra.w .22 ($14494), the
 // ordinary fall's end, so there is no injury, no box and no penalty; and
 // SPAinjuryfall's two lists, which fall and then lie for ever, become a back
 // fall that gets up (SPFfallback+1, 6; +2, the lying time; +3, 8; SPFduck,
@@ -2087,7 +2087,9 @@ const INJURY_BYTES: Record<Injuries, string[]> = {
   penaltyOnly: ['66000052', '66000012', '67000018', '4E714E71', '4E714E714E71'],
   period: ['66000052', '4E714E71', '67000018', ...INJURY_KEPT],
   game: ['66000052', '60000012', '60000018', ...INJURY_KEPT],
-  longFall: ['66000052', '66000012', '67000018', '60000046', '31FC0004C3EC'],
+  // bra.w .22 ($14494, move.w #SFXcrowdcheer,-(sp)): $14494 - $14452. (The first build said $46, 4 bytes past it,
+  // which skipped the push and hung the game; Match Viewer found it.)
+  longFall: ['66000052', '66000012', '67000018', '60000042', '31FC0004C3EC'],
 }
 const INJURY_LISTS = [0x6f8a, 0x6f9a]
 export const LONG_FALL_TICKS = 300

@@ -754,7 +754,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             under 2, then get up and play on: no injury, no injury box and no penalty, and he cannot be knocked down
             again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
             post, with the period, penalty and long-fall choices worked out in the game's code by the NHL94 Match
-            Viewer project; all but the long fall tested in the game.
+            Viewer project, and all tested in the game (the long fall: down about 5.4 seconds, play and the clock
+            going on, no penalty and no injury box).
           </>,
         )}
       </section>

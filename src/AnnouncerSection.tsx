@@ -96,8 +96,10 @@ export function AnnouncerSection({ project, onChange }: Props) {
           nothing; a photo that is all picture is too much for it. Either way it has up to 15 colours of its own,
           which nothing else on the screen uses, and the desk and the rest of the original go. It goes into free room
           in the ROM, and <b>Put back the original</b> brings back the picture the ROM was opened with. Tested in the
-          game by the NHL94 Match Viewer project beside the box: the rest of the screen, its text included, stays
-          exactly as it was; the whole place is not yet tested.
+          game by the NHL94 Match Viewer project, in both places, on the original and the SA-1 build: the rest of
+          the screen, its text included, stays exactly as it was. Text in the box is drawn over the picture, as over
+          Ron Barr, and the box's longer lines reach into the left of his place: keep a face or a name to the right,
+          where he has his.
         </p>
       ) : (
         <p className="note">

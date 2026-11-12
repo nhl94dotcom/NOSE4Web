@@ -313,7 +313,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(at(applyHacks(opened, { ...NO_HACKS, noIcing: true }).bytes, 0x1023e, 8)).toBe('60040002bf804e75')
     // Injuries, a long fall instead: the call of setInjuryType becomes bra.w .22, and SPAinjuryfall's lists get up.
     const long = applyHacks(opened, { ...NO_HACKS, injuries: 'longFall' })
-    expect(at(long.bytes, 0x14450, 4)).toBe('60000046')
+    // To .22 at $14494, where move.w #SFXcrowdcheer,-(sp) begins.
+    expect(at(long.bytes, 0x14450, 4)).toBe('60000042')
+    expect(at(long.bytes, 0x14494, 4)).toBe('3f3c000b')
     expect(at(long.bytes, 0x6f8a, 16)).toBe('0112000601130' + '12c01140008015' + '1fff8')
     expect(at(long.bytes, 0x6f9a, 16)).toBe('012200060123012c01240008015' + '5fff8')
     expect(detectHacks(long.bytes).choices.injuries).toBe('longFall')
