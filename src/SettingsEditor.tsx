@@ -119,6 +119,11 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
       {settings.periodLengths.length > 0 && (
         <section>
           <h2>Clock</h2>
+          <p className="note">
+            Each period length the main menu offers can be any time you like, up to 99:59: type it in seconds (7
+            minutes is 420, 8 is 480), and the time it makes shows beside the box. Change its menu text to match,
+            such as <i>7 Minutes</i>, so the menu says what the game plays.
+          </p>
           <p>
             <ResetButton
               what="clock settings"
