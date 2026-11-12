@@ -29,6 +29,8 @@ import {
   type BCheckPenaltiesOff,
   type PuckColours,
   type Injuries,
+  THREE_ON_THREE_TEXTS,
+  type ThreeOnThree,
   type ThreeStars,
   type WeightFix,
   fewerSkaterLinesFor,
@@ -707,6 +709,26 @@ export function HacksPage({ project, name, onChange }: Props) {
           'noIcing',
           onOff('noIcing'),
           "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, tested in the game by the NHL94 Match Viewer project; NOSE4Web's version branches cleanly past the instruction the post's skips half of, and a ROM with the post's version is recognised.",
+        )}
+        {hack(
+          'threeOnThree',
+          <select aria-label={HACK_TITLES.threeOnThree} className="wide" disabled={unknown('threeOnThree')} value={wanted.threeOnThree} onChange={(e) => set({ threeOnThree: e.target.value as ThreeOnThree })}>
+            {(Object.keys(THREE_ON_THREE_TEXTS) as ThreeOnThree[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {THREE_ON_THREE_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            An option, as the NHL plays overtime: each team has its goalie and three skaters, its current line's
+            <b> LW, C and RD</b> (two forwards and a defenceman, a centre for the draws, one player on each side). A
+            penalty gives the other team a skater more, as the NHL does: 4 on 3, and 5 on 3 for a second. When it
+            ends the teams play 4 on 4 until the next whistle, then 3 on 3 again. The lines are not changed, so it
+            works with line changes On or Off, and the players come from whichever line is on. A shootout after
+            overtime is as before. Choose <b>in the regular season</b> to keep the playoffs 5 on 5, as the NHL does.
+            The overtime's length is set as before. Worked out from the game's code with the NHL94 Match Viewer
+            project; waiting on a test in the game.
+          </>,
         )}
         {hack(
           'delayedCalls',

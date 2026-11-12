@@ -142,6 +142,8 @@ export interface HackChoices {
   noIcing: boolean
   // Penalties called on the other team while one is pending (known bug 12).
   delayedCalls: boolean
+  // Overtime 3 on 3 (LW, C, RD), with a skater more for a power play.
+  threeOnThree: ThreeOnThree
   // B-checks with penalties off: 'asPenaltiesOn' plays them as with penalties
   // on; 'forum' is the forum's version, which changes the computer's with them on.
   bCheckPenaltiesOff: BCheckPenaltiesOff
@@ -231,6 +233,7 @@ export type HackPart =
   | 'hotColdRange'
   | 'noIcing'
   | 'delayedCalls'
+  | 'threeOnThree'
   | 'bCheckPenaltiesOff'
   | 'goalieDelay'
   | 'fewerSkaterLines'
@@ -301,6 +304,7 @@ export const NO_HACKS: HackChoices = {
   hotColdRange: 9,
   noIcing: false,
   delayedCalls: false,
+  threeOnThree: 'off',
   bCheckPenaltiesOff: 'original',
   goalieDelay: 17,
   fewerSkaterLines: 0,
@@ -2180,6 +2184,86 @@ const delayedCalls: Part<boolean> = {
   apply: (work, value) => void (value && work.rom.set(DELAYED.hacked, DELAYED_AT)),
 }
 
+// ------------------------------------------------------ 3 on 3 overtime
+// As the NHL plays it: in overtime each team has its goalie and three
+// skaters, the line's LW, C and RD (two forwards and a defenceman, a centre
+// for the draws); a penalty gives the other team a skater more (4 on 3, then
+// 5 on 3), and when it ends the teams play 4 on 4 to the next stoppage, then
+// 3 on 3 again. From Match Viewer's reading of the code. The game fields
+// tmap players (goalie included; 6 at full strength) in priolist's order
+// (G, LD, RD, C, LW, RW, extra attacker), as it does for a team short-handed,
+// so the lines stay whole and line changes On or Off make no difference:
+// - SetPlList, releasepl and getlinee each take priolist (movea.l #priolist,a0,
+//   at $12A00, $12EC4 and $1583C); in overtime they take an order of their
+//   own, G, C, LW, RD, LD, RW, extra attacker, so 4 is G, C, LW and RD, the
+//   next on the ice LD, and with the goalie pulled the four skaters.
+// - InProgress, at every whistle, counts each team's players kept off by
+//   penalties (InProgress_ap, both teams, $123A2); in overtime 4 each, and
+//   one more for each penalty the other team has beyond its own (at most 2),
+//   still clearing each penalty's "just called" bit as InProgress_ap does.
+//   So a power play adds a skater, and the next whistle after it ends brings
+//   the teams back to three; releasepl's player back from the box in between
+//   makes it 4 on 4.
+// - StartPer, where it marks overtime (bset #1,sflags7 at $7870), counts the
+//   same way for the opening faceoff (a penalty from the third period carries
+//   over as 4 on 3), and puts both teams back to 6 for a shootout.
+// - The faceoff places players by a row of .apl for the number on the ice;
+//   the 4-player row was made for a team two short (G, LD, RD, C) and would
+//   put the LW back on the left. In overtime every count takes the full row,
+//   each player on his own spot ($FA6E: neg/addq/asl, the row's offset).
+// Only when not a shootout (gmode2 bit 0); 'season' only in the regular
+// season (OptPlayMode 0), as the NHL's playoffs play 5 on 5.
+export type ThreeOnThree = 'off' | 'season' | 'all'
+export const THREE_ON_THREE_TEXTS: Record<ThreeOnThree, string> = {
+  off: 'Off: 5 on 5, as the original game',
+  season: 'In the regular season',
+  all: 'In every overtime, playoffs included',
+}
+const OT3_PRIO_HOOKS: Hook[] = [0x12a00, 0x12ec4, 0x1583c].map((at) => ({ at, original: bytes('207C 0001 9286') }))
+const OT3_RECOUNT_HOOK: Hook = { at: 0x123a2, original: bytes('347C C6CE 6100 0036 D4FC 0364 6100 002E') }
+const OT3_START_HOOK: Hook = { at: 0x7870, original: bytes('08F8 0001 C2FC') }
+const OT3_FACEOFF_HOOK: Hook = { at: 0xfa6e, original: bytes('4444 5C44 E744') }
+const OT3_PRIO_SEASON = bytes('207C 0001 9286 0838 0001 C2FC 6712 0838 0000 C2FA 660A 4A78 D048 6604 41FA 0004 4E75 0004 0302 0105 06FF')
+const OT3_RECOUNT_SEASON = bytes('0838 0001 C2FC 6746 0838 0000 C2FA 663E 4A78 D048 6638 48E7 3000 347C C6CE 6100 0044 3601 D4FC 0364 6100 003A 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 347C C6CE 4EB9 0001 23DE D4FC 0364 4EB9 0001 23DE 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
+const OT3_START_SEASON = bytes('08F8 0001 C2FC 0838 0000 C2FA 663E 4A78 D048 6644 48E7 3000 347C C6CE 6100 003C 3601 D4FC 0364 6100 0032 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 31FC 0006 C6F2 31FC 0006 CA56 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
+const OT3_FACEOFF_SEASON = bytes('0838 0001 C2FC 6712 0838 0000 C2FA 660A 4A78 D048 6604 7800 4E75 4444 5C44 E744 4E75')
+const OT3_PRIO_ALL = bytes('207C 0001 9286 0838 0001 C2FC 670C 0838 0000 C2FA 6604 41FA 0004 4E75 0004 0302 0105 06FF')
+const OT3_RECOUNT_ALL = bytes('0838 0001 C2FC 6740 0838 0000 C2FA 6638 48E7 3000 347C C6CE 6100 0044 3601 D4FC 0364 6100 003A 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 347C C6CE 4EB9 0001 23DE D4FC 0364 4EB9 0001 23DE 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
+const OT3_START_ALL = bytes('08F8 0001 C2FC 0838 0000 C2FA 6638 48E7 3000 347C C6CE 6100 003C 3601 D4FC 0364 6100 0032 3403 9441 6A02 7400 5842 3542 0024 3401 9443 6A02 7400 5842 3542 FCC0 4CDF 000C 4E75 31FC 0006 C6F2 31FC 0006 CA56 4E75 7200 7032 4A72 0066 6F1E 08B2 0005 0066 0832 0006 0066 6610 0832 0004 0066 6608 0C41 0002 6702 5241 5540 6AD8 4E75')
+const OT3_FACEOFF_ALL = bytes('0838 0001 C2FC 670C 0838 0000 C2FA 6604 7800 4E75 4444 5C44 E744 4E75')
+const OT3_PARTS = (choice: Exclude<ThreeOnThree, 'off'>): [Hook, Uint8Array][] => {
+  const season = choice === 'season'
+  return [
+    ...OT3_PRIO_HOOKS.map((hook): [Hook, Uint8Array] => [hook, season ? OT3_PRIO_SEASON : OT3_PRIO_ALL]),
+    [OT3_RECOUNT_HOOK, season ? OT3_RECOUNT_SEASON : OT3_RECOUNT_ALL],
+    [OT3_START_HOOK, season ? OT3_START_SEASON : OT3_START_ALL],
+    [OT3_FACEOFF_HOOK, season ? OT3_FACEOFF_SEASON : OT3_FACEOFF_ALL],
+  ]
+}
+const threeOnThree: Part<ThreeOnThree> = {
+  detect(rom) {
+    if (OT3_PARTS('all').every(([hook]) => is(rom, hook.at, hook.original))) return 'off'
+    for (const choice of ['season', 'all'] as const) {
+      if (OT3_PARTS(choice).every(([hook, code]) => hooked(rom, hook, code) !== null)) return choice
+    }
+    return undefined
+  },
+  remove(rom) {
+    for (const choice of ['season', 'all'] as const) {
+      for (const [hook, code] of OT3_PARTS(choice)) {
+        const target = hooked(rom, hook, code)
+        if (target === null) continue
+        erase(rom, target, code.length)
+        rom.set(hook.original, hook.at)
+      }
+    }
+  },
+  apply(work, value) {
+    if (value === 'off') return
+    for (const [from, code] of OT3_PARTS(value)) hook(work, from, code)
+  },
+}
+
 // ------------------------------------------------ B-checks with penalties off
 // From the forum (CoachMac) and the disassembly (Match Viewer). In Bcheck,
 // with penalties off and a person making the B-check, the trip works only
@@ -2466,6 +2550,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
     delayedCalls: found('delayedCalls', delayedCalls.detect(rom), NO_HACKS.delayedCalls),
+    threeOnThree: found('threeOnThree', threeOnThree.detect(rom), NO_HACKS.threeOnThree),
     bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
     goalieDelay: found('goalieDelay', goalieDelay.detect(rom), NO_HACKS.goalieDelay),
     fewerSkaterLines: found('fewerSkaterLines', fewerSkaterLines.detect(rom), NO_HACKS.fewerSkaterLines),
@@ -2568,6 +2653,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['hotColdRange', () => hotColdRange.remove(work.rom), () => hotColdRange.apply(work, wanted.hotColdRange)],
     ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
     ['delayedCalls', () => delayedCalls.remove(work.rom), () => delayedCalls.apply(work, wanted.delayedCalls)],
+    ['threeOnThree', () => threeOnThree.remove(work.rom), () => threeOnThree.apply(work, wanted.threeOnThree)],
     ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
     ['goalieDelay', () => goalieDelay.remove(work.rom), () => goalieDelay.apply(work, wanted.goalieDelay)],
     ['fewerSkaterLines', () => fewerSkaterLines.remove(work.rom), () => fewerSkaterLines.apply(work, wanted.fewerSkaterLines)],
@@ -2800,6 +2886,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
   delayedCalls: 'Calls during a delayed penalty',
+  threeOnThree: '3 on 3 overtime',
   bCheckPenaltiesOff: 'B-checks with penalties off',
   goalieDelay: 'Goalie control delay',
   fewerSkaterLines: 'Edit Lines for fewer skaters',
@@ -2865,6 +2952,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
   delayedCalls: 'delayedCalls',
+  threeOnThree: 'threeOnThree',
   bCheckPenaltiesOff: 'bCheckPenaltiesOff',
   goalieDelay: 'goalieDelay',
   fewerSkaterLines: 'fewerSkaterLines',
