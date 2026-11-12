@@ -1203,10 +1203,9 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const code = bytesOf(head, word(loRomAddress(shot)), loRomBank(shot, 0x80), '4C', word(dot3))
     return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), original, code)
   },
-  // The direct page stays at $0000 in every build (lda #0 / tcd), the SA-1 ones too: the game's scratch variables
-  // (a2 $91, d0 $A5, ...) do not move with the others, so where these hacks name one by its full address it is
-  // DIRECT_PAGE + it, never shifted (NOSE4Web's first SA-1 versions shifted them, and Match Viewer found the pull,
-  // Edit Lines and max boost failing there).
+  // The game's scratch variables (a2 $91, d0 $A5, ...) are direct-page ones and never shifted. Where the Vault's code
+  // names one by its full address, `direct` keeps that on the builds with D = $0000 and uses the direct-page form on
+  // the SA-1 ones, which run this code with D = $3000 (Match Viewer: shifted, then full addresses, both failed there).
   // The five made first for the original game's layout (SITES), found by the code around them in the builds whose
   // code is elsewhere, with their variables moved (`shift`) and the routines they call read from that build's code.
   // On the original game each gives exactly the bytes SITES has (the new code where the free room is).
@@ -1218,7 +1217,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const head = hexBytes('A516 C98000 B003 4C')
     const target = loRomOffset(loRomBank(site, 0x80), readU16(rom, site + 1))
     const back = same(rom, target, head) ? readU16(rom, target + head.length) : readU16(rom, site + 1)
-    return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), bytesOf('4C', word(back)), bytesOf(head, word(back), 'A96400 8D', word(DIRECT_PAGE + 0xa5), '6B'))
+    return withNewCode(rom, site, (to) => bytesOf('4C', word(to)), bytesOf('4C', word(back)), bytesOf(head, word(back), 'A96400', direct(s, '8D', 0xa5), '6B'))
   },
   extraAttackerFix: (rom) => {
     const s = shift(rom)
@@ -1233,7 +1232,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     if (!same(rom, loRomOffset(loRomBank(site, 0x80), byte), hexBytes('E220A795C22029FF0060 29FF00E2208795C22060'))) return null
     const code = bytesOf(
       '48 A5A5 18 690500 8595 A20600 EA A595 20', word(byte), 'CF', word(lineSlot), '9F F007 C695 CA D0F0 801E CA A5A5 18 6D', word(lines), 'ED', word(slots),
-      '8595 20', word(byte), '48 A5A5 86AF 18 6D', word(DIRECT_PAGE + 0xaf), '8595 68 20', word(byte + 10), '68 C90100 60',
+      '8595 20', word(byte), '48 A5A5 86AF 18', direct(s, '6D', 0xaf), '8595 68 20', word(byte + 10), '68 C90100 60',
     )
     return withNewCode(rom, site, (to) => bytesOf('20', word(to)), hexBytes('C90100'), code)
   },
@@ -1281,7 +1280,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const checkOriginal = bytesOf('A491 B9', tmgoalie)
     const checkCode = (address: number) =>
       bytesOf(
-        'A20000 AC', word(DIRECT_PAGE + 0x91), 'B9', tmgoalie, 'C900FF D001 60', padOf(address), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
+        'A20000', direct(s, 'AC', 0x91), 'B9', tmgoalie, 'C900FF D001 60', padOf(address), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
         'F028 9E', word(counts), 'EA EA EA B9', tmgoalie, 'F007 C9FFFF F002 8016 49FFFF 99', tmgoalie, '22', turnOver, 'A90070 8564 A90500 22', beepAt,
         'A491 B9', tmgoalie, '60 0100 0200',
       )
@@ -1665,7 +1664,15 @@ const STILL_CODE_SIZE = 13
 const CLEAR_PLAYER_CHECKS = 'daa90000a2..009f......9f......caca10..8f......8f......'
 const OWN_CHECKS = "This build counts each player's checks for and against itself (the SA-1 builds show them in Player Stats as CF and CA), so NOSE4Web's bodycheck counts are not offered."
 
-const DIRECT_PAGE = 0x0000
+// A direct-page variable named in new code. The original game and the LoROM 32-team build run it with the direct
+// page at $0000, where the Vault's full-address forms ($00A5) find the variable; the SA-1 builds run Edit Lines and
+// the goalie check with D = $3000 (Match Viewer's probes), so there the 2-byte direct-page form, padded with a nop
+// to the same length, is the one that follows D.
+function direct(s: number, absolute: string, variable: number): Uint8Array {
+  if (s === 0) return bytesOf(absolute, word(variable))
+  const dp: Record<string, string> = { '8D': '85', '6D': '65', 'AC': 'A4' }
+  return hexBytes(`${dp[absolute]} ${variable.toString(16).padStart(2, '0')} EA`)
+}
 
 // Where the Vault's bodycheck counts are, in the original game: the checks given, then those taken, 26 a team.
 const BODYCHECKS_GIVEN = 0x168e

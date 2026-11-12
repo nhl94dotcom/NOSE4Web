@@ -50,16 +50,18 @@ describe.skipIf(names.length === 0)('the extra attacker and Y button fixes', () 
   })
 })
 
-describe('on the SA-1 builds, the direct page stays at $0000', () => {
+describe('on the SA-1 builds, the scratch variables by the direct page', () => {
   const sa1 = (local.snesRoms ?? []).find((name: string) => /SA1/.test(name) && existsSync(path(name)))
-  it.skipIf(!sa1)('names the scratch variables at $00xx, the game variables $6000 on', () => {
+  it.skipIf(!sa1)('names the scratch variables in direct-page form, the game variables $6000 on', () => {
     const project = openRom(new Uint8Array(readFileSync(path(sa1!))))
     const hex = (b: Uint8Array) => Buffer.from(b).toString('hex')
     const code = (hack: 'showMaxBoost' | 'extraAttackerFix' | 'manualPullGoalie') => relocatedSnesHack(project.bytes, hack)!.map((p) => hex(p.hacked)).join(' ')
-    // sta $00A5 (d0), adc $00AF, ldy $0091 (a2): Match Viewer found them failing when shifted to $60xx.
-    expect(code('showMaxBoost')).toContain('8da500')
-    expect(code('extraAttackerFix')).toContain('6daf00')
-    expect(code('manualPullGoalie')).toContain('ac9100')
+    // sta d0, adc $AF, ldy a2, each with a nop: these run with D = $3000 there (Match Viewer), so neither $60xx nor
+    // $00xx found them.
+    expect(code('showMaxBoost')).toContain('a9640085a5ea6b')
+    expect(code('extraAttackerFix')).toContain('1865afea8595')
+    expect(code('manualPullGoalie')).toContain('a20000a491eab9')
+    expect(code('showMaxBoost') + code('extraAttackerFix') + code('manualPullGoalie')).not.toMatch(/8da500|6daf00|ac9100/)
     // The team's pad worked out (tya / lsr / inc), not read from the code's table with the caller's data bank.
     expect(code('manualPullGoalie')).toContain('d00160984a1add')
     expect(code('manualPullGoalie')).toContain('add875')
