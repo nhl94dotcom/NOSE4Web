@@ -1725,7 +1725,10 @@ export function HelpPage() {
           <b>when held or hooked</b>; <b>injury risk added by each knockdown</b>, with the most it can add; and{' '}
           <b>skating costs no energy</b> and the <b>energy a C-button burst costs</b>. The <b>Energy from hits
           only</b> button sets them so that only hits tire a player: three knockdowns leave a skater at the slowest
-          speed there is, and he gets his energy back on the bench.
+          speed there is, and he gets his energy back on the bench. Beside it, the table <b>Knockdowns to empty a
+          skater</b> gives the costs for 2 to 10 knockdowns, each row with a button that sets both; press Energy from
+          hits only first for hits alone. A knockdown counts whoever makes it, a poke check or a goalie included, but
+          not a bump he stays up from, the puck, or a hit after the whistle; the game stops energy at 0.
         </li>
         <li>
           <b>Puck friction</b>: how quickly a loose puck slows down.
