@@ -58,6 +58,7 @@ export type SnesHack =
   | 'hybridIcing'
   | 'shootoutInjuries'
   | 'fightTime'
+  | 'oneTimerFix'
 
 interface Site {
   // The game's address.
@@ -303,6 +304,7 @@ export const SNES_HACKS: SnesHack[] = [
   'hybridIcing',
   'shootoutInjuries',
   'fightTime',
+  'oneTimerFix',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -348,6 +350,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   hybridIcing: 'Hybrid icing',
   shootoutInjuries: 'The injured sit out the shootout',
   fightTime: 'Fighting penalty time',
+  oneTimerFix: 'One-timer that never fires fix',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1147,6 +1150,52 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   ]
 }
 
+// ---------------------------------------------------- the one-timer that never fires
+// Found by Match Viewer (SNES_SHOOTING 4.5): a one-timer request starts the
+// receiver's swing (SPAonetimerf or SPAonetimerb), whose first frame holds
+// while asspassrec waits for the puck, keeping him from taking it (nopuck).
+// When the wait ends without a shot (the pass late, someone else touching it,
+// or B pressed), asspassrec's .6 clears the request and leaves the assignment
+// but not the swing; he then takes the puck the ordinary way and carries it
+// through the rest of the swing, and no shot comes (2 of 1,043 swings in 25
+// computer games). .6's lda #$FFFF / sta passReceiverPlayerNum becomes jsl /
+// nops to code that, when he is still winding up (one of the two swings,
+// SPAnum below $10), sets him gliding (SPAglide, by SetSPAFromA, as
+// puckfaceoff2 does), then does them. Found by the code around them.
+function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
+  // .6 after its first 6 bytes (lda #$FFFF / sta passReceiverPlayerNum, or the hack's jsl / nops).
+  const sixes = findCodeAll(rom, '9e....9c....bd....29feff9d....4c....').filter(({ at }) => at >= 6 && ((rom[at - 6] === 0xa9 && rom[at - 5] === 0xff && rom[at - 4] === 0xff && rom[at - 3] === 0x8d) || (rom[at - 6] === 0x22 && rom[at - 2] === 0xea && rom[at - 1] === 0xea)))
+  const eights = findCodeAll(rom, 'bd(....)c9(....)f0..c9(....)f0..5aa00000e00c00')
+  if (sixes.length !== 1 || eights.length !== 1) return null
+  const site = sixes[0].at - 6
+  let receiver: number
+  if (rom[site] === 0x22) {
+    const code = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    // The code ends lda #$FFFF / sta passReceiverPlayerNum / rtl, at 28 from its start.
+    if (code < 0 || !same(rom, code + 28, hexBytes('A9FFFF8D'))) return null
+    receiver = readU16(rom, code + 32)
+  } else receiver = readU16(rom, site + 4)
+  const [spa, forehand, backhand] = eights[0].groups
+  // puckfaceoff2's skater: lda #SPAgready / bra / lda #SPAglide / jsl SetSPAFromA / jsl updateanim.
+  const glides = findCodeAll(rom, 'a9....8003a9(....)22(......)22').filter(({ groups }) => groups[0] !== forehand)
+  if (glides.length !== 1) return null
+  const glide = glides[0].groups[0]
+  const setSpa = rom.slice(glides[0].at + 9, glides[0].at + 12)
+  const code = asm65([
+    bytesOf('BD', word(spa), 'C9', word(forehand)),
+    { branch: BEQ, to: 'w' },
+    bytesOf('C9', word(backhand)),
+    { branch: BNE, to: 'd' },
+    { label: 'w' },
+    bytesOf('BD', word(spa + 0x20), 'C9 1000'),
+    { branch: BCS, to: 'd' },
+    bytesOf('A9', word(glide), '22', setSpa),
+    { label: 'd' },
+    bytesOf('A9 FFFF 8D', word(receiver), '6B'),
+  ])
+  return withFarCode(rom, site, bytesOf('A9 FFFF 8D', word(receiver)), 2, code)
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1277,6 +1326,7 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   shootoutInjuries: (rom) => shootoutInjuryPlaces(rom),
+  oneTimerFix: (rom) => oneTimerPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2313,7 +2363,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'secondAssist', 'stickShots',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]

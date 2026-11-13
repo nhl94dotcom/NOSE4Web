@@ -186,6 +186,7 @@ const SNES: Record<SnesHack, string> = {
   thirtySecondPeriods: 'The main menu also offers 30-second periods.',
   noInterference: 'Interference is never called.',
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
+  oneTimerFix: 'A one-timer whose pass comes too late no longer leaves the player swinging with the puck and never shooting: he skates on with it.',
   creaseIcing: 'A puck that crosses the goal line within the width of the crease is not icing, as on the Genesis.',
   hybridIcing: 'Hybrid icing: decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.',
   noPenaltyShots: 'A foul on a breakaway is an ordinary penalty: there are no penalty shots.',
