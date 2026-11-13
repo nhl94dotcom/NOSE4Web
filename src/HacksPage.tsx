@@ -511,7 +511,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'timeOnIce',
           onOff('timeOnIce'),
-          "The game counts each player's time on ice, a second for every second of the clock he is on the ice, but never shows it. This adds a Time On Ice page to Player Stats: press right past Penalty Minutes, and the players are sorted by their time on ice, each row showing goals, assists, points and the time (m:ss). Goalies' time shows too. The other pages are as before, the bodycheck counts' Chk column included, and playoff stats are unchanged (the game keeps no time on ice for the playoffs). As McMarkis's SNES builds show it. Waiting on a test in the game.",
+          "The game counts each player's time on ice, a second for every second of the clock he is on the ice, but never shows it. This adds a Time On Ice page to Player Stats: press right past Penalty Minutes, and the players are sorted by their time on ice, each row showing goals, assists, points and the time (m:ss). Goalies' time shows too. The other pages are as before, the bodycheck counts' Chk column included, and playoff stats are unchanged (the game keeps no time on ice for the playoffs). As McMarkis's SNES builds show it. Tested in the game by the NHL94 Match Viewer project: the page, its sorting, times (goalies' included), switching teams and scrolling, every other page as before (the bodycheck counts' Checks For included), and Playoff Stats unchanged. Since then the right arrow on Penalty Minutes' title shows in game stats only, not in Playoff Stats, where no page follows; that small change waits on a retest.",
         )}
         {hack(
           'threeStars',

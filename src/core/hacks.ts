@@ -2550,44 +2550,57 @@ const shootoutInjuries: Part<boolean> = {
 // not playoff stats), sorted by it, each row G, A, Pts and TOI as m:ss, the
 // other pages as they were. Five hooks: the column bounds (.col: -1 to 5 for
 // game stats, as before to 4 for playoffs), the sort title (string 6 of its own,
-// and Penalty Minutes' title closed with "]"), the column headers (on the new
+// and Penalty Minutes' closed with "]" in game stats), the column headers (on the new
 // page SOG and PIM give way to TOI), GetStatColumn (column 5 is the time on
 // ice, the goalies' too) and the row's number (from SOG on, the time).
 const TOI_HOOKS: Record<'col' | 'title' | 'head' | 'get' | 'row', Hook> = {
   col: { at: 0x9556, original: bytes('B07C FFFF 6DF0 B07C 0004 6EEA') },
-  title: { at: 0x968a, original: bytes('43FA 02B6 7001') },
+  title: { at: 0x968a, original: bytes('43FA 02B6 7001 D078 D5AC 4EB9 0001 3508') },
   head: { at: 0x9658, original: bytes('4EB9 0001 1A48') },
   get: { at: 0x9878, original: bytes('3400 301F B042') },
   row: { at: 0x97ce, original: bytes('7204 4EB9 0001 1D3A') },
 }
 const TOI_CODES: Record<keyof typeof TOI_HOOKS, Uint8Array> = {
   col: bytes('0C40 FFFF 6D14 4A47 6608 0C40 0005 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C'),
-  title: bytes('43F9 0000 9942 7001 0C78 0005 D5AC 6606 43FA 0006 70FB 4E75 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020'),
+  title: bytes('43F9 0000 9942 7001 D078 D5AC 0C78 0005 D5AC 6606 43FA 0028 7000 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0022 7000 4EB9 0001 3508 4E75 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020 0004 005D'),
   head: bytes('0C78 0005 D5AC 6624 0C43 0003 6D1E 6618 31FC C000 B02C 2F09 43FA 0018 4EB9 0001 1A48 225F D2D1 4E75 D2D1 4E75 4EF9 0001 1A48 000A 2020 2020 2054 4F49'),
   get: bytes('3400 302F 0004 2F57 0002 548F 0C41 0005 6610 3400 D442 0642 0136 3432 2000 588F 4E75 B042 4E75'),
   row: bytes('0C78 0005 D5AC 6632 0C45 0003 6D2C 4240 1014 7205 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 000E 7A04 4E75 7204 4EF9 0001 1D3A 0002'),
 }
 const TOI_KEYS = Object.keys(TOI_HOOKS) as (keyof typeof TOI_HOOKS)[]
-// The last character of Penalty Minutes' sort title: "]" while a page follows.
-const TOI_BRACKET = { at: 0x99c5, original: 0x20, hacked: 0x5d }
+// The title hook prints the title itself (Fprintsmall), then, on Penalty Minutes (or the bodycheck counts' Checks
+// For) in game stats only (d7 = 0), a "]" over its last letter, a page following.
+// NOSE4Web's first version (13 November 2026) hooked only the title's lea / moveq and put the "]" in the title's text
+// ($99C5), so it showed in Playoff Stats too (Match Viewer): recognised, and replaced when the hack is applied again.
+const TOI_EARLIER_TITLE: Hook = { at: 0x968a, original: bytes('43FA 02B6 7001') }
+const TOI_EARLIER_TITLE_CODE = bytes('43F9 0000 9942 7001 0C78 0005 D5AC 6606 43FA 0006 70FB 4E75 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020')
+const TOI_EARLIER_BRACKET = { at: 0x99c5, original: 0x20, hacked: 0x5d }
+const toiEarlier = (rom: Uint8Array) =>
+  TOI_KEYS.every((key) => key === 'title' || hooked(rom, TOI_HOOKS[key], TOI_CODES[key]) !== null) &&
+  hooked(rom, TOI_EARLIER_TITLE, TOI_EARLIER_TITLE_CODE) !== null &&
+  rom[TOI_EARLIER_BRACKET.at] === TOI_EARLIER_BRACKET.hacked
 const timeOnIce: Part<boolean> = {
   detect(rom) {
-    if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original)) && rom[TOI_BRACKET.at] === TOI_BRACKET.original) return false
-    return TOI_KEYS.every((key) => hooked(rom, TOI_HOOKS[key], TOI_CODES[key]) !== null) && rom[TOI_BRACKET.at] === TOI_BRACKET.hacked ? true : undefined
+    if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return false
+    if (TOI_KEYS.every((key) => hooked(rom, TOI_HOOKS[key], TOI_CODES[key]) !== null)) return true
+    return toiEarlier(rom) ? true : undefined
   },
   remove(rom) {
+    if (toiEarlier(rom)) {
+      const title = hooked(rom, TOI_EARLIER_TITLE, TOI_EARLIER_TITLE_CODE)!
+      erase(rom, title, TOI_EARLIER_TITLE_CODE.length)
+      rom.set(TOI_EARLIER_TITLE.original, TOI_EARLIER_TITLE.at)
+      rom[TOI_EARLIER_BRACKET.at] = TOI_EARLIER_BRACKET.original
+    }
     for (const key of TOI_KEYS) {
       const target = hooked(rom, TOI_HOOKS[key], TOI_CODES[key])
       if (target === null) continue
       erase(rom, target, TOI_CODES[key].length)
       rom.set(TOI_HOOKS[key].original, TOI_HOOKS[key].at)
     }
-    rom[TOI_BRACKET.at] = TOI_BRACKET.original
   },
   apply(work, value) {
-    if (!value) return
-    for (const key of TOI_KEYS) hook(work, TOI_HOOKS[key], TOI_CODES[key])
-    work.rom[TOI_BRACKET.at] = TOI_BRACKET.hacked
+    if (value) for (const key of TOI_KEYS) hook(work, TOI_HOOKS[key], TOI_CODES[key])
   },
 }
 
