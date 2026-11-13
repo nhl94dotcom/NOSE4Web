@@ -685,8 +685,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             fight (chaos's patch), takes no attempt in it, and the next healthy player on the team's shootout list
             shoots in his place, even if he was picked on the shootout screen. A period's injury is over by then. If
             all five are out, the listed players shoot as before. Shootout mode from the main menu is as it was. From
-            Match Viewer's reading of the game's code and of chaos's fight injury. Waiting on a test in the game (the
-            SNES version is tested).
+            Match Viewer's reading of the game's code and of chaos's fight injury, and tested in the game by them: injured
+            shooters on the default list and picked on the shootout screen, hit and fight injuries (a major still
+            running, and served), each gave way to the right player, wrapping past round 5; Shootout mode was unchanged.
           </>,
         )}
         {hack(
