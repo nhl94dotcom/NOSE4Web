@@ -2288,13 +2288,15 @@ test.describe('with the SNES game', () => {
       'Second-assist bug fix: off to on.',
       'Count stick deflections as shots: off to on.',
       'Regained-puck assist fix: off to on.',
+      'B while checking or bursting fix: off to on.',
+      'L and R while busy fix: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Fixes__\n- \*\*Power play and penalty kill fix\*\*: (.*\n)*- \*\*Second-assist bug fix\*\*: .*\n- \*\*Regained-puck assist fix\*\*: /)
     await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Regained-puck assist fix**\n- **Defence control on**',
+      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **B while checking or bursting fix**\n- **L and R while busy fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Regained-puck assist fix**\n- **Defence control on**',
     )
     const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
     expect(sheet).toContain("NHL '94 for the SNES.")
