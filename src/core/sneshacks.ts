@@ -56,6 +56,7 @@ export type SnesHack =
   | 'threeOnThree'
   | 'creaseIcing'
   | 'hybridIcing'
+  | 'shootoutInjuries'
 
 interface Site {
   // The game's address.
@@ -299,6 +300,7 @@ export const SNES_HACKS: SnesHack[] = [
   'threeOnThree',
   'creaseIcing',
   'hybridIcing',
+  'shootoutInjuries',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -342,6 +344,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   threeOnThree: '3 on 3 overtime',
   creaseIcing: 'No icing within the crease',
   hybridIcing: 'Hybrid icing',
+  shootoutInjuries: 'The injured sit out the shootout',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1080,7 +1083,86 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
   ]
 }
 
+// ------------------------------------------------ the injured out of the shootout
+// For the shootout of a tied regular-season game (seasonShootout): a skater
+// out for the game takes no attempt (Match Viewer's reading). PlayShootout
+// takes each attempt's shooter from the team's list (.t1x the visitors, .t1xx
+// the home team: tay / sep #$20 / lda list,y with y the round 1 to 5, then
+// rep / and / dec / sta BA_Skater_Offset); each becomes jsl / nops to code
+// that, while the season shootout's mark is set, steps y on through 1 to 5
+// (wrapping) past each listed player whose tmpdst, as saved when the shootout
+// began (StartGame_go clears the game's), is $FFFC, out for the game; a
+// period's injury is over by then (PeriodOver). With all five out, the
+// listed player as before. Outside the season shootout, the original's.
+const SHOOTOUT_SITES = [
+  { pattern: 'c22029ff003a8d....a90c008d....a902008d', list: 0x1d79, team: 0x34 },
+  { pattern: 'c22029ff003a8d....a900008d....9c', list: 0x1d71, team: 0 },
+]
+const shooterOriginal = (list: number) => bytesOf('A8 E2 20 B9', word(list))
+const shooterCode = (list: number, saved: Uint8Array, team: number) =>
+  asm65([
+    'A8 AF F0F07E 29 FF00',
+    { branch: BEQ, to: 'orig' },
+    'DA 5A F4 0500',
+    { label: 'loop' },
+    bytesOf('B9', word(list), '29 FF00'),
+    { branch: BEQ, to: 'ok' },
+    bytesOf('3A 0A 18 69', word(team), 'AA BF', saved, 'C9 FCFF'),
+    { branch: BNE, to: 'ok' },
+    'C8 C0 0600',
+    { branch: BCC, to: 'in' },
+    'A0 0100',
+    { label: 'in' },
+    'A3 01 3A 83 01',
+    { branch: BNE, to: 'loop' },
+    'A3 03 A8',
+    { label: 'ok' },
+    '68 68 FA',
+    { label: 'orig' },
+    bytesOf('E2 20 B9', word(list), '6B'),
+  ])
+
+function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
+  const s = shift(rom)
+  const ram = SHOOTOUT_RAM.find((layout) => layout.shift === s)
+  if (s === null || !ram) return null
+  // The saved tmpdst: the saved run starts at $15D3.
+  const saved = bytesOf(word(ram.low + 0x1852 - 0x15d3), ram.bank)
+  const sites: number[] = []
+  for (const site of SHOOTOUT_SITES) {
+    const found = findCodeAll(rom, site.pattern).filter(({ at }) => at >= 6 && (same(rom, at - 6, shooterOriginal(site.list + s)) || (rom[at - 6] === 0x22 && rom[at - 2] === 0xea && rom[at - 1] === 0xea)))
+    if (found.length !== 1) return null
+    sites.push(found[0].at - 6)
+  }
+  // One block, the visitors' code then the home team's, in bank $9B, else $80, else the sites' bank.
+  const codes = SHOOTOUT_SITES.map((site) => shooterCode(site.list + s, saved, site.team))
+  const block = bytesOf(...codes)
+  const first = shooterOriginal(SHOOTOUT_SITES[0].list + s)
+  let room = -1
+  if (!same(rom, sites[0], first)) {
+    if (rom[sites[0]] !== 0x22) return null
+    room = loRomOffset(rom[sites[0] + 3], readU16(rom, sites[0] + 1))
+  } else {
+    for (const bank of [0x9b, 0x80, loRomBank(sites[0], 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, block.length)
+      if (room >= 0) break
+    }
+  }
+  if (room < 0) return null
+  const entries = [room, room + codes[0].length]
+  return [
+    ...SHOOTOUT_SITES.map((site, i): Placed => ({
+      at: sites[i],
+      original: shooterOriginal(site.list + s),
+      hacked: bytesOf('22', word(loRomAddress(entries[i])), loRomBank(entries[i], 0x80), 'EA EA'),
+    })),
+    { at: room, original: unused(block.length), hacked: block },
+  ]
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  shootoutInjuries: (rom) => shootoutInjuryPlaces(rom),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
     return found && withFarCode(rom, found.mark, creaseMarkOriginal(found.env), 2, creaseCode(found.env))

@@ -88,6 +88,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',
+  shootoutInjuries:
+    "With A shootout for tied regular-season games on: a skater injured for the game (not for the period, which is over by then) takes no attempt in it, and the next healthy player on the team's shootout list shoots in his place, even if he was picked on the shootout screen. If all five are out, the listed players shoot as before. Shootout mode from the main menu is as it was. Players hurt in a fight on McMarkis's builds are not yet covered when their major still had time left. From Match Viewer's reading of the game's code. Waiting on a test in the game.",
   creaseIcing:
     "As on the Genesis: a puck that crosses the goal line within the width of the crease is not icing (in the original SNES game it is). From Match Viewer's reading of both games' code. Waiting on a test in the game.",
   hybridIcing:
