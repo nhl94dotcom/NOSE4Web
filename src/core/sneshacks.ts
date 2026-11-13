@@ -63,6 +63,7 @@ export type SnesHack =
   | 'lockedChangeFix'
   | 'lockedDefenceFix'
   | 'timeOnIce'
+  | 'timeOnIceShown'
 
 interface Site {
   // The game's address.
@@ -313,6 +314,7 @@ export const SNES_HACKS: SnesHack[] = [
   'lockedChangeFix',
   'lockedDefenceFix',
   'timeOnIce',
+  'timeOnIceShown',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -363,13 +365,14 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   lockedChangeFix: 'B while checking or bursting fix',
   lockedDefenceFix: 'L and R while busy fix',
   timeOnIce: 'Time on ice for each player',
+  timeOnIceShown: 'Time on ice in Player Stats',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
 // on, and two that cannot both be.
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks' }
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
@@ -1380,6 +1383,7 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
 // StartGame_go, does not) becomes jsl to code that clears the 104 bytes and goes
 // on to ScoutingReport. McMarkis's 2 MB and SA-1 builds count it themselves.
 const PTOI = 0x7ee800
+const OWN_STAT_PAGES = "This build's Player Stats has pages of its own after Penalties (its checks for and against), so NOSE4Web's Time On Ice page is not offered; the time on ice is still counted for save-state readers."
 const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
 
 function ownIceTime(rom: Uint8Array): boolean {
@@ -1438,6 +1442,196 @@ function timeOnIcePlaces(rom: Uint8Array): Placed[] | null {
   for (const place of tick) withTick.set(place.hacked, place.at)
   const clear = withFarCode(withTick, scoutSite, bytesOf('22', scouting), 0, clearCode)
   return clear && [...tick, ...clear]
+}
+
+// ------------------------------------------------------ time on ice in Player Stats
+// McMarkis's Player Stats TOI page (NHL94SNES-SA1 b8909787, with his
+// permission), for the original game's layout, from the counts timeOnIce
+// keeps: a seventh sort column after Penalties, "[Time On Ice", where each
+// skater's row is his name, G, A and Pts (the game's own row code, copied) and
+// his time as m:ss (PushTime) ending at column 30, as McMarkis's first version
+// showed it. Five places: PlayerStatsScreen_right's last column (cmp #5 becomes
+// #6); SortPlayerStats' jsl AdvanceStringPtr (column 6: its own title);
+// ComparePlayerStats' .t2/.t1 (cmp #5 / bne .t1 / jmp .t1x / .t1: jmp .6
+// becomes jsl / bcs .t1x / jmp .8: column 5 as before, 6 by time on ice, else
+// no swap); DrawStatsList_rows' jsl .3 (column 6: the TOI row); DrawStatsList's
+// header pointer (column 6: "Player G A Pt TOI"). Penalties' title ends in "]".
+const TOI_TITLE = '[Time On Ice'
+const TOI_HEADER = '  Player         G  A Pt   TOI'
+
+// Room for `length` bytes of new code, as withFarCode finds it: where the hook at `site` already calls when it is
+// in, else bank $9B, $80 or the site's.
+function farRoom(rom: Uint8Array, site: number, original: Uint8Array, length: number): number {
+  if (!same(rom, site, original)) return rom[site] === 0x22 ? loRomOffset(rom[site + 3], readU16(rom, site + 1)) : -1
+  for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
+    const start = (bank & 0x7f) << 15
+    const room = start < rom.length ? roomInBank(rom, start, length) : -1
+    if (room >= 0) return room
+  }
+  return -1
+}
+
+function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
+  if (ownIceTime(rom)) return null
+  const ptoi = bytesOf(word(PTOI & 0xffff), PTOI >> 16)
+  // DrawStatsList_rows: lda statcolumn / beq .t1 / jsl .3 / bra / jsl .4.
+  const rows = findCodeAll(rom, 'ad(....)f00622(......)800422')
+  if (rows.length !== 1) return null
+  const statcolumn = rows[0].groups[0]
+  const rowSite = rows[0].at + 5
+  // .3 as the game has it, or where the hack's code jmls to it.
+  const callTo = (at: number) => loRomOffset(rom[at + 3], readU16(rom, at + 1))
+  let skater = callTo(rowSite)
+  // The hack's: lda statcolumn / cmp #6 / beq / jml .3.
+  if (skater >= 0 && rom[skater] === 0xad && rom[skater + 8] === 0x5c) skater = callTo(skater + 8)
+  // .3: phy / lda d1 / pha / ... name, G, A, Pts (171 bytes), shots and PM, then lda #$FFFF / jsl SetStatColumnPal / pla / sta d1 / ply / rtl.
+  if (skater < 0 || !same(rom, skater, hexBytes('5AA5A948A9FFFF22'))) return null
+  const head = rom.slice(skater, skater + 171)
+  const tail = rom.slice(skater + 247, skater + 259)
+  if (head[163] !== 0x22 || head[167] !== 0x22 || tail[0] !== 0xa9 || tail[11] !== 0x6b) return null
+  const setPal = head.slice(8, 11), printx = head.slice(15, 17), toStatsPage = head.slice(24, 27), d0 = head[18], statstemp = head.slice(28, 30)
+  // PlayerStatsScreen_right: lda statcolumn / cmp #5 (or #6) / bmi / jmp.
+  const rights = [5, 6].flatMap((n) => findCodeAll(rom, 'ad' + hexOf(Uint8Array.from(word(statcolumn))) + 'c90' + n + '0030034c'))
+  // SortPlayerStats: lda #titles>>16 / sta a1+2 / lda #titles / sta a1 / jsl AdvanceStringPtr / jsl print / ldx.
+  const titles = findCodeAll(rom, 'a9(..)0085(..)a9(....)85(..)22(......)22......ae')
+  // ComparePlayerStats .t2: cmp #5 / bne .t1 / jmp .t1x / .t1: jmp .6; or the hack's jsl / bcs / jmp / nops.
+  const compares = [...findCodeAll(rom, 'c90500d0034c(....)4c(....)'), ...findCodeAll(rom, '22(......)b0(..)4c(....)eaea')]
+  // DrawStatsList: lda #header>>16 / sta a1+2 / lda #header / sta a1 / jsl print / pla; or the hack's jsl and nops.
+  // DrawStatsList's own: after lda statcolumn / beq .t1 / lda a1+2 / pha / lda a1 / pha.
+  const drawList = 'ad' + hexOf(Uint8Array.from(word(statcolumn))) + 'f0..a5..48a5..48'
+  const headers = [...findCodeAll(rom, drawList + 'a9(..)0085(..)a9(....)85(..)22......6885'), ...findCodeAll(rom, drawList + '22(......)eaeaeaeaeaea22......6885')]
+  // PushTime: a1 = mesareaEnd in bank 0, then the seconds' ones and tens.
+  const pushTimes = findCodeAll(rom, 'a90000858fa9....858da5a585..a90a0085..22......c68de220ad....186930878dc230a50085..a90600')
+  if (rights.length !== 1 || titles.length !== 1 || compares.length !== 1 || headers.length !== 1 || pushTimes.length !== 1) return null
+  const pushTime = long(pushTimes[0].at)
+  const rightSite = rights[0].at + 4
+  const [titleBank, a1hi, titleList, a1lo, advance] = titles[0].groups
+  if (a1hi !== a1lo + 2) return null
+  const titleSite = titles[0].at + 10
+  // The hack's title code: lda d0 / cmp #6 / bne / ... / rtl / jml AdvanceStringPtr (at 18).
+  const titleHooked = (site: number) => {
+    const code = callTo(site)
+    return code >= 0 && rom[code] === 0xa5 && rom[code + 1] === d0 && same(rom, code + 2, hexBytes('C90600D0')) && rom[code + 18] === 0x5c ? rom.slice(code + 19, code + 22) : null
+  }
+  const listAt = loRomOffset(titleBank, titleList)
+  // The six titles, 14 bytes each (a length word of 14, 12 letters): Penalties' last letter " " or "]".
+  if (listAt < 0 || readU16(rom, listAt + 70) !== 14) return null
+  const penaltiesEnd = listAt + 83
+  const cmpSite = compares[0].at
+  const plainCompare = rom[cmpSite] === 0xc9
+  const cmpCode = plainCompare ? -1 : callTo(cmpSite)
+  // .t1x and .6, from the original or from the hack's code (which keeps them at its end).
+  const t1x = plainCompare ? compares[0].groups[0] : readU16(rom, cmpCode - 4)
+  const six = plainCompare ? compares[0].groups[1] : readU16(rom, cmpCode - 2)
+  const sixAt = loRomOffset(loRomBank(cmpSite, 0x80), six)
+  // .6: lda #0 / sta statstemp / bra .8 / .7: lda #1 / sta statstemp / .8.
+  if (!same(rom, sixAt, bytesOf('A90000 8D', statstemp, '80'))) return null
+  const eight = six + 14
+  const cmpAddress = loRomAddress(cmpSite)
+  const bcs = t1x - (cmpAddress + 6)
+  if (bcs < 0 || bcs > 127) return null
+  const headerSite = headers[0].at + 11
+  const plainHeader = rom[headerSite] === 0xa9
+  const headerCode = plainHeader ? -1 : callTo(headerSite)
+  // The hack's: lda statcolumn / cmp #6 / beq / lda #bank / sta / lda #header.
+  const [headerBank, , headerAddress] = plainHeader ? headers[0].groups : [rom[headerCode + 9], 0, readU16(rom, headerCode + 14)]
+  const a1 = a1lo
+  const header = loRomOffset(headerBank, headerAddress)
+  if (header < 0 || !same(rom, header + 5, new TextEncoder().encode('  Player'))) return null
+
+  const original = {
+    row: bytesOf('22', long(skater)),
+    title: bytesOf('22', titleHooked(titleSite) ?? rom.slice(titleSite + 1, titleSite + 4)),
+    compare: bytesOf('C9 0500 D003 4C', word(t1x), '4C', word(six)),
+    header: bytesOf('A9', headerBank, '00 85', a1 + 2, 'A9', word(headerAddress), '85', a1),
+  }
+  void advance
+  const text = (s: string) => new TextEncoder().encode(s)
+  const builds = {
+    // lda statcolumn / cmp #6 / beq toi / jml .3 / toi: the row.
+    row: (_at: number) =>
+      asm65([
+        bytesOf('AD', word(statcolumn), 'C90600'),
+        { branch: BEQ, to: 't' },
+        bytesOf('5C', long(skater)),
+        { label: 't' },
+        head,
+        bytesOf('A90600 22', setPal, 'A91A00 8D', printx, 'DA 8A 0A AA BF', ptoi, '85', d0, 'FA 22', pushTime, 'A7', a1, 'C90600'),
+        { branch: BNE, to: 'p' },
+        bytesOf('EE', printx),
+        { label: 'p' },
+        bytesOf('22', toStatsPage),
+        tail,
+      ]),
+    // lda d0 / cmp #6 / bne o / a1 = the title / rtl / o: jml AdvanceStringPtr; the title.
+    title: (at: number) => {
+      const code = (titleAt: number) =>
+        asm65([
+          bytesOf('A5', d0, 'C90600'),
+          { branch: BNE, to: 'o' },
+          bytesOf('A9', loRomBank(titleAt, 0x80), '00 85', a1 + 2, 'A9', word(loRomAddress(titleAt)), '85', a1, '6B'),
+          { label: 'o' },
+          bytesOf('5C', original.title.slice(1)),
+        ])
+      const length = code(0).length
+      return bytesOf(code(at + length), word(14), text(TOI_TITLE))
+    },
+    // .t1x and .6 kept first (for reading back); entry at +4: cmp #5: sec / rtl; cmp #6: by time on ice; else no swap.
+    compare: (_at: number) =>
+      asm65([
+        bytesOf(word(t1x), word(six), 'C90500'),
+        { branch: BNE, to: 'n' },
+        bytesOf('38 6B'),
+        { label: 'n' },
+        bytesOf('C90600'),
+        { branch: BNE, to: 'z' },
+        bytesOf('8A 0A AA BF', ptoi, '85', d0, '98 0A AA BF', ptoi, 'C5', d0),
+        { branch: BEQ, to: 'z' },
+        { branch: BCC, to: 'z' },
+        bytesOf('A90100 8D', statstemp, '18 6B'),
+        { label: 'z' },
+        bytesOf('9C', statstemp, '18 6B'),
+      ]),
+    // lda statcolumn / cmp #6 / beq t / a1 = the game's header / rtl / t: a1 = ours / rtl; ours.
+    header: (at: number) => {
+      const code = (ours: number) =>
+        asm65([
+          bytesOf('AD', word(statcolumn), 'C90600'),
+          { branch: BEQ, to: 't' },
+          bytesOf('A9', headerBank, '00 85', a1 + 2, 'A9', word(headerAddress), '85', a1, '6B'),
+          { label: 't' },
+          bytesOf('A9', loRomBank(ours, 0x80), '00 85', a1 + 2, 'A9', word(loRomAddress(ours)), '85', a1, '6B'),
+        ])
+      const length = code(0).length
+      return bytesOf(code(at + length), rom.slice(header, header + 5), text(TOI_HEADER))
+    },
+  }
+  const hooks = {
+    row: { site: rowSite, call: (to: number) => bytesOf('22', long(to)) },
+    title: { site: titleSite, call: (to: number) => bytesOf('22', long(to)) },
+    compare: { site: cmpSite, call: (to: number) => bytesOf('22', long(to + 4), 'B0', bcs, '4C', word(eight), 'EAEA') },
+    header: { site: headerSite, call: (to: number) => bytesOf('22', long(to), 'EAEAEAEAEAEA') },
+  }
+  // Each piece's room looked for with the ones before it in, so they do not share it.
+  const work = rom.slice()
+  const places: Placed[] = []
+  for (const key of ['row', 'title', 'compare', 'header'] as const) {
+    const length = builds[key](0).length
+    // The compare's hook calls 4 bytes into its code (after .t1x and .6).
+    const site = hooks[key].site
+    const isIn = !same(work, site, original[key])
+    const room = isIn ? callTo(site) - (key === 'compare' ? 4 : 0) : farRoom(work, site, original[key], length)
+    if (room < 0) return null
+    const code = builds[key](room)
+    places.push({ at: site, original: original[key], hacked: hooks[key].call(room) }, { at: room, original: unused(code.length), hacked: code })
+    work.set(code, room)
+    work.set(hooks[key].call(room), site)
+  }
+  places.push(
+    { at: rightSite, original: Uint8Array.of(5), hacked: Uint8Array.of(6) },
+    { at: penaltiesEnd, original: text(' '), hacked: text(']') },
+  )
+  return places
 }
 
 // ------------------------------------------------ the injured out of the shootout
@@ -1583,6 +1777,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   lockedChangeFix: (rom) => lockedChangePlaces(rom),
   lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
   timeOnIce: (rom) => timeOnIcePlaces(rom),
+  timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2507,10 +2702,18 @@ function detect(rom: Uint8Array): SnesHackState {
   // A build with its own player checks: the bodycheck counts are not offered (while they are off).
   const notOffered: Partial<Record<SnesHack, string>> = {}
   if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) for (const hack of ['bodychecks', 'bodychecksShown'] as const) if (!choices[hack]) notOffered[hack] = OWN_CHECKS
-  if (ownIceTime(rom) && !choices.timeOnIce) {
+  // A build with its own checks pages in Player Stats (columns 6 and 7) has no room for NOSE4Web's TOI page.
+  if (!ownIceTime(rom) && only(rom, CLEAR_PLAYER_CHECKS) >= 0 && !choices.timeOnIceShown) {
+    notOffered.timeOnIceShown = OWN_STAT_PAGES
+    if (unknown.includes('timeOnIceShown')) unknown.splice(unknown.indexOf('timeOnIceShown'), 1)
+  }
+  if (ownIceTime(rom)) {
     // Its own count is not other code in the way: the hack is off, and not offered.
-    notOffered.timeOnIce = OWN_ICE_TIME
-    if (unknown.includes('timeOnIce')) unknown.splice(unknown.indexOf('timeOnIce'), 1)
+    for (const hack of ['timeOnIce', 'timeOnIceShown'] as const) {
+      if (choices[hack]) continue
+      notOffered[hack] = OWN_ICE_TIME
+      if (unknown.includes(hack)) unknown.splice(unknown.indexOf(hack), 1)
+    }
   }
   return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
@@ -2654,7 +2857,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
