@@ -520,7 +520,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 4095] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -1103,6 +1103,11 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
 // to code that does it, then for the fighting penalties ($2A, and $2C the
 // winner's, the penalty [a0] as InProgress logs it) puts $2000 and the set
 // time in d2. Minutes and coincidental majors as before. 0 is off.
+// McMarkis's 2 MB and SA-1 builds pair the two fighters' majors themselves
+// (FightCoincidental, after .7: d2 = 5:00 | $2000, and an other-team player
+// whose time, and #$07FF, is 5:00, both made coincidental), so there its two
+// 5:00s become the set time too (Match Viewer: else the fighters no longer
+// offset each other). Its mask is why the time is at most 2047 seconds.
 function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const times = findCodeAll(rom, 'a2....a5(..)29ff0022......090020')
   if (times.length !== 1) return null
@@ -1147,9 +1152,20 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
     }
   }
   if (room < 0) return null
+  // FightCoincidental: lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, and its and #$07FF / cmp #$012C / beq.
+  const pairs = findCodeAll(rom, 'a5..c9....d0..da84..a23400')
+  const pairTimes = pairs.length === 1 ? findCodeAll(rom, '29ff07c9....f0').filter(({ at }) => at > pairs[0].at && at - pairs[0].at < 0x40) : []
+  const pairing: Placed[] =
+    pairs.length === 1 && pairTimes.length === 1
+      ? [
+          { at: pairs[0].at + 3, original: hexBytes('2C21'), hacked: bytesOf(word(value | 0x2000)) },
+          { at: pairTimes[0].at + 4, original: hexBytes('2C01'), hacked: bytesOf(word(value)) },
+        ]
+      : []
   return [
     { at: site, original: bytesOf('18 65', d0, 'A8'), hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80)) },
     { at: room, original: unused(code.length), hacked: code, amount: value },
+    ...pairing,
   ]
 }
 

@@ -360,7 +360,7 @@ export const HACK_RANGES = {
   injuryCap: [1, 60],
   puckFriction: [1, 12],
   penaltySeconds: [1, 255],
-  fightSeconds: [0, 4095],
+  fightSeconds: [0, 2047],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}

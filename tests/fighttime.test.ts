@@ -54,6 +54,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('fighting penalty time (SNES)', 
       expect(detectSnesHacks(rom.bytes).unknown).not.toContain('fightTime')
       const on = openRom(buildRom(applySnesHacks(rom, {}, false, { fightTime: 120 })))
       expect(detectSnesHacks(on.bytes).amounts?.fightTime).toBe(120)
+      // McMarkis's builds' FightCoincidental pairs the fighters at the set time, not 5:00.
+      const before = Buffer.from(rom.bytes).toString('hex')
+      if (/a5..c92c21d0..da84..a23400/.test(before)) {
+        const after = Buffer.from(on.bytes).toString('hex')
+        expect(after).toMatch(/a5..c97820d0..da84..a23400/)
+        expect(after).toMatch(/29ff07c97800f0/)
+      }
       expect(Buffer.compare(buildRom(applySnesHacks(on, {}, false, { fightTime: 0 })), buildRom(rom))).toBe(0)
     })
   })
