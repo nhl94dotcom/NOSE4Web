@@ -59,6 +59,7 @@ export type SnesHack =
   | 'shootoutInjuries'
   | 'fightTime'
   | 'oneTimerFix'
+  | 'shotFix'
 
 interface Site {
   // The game's address.
@@ -305,6 +306,7 @@ export const SNES_HACKS: SnesHack[] = [
   'shootoutInjuries',
   'fightTime',
   'oneTimerFix',
+  'shotFix',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -351,6 +353,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   shootoutInjuries: 'The injured sit out the shootout',
   fightTime: 'Fighting penalty time',
   oneTimerFix: 'One-timer that never fires fix',
+  shotFix: 'Shot that never fires fix',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1207,6 +1210,47 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
   return withFarCode(rom, site, bytesOf('A9 FFFF 8D', word(receiver)), 2, code)
 }
 
+// ------------------------------------------------- the shot that never fires
+// Found by Match Viewer (SNES_SHOOTING 4.5): ShotMode fires a shot only while
+// the shot-mode flag (sfssdir, sflags bit 3) is set, and puckglue clears it
+// (with sfspdir: lda #$000C / trb sflags, at .4) whenever a player takes the
+// puck, even the shooter gathering it again after a steal touch knocked it
+// loose in his wind-up; his swing then plays out and no shot comes. That lda /
+// trb becomes jsl / nops to code that does them, then sets sfssdir again when
+// the new carrier (a2) is still winding up a shot: his animation one of the
+// shots (SPA from SPAshotf up to ShotMode's own bound), not yet at the frame
+// ShotMode shoots at ($18). ShotMode checks the rest as before. A hold or hook
+// (holdcheck) still spoils the shot. Found by the code around them.
+function shotPlaces(rom: Uint8Array): Placed[] | null {
+  // ShotMode: lda SPA,x / cmp #SPAshotf / bcc / cmp #bound / bcs / lda SPAnum,x / cmp #$18 / bcs.
+  const modes = findCodeAll(rom, 'bd(....)c9(....)90..c9(....)b0..bd(....)c91800b0')
+  if (modes.length !== 1) return null
+  const [spa, first, bound, spanum] = modes[0].groups
+  // puckglue's .4: lda #$000C / trb sflags / ldy a2 / lda position,y / bne; or the hack's jsl / nops, then the same.
+  const plain = findCodeAll(rom, 'a90c001c(....)a4(..)b9....d0')
+  const hooked = findCodeAll(rom, '22(....)(..)eaeaa4(..)b9....d0').filter(({ groups }) => {
+    const code = loRomOffset(groups[1], groups[0])
+    return code >= 0 && same(rom, code, hexBytes('A90C001C'))
+  })
+  if (plain.length + hooked.length !== 1) return null
+  const site = (plain[0] ?? hooked[0]).at
+  const a2 = plain.length ? plain[0].groups[1] : hooked[0].groups[2]
+  const sflags = plain.length ? plain[0].groups[0] : readU16(rom, loRomOffset(hooked[0].groups[1], hooked[0].groups[0]) + 4)
+  const original = bytesOf('A9 0C00 1C', word(sflags))
+  const code = asm65([
+    bytesOf('A9 0C00 1C', word(sflags), 'A4', a2, 'B9', word(spa), 'C9', word(first)),
+    { branch: BCC, to: 'r' },
+    bytesOf('C9', word(bound)),
+    { branch: BCS, to: 'r' },
+    bytesOf('B9', word(spanum), 'C9 1800'),
+    { branch: BCS, to: 'r' },
+    bytesOf('A9 0800 0C', word(sflags)),
+    { label: 'r' },
+    '6B',
+  ])
+  return withFarCode(rom, site, original, 2, code)
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1346,6 +1390,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     return plain && plain.every((place) => holds(rom, place, 'hacked')) ? plain : places
   },
   oneTimerFix: (rom) => oneTimerPlaces(rom),
+  shotFix: (rom) => shotPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2405,7 +2450,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'secondAssist', 'stickShots',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'secondAssist', 'stickShots',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
