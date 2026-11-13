@@ -1376,8 +1376,8 @@ export function HelpPage() {
         each.
       </p>
       <p>
-        <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets every bug fix
-        that has been tested in the game; press Apply to make it so.
+        <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets the bug fixes
+        recommended for every league; press Apply to make it so.
       </p>
       <ul>
         <li>
@@ -1388,7 +1388,8 @@ export function HelpPage() {
         </li>
         <li>
           On the SNES: the power play and penalty kill, comeback bonus, penalty shot, extra attacker, second-assist
-          and regained-puck assist fixes, and counting stick deflections as shots.
+          and regained-puck assist fixes, counting stick deflections as shots, defence control on from the start, and
+          the B while checking or bursting and L and R while busy fixes.
         </li>
         <li>
           Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and two fixes
@@ -1411,6 +1412,13 @@ export function HelpPage() {
         read. The list above Apply then shows what would change; press Apply to make it so. A hack either ROM has code
         of its own in place of, or an earlier version of a hack that cannot be put in afresh, is left as this ROM has
         it, and listed below the buttons.
+      </p>
+      <p>
+        Where a ROM has an earlier version of a hack (NOSE4Web's own from before a fix, or NHL94SNESVault's), the hack
+        shows as on, with <b>This ROM has an earlier version of it</b> and what changed. Its button puts NOSE4Web's
+        current version in its place, leaving every other hack as it is; Undo puts the earlier one back. A hack shown
+        greyed out is different: the ROM has other code where it goes, so NOSE4Web leaves it alone. If you think it is
+        a version NOSE4Web should know, send the ROM to whoever looks after NOSE4Web.
       </p>
       <ul>
         <li>
@@ -1587,6 +1595,13 @@ export function HelpPage() {
           the statistics stay as they are.
         </li>
         <li>
+          <b>Fighting penalty time</b> (both systems): how long a fight keeps each fighter in the box, in seconds of
+          the game clock, whatever the penalty time; Off leaves a fight's 5 minutes at the penalty time. Both fighters
+          get the same, so the teams stay at full strength; on McMarkis's 2 MB and SA-1 builds their own pairing of
+          the fighters follows it (and the penalty time too), tested in the game there by the NHL94 Match Viewer
+          project.
+        </li>
+        <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
           game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
@@ -1721,6 +1736,9 @@ export function HelpPage() {
           bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>. <b>Hybrid icing</b>: decided as the puck
           crosses the goal line, by which team's nearest skater is nearer the end-zone faceoff dots, as the NHL plays it
           (the original game plays touch icing).{' '}
+          <b>The injured sit out the shootout</b>: with a shootout for tied regular-season games, a skater injured for
+          the game takes no attempt; the next on the list shoots (if all five are out, the listed player shoots
+          anyway).{' '}
           <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD in overtime, in the regular season or
           in every overtime; a penalty gives the other team a skater more (4 on 3, 5 on 3), and when it ends the teams
           play 4 on 4 until the next whistle, as in the NHL (on the SNES too). <b>Calls during a delayed penalty</b>: while one team has a
@@ -2089,14 +2107,14 @@ export function HelpPage() {
               the recommended hacks, as leagues play with it),
               one-minute penalties, 30-second periods, no interference penalties, no penalty shots, no goal posts,
               skipping the intros, the extra attacker fix, any skater at any position in Edit Lines, showing the
-              maximum boost in Edit Lines, and pulling the goalie with L and R (the last two in NOSE4Web's versions,
+              maximum boost in Edit Lines, and pulling the goalie with L+R (the last two in NOSE4Web's versions,
               which fix gaps in the Vault's), and the bodycheck counts for each player, shown in Player Stats (sorted by
               them too, where the Vault's sorts by penalty minutes; the counts stay where nhl94online.com reads them).
             </li>
             <li>
               On McMarkis's SA-1 and 32-team builds, whose game code is elsewhere, the hacks are found by the code
               around them, those first made for the original game's layout included (the extra attacker fix, any
-              skater at any position, the maximum boost, the L and R goalie pull and the injury risk, each tested in
+              skater at any position, the maximum boost, the L+R goalie pull and the injury risk, each tested in
               the game on those builds by the NHL94 Match Viewer project). NOSE4Web's fighting and bodycheck counts are not offered
               there, as those builds have their own.
             </li>
@@ -2109,6 +2127,17 @@ export function HelpPage() {
               The SNES's own: penalty shot fixes (a penalty shot whistled dead because the net was knocked off, or
               because the loose puck stood still for two seconds, is no longer taken again), and a Y button fix (a
               skater in a move that locks him, such as being knocked down, can no longer hook or hold with Y).
+            </li>
+            <li>
+              More SNES fixes, each found by a league member or the NHL94 Match Viewer project:{' '}
+              <b>B while checking or bursting</b> (B could pick your own skater mid-check or mid-burst, who can then
+              neither poke nor hand over, so nothing happened; now it switches to the next best skater) and{' '}
+              <b>L and R while busy</b> (L and R were ignored while your skater was checking, bursting, down, hooking
+              or holding; now they take the defenceman), both recommended; and the options, off unless chosen,{' '}
+              <b>one-timer that never fires</b> (a one-timer whose pass came too late left the player swinging with the
+              puck and never shooting) and <b>shot that never fires</b> (a shooter who gathered the puck again during
+              his wind-up after it was knocked loose never shot). <b>No icing within the crease</b>: a puck crossing
+              the goal line within the crease's width is not icing, as on the Genesis.
             </li>
             <li>
               Hits and energy, as on the Genesis, with an <b>Energy from hits only</b> button, and{' '}

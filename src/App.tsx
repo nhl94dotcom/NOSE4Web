@@ -321,12 +321,14 @@ export default function App() {
           Your ROM is read and edited in this browser tab. It is never uploaded, and no ROM comes with this site.
         </p>
         <p className="note">
-          Supported ROMs: {SUPPORTED_GAMES.join(', ')}. Genesis ROMs as .bin or .smd files, SNES ROMs as .smc or .sfc
-          files. For the SNES, the editor changes rosters, lines, team names, ratings and colours, and has hacks of its own.
+          Supported ROMs: {SUPPORTED_GAMES.join(', ')}, with league ROMs built on them; on the SNES also McMarkis's SA-1
+          and 32-team builds. Genesis ROMs as .bin or .smd files, SNES ROMs as .smc or .sfc files. On both systems the
+          editor changes rosters, lines, ratings, team names, colours, logos and game settings, and adds bug fixes and
+          options to the game itself; Help says what each system has.
         </p>
         <p className="note">
           Based on NOSE, the NHL Old Skool Editor for Windows by wboy, whose work mapping these games made this
-          possible.
+          possible. The hacks and game findings come from many in the NHL '94 community, credited in Help.
         </p>
         <p className="note">
           Free software under the GNU General Public License, version 3 or later, with no warranty.{' '}
