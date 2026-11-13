@@ -1161,7 +1161,11 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 // computer games). .6's lda #$FFFF / sta passReceiverPlayerNum becomes jsl /
 // nops to code that, when he is still winding up (one of the two swings,
 // SPAnum below $10), sets him gliding (SPAglide, by SetSPAFromA, as
-// puckfaceoff2 does), then does them. Found by the code around them.
+// puckfaceoff2 does), then does them. Not when onetimer ($1E89) is set: a
+// one-timer that struck (.2xx sets it just before doshot) also leaves by .6,
+// and keeps its follow-through (Match Viewer: the first version cut it short);
+// the give-ups have it clear (puckglue and wallcoll clear it). Found by the
+// code around them.
 function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
   // .6 after its first 6 bytes (lda #$FFFF / sta passReceiverPlayerNum, or the hack's jsl / nops).
   const sixes = findCodeAll(rom, '9e....9c....bd....29feff9d....4c....').filter(({ at }) => at >= 6 && ((rom[at - 6] === 0xa9 && rom[at - 5] === 0xff && rom[at - 4] === 0xff && rom[at - 3] === 0x8d) || (rom[at - 6] === 0x22 && rom[at - 2] === 0xea && rom[at - 1] === 0xea)))
@@ -1171,9 +1175,9 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
   let receiver: number
   if (rom[site] === 0x22) {
     const code = loRomOffset(rom[site + 3], readU16(rom, site + 1))
-    // The code ends lda #$FFFF / sta passReceiverPlayerNum / rtl, at 28 from its start.
-    if (code < 0 || !same(rom, code + 28, hexBytes('A9FFFF8D'))) return null
-    receiver = readU16(rom, code + 32)
+    // The code ends lda #$FFFF / sta passReceiverPlayerNum / rtl, at 33 from its start.
+    if (code < 0 || !same(rom, code + 33, hexBytes('A9FFFF8D'))) return null
+    receiver = readU16(rom, code + 37)
   } else receiver = readU16(rom, site + 4)
   const [spa, forehand, backhand] = eights[0].groups
   // puckfaceoff2's skater: lda #SPAgready / bra / lda #SPAglide / jsl SetSPAFromA / jsl updateanim.
@@ -1181,7 +1185,14 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
   if (glides.length !== 1) return null
   const glide = glides[0].groups[0]
   const setSpa = rom.slice(glides[0].at + 9, glides[0].at + 12)
+  // onetimer, which .2xx sets: lda #1 / sta onetimer, once.
+  const s = shift(rom)
+  if (s === null) return null
+  const onetimer = 0x1e89 + s
+  if (findCodeAll(rom, 'a901008d' + hex16(onetimer)).length !== 1) return null
   const code = asm65([
+    bytesOf('AD', word(onetimer)),
+    { branch: BNE, to: 'd' },
     bytesOf('BD', word(spa), 'C9', word(forehand)),
     { branch: BEQ, to: 'w' },
     bytesOf('C9', word(backhand)),
