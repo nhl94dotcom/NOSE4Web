@@ -18,6 +18,9 @@ import {
   hacksCopiedFrom,
   hacksForDiscord,
   withRecommendedFixes,
+  menuLineChanges,
+  BCHECK_TEXTS,
+  INJURY_TEXTS,
   hacksSupported,
   holdSeconds,
   NO_HACKS,
@@ -68,20 +71,6 @@ const PUCK_TEXTS: Record<PuckColours, string> = {
   away: "The visitors'",
 }
 
-const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
-  original: 'As in the original game',
-  asPenaltiesOn: 'As with penalties on',
-  forum: "The forum's version",
-}
-
-const INJURY_TEXTS: Record<Injuries, string> = {
-  original: 'As in the original game',
-  never: 'Never: a hit is only a fall',
-  penaltyOnly: 'The penalty, but no injury',
-  period: 'Every injury for the period',
-  game: 'Every injury for the game',
-  longFall: 'A long fall instead: down about 5 seconds',
-}
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 // What each choice of bonuses means where it shows: in play, and in the
 // ratings on the Edit Lines screen.
@@ -245,9 +234,9 @@ export function HacksPage({ project, name, onChange }: Props) {
       <HackSectionLinks groups={GENESIS_HACK_GROUPS} />
       <HackShortcuts
         onRecommended={
-          !sameHacks(withRecommendedFixes(wanted, state.unknown), wanted) &&
+          !sameHacks(withRecommendedFixes(wanted, state.unknown, menuLineChanges(project.settings.menu)), wanted) &&
           (() => {
-            set(withRecommendedFixes(wanted, state.unknown))
+            set(withRecommendedFixes(wanted, state.unknown, menuLineChanges(project.settings.menu)))
             setSetBack(setBack + 1)
           })
         }
@@ -465,7 +454,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           'awarenessFix',
           onOff('awarenessFix'),
           <>
-            An option. A computer skater decides what to do next at intervals set by his awareness: Offensive Awareness
+            Among the recommended fixes. A computer skater decides what to do next at intervals set by his awareness: Offensive Awareness
             when his team has the puck, Defensive when it does not. But computer wingers and centres on offence use
             their Defensive Awareness, a slip in the game's code. With this on they use Offensive. A small change: the
             interval is 7 to 15 frames, and for most players it moves by a frame at most. Found by the NHL94 Match

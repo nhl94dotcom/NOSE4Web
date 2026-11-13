@@ -24,7 +24,7 @@
 import { fightTimeText, penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
+import { FIGHT_TEXTS, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
@@ -2845,10 +2845,11 @@ export function sameHacks(a: HackChoices, b: HackChoices): boolean {
   return (Object.keys(NO_HACKS) as (keyof HackChoices)[]).every((key) => a[key] === b[key])
 }
 
-// The fixes a league can take without choosing anything: each is a bug fix
-// tested in the game. The faceoff spot fix (a choice between eras) and the
-// options are left as they are, and smozoma's legacy weight bug fix is taken
-// out, since it does not go with the weight bug and C-then-B fix.
+// The fixes a league can take without choosing anything (the commissioner's
+// choice). The faceoff spot fix (a choice between eras), the sniping fix and
+// the other options are left as they are, and smozoma's legacy weight bug fix
+// is taken out, since it does not go with the weight bug and C-then-B fix.
+// The three stars follow the ROM's line changes (withRecommendedFixes).
 export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   checkFix: 'all120',
   weightFix: 'off',
@@ -2863,15 +2864,30 @@ export const RECOMMENDED_FIXES: Partial<HackChoices> = {
   penaltyShotTableFix: true,
   penaltyShotFixes: true,
   stickShots: true,
+  openNetFix: true,
+  repeatCheckFix: true,
+  awarenessFix: true,
+  bCheckPenaltiesOff: 'asPenaltiesOn',
 }
 
 // `choices` with the recommended fixes, except where this ROM's code is not known.
-export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[]): HackChoices {
+// `lineChanges`: whether the ROM's main menu starts with line changes on (On or
+// Auto) or off, for the three stars made for each; undefined leaves them.
+export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[], lineChanges?: boolean): HackChoices {
   const next = { ...choices }
   for (const [key, value] of Object.entries(RECOMMENDED_FIXES) as [keyof HackChoices, never][]) {
     if (!unknown.includes(HACK_PARTS[key])) next[key] = value
   }
+  if (lineChanges !== undefined && !unknown.includes(HACK_PARTS.threeStars)) next.threeStars = lineChanges ? 'linesOn' : 'linesOff'
   return next
+}
+
+// Whether a ROM's main menu starts with line changes on (On or Auto) or off;
+// undefined where the menu has no such line.
+export function menuLineChanges(menu: { caption: string; options: string[] | null; value: number }[]): boolean | undefined {
+  const item = menu.find((m) => /line ?chang/i.test(m.caption))
+  const choice = item?.options?.[item.value]
+  return choice === undefined ? undefined : !/off/i.test(choice)
 }
 
 // The order the Hacks page has them in (core/hackgroups.ts).
@@ -3126,6 +3142,20 @@ export const BONUS_TEXTS: Record<Bonuses, string> = {
   playersMatchLines: 'players match Edit Lines',
   linesMatchPlayers: 'Edit Lines matches players',
 }
+export const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
+  original: 'As in the original game',
+  asPenaltiesOn: 'As with penalties on',
+  forum: "The forum's version",
+}
+export const INJURY_TEXTS: Record<Injuries, string> = {
+  original: 'As in the original game',
+  never: 'Never: a hit is only a fall',
+  penaltyOnly: 'The penalty, but no injury',
+  period: 'Every injury for the period',
+  game: 'Every injury for the game',
+  longFall: 'A long fall instead: down about 5 seconds',
+}
+const lower = (text: string) => text[0].toLowerCase() + text.slice(1)
 export const STAR_TEXTS: Record<ThreeStars, string> = {
   original: "the original game's",
   linesOff: 'improved, for line changes off',
@@ -3141,6 +3171,11 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'wideRatings') return value ? '0 to 15' : '0 to 6'
   if (key === 'bonuses') return BONUS_TEXTS[choices.bonuses]
   if (key === 'threeStars') return STAR_TEXTS[choices.threeStars]
+  // The choices that are not just on and off, in the words their menus use.
+  if (key === 'bCheckPenaltiesOff') return lower(BCHECK_TEXTS[choices.bCheckPenaltiesOff])
+  if (key === 'injuries') return lower(INJURY_TEXTS[choices.injuries])
+  if (key === 'threeOnThree') return lower(THREE_ON_THREE_TEXTS[choices.threeOnThree])
+  if (key === 'fighting') return lower(FIGHT_TEXTS[choices.fighting])
   if (key === 'baseWeight') return `${choices.baseWeight} pounds`
   if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
   if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"

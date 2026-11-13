@@ -1823,17 +1823,23 @@ test.describe('with the NHL 94 ROM', () => {
       'Second-assist bug fix: off to on.',
       'One-timer assist fix: off to on.',
       'Regained-puck assist fix: off to on.',
+      // The ROM's main menu starts with line changes off.
+      "Three stars: the original game's to improved, for line changes off.",
       'Weight bug and C-then-B fix: off to everyone checks as the computer.',
       'Aggression bug fix: off to on.',
       'Power play and penalty kill fix: off to on.',
       'Comeback bonus fix: off to on.',
       'Rocket pass fix: off to on.',
+      'One-timer open net fix: off to on.',
+      'Repeated checks fix: off to on.',
       // A choice made already is kept.
       'Faceoff spot fix: off to on.',
       'Runaway speed fix: off to on.',
       'Penalty shot table fix: off to on.',
       'Penalty shot fixes: off to on.',
+      "Computer forwards' awareness fix: off to on.",
       'Count stick deflections as shots: off to on.',
+      'B-checks with penalties off: as in the original game to as with penalties on.',
     ])
     await expect(main.getByRole('button', { name: 'Turn on the recommended fixes' })).toBeDisabled()
     await main.getByLabel('Goalie hold time').fill('5')
@@ -1859,12 +1865,17 @@ test.describe('with the NHL 94 ROM', () => {
         '- **Aggression bug fix**',
         '- **Power play and penalty kill fix**',
         '- **Comeback bonus fix**',
+        '- **One-timer open net fix**',
+        '- **Repeated checks fix**',
         '- **Rocket pass fix**',
         '- **Faceoff spot fix**',
         '- **Runaway speed fix**',
         '- **Penalty shot table fix**',
         '- **Penalty shot fixes**',
+        "- **Computer forwards' awareness fix**",
         '- **Count stick deflections as shots**',
+        '- **Three stars**: improved, for line changes off',
+        '- **B-checks with penalties off**: as with penalties on',
         '- **Goalie hold time**: 5 seconds (the original game has 2.33 seconds)',
       ].join('\n'),
     )

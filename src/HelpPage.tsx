@@ -1383,8 +1383,10 @@ export function HelpPage() {
         <li>
           On the Genesis: the weight bug and C-then-B fix (taking out smozoma's legacy weight bug fix), the
           second-assist, one-timer assist and regained-puck assist fixes, the Aggression, power play and penalty
-          kill, comeback bonus, rocket pass and runaway speed fixes, both penalty shot fixes, and counting stick
-          deflections as shots.
+          kill, comeback bonus, rocket pass and runaway speed fixes, both penalty shot fixes, counting stick
+          deflections as shots, the one-timer open net, repeated checks and computer forwards' awareness fixes,
+          B-checks with penalties off tripping as with penalties on, and the improved three stars, for line changes on
+          or off as the ROM's main menu starts.
         </li>
         <li>
           On the SNES: the power play and penalty kill, comeback bonus, penalty shot, extra attacker, second-assist
@@ -1567,7 +1569,7 @@ export function HelpPage() {
           pass speed another way and never had the bug.
         </li>
         <li>
-          <b>One-timer open net fix</b> (an option, Genesis only, not among the recommended fixes): the game aims a
+          <b>One-timer open net fix</b> (Genesis only, among the recommended fixes): the game aims a
           one-timer itself, whatever the d-pad says, along the line from the puck through the goalie. When the goalie
           is out of that line, having dived or skated out of position, it aims just under the crossbar, and as the
           game only scatters a shot upwards, many go over. The fix aims them at the middle, mid-height, as the game
@@ -1671,7 +1673,7 @@ export function HelpPage() {
           an empty net already do. The SNES does not have this bug.
         </li>
         <li>
-          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; an option): a computer skater
+          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on the Genesis, an option on the SNES): a computer skater
           decides what to do next at intervals set by his Offensive Awareness when his team has the puck and his
           Defensive when it has not, but wingers and centres on offence use their Defensive. With this on they use
           Offensive. A small change, a frame or so for most players.

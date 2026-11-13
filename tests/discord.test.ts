@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hacksForDiscord, NO_HACKS, RECOMMENDED_FIXES, withRecommendedFixes } from '../src/core/hacks'
+import { hacksForDiscord, menuLineChanges, NO_HACKS, RECOMMENDED_FIXES, withRecommendedFixes } from '../src/core/hacks'
 import { RECOMMENDED_SNES_FIXES, SNES_HACKS, withRecommendedSnesFixes, type SnesHackChoices } from '../src/core/sneshacks'
 
 describe('the recommended fixes', () => {
@@ -10,6 +10,15 @@ describe('the recommended fixes', () => {
     expect(after.weightFix).toBe('off')
     expect(after.faceoffFix).toBe(true)
     expect(after.goaliePullFix).toBe(false)
+    expect(after.snipingFix).toBe(false)
+    expect(after.bCheckPenaltiesOff).toBe('asPenaltiesOn')
+    // The three stars follow the ROM's line changes, and are left where the menu does not say.
+    expect(after.threeStars).toBe('original')
+    expect(withRecommendedFixes(before, [], true).threeStars).toBe('linesOn')
+    expect(withRecommendedFixes(before, [], false).threeStars).toBe('linesOff')
+    expect(menuLineChanges([{ caption: 'Line Changes', options: ['On', 'Off', 'Auto'], value: 2 }])).toBe(true)
+    expect(menuLineChanges([{ caption: 'Line Changes', options: ['On', 'Off', 'Auto'], value: 1 }])).toBe(false)
+    expect(menuLineChanges([])).toBe(undefined)
 
     const off = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
     const snes = withRecommendedSnesFixes(off, ['extraAttackerFix'])
