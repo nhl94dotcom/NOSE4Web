@@ -103,6 +103,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
       : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
   noIcing: () => 'Icing is never called.',
+  hybridIcing: () => 'Hybrid icing: decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.',
   delayedCalls: () => 'While one team has a penalty pending, the other can be called too.',
   threeOnThree: (c) =>
     `Overtime is 3 on 3 (each line's LW, C and RD)${c.threeOnThree === 'season' ? ' in the regular season' : ', playoffs included'}; a power play adds a skater.`,

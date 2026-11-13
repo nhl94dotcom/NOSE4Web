@@ -140,6 +140,8 @@ export interface HackChoices {
   // The range of each player's hot and cold values: from -n to n - 1.
   hotColdRange: number
   noIcing: boolean
+  // Icing decided as the puck crosses the goal line, by who is nearer the end-zone dots.
+  hybridIcing: boolean
   // Penalties called on the other team while one is pending (known bug 12).
   delayedCalls: boolean
   // Overtime 3 on 3 (LW, C, RD), with a skater more for a power play.
@@ -232,6 +234,7 @@ export type HackPart =
   | 'injuries'
   | 'hotColdRange'
   | 'noIcing'
+  | 'hybridIcing'
   | 'delayedCalls'
   | 'threeOnThree'
   | 'bCheckPenaltiesOff'
@@ -303,6 +306,7 @@ export const NO_HACKS: HackChoices = {
   injuries: 'original',
   hotColdRange: 9,
   noIcing: false,
+  hybridIcing: false,
   delayedCalls: false,
   threeOnThree: 'off',
   bCheckPenaltiesOff: 'original',
@@ -2164,6 +2168,36 @@ const noIcing: Part<boolean> = {
   apply: (work, value) => void (value && work.rom.set(ICING.hacked, ICING_AT)),
 }
 
+// ------------------------------------------------------------ hybrid icing
+// The original game plays touch icing (from the disassembly): a2touchpuck arms
+// the check when a team not short-handed sends the puck from its own half
+// (ifok, icingPlayer, ifdir: which goal line); PuckIChk, from pucknorm, marks
+// the loose puck crossing that goal line outside the crease's width (bset
+// #ifcgl,(iflags).w at $102A0; inside it the check is dropped), and the next
+// player to touch it decides: a defending skater, icing; an attacker or the
+// goalie, waved off. Hybrid icing, as the NHL has played it since 2013-14,
+// decides as the puck crosses: the hook keeps the bset, then takes each team's
+// skater nearest the line across the end-zone faceoff dots (y 206 from centre,
+// where the icing faceoff is; a skater past it counts as there), leaving out
+// goalies, objects not in play (position negative) and players going to or
+// from the bench or box (pf2unav). A defender as near or nearer: icing, called
+// at once as a2touchpuck's .icing does (AddPenalty PenIcing, $11F2C, for the
+// icing player); an attacker nearer: waved off (bclr #ifok, as the crease
+// test does). Distance only, not speed. Short-handed teams still never ice,
+// and with No icing on there is nothing to decide.
+const HYBRID_HOOK: Hook = { at: 0x102a0, original: bytes('08F8 0000 BF80') }
+const HYBRID_CODE = bytes('48E7 F880 08F8 0000 BF80 363C 00CE 0838 0001 BF80 6602 4443 307C B04A 0C38 0006 BF81 6D04 D0FC 0300 6146 3202 307C B04A 0C38 0006 BF81 6C04 D0FC 0300 6132 B441 6E22 4CDF 011F 2F0B 4240 1038 BF81 EF40 367C B04A D6C0 303C 000C 4EB9 0001 1F2C 265F 4E75 08B8 0002 BF80 4CDF 011F 4E75 343C 7FFF 7805 4A68 0034 6F20 0828 0002 0063 6618 3028 0014 9043 4A43 6B02 4440 4A40 6A02 7000 B042 6C02 3400 D0FC 0080 51CC FFD4 4E75')
+const hybridIcing: Part<boolean> = {
+  detect: (rom) => (is(rom, HYBRID_HOOK.at, HYBRID_HOOK.original) ? false : hooked(rom, HYBRID_HOOK, HYBRID_CODE) !== null ? true : undefined),
+  remove(rom) {
+    const target = hooked(rom, HYBRID_HOOK, HYBRID_CODE)
+    if (target === null) return
+    erase(rom, target, HYBRID_CODE.length)
+    rom.set(HYBRID_HOOK.original, HYBRID_HOOK.at)
+  },
+  apply: (work, value) => void (value && hook(work, HYBRID_HOOK, HYBRID_CODE)),
+}
+
 // ---------------------------------------------- calls during a delayed penalty
 // Known bug 12, from the disassembly (Match Viewer): checkagr, the penalty roll
 // behind body checks, holds, hooks and pokes, gives the checker d0 = $7F (no
@@ -2579,6 +2613,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
+    hybridIcing: found('hybridIcing', hybridIcing.detect(rom), NO_HACKS.hybridIcing),
     delayedCalls: found('delayedCalls', delayedCalls.detect(rom), NO_HACKS.delayedCalls),
     threeOnThree: found('threeOnThree', threeOnThree.detect(rom), NO_HACKS.threeOnThree),
     bCheckPenaltiesOff: found('bCheckPenaltiesOff', bCheckPenaltiesOff.detect(rom), NO_HACKS.bCheckPenaltiesOff),
@@ -2682,6 +2717,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
     ['hotColdRange', () => hotColdRange.remove(work.rom), () => hotColdRange.apply(work, wanted.hotColdRange)],
     ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
+    ['hybridIcing', () => hybridIcing.remove(work.rom), () => hybridIcing.apply(work, wanted.hybridIcing)],
     ['delayedCalls', () => delayedCalls.remove(work.rom), () => delayedCalls.apply(work, wanted.delayedCalls)],
     ['threeOnThree', () => threeOnThree.remove(work.rom), () => threeOnThree.apply(work, wanted.threeOnThree)],
     ['bCheckPenaltiesOff', () => bCheckPenaltiesOff.remove(work.rom), () => bCheckPenaltiesOff.apply(work, wanted.bCheckPenaltiesOff)],
@@ -2915,6 +2951,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   injuries: 'Injuries',
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
+  hybridIcing: 'Hybrid icing',
   delayedCalls: 'Calls during a delayed penalty',
   threeOnThree: '3 on 3 overtime',
   bCheckPenaltiesOff: 'B-checks with penalties off',
@@ -2981,6 +3018,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   injuries: 'injuries',
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
+  hybridIcing: 'hybridIcing',
   delayedCalls: 'delayedCalls',
   threeOnThree: 'threeOnThree',
   bCheckPenaltiesOff: 'bCheckPenaltiesOff',

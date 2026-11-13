@@ -267,6 +267,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { hotColdRange: 4 },
       { hotColdRange: 0 },
       { noIcing: true },
+      { hybridIcing: true },
       { bCheckPenaltiesOff: 'asPenaltiesOn' },
       { bCheckPenaltiesOff: 'forum' },
       { goalieDelay: 12 },

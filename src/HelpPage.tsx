@@ -1702,7 +1702,9 @@ export function HelpPage() {
           injury</b>, the hit still called and the player lying down about ten seconds before he skates on; every
           injury lasting the period, or the whole game; or <b>a long fall instead</b>, a hit that would injure keeping
           the player down about 5 seconds before he gets up and plays on, with no injury and no penalty (not with head
-          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>. <b>Hybrid icing</b>: decided as the puck
+          crosses the goal line, by which team's nearest skater is nearer the end-zone faceoff dots, as the NHL plays it
+          (the original game plays touch icing).{' '}
           <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD in overtime, in the regular season or
           in every overtime; a penalty gives the other team a skater more (4 on 3, 5 on 3), and when it ends the teams
           play 4 on 4 until the next whistle, as in the NHL (on the SNES too). <b>Calls during a delayed penalty</b>: while one team has a
