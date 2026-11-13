@@ -2129,7 +2129,7 @@ export function HelpPage() {
               <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD in overtime, in
               the regular season or every overtime; a penalty gives the other team a skater more, and a team with three
               in the box plays two skaters. On the original game, league ROMs built on it, and McMarkis's 32-team and
-              SA-1 builds, found by the code around each place; waiting on a test in the game.
+              SA-1 builds, found by the code around each place; tested in the game on the original and the SA-1 build.
             </li>
           </ul>
         </li>
