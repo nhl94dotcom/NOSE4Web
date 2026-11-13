@@ -1396,9 +1396,10 @@ export function HelpPage() {
           bodycheck counts and their column in Player Stats, and skipping both intros.
         </li>
         <li>
-          Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and two fixes
-          leagues may not want as they are: the SNES hot and cold bug fix, which makes every player play lower than
-          players are used to, and the SNES Y button fix, a habit people expect.
+          Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and three
+          fixes leagues may not want as they are: the Genesis pulled-goalie sniping fix (a quirk some leagues
+          like), the SNES hot and cold bug fix (which makes every player play lower than players are used to) and the
+          SNES Y button fix (a habit people expect).
         </li>
       </ul>
       <p>
@@ -2347,7 +2348,8 @@ export function HelpPage() {
         Fighting on the Genesis is chaos's fighting patch, made by chaos with McMarkis and AbdulBCRT
         (github.com/Chaos81/nhl94-patches), under the MIT licence: Copyright (c) 2025 Chaos81. Head bleeding follows
         NHLPA '93's. Fighting on the SNES is McMarkis's port of the NHLPA 93 SNES fights, built in with his
-        permission. McMarkis's own SNES builds (32 teams, 60 FPS, fighting, the SA-1 chip) are his releases; NOSE4Web
+        permission, with his fix keeping a player hurt in a fight out for the game; the SNES time on ice count and
+        Player Stats page are his too, adapted with his permission. McMarkis's own SNES builds (32 teams, 60 FPS, fighting, the SA-1 chip) are his releases; NOSE4Web
         edits them and puts its hacks into them, and their score box logos, with his permission, gave the original
         game's.
       </p>

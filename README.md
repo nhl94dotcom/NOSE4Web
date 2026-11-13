@@ -14,7 +14,7 @@ NOSE4Web is based on **NOSE, the NHL Old Skool Editor** for Windows, written by
 source code and the notes distributed with it. The colour preview images are
 converted from the templates NOSE ships.
 
-The hacks it applies to the game are the work of **smozoma** (Michael
+Many of its Genesis hacks are the work of **smozoma** (Michael
 Capewell), ported from his program
 [smozROM](https://github.com/nhl94dotcom/smozROM) with his permission and
 under its licence, the GNU General Public License, version 3 or later.
@@ -27,7 +27,9 @@ thanks to **smozoma** and **kingraph**; and
 **McMarkis** (Mhopkinsinc), whose patches are the SNES hacks. The score box
 logos it can add to the original SNES game are adapted, with his permission,
 from McMarkis's 32-team SNES build, and its SNES fighting is McMarkis's port of
-the NHLPA 93 SNES fights, built in with his permission.
+the NHLPA 93 SNES fights, built in with his permission, as are his fix that keeps
+a player hurt in a fight out for the game and his time on ice count and Player
+Stats page.
 
 Fighting on the Genesis is **chaos**'s
 [fighting patch](https://github.com/Chaos81/nhl94-patches), made with
@@ -139,7 +141,7 @@ That licence does not cover:
   fix, all tested in the game with the NHL94 Match Viewer project
 - On the SNES, NHL94SNESVault's hacks for Edit Lines (any skater at any
   position, and the maximum boost of the hot and cold bug shown) and for
-  pulling the goalie with L and R, and when the computer pulls its goalie;
+  pulling the goalie with L+R, and when the computer pulls its goalie;
   and each player's bodychecks given and taken, shown in Player Stats
 - From the same project's readings, also tested in the game: the comeback
   bonus fix for the SNES, and options for pulled-goalie sniping (every shot
@@ -148,6 +150,17 @@ That licence does not cover:
 - An option to count a goalie's stick deflections as shots on goal, which the
   game leaves out of the statistics, and on the SNES the second-assist bug fix
   as on the Genesis (from the same project)
+- More fixes found by the same project or reported by league members, tested
+  in the game: the one-timer assist and regained-puck assist fixes, and on the
+  Genesis the repeated checks and one-timer open net fixes; on the SNES fixes
+  for a one-timer or shot that never fires, for B and L / R doing nothing while
+  the skater is busy, and for the goalie's poke check
+- More rules: hybrid icing (both systems) and no icing within the crease
+  (SNES), the injured sitting out a shootout, and how long a penalty minute and
+  a fight keep a player in the box
+- Time on ice: a Time On Ice page in Player Stats on both systems (the Genesis
+  counts it but never showed it; on the SNES, McMarkis's count, adapted with his
+  permission)
 - On both Hacks pages: turn on every recommended fix at once, copy a ROM's
   hacks as a Discord post for a league's owners, download a hack sheet that
   explains each of them in plain words, and copy the hacks of another ROM
@@ -234,6 +247,7 @@ Then open the address it prints. Other commands:
 | `npm run test:browser` | Opens the built site in a real browser and uses it |
 | `npm run build` | Builds the site into `dist` |
 | `npm run lint` | Checks the code for common mistakes |
+| `npm run verify` | Checks the last commit as GitHub will: a fresh copy with no ROMs, then the lint, the tests and the build |
 
 The browser tests need a one-off download of the browser they drive:
 
