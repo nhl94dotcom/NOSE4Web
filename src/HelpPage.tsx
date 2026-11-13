@@ -1391,7 +1391,9 @@ export function HelpPage() {
         <li>
           On the SNES: the power play and penalty kill, comeback bonus, penalty shot, extra attacker, second-assist
           and regained-puck assist fixes, counting stick deflections as shots, defence control on from the start, and
-          the B while checking or bursting and L and R while busy fixes.
+          the B while checking or bursting, L and R while busy, one-timer that never fires, shot that never fires and
+          computer forwards' awareness fixes, no icing within the crease, the goalie poke check reaching the ice, the
+          bodycheck counts and their column in Player Stats, and skipping both intros.
         </li>
         <li>
           Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and two fixes
@@ -1673,7 +1675,7 @@ export function HelpPage() {
           an empty net already do. The SNES does not have this bug.
         </li>
         <li>
-          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on the Genesis, an option on the SNES): a computer skater
+          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on both): a computer skater
           decides what to do next at intervals set by his Offensive Awareness when his team has the puck and his
           Defensive when it has not, but wingers and centres on offence use their Defensive. With this on they use
           Offensive. A small change, a frame or so for most players.
@@ -2135,11 +2137,11 @@ export function HelpPage() {
               <b>B while checking or bursting</b> (B could pick your own skater mid-check or mid-burst, who can then
               neither poke nor hand over, so nothing happened; now it switches to the next best skater) and{' '}
               <b>L and R while busy</b> (L and R were ignored while your skater was checking, bursting, down, hooking
-              or holding; now they take the defenceman), both recommended; and the options, off unless chosen,{' '}
+              or holding; now they take the defenceman),{' '}
               <b>one-timer that never fires</b> (a one-timer whose pass came too late left the player swinging with the
               puck and never shooting) and <b>shot that never fires</b> (a shooter who gathered the puck again during
-              his wind-up after it was knocked loose never shot). <b>No icing within the crease</b>: a puck crossing
-              the goal line within the crease's width is not icing, as on the Genesis.
+              his wind-up after it was knocked loose never shot), all recommended. <b>No icing within the crease</b>
+              (recommended): a puck crossing the goal line within the crease's width is not icing, as on the Genesis.
             </li>
             <li>
               Hits and energy, as on the Genesis, with an <b>Energy from hits only</b> button, and{' '}
@@ -2148,7 +2150,7 @@ export function HelpPage() {
             </li>
             <li>
               <b>Goalie poke check reaches the ice</b>: in the original game a goalie's poke (X) straight up or down
-              the ice never reaches the puck; with this on it knocks it loose, as a sideways poke can.
+              the ice never reaches the puck; with this on it knocks it loose, as a sideways poke can. Recommended.
             </li>
             <li>
               <b>Fighting</b>: McMarkis's port of the NHLPA 93 SNES fights, built in with his permission, with a

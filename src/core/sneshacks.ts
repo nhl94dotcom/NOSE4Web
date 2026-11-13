@@ -2556,12 +2556,15 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
 // leagues are used to (it suits rosters whose ratings are set higher); and
 // the Y button fix, a habit players expect.
 // Defence control on from the start is not a fix, but the commissioner's choice for every league (2026-11-11).
-export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots', 'defenceControl', 'lockedChangeFix', 'lockedDefenceFix']
+export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots', 'defenceControl', 'lockedChangeFix', 'lockedDefenceFix',
+  'awarenessFix', 'oneTimerFix', 'shotFix', 'bodychecks', 'bodychecksShown', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'creaseIcing']
 
 // `choices` with the recommended fixes on, except where this ROM has other code.
 export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {
   const next = { ...choices }
   for (const hack of RECOMMENDED_SNES_FIXES) if (!unknown.includes(hack)) next[hack] = true
+  // One that needs another this ROM cannot take (the checks shown without their counts) stays as it was.
+  for (const [needer, needed] of Object.entries(NEEDS) as [SnesHack, SnesHack][]) if (next[needer] && !next[needed]) next[needer] = choices[needer]
   return next
 }
 

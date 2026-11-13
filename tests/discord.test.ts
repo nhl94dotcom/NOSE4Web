@@ -23,6 +23,10 @@ describe('the recommended fixes', () => {
     const off = Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
     const snes = withRecommendedSnesFixes(off, ['extraAttackerFix'])
     expect(SNES_HACKS.filter((hack) => snes[hack]).sort()).toEqual(RECOMMENDED_SNES_FIXES.filter((hack) => hack !== 'extraAttackerFix').sort())
+    // Bodychecks shown needs the counts: where those cannot go in, it is left too.
+    const noCounts = withRecommendedSnesFixes(off, ['bodychecks'])
+    expect(noCounts.bodychecks).toBe(false)
+    expect(noCounts.bodychecksShown).toBe(false)
   })
 })
 

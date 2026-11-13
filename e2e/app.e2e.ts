@@ -2293,21 +2293,35 @@ test.describe('with the SNES game', () => {
       'Power play and penalty kill fix: off to on.',
       // Not a fix, but recommended for every league (the commissioner's choice).
       'Defence control on: off to on.',
+      'Skip the EA intro: off to on.',
+      'Skip the flying pucks intro: off to on.',
       'Penalty shot fixes: off to on.',
       'Extra attacker fix: off to on.',
       'Comeback bonus fix: off to on.',
+      "Computer forwards' awareness fix: off to on.",
       'Second-assist bug fix: off to on.',
       'Count stick deflections as shots: off to on.',
+      'Bodycheck counts for each player: off to on.',
+      'Bodychecks in Player Stats: off to on.',
       'Regained-puck assist fix: off to on.',
+      'Goalie poke check reaches the ice: off to on.',
+      'No icing within the crease: off to on.',
+      'One-timer that never fires fix: off to on.',
+      'Shot that never fires fix: off to on.',
       'B while checking or bursting fix: off to on.',
       'L and R while busy fix: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
-    await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Fixes__\n- \*\*Power play and penalty kill fix\*\*: (.*\n)*- \*\*Second-assist bug fix\*\*: .*\n- \*\*Regained-puck assist fix\*\*: /)
+    // Explained, the list takes more than one Discord message.
+    const snesMessages = main.locator('textarea.discord-text')
+    await expect(snesMessages.first()).toHaveValue(/^\*\*Hacks in NHL94\*\* \(NHL '94 for the SNES\)\n.*\n\n__Fixes__\n- \*\*Power play and penalty kill fix\*\*: /)
+    const snesTexts = await snesMessages.evaluateAll((areas) => areas.map((area) => (area as HTMLTextAreaElement).value))
+    for (const text of snesTexts) expect(text.length).toBeLessThanOrEqual(2000)
+    expect(snesTexts.join('\n')).toMatch(/- \*\*Second-assist bug fix\*\*: .*\n(.*\n)*- \*\*Regained-puck assist fix\*\*: /)
     await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **B while checking or bursting fix**\n- **L and R while busy fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Regained-puck assist fix**\n- **Defence control on**',
+      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Computer forwards\' awareness fix**\n- **One-timer that never fires fix**\n- **Shot that never fires fix**\n- **B while checking or bursting fix**\n- **L and R while busy fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Bodycheck counts for each player**\n- **Bodychecks in Player Stats**\n- **Regained-puck assist fix**\n- **Defence control on**\n- **No icing within the crease**\n- **Goalie poke check reaches the ice**\n- **Skip the EA intro**\n- **Skip the flying pucks intro**',
     )
     const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
     expect(sheet).toContain("NHL '94 for the SNES.")
