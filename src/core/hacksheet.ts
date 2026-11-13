@@ -236,7 +236,7 @@ const SNES: Record<SnesHack, string> = {
   skipPucksIntro: 'The game starts without the flying pucks.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
-  manualPullGoalie: 'During play, pressing L and R together pulls your goalie for an extra attacker, or puts him back, with a beep.',
+  manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts him back, with a beep.',
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
   holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',

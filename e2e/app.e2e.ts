@@ -2324,7 +2324,7 @@ test.describe('with the SNES game', () => {
     await expect(main.getByLabel('Extra attacker fix')).toHaveValue('on')
     await main.getByLabel('Show the maximum boost in Edit Lines').selectOption('on')
     await expect(main.getByLabel('Hot and cold bug fix')).toHaveValue('off')
-    await main.getByLabel('Pull the goalie with L and R').selectOption('on')
+    await main.getByLabel('Pull the goalie with L+R').selectOption('on')
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await expect(main.getByText(/^Done: 4 changes/)).toBeVisible()
 

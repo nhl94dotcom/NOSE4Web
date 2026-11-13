@@ -336,7 +336,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   bodychecksShown: 'Bodychecks in Player Stats',
   forwardsAndDefence: 'Any skater at any position in Edit Lines',
   showMaxBoost: 'Show the maximum boost in Edit Lines',
-  manualPullGoalie: 'Pull the goalie with L and R',
+  manualPullGoalie: 'Pull the goalie with L+R',
   regainAssist: 'Regained-puck assist fix',
   fourthPeriodOvertime: '99-minute overtime on the fourth period length',
   hitEnergy: 'Energy lost when knocked down',
@@ -2226,12 +2226,14 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     // The team's pad: the original game's code reads it from the table at the code's end (lda table,y), with the data
     // bank the code's own. The SA-1 builds run this on the SA-1 CPU with their caller's data bank (SA1Call), so that
     // read finds other bytes and the goalie is never pulled (Match Viewer): there it is worked out from the team,
-    // tya / lsr / inc (team 0 pad 1, team 2 pad 2), in the same three bytes. The table stays, unread.
-    const padOf = (address: number) => (snesCodeInPlace(rom) ? bytesOf('B9', word(address + 0x53)) : hexBytes('98 4A 1A'))
+    // tya / lsr / inc (team 0 pad 1, team 2 pad 2), in the same three bytes. The table stays, unread. NOSE4Web's
+    // before that fix (in moved builds: the table read, and the team as ldy $91+shift, absolute) is its earlier
+    // version, replaced when asked.
+    const padOf = (address: number, table: boolean) => (table ? bytesOf('B9', word(address + 0x53)) : hexBytes('98 4A 1A'))
     const checkOriginal = bytesOf('A491 B9', tmgoalie)
-    const checkCode = (address: number) =>
+    const checkCode = (address: number, earlier?: boolean) =>
       bytesOf(
-        'A20000', direct(s, 'AC', 0x91), 'B9', tmgoalie, 'C900FF D001 60', padOf(address), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
+        'A20000', earlier ? bytesOf('AC', word(0x91 + s)) : direct(s, 'AC', 0x91), 'B9', tmgoalie, 'C900FF D001 60', padOf(address, earlier || snesCodeInPlace(rom)), 'DD', word(0x1c84 + s), 'F009 E8 E8 E00400 D0F1 802D BD', word(counts),
         'F028 9E', word(counts), 'EA EA EA B9', tmgoalie, 'F007 C9FFFF F002 8016 49FFFF 99', tmgoalie, '22', turnOver, 'A90070 8564 A90500 22', beepAt,
         'A491 B9', tmgoalie, '60 0100 0200',
       )
@@ -2254,9 +2256,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const checkRoom = checkAt >= 0 ? checkAt : roomInBank(rom, site, CHECK_LENGTH)
     const pressRoom = pressAt >= 0 ? pressAt : roomInBank(rom, pressSite, pressCode.length)
     if (checkRoom < 0 || pressRoom < 0) return null
+    const earlier = checkAt >= 0 && !snesCodeInPlace(rom) && same(rom, checkAt, checkCode(loRomAddress(checkAt), true))
     return [
       { at: site, original: checkOriginal, hacked: bytesOf('20', word(loRomAddress(checkRoom)), 'EAEA') },
-      { at: checkRoom, original: unused(CHECK_LENGTH), hacked: checkCode(loRomAddress(checkRoom)) },
+      { at: checkRoom, original: unused(CHECK_LENGTH), hacked: checkCode(loRomAddress(checkRoom), earlier || undefined), ...(earlier ? { earlier: true } : {}) },
       { at: pressSite, original: pressOriginal, hacked: bytesOf('20', word(loRomAddress(pressRoom))) },
       { at: pressRoom, original: unused(pressCode.length), hacked: pressCode },
     ]
@@ -2492,7 +2495,7 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
     const amount = isAmount(hack) ? amounts[hack] : undefined
     // A new amount for a hack already in: take it out, then put it in with the amount.
     // A new amount, or NOSE4Web's version of an earlier one, for a hack already in: take it out, then put it in.
-    const reAmount = isAmount(hack) && want === true && choices[hack] && ((amount !== undefined && amount !== had?.[hack]) || update)
+    const reAmount = want === true && choices[hack] && ((isAmount(hack) && amount !== undefined && amount !== had?.[hack]) || update)
     if (want === undefined || (want === choices[hack] && !update && !reAmount)) continue
     if (unknown.includes(hack)) {
       throw new SnesHackError(`${SNES_HACK_TITLES[hack]} cannot be changed: this ROM has other code in its place.`)

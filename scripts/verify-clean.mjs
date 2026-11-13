@@ -5,8 +5,8 @@
 // does on GitHub. Run with `npm run verify` after committing, before pushing.
 //
 // The checkout goes in the system's temporary folder and borrows this
-// folder's node_modules (a link, not a copy). Tests run on two workers, as
-// elsewhere in this project, to keep the machine quiet.
+// folder's node_modules (a link, not a copy). Tests run on one worker, as
+// elsewhere in this project, to keep the machine (and its fan) quiet.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,8 +21,8 @@ const run = (command, args, cwd) => execFileSync(command, args, { cwd, stdio: 'i
 
 const steps = [
   ['lint', ['npm', ['run', 'lint']]],
-  ['unit tests', ['npx', ['vitest', 'run', '--maxWorkers=2']]],
-  ['browser tests', ['npx', ['playwright', 'test', '--workers=2']]],
+  ['unit tests', ['npx', ['vitest', 'run', '--maxWorkers=1']]],
+  ['browser tests', ['npx', ['playwright', 'test', '--workers=1']]],
   ['build', ['npm', ['run', 'build']]],
 ]
 
