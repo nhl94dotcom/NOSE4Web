@@ -729,8 +729,10 @@ export function HacksPage({ project, name, onChange }: Props) {
             regular season</b> to keep the playoffs 5 on 5, as the NHL does. The overtime's length is set as before.
             Worked out from the game's code with the NHL94 Match Viewer project and tested in the game by them: 3 on 3
             at every draw with line changes On and Off, 4 on 3 and 5 on 3, 4 on 4 after a penalty ends, a third-period
-            penalty carried into overtime, and playoff overtime kept 5 on 5. A draw that went without a centre,
-            when the game put his substitute in a boxed player's place, is fixed, waiting on a new test in the game. A
+            penalty carried into overtime, and playoff overtime kept 5 on 5. The game has room for six players a
+            team on the ice and in the penalty box together, goalie included, so a team with three in the box plays
+            two skaters, its C and LW, until one comes out; before that was known a draw could go without a centre.
+            That is waiting on a new test in the game. A
             shootout after overtime has not been tried with it yet.
           </>,
         )}
