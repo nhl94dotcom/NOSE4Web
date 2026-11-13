@@ -218,6 +218,7 @@ const SNES: Record<SnesHack, string> = {
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does: up to about 4 more a game.",
   bodychecks: "Each player's bodychecks given and taken are counted, for nhl94online.com, which reads them from save states.",
+  timeOnIce: "Each player's time on ice is counted, a second at a time while he is on the ice and the clock runs, for reading from save states.",
   bodychecksShown: "Player Stats shows each player's bodychecks as Cf, in place of penalty minutes, and sorts that column by them.",
   defenceControl: 'Defence control is on for both teams from the start of every game.',
   oneMinutePenalties: 'Minor penalties last one minute instead of two.',

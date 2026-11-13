@@ -62,6 +62,7 @@ export type SnesHack =
   | 'shotFix'
   | 'lockedChangeFix'
   | 'lockedDefenceFix'
+  | 'timeOnIce'
 
 interface Site {
   // The game's address.
@@ -311,6 +312,7 @@ export const SNES_HACKS: SnesHack[] = [
   'shotFix',
   'lockedChangeFix',
   'lockedDefenceFix',
+  'timeOnIce',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -360,6 +362,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   shotFix: 'Shot that never fires fix',
   lockedChangeFix: 'B while checking or bursting fix',
   lockedDefenceFix: 'L and R while busy fix',
+  timeOnIce: 'Time on ice for each player',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1362,6 +1365,81 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
   return withFarCode(rom, site, bytesOf('A5', d1, '89 0080'), 1, code)
 }
 
+// ------------------------------------------------------------------ time on ice
+// McMarkis's Player Stats TOI (NHL94SNES-SA1 b8909787, used with his
+// permission), brought to the original game's layout. The Genesis counts each
+// player's time on ice: once a second of the game clock (updatepentime's tick,
+// sflags3 $0020) updateplayers adds a second to his word. The SNES kept the
+// test of the tick, the pnum check (d0 = pnum x 2) and the loadTeamStruct call,
+// but not the add. That jsl loadTeamStruct becomes jsl to code that makes it,
+// then adds the second to ptoi as McMarkis's builds keep it: $7E:E800, a word
+// per roster player, +$34 for the visitors (players from $0C), at most 99:59;
+// free in the original game (his build is it rebuilt, with these after the
+// replay buffer's end at $E676). Cleared at each game's start: StartGame_scout's
+// jsl ScoutingReport (every game passes it; the season shootout, which runs
+// StartGame_go, does not) becomes jsl to code that clears the 104 bytes and goes
+// on to ScoutingReport. McMarkis's 2 MB and SA-1 builds count it themselves.
+const PTOI = 0x7ee800
+const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
+
+function ownIceTime(rom: Uint8Array): boolean {
+  // McMarkis's: updateplayers' jsl loadTeamStruct followed by his jsl PlayerIceTime.
+  return findCodeAll(rom, 'ad....892000f0..bd....29ff00c98000900309' + '00ff85..c90000' + '30..06..22......22').length > 0
+}
+
+function timeOnIcePlaces(rom: Uint8Array): Placed[] | null {
+  if (ownIceTime(rom)) return null
+  // updateplayers: lda sflags3 / bit #$20 / beq .4 / lda pnum,x / and #$FF / cmp #$80 / bcc / ora #$FF00 / sta d0 / cmp #0 / bmi .4 / asl.b d0 / jsl loadTeamStruct.
+  const ticks = findCodeAll(rom, 'ad....892000f0..bd....29ff00c98000900309' + '00ff85(..)c90000' + '30..06..22(......)')
+  // StartGame_scout: jsl Create_HotCold_Table / jsl ScoutingReport / lda #$FFFF / sta FrameByNumber / jsl forcefade.
+  const scouts = findCodeAll(rom, '22......22......a9ffff8d....22')
+  if (ticks.length !== 1 || scouts.length !== 1) return null
+  const tickSite = ticks[0].at + 31
+  const d0 = ticks[0].groups[0]
+  const scoutSite = scouts[0].at + 4
+  // The calls as the ROM has them, or as the hack's code makes them (its first jsl, and the clear's closing jml).
+  const callIn = (site: number, at: number) => {
+    if (rom[site] !== 0x22) return null
+    const code = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    return code >= 0 && rom[code + at] === (at === 0 ? 0x22 : 0x5c) ? rom.slice(code + at + 1, code + at + 4) : null
+  }
+  const ptoi = bytesOf(word(PTOI & 0xffff), PTOI >> 16)
+  const clearLength = 14
+  const loadTeam = callIn(tickSite, 0) ?? rom.slice(tickSite + 1, tickSite + 4)
+  const scouting = callIn(scoutSite, clearLength) ?? rom.slice(scoutSite + 1, scoutSite + 4)
+  // Hooked already only where the code there is this hack's.
+  const tickCode = asm65([
+    bytesOf('22', loadTeam, 'E01800'),
+    { branch: BCS, to: 'r' },
+    bytesOf('DA A5', d0, '29FF00 E00C00'),
+    { branch: BCC, to: 'home' },
+    bytesOf('18 693400'),
+    { label: 'home' },
+    bytesOf('AA BF', ptoi, 'C96F17'),
+    { branch: BCS, to: 'top' },
+    bytesOf('1A 9F', ptoi),
+    { label: 'top' },
+    bytesOf('FA'),
+    { label: 'r' },
+    '6B',
+  ])
+  const clearCode = asm65([
+    bytesOf('A90000 A26600'),
+    { label: 'loop' },
+    bytesOf('9F', ptoi, 'CA CA'),
+    { branch: BPL, to: 'loop' },
+    bytesOf('5C', scouting),
+  ])
+  if (clearCode.length !== clearLength + 4) return null
+  const tick = withFarCode(rom, tickSite, bytesOf('22', loadTeam), 0, tickCode)
+  if (!tick) return null
+  // The clear's room looked for with the count's code in, so the two do not share it.
+  const withTick = rom.slice()
+  for (const place of tick) withTick.set(place.hacked, place.at)
+  const clear = withFarCode(withTick, scoutSite, bytesOf('22', scouting), 0, clearCode)
+  return clear && [...tick, ...clear]
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1504,6 +1582,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   shotFix: (rom) => shotPlaces(rom),
   lockedChangeFix: (rom) => lockedChangePlaces(rom),
   lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
+  timeOnIce: (rom) => timeOnIcePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2428,6 +2507,11 @@ function detect(rom: Uint8Array): SnesHackState {
   // A build with its own player checks: the bodycheck counts are not offered (while they are off).
   const notOffered: Partial<Record<SnesHack, string>> = {}
   if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) for (const hack of ['bodychecks', 'bodychecksShown'] as const) if (!choices[hack]) notOffered[hack] = OWN_CHECKS
+  if (ownIceTime(rom) && !choices.timeOnIce) {
+    // Its own count is not other code in the way: the hack is off, and not offered.
+    notOffered.timeOnIce = OWN_ICE_TIME
+    if (unknown.includes('timeOnIce')) unknown.splice(unknown.indexOf('timeOnIce'), 1)
+  }
   return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
 
@@ -2570,7 +2654,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
