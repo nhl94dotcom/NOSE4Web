@@ -45,12 +45,14 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('3 on 3 overtime', () => {
       const recount = target(on, 0x123a2)
       expect(hex(on, 0x123a2 + 6, 10)).toBe('4e714e714e714e714e71')
       const calls: number[] = []
-      for (let o = recount; o < recount + 182; o += 2) if (u16(on, o) === 0x6100) calls.push(o + 2 + s16(on, o + 2))
+      for (let o = recount; o < recount + 218; o += 2) if (u16(on, o) === 0x6100) calls.push(o + 2 + s16(on, o + 2))
       expect(calls).toHaveLength(2)
       for (const call of calls) expect(hex(on, call, 6)).toBe('720078007032')
-      expect(Buffer.from(on.subarray(recount, recount + 188)).toString('hex')).toContain('4eb9000123de')
+      expect(Buffer.from(on.subarray(recount, recount + 230)).toString('hex')).toContain('4eb9000123de')
       // Each team's count capped at 6 less its boxed players, at least 3 (moveq #6 / sub.w d4 or d5 / cmpi #3 ...).
-      const recountCode = Buffer.from(on.subarray(recount, recount + 188)).toString('hex')
+      const recountCode = Buffer.from(on.subarray(recount, recount + 230)).toString('hex')
+      // Neither team more than two skaters ahead: each tmap at most the other's + 2.
+      expect(recountCode).toContain('302a0024322afcc0' + '34015442b0426f04' + '3542002434005442b2426f04' + '3542fcc0')
       expect(recountCode).toContain('700690440c4000036c027003b4406f023400')
       expect(recountCode).toContain('700690450c4000036c027003b4406f023400')
       expect(hex(on, 0x123de, 4)).toBe('72067032')

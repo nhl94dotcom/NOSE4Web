@@ -11,11 +11,16 @@ const names = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSy
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
 const off = (bank: number, address: number) => ((bank & 0x7f) << 15) | (address & 0x7fff)
-// Where a jsr at `site` calls, in the site's bank, after checking it is jsr and nops.
+// Where the code a site calls is: its jsr and nops to a stub in its own bank, jsl / rts to the code in the
+// bank with room ($9B in the original game).
 const called = (b: Uint8Array, site: number, length: number) => {
   expect(b[site]).toBe(0x20)
   expect(hex(b, site + 3, length - 3)).toBe('ea'.repeat(length - 3))
-  return off((site >> 15) | 0x80, b[site + 1] | (b[site + 2] << 8))
+  const stub = off((site >> 15) | 0x80, b[site + 1] | (b[site + 2] << 8))
+  expect(stub >> 15).toBe(site >> 15)
+  expect(b[stub]).toBe(0x22)
+  expect(b[stub + 4]).toBe(0x60)
+  return off(b[stub + 3], b[stub + 1] | (b[stub + 2] << 8))
 }
 const rel16 = (b: Uint8Array, at: number) => at + 3 + (((b[at + 1] | (b[at + 2] << 8)) << 16) >> 16)
 
@@ -52,32 +57,35 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES 3 on 3 overtime', () => {
         expect(hex(on, per - 8, 8)).toBe('4b4b6829ff00858b')
         expect(on[per]).toBe(0x62)
         expect(hex(on, rel16(on, per), 8)).toBe('00040302010506ff')
-        expect(hex(on, per + 3, 4)).toBe('688589' + '60')
+        expect(hex(on, per + 3, 4)).toBe('688589' + '6b')
       }
       // The recount: the tests, brl to the count; their skip to the original's two calls.
       const coin = called(on, COIN, 15)
       matches(coin, active)
       const brl = coin + activeLength
       expect(on[brl]).toBe(0x82)
-      expect(hex(on, brl + 3, 16)).toBe('649122f7b69ea902008591' + '22f7b69e' + '60')
+      expect(hex(on, brl + 3, 16)).toBe('649122f7b69ea902008591' + '22f7b69e' + '6b')
       expect(hex(on, rel16(on, brl), 1)).toBe('da')
       // Every skip lands on the original's calls.
       for (const at of [7, 12, 17, ...(season ? [23] : [])]) expect(coin + at + 1 + (on[coin + at] << 24 >> 24)).toBe(brl + 3)
       // The count stores both teams' tmap, at most 6 less the boxed, at least 3.
-      const body = Buffer.from(on.subarray(rel16(on, brl), rel16(on, brl) + 200)).toString('hex')
+      const body = Buffer.from(on.subarray(rel16(on, brl), rel16(on, brl) + 240)).toString('hex')
       expect(body).toContain('8da817a90600' + '38e301c90300')
       expect(body).toContain('8da617a90600' + '38e5a9c90300')
+      // Neither team more than two skaters ahead: home + 2 against the visitors, and the other way.
+      expect(body).toContain('ada6171869020' + '0cda817b0038da817')
+      expect(body).toContain('ada8171869020' + '0cda617b0038da617')
       // StartPer: stz reloadtime, and for a shootout both teams back to 6.
       const start = called(on, START, 3)
       expect(hex(on, start, 6)).toBe('9cc70cad811d')
-      expect(hex(on, start + 8, 10)).toBe('a906008da6178da81760')
+      expect(hex(on, start + 8, 10)).toBe('a906008da6178da8176b')
       // The faceoff: in overtime stz d4 (row 0), else the original's.
       const faceoff = called(on, FACEOFF, 15)
-      expect(hex(on, faceoff + activeLength, 3)).toBe('64b560')
-      expect(hex(on, faceoff + activeLength + 3, 16)).toBe('a5b549ffff1a186906000a0a0a85b5' + '60')
+      expect(hex(on, faceoff + activeLength, 3)).toBe('64b56b')
+      expect(hex(on, faceoff + activeLength + 3, 16)).toBe('a5b549ffff1a186906000a0a0a85b5' + '6b')
       // The clock: outside overtime the original's lda tmap,y / cmp #6.
       const clock = called(on, CLOCK, 6)
-      expect(Buffer.from(on.subarray(clock, clock + 120)).toString('hex')).toContain('b9a617c9060060')
+      expect(Buffer.from(on.subarray(clock, clock + 120)).toString('hex')).toContain('b9a617c906006b')
       // Out again: the original game.
       expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), {}, false, { threeOnThree: 0 })), buildRom(rom))).toBe(0)
     })

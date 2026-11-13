@@ -588,6 +588,7 @@ const SHOOTOUT_B_TEST = 44
 //   injured not counted, at most 2), and every boxed player, then sets each
 //   team 4 and the other's penalties beyond its own, at most 6 less its boxed
 //   players and at least 3; else the two calls as they were.
+//   Neither team more than two skaters ahead of the other, as the NHL allows.
 // - StartPer's stz reloadtime, before the period's clock is set, becomes jsr
 //   to code that does it, then the same count for the opening faceoff (a
 //   penalty from the third period carries over as 4 on 3), and in a shootout
@@ -715,6 +716,16 @@ const ot3Body = (env: Ot3Env): Asm65 => [
   { branch: BCS, to: 'k2' },
   bytesOf('8D', word(env.tmap)),
   { label: 'k2' },
+  // Neither team more than two skaters ahead of the other, as the NHL allows (Match Viewer: with three of a team in
+  // the box the other had five against its two): each at most the other's + 2.
+  bytesOf('AD', word(env.tmap), '18 69 0200 CD', word(env.tmap + 2)),
+  { branch: BCS, to: 'g1' },
+  bytesOf('8D', word(env.tmap + 2)),
+  { label: 'g1' },
+  bytesOf('AD', word(env.tmap + 2), '18 69 0200 CD', word(env.tmap)),
+  { branch: BCS, to: 'g2' },
+  bytesOf('8D', word(env.tmap)),
+  { label: 'g2' },
   bytesOf('68 68 A9 0200 85', env.a2, 'FA'),
 ]
 const ot3Prio = (env: Ot3Env, season: boolean) =>
@@ -725,30 +736,30 @@ const ot3Prio = (env: Ot3Env, season: boolean) =>
     { per: 'list' },
     bytesOf('68 85', env.a0),
     { label: 'r' },
-    '60',
+    '6B',
     { label: 'list' },
     '00 04 03 02 01 05 06 FF',
   ])
 const ot3RecountOriginal = (env: Ot3Env) => bytesOf('64', env.a2, '22', env.inProgressAp, 'A9 0200 85', env.a2, '22', env.inProgressAp)
 const ot3Recount = (env: Ot3Env, season: boolean) =>
-  asm65([...ot3Active(env, season, 'orig'), { brl: 'ot' }, { label: 'orig' }, ot3RecountOriginal(env), '60', { label: 'ot' }, ...ot3Body(env), '60'])
+  asm65([...ot3Active(env, season, 'orig'), { brl: 'ot' }, { label: 'orig' }, ot3RecountOriginal(env), '6B', { label: 'ot' }, ...ot3Body(env), '6B'])
 const ot3Start = (env: Ot3Env, season: boolean) =>
   asm65([
     bytesOf('9C', word(env.reloadtime), 'AD', word(env.shootout)),
     { branch: BEQ, to: 'ot' },
-    bytesOf('A9 0600 8D', word(env.tmap), '8D', word(env.tmap + 2), '60'),
+    bytesOf('A9 0600 8D', word(env.tmap), '8D', word(env.tmap + 2), '6B'),
     { label: 'ot' },
     ...ot3Active(env, season, 'r'),
     { brl: 'body' },
     { label: 'r' },
-    '60',
+    '6B',
     { label: 'body' },
     ...ot3Body(env),
-    '60',
+    '6B',
   ])
 const ot3FaceoffOriginal = (env: Ot3Env) => bytesOf('A5', env.d4, '49 FFFF 1A 18 69 0600 0A 0A 0A 85', env.d4)
 const ot3Faceoff = (env: Ot3Env, season: boolean) =>
-  asm65([...ot3Active(env, season, 'n'), bytesOf('64', env.d4, '60'), { label: 'n' }, ot3FaceoffOriginal(env), '60'])
+  asm65([...ot3Active(env, season, 'n'), bytesOf('64', env.d4, '6B'), { label: 'n' }, ot3FaceoffOriginal(env), '6B'])
 const ot3ClockOriginal = (env: Ot3Env) => bytesOf('B9', word(env.tmap), 'C9 0600')
 const ot3Clock = (env: Ot3Env, season: boolean) =>
   asm65([
@@ -769,12 +780,12 @@ const ot3Clock = (env: Ot3Env, season: boolean) =>
     { label: 'h' },
     bytesOf('DA AA BD', word(env.tmpdst), 'FA 89 0040'),
     { branch: BNE, to: 'loop' },
-    'FA A9 0100 60',
+    'FA A9 0100 6B',
     { label: 'none' },
-    'FA A9 0000 60',
+    'FA A9 0000 6B',
     { label: 'n' },
     ot3ClockOriginal(env),
-    '60',
+    '6B',
   ])
 const jsrPadded = (length: number) => (address: number) => bytesOf('20', word(address), new Array(length - 3).fill(0xea))
 
@@ -829,8 +840,9 @@ function threeOnThreePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
     faceoff: faceoff + 17,
     clock: clock + 2,
   }
-  // The places as the code for `season` gives them: each site with its call, and its new code where the call says
-  // when it is in, else in free room of the site's bank, the bank's new code laid out one after another.
+  // The places as the code for `season` gives them. Each site calls a stub in its own bank (jsl / rts, 5 bytes),
+  // and the stub the code, in a bank with room (the original game's $9B, then $80), as the sites' banks have
+  // little: so the hacks that need room there still find it. Where the hack is in, each call says where.
   const placesFor = (season: boolean): Placed[] | null => {
     const parts = [
       ...sites.prio.map((at) => ({ at, length: 5, original: bytesOf('A9', word(prio.address), '85', a0), code: ot3Prio(env, season) })),
@@ -839,27 +851,42 @@ function threeOnThreePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
       { at: sites.faceoff, length: 15, original: ot3FaceoffOriginal(env), code: ot3Faceoff(env, season) },
       { at: sites.clock, length: 6, original: ot3ClockOriginal(env), code: ot3Clock(env, season) },
     ]
+    const STUB = 5
     const bankOf = (at: number) => at - (at % 0x8000)
-    const room = new Map<number, number>()
-    for (const bank of new Set(parts.filter((part) => same(rom, part.at, part.original)).map((part) => bankOf(part.at)))) {
-      const total = parts.filter((part) => bankOf(part.at) === bank && same(rom, part.at, part.original)).reduce((sum, part) => sum + part.code.length, 0)
-      const at = roomInBank(rom, bank, total)
+    const open = parts.filter((part) => same(rom, part.at, part.original))
+    const stubRoom = new Map<number, number>()
+    for (const bank of new Set(open.map((part) => bankOf(part.at)))) {
+      const at = roomInBank(rom, bank, STUB * open.filter((part) => bankOf(part.at) === bank).length)
       if (at < 0) return null
-      room.set(bank, at)
+      stubRoom.set(bank, at)
     }
+    const farTotal = open.reduce((sum, part) => sum + part.code.length, 0)
+    let far = -1
+    for (const bank of [0x9b, 0x80]) {
+      const start = (bank & 0x7f) << 15
+      if (farTotal > 0 && start < rom.length) far = roomInBank(rom, start, farTotal)
+      if (far >= 0 || farTotal === 0) break
+    }
+    if (farTotal > 0 && far < 0) return null
     const placed: Placed[] = []
     for (const part of parts) {
-      let target: number
+      let stub: number
+      let code: number
       if (same(rom, part.at, part.original)) {
-        target = room.get(bankOf(part.at))!
-        room.set(bankOf(part.at), target + part.code.length)
+        stub = stubRoom.get(bankOf(part.at))!
+        stubRoom.set(bankOf(part.at), stub + STUB)
+        code = far
+        far += part.code.length
       } else {
         if (rom[part.at] !== 0x20) return null
-        target = loRomOffset(loRomBank(part.at, 0x80), readU16(rom, part.at + 1))
+        stub = loRomOffset(loRomBank(part.at, 0x80), readU16(rom, part.at + 1))
+        if (rom[stub] !== 0x22 || rom[stub + 4] !== 0x60) return null
+        code = loRomOffset(rom[stub + 3], readU16(rom, stub + 1))
       }
       placed.push(
-        { at: part.at, original: part.original, hacked: jsrPadded(part.length)(loRomAddress(target)) },
-        { at: target, original: unused(part.code.length), hacked: part.code, amount: season ? 1 : 2 },
+        { at: part.at, original: part.original, hacked: jsrPadded(part.length)(loRomAddress(stub)) },
+        { at: stub, original: unused(STUB), hacked: bytesOf('22', word(loRomAddress(code)), loRomBank(code, 0x80), '60') },
+        { at: code, original: unused(part.code.length), hacked: part.code, amount: season ? 1 : 2 },
       )
     }
     return placed
