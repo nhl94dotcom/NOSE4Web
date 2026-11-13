@@ -627,7 +627,9 @@ export function TeamEditor(props: Props) {
           {goalies === 1 ? 'is the goalie' : 'are goalies'}, the next {team.forwards} {team.forwards === 1 ? 'is a forward' : 'are forwards'}, and the other{' '}
           {Math.max(0, team.players.length - goalies - team.forwards)} defencemen. <b>Goalie bytes</b> set how many
           goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies). The
-          number itself does not matter in play, only whether it is 0. <b>Forwards</b> sets how many of the skaters
+          original rosters have other numbers there, such as 13 6 0 0: EA meant them as how often each goalie would
+          start (13 to 6, the first about two games in three), but neither the Genesis nor the SNES game ever uses
+          them, so 13 6 0 0 plays exactly as 1 1 0 0. Only whether a box is 0 matters. <b>Forwards</b> sets how many of the skaters
           after them are forwards. The <b>Pos</b> column in the tables below shows where each player ends up. To make a
           player a forward or a defenceman, move him into that part of the roster.
         </p>

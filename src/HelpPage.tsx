@@ -185,9 +185,10 @@ export function HelpPage() {
             <li>
               <b>Goalie bytes</b> set how many goalies: four boxes, one for each goalie. Put 1 in a box for each
               goalie, from the left, and 0 in the rest: 1 1 0 0 is two goalies, 1 1 1 0 three. (The game counts a
-              goalie for each box up to the last that is not 0. The numbers were meant as weights for picking a
-              computer team's starting goalie, but the Genesis game never runs the code that would use them, so only
-              whether each is 0 matters.)
+              goalie for each box up to the last that is not 0. The original rosters have other numbers there, such
+              as 13 6 0 0: they were meant as weights for picking a team's starting goalie, 13 to 6, but neither game
+              ever uses them (the Genesis has the code, never called; the SNES has none), so 13 6 0 0 plays exactly as
+              1 1 0 0 and only whether each is 0 matters.)
             </li>
             <li>
               <b>Forwards</b> sets how many of the skaters after the goalies are forwards, counted from the top of the
