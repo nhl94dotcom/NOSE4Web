@@ -842,3 +842,34 @@ tr.divider td {
 .hits-table tr.current td {
   font-weight: bold;
 }
+
+/* Folding sections (useCollapsibleSections): the heading is the toggle. */
+main section > h2:first-child[data-fold],
+main section > h3:first-child[data-fold] {
+  cursor: pointer;
+  user-select: none;
+}
+main section > h2:first-child[data-fold]::before,
+main section > h3:first-child[data-fold]::before {
+  content: '\25BE' / '';
+  display: inline-block;
+  width: 1.1em;
+  color: var(--muted);
+}
+main section > h2:first-child[aria-expanded='false']::before,
+main section > h3:first-child[aria-expanded='false']::before {
+  content: '\25B8' / '';
+}
+main section[data-folded] > :not(:first-child) {
+  display: none;
+}
+
+/* A hack's one-line summary, and its full description folded under it. */
+.hack .summary {
+  margin: 0.2rem 0;
+}
+.hack details.more > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

@@ -91,6 +91,12 @@ export function HelpPage() {
         refreshed, the welcome screen offers <b>Continue editing</b> to pick it up again, or <b>Discard it</b>. Only
         the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
       </p>
+      <p>
+        Every section on a page folds: click its heading (or Tab to it and press Enter) to hide the rest of it, and
+        again to show it. Folded sections stay folded, on every team and the next time you come back, in this
+        browser. On the Hacks pages each option has a one-line summary under it; <b>More about it</b> opens the full
+        description, with how it works and how it was tested.
+      </p>
 
       <h3 id="help-narrow">On a phone or tablet</h3>
       <p>

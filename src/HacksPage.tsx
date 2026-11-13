@@ -47,7 +47,7 @@ import { emptyLineSlots } from './core/lines'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
-import { genesisHackSheet, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
+import { genesisHackSheet, genesisHackSummary, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
 interface Props {
   project: RomProject
@@ -191,12 +191,16 @@ export function HacksPage({ project, name, onChange }: Props) {
         <b>{HACK_TITLES[key]}</b> {control}
       </label>
       {beside}
-      <p className="note">
-        {about}
+      <p className="summary">
+        {genesisHackSummary(key)}
         {unknown(key) && (
           <b> This ROM's code here is neither the original game's nor a version of this hack the editor knows, so it is left exactly as it is.</b>
         )}
       </p>
+      <details className="more">
+        <summary>More about it</summary>
+        <p className="note">{about}</p>
+      </details>
     </div>
   )
   const number = (key: NumberKey, perUnit = 1) => (

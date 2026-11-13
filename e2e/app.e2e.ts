@@ -76,6 +76,20 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/team.png', fullPage: true })
   })
 
+  test('folds a section by its heading, and keeps it folded on another team', async ({ page }) => {
+    await openRom(page)
+    const heading = page.getByRole('heading', { name: 'Goalies', exact: true })
+    await expect(heading).toHaveAttribute('aria-expanded', 'true')
+    await heading.click()
+    await expect(heading).toHaveAttribute('aria-expanded', 'false')
+    await expect(rows(page, 'Goalies').first()).toBeHidden()
+    await team(page, 'Montreal Canadiens').click()
+    await expect(rows(page, 'Goalies').first()).toBeHidden()
+    await heading.focus()
+    await page.keyboard.press('Enter')
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Patrick Roy')
+  })
+
   test('tracks unsaved edits, blocks an oversized ROM, and undoes', async ({ page }) => {
     await openRom(page)
     const goalie = nameOf(rows(page, 'Goalies').first())
@@ -1892,7 +1906,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Rocket pass fix')).toHaveValue('on')
     await expect(main.getByLabel('Goalie hold time')).toHaveValue('4')
     await expect(main.getByLabel('Speed burst')).toHaveValue('0')
-    await expect(main.getByText('The original game has 231, and this ROM has 224.')).toBeVisible()
+    await expect(main.getByText('The original game has 231, and this ROM has 224.')).toBeAttached()
     await expect(entry(page, /^Changes/)).toHaveText('Changes (4)')
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
     await expect(main.getByLabel('Goalie hold time')).toHaveValue('2.33')

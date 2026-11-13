@@ -150,6 +150,44 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
 }
 
 // The page's sections (core/hackgroups.ts), so a hack is in the same place on both.
+// A sentence on what each Genesis hack does, whatever it is set to: the Hacks page's summary. Where the sheet's
+// text depends on the setting, its own words; else the sheet's.
+const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
+  checkFix: 'Checks are judged fairly: a heavier checker does better, and switching away with C then B just before a hit no longer helps.',
+  weightFix: "An earlier fix of the same weight bug (smozoma's); the one above replaces it.",
+  penaltySeconds: 'How long each penalty minute keeps a player in the box, for leagues that play shorter periods.',
+  fightSeconds: 'How long a fight keeps each fighter in the box.',
+  seasonTies: 'What happens to a regular-season game still tied: a tie, overtime until a goal, or a shootout.',
+  threeStars: 'How the three stars of the game are picked.',
+  bonuses: 'Turns the hot and cold swings in player ratings on or off.',
+  baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
+  goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  goalieWidth: 'How far the goalie goes to each side to play the puck.',
+  goalieOut: 'How far up the ice the goalie comes out to play the puck.',
+  goalieLine: 'Where a goalie holding the puck brings the whistle.',
+  injuries: 'How often hits injure, and how long an injury lasts.',
+  hotColdRange: "How far hot and cold can move a player's ratings.",
+  threeOnThree: 'Overtime played 3 on 3, as the NHL does, with a skater more for a power play.',
+  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so he tires sooner.',
+  injuryBonus: 'Each knockdown a skater takes makes the next injury a little likelier.',
+  injuryCap: 'The most the knockdowns above can add to the injury risk.',
+  holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
+  fourthPeriodOvertime: "A fourth period length on the menu, with its own overtime length.",
+  introWait: 'How long the intro screens wait before moving on.',
+  puckFriction: 'How quickly a sliding puck slows down.',
+  netColours: 'The colour of the nets.',
+  puckColours: 'The colour of the puck.',
+  fewerSkaterLines: 'Fits Edit Lines to a ROM that plays fewer than five skaters (such as 2 on 2).',
+  bCheckPenaltiesOff: 'Whether a B-check trips with penalties off as it does with them on.',
+  goalieDelay: 'How long B is held before you take control of the goalie.',
+  energyDrain: 'With line changes on, how fast skaters tire on the ice.',
+  burstEnergy: 'With line changes on, how much energy a C-button speed burst costs.',
+  energyRecovery: 'With line changes on, how fast skaters get their energy back on the bench.',
+  speedBurst: 'How much speed a C-button burst gives.',
+  turnRate: 'How sharply skaters stop and turn.',
+}
+export const genesisHackSummary = (key: keyof HackChoices): string => GENESIS_SUMMARY[key] ?? GENESIS[key](NO_HACKS)
+
 const GENESIS_SECTIONS: [string, (keyof HackChoices)[]][] = GENESIS_HACK_GROUPS.map((group) => [group.title, group.hacks])
 
 export function genesisHackSheet(state: HackState, name: string): HackSheet {
@@ -214,6 +252,9 @@ const SNES: Record<SnesHack, string> = {
   injuryBonus: 'Each knockdown a skater takes makes a hit a little more likely to injure him, its own included (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
+
+// A sentence on what each SNES hack does: the Hacks page's summary.
+export const snesHackSummary = (hack: SnesHack): string => SNES[hack]
 
 const SNES_SECTIONS: [string, SnesHack[]][] = SNES_HACK_GROUPS.map((group) => [group.title, group.hacks])
 

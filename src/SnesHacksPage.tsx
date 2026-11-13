@@ -8,7 +8,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
-import { hackSheetDiscord, hackSheetHtml, pictureItems, snesHackSheet, withPictures } from './core/hacksheet'
+import { hackSheetDiscord, hackSheetHtml, pictureItems, snesHackSheet, snesHackSummary, withPictures } from './core/hacksheet'
 import {
   applySnesHacks,
   detectSnesHacks,
@@ -365,10 +365,14 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                   </select>
                 </label>
                 )}
-                <p className="note">
-                  {ABOUT[hack]}
+                <p className="summary">
+                  {snesHackSummary(hack)}
                   {unknown && <b> {notHere(hack)}</b>}
                 </p>
+                <details className="more">
+                  <summary>More about it</summary>
+                  <p className="note">{ABOUT[hack]}</p>
+                </details>
                 {state.vaultVersions?.includes(hack) && (
                   <p className="note">
                     <b>This ROM has an earlier version of it.</b> {VAULT_VERSION_NOTE[hack]}{' '}
