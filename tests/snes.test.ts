@@ -459,7 +459,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
     // The hacks are found by the code around them; those that need to know where the game's variables are cannot
     // be put in, as that is read from the colour loader changed here.
-    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting'])
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting', 'threeOnThree'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expect(buildRom(project)).toEqual(moved)

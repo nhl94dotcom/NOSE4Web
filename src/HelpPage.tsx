@@ -1705,7 +1705,7 @@ export function HelpPage() {
           bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
           <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD in overtime, in the regular season or
           in every overtime; a penalty gives the other team a skater more (4 on 3, 5 on 3), and when it ends the teams
-          play 4 on 4 until the next whistle, as in the NHL. <b>Calls during a delayed penalty</b>: while one team has a
+          play 4 on 4 until the next whistle, as in the NHL (on the SNES too). <b>Calls during a delayed penalty</b>: while one team has a
           penalty pending, the other can be called too (known bug 12; the SNES game never had it).{' '}
           <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
           is held before you take the goalie.
@@ -2118,6 +2118,12 @@ export function HelpPage() {
             <li>
               <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
               Match Viewer found, and tested by them on the original and the SA-1 build.
+            </li>
+            <li>
+              <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD in overtime, in
+              the regular season or every overtime; a penalty gives the other team a skater more, and a team with three
+              in the box plays two skaters. On the original game, league ROMs built on it, and McMarkis's 32-team and
+              SA-1 builds, found by the code around each place; waiting on a test in the game.
             </li>
           </ul>
         </li>

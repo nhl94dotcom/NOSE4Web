@@ -53,6 +53,7 @@ export type SnesHack =
   | 'fighting'
   | 'injuries'
   | 'seasonShootout'
+  | 'threeOnThree'
 
 interface Site {
   // The game's address.
@@ -293,6 +294,7 @@ export const SNES_HACKS: SnesHack[] = [
   'fighting',
   'injuries',
   'seasonShootout',
+  'threeOnThree',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -333,6 +335,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   fighting: 'Fighting',
   injuries: 'Injuries',
   seasonShootout: 'A shootout for tied regular-season games',
+  threeOnThree: '3 on 3 overtime',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -455,8 +458,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout' | 'threeOnThree'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout', 'threeOnThree']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -479,13 +482,15 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return SNES_INJURY_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'seasonShootout':
       return SNES_SHOOTOUT_TEXTS[value]?.toLowerCase() ?? String(value)
+    case 'threeOnThree':
+      return ['off', 'in the regular season', 'in every overtime'][value] ?? String(value)
     case 'penaltyTime':
       return penaltyTimeText(value)
     default:
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
   }
 }
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0 }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0, threeOnThree: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -495,7 +500,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -562,7 +567,315 @@ const SHOOTOUT_RAM = [
 const SHOOTOUT_A_LENGTH = 37
 const SHOOTOUT_B_LENGTH = 51
 const SHOOTOUT_B_TEST = 44
+// ------------------------------------------------------ 3 on 3 overtime
+// As on the Genesis (hacks.ts, threeOnThree): in overtime each team has its
+// goalie and its line's LW, C and RD; a penalty gives the other team a skater
+// more (4 on 3, 5 on 3), 4 on 4 when it ends until the next whistle, then 3 on
+// 3 again; a team with three in the box plays two skaters, as a team has six
+// sort objects and each boxed player keeps his (Match Viewer, on the Genesis).
+// The SNES has no overtime mark: overtime is gsp 3 or more, and not in a
+// shootout (shootoutmode) or a penalty shot (penshot); for the regular season
+// only, OptPlayMode 0 too. Its places, found by the code around them:
+// - releasepl, SetPlList and getlinee load priolist as lda #bank / sta a0+2 /
+//   lda #priolist / sta a0; the last two become jsr / nops to code that, in
+//   overtime, points a0 at an order of its own (G, C, LW, RD, LD, RW, EA) in
+//   its own bank (phk, and per for the address). SetPlList's penalty shot order
+//   (priolist+7) is loaded after, as before.
+// - InProgress_coin's stz a2 / jsl InProgress_ap / lda #2 / sta a2 / jsl
+//   InProgress_ap (not reached in a penalty shot) becomes jsr / nops to code
+//   that, in overtime, counts each team's players kept off by penalties as
+//   InProgress_ap does (the "just called" bit cleared, coincidental and
+//   injured not counted, at most 2), and every boxed player, then sets each
+//   team 4 and the other's penalties beyond its own, at most 6 less its boxed
+//   players and at least 3; else the two calls as they were.
+// - StartPer's stz reloadtime, before the period's clock is set, becomes jsr
+//   to code that does it, then the same count for the opening faceoff (a
+//   penalty from the third period carries over as 4 on 3), and in a shootout
+//   puts both teams back to 6.
+// - puckfaceoff2's row of its formation table for the number on the ice
+//   (lda d4 / negate / adc #6 / asl x3 / sta d4) becomes jsr / nops: in
+//   overtime the full row, each player on his own spot.
+// - GetLowestPen's power-play team at full strength test (lda tmap,y /
+//   cmp #6, then beq) becomes jsr / nops: in overtime Z is set when that team
+//   has no one in its box list but for coincidental penalties.
+const OT3_TEXTS = ['Off: 5 on 5, as the original game', 'In the regular season', 'In every overtime, playoffs included']
+export const SNES_THREE_ON_THREE_TEXTS = OT3_TEXTS
+
+// Machine code from hex, labels, 8-bit branches (opcode and label), per and brl (label).
+type Asm65 = (string | number[] | Uint8Array | { label: string } | { branch: number; to: string } | { per: string } | { brl: string })[]
+function asm65(parts: Asm65): Uint8Array {
+  const size = (part: Asm65[number]) =>
+    typeof part === 'string' ? hexBytes(part).length : Array.isArray(part) || part instanceof Uint8Array ? part.length : 'label' in part ? 0 : 'branch' in part ? 2 : 3
+  const labels = new Map<string, number>()
+  let pc = 0
+  for (const part of parts) {
+    if (typeof part === 'object' && !Array.isArray(part) && !(part instanceof Uint8Array) && 'label' in part) labels.set(part.label, pc)
+    pc += size(part)
+  }
+  const out: number[] = []
+  for (const part of parts) {
+    if (typeof part === 'string') out.push(...hexBytes(part))
+    else if (Array.isArray(part) || part instanceof Uint8Array) out.push(...part)
+    else if ('label' in part) continue
+    else if ('branch' in part) {
+      const to = labels.get(part.to)
+      const by = to === undefined ? NaN : to - (out.length + 2)
+      if (!(by >= -128 && by <= 127)) throw new Error(`Branch to ${part.to} out of reach.`)
+      out.push(part.branch, by & 0xff)
+    } else {
+      const [op, name] = 'per' in part ? [0x62, part.per] : [0x82, (part as { brl: string }).brl]
+      const by = labels.get(name)! - (out.length + 3)
+      out.push(op, by & 0xff, (by >> 8) & 0xff)
+    }
+  }
+  return Uint8Array.from(out)
+}
+const BCC = 0x90
+const BCS = 0xb0
+const BEQ = 0xf0
+const BNE = 0xd0
+const BMI = 0x30
+const BPL = 0x10
+const BRA = 0x80
+
+interface Ot3Env {
+  gsp: number
+  shootout: number
+  penshot: number
+  tmap: number
+  tmpdst: number
+  tmboxlist: number
+  reloadtime: number
+  playMode: Uint8Array
+  prio: { bank: number; address: number }
+  a0: number
+  a2: number
+  d0: number
+  d1: number
+  d4: number
+  inProgressAp: Uint8Array
+}
+
+// Falls through when 3 on 3 is on now (season: in the regular season too), else branches to `skip`.
+const ot3Active = (env: Ot3Env, season: boolean, skip: string): Asm65 => [
+  bytesOf('AD', word(env.gsp), 'C9 0300'),
+  { branch: BCC, to: skip },
+  bytesOf('AD', word(env.shootout)),
+  { branch: BNE, to: skip },
+  bytesOf('AD', word(env.penshot)),
+  { branch: BNE, to: skip },
+  ...(season ? [bytesOf('AF', env.playMode), { branch: BNE, to: skip }] : []),
+]
+// Team `base`'s count (tmpdst from base: 0, or $34 for the visitors): d0 its penalties as InProgress_ap counts them,
+// at most 2, d1 every player in its box. Y and X used.
+const ot3Count = (env: Ot3Env, base: number, tag: string): Asm65 => [
+  bytesOf('64', env.d0, '64', env.d1, 'A0 3200'),
+  { label: `lp${tag}` },
+  bytesOf('98 18 69', word(base), 'AA BD', word(env.tmpdst)),
+  { branch: BMI, to: `nap${tag}` },
+  { branch: BEQ, to: `nap${tag}` },
+  bytesOf('E6', env.d1, '29 FFDF 9D', word(env.tmpdst), '89 0050'),
+  { branch: BNE, to: `nap${tag}` },
+  bytesOf('A5', env.d0, 'C9 0200'),
+  { branch: BEQ, to: `nap${tag}` },
+  bytesOf('E6', env.d0),
+  { label: `nap${tag}` },
+  '88 88',
+  { branch: BPL, to: `lp${tag}` },
+]
+// Both teams' players on the ice in overtime; X kept, a2 left at 2 as InProgress_coin leaves it.
+const ot3Body = (env: Ot3Env): Asm65 => [
+  'DA',
+  ...ot3Count(env, 0x34, 'v'),
+  bytesOf('D4', env.d0, 'D4', env.d1),
+  ...ot3Count(env, 0, 'h'),
+  // Visitors: 4 + max(0, home's - theirs), at most max(3, 6 - their boxed).
+  bytesOf('A5', env.d0, '38 E3 03'),
+  { branch: BPL, to: 'p1' },
+  'A9 0000',
+  { label: 'p1' },
+  bytesOf('18 69 0400 8D', word(env.tmap + 2), 'A9 0600 38 E3 01 C9 0300'),
+  { branch: BCS, to: 'f1' },
+  'A9 0300',
+  { label: 'f1' },
+  bytesOf('CD', word(env.tmap + 2)),
+  { branch: BCS, to: 'k1' },
+  bytesOf('8D', word(env.tmap + 2)),
+  { label: 'k1' },
+  // Home: 4 + max(0, visitors' - home's), at most max(3, 6 - home's boxed).
+  bytesOf('A3 03 38 E5', env.d0),
+  { branch: BPL, to: 'p2' },
+  'A9 0000',
+  { label: 'p2' },
+  bytesOf('18 69 0400 8D', word(env.tmap), 'A9 0600 38 E5', env.d1, 'C9 0300'),
+  { branch: BCS, to: 'f2' },
+  'A9 0300',
+  { label: 'f2' },
+  bytesOf('CD', word(env.tmap)),
+  { branch: BCS, to: 'k2' },
+  bytesOf('8D', word(env.tmap)),
+  { label: 'k2' },
+  bytesOf('68 68 A9 0200 85', env.a2, 'FA'),
+]
+const ot3Prio = (env: Ot3Env, season: boolean) =>
+  asm65([
+    bytesOf('A9', word(env.prio.address), '85', env.a0),
+    ...ot3Active(env, season, 'r'),
+    bytesOf('4B 4B 68 29 FF00 85', env.a0 + 2),
+    { per: 'list' },
+    bytesOf('68 85', env.a0),
+    { label: 'r' },
+    '60',
+    { label: 'list' },
+    '00 04 03 02 01 05 06 FF',
+  ])
+const ot3RecountOriginal = (env: Ot3Env) => bytesOf('64', env.a2, '22', env.inProgressAp, 'A9 0200 85', env.a2, '22', env.inProgressAp)
+const ot3Recount = (env: Ot3Env, season: boolean) =>
+  asm65([...ot3Active(env, season, 'orig'), { brl: 'ot' }, { label: 'orig' }, ot3RecountOriginal(env), '60', { label: 'ot' }, ...ot3Body(env), '60'])
+const ot3Start = (env: Ot3Env, season: boolean) =>
+  asm65([
+    bytesOf('9C', word(env.reloadtime), 'AD', word(env.shootout)),
+    { branch: BEQ, to: 'ot' },
+    bytesOf('A9 0600 8D', word(env.tmap), '8D', word(env.tmap + 2), '60'),
+    { label: 'ot' },
+    ...ot3Active(env, season, 'r'),
+    { brl: 'body' },
+    { label: 'r' },
+    '60',
+    { label: 'body' },
+    ...ot3Body(env),
+    '60',
+  ])
+const ot3FaceoffOriginal = (env: Ot3Env) => bytesOf('A5', env.d4, '49 FFFF 1A 18 69 0600 0A 0A 0A 85', env.d4)
+const ot3Faceoff = (env: Ot3Env, season: boolean) =>
+  asm65([...ot3Active(env, season, 'n'), bytesOf('64', env.d4, '60'), { label: 'n' }, ot3FaceoffOriginal(env), '60'])
+const ot3ClockOriginal = (env: Ot3Env) => bytesOf('B9', word(env.tmap), 'C9 0600')
+const ot3Clock = (env: Ot3Env, season: boolean) =>
+  asm65([
+    ...ot3Active(env, season, 'n'),
+    'DA 98',
+    { branch: BEQ, to: 't0' },
+    'A2 1A00',
+    { branch: BRA, to: 't1' },
+    { label: 't0' },
+    'A2 0000',
+    { label: 't1' },
+    { label: 'loop' },
+    bytesOf('BD', word(env.tmboxlist), 'E8 29 FF00 89 8000'),
+    { branch: BNE, to: 'none' },
+    'C0 0000',
+    { branch: BEQ, to: 'h' },
+    '18 69 3400',
+    { label: 'h' },
+    bytesOf('DA AA BD', word(env.tmpdst), 'FA 89 0040'),
+    { branch: BNE, to: 'loop' },
+    'FA A9 0100 60',
+    { label: 'none' },
+    'FA A9 0000 60',
+    { label: 'n' },
+    ot3ClockOriginal(env),
+    '60',
+  ])
+const jsrPadded = (length: number) => (address: number) => bytesOf('20', word(address), new Array(length - 3).fill(0xea))
+
+// The places of 3 on 3 overtime in this ROM, and which choice (1 the regular season, 2 every overtime) its code is.
+function threeOnThreePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const s = shift(rom)
+  if (s === null) return null
+  // priolist (two orders of 7), and its loads: lda #bank / sta a0+2, then lda #priolist / sta a0 or the hook.
+  const list = only(rom, '00010204030506000301020405 06'.replace(' ', ''))
+  if (list < 0) return null
+  const prio = { bank: loRomBank(list, 0x80), address: loRomAddress(list) }
+  const loads = findCodeAll(rom, `a9${prio.bank.toString(16).padStart(2, '0')}0085(..)`).filter(({ at }) => {
+    const next = at + 5
+    return (rom[next] === 0xa9 && readU16(rom, next + 1) === prio.address && rom[next + 3] === 0x85) || (rom[next] === 0x20 && rom[next + 3] === 0xea && rom[next + 4] === 0xea)
+  })
+  if (loads.length !== 3) return null
+  const a0 = loads[0].groups[0] - 2
+  if (loads.some(({ groups }) => groups[0] !== a0 + 2)) return null
+  // InProgress_ap: lda #6 / sta d1 / lda #$32 / sta d0 / lda a2 / beq; and InProgress_coin between lda penshot / bne and stx.
+  const penshot = 0x1e9b + s
+  const ap = findCodeAll(rom, 'a90600 85(..) a93200 85(..) a5(..) f003 a93400'.replace(/ /g, ''))
+  if (ap.length !== 1) return null
+  const [d1, d0, a2] = ap[0].groups
+  const coin = only(rom, `ad${hex16(penshot)}d0..` + '..'.repeat(15) + '86..a20e00')
+  const start = only(rom, '64..22......a9020085..22......' + '......' + '22......22......22......22......ad')
+  const faceoffs = findCodeAll(rom, `ad${hex16(0x17a6 + s)}85..a6..bd....f0..ad${hex16(0x17a8 + s)}85(..)` + '..'.repeat(15) + 'a9..0085')
+  const faceoff = faceoffs.length === 1 ? faceoffs[0].at : -1
+  const clock = only(rom, 'a4..' + '..'.repeat(6) + 'f0..a5..38e5')
+  const tail = only(rom, 'ee....ad....c90300f0..90..a903008d....af........06' + '.'.repeat(24) + 'f0..a904008d')
+  if (coin < 0 || start < 0 || faceoff < 0 || clock < 0 || tail < 0) return null
+  const env: Ot3Env = {
+    gsp: 0x1630 + s,
+    shootout: 0x1d81 + s,
+    penshot,
+    tmap: 0x17a6 + s,
+    tmpdst: 0x1852 + s,
+    tmboxlist: 0x18ba + s,
+    reloadtime: 0x0cc7 + s,
+    playMode: rom.slice(tail + 20, tail + 23),
+    prio,
+    a0,
+    a2,
+    d0,
+    d1,
+    d4: faceoffs[0].groups[0],
+    inProgressAp: bytesOf(word(loRomAddress(ap[0].at)), loRomBank(ap[0].at, 0x80)),
+  }
+  const sites = {
+    prio: loads.map(({ at }) => at + 5),
+    coin: coin + 5,
+    start: start + 15,
+    faceoff: faceoff + 17,
+    clock: clock + 2,
+  }
+  // The places as the code for `season` gives them: each site with its call, and its new code where the call says
+  // when it is in, else in free room of the site's bank, the bank's new code laid out one after another.
+  const placesFor = (season: boolean): Placed[] | null => {
+    const parts = [
+      ...sites.prio.map((at) => ({ at, length: 5, original: bytesOf('A9', word(prio.address), '85', a0), code: ot3Prio(env, season) })),
+      { at: sites.coin, length: 15, original: ot3RecountOriginal(env), code: ot3Recount(env, season) },
+      { at: sites.start, length: 3, original: bytesOf('9C', word(env.reloadtime)), code: ot3Start(env, season) },
+      { at: sites.faceoff, length: 15, original: ot3FaceoffOriginal(env), code: ot3Faceoff(env, season) },
+      { at: sites.clock, length: 6, original: ot3ClockOriginal(env), code: ot3Clock(env, season) },
+    ]
+    const bankOf = (at: number) => at - (at % 0x8000)
+    const room = new Map<number, number>()
+    for (const bank of new Set(parts.filter((part) => same(rom, part.at, part.original)).map((part) => bankOf(part.at)))) {
+      const total = parts.filter((part) => bankOf(part.at) === bank && same(rom, part.at, part.original)).reduce((sum, part) => sum + part.code.length, 0)
+      const at = roomInBank(rom, bank, total)
+      if (at < 0) return null
+      room.set(bank, at)
+    }
+    const placed: Placed[] = []
+    for (const part of parts) {
+      let target: number
+      if (same(rom, part.at, part.original)) {
+        target = room.get(bankOf(part.at))!
+        room.set(bankOf(part.at), target + part.code.length)
+      } else {
+        if (rom[part.at] !== 0x20) return null
+        target = loRomOffset(loRomBank(part.at, 0x80), readU16(rom, part.at + 1))
+      }
+      placed.push(
+        { at: part.at, original: part.original, hacked: jsrPadded(part.length)(loRomAddress(target)) },
+        { at: target, original: unused(part.code.length), hacked: part.code, amount: season ? 1 : 2 },
+      )
+    }
+    return placed
+  }
+  if (amount === 1) return placesFor(true)
+  if (amount === 2) return placesFor(false)
+  // Which code the ROM holds, if any: the regular season's, or every overtime's.
+  for (const season of [true, false]) {
+    const places = placesFor(season)
+    if (places && places.every((place) => holds(rom, place, 'hacked'))) return places
+  }
+  return placesFor(false)
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  threeOnThree: (rom, _source, amount) => threeOnThreePlaces(rom, amount),
   // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one
   // overtime, its lda #4 / sta gsp (a regular-season game after overtime) becomes jsl A; after period 3, its tie
   // test lda tmscore / cmp tmscore+2 becomes jsl B, which does the test after (so the beq after it is as it was).

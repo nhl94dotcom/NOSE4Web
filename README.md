@@ -104,7 +104,7 @@ That licence does not cover:
 - Fighting on the Genesis (chaos's patch) and on the SNES (McMarkis's port),
   with head bleeding for the Genesis
 - Rules: a shootout or overtime until a goal for tied regular-season games,
-  3 on 3 overtime as the NHL plays it (Genesis), penalties called on either
+  3 on 3 overtime as the NHL plays it, penalties called on either
   team during a delayed penalty (Genesis), and the injuries choices
 - Energy and injury options from a community idea: hits that cost the skater
   hit energy (or energy from hits only), and knockdowns that make a later

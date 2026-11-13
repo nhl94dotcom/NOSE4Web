@@ -198,6 +198,7 @@ const SNES: Record<SnesHack, string> = {
   fighting: "Players can fight, as in NHLPA 93 (McMarkis's port of its fights): a fight can start after enough hard checks between two players with high enough fighting ratings, and both get fighting majors.",
   injuries: 'Injuries work differently from the original game.',
   seasonShootout: 'A regular-season game still tied is settled by a shootout, the winners getting one goal more, so it never ends in a tie.',
+  threeOnThree: "Overtime is 3 on 3, each team's goalie and its line's LW, C and RD; a power play adds a skater (4 on 3, 5 on 3).",
   penaltyTime: 'Penalties last a different time from what they say: each penalty minute is a set number of seconds in the box. The penalty minutes in the statistics are as before.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",

@@ -24,6 +24,7 @@ import {
   SNES_AMOUNT_OFF,
   SNES_INJURY_TEXTS,
   SNES_SHOOTOUT_TEXTS,
+  SNES_THREE_ON_THREE_TEXTS,
   snesAmountText,
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
@@ -46,6 +47,7 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   // Not a recommendation: the original game.
   injuries: 0,
   seasonShootout: 0,
+  threeOnThree: 0,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -92,6 +94,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "With line changes on, how much a tired skater slows. The original game halves his speed rating at no energy, so even an empty skater keeps more than half his speed; with this on, energy takes all of it, as on the Genesis, and an empty skater skates at the slowest speed there is. With Energy from hits only, an average skater is then about 14%, 29% and 43% slower after one, two and three knockdowns, where the original's way gives 8%, 14% and 22%. It needs Skating costs no energy, which turns on with it: goalies never go to the bench, so the skating drain would slow them more than in the original game. Line changes Auto keeps everyone at full speed. Read from the game's code and tested in the game by the NHL94 Match Viewer project, on the original and the SA-1 build: a leg-speed-15 skater's speed class is 15, 10, 5 and 0 after none to three knockdowns, and goalies keep full speed.",
   seasonOvertime:
     "A regular-season game still tied after its overtime plays another overtime, and another, until someone scores, as a playoff game does, instead of ending in a tie. Each overtime is the regular season's 5:00; playoffs are as they were. The same two changes as the Genesis option, which the NHL94 Match Viewer project found and tested there, and tested by them in the SNES game too, on the original and the SA-1 build.",
+  threeOnThree:
+    "As on the Genesis, as the NHL plays overtime: each team has its goalie and three skaters, its current line's LW, C and RD (two forwards and a defenceman, a centre for the draws, one player on each side). A penalty gives the other team a skater more: 4 on 3, and 5 on 3 for a second. When it ends the teams play 4 on 4 until the next whistle, then 3 on 3 again. A team with three of its players in the box plays two skaters, its C and LW, until one comes out: the game has room for six players a team on the ice and in the box together. The lines are not changed, so it works with line changes On or Off. Choose in the regular season to keep the playoffs 5 on 5, as the NHL does. Worked out from the game's code; the Genesis version was tested in the game by the NHL94 Match Viewer project, and this one is waiting on a test in the game.",
   seasonShootout:
     "A regular-season game still tied is settled by the game's own shootout, as its Shootout mode plays one: after one 5:00 overtime, or straight after period 3 with no overtime. It begins with the shootout's set-up screen (the pause menu, as in Shootout mode), then five shooters a side and one each after until a team is ahead. The winners get one goal more on the scoreboard, everything else about the game (its stats, the scoring summary, the lines) is as it was at the end of play, and the game then ends as any other. Playoff games play overtime until a goal, as they always have. Not with overtime until a goal, which settles ties its own way. Built from the NHL94 Match Viewer project's reading of the game's code, and tested in the game by them, both ways, on the original and Classic: the score is the tied score with one goal more for the winners (a 1-1 game won in the shootout ends 2-1), the stats, the goals by period and the scoring summary are the game's, and the game ends as any other. The winners' extra goal is in the score only: no player is given it. The shootout opens on its menu, as in Shootout mode: Start Shootout (or Resume Shootout between shooters) is the first line, so a press of A or B starts it. Its last line, Exit Shootout, does nothing here: in Shootout mode it ends a shootout, but here it would throw away the whole game, so NOSE4Web locks it while its shootout plays (the pause menu's Exit Game in the rest of the game is as before). (As in any game, with no pad on either team, the computer playing both, a press of any button but START ends the game: the original game takes it for the demo.) On the original game and ROMs built on it, and on the 32-team builds, SA-1 included; on the SA-1 builds, whose game state is elsewhere, NOSE4Web keeps it in their BW-RAM while the shootout plays, and on the 2 MB builds it keeps their own checks, posts and time on ice through it. Tested in the game by Match Viewer on those builds too, with a pad on a team. With the computer on both sides the 2 MB builds' own shootout hangs at its first round, in their Shootout mode too, with or without NOSE4Web; with a person on a team it plays, as in every league game.",
   injuries:
@@ -248,7 +252,18 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>
-                {hack === 'seasonShootout' ? (
+                {hack === 'threeOnThree' ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.threeOnThree} onChange={(e) => setAmount('threeOnThree', Number(e.target.value))}>
+                      {SNES_THREE_ON_THREE_TEXTS.map((text, choice) => (
+                        <option key={choice} value={choice}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : hack === 'seasonShootout' ? (
                   <label>
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.seasonShootout} onChange={(e) => setAmount('seasonShootout', Number(e.target.value))}>
