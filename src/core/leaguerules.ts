@@ -27,6 +27,9 @@ export interface LeagueRules {
   // Nobody may be on two teams, or two players on a team wear one number.
   uniquePlayers: boolean
   uniqueJerseys: boolean
+  // For a league with line changes on: no skater on more than one of the lines that take turns (Sc1, Sc2, Chk),
+  // so each rests between his shifts.
+  oneRotatingLine: boolean
   // Teams the rules do not apply to, such as All Stars teams.
   exempt: number[]
 }
@@ -46,14 +49,15 @@ export const NO_LEAGUE_RULES: LeagueRules = {
   maxTotalOverall: null,
   uniquePlayers: false,
   uniqueJerseys: false,
+  oneRotatingLine: false,
   exempt: [],
 }
 
-export type RuleLimit = Exclude<keyof LeagueRules, 'uniquePlayers' | 'uniqueJerseys' | 'exempt'>
+export type RuleLimit = Exclude<keyof LeagueRules, 'uniquePlayers' | 'uniqueJerseys' | 'oneRotatingLine' | 'exempt'>
 const LIMITS = Object.keys(NO_LEAGUE_RULES).filter((key) => NO_LEAGUE_RULES[key as keyof LeagueRules] === null) as RuleLimit[]
 
 export function hasLeagueRules(rules: LeagueRules): boolean {
-  return rules.uniquePlayers || rules.uniqueJerseys || LIMITS.some((key) => rules[key] !== null)
+  return rules.uniquePlayers || rules.uniqueJerseys || rules.oneRotatingLine || LIMITS.some((key) => rules[key] !== null)
 }
 
 // Rules read from a file or from stored work, with anything unusable dropped.
@@ -66,11 +70,16 @@ export function cleanLeagueRules(value: unknown, teamCount: number): LeagueRules
   }
   rules.uniquePlayers = from.uniquePlayers === true
   rules.uniqueJerseys = from.uniqueJerseys === true
+  rules.oneRotatingLine = from.oneRotatingLine === true
   rules.exempt = Array.isArray(from.exempt)
     ? [...new Set(from.exempt.filter((team): team is number => Number.isInteger(team) && team >= 0 && team < teamCount))].sort((a, b) => a - b)
     : []
   return rules
 }
+
+// The lines that take turns with line changes on, and a line's skaters' places (LD, RD, LW, C, RW).
+const ROTATING_LINES = ['Sc1', 'Sc2', 'Chk']
+const SKATER_SLOTS = [1, 2, 3, 4, 5]
 
 const count = (n: number, noun: string) => `${n} ${n === 1 ? noun : noun === 'defenceman' ? 'defencemen' : `${noun}s`}`
 const one = (value: number) => value.toFixed(1)
@@ -115,6 +124,24 @@ export function checkLeagueRules(project: RomProject): Finding[] {
     const total = roster.reduce((sum, p) => sum + p.overall, 0)
     if (rules.maxTotalOverall !== null && total > rules.maxTotalOverall) {
       add(t, `The overall ratings add up to ${total}; the league's rules allow at most ${rules.maxTotalOverall}.`)
+    }
+
+    if (rules.oneRotatingLine) {
+      // The lines that take turns with line changes on, and each skater's places on them (G and the extra attacker
+      // left out: the goalie plays every shift, the extra attacker only with the goalie pulled).
+      const rotating = project.game.lineLabels.map((label, l) => [label, l] as const).filter(([label]) => ROTATING_LINES.includes(label))
+      const on = new Map<number, string[]>()
+      for (const [label, l] of rotating) {
+        const line = team.lines[l] ?? []
+        for (const position of new Set(SKATER_SLOTS.map((slot) => line[slot]))) {
+          if (position >= 1 && position <= team.players.length) on.set(position, [...(on.get(position) ?? []), label])
+        }
+      }
+      for (const [position, labels] of on) {
+        if (labels.length > 1) {
+          add(t, `${team.players[position - 1].name || `Player ${position}`} is on ${labels.join(' and ')}, so with line changes on he plays ${labels.length} shifts in ${rotating.length} and rests less.`)
+        }
+      }
     }
 
     if (rules.uniqueJerseys) {

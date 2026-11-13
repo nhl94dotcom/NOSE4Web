@@ -107,6 +107,10 @@ export function CheckPage({ project, findings, onGoToTeam, onChange }: Props) {
             <input type="checkbox" checked={rules.uniqueJerseys} onChange={(e) => set({ uniqueJerseys: e.target.checked })} /> No
             two players on a team with the same number
           </label>
+          <label className="choice">
+            <input type="checkbox" checked={rules.oneRotatingLine} onChange={(e) => set({ oneRotatingLine: e.target.checked })} /> No
+            skater on more than one of Sc1, Sc2 and Chk (for line changes on)
+          </label>
         </p>
         <details>
           <summary>

@@ -86,6 +86,26 @@ describe.skipIf(!hasRom)("a league's own rules", () => {
     expect(messages(withRules(back, { uniquePlayers: true, exempt: allStars })).some((m) => m.startsWith('Free agents:') && m.includes('is a free agent and also on Boston Bruins'))).toBe(true)
   })
 
+  it('with line changes on, finds a skater on more than one of Sc1, Sc2 and Chk', () => {
+    const project = setup()
+    const team = project.teams[BOSTON]
+    const at = (label: string) => project.game.lineLabels.indexOf(label)
+    // Sc1's centre also put at Chk's centre: one finding, naming both lines; the original lines have none.
+    const lines = team.lines.map((line) => line.slice())
+    const centre = lines[at('Sc1')][4]
+    const before = messages(withRules(project, { oneRotatingLine: true })).filter((m) => m.startsWith('Boston') && m.includes(team.players[centre - 1].name))
+    lines[at('Chk')][4] = centre
+    const changed = { ...project, teams: project.teams.map((t, i) => (i === BOSTON ? { ...t, lines } : t)) }
+    const found = messages(withRules(changed, { oneRotatingLine: true })).filter((m) => m.startsWith('Boston') && m.includes(team.players[centre - 1].name))
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatch(/is on Sc1 and Chk, so with line changes on he plays 2 shifts in 3 and rests less\.$/)
+    expect(before).toEqual([])
+    // Off, nothing said; and it comes back from stored work.
+    expect(messages(withRules(changed, {})).filter((m) => m.includes('shifts in'))).toEqual([])
+    expect(cleanLeagueRules({ oneRotatingLine: true }, 28).oneRotatingLine).toBe(true)
+    expect(hasLeagueRules({ ...NO_LEAGUE_RULES, oneRotatingLine: true })).toBe(true)
+  })
+
   it('leaves the teams it is told to leave out', () => {
     const project = withRules(setup(), { minPlayers: 20 })
     expect(messages(project).some((m) => m.startsWith('Anaheim'))).toBe(true)

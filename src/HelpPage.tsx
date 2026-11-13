@@ -1852,6 +1852,12 @@ export function HelpPage() {
           <b>No two players on a team with the same number.</b>
         </li>
         <li>
+          <b>No skater on more than one of Sc1, Sc2 and Chk</b>, for a league that plays with line changes on. Those
+          three lines take turns, so a skater on two of them plays two shifts in three and rests less, which counts
+          for more with the energy options on the Hacks page. The goalie and the extra attacker are left out, and so
+          are the power play and penalty kill lines, which come on only for those.
+        </li>
+        <li>
           <b>Teams the rules do not apply to:</b> tick any to leave out, such as All Stars teams or a team used as
           a pool of spare players.
         </li>
