@@ -1460,6 +1460,13 @@ export function HelpPage() {
           from a save state.
         </li>
         <li>
+          <b>Time on ice in Player Stats</b> (Genesis): the game counts each player's time on ice but never shows it.
+          This adds a Time On Ice page to Player Stats, right past Penalty Minutes, sorted by it, each row showing G,
+          A, Pts and the time. The other pages are unchanged, a Chk column included. On the SNES,{' '}
+          <b>time on ice for each player</b> counts it in the original game's layout (McMarkis's builds count their
+          own), kept where his builds keep it, for save-state readers.
+        </li>
+        <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
           one for line changes on. It counts bodychecks, so it goes with bodycheck statistics.
         </li>

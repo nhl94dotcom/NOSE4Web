@@ -178,6 +178,8 @@ export interface HackChoices {
   fightSeconds: number
   // In a tied regular-season game's shootout, a skater out for the game takes no attempt.
   shootoutInjuries: boolean
+  // A Time On Ice page in Player Stats, from the time on ice the game counts.
+  timeOnIce: boolean
   // Which of the game's colour sets the puck is drawn in.
   puckColours: PuckColours
   // The colours both nets are drawn in, from the same choices.
@@ -256,6 +258,7 @@ export type HackPart =
   | 'penaltySeconds'
   | 'fightSeconds'
   | 'shootoutInjuries'
+  | 'timeOnIce'
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
@@ -330,6 +333,7 @@ export const NO_HACKS: HackChoices = {
   penaltySeconds: 60,
   fightSeconds: 0,
   shootoutInjuries: false,
+  timeOnIce: false,
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
@@ -2538,6 +2542,55 @@ const shootoutInjuries: Part<boolean> = {
   apply: (work, value) => void (value && hook(work, SHOOTOUT_INJURY_HOOK, SHOOTOUT_INJURY_CODE)),
 }
 
+// ----------------------------------------------------- time on ice in Player Stats
+// The game counts each player's time on ice (a word per roster place at $136
+// of the team struct, a second for each second of the clock he is on the ice)
+// but never shows it. This adds a Time On Ice page to Player Stats, as
+// McMarkis's SNES builds have one: right past Penalty Minutes (game stats only,
+// not playoff stats), sorted by it, each row G, A, Pts and TOI as m:ss, the
+// other pages as they were. Five hooks: the column bounds (.col: -1 to 5 for
+// game stats, as before to 4 for playoffs), the sort title (string 6 of its own,
+// and Penalty Minutes' title closed with "]"), the column headers (on the new
+// page SOG and PIM give way to TOI), GetStatColumn (column 5 is the time on
+// ice, the goalies' too) and the row's number (from SOG on, the time).
+const TOI_HOOKS: Record<'col' | 'title' | 'head' | 'get' | 'row', Hook> = {
+  col: { at: 0x9556, original: bytes('B07C FFFF 6DF0 B07C 0004 6EEA') },
+  title: { at: 0x968a, original: bytes('43FA 02B6 7001') },
+  head: { at: 0x9658, original: bytes('4EB9 0001 1A48') },
+  get: { at: 0x9878, original: bytes('3400 301F B042') },
+  row: { at: 0x97ce, original: bytes('7204 4EB9 0001 1D3A') },
+}
+const TOI_CODES: Record<keyof typeof TOI_HOOKS, Uint8Array> = {
+  col: bytes('0C40 FFFF 6D14 4A47 6608 0C40 0005 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C'),
+  title: bytes('43F9 0000 9942 7001 0C78 0005 D5AC 6606 43FA 0006 70FB 4E75 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020'),
+  head: bytes('0C78 0005 D5AC 6624 0C43 0003 6D1E 6618 31FC C000 B02C 2F09 43FA 0018 4EB9 0001 1A48 225F D2D1 4E75 D2D1 4E75 4EF9 0001 1A48 000A 2020 2020 2054 4F49'),
+  get: bytes('3400 302F 0004 2F57 0002 548F 0C41 0005 6610 3400 D442 0642 0136 3432 2000 588F 4E75 B042 4E75'),
+  row: bytes('0C78 0005 D5AC 6632 0C45 0003 6D2C 4240 1014 7205 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 000E 7A04 4E75 7204 4EF9 0001 1D3A 0002'),
+}
+const TOI_KEYS = Object.keys(TOI_HOOKS) as (keyof typeof TOI_HOOKS)[]
+// The last character of Penalty Minutes' sort title: "]" while a page follows.
+const TOI_BRACKET = { at: 0x99c5, original: 0x20, hacked: 0x5d }
+const timeOnIce: Part<boolean> = {
+  detect(rom) {
+    if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original)) && rom[TOI_BRACKET.at] === TOI_BRACKET.original) return false
+    return TOI_KEYS.every((key) => hooked(rom, TOI_HOOKS[key], TOI_CODES[key]) !== null) && rom[TOI_BRACKET.at] === TOI_BRACKET.hacked ? true : undefined
+  },
+  remove(rom) {
+    for (const key of TOI_KEYS) {
+      const target = hooked(rom, TOI_HOOKS[key], TOI_CODES[key])
+      if (target === null) continue
+      erase(rom, target, TOI_CODES[key].length)
+      rom.set(TOI_HOOKS[key].original, TOI_HOOKS[key].at)
+    }
+    rom[TOI_BRACKET.at] = TOI_BRACKET.original
+  },
+  apply(work, value) {
+    if (!value) return
+    for (const key of TOI_KEYS) hook(work, TOI_HOOKS[key], TOI_CODES[key])
+    work.rom[TOI_BRACKET.at] = TOI_BRACKET.hacked
+  },
+}
+
 // -------------------------------------------------------- fighting penalty time
 // How long a fight keeps each fighter in the box, in seconds of the game clock,
 // whatever its minutes and the penalty time. penalty94's .Sa works out a
@@ -2703,6 +2756,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
+    timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
@@ -2808,6 +2862,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
+    ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
@@ -3060,6 +3115,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
   shootoutInjuries: 'The injured sit out the shootout',
+  timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
@@ -3129,6 +3185,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltySeconds: 'penaltySeconds',
   fightSeconds: 'fightSeconds',
   shootoutInjuries: 'shootoutInjuries',
+  timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',

@@ -69,6 +69,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   crowdFix: () => "The crowd's speed boost comes only while the crowd is loud, so skaters are a little slower in quiet spells.",
   stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one he catches already does: about 2 more a game.",
   bodychecks: () => "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
+  timeOnIce: () => 'Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player\'s time on ice.',
   plusMinus: () => 'Plus-minus is kept for every player (the game does not show it).',
   threeStars: (c) => `The three stars are chosen by a fuller formula that counts bodychecks, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
   wideRatings: () => 'Ratings run from 0 to 15 instead of 0 to 6, so players can differ more finely.',
