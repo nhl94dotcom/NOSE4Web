@@ -2396,7 +2396,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Clock', 'Title screen credits', 'Main menu starting choices', 'Rule messages', 'Playoff draws', 'Announcer picture', "Ron Barr's matchup screen text", 'Organ songs', 'Move teams'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Announcer picture', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Playoff draws', 'Organ songs', 'Move teams'])
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })
