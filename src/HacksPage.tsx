@@ -205,7 +205,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
+  const onOff = (key: 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -678,6 +678,18 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'shootoutInjuries',
+          onOff('shootoutInjuries'),
+          <>
+            With a shootout for tied regular-season games on (above): a skater injured for the game, by a hit or in a
+            fight (chaos's patch), takes no attempt in it, and the next healthy player on the team's shootout list
+            shoots in his place, even if he was picked on the shootout screen. A period's injury is over by then. If
+            all five are out, the listed players shoot as before. Shootout mode from the main menu is as it was. From
+            Match Viewer's reading of the game's code and of chaos's fight injury. Waiting on a test in the game (the
+            SNES version is tested).
+          </>,
+        )}
+        {hack(
           'fightSeconds',
           <>
             {number('fightSeconds')} seconds in the box for each fighter ({wanted.fightSeconds === 0 ? 'off' : clockTime(wanted.fightSeconds)})
@@ -735,7 +747,9 @@ export function HacksPage({ project, name, onChange }: Props) {
             nearest, icing is called there and then; if an attacker is nearer, it is waved off and play goes on. Goalies
             do not count. Everything else is as before: a team short-handed never ices, and a puck that crosses within
             the width of the crease is not icing. It decides by distance alone, not by how fast each player is going. Has
-            no effect with No icing on. Waiting on a test in the game.
+            no effect with No icing on. Tested in the game by the NHL94 Match Viewer project, with the SNES version, over
+            38 computer games: every call and wave-off decided correctly at the crossing, ties to the defenders, and no
+            team icing short-handed.
           </>,
         )}
         {hack(

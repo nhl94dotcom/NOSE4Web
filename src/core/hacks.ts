@@ -176,6 +176,8 @@ export interface HackChoices {
   penaltySeconds: number
   // Seconds in the box for a fight, 0 as the penalty's minutes give.
   fightSeconds: number
+  // In a tied regular-season game's shootout, a skater out for the game takes no attempt.
+  shootoutInjuries: boolean
   // Which of the game's colour sets the puck is drawn in.
   puckColours: PuckColours
   // The colours both nets are drawn in, from the same choices.
@@ -253,6 +255,7 @@ export type HackPart =
   | 'puckFriction'
   | 'penaltySeconds'
   | 'fightSeconds'
+  | 'shootoutInjuries'
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
@@ -326,6 +329,7 @@ export const NO_HACKS: HackChoices = {
   puckFriction: 9,
   penaltySeconds: 60,
   fightSeconds: 0,
+  shootoutInjuries: false,
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
@@ -2507,6 +2511,33 @@ const penaltySeconds: Part<number> = {
   apply: (work, value) => writeU16(work.rom, PENALTY_TIME_AT + 4, value),
 }
 
+// ------------------------------------------------ the injured out of the shootout
+// For the shootout of a tied regular-season game (seasonTies' shootouts): a
+// skater out for the game takes no attempt. NextShooter takes each turn's
+// shooter from the team's list (homeshooters or awayshooters, a0; 5 words,
+// homeshootnum the index, x2 in d0): move.w 0(a0,d0.w),(BA_Skater_Offset).w
+// at $FC504 becomes jsr to code that, while the season shootout's mark is set
+// ($FFF082, with gsp 3, as Shootout mode has gsp 0), steps d0 on through the
+// five (wrapping) past each listed player out for the game in the team structs
+// saved when the shootout began ($FFF084, tmpdst at +$66, the visitors' at
+// +$364): $FFFC (an injury for the game), or a positive word with $1000 set
+// (Match Viewer: chaos's fight injury, $112C, then the major over it, $5xxx,
+// and $1000 when it is served; the original code never sets $1000 itself).
+// With all five out, the listed player. Outside the season shootout, as the
+// original.
+const SHOOTOUT_INJURY_HOOK: Hook = { at: 0xfc504, original: bytes('31F0 0000 D40A') }
+const SHOOTOUT_INJURY_CODE = bytes('4A38 F082 6756 0C78 0003 C466 664E 48E7 7040 43F8 F0EA B1FC FFFF D588 6604 43E9 0364 7604 3400 3230 0000 D241 3231 1000 0C41 FFFC 670A 4A41 6F16 0801 000C 6710 5440 0C40 000A 6D02 7000 51CB FFDA 3002 31F0 0000 D40A 4CDF 020E 4E75 31F0 0000 D40A 4E75')
+const shootoutInjuries: Part<boolean> = {
+  detect: (rom) => (is(rom, SHOOTOUT_INJURY_HOOK.at, SHOOTOUT_INJURY_HOOK.original) ? false : hooked(rom, SHOOTOUT_INJURY_HOOK, SHOOTOUT_INJURY_CODE) !== null ? true : undefined),
+  remove(rom) {
+    const target = hooked(rom, SHOOTOUT_INJURY_HOOK, SHOOTOUT_INJURY_CODE)
+    if (target === null) return
+    erase(rom, target, SHOOTOUT_INJURY_CODE.length)
+    rom.set(SHOOTOUT_INJURY_HOOK.original, SHOOTOUT_INJURY_HOOK.at)
+  },
+  apply: (work, value) => void (value && hook(work, SHOOTOUT_INJURY_HOOK, SHOOTOUT_INJURY_CODE)),
+}
+
 // -------------------------------------------------------- fighting penalty time
 // How long a fight keeps each fighter in the box, in seconds of the game clock,
 // whatever its minutes and the penalty time. penalty94's .Sa works out a
@@ -2671,6 +2702,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
+    shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
@@ -2775,6 +2807,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
+    ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
@@ -3010,6 +3043,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   puckFriction: 'Puck friction',
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
+  shootoutInjuries: 'The injured sit out the shootout',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
@@ -3078,6 +3112,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   puckFriction: 'puckFriction',
   penaltySeconds: 'penaltySeconds',
   fightSeconds: 'fightSeconds',
+  shootoutInjuries: 'shootoutInjuries',
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',

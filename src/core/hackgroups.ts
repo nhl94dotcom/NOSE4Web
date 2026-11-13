@@ -24,7 +24,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
   },
   { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['wideRatings', 'baseWeight', 'bonuses', 'hotColdRange'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonTies', 'fourthPeriodOvertime', 'fighting', 'fightSeconds', 'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'threeOnThree', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonTies', 'fourthPeriodOvertime', 'fighting', 'shootoutInjuries', 'fightSeconds', 'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'threeOnThree', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries'] },
   {
     id: 'energy',
     title: 'Energy and injury risk',

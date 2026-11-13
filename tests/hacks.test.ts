@@ -269,6 +269,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { noIcing: true },
       { hybridIcing: true },
       { fightSeconds: 150 },
+      { shootoutInjuries: true },
       { fightSeconds: 150, penaltySeconds: 30 },
       { bCheckPenaltiesOff: 'asPenaltiesOn' },
       { bCheckPenaltiesOff: 'forum' },

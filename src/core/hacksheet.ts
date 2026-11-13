@@ -43,6 +43,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < NO_HACKS.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
+  shootoutInjuries: () => 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
   fightSeconds: (c) => `A fight keeps each fighter in the box ${clockTime(c.fightSeconds)}, whatever its minutes; the penalty minutes in the statistics are as before.`,
   headBleeding: () => 'A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA 93; only the look changes.',
   seasonTies: (c) =>
