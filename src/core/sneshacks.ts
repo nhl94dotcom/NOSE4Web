@@ -60,6 +60,8 @@ export type SnesHack =
   | 'fightTime'
   | 'oneTimerFix'
   | 'shotFix'
+  | 'lockedChangeFix'
+  | 'lockedDefenceFix'
 
 interface Site {
   // The game's address.
@@ -307,6 +309,8 @@ export const SNES_HACKS: SnesHack[] = [
   'fightTime',
   'oneTimerFix',
   'shotFix',
+  'lockedChangeFix',
+  'lockedDefenceFix',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -354,6 +358,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   fightTime: 'Fighting penalty time',
   oneTimerFix: 'One-timer that never fires fix',
   shotFix: 'Shot that never fires fix',
+  lockedChangeFix: 'B while checking or bursting fix',
+  lockedDefenceFix: 'L and R while busy fix',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1272,6 +1278,90 @@ function shotPlaces(rom: Uint8Array): Placed[] | null {
   return withFarCode(rom, site, original, 2, code)
 }
 
+// ------------------------------------------- B and L / R while the skater is busy
+// Found by Match Viewer (SNES_MECHANICS 7.3, and a trace: 41 of 905 B presses
+// on defence did nothing). findpc, B's choice of skater, can choose the pad's
+// own skater while he is locked in a check or burst (those animations, and the
+// turns, are let in locked); he is nearest the puck because he just burst or
+// checked at it. Chosen, he pokes, but locked he cannot, so nothing happens.
+// lockedChangeFix: findpc's .4, lda playerpad,x / bmi .5 (then cmp d4 / bne .8,
+// a skater another pad has), becomes jsl / nop to code that leaves A as d4
+// (taken) for a skater with no pad or the pad's own unlocked one, and anything
+// else (passed over) for another pad's or the pad's own locked one; so B then
+// switches to the next best, as the Genesis does while locked.
+// lockedDefenceFix: doinput tests pfalock before L and R, and a locked skater's
+// branch (.22) takes B, X and A but not L / R, so a press while he is busy,
+// even down on the ice, is lost. .22's lda d1 / bit #$8000 becomes jsl / nop
+// to code that, when L or R (and not B or X, which go first as before) is
+// pressed and he is not a goalie, calls PadTakeLeftDefense / RightDefense (the
+// unlocked branch's own) and returns A = 0, so .22 then does nothing more.
+function lockedChangePlaces(rom: Uint8Array): Placed[] | null {
+  // .3 / .4: lda pflags,x / and #pf2unav / ora pfalock,x / bne .8 / lda playerpad,x / bmi .5 / cmp d4 / bne .8; or the hack's jsl / nop.
+  const plain = findCodeAll(rom, 'bd....2900101d(....)d0..bd(....)3004c5(..)d0')
+  const hooked = findCodeAll(rom, 'bd....2900101d(....)d0..22(....)(..)eac5(..)d0').filter(({ groups }) => {
+    const code = loRomOffset(groups[2], groups[1])
+    return code >= 0 && rom[code] === 0xbd && rom[code + 3] === 0x30
+  })
+  if (plain.length + hooked.length !== 1) return null
+  const found = plain[0] ?? hooked[0]
+  const site = found.at + 11
+  const pfalock = found.groups[0]
+  const playerpad = plain.length ? plain[0].groups[1] : readU16(rom, loRomOffset(hooked[0].groups[2], hooked[0].groups[1]) + 1)
+  const d4 = plain.length ? plain[0].groups[2] : hooked[0].groups[3]
+  const code = asm65([
+    bytesOf('BD', word(playerpad)),
+    { branch: BMI, to: 'take' },
+    bytesOf('C5', d4),
+    { branch: BNE, to: 'r' },
+    bytesOf('BD', word(pfalock)),
+    { branch: BEQ, to: 'take' },
+    bytesOf('A9 FFFF 6B'),
+    { label: 'take' },
+    bytesOf('A5', d4),
+    { label: 'r' },
+    '6B',
+  ])
+  return withFarCode(rom, site, bytesOf('BD', word(playerpad), '30 04'), 1, code)
+}
+
+function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
+  // The unlocked branch: lda position,x / beq .13 / lda d1 / bit #L / bne .11 / bit #R / bne .12; .11 and .12 jml.
+  const ts = findCodeAll(rom, 'bd(....)f0..a5(..)892000d0(..)891000d0(..)')
+  if (ts.length !== 1) return null
+  const { at, groups: [position, d1, left, right] } = ts[0]
+  const target = (from: number, offset: number) => from + (offset < 0x80 ? offset : offset - 0x100)
+  const l = target(at + 12, left)
+  const r = target(at + 17, right)
+  if (rom[l] !== 0x5c || rom[r] !== 0x5c) return null
+  // .22: cpx puckc / beq .23 / lda d1 / bit #B / bne .19 / bit #X / beq / jmp .17; or the hack's jsl / nop.
+  const plain = findCodeAll(rom, 'ec....f0..a5' + d1.toString(16).padStart(2, '0') + '890080d0..894000f0034c')
+  const hooked = findCodeAll(rom, 'ec....f0..22(....)(..)ead0..894000f0034c').filter(({ groups }) => {
+    const code = loRomOffset(groups[1], groups[0])
+    return code >= 0 && same(rom, code, bytesOf('A5', d1, '89 40C0'))
+  })
+  if (plain.length + hooked.length !== 1) return null
+  const site = (plain[0] ?? hooked[0]).at + 5
+  const code = asm65([
+    bytesOf('A5', d1, '89 40C0'),
+    { branch: BNE, to: 'o' },
+    bytesOf('89 3000'),
+    { branch: BEQ, to: 'o' },
+    bytesOf('BD', word(position)),
+    { branch: BEQ, to: 'o' },
+    bytesOf('A5', d1, '89 2000'),
+    { branch: BEQ, to: 'right' },
+    bytesOf('22', rom.slice(l + 1, l + 4)),
+    { branch: BRA, to: 'done' },
+    { label: 'right' },
+    bytesOf('22', rom.slice(r + 1, r + 4)),
+    { label: 'done' },
+    bytesOf('A9 0000 6B'),
+    { label: 'o' },
+    bytesOf('A5', d1, '89 0080 6B'),
+  ])
+  return withFarCode(rom, site, bytesOf('A5', d1, '89 0080'), 1, code)
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1412,6 +1502,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   },
   oneTimerFix: (rom) => oneTimerPlaces(rom),
   shotFix: (rom) => shotPlaces(rom),
+  lockedChangeFix: (rom) => lockedChangePlaces(rom),
+  lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2461,7 +2553,7 @@ export function snesHacksCopiedFrom(current: SnesHackState, other: SnesHackState
 // leagues are used to (it suits rosters whose ratings are set higher); and
 // the Y button fix, a habit players expect.
 // Defence control on from the start is not a fix, but the commissioner's choice for every league (2026-11-11).
-export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots', 'defenceControl']
+export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'penaltyShotFixes', 'extraAttackerFix', 'secondAssist', 'regainAssist', 'stickShots', 'defenceControl', 'lockedChangeFix', 'lockedDefenceFix']
 
 // `choices` with the recommended fixes on, except where this ROM has other code.
 export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {
@@ -2472,7 +2564,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'secondAssist', 'stickShots',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]

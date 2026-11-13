@@ -224,6 +224,8 @@ const SNES: Record<SnesHack, string> = {
   thirtySecondPeriods: 'The main menu also offers 30-second periods.',
   noInterference: 'Interference is never called.',
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
+  lockedChangeFix: "B during your own skater's check or speed burst now switches to another skater, where it often did nothing.",
+  lockedDefenceFix: 'L and R take a defenceman even while your skater is checking, bursting, down or otherwise busy, where the press was lost.',
   shotFix: 'A shooter who gathers the puck again during his wind-up, after it was knocked loose, now still shoots.',
   oneTimerFix: 'A one-timer whose pass comes too late no longer leaves the player swinging with the puck and never shooting: he skates on with it.',
   creaseIcing: 'A puck that crosses the goal line within the width of the crease is not icing, as on the Genesis.',
