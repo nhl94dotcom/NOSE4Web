@@ -54,6 +54,8 @@ export type SnesHack =
   | 'injuries'
   | 'seasonShootout'
   | 'threeOnThree'
+  | 'creaseIcing'
+  | 'hybridIcing'
 
 interface Site {
   // The game's address.
@@ -295,6 +297,8 @@ export const SNES_HACKS: SnesHack[] = [
   'injuries',
   'seasonShootout',
   'threeOnThree',
+  'creaseIcing',
+  'hybridIcing',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -336,6 +340,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   injuries: 'Injuries',
   seasonShootout: 'A shootout for tied regular-season games',
   threeOnThree: '3 on 3 overtime',
+  creaseIcing: 'No icing within the crease',
+  hybridIcing: 'Hybrid icing',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -901,7 +907,188 @@ function threeOnThreePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   return placesFor(false)
 }
 
+// ------------------------------------------------------------------- icing
+// The SNES plays touch icing as the Genesis does (a2touchpuck arms it; the
+// next player to touch the puck past the goal line decides), with two
+// differences (Match Viewer): PuckIChk marks any crossing past y $108, with no
+// crease exception, and updateplayers waves icing off before the crossing when
+// a defending player, the goalie too, is within 30 of a low, slow puck. Two
+// options, found by the code around them:
+// - creaseIcing: PuckIChk's mark, lda #ifcgl / tsb iflags (its rtl kept),
+//   becomes jsl / nops to code that drops icing (trb ifok) for a puck within
+//   the crease's width, |puckx| 44 or less, as the Genesis does, else marks.
+// - hybridIcing: pucknorm's jsl PuckIChk becomes jsl to code that calls it,
+//   and when that has just marked the crossing with icing armed, decides as the
+//   Genesis version does (hacks.ts): each team's skater nearest the line across
+//   the end-zone dots (y 206; past it counts as there), goalies, objects off the
+//   ice (position 0 or negative) and the unavailable (pflags $1000) left out; a
+//   defender as near or nearer, icing at once (AddPenalty, X and a3 the icer,
+//   d0 PenIcing, as a2touchpuck calls it), else waved off (trb ifok). With the
+//   crease option too, a puck it drops is never decided.
+interface IcingEnv {
+  iflags: number
+  puckx: number
+  ypos: number
+  position: number
+  pflags: number
+  pfteam: number
+  a3: number
+  d0: number
+  addPenalty: Uint8Array
+  puckIChk: Uint8Array
+}
+
+function icingEnv(rom: Uint8Array): { env: IcingEnv; mark: number; call: number } | null {
+  const s = shift(rom)
+  if (s === null) return null
+  const checks = findCodeAll(rom, 'ad(....)890400f0..890100d0..ad(....)10..a9080185..ad....890200d0..a9f8fe38ed(....)10..6ba9080138ed....10..')
+  if (checks.length !== 1) return null
+  const [iflags, puckc, pucky] = checks[0].groups
+  const check = checks[0].at
+  const mark = check + 50
+  const penalty = only(rom, `ad${hex16(iflags + 1)}29ff000a85..aaa90c0085..22`)
+  if (penalty < 0) return null
+  const puckIChk = bytesOf(word(loRomAddress(check)), loRomBank(check, 0x80))
+  // pucknorm's call: jsl PuckIChk (or the hack's code) / jsl ChkOffsides / lda gmclock / bne / lda puckc / bpl.
+  const calls = findCodeAll(rom, `22(......)22......ad....d0..ad${hex16(puckc)}10..`).filter(({ at }) => {
+    if (same(rom, at + 1, puckIChk)) return true
+    const code = loRomOffset(rom[at + 3], readU16(rom, at + 1))
+    return code >= 0 && code + 8 <= rom.length && same(rom, code + 4, bytesOf('22', puckIChk))
+  })
+  if (calls.length !== 1) return null
+  return {
+    env: {
+      iflags,
+      puckx: pucky - 0x62,
+      ypos: pucky - 0x1c,
+      position: 0x0f43 + s,
+      pflags: 0x1283 + s,
+      pfteam: 0x1503 + s,
+      a3: rom[penalty + 8],
+      d0: rom[penalty + 14],
+      addPenalty: rom.slice(penalty + 16, penalty + 19),
+      puckIChk,
+    },
+    mark,
+    call: calls[0].at,
+  }
+}
+
+const creaseMarkOriginal = (env: IcingEnv) => bytesOf('A9 0100 0C', word(env.iflags))
+const creaseCode = (env: IcingEnv) =>
+  asm65([
+    bytesOf('AD', word(env.puckx)),
+    { branch: BPL, to: 'p' },
+    '49 FFFF 1A',
+    { label: 'p' },
+    'C9 2D00',
+    { branch: BCS, to: 'mark' },
+    bytesOf('A9 0400 1C', word(env.iflags), '6B'),
+    { label: 'mark' },
+    bytesOf('A9 0100 0C', word(env.iflags), '6B'),
+  ])
+// Locals on the stack: the icing team's nearest at 1,s, the defenders' at 3,s, the dots' y at 5,s.
+const hybridCode = (env: IcingEnv) =>
+  asm65([
+    bytesOf('AD', word(env.iflags), '48 22', env.puckIChk, '68 89 0100'),
+    { branch: BEQ, to: 'fresh' },
+    '6B',
+    { label: 'fresh' },
+    bytesOf('AD', word(env.iflags), '29 0500 C9 0500'),
+    { branch: BEQ, to: 'go' },
+    '6B',
+    { label: 'go' },
+    bytesOf('DA 5A D4', env.a3, 'D4', env.d0),
+    bytesOf('AD', word(env.iflags), '89 0200'),
+    { branch: BNE, to: 'top' },
+    'A9 32FF',
+    { branch: BRA, to: 'dot' },
+    { label: 'top' },
+    'A9 CE00',
+    { label: 'dot' },
+    '48 F4 FF7F F4 FF7F',
+    // The icing team, 0 home or 1 visitors, in d0.
+    bytesOf('AD', word(env.iflags + 1), '29 FF00 0A AA BD', word(env.pfteam)),
+    { branch: BEQ, to: 'it' },
+    'A9 0100',
+    { label: 'it' },
+    bytesOf('85', env.d0, 'A2 1600'),
+    { label: 'loop' },
+    bytesOf('BD', word(env.position)),
+    { branch: BMI, to: 'next' },
+    { branch: BEQ, to: 'next' },
+    bytesOf('BD', word(env.pflags), '89 0010'),
+    { branch: BNE, to: 'next' },
+    bytesOf('BD', word(env.ypos), '38 E3 05 A8 A3 05'),
+    { branch: BMI, to: 'bot' },
+    '98 49 FFFF 1A',
+    { branch: BRA, to: 'chk' },
+    { label: 'bot' },
+    '98',
+    { label: 'chk' },
+    { branch: BPL, to: 'pos' },
+    'A9 0000',
+    { label: 'pos' },
+    bytesOf('A8 BD', word(env.pfteam)),
+    { branch: BEQ, to: 'h' },
+    'A9 0100',
+    { label: 'h' },
+    bytesOf('C5', env.d0),
+    { branch: BEQ, to: 'att' },
+    '98 C3 03',
+    { branch: BCS, to: 'next' },
+    '83 03',
+    { branch: BRA, to: 'next' },
+    { label: 'att' },
+    '98 C3 01',
+    { branch: BCS, to: 'next' },
+    '83 01',
+    { label: 'next' },
+    'CA CA',
+    { branch: BPL, to: 'loop' },
+    // Defenders as near or nearer: icing; else waved off.
+    'A3 03 C3 01',
+    { branch: BEQ, to: 'call' },
+    { branch: BCC, to: 'call' },
+    bytesOf('A9 0400 1C', word(env.iflags)),
+    { branch: BRA, to: 'out' },
+    { label: 'call' },
+    bytesOf('AD', word(env.iflags + 1), '29 FF00 0A AA 85', env.a3, 'A9 0C00 85', env.d0, '22', env.addPenalty),
+    { label: 'out' },
+    bytesOf('68 68 68 68 85', env.d0, '68 85', env.a3, '7A FA 6B'),
+  ])
+
+// A site that jsl's to new code: the site as it is to be, and the code, where the site's jsl says when the hack is
+// in, else in room in the original game's bank $9B, then $80, then the site's own bank.
+function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: number, code: Uint8Array): Placed[] | null {
+  const isIn = !same(rom, site, original)
+  let room = -1
+  if (isIn) {
+    if (rom[site] !== 0x22) return null
+    room = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  } else {
+    for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, code.length)
+      if (room >= 0) break
+    }
+  }
+  if (room < 0) return null
+  return [
+    { at: site, original, hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80), new Array(pad).fill(0xea)) },
+    { at: room, original: unused(code.length), hacked: code },
+  ]
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  creaseIcing: (rom) => {
+    const found = icingEnv(rom)
+    return found && withFarCode(rom, found.mark, creaseMarkOriginal(found.env), 2, creaseCode(found.env))
+  },
+  hybridIcing: (rom) => {
+    const found = icingEnv(rom)
+    return found && withFarCode(rom, found.call, bytesOf('22', found.env.puckIChk), 0, hybridCode(found.env))
+  },
   threeOnThree: (rom, _source, amount) => threeOnThreePlaces(rom, amount),
   // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one
   // overtime, its lda #4 / sta gsp (a regular-season game after overtime) becomes jsl A; after period 3, its tie
@@ -1931,7 +2118,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'secondAssist', 'stickShots',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

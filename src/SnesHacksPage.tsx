@@ -88,6 +88,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',
+  creaseIcing:
+    "As on the Genesis: a puck that crosses the goal line within the width of the crease is not icing (in the original SNES game it is). From Match Viewer's reading of both games' code. Waiting on a test in the game.",
+  hybridIcing:
+    "An option, the icing rule the NHL has played since 2013, as on the Genesis. The original game plays touch icing: after the puck crosses the goal line, icing is called if a defender touches it first and waved off if an attacker does. With this on it is decided as the puck crosses: if the defending team's nearest skater is as near as or nearer to the end-zone faceoff dots than the icing team's nearest, icing is called there and then; if an attacker is nearer, it is waved off and play goes on. Goalies do not count, and it goes by distance alone, not speed. The SNES game's own rules stay: a team short-handed never ices, and icing is waved off before the puck reaches the goal line when a defending player, the goalie too, is close to a slow puck along the ice. With No icing within the crease on too, a puck that crosses within the crease's width is not icing at all. Waiting on a test in the game.",
   noSkatingDrain:
     'With line changes on, skating costs no energy: the drain every 64th frame on the ice never runs. Players then tire only from what else costs it, hits and holds (if set) and speed bursts, and rest on the bench as usual. With speed bursts free too, only hits tire a player. Read from the game\'s code by the NHL94 Match Viewer project and tested in the game: a skater never hit keeps full energy through a shift.',
   energySpeed:
