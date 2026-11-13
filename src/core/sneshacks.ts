@@ -1218,7 +1218,8 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
 // began (StartGame_go clears the game's), is $FFFC, out for the game; a
 // period's injury is over by then (PeriodOver). With all five out, the
 // listed player as before. Outside the season shootout, the original's.
-// McMarkis's 2 MB and SA-1 builds also mark a player hurt in a fight in
+// McMarkis's 2 MB and SA-1 builds, and NOSE4Web's fights on the 1 MB game with
+// his later fix ($7E:FE80 there), also mark a player hurt in a fight in
 // fightinj (a byte a roster slot, as tmpdst's index / 2), as his major's box
 // time covers his $FFFC until it is served (FightInjuredKeep); StartGame_go
 // clears it (FightGameStart). There PlayShootout's jsl StartGame_go becomes jsl
@@ -1269,7 +1270,7 @@ const fightCopyCode = (fightinj: Uint8Array, copy: Uint8Array, startGame: Uint8A
   ])
 const FIGHT_COPY = { 0x7e: 0xfe00, 0x40: 0x5800 } as Record<number, number>
 
-function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
+function shootoutInjuryPlaces(rom: Uint8Array, noFight = false): Placed[] | null {
   const s = shift(rom)
   const ram = SHOOTOUT_RAM.find((layout) => layout.shift === s)
   if (s === null || !ram) return null
@@ -1277,11 +1278,12 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
   const saved = bytesOf(word(ram.low + 0x1852 - 0x15d3), ram.bank)
   // fightinj, where FightInjuredKeep reads it (lda.l fightinjany / beq / phx / phy / ldx), and PlayShootout's
   // jsl StartGame_go (after its two jsl InitShooters).
-  const keeps = findCodeAll(rom, 'af82e7(..)f0..da5aa2')
+  // (McMarkis's builds: fightinj $E74E; NOSE4Web's 1 MB fights, with his fix brought over: $7E:FE80.)
+  const keeps = noFight ? [] : findCodeAll(rom, 'af....(..)f0..da5aa23300bf(....)(..)')
   if (keeps.length > 1) return null
-  const fightBank = keeps.length === 1 ? keeps[0].groups[0] : -1
+  const fightBank = keeps.length === 1 ? keeps[0].groups[2] : -1
   if (fightBank >= 0 && FIGHT_COPY[fightBank] === undefined) return null
-  const fightinj = fightBank >= 0 ? bytesOf(word(0xe74e), fightBank) : null
+  const fightinj = fightBank >= 0 ? bytesOf(word(keeps[0].groups[1]), fightBank) : null
   const copy = fightBank >= 0 ? bytesOf(word(FIGHT_COPY[fightBank]), fightBank) : null
   let startSite = -1
   if (fightinj) {
@@ -1336,7 +1338,13 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
 }
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
-  shootoutInjuries: (rom) => shootoutInjuryPlaces(rom),
+  // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
+  shootoutInjuries: (rom) => {
+    const places = shootoutInjuryPlaces(rom)
+    if (!places || places.every((place) => holds(rom, place, 'hacked'))) return places
+    const plain = shootoutInjuryPlaces(rom, true)
+    return plain && plain.every((place) => holds(rom, place, 'hacked')) ? plain : places
+  },
   oneTimerFix: (rom) => oneTimerPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
@@ -2172,6 +2180,16 @@ function intro(rom: Uint8Array, source: Uint8Array | null, before: string, after
   return [{ at: site, original: call(rom, site) ?? fromSource, hacked: hexBytes('EAEAEAEA') }]
 }
 
+// The injured out of the shootout without its fightinj step where the ROM now has fightinj (the fights put in after
+// it): out, and in again with the step.
+function refreshShootoutInjuries(rom: Uint8Array): void {
+  const plain = shootoutInjuryPlaces(rom, true)
+  const full = shootoutInjuryPlaces(rom)
+  if (!plain || !full || !plain.every((place) => holds(rom, place, 'hacked')) || full.every((place) => holds(rom, place, 'hacked'))) return
+  for (const place of plain) if (place.original) rom.set(place.original, place.at)
+  for (const place of shootoutInjuryPlaces(rom) ?? []) rom.set(place.hacked, place.at)
+}
+
 // Each hack's places in `rom`, or null where it cannot be found there.
 function placesOf(rom: Uint8Array, hack: SnesHack, source: Uint8Array | null, inPlace = snesCodeInPlace(rom), amount?: number): Placed[] | null {
   const sites = SITES[hack]
@@ -2277,7 +2295,9 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   // The fights going in or out with the injury risk on: they share FallDown's count ($9E:9BD2), the injury risk
   // chained after the fights' jml where both are in. So the injury risk comes out, the rest is done, and it goes
   // back in, chained or not as the fights now are.
-  const fightToggles = wanted.fighting !== undefined && wanted.fighting !== choices.fighting && !unknown.includes('fighting')
+  // NOSE4Web's earlier fights (without the fix for a player hurt in a fight) are replaced whenever the fights are applied.
+  const fightUpgrade = wanted.fighting === true && choices.fighting && snesFightState(project.bytes)?.kind === 'in' && (snesFightState(project.bytes) as { earlier?: boolean }).earlier === true
+  const fightToggles = wanted.fighting !== undefined && (wanted.fighting !== choices.fighting || fightUpgrade) && !unknown.includes('fighting')
   const injuryAfter = wanted.injuryBonus ?? choices.injuryBonus
   if (fightToggles && (injuryAfter || choices.injuryBonus) && !unknown.includes('injuryBonus')) {
     // Its amount: the one asked for, else the ROM's if it is on, else the recommended.
@@ -2291,9 +2311,18 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   // The fights come out first, so that hacks whose places they hook (the injury risk) can go in, and go in last.
   const fightWanted = wanted.fighting
   const bonus = amounts.fighting !== undefined && amounts.fighting !== SNES_AMOUNT_OFF.fighting ? amounts.fighting : undefined
-  const fightChanges = fightWanted !== undefined && (fightWanted !== choices.fighting || (fightWanted && bonus !== undefined && bonus !== had?.fighting))
+  const fightChanges = fightWanted !== undefined && (fightWanted !== choices.fighting || fightUpgrade || (fightWanted && bonus !== undefined && bonus !== had?.fighting))
   if (fightChanges && unknown.includes('fighting')) throw new SnesHackError(`${SNES_HACK_TITLES.fighting} cannot be changed: ${snesFightBlocked(project.bytes) ?? 'this ROM has other code in its place.'}`)
-  const rom = fightChanges && !fightWanted ? (withoutSnesFight(project.bytes) as typeof project.bytes).slice() : project.bytes.slice()
+  let rom = project.bytes.slice()
+  if (fightChanges && !fightWanted) {
+    // The injured out of the shootout reads fightinj where the fights have it: out with it first, then in again
+    // without it if it stays.
+    const full = choices.shootoutInjuries ? shootoutInjuryPlaces(rom) : null
+    const wasFull = !!full && full.every((place) => holds(rom, place, 'hacked'))
+    if (wasFull) for (const place of full!) if (place.original) rom.set(place.original, place.at)
+    rom = (withoutSnesFight(rom) as typeof rom).slice()
+    if (wasFull && wanted.shootoutInjuries !== false) for (const place of shootoutInjuryPlaces(rom) ?? []) rom.set(place.hacked, place.at)
+  }
   const source = splitSnesFile(project.source)?.rom ?? null
   // Those coming out first, so that one going in finds the places another one leaves (the shootout and overtime
   // until a goal share theirs); otherwise in the usual order.
@@ -2331,6 +2360,8 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
       throw new SnesHackError(e instanceof Error ? e.message : String(e))
     }
   }
+  // The injured out of the shootout, put in before the fights, again with their fightinj step.
+  if (out !== rom) refreshShootoutInjuries(out)
   // The 30-second periods add a choice to the menu's Period line, and the one-minute penalties change their lengths.
   return { ...project, bytes: out, settings: refreshSnesSettings(project.bytes, out, project.settings) }
 }
