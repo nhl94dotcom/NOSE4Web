@@ -567,7 +567,7 @@ test.describe('with the NHL 94 ROM', () => {
     const names = () => rows(page, 'Skaters').locator('input.name').evaluateAll((inputs) => inputs.map((i) => (i as HTMLInputElement).value))
     const original = await names()
 
-    await page.getByLabel('Show in order of').selectOption({ label: 'Name' })
+    await page.getByLabel('Show in order of').selectOption({ label: 'First name' })
     expect(await names()).toEqual([...original].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())))
     await expect(rows(page, 'Skaters').first().getByRole('button', { name: '↓' })).toBeDisabled()
 

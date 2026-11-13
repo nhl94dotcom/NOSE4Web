@@ -25,11 +25,13 @@ interface Props {
   original: Settings
   teamNames: string[]
   onChange: (settings: Settings) => void
-  // More sections for the page, such as the splash screen.
+  // Sections that come right after the main menu's starting choices and the clock (the announcer, the matchup text).
+  first?: ReactNode
+  // More sections for the page, at its end, such as the splash screen.
   children?: ReactNode
 }
 
-export function SettingsEditor({ game, settings, original, teamNames, onChange, children }: Props) {
+export function SettingsEditor({ game, settings, original, teamNames, onChange, first, children }: Props) {
   // Playoff draws ticked for copying and pasting.
   const [ticked, setTicked] = useState<number[]>([])
   const [notice, setNotice] = useState('')
@@ -116,6 +118,78 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
 
   return (
     <main className="team">
+      <section>
+        <h2>Main menu starting choices</h2>
+        <p>
+          <ResetButton
+            what="starting choices"
+            changed={settingsPartChanged(settings, original, 'menu')}
+            onReset={() => onChange(resetSettingsPart(settings, original, 'menu'))}
+          />
+        </p>
+        {settings.menuTeams && (
+          <p>
+            <label>
+              Teams in the menu{' '}
+              <input
+                className="seconds"
+                type="number"
+                min={FEWEST_MENU_TEAMS}
+                max={teamNames.length}
+                value={settings.menuTeams.offered}
+                onChange={(e) =>
+                  setTeamsInMenu(Math.min(teamNames.length, Math.max(FEWEST_MENU_TEAMS, Math.floor(Number(e.target.value)) || FEWEST_MENU_TEAMS)))
+                }
+              />
+            </label>{' '}
+            <span className="note">
+              of {teamNames.length}. The menu offers only the first so many teams in the team list, for a league smaller
+              than the ROM: put the league's teams first. The teams after them stay in the ROM. The demo and new playoffs
+              keep to these teams too, and with 18 or more so do the other scores of the day.
+            </span>
+          </p>
+        )}
+        <table className="left">
+          <tbody>
+            {settings.menu.map((item, i) => {
+              const all = menuOptions(settings, game, i, teamNames)
+              // A team line offers only the teams in the menu, and the team it starts on.
+              const teamLine = game.menuTeamItems.includes(i)
+              const options = teamLine ? all.slice(0, offered) : all
+              const past = teamLine && item.value >= offered && item.value < all.length
+              return (
+                <tr key={i}>
+                  <td>{item.caption}</td>
+                  <td>
+                    <select
+                      className="wide"
+                      value={item.value}
+                      onChange={(e) =>
+                        onChange({ ...settings, menu: replace(settings.menu, i, { ...item, value: Number(e.target.value) }) })
+                      }
+                    >
+                      {past && <option value={item.value}>{all[item.value]} (not offered)</option>}
+                      {!past && item.value >= options.length && <option value={item.value}>Invalid ({item.value})</option>}
+                      {options.map((option, o) => (
+                        <option key={o} value={o}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {game.platform === 'snes' && (
+          <p className="note">
+            The choice each line of the Game Setup menu starts on when the game is switched on. In the playoff modes
+            the game shows the Home line as Team, and hides the Visitor line.
+          </p>
+        )}
+      </section>
+
       {settings.periodLengths.length > 0 && (
         <section>
           <h2>Clock</h2>
@@ -211,79 +285,9 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
         </section>
       )}
 
-      {settings.credits && <CreditsSection settings={settings} original={original} onChange={onChange} />}
+      {first}
 
-      <section>
-        <h2>Main menu starting choices</h2>
-        <p>
-          <ResetButton
-            what="starting choices"
-            changed={settingsPartChanged(settings, original, 'menu')}
-            onReset={() => onChange(resetSettingsPart(settings, original, 'menu'))}
-          />
-        </p>
-        {settings.menuTeams && (
-          <p>
-            <label>
-              Teams in the menu{' '}
-              <input
-                className="seconds"
-                type="number"
-                min={FEWEST_MENU_TEAMS}
-                max={teamNames.length}
-                value={settings.menuTeams.offered}
-                onChange={(e) =>
-                  setTeamsInMenu(Math.min(teamNames.length, Math.max(FEWEST_MENU_TEAMS, Math.floor(Number(e.target.value)) || FEWEST_MENU_TEAMS)))
-                }
-              />
-            </label>{' '}
-            <span className="note">
-              of {teamNames.length}. The menu offers only the first so many teams in the team list, for a league smaller
-              than the ROM: put the league's teams first. The teams after them stay in the ROM. The demo and new playoffs
-              keep to these teams too, and with 18 or more so do the other scores of the day.
-            </span>
-          </p>
-        )}
-        <table className="left">
-          <tbody>
-            {settings.menu.map((item, i) => {
-              const all = menuOptions(settings, game, i, teamNames)
-              // A team line offers only the teams in the menu, and the team it starts on.
-              const teamLine = game.menuTeamItems.includes(i)
-              const options = teamLine ? all.slice(0, offered) : all
-              const past = teamLine && item.value >= offered && item.value < all.length
-              return (
-                <tr key={i}>
-                  <td>{item.caption}</td>
-                  <td>
-                    <select
-                      className="wide"
-                      value={item.value}
-                      onChange={(e) =>
-                        onChange({ ...settings, menu: replace(settings.menu, i, { ...item, value: Number(e.target.value) }) })
-                      }
-                    >
-                      {past && <option value={item.value}>{all[item.value]} (not offered)</option>}
-                      {!past && item.value >= options.length && <option value={item.value}>Invalid ({item.value})</option>}
-                      {options.map((option, o) => (
-                        <option key={o} value={o}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {game.platform === 'snes' && (
-          <p className="note">
-            The choice each line of the Game Setup menu starts on when the game is switched on. In the playoff modes
-            the game shows the Home line as Team, and hides the Visitor line.
-          </p>
-        )}
-      </section>
+      {settings.credits && <CreditsSection settings={settings} original={original} onChange={onChange} />}
 
       {settings.rules.length > 0 && (
         <section>

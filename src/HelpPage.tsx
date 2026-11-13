@@ -177,14 +177,23 @@ export function HelpPage() {
           digits and common punctuation can be used, since that is all the game's font contains.
         </li>
         <li>
-          <b>Forwards</b>: how many skaters, counted from the top of the Skaters table, the game treats as forwards.
-          The rest are defencemen. Each row's <b>Pos</b> column shows the result.
-        </li>
-        <li>
-          <b>Goalie bytes</b>: four values. The first players on the roster are goalies, one for each value up to
-          the last that is not zero. The values were meant as weights for picking a computer team's starting goalie,
-          but the Genesis game never calls the code that would do it, so only whether each is zero matters; use 1
-          for a goalie you add.
+          <b>Forwards</b> and <b>Goalie bytes</b>: the game decides who plays where by roster order, not by each
+          player's own position. The first players on the roster are the goalies, the next ones the forwards, and
+          the rest the defencemen; the line under these boxes says how many of each the team has now, and each row's{' '}
+          <b>Pos</b> column shows where that player ends up.
+          <ul>
+            <li>
+              <b>Goalie bytes</b> set how many goalies: four boxes, one for each goalie. Put 1 in a box for each
+              goalie, from the left, and 0 in the rest: 1 1 0 0 is two goalies, 1 1 1 0 three. (The game counts a
+              goalie for each box up to the last that is not 0. The numbers were meant as weights for picking a
+              computer team's starting goalie, but the Genesis game never runs the code that would use them, so only
+              whether each is 0 matters.)
+            </li>
+            <li>
+              <b>Forwards</b> sets how many of the skaters after the goalies are forwards, counted from the top of the
+              Skaters table; the rest are defencemen. After adding or removing a forward, change this number to match.
+            </li>
+          </ul>
         </li>
         <li>
           <b>Offence, Defence, Penalty kill, Power play, Home, Away</b>: the six team ratings, which both games read
@@ -365,7 +374,7 @@ export function HelpPage() {
         kept in step. Goalies cannot be moved this way; copy one and paste over a goalie on the other team.
       </p>
       <p>
-        <b>Show in order of</b> lists the players by name, jersey number or overall rating, and <b>Find</b> shows
+        <b>Show in order of</b> lists the players by first name, last name, jersey number or overall rating, and <b>Find</b> shows
         only those whose name contains what you type. Both change only what you see. The roster itself stays in the
         order the game uses, and the move buttons are switched off until you return to roster order with nothing in
         Find.
@@ -836,31 +845,6 @@ export function HelpPage() {
       <h3 id="help-settings">Game settings</h3>
       <ul>
         <li>
-          <b>Clock</b>: the period lengths in seconds, with the text the menu shows for each, and the overtime and
-          shootout lengths. The most a clock can hold is {MAX_SECONDS} seconds. Changing the seconds does not rewrite
-          the menu text, so change both.
-        </li>
-        <li>
-          <b>Title screen credits</b> (Genesis): the credits the title screen rolls, a box for each page, one line of
-          text to a line of the box. The original game's pages have up to 4 lines of up to 25 letters, and the game
-          centres each line; a $ sign shows as the copyright sign. They must fit the room the ROM has for them, 934
-          bytes in the original game (a line takes its letters rounded up to an even number, plus 2), and the count
-          above the boxes says how much is used. A league can put its own name in them. smozoma's guide warns that
-          changing the first page, EA's copyright notice, can cause trouble, though several league ROMs have changed
-          it. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
-          guide; checked in the game by the NHL94 Match Viewer project.
-        </li>
-        <li>
-          <b>Title screen credits</b> (SNES): a box for each credit title. Its first line is the title, and each line
-          after it is a name under that title, shown one at a time; every title needs at least one name. The game has
-          capital letters (lower case is shown as capitals), digits, spaces, "." and "@", which shows as the copyright
-          sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its letters plus
-          1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes its letters
-          once. The two copyright lines are left as they are. The title screen lasts the same time whatever the credits
-          hold, and the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits
-          before going to the menus (about a minute with 5). Checked in the game by the NHL94 Match Viewer project.
-        </li>
-        <li>
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
           the play mode, the two teams, the period length, penalties, line changes, goalie control, and on the
           Genesis the players and user records. A league can set its usual game up so that nobody has to change the
@@ -874,26 +858,9 @@ export function HelpPage() {
           scores of the day. A team line that starts on a team past them moves to the last one offered.
         </li>
         <li>
-          <b>Rule messages</b>: the text shown for icing, penalties and so on, how long each stays on screen, and
-          the penalty minutes. A message cannot be longer than the space the game gives it. Several appear more than
-          once because the game keeps separate copies for different situations.
-        </li>
-        <li>
-          <b>Playoff draws</b>: the game picks one of these at random when a new playoff starts. Each lists 16 teams
-          in seeding order. A warning appears if a team is in one draw twice. With fewer teams in the menu than in
-          the ROM, <b>Fill the draws with the league's teams</b> makes new draws from the teams the menu offers
-          (leaving out All-Star teams), each of them in at least one draw. It needs at least 16 teams. New playoffs
-          freeze the game when started with a team that no draw has, so <b>Check ROM</b> says so.
-        </li>
-        <li>
-          <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
-          Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
-          whole screen, 320 by 224 pixels; a picture of another shape is fitted inside it, on black. The screen shows
-          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to
-          the nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those
-          ROMs' pictures show here too. <b>Export as PNG</b> saves the screen as it is; <b>Put back the original</b>{' '}
-          restores the original game's. From kingraph's forum reference; checked in the game by the NHL94 Match Viewer
-          project.
+          <b>Clock</b>: the period lengths in seconds, with the text the menu shows for each, and the overtime and
+          shootout lengths. The most a clock can hold is {MAX_SECONDS} seconds. Changing the seconds does not rewrite
+          the menu text, so change both.
         </li>
         <li>
           <b>Announcer picture</b>: Ron Barr's picture before each game, on the Genesis's matchup screen and the
@@ -922,6 +889,48 @@ export function HelpPage() {
           as those scripts fill their room). The game has no &amp;, and the Genesis shows ( and ) as small angle
           brackets. Not offered on EVO, which has a matchup screen of its own. Tested in the game by the NHL94 Match
           Viewer project on both systems, the missing line put back included.
+        </li>
+        <li>
+          <b>Title screen credits</b> (Genesis): the credits the title screen rolls, a box for each page, one line of
+          text to a line of the box. The original game's pages have up to 4 lines of up to 25 letters, and the game
+          centres each line; a $ sign shows as the copyright sign. They must fit the room the ROM has for them, 934
+          bytes in the original game (a line takes its letters rounded up to an even number, plus 2), and the count
+          above the boxes says how much is used. A league can put its own name in them. smozoma's guide warns that
+          changing the first page, EA's copyright notice, can cause trouble, though several league ROMs have changed
+          it. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
+          guide; checked in the game by the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Title screen credits</b> (SNES): a box for each credit title. Its first line is the title, and each line
+          after it is a name under that title, shown one at a time; every title needs at least one name. The game has
+          capital letters (lower case is shown as capitals), digits, spaces, "." and "@", which shows as the copyright
+          sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its letters plus
+          1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes its letters
+          once. The two copyright lines are left as they are. The title screen lasts the same time whatever the credits
+          hold, and the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits
+          before going to the menus (about a minute with 5). Checked in the game by the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Rule messages</b>: the text shown for icing, penalties and so on, how long each stays on screen, and
+          the penalty minutes. A message cannot be longer than the space the game gives it. Several appear more than
+          once because the game keeps separate copies for different situations.
+        </li>
+        <li>
+          <b>Playoff draws</b>: the game picks one of these at random when a new playoff starts. Each lists 16 teams
+          in seeding order. A warning appears if a team is in one draw twice. With fewer teams in the menu than in
+          the ROM, <b>Fill the draws with the league's teams</b> makes new draws from the teams the menu offers
+          (leaving out All-Star teams), each of them in at least one draw. It needs at least 16 teams. New playoffs
+          freeze the game when started with a team that no draw has, so <b>Check ROM</b> says so.
+        </li>
+        <li>
+          <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
+          Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
+          whole screen, 320 by 224 pixels; a picture of another shape is fitted inside it, on black. The screen shows
+          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to
+          the nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those
+          ROMs' pictures show here too. <b>Export as PNG</b> saves the screen as it is; <b>Put back the original</b>{' '}
+          restores the original game's. From kingraph's forum reference; checked in the game by the NHL94 Match Viewer
+          project.
         </li>
         <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your

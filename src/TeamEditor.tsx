@@ -90,11 +90,12 @@ interface Props {
   teamRatingList?: TeamRating[]
 }
 
-export type RosterSort = 'roster' | 'name' | 'jersey' | 'overall' | 'value'
+export type RosterSort = 'roster' | 'name' | 'lastName' | 'jersey' | 'overall' | 'value'
 
 const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
   { value: 'roster', label: 'Roster order' },
-  { value: 'name', label: 'Name' },
+  { value: 'name', label: 'First name' },
+  { value: 'lastName', label: 'Last name' },
   { value: 'jersey', label: 'Jersey number' },
   { value: 'overall', label: 'Overall rating, best first' },
   { value: 'value', label: 'League value, best first' },
@@ -322,6 +323,11 @@ export function TeamEditor(props: Props) {
     const sortKey: Record<RosterSort, (index: number) => string | number> = {
       roster: (index) => index,
       name: (index) => team.players[index].name.toLowerCase(),
+      // The last word of the name, then the whole name: "Wayne Gretzky" sorts under G.
+      lastName: (index) => {
+        const name = team.players[index].name.trim().toLowerCase()
+        return `${name.slice(name.lastIndexOf(' ') + 1)} ${name}`
+      },
       jersey: (index) => team.players[index].jersey,
       overall: (index) => -overallRating(team.players[index].attributes, isGoalies, game),
       value: (index) => -leagueValue(team.players[index].attributes, position(index), game.platform),
@@ -588,7 +594,7 @@ export function TeamEditor(props: Props) {
           )}
         </div>
         <div className="fields">
-          <label>
+          <label title="How many skaters, counted down from the first player after the goalies, are forwards. The rest are defencemen.">
             Forwards
             <input
               className="num"
@@ -599,7 +605,7 @@ export function TeamEditor(props: Props) {
               onChange={(e) => onChange(setForwards(team, Number(e.target.value) || 0))}
             />
           </label>
-          <label>
+          <label title="One box for each goalie: 1 makes that roster spot a goalie, 0 leaves it out. Fill from the left: 1 1 0 0 is two goalies.">
             Goalie bytes
             <span>
               {team.goalieNibbles.map((value, i) => (
@@ -616,6 +622,15 @@ export function TeamEditor(props: Props) {
             </span>
           </label>
         </div>
+        <p className="note">
+          The game splits the roster by order, not by each player's own position: the first {goalies} on the roster{' '}
+          {goalies === 1 ? 'is the goalie' : 'are goalies'}, the next {team.forwards} {team.forwards === 1 ? 'is a forward' : 'are forwards'}, and the other{' '}
+          {Math.max(0, team.players.length - goalies - team.forwards)} defencemen. <b>Goalie bytes</b> set how many
+          goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies). The
+          number itself does not matter in play, only whether it is 0. <b>Forwards</b> sets how many of the skaters
+          after them are forwards. The <b>Pos</b> column in the tables below shows where each player ends up. To make a
+          player a forward or a defenceman, move him into that part of the roster.
+        </p>
         <div className="fields">
           {(props.teamRatingList ?? TEAM_RATINGS).map((rating, i) => (
             <label key={rating.label} title={`${rating.label}: ${rating.about}.`}>

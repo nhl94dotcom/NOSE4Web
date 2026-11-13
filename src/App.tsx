@@ -368,11 +368,15 @@ export default function App() {
             original={opened.settings}
             teamNames={teamNames}
             onChange={(settings) => change({ ...current, settings })}
+            first={
+              <>
+                <AnnouncerSection project={current} onChange={change} />
+                <ScoutingSection settings={current.settings} original={opened.settings} onChange={(settings) => change({ ...current, settings })} />
+              </>
+            }
           >
             {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
-            <AnnouncerSection project={current} onChange={change} />
-            <ScoutingSection settings={current.settings} original={opened.settings} onChange={(settings) => change({ ...current, settings })} />
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             <MoveTeamsSection project={current} onChange={change} />
