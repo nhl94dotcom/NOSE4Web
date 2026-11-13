@@ -1158,12 +1158,19 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 // began (StartGame_go clears the game's), is $FFFC, out for the game; a
 // period's injury is over by then (PeriodOver). With all five out, the
 // listed player as before. Outside the season shootout, the original's.
+// McMarkis's 2 MB and SA-1 builds also mark a player hurt in a fight in
+// fightinj (a byte a roster slot, as tmpdst's index / 2), as his major's box
+// time covers his $FFFC until it is served (FightInjuredKeep); StartGame_go
+// clears it (FightGameStart). There PlayShootout's jsl StartGame_go becomes jsl
+// to code that, while the mark is set, first copies it to free RAM (Match
+// Viewer: $7E:FE00, or $40:5800 on the SA-1 builds), and the skip passes over
+// a player marked there too.
 const SHOOTOUT_SITES = [
   { pattern: 'c22029ff003a8d....a90c008d....a902008d', list: 0x1d79, team: 0x34 },
   { pattern: 'c22029ff003a8d....a900008d....9c', list: 0x1d71, team: 0 },
 ]
 const shooterOriginal = (list: number) => bytesOf('A8 E2 20 B9', word(list))
-const shooterCode = (list: number, saved: Uint8Array, team: number) =>
+const shooterCode = (list: number, saved: Uint8Array, team: number, copy: Uint8Array | null) =>
   asm65([
     'A8 AF F0F07E 29 FF00',
     { branch: BEQ, to: 'orig' },
@@ -1172,7 +1179,8 @@ const shooterCode = (list: number, saved: Uint8Array, team: number) =>
     bytesOf('B9', word(list), '29 FF00'),
     { branch: BEQ, to: 'ok' },
     bytesOf('3A 0A 18 69', word(team), 'AA BF', saved, 'C9 FCFF'),
-    { branch: BNE, to: 'ok' },
+    ...(copy ? [{ branch: BEQ, to: 'skip' }, bytesOf('8A 4A AA BF', copy, '29 FF00'), { branch: BEQ, to: 'ok' }] : [{ branch: BNE, to: 'ok' }]),
+    { label: 'skip' },
     'C8 C0 0600',
     { branch: BCC, to: 'in' },
     'A0 0100',
@@ -1186,12 +1194,41 @@ const shooterCode = (list: number, saved: Uint8Array, team: number) =>
     bytesOf('E2 20 B9', word(list), '6B'),
   ])
 
+// The copy of fightinj (52 bytes), then StartGame_go.
+const fightCopyCode = (fightinj: Uint8Array, copy: Uint8Array, startGame: Uint8Array) =>
+  asm65([
+    'AF F0F07E 29 FF00',
+    { branch: BEQ, to: 'go' },
+    'DA A2 3200',
+    { label: 'loop' },
+    bytesOf('BF', fightinj, '9F', copy, 'CA CA'),
+    { branch: BPL, to: 'loop' },
+    'FA',
+    { label: 'go' },
+    bytesOf('5C', startGame),
+  ])
+const FIGHT_COPY = { 0x7e: 0xfe00, 0x40: 0x5800 } as Record<number, number>
+
 function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
   const s = shift(rom)
   const ram = SHOOTOUT_RAM.find((layout) => layout.shift === s)
   if (s === null || !ram) return null
   // The saved tmpdst: the saved run starts at $15D3.
   const saved = bytesOf(word(ram.low + 0x1852 - 0x15d3), ram.bank)
+  // fightinj, where FightInjuredKeep reads it (lda.l fightinjany / beq / phx / phy / ldx), and PlayShootout's
+  // jsl StartGame_go (after its two jsl InitShooters).
+  const keeps = findCodeAll(rom, 'af82e7(..)f0..da5aa2')
+  if (keeps.length > 1) return null
+  const fightBank = keeps.length === 1 ? keeps[0].groups[0] : -1
+  if (fightBank >= 0 && FIGHT_COPY[fightBank] === undefined) return null
+  const fightinj = fightBank >= 0 ? bytesOf(word(0xe74e), fightBank) : null
+  const copy = fightBank >= 0 ? bytesOf(word(FIGHT_COPY[fightBank]), fightBank) : null
+  let startSite = -1
+  if (fightinj) {
+    const starts = findCodeAll(rom, 'a9020085..22......22......22......22......a901008d')
+    if (starts.length !== 1) return null
+    startSite = starts[0].at + 9
+  }
   const sites: number[] = []
   for (const site of SHOOTOUT_SITES) {
     const found = findCodeAll(rom, site.pattern).filter(({ at }) => at >= 6 && (same(rom, at - 6, shooterOriginal(site.list + s)) || (rom[at - 6] === 0x22 && rom[at - 2] === 0xea && rom[at - 1] === 0xea)))
@@ -1199,14 +1236,25 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
     sites.push(found[0].at - 6)
   }
   // One block, the visitors' code then the home team's, in bank $9B, else $80, else the sites' bank.
-  const codes = SHOOTOUT_SITES.map((site) => shooterCode(site.list + s, saved, site.team))
-  const block = bytesOf(...codes)
+  const codes = SHOOTOUT_SITES.map((site) => shooterCode(site.list + s, saved, site.team, copy))
   const first = shooterOriginal(SHOOTOUT_SITES[0].list + s)
+  const isIn = !same(rom, sites[0], first)
   let room = -1
-  if (!same(rom, sites[0], first)) {
+  if (isIn) {
     if (rom[sites[0]] !== 0x22) return null
     room = loRomOffset(rom[sites[0] + 3], readU16(rom, sites[0] + 1))
-  } else {
+    if (room < 0) return null
+  }
+  // StartGame_go: from its jsl, or where the hack is in, from the copy's jml.
+  const copyLength = fightinj && copy ? fightCopyCode(fightinj, copy, new Uint8Array(3)).length : 0
+  let startGame: Uint8Array | null = null
+  if (fightinj) {
+    const copyAt = isIn ? room + codes[0].length + codes[1].length : -1
+    startGame = isIn ? rom.slice(copyAt + copyLength - 3, copyAt + copyLength) : rom.slice(startSite + 1, startSite + 4)
+  }
+  const copyCode = fightinj && copy && startGame ? fightCopyCode(fightinj, copy, startGame) : new Uint8Array(0)
+  const block = bytesOf(...codes, copyCode)
+  if (!isIn) {
     for (const bank of [0x9b, 0x80, loRomBank(sites[0], 0x80)]) {
       const start = (bank & 0x7f) << 15
       if (start < rom.length) room = roomInBank(rom, start, block.length)
@@ -1214,13 +1262,15 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
     }
   }
   if (room < 0) return null
-  const entries = [room, room + codes[0].length]
+  const entries = [room, room + codes[0].length, room + codes[0].length + codes[1].length]
+  const jsl = (at: number) => bytesOf('22', word(loRomAddress(at)), loRomBank(at, 0x80))
   return [
     ...SHOOTOUT_SITES.map((site, i): Placed => ({
       at: sites[i],
       original: shooterOriginal(site.list + s),
-      hacked: bytesOf('22', word(loRomAddress(entries[i])), loRomBank(entries[i], 0x80), 'EA EA'),
+      hacked: bytesOf(jsl(entries[i]), 'EA EA'),
     })),
+    ...(startGame ? [{ at: startSite, original: bytesOf('22', startGame), hacked: jsl(entries[2]) }] : []),
     { at: room, original: unused(block.length), hacked: block },
   ]
 }

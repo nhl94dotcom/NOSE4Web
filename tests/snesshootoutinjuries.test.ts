@@ -36,6 +36,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: the injured sit out the s
       // Back to the original: sep #$20 / lda list,y / rtl.
       expect(code).toContain(`e220b9${list}6b`)
     }
+    // The original layout has no fightinj: no copy, and StartGame_go's call as it was.
+    expect(Buffer.from(on).toString('hex')).not.toContain('bf4ee7')
     expect(detectSnesHacks(on).choices.shootoutInjuries).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { shootoutInjuries: false })), buildRom(rom))).toBe(0)
   })
@@ -67,6 +69,9 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: the injured sit out the s
     const all = Buffer.from(on).toString('hex')
     expect(all).toContain('aabf8f4a40c9fcff')
     expect(all).toContain('e220b9797d6b')
+    // fightinj copied to $40:5800 before StartGame_go clears it, and each turn tests the copy too.
+    expect(all).toMatch(/aff0f07e29ff00f0..daa23200bf4ee7409f005840caca10f4fa5c3c839f/)
+    expect(all).toContain('8a4aaabf00584029ff00')
   })
 
   names.forEach((name) => {
