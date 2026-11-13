@@ -732,7 +732,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             penalty carried into overtime, and playoff overtime kept 5 on 5. The game has room for six players a
             team on the ice and in the penalty box together, goalie included, so a team with three in the box plays
             two skaters, its C and LW, until one comes out, and the other team then has at most four, as the NHL never
-            gives a team more than two skaters' advantage (tested too: 33 such draws in 24 overtimes, every one so,
+            gives a team more than two skaters' advantage (that limit is waiting on a test in the game) (tested too: 33 such draws in 24 overtimes, every one so,
             and no draw short of a skater). A
             shootout after overtime has not been tried with it yet.
           </>,
