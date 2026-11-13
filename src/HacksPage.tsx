@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { HitsTable } from './HitsTable'
 import { WEIGHT_BASES } from './core/attributes'
-import { penaltyLengths } from './core/penaltytime'
+import { clockTime, penaltyLengths } from './core/penaltytime'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
 import { GENESIS_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
@@ -675,6 +675,19 @@ export function HacksPage({ project, name, onChange }: Props) {
             credits and fighting ratings are left out. Tested in the game by the NHL94 Match Viewer project on the
             original game and a league ROM: the league's own menu with Fighting added, fights with their majors,
             saved records kept, the fighting ratings page, shootouts and replays.
+          </>,
+        )}
+        {hack(
+          'fightSeconds',
+          <>
+            {number('fightSeconds')} seconds in the box for each fighter ({wanted.fightSeconds === 0 ? 'off' : clockTime(wanted.fightSeconds)})
+          </>,
+          <>
+            An option for leagues that play with fighting (chaos's patch, above): how long a fight keeps each fighter in
+            the box, in seconds of the game clock, whatever its five minutes and the penalty time below give. 0 is off,
+            as the original game: a fight is a 5-minute major like any other. Only the time in the box changes: the
+            fight still counts as 5 penalty minutes in the statistics, and two fighters still go off together with no
+            power play, as both get the same time. An instigator's extra minor is as before. Waiting on a test in the game.
           </>,
         )}
         {hack(

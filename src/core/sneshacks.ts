@@ -1,4 +1,4 @@
-import { penaltyTimeText } from './penaltytime'
+import { fightTimeText, penaltyTimeText } from './penaltytime'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
@@ -57,6 +57,7 @@ export type SnesHack =
   | 'creaseIcing'
   | 'hybridIcing'
   | 'shootoutInjuries'
+  | 'fightTime'
 
 interface Site {
   // The game's address.
@@ -301,6 +302,7 @@ export const SNES_HACKS: SnesHack[] = [
   'creaseIcing',
   'hybridIcing',
   'shootoutInjuries',
+  'fightTime',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -345,6 +347,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   creaseIcing: 'No icing within the crease',
   hybridIcing: 'Hybrid icing',
   shootoutInjuries: 'The injured sit out the shootout',
+  fightTime: 'Fighting penalty time',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -467,8 +470,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout' | 'threeOnThree'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout', 'threeOnThree']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout' | 'threeOnThree' | 'fightTime'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout', 'threeOnThree', 'fightTime']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -495,11 +498,13 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return ['off', 'in the regular season', 'in every overtime'][value] ?? String(value)
     case 'penaltyTime':
       return penaltyTimeText(value)
+    case 'fightTime':
+      return fightTimeText(value)
     default:
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
   }
 }
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0, threeOnThree: 0 }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0, threeOnThree: 0, fightTime: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -509,7 +514,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 4095] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -1083,6 +1088,65 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
   ]
 }
 
+// -------------------------------------------------------- fighting penalty time
+// As on the Genesis (hacks.ts, fightSeconds): how long a fight keeps each
+// fighter in the box, in seconds of the game clock. InProgress, sending a
+// player to the box, works out the time into d2 (minutes x 60, ora #$2000),
+// then picks his team's half (.6: clc / adc d0 / tay, then lda tmpdst,y) and
+// stores it, keeping the old time's $1000. That clc / adc d0 / tay becomes jsl
+// to code that does it, then for the fighting penalties ($2A, and $2C the
+// winner's, the penalty [a0] as InProgress logs it) puts $2000 and the set
+// time in d2. Minutes and coincidental majors as before. 0 is off.
+function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const times = findCodeAll(rom, 'a2....a5(..)29ff0022......090020')
+  if (times.length !== 1) return null
+  const d2 = times[0].groups[0]
+  // .6, just after: plx / lda a2 / beq / lda #$34.
+  const sites = findCodeAll(rom, 'faa5..f003a93400').filter(({ at }) => at > times[0].at && at - times[0].at < 0x20)
+  if (sites.length !== 1) return null
+  const site = sites[0].at + 8
+  // The penalty's logging before it: lda [a0] / and #$FF / sep #$20.
+  const logs = findCodeAll(rom, 'a7(..)29ff00e220').filter(({ at }) => at < times[0].at && times[0].at - at < 0x60)
+  if (logs.length !== 1) return null
+  const a0 = logs[0].groups[0]
+  const isIn = rom[site] === 0x22
+  let d0: number
+  let seconds = amount ?? 0
+  let room = -1
+  if (isIn) {
+    room = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    if (room < 0 || rom[room] !== 0x18 || rom[room + 1] !== 0x65) return null
+    d0 = rom[room + 2]
+    if (amount === undefined) seconds = readU16(rom, room + 20) & 0x0fff
+  } else {
+    if (rom[site] !== 0x18 || rom[site + 1] !== 0x65 || rom[site + 3] !== 0xa8) return null
+    d0 = rom[site + 2]
+  }
+  const value = seconds >= 1 && seconds < 0x1000 ? seconds : 300
+  const code = asm65([
+    bytesOf('18 65', d0, 'A8 A7', a0, '29 FF00 C9 2A00'),
+    { branch: BEQ, to: 'f' },
+    'C9 2C00',
+    { branch: BNE, to: 'r' },
+    { label: 'f' },
+    bytesOf('A9', word(value | 0x2000), '85', d2),
+    { label: 'r' },
+    '6B',
+  ])
+  if (!isIn) {
+    for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, code.length)
+      if (room >= 0) break
+    }
+  }
+  if (room < 0) return null
+  return [
+    { at: site, original: bytesOf('18 65', d0, 'A8'), hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80)) },
+    { at: room, original: unused(code.length), hacked: code, amount: value },
+  ]
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1163,6 +1227,7 @@ function shootoutInjuryPlaces(rom: Uint8Array): Placed[] | null {
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   shootoutInjuries: (rom) => shootoutInjuryPlaces(rom),
+  fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
     return found && withFarCode(rom, found.mark, creaseMarkOriginal(found.env), 2, creaseCode(found.env))

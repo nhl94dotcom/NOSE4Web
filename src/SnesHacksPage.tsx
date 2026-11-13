@@ -1,7 +1,7 @@
 import { SNES_FIGHT_BONUS_DEFAULT } from './core/snesfight'
 import { HitsTable } from './HitsTable'
 import { snesCodeInPlace } from './core/snes'
-import { penaltyLengths } from './core/penaltytime'
+import { clockTime, penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
 import { HackSectionLinks } from './HackSectionLinks'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -48,6 +48,8 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   injuries: 0,
   seasonShootout: 0,
   threeOnThree: 0,
+  // Not a recommendation: a fighting major's 5:00.
+  fightTime: 300,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -56,7 +58,7 @@ const energyShare = (units: number) => (units === 0 ? 'Off: none taken.' : `${un
 // The injury risk: what it adds to a hit that can injure, at most.
 const riskShare = (bonus: number) => (bonus === 0 ? 'Off.' : `Up to ${bonus * 5} impact after 5 knockdowns: about ${Math.round(((bonus * 5) / 300) * 100)} in 100 more on a hit that can injure.`)
 const amountText = (hack: SnesAmount, value: number) =>
-  hack === 'penaltyTime' ? `seconds for each penalty minute: ${penaltyLengths(value)}.` : hack === 'injuryBonus' ? riskShare(value) : energyShare(value)
+  hack === 'penaltyTime' ? `seconds for each penalty minute: ${penaltyLengths(value)}.` : hack === 'fightTime' ? (value === 0 ? 'seconds: off, as its minutes give.' : `seconds in the box for each fighter: ${clockTime(value)}.`) : hack === 'injuryBonus' ? riskShare(value) : energyShare(value)
 
 interface Props {
   project: RomProject
@@ -108,6 +110,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "In the original game a hit that knocks a puck carrier onto his back with the clock running can injure him: out for the rest of the period, or one time in 7 the rest of the game. With never a hit is only a fall, and the puck still comes loose. With the penalty, but no injury the hit is still called (roughing with penalties on, the injury stoppage with them off), but there is no injury and no injury box: the player lies down and plays on after the faceoff. Every injury for the period and for the game make every injury last that long. With a long fall instead a hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts under 2, then get up and play on: no injury, no injury box and no penalty. The places in the game's code were found by the NHL94 Match Viewer project, as for the Genesis choices, and all six tested in the game on the original and the SA-1 build.",
   fighting:
     "McMarkis's port of the NHLPA 93 SNES fights to NHL '94, built in with his permission. A fight can start after enough hard checks between two opponents, when both players' fighting ratings (the second half of the H/F column) are high enough: the two drop their gloves, the crowd gathers, and they fight with A for a high punch, B for a low one and Y to grab, the computer for players it controls, until one goes down. Both get a fighting major (the instigator a minor as well), shown in the penalty box and the stats, and a box names the two fighters. The game asks for a fighting rating of 10 or more; the bonus is added to every player's first, and the 94 rosters rate fighters about 2 lower than NHLPA 93's, so McMarkis's patch adds 2, the default here: 0 leaves the ratings as they are, so only the toughest fight, and a higher bonus makes fights more common (at 8 nearly anyone can). The fight frames, the punches' sounds and the code go in a bank of their own past the first megabyte, which grows a 1 MB ROM to 2 MB; taking it out gives the ROM back as it was. For ROMs built on the original game (not the SA-1 builds). Checked in the game by McMarkis in his build; NOSE4Web's build of his source is his byte for byte but for the bank it goes in, and the NHL94 Match Viewer project tested it in the game on the original, Classic and SDL16: the names box, the gloves on the ice, the fight, both majors, the pause and the replay, and the bonus (at 8, fights in two games of three).",
+  fightTime:
+    "For leagues that play with fighting: how long a fight keeps each fighter in the box, in seconds of the game clock, whatever its five minutes and the penalty time give. 0 is off: a fight is a 5-minute major like any other. Only the time in the box changes: the fight still counts as 5 penalty minutes in the statistics, and two fighters still go off together with no power play, as both get the same time. Waiting on a test in the game.",
   penaltyTime:
     "How long a penalty keeps a player in the box. Each penalty has its minutes (2 for a minor, 5 for a major, and so on, which you can change one by one under Rule messages on the Game settings page), and the game keeps the player off for that many minutes of the game clock. This sets how long each of those minutes is: at 60, as in the original game, a minute is a minute; at 30 every penalty lasts half as long. It suits a league that plays short periods and wants penalties to match: with 5-minute periods, 30 makes a minor 1:00, as a 2-minute minor is to a 20-minute period. Only the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a power-play goal letting a player out early are all as before. It goes with the one-minute penalties hack, which halves the minors' minutes. Read from the game's code: box time is the minutes times 60 in one place only, which this changes, in every build. Tested in the game by the NHL94 Match Viewer project at 30, on the original and the SA-1 build: minors served 60 seconds, majors 150, with 2 and 5 penalty minutes, and a power-play goal letting the player out as before.",
   goaliePoke:
@@ -336,7 +340,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     />{' '}
                     <span className="note">{amountText(hack, wantedAmounts[hack])}</span>{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>
-                      {hack === 'penaltyTime' ? 'Use the original 60' : `Use the recommended ${RECOMMENDED_AMOUNTS[hack]}`}
+                      {hack === 'penaltyTime' ? 'Use the original 60' : hack === 'fightTime' ? 'Use 5:00' : `Use the recommended ${RECOMMENDED_AMOUNTS[hack]}`}
                     </button>
                   </label>
                 ) : (

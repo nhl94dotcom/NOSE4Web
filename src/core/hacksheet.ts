@@ -1,4 +1,4 @@
-import { penaltyLengths } from './penaltytime'
+import { clockTime, penaltyLengths } from './penaltytime'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
@@ -43,6 +43,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   passFix: () => 'Passes travel at their proper speed: no more "rocket passes" that fly off at up to twice the speed.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < NO_HACKS.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
+  fightSeconds: (c) => `A fight keeps each fighter in the box ${clockTime(c.fightSeconds)}, whatever its minutes; the penalty minutes in the statistics are as before.`,
   headBleeding: () => 'A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA 93; only the look changes.',
   seasonTies: (c) =>
     c.seasonTies === 'shootoutNow'
@@ -203,6 +204,7 @@ const SNES: Record<SnesHack, string> = {
   injuries: 'Injuries work differently from the original game.',
   seasonShootout: 'A regular-season game still tied is settled by a shootout, the winners getting one goal more, so it never ends in a tie.',
   threeOnThree: "Overtime is 3 on 3, each team's goalie and its line's LW, C and RD; a power play adds a skater (4 on 3, 5 on 3).",
+  fightTime: 'A fight keeps each fighter in the box a set time, whatever its minutes; the penalty minutes in the statistics are as before.',
   penaltyTime: 'Penalties last a different time from what they say: each penalty minute is a set number of seconds in the box. The penalty minutes in the statistics are as before.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
@@ -233,6 +235,8 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
           ][amounts.injuries] || SNES[hack]
       : hack === 'fighting' && amounts
         ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
+        : hack === 'fightTime' && amounts
+        ? `A fight keeps each fighter in the box ${clockTime(amounts.fightTime)}, whatever its minutes; the penalty minutes in the statistics are as before.`
         : hack === 'penaltyTime' && amounts
         ? `Penalties last ${amounts.penaltyTime < 60 ? 'less' : 'longer'} than they say: each penalty minute is ${amounts.penaltyTime} seconds in the box, so ${penaltyLengths(amounts.penaltyTime)}. The penalty minutes in the statistics are as before.`
         : SNES[hack]

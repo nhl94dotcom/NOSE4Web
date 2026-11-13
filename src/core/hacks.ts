@@ -21,7 +21,7 @@
 // at a hack's places is neither the original game's nor the hack's is left
 // alone there: the editor does not guess at code it does not know.
 
-import { penaltyTimeText } from './penaltytime'
+import { fightTimeText, penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
@@ -174,6 +174,8 @@ export interface HackChoices {
   puckFriction: number
   // Seconds in the penalty box for each penalty minute (60 in the original).
   penaltySeconds: number
+  // Seconds in the box for a fight, 0 as the penalty's minutes give.
+  fightSeconds: number
   // Which of the game's colour sets the puck is drawn in.
   puckColours: PuckColours
   // The colours both nets are drawn in, from the same choices.
@@ -250,6 +252,7 @@ export type HackPart =
   | 'injuryCap'
   | 'puckFriction'
   | 'penaltySeconds'
+  | 'fightSeconds'
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
@@ -322,6 +325,7 @@ export const NO_HACKS: HackChoices = {
   injuryCap: 10,
   puckFriction: 9,
   penaltySeconds: 60,
+  fightSeconds: 0,
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
@@ -352,6 +356,7 @@ export const HACK_RANGES = {
   injuryCap: [1, 60],
   puckFriction: [1, 12],
   penaltySeconds: [1, 255],
+  fightSeconds: [0, 4095],
 } satisfies Partial<Record<keyof HackChoices, [number, number]>>
 
 export class HackError extends Error {}
@@ -2502,6 +2507,42 @@ const penaltySeconds: Part<number> = {
   apply: (work, value) => writeU16(work.rom, PENALTY_TIME_AT + 4, value),
 }
 
+// -------------------------------------------------------- fighting penalty time
+// How long a fight keeps each fighter in the box, in seconds of the game clock,
+// whatever its minutes and the penalty time. penalty94's .Sa works out a
+// penalty's box time (minutes x 60, bit 13 set) into d2, keeps bit 12 of an old
+// time, and at .3 stores it: move.w d2,tmpdst(a2,d0.w); andi.w #$EFFF,d2
+// ($1232C), then compares it with the other team's for coincidental penalties.
+// That becomes jsr / nops to code that, for the fighting penalties (Penaltylist
+// $26 and $28, the latter the winner's, which chaos's patch calls; the
+// penalty is (a0), the PenBuf entry), puts the set time in d2's time bits,
+// keeping its flags, then does the store and the andi. The penalty's minutes
+// are as before (the statistics, and the 5-minute mark for coincidental
+// majors), and both fighters get the same time, so they still match as
+// coincidental. 0 is off. Under 4096 seconds, as the time word's flags start
+// at bit 12.
+const FIGHT_TIME_HOOK: Hook = { at: 0x1232c, original: bytes('3582 0066 0242 EFFF') }
+const fightTimeCode = (seconds: number) =>
+  bytes(`0C10 0026 6706 0C10 0028 6608 0242 3000 0042 ${(seconds & 0xfff).toString(16).padStart(4, '0')} 3582 0066 0242 EFFF 4E75`)
+const fightSeconds: Part<number> = {
+  detect(rom) {
+    if (is(rom, FIGHT_TIME_HOOK.at, FIGHT_TIME_HOOK.original)) return 0
+    if (readU16(rom, FIGHT_TIME_HOOK.at) !== OP_JSR) return undefined
+    const target = readU32(rom, FIGHT_TIME_HOOK.at + 2)
+    if (target + 30 > rom.length) return undefined
+    const seconds = readU16(rom, target + 18)
+    return seconds >= 1 && seconds < 0x1000 && hooked(rom, FIGHT_TIME_HOOK, fightTimeCode(seconds)) !== null ? seconds : undefined
+  },
+  remove(rom) {
+    const seconds = fightSeconds.detect(rom)
+    if (!seconds) return
+    const target = hooked(rom, FIGHT_TIME_HOOK, fightTimeCode(seconds))!
+    erase(rom, target, fightTimeCode(seconds).length)
+    rom.set(FIGHT_TIME_HOOK.original, FIGHT_TIME_HOOK.at)
+  },
+  apply: (work, value) => void (value > 0 && hook(work, FIGHT_TIME_HOOK, fightTimeCode(value))),
+}
+
 // -------------------------------------------------------------- puck colours
 // Frames 395 to 404, the puck and its flip, are one piece each: X, Y, tile,
 // then the attribute word, whose high byte at $A1670 to $A16B8 (every 8)
@@ -2629,6 +2670,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     injuryCap: found('injuryCap', injury?.cap, NO_HACKS.injuryCap),
     puckFriction: found('puckFriction', puckFriction.detect(rom), NO_HACKS.puckFriction),
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
+    fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
@@ -2732,6 +2774,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['holdEnergy', () => holdEnergy.remove(work.rom), () => holdEnergy.apply(work, wanted.holdEnergy)],
     ['puckFriction', () => puckFriction.remove(work.rom), () => puckFriction.apply(work, wanted.puckFriction)],
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
+    ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
@@ -2966,6 +3009,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   holdEnergy: 'Energy lost when held or hooked',
   puckFriction: 'Puck friction',
   penaltySeconds: 'Penalty time',
+  fightSeconds: 'Fighting penalty time',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
@@ -3033,6 +3077,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   holdEnergy: 'holdEnergy',
   puckFriction: 'puckFriction',
   penaltySeconds: 'penaltySeconds',
+  fightSeconds: 'fightSeconds',
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',
@@ -3065,6 +3110,7 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
   if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (key === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
+  if (key === 'fightSeconds') return fightTimeText(choices.fightSeconds)
   if (typeof value === 'number') return String(value)
   if (key === 'checkFix') return choices.checkFix === 'all120' ? 'everyone checks as the computer' : choices.checkFix === 'all240' ? 'everyone checks as a person' : 'off'
   if (value === 'simple') return 'the earlier, simpler fix'
