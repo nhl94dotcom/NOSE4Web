@@ -1106,8 +1106,8 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
 // McMarkis's 2 MB and SA-1 builds pair the two fighters' majors themselves
 // (FightCoincidental, after .7: d2 = 5:00 | $2000, and an other-team player
 // whose time, and #$07FF, is 5:00, both made coincidental), so there its two
-// 5:00s become the set time too (Match Viewer: else the fighters no longer
-// offset each other). Its mask is why the time is at most 2047 seconds.
+// 5:00s become the set time too (syncFightPairing). Its mask is why the time
+// is at most 2047 seconds.
 function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const times = findCodeAll(rom, 'a2....a5(..)29ff0022......090020')
   if (times.length !== 1) return null
@@ -1152,21 +1152,26 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
     }
   }
   if (room < 0) return null
-  // FightCoincidental: lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, and its and #$07FF / cmp #$012C / beq.
-  const pairs = findCodeAll(rom, 'a5..c9....d0..da84..a23400')
-  const pairTimes = pairs.length === 1 ? findCodeAll(rom, '29ff07c9....f0').filter(({ at }) => at > pairs[0].at && at - pairs[0].at < 0x40) : []
-  const pairing: Placed[] =
-    pairs.length === 1 && pairTimes.length === 1
-      ? [
-          { at: pairs[0].at + 3, original: hexBytes('2C21'), hacked: bytesOf(word(value | 0x2000)) },
-          { at: pairTimes[0].at + 4, original: hexBytes('2C01'), hacked: bytesOf(word(value)) },
-        ]
-      : []
   return [
     { at: site, original: bytesOf('18 65', d0, 'A8'), hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80)) },
     { at: room, original: unused(code.length), hacked: code, amount: value },
-    ...pairing,
   ]
+}
+
+// McMarkis's builds' FightCoincidental (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
+// #$012C / beq) pairs two fighters' majors only at 5:00. Set after the hacks go in, from what they make a fight's box
+// time: the fight time if it is on, else 5 minutes at the penalty time (Match Viewer: else, with either, the fighters
+// no longer offset each other). Not a hack of its own: it follows those two.
+function syncFightPairing(rom: Uint8Array): void {
+  const pairs = findCodeAll(rom, 'a5..c9....d0..da84..a23400')
+  if (pairs.length !== 1) return
+  const times = findCodeAll(rom, '29ff07c9....f0').filter(({ at }) => at > pairs[0].at && at - pairs[0].at < 0x40)
+  if (times.length !== 1) return
+  const fight = amountIn(rom, 'fightTime')
+  const perMinute = amountIn(rom, 'penaltyTime')
+  const seconds = Math.min(0x7ff, fight > 0 ? fight : 5 * perMinute)
+  rom.set(bytesOf(word(seconds | 0x2000)), pairs[0].at + 3)
+  rom.set(bytesOf(word(seconds)), times[0].at + 4)
 }
 
 // ---------------------------------------------------- the one-timer that never fires
@@ -2423,6 +2428,7 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   }
   // The injured out of the shootout, put in before the fights, again with their fightinj step.
   if (out !== rom) refreshShootoutInjuries(out)
+  syncFightPairing(out)
   // The 30-second periods add a choice to the menu's Period line, and the one-minute penalties change their lengths.
   return { ...project, bytes: out, settings: refreshSnesSettings(project.bytes, out, project.settings) }
 }

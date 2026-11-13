@@ -60,6 +60,11 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('fighting penalty time (SNES)', 
         const after = Buffer.from(on.bytes).toString('hex')
         expect(after).toMatch(/a5..c97820d0..da84..a23400/)
         expect(after).toMatch(/29ff07c97800f0/)
+        // Without the fight time, 5 minutes at the penalty time (30: 2:30), and back to 5:00 with neither.
+        const half = applySnesHacks(on, {}, false, { fightTime: 0, penaltyTime: 30 })
+        expect(Buffer.from(half.bytes).toString('hex')).toMatch(/a5..c99620d0..da84..a23400/)
+        const neither = applySnesHacks(half, {}, false, { penaltyTime: 60 })
+        expect(Buffer.compare(buildRom(neither), buildRom(rom))).toBe(0)
       }
       expect(Buffer.compare(buildRom(applySnesHacks(on, {}, false, { fightTime: 0 })), buildRom(rom))).toBe(0)
     })

@@ -40,9 +40,12 @@ describe('penalty time', () => {
       const after = detectSnesHacks(half.bytes)
       expect(after.choices.penaltyTime, name).toBe(true)
       expect(after.amounts?.penaltyTime, name).toBe(30)
-      // Only those two bytes change, besides the checksum.
+      // Only that byte changes, and on McMarkis's builds FightCoincidental's two 5:00s, now 2:30 ($212C to $2096,
+      // $012C to $0096).
       const differ = [...half.bytes].flatMap((b, i) => (b !== project.bytes[i] ? [i] : []))
-      expect(differ.length, name).toBe(1)
+      const pairing = /a5..c92c21d0..da84..a23400/.test(Buffer.from(project.bytes).toString('hex'))
+      expect(differ.length, name).toBe(pairing ? 5 : 1)
+      if (pairing) expect(Buffer.from(half.bytes).toString('hex'), name).toMatch(/a5..c99620d0..da84..a23400/)
       const back = applySnesHacks(openRom(buildRom(half)), {}, false, { penaltyTime: 60 })
       expect(Buffer.compare(buildRom(back), buildRom(project)), name).toBe(0)
     }
