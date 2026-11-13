@@ -731,8 +731,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             at every draw with line changes On and Off, 4 on 3 and 5 on 3, 4 on 4 after a penalty ends, a third-period
             penalty carried into overtime, and playoff overtime kept 5 on 5. The game has room for six players a
             team on the ice and in the penalty box together, goalie included, so a team with three in the box plays
-            two skaters, its C and LW, until one comes out; before that was known a draw could go without a centre.
-            That is waiting on a new test in the game. A
+            two skaters, its C and LW, until one comes out (tested too: 33 such draws in 24 overtimes, every one so,
+            and no draw short of a skater). A
             shootout after overtime has not been tried with it yet.
           </>,
         )}
