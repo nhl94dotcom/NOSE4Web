@@ -19,7 +19,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(detectHacks(rom.bytes).choices.giveaways).toBe(false)
     const on = applyHacks(rom, { ...NO_HACKS, giveaways: true }).bytes
     const base = u32(on, 0x15288 + 2)
-    const entries: [number, number][] = [[0x15288, 0], [0x151bc, 4], [0x15548, 4], [0x143fa, 8], [0xc340, 0xc], [0x77b8, 0x10], [0xfde5e, 0x14], [0xfde6c, 0x18]]
+    const entries: [number, number][] = [[0x15288, 0], [0x151bc, 4], [0x15548, 4], [0x143fa, 8], [0xc340, 0xc], [0x77b8, 0x10], [0xfde5e, 0x14], [0xfde6c, 0x18], [0xbc6e, 0x1c]]
     for (const [at, entry] of entries) {
       expect(u16(on, at)).toBe(0x4eb9)
       expect(u32(on, at + 2)).toBe(base + entry)
@@ -27,15 +27,15 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(u16(on, 0xfdcbc)).toBe(0x80)
     expect(u16(on, 0xfdcca)).toBe(0x40)
     // puckglue's own two instructions first.
-    expect(hex(on, base + 0x1c, 8)).toBe('302a005231c0b7aa')
+    expect(hex(on, base + 0x20, 8)).toBe('302a005231c0b7aa')
     // TBLA: moveq #$F,d6 / lea (pc) to the table after the code: Score first, Give/Takeaways last.
-    expect(hex(on, base + 0x132, 2)).toBe('7c0f')
-    const table = base + 0x136 + u16(on, base + 0x136)
-    expect(table).toBe(base + 0x144)
+    expect(hex(on, base + 0x166, 2)).toBe('7c0f')
+    const table = base + 0x16a + u16(on, base + 0x16a)
+    expect(table).toBe(base + 0x178)
     expect(hex(on, table, 7)).toBe('000853636f7265')
     const text = Buffer.from(on.subarray(base, base + 0x400)).toString('latin1')
     expect(text.split('Give/Takeaways').length).toBe(3)
-    expect(hex(on, base + 0x13a, 4)).toBe('3c3c000b')
+    expect(hex(on, base + 0x16e, 4)).toBe('3c3c000b')
     expect(detectHacks(on).choices).toEqual({ ...NO_HACKS, giveaways: true })
     expect(Buffer.compare(buildRom(applyHacks(openRom(buildRom({ ...rom, bytes: on })), NO_HACKS)), buildRom(rom))).toBe(0)
   })

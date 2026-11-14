@@ -2838,12 +2838,17 @@ const greenFan: Part<boolean> = {
 // ------------------------------------------------------ giveaways and takeaways
 // Each player's giveaways and takeaways, counted as the NHL94 Match Viewer
 // project counts them: the puck carrier changing from one team to the other
-// with no whistle between. A takeaway for the player who forced it (a stick
-// steal, puckstick's or puckgoalie's; or a check that knocked the carrier
-// down, FallDown), else a giveaway for the player who lost it (a pass picked
-// off, the puck simply lost). Not a shot (doshot forgets the carrier), a
-// faceoff win (sf3fo), a pass between teammates, or a dump-in the other
-// team's goalie collects; nothing in a highlight or a shootout.
+// with no whistle between. A takeaway for a skater of the new carrier's team
+// who forced it (a stick steal, puckstick's; or a check that knocked the
+// carrier down, FallDown); else a giveaway for the player who lost it (a pass
+// picked off, the puck lost, run into the other team's goalie or poked off by
+// him: goalies get no takeaways, as in Match Viewer's statistics). Not a
+// shot (doshot forgets the carrier), a faceoff win (sf3fo), a pass between
+// teammates, or a pass the other team's goalie collects (a dump-in: dopass
+// marks the puck passed); nothing in a highlight or a shootout. NOSE4Web's
+// first version (14 November 2026) credited the forcer whatever his team
+// (Match Viewer found goalies given takeaways when their own skater ran the
+// puck into them) and called every puck a goalie collected a dump-in.
 // - The counts, a byte a roster place (32 a team, home first): giveaways at
 //   $FFE810, takeaways at $FFE850; the last carrier $FFE800, who forced the
 //   puck loose $FFE802 ($FFFF none); each team's totals at its team struct +
@@ -2853,14 +2858,15 @@ const greenFan: Part<boolean> = {
 //   (StartGame's .noso, $77B8).
 // - puckglue's move.w SCnum(a2),d0 / move.w d0,(puckc).w ($15288) counts;
 //   the steals' move.w SCnum(a0),(lastplayer).w ($151BC, $15548), FallDown's
-//   st (puckc).w / btst #gmhl ($143FA) and doshot's bset #sf2shot ($C340)
-//   say why the puck came loose.
+//   st (puckc).w / btst #gmhl ($143FA), dopass's st (puckc).w / move.b
+//   #$10,nopuck(a3) ($BC6E) and doshot's bset #sf2shot ($C340) say why the
+//   puck came loose.
 // - Game Stats has a row more, "Give/Takeaways" (giveaways / takeaways):
 //   DisplayStats' row count and table ($FDE5E with penalties, $FDE6C
 //   without) come from code with the ROM's tables and the new row, and the
 //   scroll limits ($FDCBC, $FDCCA) are a row further ($80, $40; Match Viewer).
 const GT_CODE = bytes(
-  '6000 001A 6000 00D2 6000 00DC 6000 00EA 6000 00FA 6000 011C 6000 0120 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 665A 0838 0000 C2FA 6646 0838 0004 C2F0 663E 3238 E800 6B38 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6720 3238 E802 6B0E EF49 43F8 B04A D2C1 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
+  '6000 001E 6000 00F4 6000 00FE 6000 011E 6000 012E 6000 0150 6000 0154 6000 00FC 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6678 0838 0000 C2FA 6664 0838 0004 C2F0 665C 3238 E800 6B56 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 673E 3238 E802 0C41 FFFE 6728 4A41 6B2A EF49 43F8 B04A D2C1 4A69 0034 671C 1429 0062 102A 0062 B102 0802 0006 660C 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
 )
 const GT_HOOKS: [Hook, number][] = [
   [{ at: 0x15288, original: bytes('302A 0052 31C0 B7AA') }, 0],
@@ -2871,6 +2877,7 @@ const GT_HOOKS: [Hook, number][] = [
   [{ at: 0x77b8, original: bytes('4278 C472 4278 C5DC') }, 0x10],
   [{ at: 0xfde5e, original: bytes('7C0E 43FA 0148') }, 0x14],
   [{ at: 0xfde6c, original: bytes('3C3C 000A 43FA 0226') }, 0x18],
+  [{ at: 0xbc6e, original: bytes('50F8 B7AA 177C 0010 005E') }, 0x1c],
 ]
 const GT_LIMITS = [
   { at: 0xfdcbc, original: 0x70, hacked: 0x80 },
@@ -2905,8 +2912,8 @@ function gtCode(rom: Uint8Array): Uint8Array | null {
   code.set(noPen, at)
   code.set(GT_ROW, at + noPen.length)
   // TBLA's and TBLB's lea (pc): the displacement from the extension word.
-  writeU16(code, 0x136, tableA - 0x136)
-  writeU16(code, 0x140, tableB - 0x140)
+  writeU16(code, 0x16a, tableA - 0x16a)
+  writeU16(code, 0x174, tableB - 0x174)
   return code
 }
 function gtBase(rom: Uint8Array): number | null {
