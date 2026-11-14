@@ -1,3 +1,4 @@
+import { isGenesis94 } from './games'
 import { attributeText } from './attributes'
 import { colorRgb } from './color'
 import { creditsFit } from './credits'
@@ -138,7 +139,8 @@ function checkStrips(project: RomProject, labels: string[], findings: Finding[])
 // in the ROM for the card's name and numbers. (Later ones only go
 // unused: the matchup screen finds a player's photo by his place.)
 function checkPhotos(project: RomProject, labels: string[], findings: Finding[]): void {
-  if (project.game.platform === 'snes') return
+  // NHL 94's photo lists; NHL '95's are not read.
+  if (!isGenesis94(project.game)) return
   const layout = photoLayout(project.bytes, project.teams.length)
   layout?.lists.forEach((list, team) => {
     const count = project.teams[team].players.length
