@@ -514,21 +514,6 @@ export function HacksPage({ project, name, onChange }: Props) {
           'Keeps a plus-minus for every player. The game does not show it; it is there to be read out of a save state by a league that tracks statistics.',
         )}
         {hack(
-          'clutchTime',
-          onOff('clutchTime'),
-          "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime, which has no clock pressure. It starts at the 2:00 mark, and a goal that opens a two-goal lead ends it at the next faceoff (one that brings a game back within a goal starts it there). Players already at the top of a rating gain nothing there. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. From the NHL94 Match Viewer project's reading of the game's code. Tested in the game by the NHL94 Match Viewer project: the boost at the 2:00 mark and at faceoffs in a close last 2:00, aggression untouched, nothing past the top of a rating, all of it gone at the faceoff after a two-goal lead, and none in period 2, in overtime, at 3-1 or with more than 2:00 left.",
-        )}
-        {hack(
-          'choppyIce',
-          onOff('choppyIce'),
-          "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again after each intermission. Only the puck: skaters glide as before. It goes with the Puck friction setting above, wearing the ice from wherever that sets it. From the NHL94 Match Viewer project's reading of the game's code, and tested by them in the game: about 6%, 12%, 19% and 22% more slowing after one, two, three and four quarters of the period, and fresh ice at each period and in overtime.",
-        )}
-        {hack(
-          'nhlShootout',
-          onOff('nhlShootout'),
-          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up: 2-0 after two rounds, or a team ahead after its third shot when the other has none left to tie it; the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Tested in the game by the NHL94 Match Viewer project, in the season shootout and Shootout mode: 2-0 after two rounds, a third shot putting a team beyond reach, a third miss leaving one unable to tie, and sudden death past round 5 (round 6 on brings back the first shooters).",
-        )}
-        {hack(
           'timeOnIce',
           onOff('timeOnIce'),
           "The game counts each player's time on ice, a second for every second of the clock he is on the ice, but never shows it. This adds a Time On Ice page to Player Stats: press right past Penalty Minutes, and the players are sorted by their time on ice, each row showing goals, assists, points and the time (m:ss, up to 99:59). Goalies' time shows too. The other pages are as before, the bodycheck counts' Chk column included, and playoff stats are unchanged (the game keeps no time on ice for the playoffs). As McMarkis's SNES builds show it. Tested in the game by the NHL94 Match Viewer project: the page, its sorting, times (goalies' included, from 10:00 to 99:59, and longer ones held at 99:59), switching teams and scrolling, every other page as before (the bodycheck counts' Checks For included), and Playoff Stats unchanged. The right arrow on Penalty Minutes' title shows in game stats only, not in Playoff Stats, where no page follows (tested too).",
@@ -626,6 +611,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             2 none. {stock('hotColdRange')}
           </>,
         )}
+        {hack(
+          'clutchTime',
+          onOff('clutchTime'),
+          "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime, which has no clock pressure. It starts at the 2:00 mark, and a goal that opens a two-goal lead ends it at the next faceoff (one that brings a game back within a goal starts it there). Players already at the top of a rating gain nothing there. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. From the NHL94 Match Viewer project's reading of the game's code. Tested in the game by the NHL94 Match Viewer project: the boost at the 2:00 mark and at faceoffs in a close last 2:00, aggression untouched, nothing past the top of a rating, all of it gone at the faceoff after a two-goal lead, and none in period 2, in overtime, at 3-1 or with more than 2:00 left.",
+        )}
       </section>
 
       <section id="hacks-rules">
@@ -709,6 +699,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             shooters on the default list and picked on the shootout screen, hit and fight injuries (a major still
             running, and served), each gave way to the right player, wrapping past round 5; Shootout mode was unchanged.
           </>,
+        )}
+        {hack(
+          'nhlShootout',
+          onOff('nhlShootout'),
+          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up: 2-0 after two rounds, or a team ahead after its third shot when the other has none left to tie it; the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Tested in the game by the NHL94 Match Viewer project, in the season shootout and Shootout mode: 2-0 after two rounds, a third shot putting a team beyond reach, a third miss leaving one unable to tie, and sudden death past round 5 (round 6 on brings back the first shooters).",
         )}
         {hack(
           'fightSeconds',
@@ -1058,6 +1053,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
             0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
           </>,
+        )}
+        {hack(
+          'choppyIce',
+          onOff('choppyIce'),
+          "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again after each intermission. Only the puck: skaters glide as before. It goes with the Puck friction setting above, wearing the ice from wherever that sets it. From the NHL94 Match Viewer project's reading of the game's code, and tested by them in the game: about 6%, 12%, 19% and 22% more slowing after one, two, three and four quarters of the period, and fresh ice at each period and in overtime.",
         )}
       </section>
 
