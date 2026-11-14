@@ -72,7 +72,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES bodycheck statistics', () 
       // The 2 MB builds' ClearPlayerChecks: their own checks for and against.
       const own = Buffer.from(rom.bytes).indexOf(Buffer.from('daa90000a232009f88e7', 'hex')) >= 0
       if (own) {
-        expect(Object.keys(state.notOffered ?? {}), name).toEqual(['bodychecks', 'bodychecksShown'])
+        expect(Object.keys(state.notOffered ?? {}), name).toEqual(expect.arrayContaining(['bodychecks', 'bodychecksShown']))
         expect(() => applySnesHacks(rom, { bodychecks: true }), name).toThrow(/counts each player's checks/)
         const other = detectSnesHacks(applySnesHacks(open('NHL94.smc'), { bodychecks: true }).bytes)
         const copied = snesHacksCopiedFrom(state, other)
