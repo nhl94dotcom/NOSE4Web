@@ -1046,8 +1046,10 @@ export function HacksPage({ project, name, onChange }: Props) {
           number('puckFriction'),
           <>
             How fast the puck slows down on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller
-            number slows it faster (8 is twice as fast as the original 9, 10 half as fast). A player receiving a pass
-            slows the same way, and so does a skater caught by the runaway-speed bug. There is no friction in the air.
+            number slows it faster (8 is twice as fast as the original 9, 10 half as fast). Every gliding skater slows
+            the same way, as the game shares this setting with them: a player receiving a pass, one sliding after a
+            fall, and a skater caught by the runaway-speed bug. Choppy ice, below, changes the puck alone. There is no
+            friction in the air.
             From chaos's forum post, tested in the game by the NHL94 Match Viewer project: at 8 a loose puck keeps about
             0.80 of its speed a second, where the original's 9 keeps about 0.89. {stock('puckFriction')}
           </>,

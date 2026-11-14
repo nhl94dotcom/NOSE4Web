@@ -123,7 +123,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     `The main menu offers an extra period length, and a regular-season game played at it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
   introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
   puckFriction: (c) =>
-    `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a player receiving a pass).`,
+    `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so do gliding skaters: a player receiving a pass, or sliding after a fall).`,
   netColours: (c) => `The nets are drawn in the ${c.netColours === 'crowd' ? "crowd's" : c.netColours === 'home' ? "home team's" : c.netColours === 'away' ? "visitors'" : "rink's"} colours.`,
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
   greenFan: () => 'The fan in green in the stands has his arm and leg back.',
@@ -177,7 +177,7 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
   fourthPeriodOvertime: "Adds a period length to the main menu whose regular-season games get their own overtime, such as 99 minutes.",
   introWait: 'How long the intro screens wait before moving on.',
-  puckFriction: 'How quickly a sliding puck slows down.',
+  puckFriction: 'How quickly a sliding puck, and a gliding skater, slows down.',
   netColours: 'The colour of the nets.',
   puckColours: 'The colour of the puck.',
   fewerSkaterLines: 'Fits Edit Lines to a ROM that plays fewer than five skaters (such as 2 on 2).',
