@@ -67,6 +67,7 @@ export type SnesHack =
   | 'nhlShootout'
   | 'choppyIce'
   | 'clutchTime'
+  | 'skateMarks'
 
 interface Site {
   // The game's address.
@@ -321,6 +322,7 @@ export const SNES_HACKS: SnesHack[] = [
   'nhlShootout',
   'choppyIce',
   'clutchTime',
+  'skateMarks',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -375,6 +377,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   nhlShootout: 'Three-round shootout',
   choppyIce: 'Choppy ice',
   clutchTime: 'Clutch time',
+  skateMarks: 'Skate marks',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -2020,6 +2023,112 @@ function shootoutInjuryPlaces(rom: Uint8Array, noFight = false): Placed[] | null
   ]
 }
 
+// --------------------------------------------------------------- skate marks
+// As on the Genesis (hacks.ts, skateMarks): skaters leave faint marks on the
+// ice as they skate, a light scattering by a period's end, fresh each period.
+// The rink map is in RAM here (rinkmapbuf, $7F:C800, 48 x 113 words, which
+// BuildRinkMap unpacks and updatescroll_rows sends rows from), so a mark is
+// written straight into it: a plain-ice word (tile 0, no flips) becomes the
+// rink's own diagonal streak, tile $BA, palette and priority kept, flipped
+// for the other diagonal (Match Viewer). A list of the marks (offset, bit 15
+// the flip) keeps them for when BuildRinkMap builds the map again. Three
+// calls into one block of code, in a bank with room:
+// - updateplayers' .11 (lda puckx / sec, after the position step): for a
+//   player (X < $18), not in another game's highlight (gmode's gmhl) or the
+//   scoreboard view (sfhormode), clears the marks when gsp changes (each cell
+//   back to plain, every row drawn again by an Oldrow far off), then, with
+//   chance (|Xvel| + |Yvel|) / 16 x frames (timestep & 3) / 65536, NOSE4Web's
+//   own random numbers (the game's are not touched), marks the plain-ice cell
+//   under him, column (X + 192) / 8 and row (370 - Y) / 8 (rows 0-84, the
+//   rink; the scoreboard view's map is below), up to 240 a period. A cell on
+//   the screen is sent to VRAM at once (DMAToVRAM, one word, queued).
+// - BuildRinkMap's end (dey / bne .loop / rtl): the listed marks laid back in,
+//   after a pause screen (ExitStatsScreen) and a highlight's rebuild.
+// - setupice's jsl LoadCenterIce, at each game's start: the list emptied.
+// RAM: $7F:F400 the count, $F402 the period it is for, $F404 the random
+// numbers, $F406-$F40D scratch, $F410-$F5EF the list; free on the original
+// game and Classic (Match Viewer). For builds laid out like the original game:
+// the SA-1 builds' updateplayers runs on the SA-1, which cannot reach $7F.
+const SKATE_CODE = hexBytes(
+  [
+    'E01800900382F601ADD415291000F00382EB01ADDA15F00382E301DA5AAD3016CF02F47FF0378F02F47FAF00F47FF020',
+    'C9F100B01B0AA88888BBBF10F47F29FF7FAABF00C87F29003C9F00C87F98D0E7A900008F00F47FA9FF7F8D230DA303AA',
+    'AF00F47FC9F0009003829001BDC30E100449FFFF1A8F06F47FBDE30E100449FFFF1A186F06F47F9003A9FFFF4A4A4A4A',
+    '8F06F47FADDB0A290300A8A90000C00000F008186F06F47F8880F38F06F47FAF04F47FD003A9E1AC8F08F47F0A0A0A0A',
+    '0A0A0A4F08F47F8F08F47F4A4A4A4A4A4A4A4A4A4F08F47F8F08F47FEB2900FF4F08F47F8F04F47FCF06F47F9003820B',
+    '01BD550D1869C000100382FF004A4A4AC93000900382F4008F06F47FA9720138FDB70D100382E4004A4A4AC955009003',
+    '82D9008F08F47F0A0A0A0A0A8F0AF47F0A186F0AF47F6F06F47F6F06F47F8F0CF47FAABF00C87F89FFC3F00382AD0029',
+    '003C09BA008F0AF47FA303A8B9C30E59E30E100BAF0AF47F0900408F0AF47FAF0AF47F9F00C87FAF00F47F0AA8AF0AF4',
+    '7F2900400A0F0CF47FBB9F10F47FAF00F47F1A8F00F47FAF08F47F38ED230D305BC91D00B056186D250D291F000A0A0A',
+    '0A0A8F0AF47FAF06F47F38E90300303CC9200090041869E003186F0AF47F690004A8D40CD40ED414D416AF0CF47F1869',
+    '00C8850CA97F00850EA20200221111A168851668851468850E68850C7AFAAD710D386B88F0045C3333A3AF00F47FF041',
+    'C9F100B03C0AA88888BBBF10F47F4829FF7FAABF00C87F89FFC3D02129003C09BA008F0AF47FA301100BAF0AF47F0900',
+    '408F0AF47FAF0AF47F9F00C87F6898D0C66BA900008F00F47FAD30168F02F47F5C2222A2',
+  ].join(''),
+)
+const SKATE_RELAY = 0x203
+const SKATE_SA1 = 'Skate marks are not yet offered for the SA-1 builds, whose game logic runs on the SA-1 chip, which cannot reach the rink map.'
+const SKATE_NEWGAME = 0x252
+const longOf = (value: number) => [value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff]
+const longAt = (rom: Uint8Array, at: number) => rom[at] | (rom[at + 1] << 8) | (rom[at + 2] << 16)
+function skateCode(dmaToVram: number, buildLoop: number, loadCenterIce: number): Uint8Array {
+  const code = SKATE_CODE.slice()
+  code.set(longOf(dmaToVram), 0x1ed)
+  code.set(longOf(buildLoop), 0x207)
+  code.set(longOf(loadCenterIce), 0x261)
+  return code
+}
+function skateMarksPlaces(rom: Uint8Array): Placed[] | null {
+  if (shift(rom) !== 0) return null
+  // updatescroll_rows: rows from rinkmapbuf (adc #$C800 / adc #6), sent by jsl DMAToVRAM.
+  if (only(rom, '6900c8690600') < 0) return null
+  const dmas = findCodeAll(rom, 'a97f0085..a5..85..a4..a24000(22......)')
+  // updateplayers' .11, after the puck's bounce sound: lda #7 / jsl sfx / lda puckx / sec / sbc Xpos,x / sta d0 / bpl.
+  const marks = findCodeAll(rom, 'a9070022........' + '......fd550d85..1004')
+  // BuildRinkMap's end: lda p1 / clc / adc #$60 / sec / sbc r3 / sta p1 / dey / bne .loop / rtl.
+  const builds = findCodeAll(rom, 'a5101869600038e5..8510........')
+  // setupice: ldy #$1000 / jsl DMAToVRAM / jsl LoadCenterIce / lda #FaceOffTiles>>16 / sta p0+2.
+  const starts = findCodeAll(rom, 'a0001022......22......a9....850e')
+  if (dmas.length !== 1 || marks.length !== 1 || builds.length !== 1 || starts.length !== 1) return null
+  const dma = longAt(rom, dmas[0].at + 15)
+  const markAt = marks[0].at + 7
+  const buildAt = builds[0].at + 11
+  const startAt = starts[0].at + 7
+  const markOriginal = hexBytes('AD710D38')
+  const isIn = !same(rom, markAt, markOriginal)
+  let room = -1
+  let loop: number
+  let center: number
+  if (isIn) {
+    if (rom[markAt] !== 0x22) return null
+    room = loRomOffset(rom[markAt + 3], readU16(rom, markAt + 1))
+    if (room < 0 || room + SKATE_CODE.length > rom.length) return null
+    loop = longAt(rom, room + 0x207)
+    center = longAt(rom, room + 0x261)
+  } else {
+    if (rom[buildAt] !== 0x88 || rom[buildAt + 1] !== 0xd0 || rom[buildAt + 3] !== 0x6b || rom[startAt] !== 0x22) return null
+    const loopAt = buildAt + 3 + ((rom[buildAt + 2] << 24) >> 24)
+    loop = (loRomBank(loopAt, 0x80) << 16) | loRomAddress(loopAt)
+    center = longAt(rom, startAt + 1)
+    for (const bank of [0x9b, 0x80]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, SKATE_CODE.length)
+      if (room >= 0) break
+    }
+    if (room < 0) return null
+  }
+  const loopOffset = loRomOffset(loop >> 16, loop & 0xffff)
+  const bne = loopOffset - (buildAt + 3)
+  if (bne < -128 || bne > -1) return null
+  const jump = (op: number, at: number) => bytesOf(op, word(loRomAddress(at)), loRomBank(at, 0x80))
+  return [
+    { at: markAt, original: markOriginal, hacked: jump(0x22, room) },
+    { at: buildAt, original: bytesOf('88 D0', bne & 0xff, '6B'), hacked: jump(0x5c, room + SKATE_RELAY) },
+    { at: startAt, original: bytesOf('22', longOf(center)), hacked: jump(0x22, room + SKATE_NEWGAME) },
+    { at: room, original: unused(SKATE_CODE.length), hacked: skateCode(dma, loop, center) },
+  ]
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
   shootoutInjuries: (rom) => {
@@ -2037,6 +2146,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
   clutchTime: (rom) => clutchTimePlaces(rom),
+  skateMarks: (rom) => skateMarksPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2974,6 +3084,11 @@ function detect(rom: Uint8Array): SnesHackState {
       if (unknown.includes(hack)) unknown.splice(unknown.indexOf(hack), 1)
     }
   }
+  // The SA-1 builds: skate marks not yet (their updateplayers runs on the SA-1, which cannot reach the rink map).
+  if (shift(rom) !== 0 && shift(rom) !== null && !choices.skateMarks) {
+    notOffered.skateMarks = SKATE_SA1
+    if (unknown.includes('skateMarks')) unknown.splice(unknown.indexOf('skateMarks'), 1)
+  }
   return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
 
@@ -3120,7 +3235,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'skateMarks',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

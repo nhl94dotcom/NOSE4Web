@@ -224,6 +224,7 @@ const SNES: Record<SnesHack, string> = {
   stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does: up to about 4 more a game.",
   bodychecks: "Each player's bodychecks given and taken are counted, for nhl94online.com, which reads them from save states.",
   clutchTime: "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
+  skateMarks: 'Skaters leave faint marks on the ice where they skate, a light scattering by the end of each period, and the ice is fresh again for the next.',
   choppyIce: "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
   nhlShootout: "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
