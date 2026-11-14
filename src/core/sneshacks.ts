@@ -67,6 +67,8 @@ export type SnesHack =
   | 'nhlShootout'
   | 'choppyIce'
   | 'clutchTime'
+  | 'giveaways'
+  | 'giveawaysShown'
 
 interface Site {
   // The game's address.
@@ -321,6 +323,8 @@ export const SNES_HACKS: SnesHack[] = [
   'nhlShootout',
   'choppyIce',
   'clutchTime',
+  'giveaways',
+  'giveawaysShown',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -375,13 +379,15 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   nhlShootout: 'Three-round shootout',
   choppyIce: 'Choppy ice',
   clutchTime: 'Clutch time',
+  giveaways: 'Giveaways and takeaways for each player',
+  giveawaysShown: 'Giveaways and takeaways in Game Stats',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
 // on, and two that cannot both be.
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce' }
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
@@ -1661,6 +1667,324 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
   return places
 }
 
+// ------------------------------------------------------ giveaways and takeaways
+// As on the Genesis (hacks.ts, giveaways), by the NHL94 Match Viewer project's
+// definitions: a change of puck carrier from one team to the other with no
+// whistle between. A takeaway for a skater of the new carrier's team who forced
+// it (a stick steal, puckstick's, which on the SNES knocks the puck loose; or a
+// check that knocked the carrier down, FallDown's .25); else a giveaway for the
+// player who lost it. Goalies get no takeaways. Not a shot (doshot forgets the
+// carrier), a faceoff win (sf3fo), a pass between teammates, or a pass or dump-in
+// the other team's goalie collects; nothing in a highlight (gmhl) or a shootout
+// (shootoutmode). The places, found by the code around them, each a jsl to one
+// block of code (entries after the two counting routines):
+// - puckglue's ldy a2 / sty puckc (the carrier set) counts;
+// - puckstick's tya / lsr / sta lastplayer (the steal: a2 the stealer) and
+//   FallDown .25's lda #$FFFF / sta puckc (a3 the checker) say who forced it;
+// - dopass's and assdumpin's txa / lsr / sta lastplayer mark a pass, doshot's
+//   forgets the carrier;
+// - StartGame_scout's jsl Create_HotCold_Table clears the counts (not the season
+//   shootout's StartGame_go).
+// The counts, a word per roster player (the visitors $34 bytes on, as the time
+// on ice), giveaways then takeaways, then each team's totals (home and visitors'
+// giveaways, then takeaways), after the last carrier and the cause ($FFFF none,
+// $FFFE a pass): at $7E:E68C (Match Viewer's free $E68C-$E787), in the SA-1
+// builds in BW-RAM at $40:5500 (past the season shootout's save).
+const GT_RAM = [
+  { shift: 0, bank: 0x7e, at: 0xe68c },
+  { shift: 0x6000, bank: 0x40, at: 0x5500 },
+]
+const GT_GIVE = 4
+const GT_TAKE = GT_GIVE + 0x68
+const GT_TOTALS = GT_TAKE + 0x68
+const GT_SIZE = GT_TOTALS + 8
+type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall'
+
+interface GtEnv {
+  ram: (typeof GT_RAM)[number]
+  a2: number
+  a3: number
+  puckc: number
+  lastplayer: number
+  sites: Record<GtSite | 'scout', number>
+}
+
+function gtEnv(rom: Uint8Array): GtEnv | null {
+  const moved = shift(rom)
+  const ram = GT_RAM.find((layout) => layout.shift === moved)
+  if (moved === null || !ram) return null
+  const any5 = '..........'
+  // puckglue: ldy a2 / cpy puckc / beq .1 / lda #3 / jsl PuckSfx / jsl EndPenaltyShotPlay / stz breakaway / stz onetimer / .1: ldy a2 / sty puckc / sty d0 / stz a0.
+  const glue = findCodeAll(rom, 'a4(..)cc(....)f0..a90300' + '22......22......9c....9c....' + any5 + '84..64')
+  // puckstick: lda a0 / ldy a2 / sty a0 / sta a2 / tya / lsr / sta lastplayer / lda #sfspdir|sfssdir / trb sflags.
+  const steal = findCodeAll(rom, 'a5..a4..84..85..' + any5 + 'a90c001c')
+  // dopass: lda #$10 / sta nopuck,x / txa / lsr / sta lastplayer / lda #7; doshot's then ldy #$108; assdumpin's lda #$1E ... jmp.
+  const pass = findCodeAll(rom, 'a910009d....' + any5 + 'a90700')
+  const shot = findCodeAll(rom, 'a910009d....' + any5 + 'a00801')
+  const dump = findCodeAll(rom, 'a91e009d....' + any5 + '4c')
+  // FallDown .25: ldy a2 / lda SPA,y / cmp #SPAstumble / beq / lda #$FFFF / sta puckc / ldy a2 / lda pfteam,y.
+  const fall = findCodeAll(rom, 'a4..b9....c9....f006' + '............' + 'a4..b9')
+  // StartGame_scout: jsl Create_HotCold_Table / jsl ScoutingReport / lda #$FFFF / sta FrameByNumber / jsl forcefade.
+  const scout = findCodeAll(rom, '22......22......a9ffff8d....22')
+  if ([glue, steal, pass, shot, dump, fall, scout].some((found) => found.length !== 1)) return null
+  const [a2, puckc] = glue[0].groups
+  if (a2 !== 0x91 || puckc !== 0x0ad9 + moved) return null
+  return {
+    ram,
+    a2,
+    a3: 0x95,
+    puckc,
+    lastplayer: 0x0cf3 + moved,
+    sites: {
+      glue: glue[0].at + 24,
+      steal: steal[0].at + 8,
+      pass: pass[0].at + 6,
+      dump: dump[0].at + 6,
+      shot: shot[0].at + 6,
+      fall: fall[0].at + 10,
+      scout: scout[0].at,
+    },
+  }
+}
+
+type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'scout'
+
+// The block: COUNT give (x the player's object), COUNT take, then the entries; the clear's jml last.
+function gtCode(env: GtEnv, base: number, hotCold: Uint8Array): { code: Uint8Array; entries: Record<GtEntry, number> } {
+  const { ram, a2, a3 } = env
+  const L = (offset: number) => bytesOf(word(ram.at + offset), ram.bank)
+  const W = (address: number) => word(address + ram.shift)
+  const [gmode, sflags3, shootoutmode, position, pnum] = [0x15d4, 0x15dc, 0x1d81, 0x0f43, 0x12a3]
+  // The player's word (his roster place x 2, the visitors' $34 on) and his team's total, one more each.
+  const counter = (array: number, totals: number) =>
+    asm65([
+      bytesOf('BD', W(pnum), '29FF00 C91A00'),
+      { branch: BCS, to: 'r' },
+      bytesOf('0A E00C00'),
+      { branch: BCC, to: 'h' },
+      bytesOf('18 693400'),
+      { label: 'h' },
+      bytesOf('DA AA BF', L(array), '1A 9F', L(array), 'FA E00C00'),
+      { branch: BCS, to: 'v' },
+      bytesOf('AF', L(totals), '1A 8F', L(totals), '60'),
+      { label: 'v' },
+      bytesOf('AF', L(totals + 2), '1A 8F', L(totals + 2)),
+      { label: 'r' },
+      '60',
+    ])
+  const give = counter(GT_GIVE, GT_TOTALS)
+  const take = counter(GT_TAKE, GT_TOTALS + 4)
+  const abs = (at: number) => word(loRomAddress(at))
+  // (A - $0C) eor (a2 - $0C), pulled: positive when the object in A and a2 are of the same team.
+  const sameTeam = bytesOf('38 E90C00 48 A5', a2, '38 E90C00 43 01 83 01 68')
+  const glue = asm65([
+    bytesOf('A4', a2, '8C', word(env.puckc), 'DA'),
+    bytesOf('AD', W(gmode), '291000'),
+    { branch: BNE, to: 'x' },
+    bytesOf('AD', W(shootoutmode), '29FF00'),
+    { branch: BNE, to: 'reset' },
+    bytesOf('AD', W(sflags3), '291000'),
+    { branch: BNE, to: 'reset' },
+    bytesOf('AF', L(0)),
+    { branch: BMI, to: 'reset' },
+    sameTeam,
+    { branch: BPL, to: 'reset' },
+    bytesOf('AF', L(2), 'C9FEFF'),
+    { branch: BEQ, to: 'pass' },
+    bytesOf('C90080'),
+    { branch: BCS, to: 'give' },
+    bytesOf('AA BD', W(position)),
+    { branch: BEQ, to: 'give' },
+    bytesOf('8A', sameTeam),
+    { branch: BMI, to: 'give' },
+    bytesOf('20', abs(base + give.length)),
+    { branch: BRA, to: 'reset' },
+    { label: 'pass' },
+    bytesOf('A6', a2, 'BD', W(position)),
+    { branch: BEQ, to: 'reset' },
+    { label: 'give' },
+    bytesOf('AF', L(0), 'AA 20', abs(base)),
+    { label: 'reset' },
+    bytesOf('A5', a2, '8F', L(0), 'A9FFFF 8F', L(2)),
+    { label: 'x' },
+    bytesOf('FA A4', a2, '6B'),
+  ])
+  const lastplayer = (from: string) => bytesOf(from, '4A 8D', word(env.lastplayer), '48')
+  const steal = bytesOf(lastplayer('98'), 'A5', a2, '8F', L(2), '68 6B')
+  const pass = bytesOf(lastplayer('8A'), 'A9FEFF 8F', L(2), '68 6B')
+  const shot = bytesOf(lastplayer('8A'), 'A9FFFF 8F', L(0), '8F', L(2), '68 6B')
+  const fall = bytesOf('A9FFFF 8D', word(env.puckc), 'A5', a3, '8F', L(2), '6B')
+  const scout = asm65([
+    bytesOf('A9FFFF 8F', L(0), '8F', L(2), 'A90000 A2', word(GT_SIZE - GT_GIVE - 2)),
+    { label: 'loop' },
+    bytesOf('9F', L(GT_GIVE), 'CA CA'),
+    { branch: BPL, to: 'loop' },
+    bytesOf('5C', hotCold),
+  ])
+  const parts: [string, Uint8Array][] = [['give', give], ['take', take], ['glue', glue], ['steal', steal], ['pass', pass], ['shot', shot], ['fall', fall], ['scout', scout]]
+  const entries = {} as Record<GtEntry, number>
+  let at = 0
+  for (const [key, bytes] of parts) {
+    if (key !== 'give' && key !== 'take') entries[key as GtEntry] = at
+    at += bytes.length
+  }
+  return { code: bytesOf(...parts.map(([, bytes]) => bytes)), entries }
+}
+
+function giveawayPlaces(rom: Uint8Array): Placed[] | null {
+  const env = gtEnv(rom)
+  if (!env) return null
+  const { sites } = env
+  const jsl = (to: number, pad: number) => bytesOf('22', long(to), new Array(pad).fill(0xea))
+  const originals: Record<GtSite, Uint8Array> = {
+    glue: bytesOf('A4', env.a2, '8C', word(env.puckc)),
+    steal: bytesOf('98 4A 8D', word(env.lastplayer)),
+    pass: bytesOf('8A 4A 8D', word(env.lastplayer)),
+    dump: bytesOf('8A 4A 8D', word(env.lastplayer)),
+    shot: bytesOf('8A 4A 8D', word(env.lastplayer)),
+    fall: bytesOf('A9FFFF 8D', word(env.puckc)),
+  }
+  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2 }
+  const probe = gtCode(env, 0, new Uint8Array(3))
+  let base: number
+  let hotCold = rom.slice(sites.scout + 1, sites.scout + 4)
+  if (!same(rom, sites.glue, originals.glue)) {
+    // In: the block from the glue's call, and Create_HotCold_Table from the clear's jml at its end.
+    if (rom[sites.glue] !== 0x22) return null
+    base = loRomOffset(rom[sites.glue + 3], readU16(rom, sites.glue + 1)) - probe.entries.glue
+    if (base < 0) return null
+    hotCold = rom.slice(base + probe.code.length - 3, base + probe.code.length)
+  } else {
+    base = farRoom(rom, sites.glue, originals.glue, probe.code.length)
+    if (base < 0) return null
+  }
+  const { code, entries } = gtCode(env, base, hotCold)
+  return [
+    ...(Object.keys(originals) as GtSite[]).map((key) => ({
+      at: sites[key],
+      original: originals[key],
+      hacked: jsl(base + entries[key === 'dump' ? 'pass' : key], pads[key]),
+    })),
+    { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
+    { at: base, original: unused(code.length), hacked: code },
+  ]
+}
+
+// ------------------------------------------------- giveaways and takeaways in the team stats
+// Game Stats has a row more, "Give/Take": each team's giveaways / takeaways,
+// as the game's own a/b rows (kind $11, shown with penalties on or off). The
+// game reads its rows' numbers from low RAM (lda $0000,y): DisplayStats .5's two
+// tay / lda $0000,y become jsl to code that reads the four totals from their
+// RAM, anything else as before. The three lists (TeamStatNames,
+// TeamStatNamesNoPen and TeamStatSources) are copied with the row added, after
+// a note of where the ROM's own are, and DisplayStats' lda #bank / lda #list
+// point at the copies; StatsReport's two row counts (listcount) are one more.
+const GT_ROW_NAME = '  Give/Take  '
+const GT_SHOWN_HEADER = 9
+
+interface GtShownEnv {
+  read: [number, number]
+  names: number
+  sources: number
+  counts: [number, number]
+}
+
+function gtShownEnv(rom: Uint8Array): GtShownEnv | null {
+  // DisplayStats .5: lda [a0] / inc a0 x2 / clc / adc a2 / tay / lda $0000,y / sta d0 / jsl PushNumber / lda [a0] / sta d1; and lda a2 / clc / adc d1.
+  const first = findCodeAll(rom, 'a7..e6..e6..1865..' + '........' + '85..22......a7..85..a9')
+  const second = findCodeAll(rom, 'a5..1865..' + '........' + '85..22......22')
+  // .t1: lda #bank / sta a0+2 / lda #TeamStatSources / sta a0 / lda curitem / sta d0 / lda [a0] / bpl.
+  const sources = findCodeAll(rom, 'a9..0085..a9....85..ad....85..a7..1003')
+  // .t2: lda #bank / sta a1+2 / lda #TeamStatNames / sta a1 / lda.l OptPen / bne / lda #bank / sta a1+2 / lda #TeamStatNamesNoPen.
+  const names = findCodeAll(rom, 'a9..0085..a9....85..af......d0..a9..0085..a9....')
+  // StatsReport: lda #rows / sta listcount / lda #$10 / sta statpenrows / lda.l OptPen / bne / lda #rows / sta listcount.
+  const counts = findCodeAll(rom, 'a9..008d(....)a910008d....af......d0..a9..008d(....)')
+  if (first.length !== 1 || second.length !== 1 || sources.length !== 1 || counts.length !== 1) return null
+  if (counts[0].groups[0] !== counts[0].groups[1]) return null
+  const near = names.filter((found) => found.at < sources[0].at && sources[0].at - found.at < 0x80)
+  if (near.length !== 1) return null
+  return { read: [first[0].at + 9, second[0].at + 5], names: near[0].at, sources: sources[0].at, counts: [counts[0].at + 1, counts[0].at + 19] }
+}
+
+// A list of `rows` strings (a length word, 2 + the text, then the text) at `at`, as bytes.
+function stringList(rom: Uint8Array, at: number, rows: number): Uint8Array | null {
+  if (at < 0) return null
+  let end = at
+  for (let i = 0; i < rows; i++) {
+    const length = readU16(rom, end)
+    if (length < 2 || length > 40) return null
+    end += length
+  }
+  return rom.slice(at, end)
+}
+
+function giveawayShownPlaces(rom: Uint8Array): Placed[] | null {
+  const env = gtEnv(rom)
+  const shown = gtShownEnv(rom)
+  if (!env || !shown) return null
+  const { ram } = env
+  const totals = (ram.at + GT_TOTALS) & 0xffff
+  const readOriginal = hexBytes('A8B90000')
+  const isIn = !same(rom, shown.read[0], readOriginal)
+  const n = shown.names
+  // The ROM's own lists: names bank and address, no-penalty bank and address, sources bank and address.
+  let base = -1
+  let own: Uint8Array
+  if (isIn) {
+    if (rom[shown.read[0]] !== 0x22) return null
+    base = loRomOffset(rom[shown.read[0] + 3], readU16(rom, shown.read[0] + 1)) - GT_SHOWN_HEADER
+    if (base < 0) return null
+    own = rom.slice(base, base + GT_SHOWN_HEADER)
+  } else {
+    own = bytesOf(rom[n + 1], rom.slice(n + 6, n + 8), rom[n + 17], rom.slice(n + 22, n + 24), rom[shown.sources + 1], rom.slice(shown.sources + 6, shown.sources + 8))
+  }
+  const rowsOn = rom[shown.counts[0]] - (isIn ? 1 : 0)
+  const rowsOff = rom[shown.counts[1]] - (isIn ? 1 : 0)
+  const row = bytesOf(word(2 + GT_ROW_NAME.length), new TextEncoder().encode(GT_ROW_NAME))
+  const namesOn = stringList(rom, loRomOffset(own[0], readU16(own, 1)), rowsOn)
+  const namesOff = stringList(rom, loRomOffset(own[3], readU16(own, 4)), rowsOff)
+  const sourcesAt = loRomOffset(own[6], readU16(own, 7))
+  if (!namesOn || !namesOff || sourcesAt < 0) return null
+  let sourcesEnd = sourcesAt
+  while (readU16(rom, sourcesEnd) !== 0xffff) {
+    sourcesEnd += 6
+    if (sourcesEnd - sourcesAt > 6 * 40) return null
+  }
+  // tay / the totals: lda.l from their RAM (phx / tyx / plx); else lda $0000,y as the game.
+  const readCode = asm65([
+    bytesOf('A8 C0', word(totals)),
+    { branch: BCC, to: 'n' },
+    bytesOf('C0', word(totals + 8)),
+    { branch: BCS, to: 'n' },
+    bytesOf('DA BB BF', word(0), ram.bank, 'FA 6B'),
+    { label: 'n' },
+    bytesOf('B90000 6B'),
+  ])
+  const sources = bytesOf(rom.slice(sourcesAt, sourcesEnd), word(0x11), word(totals), word(totals + 4), 'FFFF FFFF FFFF')
+  const length = GT_SHOWN_HEADER + readCode.length + namesOn.length + namesOff.length + 2 * row.length + sources.length
+  if (!isIn) {
+    base = farRoom(rom, shown.read[0], readOriginal, length)
+    if (base < 0) return null
+  }
+  const onAt = base + GT_SHOWN_HEADER + readCode.length
+  const offAt = onAt + namesOn.length + row.length
+  const sourcesNew = offAt + namesOff.length + row.length
+  const block = bytesOf(own, readCode, namesOn, row, namesOff, row, sources)
+  const operand = (place: number, bank: number, address: number, to: number): Placed[] => [
+    { at: place + 1, original: Uint8Array.of(bank), hacked: Uint8Array.of(loRomBank(to, 0x80)) },
+    { at: place + 6, original: Uint8Array.from(word(address)), hacked: Uint8Array.from(word(loRomAddress(to))) },
+  ]
+  return [
+    ...shown.read.map((site) => ({ at: site, original: readOriginal, hacked: bytesOf('22', long(base + GT_SHOWN_HEADER)) })),
+    ...operand(n, own[0], readU16(own, 1), onAt),
+    ...operand(n + 16, own[3], readU16(own, 4), offAt),
+    ...operand(shown.sources, own[6], readU16(own, 7), sourcesNew),
+    { at: shown.counts[0], original: Uint8Array.of(rowsOn), hacked: Uint8Array.of(rowsOn + 1) },
+    { at: shown.counts[1], original: Uint8Array.of(rowsOff), hacked: Uint8Array.of(rowsOff + 1) },
+    { at: base, original: unused(block.length), hacked: block },
+  ]
+}
+
 // ------------------------------------------------------------ NHL shootout
 // As on the Genesis (hacks.ts, nhlShootout): three rounds, then sudden death,
 // over as soon as one team cannot catch up. The SNES's visitors shoot first.
@@ -2034,6 +2358,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
   timeOnIce: (rom) => timeOnIcePlaces(rom),
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
+  giveaways: (rom) => giveawayPlaces(rom),
+  giveawaysShown: (rom) => giveawayShownPlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
   clutchTime: (rom) => clutchTimePlaces(rom),

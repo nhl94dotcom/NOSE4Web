@@ -226,6 +226,8 @@ const SNES: Record<SnesHack, string> = {
   clutchTime: "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
   nhlShootout: "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
+  giveaways: "Each player's giveaways and takeaways are counted.",
+  giveawaysShown: "Game Stats shows each team's giveaways and takeaways as Give/Take.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
   timeOnIce: "Each player's time on ice is counted, a second at a time while he is on the ice and the clock runs, for reading from save states.",
   bodychecksShown: "Player Stats shows each player's bodychecks as Cf, in place of penalty minutes, and sorts that column by them.",
