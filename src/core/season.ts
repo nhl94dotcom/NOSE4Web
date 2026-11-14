@@ -6,6 +6,8 @@
 // kept with it in the browser and in project files, and is not in the ROM.
 
 import { changeReport, type ChangeReport } from './report'
+import { detectHacks, hackChanges, hacksSupported, type HackChoices, type HackPart } from './hacks'
+import { detectSnesHacks, snesHackStateChanges, type SnesHack, type SnesHackChoices, type SnesAmount } from './sneshacks'
 import type { RomProject } from './rom'
 import type { Settings } from './settings'
 import type { Team } from './team'
@@ -20,6 +22,38 @@ export interface Baseline {
   settings: Settings
   rinkPalette: number[]
   freeAgents: FreeAgent[]
+  // The game's hacks when the season began, for the Changes list. Seasons begun before NOSE4Web kept them have none.
+  hacks?: HackSnapshot
+}
+
+// A ROM's hacks as detected: the choices, the amounts (SNES) and those whose code is not recognised.
+export interface HackSnapshot {
+  choices: Record<string, unknown>
+  amounts?: Record<string, number>
+  unknown: string[]
+}
+
+export function hackSnapshot(project: RomProject): HackSnapshot | undefined {
+  if (hacksSupported(project.game)) {
+    const { choices, unknown } = detectHacks(project.bytes)
+    return { choices: { ...choices }, unknown: [...unknown] }
+  }
+  if (project.game.platform === 'snes') {
+    const { choices, unknown, amounts } = detectSnesHacks(project.bytes)
+    return { choices: { ...choices }, unknown: [...unknown], ...(amounts ? { amounts: { ...amounts } } : {}) }
+  }
+  return undefined
+}
+
+// The hacks changed between a snapshot and the work now.
+function hackChangesSince(project: RomProject, was: HackSnapshot): string[] {
+  const now = hackSnapshot(project)
+  if (!now) return []
+  if (hacksSupported(project.game)) {
+    return hackChanges(was.choices as unknown as HackChoices, now.choices as unknown as HackChoices, [...was.unknown, ...now.unknown] as HackPart[])
+  }
+  const state = (s: HackSnapshot) => ({ choices: s.choices as unknown as SnesHackChoices, unknown: s.unknown as SnesHack[], amounts: s.amounts as Record<SnesAmount, number> | undefined })
+  return snesHackStateChanges(state(was), state(now))
 }
 
 // "Season_12" becomes "Season_13"; a name with no number at its end gets one.
@@ -49,6 +83,7 @@ export function startSeason(project: RomProject, name: string, options: NewSeaso
       settings: project.settings,
       rinkPalette: project.rinkPalette,
       freeAgents,
+      hacks: hackSnapshot(project),
     },
   }
 }
@@ -64,7 +99,19 @@ export function changesSince(project: RomProject, start: Baseline | RomProject):
   const before = 'bytes' in start ? start : asItWas(project, start)
   // Teams are compared one for one, so both must have the same number.
   if (before.teams.length !== project.teams.length) return changeReport(project, project)
-  return changeReport(before, project)
+  const report = changeReport(before, project)
+  if ('bytes' in start) return report
+  // Since a season began, the hacks are compared with those it began with. A season begun before those were kept
+  // has the hacks changed since the ROM was opened, and says so.
+  const others = report.details.filter((section) => section.heading !== 'Hacks')
+  const sinceOpened = report.details.find((section) => section.heading === 'Hacks')
+  const hacks = start.hacks
+    ? { heading: 'Hacks', changes: hackChangesSince(project, start.hacks) }
+    : sinceOpened && { heading: 'Hacks (since the ROM was opened)', changes: sinceOpened.changes }
+  if (!hacks || hacks.changes.length === 0) return { ...report, details: others }
+  // Where compareProjects puts them: after In general, before the teams.
+  const at = others.findIndex((section) => section.heading === 'In general') + 1
+  return { ...report, details: [...others.slice(0, at), hacks, ...others.slice(at)] }
 }
 
 // How many separate changes a report holds, for the number beside the page's name.

@@ -1764,9 +1764,10 @@ export function HelpPage() {
           line editor offers every skater for every position, and saved lines keep them.
         </li>
         <li>
-          <b>Fourth period length, with its own overtime</b>: the main menu offers a fourth period length, whose
-          regular-season games get an overtime of their own (99 minutes, say), saving a league a separate playoff
-          ROM.
+          <b>Extra period length with its own overtime</b>: one ROM for two kinds of regular-season game. The main
+          menu's Period Length gets an extra choice (set its length and text on the Game settings page), and games
+          played at it get an overtime of their own, such as 99 minutes, as good as until a goal; the other lengths
+          and the playoffs are as before. A league needing both no longer needs a separate ROM.
         </li>
         <li>
           <b>Hits and energy</b>, for games with line changes on: <b>energy lost when knocked down</b> and{' '}
@@ -2133,7 +2134,7 @@ export function HelpPage() {
             <li>
               As on the Genesis: the power play and penalty kill, comeback bonus, faceoff spot, second-assist and
               regained-puck assist fixes, the computer forwards' awareness option, counting stick deflections as
-              shots, and the fourth period length with its own 99-minute overtime.
+              shots, and the extra period length with its own 99-minute overtime.
             </li>
             <li>
               The SNES's own: penalty shot fixes (a penalty shot whistled dead because the net was knocked off, or

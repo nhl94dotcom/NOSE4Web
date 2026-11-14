@@ -119,7 +119,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   anyPosition: () => "The game's Edit Lines offers every skater for every position, and keeps such lines when they are saved; a player plays the position the line gives him.",
   fourthPeriodOvertime: (c) =>
-    `The menu offers a fourth period length, and a regular-season game on it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
+    `The main menu offers an extra period length, and a regular-season game played at it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
   introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
   puckFriction: (c) =>
     `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a player receiving a pass).`,
@@ -174,7 +174,7 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   injuryBonus: 'Each knockdown a skater takes makes the next injury a little likelier.',
   injuryCap: 'The most the knockdowns above can add to the injury risk.',
   holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
-  fourthPeriodOvertime: "A fourth period length on the menu, with its own overtime length.",
+  fourthPeriodOvertime: "Adds a period length to the main menu whose regular-season games get their own overtime, such as 99 minutes.",
   introWait: 'How long the intro screens wait before moving on.',
   puckFriction: 'How quickly a sliding puck slows down.',
   netColours: 'The colour of the nets.',
@@ -257,7 +257,7 @@ const SNES: Record<SnesHack, string> = {
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: "With line changes on, a tired skater loses all of his speed rating as his energy runs out, as on the Genesis: an empty one skates at the slowest speed there is, where the original game keeps half.",
   injuryBonus: 'Each knockdown a skater takes makes a hit a little more likely to injure him, its own included (up to five knockdowns count), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.',
-  fourthPeriodOvertime: 'A regular-season game on the menu\'s fourth period length has 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
+  fourthPeriodOvertime: 'Adds a period length to the main menu whose regular-season games get 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
 }
 
 // A sentence on what each SNES hack does: the Hacks page's summary.

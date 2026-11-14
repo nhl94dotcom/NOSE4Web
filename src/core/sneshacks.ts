@@ -344,7 +344,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   showMaxBoost: 'Show the maximum boost in Edit Lines',
   manualPullGoalie: 'Pull the goalie with L+R',
   regainAssist: 'Regained-puck assist fix',
-  fourthPeriodOvertime: '99-minute overtime on the fourth period length',
+  fourthPeriodOvertime: '99-minute overtime on the extra period length',
   hitEnergy: 'Energy lost when knocked down',
   holdEnergy: 'Energy lost when held or hooked',
   injuryBonus: 'Injury risk added by each knockdown',
@@ -2977,7 +2977,11 @@ export function snesHacksForDiscord(rom: Uint8Array, name: string, extra: string
 
 // How the hacks in one SNES ROM differ from those in another.
 export function snesHackDifferences(before: Uint8Array, after: Uint8Array): string[] {
-  const [was, now] = [detectSnesHacks(before), detectSnesHacks(after)]
+  return snesHackStateChanges(detectSnesHacks(before), detectSnesHacks(after))
+}
+
+// The same from two states, such as a season's start (season.ts) and now.
+export function snesHackStateChanges(was: Pick<SnesHackState, 'choices' | 'unknown' | 'amounts'>, now: Pick<SnesHackState, 'choices' | 'unknown' | 'amounts'>): string[] {
   const onOff = (value: boolean) => (value ? 'on' : 'off')
   const differs = (hack: SnesHack) => was.choices[hack] !== now.choices[hack] || (isAmount(hack) && was.amounts?.[hack] !== now.amounts?.[hack])
   return SNES_HACKS.filter((hack) => differs(hack) && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map((hack) =>

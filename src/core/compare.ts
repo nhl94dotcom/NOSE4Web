@@ -300,7 +300,8 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
     const hacks = hackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
     if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
   } else if (before.game.platform === 'snes' && after.game.platform === 'snes') {
-    const hacks = snesHackDifferences(before.bytes, after.bytes)
+    // As above: the ROM as opened is given the work's hacks (App.tsx), so its own bytes say what it had.
+    const hacks = snesHackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
     if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
   }
 

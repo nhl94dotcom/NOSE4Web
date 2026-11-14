@@ -643,12 +643,14 @@ export function HacksPage({ project, name, onChange }: Props) {
           'fourthPeriodOvertime',
           number('fourthPeriodOvertime'),
           <>
-            An option, in seconds of overtime: 0 leaves it off. The main menu offers three of the game's four period
-            lengths; this offers the fourth too, and a regular-season game on it gets this much overtime instead of the
-            Clock's (5940 is 99 minutes, about as good as no limit). Set the fourth length and its menu text with the
-            others on the Game settings page: the original's is 30 seconds. The other lengths keep the Clock's overtime,
-            and playoff overtime stays as long as a period, as in the original game. McMarkis's "5 Minutes, 99 Min OT"
-            patch, made for any length; it can save a league a separate playoff ROM. Tested in the game by the NHL94
+            Lets one ROM play two kinds of regular-season game: the usual ones, and ones with an overtime of their own,
+            such as 99 minutes, as good as playing until someone scores. A league that needs both no longer needs a
+            separate ROM for them. How: the main menu's Period Length offers three of the game's four lengths, and this
+            adds the fourth. Set that length and its menu text on the Game settings page (the original game's is 30
+            seconds), for example 5:00 and "5 Min, 99 Min OT". A regular-season game played at it then gets this many
+            seconds of overtime (5940 is 99 minutes); 0 turns the option off. Games at the other lengths keep the
+            overtime set on the Game settings page, and playoff overtime is unchanged, as long as a period. McMarkis's
+            "5 Minutes, 99 Min OT" patch, made for any length. Tested in the game by the NHL94
             Match Viewer project: a regular-season overtime of 99:00 counts down and shows right, ends the game at 0:00 if
             still tied, and the playoffs keep theirs. With 99 minutes, the faceoff song cannot play in its first half.
           </>,

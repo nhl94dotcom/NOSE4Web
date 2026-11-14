@@ -3163,7 +3163,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   goalieDelay: 'Goalie control delay',
   fewerSkaterLines: 'Edit Lines for fewer skaters',
   introWait: 'Intro screen wait',
-  fourthPeriodOvertime: 'Fourth period length, with its own overtime',
+  fourthPeriodOvertime: 'Extra period length with its own overtime',
   anyPosition: 'Any skater at any position in Edit Lines',
   hitEnergy: 'Energy lost when knocked down',
   injuryBonus: 'Injury risk added by each knockdown',

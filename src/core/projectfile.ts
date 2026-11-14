@@ -29,7 +29,20 @@ import { expandPictureSpace, NO_GRAPHICS_EDITS, pictureSpace, writeGraphics, typ
 import { currentPicture, pictureKinds, type PictureKind } from './pictureset'
 import { applyIps, createIps } from './ips'
 import { buildRom, openRom, type RomProject } from './rom'
-import type { Baseline } from './season'
+import type { Baseline, HackSnapshot } from './season'
+
+// A season's saved hacks, if they are in the shape NOSE4Web writes them.
+function isHackSnapshot(value: unknown): value is HackSnapshot {
+  const v = value as HackSnapshot | undefined
+  return (
+    !!v &&
+    typeof v.choices === 'object' &&
+    v.choices !== null &&
+    Array.isArray(v.unknown) &&
+    v.unknown.every((u) => typeof u === 'string') &&
+    (v.amounts === undefined || (typeof v.amounts === 'object' && v.amounts !== null && Object.values(v.amounts).every((n) => typeof n === 'number')))
+  )
+}
 import { MAX_ROSTER } from './roster'
 import { hasSettings, type Settings } from './settings'
 import { teamDisplayName, type Team } from './team'
@@ -515,6 +528,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
           settings: hasSettings(game, project.settings) && started.settings ? mergeSettings(project.settings, started.settings, teams.length, []) : project.settings,
           rinkPalette: started.rinkPalette,
           freeAgents: (Array.isArray(started.freeAgents) ? started.freeAgents : []).filter((agent) => checkPlayer(agent?.player) && 'GFD'.includes(agent.role)),
+          ...(isHackSnapshot(started.hacks) ? { hacks: started.hacks } : {}),
         }
       : null
   project = { ...project, teams, rinkPalette: file.rinkPalette, settings, freeAgents, leagueRules, baseline }
