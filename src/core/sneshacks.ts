@@ -1420,7 +1420,6 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
 // on to ScoutingReport. McMarkis's 2 MB and SA-1 builds count it themselves.
 const PTOI = 0x7ee800
 const OWN_STAT_PAGES = "This build's Player Stats has pages of its own after Penalties (its checks for and against), so NOSE4Web's Time On Ice page is not offered; the time on ice is still counted for save-state readers."
-const OWN_PAGES_GT = "This build's Player Stats has pages of its own after Penalties, so NOSE4Web's Giveaways and Takeaways pages are not offered; the counts and the Game Stats row are."
 const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
 
 function ownIceTime(rom: Uint8Array): boolean {
@@ -2236,7 +2235,189 @@ function giveawayPagesIn(rom: Uint8Array): PagesIn | null {
 }
 
 function giveawayPagesPlaces(rom: Uint8Array): Placed[] | null {
+  // McMarkis's builds, with Player Stats pages of their own.
+  if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) return mcPagesPlaces(rom)
   return giveawayPagesWork(rom)?.places ?? null
+}
+
+// In McMarkis's 2 MB and SA-1 builds, whose Player Stats has pages of its own after Penalties (Checks For and
+// Checks Agst, and in the SA-1 builds Time On Ice; NHL94SNES-SA1, used with his permission): Giveaways and
+// Takeaways after his last page, his code left as it is and called for his pages. His builds go to his own code
+// for columns 6 and up at four places, each chained here: DrawStatsList_rows' jsl .3 (his .3 starts lda statcolumn
+// / cmp #6 / bcc / jml his rows, then the game's row), SortPlayerStats' jsl AdvanceStringPtr (his titles are the
+// game's list made longer), ComparePlayerStats' cmp #6 / bcc / jsl his compare (Z clear to swap) / beq / jmp .7 /
+// jmp .6, and DrawStatsList's jsl his header (a1 set to the column's header). PlayerStatsScreen_right's last column
+// is two more, and his last title ends in "]" (shortened to fit: Checks Agst as his SA-1 builds have it, Checks
+// Agt; Time On Ice as Ice Time). The block's note: the four places as they were, his last column and his last title.
+const MC_NOTE = 4 * 4 + 1 + 12
+const MC_LAST_TITLES: Record<string, string> = { '[Checks Agst': '[Checks Agt]', '[Checks Agt]': '[Checks Agt]', '[Time On Ice': '[ Ice Time ]' }
+
+interface McPageEnv {
+  statcolumn: number
+  last: number
+  rightSite: number
+  rowSite: number
+  titleSite: number
+  cmpSite: number
+  headerSite: number
+  a1: number
+}
+
+function mcPageEnv(rom: Uint8Array): McPageEnv | null {
+  const rows = findCodeAll(rom, 'ad(....)f00622(......)800422')
+  if (rows.length !== 1) return null
+  const statcolumn = rows[0].groups[0]
+  const column = hexOf(Uint8Array.from(word(statcolumn)))
+  const rights = findCodeAll(rom, 'ad' + column + 'c9(..)0030034c')
+  const titles = findCodeAll(rom, 'a9(..)0085(..)a9(....)85(..)22......22......ae')
+  const compares = findCodeAll(rom, 'c90600900922......f0034c....4c....')
+  const headers = findCodeAll(rom, 'ad' + column + 'f0..a5..48a5..48' + '22......22......6885')
+  if (rights.length !== 1 || titles.length !== 1 || compares.length !== 1 || headers.length !== 1) return null
+  const [titleBank, a1hi, titleList, a1lo] = titles[0].groups
+  if (a1hi !== a1lo + 2) return null
+  if (loRomOffset(titleBank, titleList) < 0) return null
+  return {
+    statcolumn,
+    last: rights[0].groups[0],
+    rightSite: rights[0].at + 4,
+    rowSite: rows[0].at + 5,
+    titleSite: titles[0].at + 10,
+    cmpSite: compares[0].at + 5,
+    headerSite: headers[0].at + 11,
+    a1: a1lo,
+  }
+}
+
+function mcPagesPlaces(rom: Uint8Array): Placed[] | null {
+  const env = mcPageEnv(rom)
+  const moved = shift(rom)
+  const ram = GT_RAM.find((layout) => layout.shift === moved)
+  if (!env || !ram) return null
+  const callTo = (at: number) => loRomOffset(rom[at + 3], readU16(rom, at + 1))
+  if ([env.rowSite, env.titleSite, env.cmpSite, env.headerSite].some((site) => rom[site] !== 0x22)) return null
+  // In: the block from the row's call, and what the places held from its note.
+  const rowTarget = callTo(env.rowSite)
+  const ours = rowTarget >= MC_NOTE && same(rom, rowTarget, bytesOf('AD', word(env.statcolumn), 'C9')) && rom[rowTarget + 6] === 0xb0
+  const base = ours ? rowTarget - MC_NOTE : -1
+  const note = ours
+    ? rom.slice(base, base + MC_NOTE)
+    : null
+  const last = note ? note[16] : rom[env.rightSite]
+  if (last < 6 || last > 12) return null
+  const first = last + 1
+  // His last title (a length word of 14, then 12 letters).
+  const titles = findCodeAll(rom, 'a9(..)0085..a9(....)85..22......22......ae')[0]
+  const lastTitle = loRomOffset(titles.groups[0], titles.groups[1]) + 14 * last
+  if (readU16(rom, lastTitle) !== 14) return null
+  const ownTitle = note ? note.slice(17, 29) : rom.slice(lastTitle + 2, lastTitle + 14)
+  const shortened = MC_LAST_TITLES[new TextDecoder().decode(ownTitle)]
+  if (!shortened) return null
+  const before = note ?? bytesOf(rom.slice(env.rowSite, env.rowSite + 4), rom.slice(env.titleSite, env.titleSite + 4), rom.slice(env.cmpSite, env.cmpSite + 4), rom.slice(env.headerSite, env.headerSite + 4), last, ownTitle)
+  // The game's row, after his check (lda statcolumn / cmp #6 / bcc / jml, 12 bytes).
+  const skater = loRomOffset(before[3], readU16(before, 1))
+  if (skater < 0 || !same(rom, skater, bytesOf('AD', word(env.statcolumn), 'C90600 9004 5C'))) return null
+  const game = skater + 12
+  if (!same(rom, game, hexBytes('5AA5A948A9FFFF22'))) return null
+  const head = rom.slice(game, game + 171)
+  const tail = rom.slice(game + 247, game + 259)
+  if (head[163] !== 0x22 || head[167] !== 0x22 || tail[0] !== 0xa9 || tail[11] !== 0x6b) return null
+  const setPal = head.slice(8, 11), printx = head.slice(15, 17), toStatsPage = head.slice(24, 27), d0 = head[18], pushWrap = head.slice(164, 167)
+  const d1 = 0xa9
+  const a1 = env.a1
+  const give = bytesOf(word((ram.at + GT_GIVE) & 0xffff), ram.bank)
+  const take = bytesOf(word((ram.at + GT_TAKE) & 0xffff), ram.bank)
+  const count = (column: number, x: number, array: Uint8Array) =>
+    bytesOf('A9', word(column), '22', setPal, 'A9', word(x), '8D', printx, 'DA 8A 0A AA BF', array, '85', d0, 'FA A90200 85', d1, '22', pushWrap, '22', toStatsPage)
+  const row = asm65([
+    bytesOf('AD', word(env.statcolumn), 'C9', word(first)),
+    { branch: BCS, to: 'g' },
+    bytesOf('5C', before.slice(1, 4)),
+    { label: 'g' },
+    head,
+    count(first, 0x1a, give),
+    count(first + 1, 0x1d, take),
+    tail,
+  ])
+  const words = (array: Uint8Array) => bytesOf('8A 0A AA BF', array, '85', d0, '98 0A AA BF', array, 'C5', d0)
+  // Z clear to swap, as his compare: the later player's count more than the earlier's.
+  const compare = asm65([
+    bytesOf('C9', word(first)),
+    { branch: BCS, to: 'm' },
+    bytesOf('5C', before.slice(9, 12)),
+    { label: 'm' },
+    { branch: BNE, to: 't' },
+    words(give),
+    { branch: BRA, to: 'r' },
+    { label: 't' },
+    words(take),
+    { label: 'r' },
+    { branch: BEQ, to: 'z' },
+    { branch: BCC, to: 'z' },
+    bytesOf('A90100 6B'),
+    { label: 'z' },
+    bytesOf('A90000 6B'),
+  ])
+  const text = (s: string) => new TextEncoder().encode(s)
+  const headerPrefix = hexBytes('23009F0109')
+  const at = { row: MC_NOTE, title: 0, compare: 0, header: 0, texts: 0 }
+  const titleCode = (giveAt: number, takeAt: number, bank: number) =>
+    asm65([
+      bytesOf('A5', d0, 'C9', word(first)),
+      { branch: BCC, to: 'o' },
+      { branch: BEQ, to: 'a' },
+      bytesOf('A9', word(loRomAddress(takeAt))),
+      { branch: BRA, to: 's' },
+      { label: 'a' },
+      bytesOf('A9', word(loRomAddress(giveAt))),
+      { label: 's' },
+      bytesOf('85', a1, 'A9', bank, '00 85', a1 + 2, '6B'),
+      { label: 'o' },
+      bytesOf('5C', before.slice(5, 8)),
+    ])
+  const headerCode = (oursAt: number, bank: number) =>
+    asm65([
+      bytesOf('22', before.slice(13, 16), 'AD', word(env.statcolumn), 'C9', word(first)),
+      { branch: BCC, to: 'r' },
+      bytesOf('A9', bank, '00 85', a1 + 2, 'A9', word(loRomAddress(oursAt)), '85', a1),
+      { label: 'r' },
+      '6B',
+    ])
+  const build = (room: number) => {
+    const bank = loRomBank(room, 0x80)
+    at.title = at.row + row.length
+    at.compare = at.title + titleCode(room, room, bank).length
+    at.header = at.compare + compare.length
+    at.texts = at.header + headerCode(room, bank).length
+    const giveAt = room + at.texts
+    const takeAt = giveAt + 14
+    const headerAt = takeAt + 14
+    return bytesOf(
+      before,
+      row, titleCode(giveAt, takeAt, bank), compare, headerCode(headerAt, bank),
+      word(14), text('[Giveaways ]'), word(14), text('[Takeaways  '), headerPrefix, text(GP_HEADER),
+    )
+  }
+  let room = base
+  const length = build(0).length
+  if (!ours) {
+    for (const bank of [0x9b, 0x80, 0xa0, loRomBank(env.rowSite, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, length)
+      if (room >= 0) break
+    }
+    if (room < 0) return null
+  }
+  const block = build(room)
+  const call = (to: number) => bytesOf('22', long(to))
+  return [
+    { at: env.rowSite, original: before.slice(0, 4), hacked: call(room + at.row) },
+    { at: env.titleSite, original: before.slice(4, 8), hacked: call(room + at.title) },
+    { at: env.cmpSite, original: before.slice(8, 12), hacked: call(room + at.compare) },
+    { at: env.headerSite, original: before.slice(12, 16), hacked: call(room + at.header) },
+    { at: env.rightSite, original: Uint8Array.of(last), hacked: Uint8Array.of(last + 2) },
+    { at: lastTitle + 2, original: ownTitle, hacked: text(shortened) },
+    { at: room, original: unused(block.length), hacked: block },
+  ]
 }
 
 // ------------------------------------------------------------ NHL shootout
@@ -3546,11 +3727,6 @@ function detect(rom: Uint8Array): SnesHackState {
   if (!ownIceTime(rom) && only(rom, CLEAR_PLAYER_CHECKS) >= 0 && !choices.timeOnIceShown) {
     notOffered.timeOnIceShown = OWN_STAT_PAGES
     if (unknown.includes('timeOnIceShown')) unknown.splice(unknown.indexOf('timeOnIceShown'), 1)
-  }
-  // NOSE4Web's giveaways and takeaways pages go where its time on ice page does.
-  if ((ownIceTime(rom) || only(rom, CLEAR_PLAYER_CHECKS) >= 0) && !choices.giveawayPages) {
-    notOffered.giveawayPages = OWN_PAGES_GT
-    if (unknown.includes('giveawayPages')) unknown.splice(unknown.indexOf('giveawayPages'), 1)
   }
   if (ownIceTime(rom)) {
     // Its own count is not other code in the way: the hack is off, and not offered.

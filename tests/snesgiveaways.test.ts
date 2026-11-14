@@ -84,11 +84,19 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       expect(state.unknown).not.toContain('giveaways')
       expect(state.unknown).not.toContain('giveawaysShown')
       expect(state.unknown).not.toContain('giveawayPages')
-      if (!state.notOffered?.giveawayPages) {
-        const p = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawayPages: true, timeOnIce: true, timeOnIceShown: true })))
-        expect(detectSnesHacks(p.bytes).choices).toMatchObject({ giveawayPages: true, timeOnIceShown: true })
-        expect(Buffer.compare(buildRom(applySnesHacks(p, { giveaways: false, giveawayPages: false, timeOnIce: false, timeOnIceShown: false })), buildRom(rom))).toBe(0)
+      // The pages, with NOSE4Web's time on ice page where it is offered (McMarkis's builds have their own pages, and the
+      // two go after them).
+      const toi = state.notOffered?.timeOnIceShown ? {} : { timeOnIce: true, timeOnIceShown: true }
+      const p = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawayPages: true, ...toi })))
+      expect(detectSnesHacks(p.bytes).choices).toMatchObject({ giveawayPages: true, ...toi })
+      const text = latin(p.bytes, 0, p.bytes.length)
+      expect(text).toContain("[Giveaways ]")
+      if (state.notOffered?.timeOnIceShown) {
+        expect(text).toContain("[Takeaways  ")
+        expect(text.includes("[Checks Agt]")).toBe(true)
       }
+      const offs = Object.fromEntries(Object.keys({ giveaways: 1, giveawayPages: 1, ...toi }).map((k) => [k, false]))
+      expect(Buffer.compare(buildRom(applySnesHacks(p, offs)), buildRom(rom))).toBe(0)
       const on = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawaysShown: true })))
       expect(detectSnesHacks(on.bytes).choices).toMatchObject({ giveaways: true, giveawaysShown: true })
       expect(Buffer.compare(buildRom(applySnesHacks(on, { giveaways: false, giveawaysShown: false })), buildRom(rom))).toBe(0)
