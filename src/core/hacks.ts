@@ -178,6 +178,8 @@ export interface HackChoices {
   fightSeconds: number
   // In a tied regular-season game's shootout, a skater out for the game takes no attempt.
   shootoutInjuries: boolean
+  // Half a rating point for everyone on the ice in the last 2:00 of a close third period.
+  clutchTime: boolean
   // The puck slows a little more as each period goes on.
   choppyIce: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
@@ -262,6 +264,7 @@ export type HackPart =
   | 'penaltySeconds'
   | 'fightSeconds'
   | 'shootoutInjuries'
+  | 'clutchTime'
   | 'choppyIce'
   | 'nhlShootout'
   | 'timeOnIce'
@@ -339,6 +342,7 @@ export const NO_HACKS: HackChoices = {
   penaltySeconds: 60,
   fightSeconds: 0,
   shootoutInjuries: false,
+  clutchTime: false,
   choppyIce: false,
   nhlShootout: false,
   timeOnIce: false,
@@ -2674,6 +2678,54 @@ const choppyIce: Part<boolean> = {
   apply: (work, value) => void (value && hook(work, CHOPPY_HOOK, CHOPPY_CODE)),
 }
 
+// --------------------------------------------------------------- clutch time
+// In the last 2:00 of the third period (gsp 2, not overtime), with the score
+// within a goal, everyone on the ice plays half a rating point better: +3 (of
+// 0-30, 5 to a point) to every working rating but aggression. setplayer builds
+// the working ratings, each through AttributeCalc (roster value x 5 plus hot /
+// cold, clamped to 0-30), at every faceoff for both teams, at a change on the
+// fly and on leaving the box; so AttributeCalc's end (andi.w #$FF,d3 / movem /
+// rts, $F713A) becomes jmp to code that adds it there, capped at 30, before the
+// bonuses, clamps and the inversion of aioff / aidef. Aggression (attribute
+// $F, TempWord2) is left out. A goal or whistle that ends or starts it is
+// picked up by the next faceoff's rebuild. The clock reaching 2:00 in play is
+// the one gap: the clock's tick (subq.w #1,gameclock / cmpi.w #61, $15DFA, in
+// the vblank interrupt, which saves every register) becomes jsr / nops to code
+// that, at 2:00 in a close third, adds the +3 to the 12 players' stored
+// ratings (the 128-byte structs at $FFB04A) but aioff and aidef (stored
+// inverted: the next rebuild has them). From Match Viewer's reading.
+const CLUTCH_CALC_AT = 0xf713a
+const CLUTCH_CALC_ORIGINAL = bytes('0243 00FF 4CDF 0207 4E75')
+const CLUTCH_CALC_CODE = bytes('0243 00FF 0C78 000F D6CC 672C 0C78 0002 C466 6624 0C78 0078 C468 621C 3038 C6DA 9078 CA3E 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75')
+const CLUTCH_TICK: Hook = { at: 0x15dfa, original: bytes('5378 C468 0C78 003D C468') }
+const CLUTCH_TICK_CODE = bytes('5378 C468 0C78 0078 C468 664E 0C78 0002 C466 6646 0C78 0078 C468 623E 3038 C6DA 9078 CA3E 6A02 4440 0C40 0001 622C 41F8 B04A 720B 43FA 002C 7408 3019 1630 0000 5603 0C03 001E 6302 761E 1183 0000 51CA FFEA 41E8 0080 51C9 FFDC 0C78 003D C468 4E75 0068 0069 006C 006D 006E 0070 0071 0072 0075')
+const clutchTime: Part<boolean> = {
+  detect(rom) {
+    const calcIn = readU16(rom, CLUTCH_CALC_AT) === 0x4ef9 && readU16(rom, CLUTCH_CALC_AT + 6) === OP_NOP && readU16(rom, CLUTCH_CALC_AT + 8) === OP_NOP
+    const calcTarget = calcIn ? readU32(rom, CLUTCH_CALC_AT + 2) : -1
+    const calcOk = calcIn && calcTarget + CLUTCH_CALC_CODE.length <= rom.length && is(rom, calcTarget, CLUTCH_CALC_CODE)
+    const tickOk = hooked(rom, CLUTCH_TICK, CLUTCH_TICK_CODE) !== null
+    if (is(rom, CLUTCH_CALC_AT, CLUTCH_CALC_ORIGINAL) && is(rom, CLUTCH_TICK.at, CLUTCH_TICK.original)) return false
+    return calcOk && tickOk ? true : undefined
+  },
+  remove(rom) {
+    if (clutchTime.detect(rom) !== true) return
+    erase(rom, readU32(rom, CLUTCH_CALC_AT + 2), CLUTCH_CALC_CODE.length)
+    rom.set(CLUTCH_CALC_ORIGINAL, CLUTCH_CALC_AT)
+    erase(rom, hooked(rom, CLUTCH_TICK, CLUTCH_TICK_CODE)!, CLUTCH_TICK_CODE.length)
+    rom.set(CLUTCH_TICK.original, CLUTCH_TICK.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    const target = place(work, CLUTCH_CALC_CODE)
+    writeU16(work.rom, CLUTCH_CALC_AT, 0x4ef9)
+    writeU32(work.rom, CLUTCH_CALC_AT + 2, target)
+    writeU16(work.rom, CLUTCH_CALC_AT + 6, OP_NOP)
+    writeU16(work.rom, CLUTCH_CALC_AT + 8, OP_NOP)
+    hook(work, CLUTCH_TICK, CLUTCH_TICK_CODE)
+  },
+}
+
 // -------------------------------------------------------- fighting penalty time
 // How long a fight keeps each fighter in the box, in seconds of the game clock,
 // whatever its minutes and the penalty time. penalty94's .Sa works out a
@@ -2839,6 +2891,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
+    clutchTime: found('clutchTime', clutchTime.detect(rom), NO_HACKS.clutchTime),
     choppyIce: found('choppyIce', choppyIce.detect(rom), NO_HACKS.choppyIce),
     nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
@@ -2947,6 +3000,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
+    ['clutchTime', () => clutchTime.remove(work.rom), () => clutchTime.apply(work, wanted.clutchTime)],
     ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
@@ -3203,6 +3257,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
   shootoutInjuries: 'The injured sit out the shootout',
+  clutchTime: 'Clutch time',
   choppyIce: 'Choppy ice',
   nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
@@ -3275,6 +3330,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltySeconds: 'penaltySeconds',
   fightSeconds: 'fightSeconds',
   shootoutInjuries: 'shootoutInjuries',
+  clutchTime: 'clutchTime',
   choppyIce: 'choppyIce',
   nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',

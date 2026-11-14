@@ -66,6 +66,7 @@ export type SnesHack =
   | 'timeOnIceShown'
   | 'nhlShootout'
   | 'choppyIce'
+  | 'clutchTime'
 
 interface Site {
   // The game's address.
@@ -319,6 +320,7 @@ export const SNES_HACKS: SnesHack[] = [
   'timeOnIceShown',
   'nhlShootout',
   'choppyIce',
+  'clutchTime',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -372,6 +374,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   timeOnIceShown: 'Time on ice in Player Stats',
   nhlShootout: 'Three-round shootout',
   choppyIce: 'Choppy ice',
+  clutchTime: 'Clutch time',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1730,7 +1733,9 @@ function nhlShootoutPlaces(rom: Uint8Array): Placed[] | null {
 // (out of 256; the gliding puck's is $FF at the usual timestep). Its ldx Xvel,y /
 // lda d2 becomes jsl / nop to code that, for the puck (Y = $1C), takes one off d2
 // on L of every 16 updates (L the quarters of the period gone, 0 to 4, from
-// PerTimeTotal and gameclock), chosen by the low bits of the puck's X fraction,
+// PerTimeTotal and gameclock), chosen by bits 8-11 of the puck's X fraction (its
+// low bits step by 16, so they never change: Match Viewer found the first
+// version, which used them, doubled the friction from the first quarter),
 // then does the ldx / lda. So by the period's end one update in four has $FE,
 // a quarter more friction on average (Match Viewer's reading of the code).
 function choppyIcePlaces(rom: Uint8Array): Placed[] | null {
@@ -1759,7 +1764,8 @@ function choppyIcePlaces(rom: Uint8Array): Placed[] | null {
     bytesOf('CD', word(total)), { branch: BCC, to: 'done' },
     bytesOf('ED', word(total), 'E8 E00400'), { branch: BCC, to: 'loop' },
     { label: 'done' },
-    bytesOf('8A 48 B9', word(xfrac), '290F00 C301 68'), { branch: BCS, to: 'plain' },
+    // Bits 8-11 of the X fraction: its low bits only ever step by 16 (velstep is the frame time x 16), so they stay put.
+    bytesOf('8A 48 B9', word(xfrac + 1), '290F00 C301 68'), { branch: BCS, to: 'plain' },
     bytesOf('A5', d2, '3A 85', d2),
     { label: 'plain' },
     bytesOf('BE', word(xvel), 'A5', d2, '6B'),
@@ -1768,6 +1774,94 @@ function choppyIcePlaces(rom: Uint8Array): Placed[] | null {
   return withFarCode(rom, site, bytesOf('BE', word(xvel), 'A5', d2), 1, code)
 }
 const CHOPPY_LENGTH = 64
+
+// --------------------------------------------------------------- clutch time
+// As on the Genesis (hacks.ts, clutchTime): in the last 2:00 of the third
+// period with the score within a goal, everyone on the ice plays half a rating
+// point better, +1 (of 0-15, 2.5 to a point) to every working rating but
+// aggression. setplayer builds each through its .8 (hot / cold, clamp 0-15),
+// stat number Y - r3 (aggression 11); .8's end (rep / and #$FF / rtl; the hot
+// and cold bug fix changes its middle) becomes jml to code that adds it,
+// capped at 15. Gameloop's dec gameclock / lda CwdExciteLvl becomes jsl / nops
+// to code that, as the clock reaches 2:00 in a close third, adds the +1 to the
+// 12 players' stored ratings (the arrays setplayer's .8 results go to; aioff
+// and aidef are left to the next rebuild, being stored inverted). Found by
+// the code around them, so it goes into every build. From Match Viewer's reading.
+function clutchTimePlaces(rom: Uint8Array): Placed[] | null {
+  // .8: sta r3+2 / tya / clc / adc r3 / tay / sep / lda HotColdTable,y / ... / cmp #$0F / bcc / lda #$0F / then
+  // rep / and #$FF / rtl, or the hack's jml / nops.
+  // The hot and cold bug fix makes its lda HotColdTable,y / lsr / lsr a jsr / nop / nop.
+  const ends = ['b9....4a4a', '20....eaea'].flatMap((middle) => [
+    ...findCodeAll(rom, '85(..)981865(..)a8e220' + middle + '89..f0..09..1865..10..a900c90f9002a90fc22029ff006b'),
+    ...findCodeAll(rom, '85(..)981865(..)a8e220' + middle + '89..f0..09..1865..10..a900c90f9002a90f5c(......)eaea'),
+  ])
+  if (ends.length !== 1) return null
+  const eight = ends[0].at
+  const [, r3] = ends[0].groups
+  const endSite = eight + 33
+  // setplayer's late test: lda gsp / sec / sbc #2 / bmi / bne / jsl GetPeriodTime / lsr d0 / lda d0 / sec / sbc
+  // gameclock / beq / bpl / lda tmscore / sec / sbc tmscore+2.
+  // (The comeback bonus fix makes its bpl a bmi.)
+  const tests = findCodeAll(rom, 'ad(....)38e9020030..d0..22......46..a5..38ed(....)f0......ad(....)38ed(....)')
+  if (tests.length !== 1) return null
+  const [gsp, clock, score, score2] = tests[0].groups
+  if (score2 !== score + 2) return null
+  // The arrays .8's results go to: jsl .8 / sta array,x, in setplayer's order (aggression the last).
+  const arrays = findCodeAll(rom, '22' + hexOf(Uint8Array.from(long(eight))) + '9d(....)').map(({ groups }) => groups[0])
+  if (arrays.length !== 10) return null
+  const boosted = arrays.slice(0, 9)
+  // Gameloop: dec gameclock / lda CwdExciteLvl / clc / adc #$FFFD; or the hack's jsl / nops.
+  const clockHex = hexOf(Uint8Array.from(word(clock)))
+  const ticks = [...findCodeAll(rom, 'ce' + clockHex + 'ad(....)1869fdff'), ...findCodeAll(rom, '22(......)eaea1869fdff')]
+  if (ticks.length !== 1) return null
+  const tickSite = ticks[0].at
+  const close = (out: string): Asm65 => [
+    bytesOf('AD', word(gsp), 'C90200'), { branch: BNE, to: out },
+    bytesOf('AD', word(clock), 'C97900'), { branch: BCS, to: out },
+    bytesOf('AD', word(score), '38 ED', word(score + 2)), { branch: BPL, to: out + 'p' }, bytesOf('49FFFF 1A'),
+    { label: out + 'p' }, bytesOf('C90200'), { branch: BCS, to: out },
+  ]
+  const calc = asm65([
+    bytesOf('C220 29FF00 48 98 38 E5', r3, 'C90B00'), { branch: BEQ, to: 'out' },
+    ...close('out'),
+    bytesOf('68 1A C91000'), { branch: BCC, to: 'r' }, bytesOf('A90F00'),
+    { label: 'r' }, '6B',
+    { label: 'out' }, bytesOf('68 6B'),
+  ])
+  // The tick: the CwdExciteLvl address comes from the game's lda, or from the end of the hack's code.
+  const plainTick = rom[tickSite] === 0xce
+  const tickCode = plainTick ? -1 : loRomOffset(rom[tickSite + 3], readU16(rom, tickSite + 1))
+  // The pass is last, with its own ending, so the tests' branches stay short: the first lda CwdExciteLvl is at 47.
+  const crowd = plainTick ? ticks[0].groups[0] : readU16(rom, tickCode + 48)
+  const tick = asm65([
+    bytesOf('CE', word(clock), 'AD', word(clock), 'C97800'), { branch: BNE, to: 'x' },
+    ...close('x'),
+    { branch: BRA, to: 'pass' },
+    { label: 'x' }, bytesOf('AD', word(crowd), '6B'),
+    { label: 'pass' }, bytesOf('A21600'),
+    { label: 'loop' },
+    ...boosted.flatMap((array, i) => [bytesOf('BD', word(array), '1A C91000'), { branch: BCS, to: 's' + i }, bytesOf('9D', word(array)), { label: 's' + i }]),
+    bytesOf('CA CA'), { branch: BPL, to: 'loop' },
+    bytesOf('AD', word(crowd), '6B'),
+  ])
+  if (tick.length !== CLUTCH_TICK_LENGTH(boosted.length)) return null
+  // .8's end: jml (no return on the stack, its rtl ends it), so placed here rather than by withFarCode (jsl).
+  const endOriginal = hexBytes('C22029FF006B')
+  const endIn = !same(rom, endSite, endOriginal)
+  if (endIn && rom[endSite] !== 0x5c) return null
+  const calcRoom = endIn ? loRomOffset(rom[endSite + 3], readU16(rom, endSite + 1)) : farRoom(rom, endSite, endOriginal, calc.length)
+  if (calcRoom < 0) return null
+  const one: Placed[] = [
+    { at: endSite, original: endOriginal, hacked: bytesOf('5C', long(calcRoom), 'EAEA') },
+    { at: calcRoom, original: unused(calc.length), hacked: calc },
+  ]
+  // The tick's room looked for with that in.
+  const work = rom.slice()
+  for (const place of one) work.set(place.hacked, place.at)
+  const two = withFarCode(work, tickSite, bytesOf('CE', word(clock), 'AD', word(crowd)), 2, tick)
+  return two && [...one, ...two]
+}
+const CLUTCH_TICK_LENGTH = (arrays: number) => 62 + arrays * 12
 
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
@@ -1915,6 +2009,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
+  clutchTime: (rom) => clutchTimePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2995,7 +3090,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
