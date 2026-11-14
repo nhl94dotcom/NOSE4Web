@@ -6,7 +6,7 @@ import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
 import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
-import { SUPPORTED_GAMES } from './core/games'
+import { isGenesis94, SUPPORTED_GAMES } from './core/games'
 import { emptyLineSlots } from './core/lines'
 import { overallRating } from './core/rating'
 import { resetTeam, teamChanged } from './core/reset'
@@ -374,16 +374,16 @@ export default function App() {
             onChange={(settings) => change({ ...current, settings })}
             first={
               <>
-                <AnnouncerSection project={current} onChange={change} />
+                {isGenesis94(current.game) || current.game.platform === 'snes' ? <AnnouncerSection project={current} onChange={change} /> : null}
                 <ScoutingSection settings={current.settings} original={opened.settings} onChange={(settings) => change({ ...current, settings })} />
               </>
             }
           >
-            {current.game.platform === 'genesis' && <SplashScreenSection project={current} opened={opened} onChange={change} />}
-            {current.game.platform === 'genesis' && <MenuPictureSection project={current} opened={opened} onChange={change} />}
-            {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
+            {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
+            {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
+            {isGenesis94(current.game) && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
-            <MoveTeamsSection project={current} onChange={change} />
+            {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>
         )
       case CSV:

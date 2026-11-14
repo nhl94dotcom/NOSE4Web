@@ -1,6 +1,6 @@
 import { readAscii, readU16, readU32, writeAscii, writeU16 } from './bytes'
 import { parseCredits, writeCredits, type Credits } from './credits'
-import type { GameConfig } from './games'
+import { isGenesis94, type GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams, type MenuTeams } from './menuteams'
 import { parseScouting, type Scouting, writeScoutingIfChanged } from './scouting'
 
@@ -145,10 +145,18 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
   const more: number[] = []
   for (let i = game.menuItemCount; i < count; i++) more.push(at.options + readU16(rom, at.options + i * 2))
 
-  // Every choice is the same size, so the list ends where that stops being true.
+  // Every choice is the same size, so the list ends where that stops being true. In NHL '95 each is read by its own
+  // length word, as a hack may have changed some (the WN95HL's Create Player is 12 bytes, the rest 22), up to the
+  // first that is not text.
   const optionSize = readU16(rom, Math.min(...starts))
+  const sizeAt = (o: number) => {
+    if (game.edition !== 95) return readU16(rom, o) === optionSize ? optionSize : 0
+    const size = readU16(rom, o)
+    if (size < 3 || size > 0x30 || o + size > rom.length) return 0
+    return Array.from(rom.subarray(o + 2, o + size)).every((c) => c === 0 || (c >= 0x20 && c < 0x7f)) ? size : 0
+  }
   let end = Math.max(...starts)
-  while (optionSize > 0 && end + 2 <= rom.length && readU16(rom, end) === optionSize) end += optionSize
+  while (optionSize > 0 && end + 2 <= rom.length && sizeAt(end) > 0) end += sizeAt(end)
 
   const items: MenuItem[] = []
   let caption = at.captions
@@ -160,16 +168,29 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
       const ends = [...starts.filter((_, j) => !game.menuTeamItems.includes(j)), ...more]
       const stop = Math.min(end, ...ends.filter((s) => s > starts[i]))
       options = []
-      for (let o = starts[i]; o < stop; o += optionSize) options.push(readFixedText(rom, o).text)
+      for (let o = starts[i]; o < stop && sizeAt(o) > 0; o += sizeAt(o)) options.push(readFixedText(rom, o).text)
     }
-    items.push({
-      caption: readFixedText(rom, caption).text,
-      options,
-      value: readU16(rom, at.defaults + i * 2),
-    })
+    const word = game.menuDefaultWords?.[i] ?? i
+    let value = readU16(rom, at.defaults + word * 2)
+    // NHL '95's play mode: the modes the game can start in, by the rows they are.
+    if (i === 0 && options && game.menuPlayModeTablePointer !== undefined) {
+      const rows = playModeRows(rom, game)
+      options = rows.map((row, mode) => options![row] ?? `Play mode ${mode + 1}`)
+      value = Math.max(0, Math.min(options.length - 1, value))
+    }
+    items.push({ caption: readFixedText(rom, caption).text, options, value })
     caption += readU16(rom, caption)
   }
   return items
+}
+
+// NHL '95's play modes: the table's bytes, a mode's row each, up to $FF. A mode is its place in the table, the choice
+// shown its place among those the table has.
+function playModeRows(rom: Uint8Array, game: GameConfig): number[] {
+  const at = readU32(rom, game.menuPlayModeTablePointer!)
+  const rows: number[] = []
+  for (let o = at; o < at + 32 && o < rom.length && rom[o] !== 0xff; o++) rows.push(rom[o])
+  return rows
 }
 
 // For ROMs whose settings are not where the editor can find them.
@@ -195,9 +216,10 @@ export function parseSettings(rom: Uint8Array, game: GameConfig): Settings {
     overtimeSeconds: readU16(rom, game.overtimeSecondsOffset),
     shootoutSeconds: readU16(rom, game.shootoutSecondsOffset),
     menu: parseMenu(rom, game),
-    menuTeams: parseMenuTeams(rom, game),
-    credits: parseCredits(rom),
-    scouting: parseScouting(rom, 'genesis'),
+    // The editor's own finds in NHL 94's code, not looked for in NHL '95.
+    menuTeams: isGenesis94(game) ? parseMenuTeams(rom, game) : null,
+    credits: isGenesis94(game) ? parseCredits(rom) : null,
+    scouting: isGenesis94(game) ? parseScouting(rom, 'genesis') : null,
   }
 }
 
@@ -220,7 +242,7 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
   writeU16(rom, game.shootoutSecondsOffset, settings.shootoutSeconds)
 
   const defaults = menuAddresses(rom, game).defaults
-  settings.menu.forEach((item, i) => writeU16(rom, defaults + i * 2, item.value))
+  settings.menu.forEach((item, i) => writeU16(rom, defaults + (game.menuDefaultWords?.[i] ?? i) * 2, item.value))
   writeMenuTeams(rom, game, settings.menuTeams, settings.playoffDraws)
   // Only when changed, so that credits as the ROM has them keep their bytes.
   const credits = settings.credits

@@ -1,6 +1,6 @@
 import { readU16, readU32, reorderEntries, writeU16, writeU32 } from './bytes'
 import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
-import type { GameConfig } from './games'
+import { isGenesis94, type GameConfig } from './games'
 import { claimSpace } from './space'
 
 // Team pictures: the logo at centre ice, the logo on the main menu, and the
@@ -280,7 +280,7 @@ export function visitorBannersApart(project: Source): boolean {
 
 // Whether this ROM keeps its team pictures where and how the editor expects.
 export function graphicsSupported(rom: Uint8Array, game: GameConfig): boolean {
-  if (game.platform === 'snes') return false
+  if (!isGenesis94(game)) return false
   try {
     layout(rom, game)
     return true

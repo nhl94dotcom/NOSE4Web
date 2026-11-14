@@ -1,3 +1,4 @@
+import { stickHandling95Step } from './attributes'
 // Overall rating as the game shows it on the roster screens, for NHL 94.
 // Each weight applies to the attribute after weight, in label order.
 const GOALIE_WEIGHTS = [2.25, 0, 0, 2.25, 2.25, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5]
@@ -30,10 +31,12 @@ function snesRating(attributes: number[], isGoalie: boolean): number {
 export function overallRating(
   attributes: number[],
   isGoalie: boolean,
-  game?: { overallIsEstimate: boolean; platform?: 'genesis' | 'snes' },
+  game?: { overallIsEstimate: boolean; platform?: 'genesis' | 'snes'; edition?: 95 },
 ): number {
   if (game?.overallIsEstimate) return averageRating(attributes)
   if (game?.platform === 'snes') return snesRating(attributes, isGoalie)
+  // NHL '95's stick handling (16 steps) counts as the 0 to 6 rating it stands for, as NOSE works it out.
+  if (game?.edition === 95 && !isGoalie) attributes = attributes.map((v, i) => (i === 8 ? stickHandling95Step(v) : v))
   const weights = isGoalie ? GOALIE_WEIGHTS : PLAYER_WEIGHTS
   let rating = 0
   for (let i = 0; i < weights.length; i++) {

@@ -3,6 +3,7 @@
 // ratings. It is a starting point: the ratings are only a guide to how a
 // player plays, and owners have their own ideas.
 
+import { isHandedFighting, shootsRight as shootsRightBy } from './attributes'
 import type { GameConfig } from './games'
 import { goalieCount, type Team } from './team'
 import { LINE_SLOTS, playerRole, repeatedLineSlots } from './lines'
@@ -70,7 +71,7 @@ export const DEFENCE_SIDES: { value: HandSide; label: string }[] = [
 // Whether this ROM's players have a shooting hand the builder can read.
 export function knowsHands(game: GameConfig): boolean {
   const hand = game.playerAttributeLabels.indexOf('H/F')
-  return hand >= 0 && game.playerAttributeKinds[hand] === 'handedFighting'
+  return hand >= 0 && isHandedFighting(game.playerAttributeKinds[hand])
 }
 
 export interface BuiltLines {
@@ -147,7 +148,7 @@ function planLines(team: Team, game: GameConfig, options: LineBuilderOptions, em
     return chosen
   }
   const hand = labels.indexOf('H/F')
-  const shootsRight = (p: number) => knowsHands(game) && team.players[p - 1].attributes[hand] % 2 === 1
+  const shootsRight = (p: number) => knowsHands(game) && shootsRightBy(game.playerAttributeKinds[hand], team.players[p - 1].attributes[hand])
   // Two players to the left and right of a pair of positions, as `side` has it; where both shoot with the same
   // hand, or it is either side, in the order given.
   const sides = (two: number[], side: HandSide) => {

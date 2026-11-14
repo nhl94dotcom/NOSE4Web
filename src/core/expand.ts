@@ -1,3 +1,4 @@
+import { isGenesis94 } from './games'
 import { readU32, writeU32 } from './bytes'
 import type { RomProject } from './rom'
 import { claimSpace } from './space'
@@ -19,7 +20,8 @@ export interface Expansion {
 // The next expansion that can be applied, or null when there is none left.
 export function nextExpansion(project: RomProject): Expansion | null {
   const { game, bytes, layout } = project
-  if (game.platform === 'snes') return null
+  // NHL '95's opening text is not where the editor can move it (NOSE did not either).
+  if (!isGenesis94(game)) return null
   const playoffs = game.playoffDrawPointerOffsets.map((o) => readU32(bytes, o))
   const playoffSize = game.playoffDrawCount * PLAYOFF_DRAW_SIZE
   const copyright = readU32(bytes, game.copyrightTextPointerOffset)

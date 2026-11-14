@@ -49,8 +49,9 @@ export function leagueValue(attributes: number[], role: Role, platform: Platform
 }
 
 // ROMs with 0-15 ratings are not on the steps the weights were fitted to.
-export function hasLeagueValue(game: { overallIsEstimate: boolean }): boolean {
-  return !game.overallIsEstimate
+// Worked out from NHL 94 (Match Viewer): not for NHL '95.
+export function hasLeagueValue(game: { overallIsEstimate: boolean; edition?: 95 }): boolean {
+  return !game.overallIsEstimate && game.edition !== 95
 }
 
 export const LEAGUE_VALUE_TITLE =

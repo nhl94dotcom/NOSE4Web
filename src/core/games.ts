@@ -6,6 +6,9 @@ import { weightKind, type AttributeKind } from './attributes'
 export interface GameConfig {
   // The SNES game keeps its data in its own way: see snes.ts.
   platform: 'genesis' | 'snes'
+  // NHL '95 on the Genesis: the same kind of data as NHL 94, read the way NOSE reads it. The editor's own additions
+  // (hacks, pictures, songs and the rest) are made for NHL 94 and are left out.
+  edition?: 95
   productCode: string
   title: string
   // Text in the ROM's header that only this game has, where its product code
@@ -83,6 +86,10 @@ export interface GameConfig {
   // Menu items whose choices are the teams, and the one that picks a period length.
   menuTeamItems: number[]
   menuPeriodLengthItem: number
+  // Where the starting choices are not one word a row in the rows' order (NHL '95): the word each row's choice is in,
+  // and where the code holds the address of the table that turns the play mode (its word) into its row.
+  menuDefaultWords?: number[]
+  menuPlayModeTablePointer?: number
   lineLabels: string[]
   linePositionLabels: string[]
   teamNameLabels: string[]
@@ -321,7 +328,76 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
   return config
 }
 
-export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO, NHL94_SNES].map((game) => game.title)
+// NHL '95 on the Genesis, from NOSE's roms.ini (GM T-50856 -00). Its teams, players and lines are kept as NHL 94
+// keeps them; three attributes are read as NOSE reads them for NHL '95: the shooting hand and fighting as NHL '93 keeps
+// them (an odd value a left-handed shot), the goalie's glove hand 0 for right and 1 for left, and stick handling in
+// sixteen steps (0 to 15) where the other ratings have seven.
+export const NHL95: GameConfig = {
+  ...NHL94,
+  edition: 95,
+  productCode: 'GM T-50856 -00',
+  title: "NHL '95",
+  checksumCallOffset: 0x692,
+  teamTableOffset: 0x772,
+  teamCount: 28,
+  // "New York Islanders" and "New York Rangers".
+  teamNameRedirects: [
+    { team: 13, pointerOffset: 0x86570, defaultTextOffset: 0x86578 },
+    { team: 14, pointerOffset: 0x8655e, defaultTextOffset: 0x8658c },
+  ],
+  graphics: { ...NHL94.graphics, banners: false },
+  playoffDrawPointerOffsets: [0x87a04, 0x87a6e],
+  copyrightTextPointerOffset: 0xa1444,
+  introTextPointerOffset: 0xa14f8,
+  introTextSize: 0x656,
+  rinkPaletteOffset: 0xc8506,
+  // What each strip colour is for is not known yet for NHL '95.
+  stripColorsKnown: false,
+  stripColorOrder: undefined,
+  rulesOffset: 0x89c2e,
+  periodLengthSecondsOffset: 0x7d4da,
+  periodLengthTextOffset: 0x86d92,
+  overtimeSecondsOffset: 0x7d4b8,
+  shootoutSecondsOffset: 0x9e6e8,
+  menuDefaultsPointerOffset: 0x866f0,
+  menuCaptionsPointerOffset: 0x865d4,
+  menuOptionsPointerOffset: 0x864bc,
+  // Play Mode, Team 1, Team 2, Per. Length, Goalies, User Records, Penalties, Line Changes.
+  menuItemCount: 8,
+  menuTeamItems: [1, 2],
+  menuPeriodLengthItem: 3,
+  // The game copies nine words to $FFCC4C at start-up (at $866E8); the menu takes its rows from words 2 to 8 (at
+  // $86716), and the play mode from word 0 through the table at $8676A (movea.l #table,a0 at $8671A).
+  menuDefaultWords: [0, 2, 3, 4, 5, 6, 7, 8],
+  menuPlayModeTablePointer: 0x8671c,
+  notice:
+    "This ROM is NHL '95. The editor reads it the way NOSE did: rosters, lines, team names, colours and the game " +
+    'settings. The pictures, songs, hacks and other additions made for NHL 94 are not offered for it. Overall ratings ' +
+    "are worked out as NOSE did for NHL '95, which has not been checked against the game. NHL '95 editing is new, so " +
+    'keep a copy of the file you opened.',
+  playerAttributeKinds: [
+    'weight', 'rating', 'rating', 'rating', 'rating', 'rating', 'rating',
+    'handedFighting93', 'stickHandling95', 'rating', 'rating', 'rating', 'rating', 'rating',
+  ],
+  goalieAttributeKinds: [
+    'weight', 'rating', 'rating', 'rating', 'rating', 'rating', 'zero',
+    'gloveHand92', 'zero', 'zero', 'rating', 'rating', 'rating', 'rating',
+  ],
+}
+
+// NHL '95 with 34 teams, as the WN95HL's ROMs are (GM T-50856 -34): the team table made longer in the same place, the
+// teams moved to the second megabyte, the self-check already taken out.
+export const NHL95_34_TEAMS: GameConfig = {
+  ...NHL95,
+  productCode: 'GM T-50856 -34',
+  title: "NHL '95 (34 teams)",
+  teamCount: 34,
+}
+
+// Whether this ROM is NHL 94 on the Genesis (the original or a hack of it), for which the editor's own additions are made.
+export const isGenesis94 = (game: GameConfig): boolean => game.platform === 'genesis' && game.edition !== 95
+
+export const SUPPORTED_GAMES = [NHL94, NHL94_30_TEAMS, NHL94_EVO, NHL94_SNES, NHL95, NHL95_34_TEAMS].map((game) => game.title)
 
 // ---------------------------------------------------------- product codes
 // The hack program smozROM marks a ROM's product code to say how it is set
@@ -372,6 +448,8 @@ function variant(productCode: string): GameConfig | undefined {
 // by its header. Undefined for a ROM the editor does not know.
 export function findGame(productCode: string, rom: Uint8Array): GameConfig | undefined {
   if (productCode === NHL94_SNES.productCode) return NHL94_SNES
+  if (productCode === NHL95.productCode) return NHL95
+  if (productCode === NHL95_34_TEAMS.productCode) return NHL95_34_TEAMS
   const named = [NHL94_EVO].find((game) => {
     const name = game.headerName ?? ''
     return game.productCode === productCode && name.split('').every((char, i) => rom[HEADER_NAME_AT + i] === char.charCodeAt(0))

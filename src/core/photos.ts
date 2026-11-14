@@ -1,3 +1,4 @@
+import { isGenesis94 } from './games'
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { colorRgb } from './color'
 import type { Picture } from './graphics'
@@ -261,7 +262,7 @@ export interface TeamPhoto {
 }
 
 export function photosSupported(project: RomProject): boolean {
-  return project.game.platform !== 'snes' && photoLayout(project.bytes, project.teams.length) !== null
+  return isGenesis94(project.game) && photoLayout(project.bytes, project.teams.length) !== null
 }
 
 function layoutOf(project: RomProject): PhotoLayout {

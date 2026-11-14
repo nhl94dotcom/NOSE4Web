@@ -309,7 +309,8 @@ export function TeamEditor(props: Props) {
 
   function attributeTitle(name: string, kind: AttributeKind, index: number, label: string, isGoalies: boolean): string {
     const named = attributeNote(kind) ? `${name} (${attributeNote(kind)})` : name
-    const use = ratingUse(label, isGoalies, game.platform)
+    // What each rating does, as Match Viewer found it in NHL 94: not known for NHL '95.
+    const use = game.edition === 95 ? '' : ratingUse(label, isGoalies, game.platform)
     const title = use ? `${named}. In play: ${use}.` : named
     return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
   }
