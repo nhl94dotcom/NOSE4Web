@@ -715,7 +715,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             the box, in seconds of the game clock, whatever its five minutes and the penalty time below give. 0 is off,
             as the original game: a fight is a 5-minute major like any other. Only the time in the box changes: the
             fight still counts as 5 penalty minutes in the statistics, and two fighters still go off together with no
-            power play, as both get the same time. An instigator's extra minor is as before. Waiting on a test in the game.
+            power play, as both get the same time. An instigator's extra minor is as before. Tested in the game by the NHL94 Match Viewer project at 2:00: fighters served their set time, 5 penalty minutes each, the teams at the same strength as with ordinary fights, and other penalties as before (with the penalty time too).
           </>,
         )}
         {hack(
