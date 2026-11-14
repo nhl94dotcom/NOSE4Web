@@ -2934,9 +2934,10 @@ export const RECOMMENDED_SNES_FIXES: SnesHack[] = ['ppPkFix', 'comebackFix', 'pe
   'awarenessFix', 'oneTimerFix', 'shotFix', 'bodychecks', 'bodychecksShown', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'creaseIcing']
 
 // `choices` with the recommended fixes on, except where this ROM has other code.
-export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[]): SnesHackChoices {
+// `notOffered`: hacks this build does not take (its own bodycheck counts, say), left as they are too.
+export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: SnesHack[], notOffered: SnesHack[] = []): SnesHackChoices {
   const next = { ...choices }
-  for (const hack of RECOMMENDED_SNES_FIXES) if (!unknown.includes(hack)) next[hack] = true
+  for (const hack of RECOMMENDED_SNES_FIXES) if (!unknown.includes(hack) && !notOffered.includes(hack)) next[hack] = true
   // One that needs another this ROM cannot take (the checks shown without their counts) stays as it was.
   for (const [needer, needed] of Object.entries(NEEDS) as [SnesHack, SnesHack][]) if (next[needer] && !next[needed]) next[needer] = choices[needer]
   return next

@@ -207,6 +207,7 @@ const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every
 export function SnesHacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   const notHere = (hack: SnesHack) => whyNotHere(project, hack)
+  const notOfferedHacks = Object.keys(state.notOffered ?? {}) as SnesHack[]
   // The choices being made, which start again from the ROM whenever it changes.
   const hadAmounts: Record<SnesAmount, number> = state.amounts ?? SNES_AMOUNT_OFF
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
@@ -252,9 +253,9 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
       <HackSectionLinks groups={GROUPS} />
       <HackShortcuts
         onRecommended={
-          !sameChoices(withRecommendedSnesFixes(wanted, state.unknown), wanted) &&
+          !sameChoices(withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks), wanted) &&
           (() => {
-            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown), amounts: wantedAmounts })
+            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks), amounts: wantedAmounts })
             setNotice('')
             setError('')
           })

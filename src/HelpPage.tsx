@@ -1386,7 +1386,7 @@ export function HelpPage() {
           kill, comeback bonus, rocket pass and runaway speed fixes, both penalty shot fixes, counting stick
           deflections as shots, the one-timer open net, repeated checks and computer forwards' awareness fixes,
           B-checks with penalties off tripping as with penalties on, and the improved three stars, for line changes on
-          or off as the ROM's main menu starts.
+          or off as the ROM's main menu starts (an improved version already chosen is kept).
         </li>
         <li>
           On the SNES: the power play and penalty kill, comeback bonus, penalty shot, extra attacker, second-assist

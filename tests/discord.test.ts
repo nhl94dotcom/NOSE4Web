@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { openRom } from '../src/core/rom'
 import { hacksForDiscord, menuLineChanges, NO_HACKS, RECOMMENDED_FIXES, withRecommendedFixes } from '../src/core/hacks'
-import { RECOMMENDED_SNES_FIXES, SNES_HACKS, withRecommendedSnesFixes, type SnesHackChoices } from '../src/core/sneshacks'
+import { applySnesHacks, detectSnesHacks, RECOMMENDED_SNES_FIXES, SNES_HACKS, withRecommendedSnesFixes, type SnesHack, type SnesHackChoices } from '../src/core/sneshacks'
 
 describe('the recommended fixes', () => {
   it('turns on the tested fixes, takes out the legacy one and leaves the rest', () => {
@@ -16,6 +19,8 @@ describe('the recommended fixes', () => {
     expect(after.threeStars).toBe('original')
     expect(withRecommendedFixes(before, [], true).threeStars).toBe('linesOn')
     expect(withRecommendedFixes(before, [], false).threeStars).toBe('linesOff')
+    // A league's improved choice is kept.
+    expect(withRecommendedFixes({ ...before, threeStars: 'linesOn' }, [], false).threeStars).toBe('linesOn')
     expect(menuLineChanges([{ caption: 'Line Changes', options: ['On', 'Off', 'Auto'], value: 2 }])).toBe(true)
     expect(menuLineChanges([{ caption: 'Line Changes', options: ['On', 'Off', 'Auto'], value: 1 }])).toBe(false)
     expect(menuLineChanges([])).toBe(undefined)
@@ -45,5 +50,16 @@ describe('the Discord post', () => {
         'Also changed, in code NOSE4Web does not know: Real-time clock, Goalie range to each side, Goalie range up the ice.',
       ].join('\n'),
     )
+  })
+})
+
+describe('the recommended SNES fixes on a build that counts its own checks', () => {
+  const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
+  it.skipIf(!existsSync(path('nhl94snes_SA1.sfc')))('leaves the hacks it does not offer, so Apply works', () => {
+    const rom = openRom(new Uint8Array(readFileSync(path('nhl94snes_SA1.sfc'))))
+    const state = detectSnesHacks(rom.bytes)
+    const wanted = withRecommendedSnesFixes(state.choices, state.unknown, Object.keys(state.notOffered ?? {}) as SnesHack[])
+    expect(wanted.bodychecks).toBe(false)
+    expect(() => applySnesHacks(rom, wanted)).not.toThrow()
   })
 })

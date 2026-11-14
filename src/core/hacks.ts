@@ -2990,7 +2990,8 @@ export function withRecommendedFixes(choices: HackChoices, unknown: HackPart[], 
   for (const [key, value] of Object.entries(RECOMMENDED_FIXES) as [keyof HackChoices, never][]) {
     if (!unknown.includes(HACK_PARTS[key])) next[key] = value
   }
-  if (lineChanges !== undefined && !unknown.includes(HACK_PARTS.threeStars)) next.threeStars = lineChanges ? 'linesOn' : 'linesOff'
+  // An improved version already chosen is kept: leagues often set line changes at Game Setup, not by the menu's start.
+  if (lineChanges !== undefined && choices.threeStars === 'original' && !unknown.includes(HACK_PARTS.threeStars)) next.threeStars = lineChanges ? 'linesOn' : 'linesOff'
   return next
 }
 
