@@ -72,7 +72,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   clutchTime: () => "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: () => "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
   nhlShootout: () => "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
-  giveaways: () => "Each player's giveaways and takeaways are counted, and Game Stats shows each team's as Give/Takeaways.",
+  giveaways: () => "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways.",
   timeOnIce: () => 'Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player\'s time on ice.',
   plusMinus: () => 'Plus-minus is kept for every player (the game does not show it).',
   threeStars: (c) => `The three stars are chosen by a fuller formula that counts bodychecks, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,

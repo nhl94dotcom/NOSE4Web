@@ -2609,11 +2609,14 @@ const toiEarlier = (rom: Uint8Array) =>
   rom[TOI_EARLIER_BRACKET.at] === TOI_EARLIER_BRACKET.hacked
 const timeOnIce: Part<boolean> = {
   detect(rom) {
+    const pages = gpPages(rom)
+    if (pages) return pages.toi
     if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return false
     if (TOI_KEYS.every((key) => toiCode(rom, key) !== null)) return true
     return toiEarlier(rom) ? true : undefined
   },
   remove(rom) {
+    removePages(rom)
     if (toiEarlier(rom)) {
       const title = hooked(rom, TOI_EARLIER_TITLE, TOI_EARLIER_TITLE_CODE)!
       erase(rom, title, TOI_EARLIER_TITLE_CODE.length)
@@ -2927,13 +2930,57 @@ function gtBase(rom: Uint8Array): number | null {
   }
   return GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked) ? base : null
 }
-const giveaways: Part<boolean> = {
+// Player Stats pages (game stats only, as the time on ice): past Penalty
+// Minutes (or the bodycheck counts' Checks For), Giveaways and Takeaways,
+// sorted by them, each row G, A, Pts, GV and TK; then Time On Ice, when it is
+// on too (page 7). The time on ice hack's five places, with code of their
+// own that shows any mix of the three pages (TOI_HOOKS; entries +0 col, +4
+// title, +8 head, +C get, +10 row). With giveaways off, the time on ice page
+// is the time on ice hack's code as it always was. The counts are kept for
+// every player, goalies too (giveaways only).
+const GP_CODES = [false, true].map((toi) => ({
+  toi,
+  code: bytes(toi ? '6000 0012 6000 0030 6000 006E 6000 00D6 6000 012A 0C40 FFFF 6D14 4A47 6608 0C40 0007 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 019A 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0156 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D5E 0C43 0003 6D58 0C78 0007 D5AC 6732 2F09 43FA 0134 0C43 0004 6604 43FA 0130 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0102 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D42 0C41 0007 6722 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 3400 D442 0642 0136 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D5AC 6D74 0C45 0003 6D6E 0C78 0007 D5AC 673A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 0038 4E75 4240 1014 7207 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 000E 7A04 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 000A 2020 2020 2054 4F49 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020' : '6000 0012 6000 0030 6000 006E 6000 00B0 6000 00E4 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 0116 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 00DC 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D38 0C43 0003 6D32 2F09 43FA 00C2 0C43 0004 6604 43FA 00BE 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D22 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D5AC 6D40 0C45 0003 6D3A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 000C 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 2020'),
+}))
+const GP_ENTRIES: Record<keyof typeof TOI_HOOKS, number> = { col: 0, title: 4, head: 8, get: 0xc, row: 0x10 }
+// Where the pages' code is, and whether it has the time on ice page.
+function gpPages(rom: Uint8Array): { base: number; toi: boolean; length: number } | null {
+  const first = TOI_HOOKS.col.at
+  if (readU16(rom, first) !== OP_JSR) return null
+  const base = readU32(rom, first + 2)
+  for (const { toi, code } of GP_CODES) {
+    if (base + code.length > rom.length || !is(rom, base, code)) continue
+    const all = TOI_KEYS.every((key) => {
+      const site = TOI_HOOKS[key]
+      if (readU16(rom, site.at) !== OP_JSR || readU32(rom, site.at + 2) !== base + GP_ENTRIES[key]) return false
+      for (let o = 6; o < site.original.length; o += 2) if (readU16(rom, site.at + o) !== OP_NOP) return false
+      return true
+    })
+    if (all) return { base, toi, length: code.length }
+  }
+  return null
+}
+function removePages(rom: Uint8Array): void {
+  const found = gpPages(rom)
+  if (!found) return
+  erase(rom, found.base, found.length)
+  for (const key of TOI_KEYS) rom.set(TOI_HOOKS[key].original, TOI_HOOKS[key].at)
+}
+// With giveaways on, the pages, if the five places are as the original game has them.
+function applyPages(work: Work, toi: boolean): void {
+  if (!TOI_KEYS.every((key) => is(work.rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return
+  const base = place(work, GP_CODES[toi ? 1 : 0].code)
+  for (const key of TOI_KEYS) writeHook(work.rom, TOI_HOOKS[key], base + GP_ENTRIES[key])
+}
+const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
   detect(rom) {
     if (gtBase(rom) !== null) return true
+    if (gpPages(rom)) return undefined
     const original = GT_HOOKS.every(([hook]) => is(rom, hook.at, hook.original)) && GT_LIMITS.every((l) => readU16(rom, l.at) === l.original)
     return original && gtCode(rom) !== null ? false : undefined
   },
   remove(rom) {
+    removePages(rom)
     const base = gtBase(rom)
     if (base === null) return
     erase(rom, base, gtCode(rom)!.length)
@@ -2947,6 +2994,7 @@ const giveaways: Part<boolean> = {
     for (const [hook, entry] of GT_HOOKS) writeHook(work.rom, hook, base + entry)
     for (const l of GT_LIMITS) writeU16(work.rom, l.at, l.hacked)
   },
+  pages: applyPages,
 }
 
 // ------------------------------------------------------------ the whole ROM
@@ -3138,8 +3186,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['clutchTime', () => clutchTime.remove(work.rom), () => clutchTime.apply(work, wanted.clutchTime)],
     ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
     ['giveaways', () => giveaways.remove(work.rom), () => giveaways.apply(work, wanted.giveaways)],
+    // With giveaways on, their Player Stats pages take the time on ice page in too.
+    ['timeOnIce', () => timeOnIce.remove(work.rom), () => (wanted.giveaways && !unknown.includes('giveaways') ? giveaways.pages(work, wanted.timeOnIce) : timeOnIce.apply(work, wanted.timeOnIce))],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
-    ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
