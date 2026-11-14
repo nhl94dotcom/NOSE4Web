@@ -2812,3 +2812,30 @@ test.describe('with the SNES game', () => {
     expect(colours(snesCentreIce(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 0))).toEqual(colours(snesCentreIce(rom.bytes, 28, NO_SNES_PICTURE_EDITS, 1)))
   })
 })
+
+// NHL '95, when your copy is at ../NHL95/NHL_95.bin.
+const nhl95Path = resolve(process.cwd(), '..', 'NHL95', 'NHL_95.bin')
+test.describe("with the NHL '95 ROM", () => {
+  test.skip(!existsSync(nhl95Path), 'needs ../NHL95/NHL_95.bin')
+
+  test('opens it, edits a player, and shows its game settings, without the NHL 94 additions', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await expect(page.locator('header')).toContainText("NHL '95")
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await expect(page.getByText("This ROM is NHL '95.")).toBeVisible()
+    const skater = rows(page, 'Skaters').first()
+    await nameOf(skater).fill('Test Skater')
+    await expect(nameOf(skater)).toHaveValue('Test Skater')
+    await page.screenshot({ path: 'test-results/shots/nhl95-team.png', fullPage: true })
+    await entry(page, 'Game settings').click()
+    await expect(page.getByText('Per. Length')).toBeVisible()
+    await expect(page.getByText('Organ songs')).toHaveCount(0)
+    await page.screenshot({ path: 'test-results/shots/nhl95-settings.png', fullPage: true })
+    await expect(page.locator('nav').getByRole('button', { name: 'Hacks' })).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+})
