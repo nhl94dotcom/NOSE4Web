@@ -1693,7 +1693,9 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 // block of code (entries after the two counting routines):
 // - puckglue's ldy a2 / sty puckc (the carrier set) counts;
 // - puckstick's tya / lsr / sta lastplayer (the steal: a2 the stealer) and
-//   FallDown .25's lda #$FFFF / sta puckc (a3 the checker) say who forced it;
+//   FallDown's two lda #$FFFF / sta puckc, .25's and the injury's (which drops
+//   the puck four counts before its stoppage; Match Viewer), say who forced it
+//   (a3 the checker);
 // - dopass's and assdumpin's txa / lsr / sta lastplayer mark a pass, doshot's
 //   forgets the carrier;
 // - StartGame_scout's jsl Create_HotCold_Table clears the counts (not the season
@@ -1701,17 +1703,22 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 // The counts, a word per roster player (the visitors $34 bytes on, as the time
 // on ice), giveaways then takeaways, then each team's totals (home and visitors'
 // giveaways, then takeaways), after the last carrier and the cause ($FFFF none,
-// $FFFE a pass): at $7E:E68C (Match Viewer's free $E68C-$E787), in the SA-1
-// builds in BW-RAM at $40:5500 (past the season shootout's save).
+// $FFFE a pass): at $7E:FD10, between the season shootout's save ($F100-$FD0F
+// with a 2 MB build's player stats) and the fights ($FE00), in room Match Viewer
+// found never written in a whole game on the original game, Classic and the 2 MB
+// build; in the SA-1 builds, which cannot reach bank $7E, in BW-RAM at $40:5500
+// (past the season shootout's save). NOSE4Web's first version (14 November 2026)
+// kept them at $7E:E68C, which the 2 MB builds use for their fights (fighton,
+// ChkCnt, OptFights... from $E700; Match Viewer): not recognised.
 const GT_RAM = [
-  { shift: 0, bank: 0x7e, at: 0xe68c },
+  { shift: 0, bank: 0x7e, at: 0xfd10 },
   { shift: 0x6000, bank: 0x40, at: 0x5500 },
 ]
 const GT_GIVE = 4
 const GT_TAKE = GT_GIVE + 0x68
 const GT_TOTALS = GT_TAKE + 0x68
 const GT_SIZE = GT_TOTALS + 8
-type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall'
+type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury'
 
 interface GtEnv {
   ram: (typeof GT_RAM)[number]
@@ -1737,9 +1744,11 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
   const dump = findCodeAll(rom, 'a91e009d....' + any5 + '4c')
   // FallDown .25: ldy a2 / lda SPA,y / cmp #SPAstumble / beq / lda #$FFFF / sta puckc / ldy a2 / lda pfteam,y.
   const fall = findCodeAll(rom, 'a4..b9....c9....f006' + '............' + 'a4..b9')
+  // FallDown's injury: lda position,y / bmi .25 / beq .25 / lda #$FFFF / sta puckc / stz benchcheer / ldy a2 / lda pfteam,y.
+  const injury = findCodeAll(rom, 'b9....30..f0..' + '............' + '9c....a4..b9')
   // StartGame_scout: jsl Create_HotCold_Table / jsl ScoutingReport / lda #$FFFF / sta FrameByNumber / jsl forcefade.
   const scout = findCodeAll(rom, '22......22......a9ffff8d....22')
-  if ([glue, steal, pass, shot, dump, fall, scout].some((found) => found.length !== 1)) return null
+  if ([glue, steal, pass, shot, dump, fall, injury, scout].some((found) => found.length !== 1)) return null
   const [a2, puckc] = glue[0].groups
   if (a2 !== 0x91 || puckc !== 0x0ad9 + moved) return null
   return {
@@ -1755,6 +1764,7 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
       dump: dump[0].at + 6,
       shot: shot[0].at + 6,
       fall: fall[0].at + 10,
+      injury: injury[0].at + 7,
       scout: scout[0].at,
     },
   }
@@ -1856,8 +1866,9 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     dump: bytesOf('8A 4A 8D', word(env.lastplayer)),
     shot: bytesOf('8A 4A 8D', word(env.lastplayer)),
     fall: bytesOf('A9FFFF 8D', word(env.puckc)),
+    injury: bytesOf('A9FFFF 8D', word(env.puckc)),
   }
-  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2 }
+  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2 }
   const probe = gtCode(env, 0, new Uint8Array(3))
   let base: number
   let hotCold = rom.slice(sites.scout + 1, sites.scout + 4)
@@ -1876,7 +1887,7 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     ...(Object.keys(originals) as GtSite[]).map((key) => ({
       at: sites[key],
       original: originals[key],
-      hacked: jsl(base + entries[key === 'dump' ? 'pass' : key], pads[key]),
+      hacked: jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
     })),
     { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
     { at: base, original: unused(code.length), hacked: code },

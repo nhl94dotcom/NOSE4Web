@@ -13,7 +13,7 @@ const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at,
 const far = (b: Uint8Array, at: number) => ((b[at + 3] & 0x7f) << 15) | ((b[at + 1] | (b[at + 2] << 8)) & 0x7fff)
 const latin = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('latin1')
 // The places in the original game (file offsets): puckglue, puckstick, dopass, assdumpin, doshot, FallDown .25, StartGame_scout.
-const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, scout: 0xf8334 }
+const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, injury: 0xf1ddf, scout: 0xf8334 }
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways', () => {
   it('hooks the places that set and free the carrier, and clears the counts at each game', () => {
@@ -22,6 +22,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(hex(rom.bytes, SITES.steal, 5)).toBe('984a8df30c')
     for (const at of [SITES.pass, SITES.dump, SITES.shot]) expect(hex(rom.bytes, at, 5)).toBe('8a4a8df30c')
     expect(hex(rom.bytes, SITES.fall, 6)).toBe('a9ffff8dd90a')
+    expect(hex(rom.bytes, SITES.injury, 6)).toBe('a9ffff8dd90a')
     expect(rom.bytes[SITES.scout]).toBe(0x22)
     const on = applySnesHacks(rom, { giveaways: true }).bytes
     for (const at of Object.values(SITES)) expect(on[at]).toBe(0x22)
@@ -29,7 +30,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(hex(on, far(on, SITES.glue), 5)).toBe('a4918cd90a')
     // The clear goes on to Create_HotCold_Table.
     const clear = far(on, SITES.scout)
-    expect(hex(on, clear, 11)).toBe('a9ffff8f8ce67e8f8ee67e')
+    expect(hex(on, clear, 11)).toBe('a9ffff8f10fd7e8f12fd7e')
     expect(detectSnesHacks(on).choices.giveaways).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { giveaways: false })), buildRom(rom))).toBe(0)
   })
@@ -75,6 +76,15 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     const pagesOnly = buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: both })), { timeOnIce: false, timeOnIceShown: false }))
     expect(pick(openRom(pagesOnly).bytes)).toEqual([true, false])
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(pagesOnly), { giveaways: false, giveawayPages: false })), buildRom(rom))).toBe(0)
+  })
+
+  it('goes with the fights and the season shootout, which also use FallDown and free RAM in bank $7E', () => {
+    const rom = open('NHL94.smc')
+    const gt = { giveaways: true, giveawaysShown: true, giveawayPages: true }
+    const with_ = applySnesHacks(openRom(buildRom(applySnesHacks(rom, { fighting: true, seasonShootout: true }, false, { seasonShootout: 1 }))), gt)
+    expect(detectSnesHacks(with_.bytes).choices).toMatchObject({ ...gt, fighting: true, seasonShootout: true })
+    const off = applySnesHacks(openRom(buildRom(with_)), { giveaways: false, giveawaysShown: false, giveawayPages: false })
+    expect(detectSnesHacks(off.bytes).choices).toMatchObject({ giveaways: false, fighting: true, seasonShootout: true })
   })
 
   names.forEach((name) => {
