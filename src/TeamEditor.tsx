@@ -403,8 +403,8 @@ export function TeamEditor(props: Props) {
               if (allowed(next)) set(next)
               return
             }
-            // Where the stored values are showing, typing one sets it.
-            if (!rawAttributes && kinds[a] !== 'value') return
+            // Where the stored values are showing (NHL '95's stick handling shows its own), typing one sets it.
+            if (!rawAttributes && kinds[a] !== 'value' && kinds[a] !== 'stickHandling95') return
             const typed = typedValue(e, allowed)
             if (typed === null) return
             e.preventDefault()

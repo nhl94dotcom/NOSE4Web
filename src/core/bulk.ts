@@ -46,12 +46,12 @@ const ROLES: Record<BulkGroup, Role[]> = { skaters: ['F', 'D'], forwards: ['F'],
 const kindsFor = (game: GameConfig, group: BulkGroup) =>
   group === 'goalies' ? game.goalieAttributeKinds : game.playerAttributeKinds
 
-// The attributes a bulk change can sensibly touch: those on a scale. Hand and
-// fighting share one value, and some goalie values must stay zero.
+// The attributes a bulk change can sensibly touch: those on a scale (NHL '95's stick handling, in 16 steps, too).
+// Hand and fighting share one value, and some goalie values must stay zero.
 export function bulkAttributes(game: GameConfig, group: BulkGroup): { index: number; name: string; kind: AttributeKind }[] {
   const names = group === 'goalies' ? game.goalieAttributeNames : game.playerAttributeNames
   return kindsFor(game, group).flatMap((kind, index) =>
-    isRating(kind) || kind === 'value' || isWeight(kind) ? [{ index, name: names[index], kind }] : [],
+    isRating(kind) || kind === 'value' || kind === 'stickHandling95' || isWeight(kind) ? [{ index, name: names[index], kind }] : [],
   )
 }
 

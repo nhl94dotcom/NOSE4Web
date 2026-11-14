@@ -3,6 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { attributeText } from '../src/core/attributes'
+import { bulkAttributes, bulkValues } from '../src/core/bulk'
+import { compareProjects } from '../src/core/compare'
+import { formatCsv } from '../src/core/csv'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
+import { csvFileName, importCsvSet, importWorkbookSheets, tableRows, tablesFor, workbookSheets } from '../src/core/tables'
 import { checkProject } from '../src/core/check'
 import { nextExpansion } from '../src/core/expand'
 import { hacksSupported } from '../src/core/hacks'
@@ -83,6 +88,22 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
       expect(again.settings).toEqual(project.settings)
       // The checks find nothing wrong in the ROM as it is.
       expect(checkProject(project).filter((finding) => finding.level === 'error')).toEqual([])
+    })
+
+    it(`${name}: spreadsheet files, a workbook and a project file come back as they went out`, () => {
+      const project = openRom(read(name))
+      const files = tablesFor(project.game).map((table) => ({ name: csvFileName('set', table), text: formatCsv(tableRows(project, table)) }))
+      expect(Buffer.compare(buildRom(importCsvSet(project, files).project), buildRom(project))).toBe(0)
+      const sheets = workbookSheets(project).map((sheet) => ({ name: sheet.name, rows: sheet.rows.map((row) => row.map(String)) }))
+      expect(Buffer.compare(buildRom(importWorkbookSheets(project, sheets).project), buildRom(project))).toBe(0)
+      const edited = { ...project, teams: project.teams.map((t, i) => (i === 2 ? { ...t, players: t.players.map((p, j) => (j === 3 ? { ...p, name: 'Saved Name' } : p)) } : t)) }
+      expect(openProjectFile(project, saveProjectFile(edited, project, 'set')).project.teams[2].players[3].name).toBe('Saved Name')
+      // Compare names a stick handling change by its 16 steps.
+      const sth = { ...project, teams: project.teams.map((t, i) => (i === 2 ? { ...t, players: t.players.map((p, j) => (j === 3 ? { ...p, attributes: p.attributes.map((v, a) => (a === 8 ? (v === 15 ? 14 : 15) : v)) } : p)) } : t)) }
+      expect(JSON.stringify(compareProjects(project, sth))).toMatch(/StH .*(1[45])/)
+      // Bulk changes offer stick handling in its 16 steps.
+      const stickHandling = bulkAttributes(project.game, 'skaters').find((attribute) => attribute.index === 8)
+      expect(stickHandling && bulkValues(stickHandling.kind)).toHaveLength(16)
     })
 
     it(`${name}: shows every team, without NHL 94's notes on what the ratings do`, () => {

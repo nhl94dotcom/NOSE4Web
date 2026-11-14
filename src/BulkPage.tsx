@@ -170,6 +170,8 @@ export function BulkPage({ project, onChange }: Props) {
           ? `For players whose weights were set in a ROM with another base weight, such as a team brought in by spreadsheet. This ROM's weights start at ${ownBase} pounds. Each player is moved to the weight here nearest the pounds he had, which can be up to 4 pounds out.`
           : isRating(chosen.kind)
           ? 'A rating has seven steps, shown as the range the game displays for each. One step is one of those.'
+          : chosen.kind === 'stickHandling95'
+            ? "NHL '95 keeps stick handling in sixteen steps, 0 to 15 (in brackets), which play folds to the seven of the other ratings. One step is one of the sixteen."
           : chosen.kind === 'value'
             ? 'This ROM uses all sixteen values, 0 to 15. One step is one value.'
             : 'Weight goes in steps of 8 pounds.'}

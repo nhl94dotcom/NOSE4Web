@@ -469,6 +469,8 @@ const lines: CsvTable = {
         if (text.startsWith('#')) {
           const position = Number(text.slice(1))
           if (Number.isInteger(position) && position >= 1 && position <= team.players.length) line[slot] = position
+          // One past the roster as the ROM already has it (a placeholder team's lines, as in the WN95HL's ROMs), as exported.
+          else if (Number.isInteger(position) && position === line[slot]) return
           else sheet.problem(row, `${column}: "${text}" is not a roster position from 1 to ${team.players.length}.`)
           return
         }
