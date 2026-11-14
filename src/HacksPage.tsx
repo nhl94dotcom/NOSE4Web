@@ -516,7 +516,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'clutchTime',
           onOff('clutchTime'),
-          "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime, which has no clock pressure. It starts at the 2:00 mark, and a goal that opens a two-goal lead ends it at the next faceoff (one that brings a game back within a goal starts it there). Players already at the top of a rating gain nothing there. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. From the NHL94 Match Viewer project's reading of the game's code. Waiting on a test in the game.",
+          "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime, which has no clock pressure. It starts at the 2:00 mark, and a goal that opens a two-goal lead ends it at the next faceoff (one that brings a game back within a goal starts it there). Players already at the top of a rating gain nothing there. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. From the NHL94 Match Viewer project's reading of the game's code. Tested in the game by the NHL94 Match Viewer project: the boost at the 2:00 mark and at faceoffs in a close last 2:00, aggression untouched, nothing past the top of a rating, all of it gone at the faceoff after a two-goal lead, and none in period 2, in overtime, at 3-1 or with more than 2:00 left.",
         )}
         {hack(
           'choppyIce',
@@ -526,7 +526,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'nhlShootout',
           onOff('nhlShootout'),
-          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up: 2-0 after two rounds, or a team ahead after its third shot when the other has none left to tie it; the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Waiting on a test in the game.",
+          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up: 2-0 after two rounds, or a team ahead after its third shot when the other has none left to tie it; the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Tested in the game by the NHL94 Match Viewer project, in the season shootout and Shootout mode: 2-0 after two rounds, a third shot putting a team beyond reach, a third miss leaving one unable to tie, and sudden death past round 5 (round 6 on brings back the first shooters).",
         )}
         {hack(
           'timeOnIce',
