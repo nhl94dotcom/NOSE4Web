@@ -47,12 +47,48 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(Buffer.compare(buildRom(off), buildRom(rom))).toBe(0)
   })
 
+  it("adds the Giveaways and Takeaways pages to Player Stats, with the time on ice page or without", () => {
+    const rom = open("NHL94.smc")
+    const choices = (b: Uint8Array) => detectSnesHacks(b).choices
+    const pick = (b: Uint8Array) => { const c = choices(b); return [c.giveawayPages, c.timeOnIceShown] }
+    const gt = { giveaways: true, giveawayPages: true }
+    const toi = { timeOnIce: true, timeOnIceShown: true }
+    const pages = applySnesHacks(rom, gt).bytes
+    expect(pick(pages)).toEqual([true, false])
+    const text = latin(pages, 0, pages.length)
+    expect(text).toContain("[Giveaways ]")
+    expect(text).toContain("[Takeaways  ")
+    expect(text).toContain("  Player         G  A Pt GV TK")
+    // Both at once, and each way round.
+    const both = applySnesHacks(rom, { ...gt, ...toi }).bytes
+    expect(pick(both)).toEqual([true, true])
+    expect(latin(both, 0, both.length)).toContain("[Takeaways ]")
+    const toiFirst = applySnesHacks(openRom(buildRom(applySnesHacks(rom, toi))), gt).bytes
+    expect(pick(toiFirst)).toEqual([true, true])
+    const pagesFirst = applySnesHacks(openRom(buildRom({ ...rom, bytes: pages })), toi).bytes
+    expect(pick(pagesFirst)).toEqual([true, true])
+    // Out again: the time on ice page as its own hack has it (its code, which detection reads byte for byte), or the original game.
+    const toiAgain = applySnesHacks(openRom(buildRom({ ...rom, bytes: both })), { giveaways: false, giveawayPages: false }).bytes
+    expect(pick(toiAgain)).toEqual([false, true])
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: toiAgain })), { timeOnIce: false, timeOnIceShown: false })), buildRom(rom))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: both })), { giveaways: false, giveawayPages: false, timeOnIce: false, timeOnIceShown: false })), buildRom(rom))).toBe(0)
+    const pagesOnly = buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: both })), { timeOnIce: false, timeOnIceShown: false }))
+    expect(pick(openRom(pagesOnly).bytes)).toEqual([true, false])
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(pagesOnly), { giveaways: false, giveawayPages: false })), buildRom(rom))).toBe(0)
+  })
+
   names.forEach((name) => {
     it(`${name}: goes in and comes out, with every other hack it can take`, () => {
       const rom = open(name)
       const state = detectSnesHacks(rom.bytes)
       expect(state.unknown).not.toContain('giveaways')
       expect(state.unknown).not.toContain('giveawaysShown')
+      expect(state.unknown).not.toContain('giveawayPages')
+      if (!state.notOffered?.giveawayPages) {
+        const p = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawayPages: true, timeOnIce: true, timeOnIceShown: true })))
+        expect(detectSnesHacks(p.bytes).choices).toMatchObject({ giveawayPages: true, timeOnIceShown: true })
+        expect(Buffer.compare(buildRom(applySnesHacks(p, { giveaways: false, giveawayPages: false, timeOnIce: false, timeOnIceShown: false })), buildRom(rom))).toBe(0)
+      }
       const on = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawaysShown: true })))
       expect(detectSnesHacks(on.bytes).choices).toMatchObject({ giveaways: true, giveawaysShown: true })
       expect(Buffer.compare(buildRom(applySnesHacks(on, { giveaways: false, giveawaysShown: false })), buildRom(rom))).toBe(0)

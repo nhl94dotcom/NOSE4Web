@@ -69,6 +69,7 @@ export type SnesHack =
   | 'clutchTime'
   | 'giveaways'
   | 'giveawaysShown'
+  | 'giveawayPages'
 
 interface Site {
   // The game's address.
@@ -325,6 +326,7 @@ export const SNES_HACKS: SnesHack[] = [
   'clutchTime',
   'giveaways',
   'giveawaysShown',
+  'giveawayPages',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -381,13 +383,14 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   clutchTime: 'Clutch time',
   giveaways: 'Giveaways and takeaways for each player',
   giveawaysShown: 'Giveaways and takeaways in Game Stats',
+  giveawayPages: 'Giveaways and takeaways in Player Stats',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
 // on, and two that cannot both be.
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways' }
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways', giveawayPages: 'giveaways' }
 const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
@@ -1417,6 +1420,7 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
 // on to ScoutingReport. McMarkis's 2 MB and SA-1 builds count it themselves.
 const PTOI = 0x7ee800
 const OWN_STAT_PAGES = "This build's Player Stats has pages of its own after Penalties (its checks for and against), so NOSE4Web's Time On Ice page is not offered; the time on ice is still counted for save-state readers."
+const OWN_PAGES_GT = "This build's Player Stats has pages of its own after Penalties, so NOSE4Web's Giveaways and Takeaways pages are not offered; the counts and the Game Stats row are."
 const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
 
 function ownIceTime(rom: Uint8Array): boolean {
@@ -1504,7 +1508,8 @@ function farRoom(rom: Uint8Array, site: number, original: Uint8Array, length: nu
   return -1
 }
 
-function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
+// The Player Stats code the pages hook, found in a ROM as the game has it or with the time on ice page in.
+function statPageParts(rom: Uint8Array) {
   if (ownIceTime(rom)) return null
   const ptoi = bytesOf(word(PTOI & 0xffff), PTOI >> 16)
   // DrawStatsList_rows: lda statcolumn / beq .t1 / jsl .3 / bra / jsl .4.
@@ -1524,7 +1529,7 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
   if (head[163] !== 0x22 || head[167] !== 0x22 || tail[0] !== 0xa9 || tail[11] !== 0x6b) return null
   const setPal = head.slice(8, 11), printx = head.slice(15, 17), toStatsPage = head.slice(24, 27), d0 = head[18], statstemp = head.slice(28, 30)
   // PlayerStatsScreen_right: lda statcolumn / cmp #5 (or #6) / bmi / jmp.
-  const rights = [5, 6].flatMap((n) => findCodeAll(rom, 'ad' + hexOf(Uint8Array.from(word(statcolumn))) + 'c90' + n + '0030034c'))
+  const rights = [5, 6, 7, 8].flatMap((n) => findCodeAll(rom, 'ad' + hexOf(Uint8Array.from(word(statcolumn))) + 'c90' + n + '0030034c'))
   // SortPlayerStats: lda #titles>>16 / sta a1+2 / lda #titles / sta a1 / jsl AdvanceStringPtr / jsl print / ldx.
   const titles = findCodeAll(rom, 'a9(..)0085(..)a9(....)85(..)22(......)22......ae')
   // ComparePlayerStats .t2: cmp #5 / bne .t1 / jmp .t1x / .t1: jmp .6; or the hack's jsl / bcs / jmp / nops.
@@ -1579,6 +1584,15 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
     header: bytesOf('A9', headerBank, '00 85', a1 + 2, 'A9', word(headerAddress), '85', a1),
   }
   void advance
+  return { headerPrefix: rom.slice(header, header + 5), ptoi, statcolumn, rowSite, skater, head, tail, setPal, printx, toStatsPage, d0, statstemp, pushTime, rightSite, titleSite, cmpSite, t1x, six, eight, bcs, headerSite, headerBank, headerAddress, a1, header, penaltiesEnd, original, callTo }
+}
+
+function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
+  const pages = giveawayPagesIn(rom)
+  if (pages) return pages.toiToggle
+  const parts = statPageParts(rom)
+  if (!parts) return null
+  const { ptoi, statcolumn, rowSite, skater, head, tail, setPal, printx, toStatsPage, d0, statstemp, pushTime, rightSite, titleSite, cmpSite, t1x, six, eight, bcs, headerSite, headerBank, headerAddress, a1, header, penaltiesEnd, original, callTo } = parts
   const text = (s: string) => new TextEncoder().encode(s)
   const builds = {
     // lda statcolumn / cmp #6 / beq toi / jml .3 / toi: the row.
@@ -1985,6 +1999,246 @@ function giveawayShownPlaces(rom: Uint8Array): Placed[] | null {
   ]
 }
 
+// ------------------------------------------------- giveaways and takeaways in Player Stats
+// Two sort columns after Penalties (or the checks), as on the Genesis:
+// "[Giveaways ]" (6) and "[Takeaways ]" (7), each skater's row his name, G, A
+// and Pts (the game's own row code, copied, as the time on ice page does) and
+// his giveaways (GV) and takeaways (TK) where Sh and PM were, from the counts
+// (giveaways). Then the time on ice page, when it is on too, as column 8. The
+// time on ice page's five places, with code of their own that shows any mix of
+// the three; the block starts with what the places held without the pages (the
+// game's code, never the time on ice page's), so the pages come out to the
+// game's, or to the time on ice page as its own hack has it. With the pages in,
+// the time on ice page is two bytes: the last column (7 or 8) and Takeaways'
+// "]". Penalties' title ends in "]". Offered where the time on ice page is.
+const GP_TITLES = ['[Giveaways ]', '[Takeaways ]', '[Time On Ice']
+const GP_HEADER = '  Player         G  A Pt GV TK'
+// The block's note: the row's and title's places as the game has them, the compare's .t1x and .6 (not its code, which
+// would be found as the game's), the header's place, then the last column and Penalties' end.
+const GP_NOTE = 4 + 4 + 4 + 10 + 2
+type PageParts = NonNullable<ReturnType<typeof statPageParts>>
+
+function gpBlock(parts: PageParts, base: number, toi: boolean, note: Uint8Array): { block: Uint8Array; entries: { row: number; title: number; compare: number; header: number }; takeawaysEnd: number } {
+  const { ptoi, statcolumn, skater, head, tail, setPal, printx, toStatsPage, d0, statstemp, pushTime, headerBank, headerAddress, a1, header } = parts
+  const pushWrap = head.slice(164, 167)
+  const d1 = 0xa9
+  // The counts' RAM, as the original game's layout has it (the pages are offered only there).
+  const env = GT_RAM[0]
+  const give = bytesOf(word((env.at + GT_GIVE) & 0xffff), env.bank)
+  const take = bytesOf(word((env.at + GT_TAKE) & 0xffff), env.bank)
+  const count = (column: number, x: number, array: Uint8Array) =>
+    bytesOf('A9', word(column), '22', setPal, 'A9', word(x), '8D', printx, 'DA 8A 0A AA BF', array, '85', d0, 'FA A90200 85', d1, '22', pushWrap, '22', toStatsPage)
+  const row = asm65([
+    bytesOf('AD', word(statcolumn), 'C90600'),
+    { branch: BCS, to: 't' },
+    bytesOf('5C', long(skater)),
+    { label: 't' },
+    bytesOf('C90800'),
+    { branch: BNE, to: 'g' },
+    { brl: 'i' },
+    { label: 'g' },
+    head,
+    count(6, 0x1a, give),
+    count(7, 0x1d, take),
+    tail,
+    { label: 'i' },
+    head,
+    bytesOf('A90800 22', setPal, 'A91A00 8D', printx, 'DA 8A 0A AA BF', ptoi, '85', d0, 'FA 22', pushTime, 'A7', a1, 'C90600'),
+    { branch: BNE, to: 'p' },
+    bytesOf('EE', printx),
+    { label: 'p' },
+    bytesOf('22', toStatsPage),
+    tail,
+  ])
+  const words = (array: Uint8Array) => bytesOf('8A 0A AA BF', array, '85', d0, '98 0A AA BF', array, 'C5', d0)
+  const swap = bytesOf('A90100 8D', statstemp, '18 6B')
+  const compare = asm65([
+    'C90500',
+    { branch: BNE, to: 'n' },
+    '38 6B',
+    { label: 'n' },
+    'C90600',
+    { branch: BEQ, to: 'g' },
+    'C90700',
+    { branch: BEQ, to: 't' },
+    'C90800',
+    { branch: BEQ, to: 'i' },
+    { branch: BRA, to: 'z' },
+    { label: 'g' },
+    words(give),
+    { branch: BEQ, to: 'z' },
+    { branch: BCC, to: 'z' },
+    swap,
+    { label: 't' },
+    words(take),
+    { branch: BEQ, to: 'z' },
+    { branch: BCC, to: 'z' },
+    swap,
+    { label: 'i' },
+    words(ptoi),
+    { branch: BEQ, to: 'z' },
+    { branch: BCC, to: 'z' },
+    swap,
+    { label: 'z' },
+    bytesOf('9C', statstemp, '18 6B'),
+  ])
+  // The code's lengths, for where the texts go after it.
+  const titleCode = (at: (i: number) => number) =>
+    asm65([
+      bytesOf('A5', d0, 'C90600'),
+      { branch: BCC, to: 'o' },
+      { branch: BEQ, to: 'a' },
+      'C90700',
+      { branch: BEQ, to: 'b' },
+      bytesOf('A9', word(loRomAddress(at(2)))),
+      { branch: BRA, to: 's' },
+      { label: 'a' },
+      bytesOf('A9', word(loRomAddress(at(0)))),
+      { branch: BRA, to: 's' },
+      { label: 'b' },
+      bytesOf('A9', word(loRomAddress(at(1)))),
+      { label: 's' },
+      bytesOf('85', a1, 'A9', loRomBank(base, 0x80), '00 85', a1 + 2, '6B'),
+      { label: 'o' },
+      bytesOf('5C', parts.original.title.slice(1)),
+    ])
+  const headerCode = (ours: number, toiHeader: number) =>
+    asm65([
+      bytesOf('AD', word(statcolumn), 'C90600'),
+      { branch: BCS, to: 'm' },
+      bytesOf('A9', headerBank, '00 85', a1 + 2, 'A9', word(headerAddress), '85', a1, '6B'),
+      { label: 'm' },
+      'C90800',
+      { branch: BEQ, to: 'i' },
+      bytesOf('A9', loRomBank(base, 0x80), '00 85', a1 + 2, 'A9', word(loRomAddress(ours)), '85', a1, '6B'),
+      { label: 'i' },
+      bytesOf('A9', loRomBank(base, 0x80), '00 85', a1 + 2, 'A9', word(loRomAddress(toiHeader)), '85', a1, '6B'),
+    ])
+  const text = (s: string) => new TextEncoder().encode(s)
+  const prefix = parts.headerPrefix
+  const titleLength = titleCode(() => base).length
+  const headerLength = headerCode(base, base).length
+  const at = { row: GP_NOTE, title: 0, compare: 0, header: 0, texts: 0 }
+  at.title = at.row + row.length
+  at.compare = at.title + titleLength
+  at.header = at.compare + compare.length
+  at.texts = at.header + headerLength
+  const titleAt = (i: number) => base + at.texts + 14 * i
+  const oursAt = titleAt(3)
+  const toiHeaderAt = oursAt + prefix.length + GP_HEADER.length
+  const titles = bytesOf(...GP_TITLES.map((title, i) => bytesOf(word(14), text(i === 1 && !toi ? '[Takeaways  ' : title))))
+  void header
+  const block = bytesOf(note, row, titleCode(titleAt), compare, headerCode(oursAt, toiHeaderAt), titles, prefix, text(GP_HEADER), prefix, text(TOI_HEADER))
+  return { block, entries: { row: base + at.row, title: base + at.title, compare: base + at.compare, header: base + at.header }, takeawaysEnd: base + at.texts + 14 + 13 }
+}
+
+interface PagesIn {
+  places: Placed[]
+  toiToggle: Placed[]
+}
+
+// The pages' places, for a ROM with them in (from their block) or without (as it is now, the time on ice page in or not).
+function giveawayPagesWork(rom: Uint8Array): PagesIn | null {
+  if (ownIceTime(rom)) return null
+  // DrawStatsList_rows' jsl .3, or a hack's jsl in its place.
+  const rows = findCodeAll(rom, 'ad(....)f00622(......)800422')
+  if (rows.length !== 1) return null
+  const rowSite = rows[0].at + 5
+  const callTo = (at: number) => loRomOffset(rom[at + 3], readU16(rom, at + 1))
+  const target = callTo(rowSite)
+  const statcolumn = rows[0].groups[0]
+  // The pages' row code: lda statcolumn / cmp #6 / bcs (the time on ice page's has beq).
+  const isIn = target >= GP_NOTE && same(rom, target, bytesOf('AD', word(statcolumn), 'C90600 B0'))
+  const base = isIn ? target - GP_NOTE : -1
+  // The ROM without the pages: the game's places put back from the note (the block left, so the time on ice page's code is not put over it).
+  let plain = rom
+  let toi = false
+  // The time on ice page's places as it is in now (without the pages), or as it would go in (with them).
+  let toiNow: Placed[] | null = null
+  if (isIn) {
+    const note = rom.slice(base, base + GP_NOTE)
+    plain = rom.slice()
+    plain.set(note.slice(0, 4), rowSite)
+    // The other three places by the code around them (as statPageParts finds them, its own hooks in their place here).
+    const column = hexOf(Uint8Array.from(word(statcolumn)))
+    const titles = findCodeAll(rom, "a9..0085..a9....85..22......22......ae")
+    const compares = findCodeAll(rom, "22......b0..4c....eaea")
+    const headers = findCodeAll(rom, "ad" + column + "f0..a5..48a5..48" + "22......eaeaeaeaeaea22......6885")
+    if (titles.length !== 1 || compares.length !== 1 || headers.length !== 1) return null
+    plain.set(note.slice(4, 8), titles[0].at + 10)
+    plain.set(bytesOf('C9 0500 D003 4C', note.slice(8, 10), '4C', note.slice(10, 12)), compares[0].at)
+    plain.set(note.slice(12, 22), headers[0].at + 11)
+    const scratchParts = statPageParts(plain)
+    if (!scratchParts) return null
+    toi = rom[scratchParts.rightSite] === 8
+    plain[scratchParts.rightSite] = note[22]
+    plain[scratchParts.penaltiesEnd] = note[23]
+  } else {
+    toiNow = timeOnIceShownPlaces(rom)
+    toi = !!toiNow && toiNow.every((place) => holds(rom, place, 'hacked'))
+    if (toi) {
+      plain = rom.slice()
+      for (const place of toiNow!) if (place.original) plain.set(place.original, place.at)
+    }
+  }
+  const parts = statPageParts(plain)
+  if (!parts) return null
+  // Without the pages: the game's, or the time on ice page as its own hack puts it in (its code kept clear of the block).
+  let before = plain
+  let toiCode: Placed[] = []
+  if (toi) {
+    const toiPlaces = isIn ? timeOnIceShownPlaces(plain) : toiNow
+    if (!toiPlaces) return null
+    before = isIn ? plain.slice() : rom
+    if (isIn) for (const place of toiPlaces) before.set(place.hacked, place.at)
+    const sites = new Set([parts.rowSite, parts.titleSite, parts.cmpSite, parts.headerSite, parts.rightSite, parts.penaltiesEnd])
+    toiCode = toiPlaces.filter((place) => !sites.has(place.at)).map((place) => ({ at: place.at, original: place.hacked, hacked: unused(place.hacked.length) }))
+  }
+  const note = bytesOf(parts.original.row, parts.original.title, word(parts.t1x), word(parts.six), parts.original.header, plain[parts.rightSite], plain[parts.penaltiesEnd])
+  const length = gpBlock(parts, 0, toi, note).block.length
+  let room = base
+  if (!isIn) {
+    for (const bank of [0x9b, 0x80, loRomBank(parts.rowSite, 0x80)]) {
+      if (room >= 0) break
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, length)
+    }
+    if (room < 0) return null
+  }
+  const { block, entries, takeawaysEnd } = gpBlock(parts, room, toi, note)
+  const call = (to: number, pad: number) => bytesOf('22', long(to), new Array(pad).fill(0xea))
+  const at = (site: number, hacked: Uint8Array): Placed => ({ at: site, original: before.slice(site, site + hacked.length), hacked })
+  const places: Placed[] = [
+    at(parts.rowSite, call(entries.row, 0)),
+    at(parts.titleSite, call(entries.title, 0)),
+    at(parts.cmpSite, bytesOf(call(entries.compare, 0), 'B0', parts.bcs, '4C', word(parts.eight), 'EAEA')),
+    at(parts.headerSite, call(entries.header, 6)),
+    at(parts.rightSite, Uint8Array.of(toi ? 8 : 7)),
+    at(parts.penaltiesEnd, new TextEncoder().encode(']')),
+    ...toiCode,
+    { at: room, original: unused(block.length), hacked: block },
+  ]
+  const toiToggle: Placed[] = [
+    { at: parts.rightSite, original: Uint8Array.of(7), hacked: Uint8Array.of(8) },
+    { at: takeawaysEnd, original: new TextEncoder().encode(' '), hacked: new TextEncoder().encode(']') },
+  ]
+  return isIn ? { places, toiToggle } : { places, toiToggle: [] }
+}
+
+// The pages, if they are in.
+function giveawayPagesIn(rom: Uint8Array): PagesIn | null {
+  const rows = findCodeAll(rom, 'ad(....)f00622(......)800422')
+  if (rows.length !== 1) return null
+  const site = rows[0].at + 5
+  const target = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  if (target < GP_NOTE || !same(rom, target, bytesOf('AD', word(rows[0].groups[0]), 'C90600 B0'))) return null
+  return giveawayPagesWork(rom)
+}
+
+function giveawayPagesPlaces(rom: Uint8Array): Placed[] | null {
+  return giveawayPagesWork(rom)?.places ?? null
+}
+
 // ------------------------------------------------------------ NHL shootout
 // As on the Genesis (hacks.ts, nhlShootout): three rounds, then sudden death,
 // over as soon as one team cannot catch up. The SNES's visitors shoot first.
@@ -2360,6 +2614,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
   giveaways: (rom) => giveawayPlaces(rom),
   giveawaysShown: (rom) => giveawayShownPlaces(rom),
+  giveawayPages: (rom) => giveawayPagesPlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
   clutchTime: (rom) => clutchTimePlaces(rom),
@@ -3291,6 +3546,11 @@ function detect(rom: Uint8Array): SnesHackState {
   if (!ownIceTime(rom) && only(rom, CLEAR_PLAYER_CHECKS) >= 0 && !choices.timeOnIceShown) {
     notOffered.timeOnIceShown = OWN_STAT_PAGES
     if (unknown.includes('timeOnIceShown')) unknown.splice(unknown.indexOf('timeOnIceShown'), 1)
+  }
+  // NOSE4Web's giveaways and takeaways pages go where its time on ice page does.
+  if ((ownIceTime(rom) || only(rom, CLEAR_PLAYER_CHECKS) >= 0) && !choices.giveawayPages) {
+    notOffered.giveawayPages = OWN_PAGES_GT
+    if (unknown.includes('giveawayPages')) unknown.splice(unknown.indexOf('giveawayPages'), 1)
   }
   if (ownIceTime(rom)) {
     // Its own count is not other code in the way: the hack is off, and not offered.
