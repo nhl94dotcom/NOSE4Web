@@ -30,8 +30,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('time on ice in Player Stats (Ge
     expect(hex(on.bytes, 0x9690, 10)).toBe('4e714e714e714e714e71')
     // Column 5 in game stats only (tst.w d7), back to .scroll ($954C) past the bounds.
     expect(hex(on.bytes, target(on.bytes, 0x9556), 34)).toBe('0c40ffff6d144a4766080c4000056e0a4e750c4000046e024e75588f4ef90000954c')
-    // GetStatColumn: column 5 is the word at $136 of the team struct, the player's.
-    expect(hex(on.bytes, target(on.bytes, 0x9878), 38)).toBe('3400302f00042f570002548f0c41000566103400d442064201363432200058 8f4e75b0424e75'.replace(' ', ''))
+    // GetStatColumn: column 5 is the word at $136 of the team struct, the player's, at most 99:59 (5999).
+    expect(hex(on.bytes, target(on.bytes, 0x9878), 48)).toBe('3400302f00042f570002548f0c410005661a3400d442064201363432200 00c42176f6304343c176f588f4e75b0424e75'.replace(' ', ''))
     // The new title, 20 wide as the others.
     const title = target(on.bytes, 0x968a)
     expect(Buffer.from(on.bytes.subarray(title + 64, title + 84)).toString('latin1')).toBe('[    Time On Ice    ')
@@ -43,6 +43,20 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('time on ice in Player Stats (Ge
     expect(row).toContain('72044ef900011d3a')
     expect(detectHacks(on.bytes).choices).toEqual({ ...NO_HACKS, timeOnIce: true })
     expect(Buffer.compare(buildRom(applyHacks(on, NO_HACKS)), buildRom(rom))).toBe(0)
+  })
+
+  it('recognises the first version (no cap) and replaces it', () => {
+    const rom = open('nhl94.bin')
+    const on = applyHacks(rom, { ...NO_HACKS, timeOnIce: true })
+    const get = target(on.bytes, 0x9878)
+    const old = on.bytes.slice()
+    old.fill(0xff, get, get + 48)
+    old.set(Buffer.from('3400302f00042f570002548f0c41000566103400d4420642013634322000588f4e75b0424e75', 'hex'), get)
+    expect(detectHacks(old).choices.timeOnIce).toBe(true)
+    const project = openRom(buildRom({ ...on, bytes: old }))
+    expect(Buffer.compare(buildRom(applyHacks(project, NO_HACKS)), buildRom(rom))).toBe(0)
+    const again = applyHacks(project, { ...NO_HACKS, timeOnIce: true })
+    expect(hex(again.bytes, target(again.bytes, 0x9878) + 30, 4)).toBe('0c42176f')
   })
 
   it('goes with the bodycheck counts, which keep their Chk column', () => {
