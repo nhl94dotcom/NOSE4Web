@@ -71,6 +71,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   bodychecks: () => "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
   clutchTime: () => "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: () => "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
+  skateMarks: () => 'Skaters leave faint marks on the ice where they skate, a light scattering by the end of each period, and the ice is fresh again for the next.',
   nhlShootout: () => "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
   timeOnIce: () => 'Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player\'s time on ice.',
   plusMinus: () => 'Plus-minus is kept for every player (the game does not show it).',
