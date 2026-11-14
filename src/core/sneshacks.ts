@@ -65,6 +65,7 @@ export type SnesHack =
   | 'timeOnIce'
   | 'timeOnIceShown'
   | 'nhlShootout'
+  | 'choppyIce'
 
 interface Site {
   // The game's address.
@@ -317,6 +318,7 @@ export const SNES_HACKS: SnesHack[] = [
   'timeOnIce',
   'timeOnIceShown',
   'nhlShootout',
+  'choppyIce',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -369,6 +371,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   timeOnIce: 'Time on ice for each player',
   timeOnIceShown: 'Time on ice in Player Stats',
   nhlShootout: 'Three-round shootout',
+  choppyIce: 'Choppy ice',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1720,6 +1723,52 @@ function nhlShootoutPlaces(rom: Uint8Array): Placed[] | null {
   ]
 }
 
+// ---------------------------------------------------------------- choppy ice
+// As on the Genesis (hacks.ts, choppyIce): the puck slows a little more as the
+// period goes on, up to a quarter more by its end, fresh again each period.
+// updateplayers' .1xx multiplies Xvel and Yvel by the friction factor in d2
+// (out of 256; the gliding puck's is $FF at the usual timestep). Its ldx Xvel,y /
+// lda d2 becomes jsl / nop to code that, for the puck (Y = $1C), takes one off d2
+// on L of every 16 updates (L the quarters of the period gone, 0 to 4, from
+// PerTimeTotal and gameclock), chosen by the low bits of the puck's X fraction,
+// then does the ldx / lda. So by the period's end one update in four has $FE,
+// a quarter more friction on average (Match Viewer's reading of the code).
+function choppyIcePlaces(rom: Uint8Array): Placed[] | null {
+  // .1xx: ldx Xvel,y / lda d2 / jsl Mul16x8HiXS / sta Xvel,y / the same for Y / tyx / .10 ... clc / adc Xfrac,x;
+  // or the hack's jsl / nop in place of the first ldx / lda.
+  const tail = '22......99....be....a5..22......99....bbad....85..bd....f0..aaa5..22......a6..a5..187d(....)'
+  const plain = findCodeAll(rom, 'be(....)a5(..)' + tail)
+  const hooked = findCodeAll(rom, '22(......)ea' + tail)
+  if (plain.length + hooked.length !== 1) return null
+  const site = (plain[0] ?? hooked[0]).at
+  const codeAt = plain.length ? -1 : loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  // The hack's code ends ldx Xvel,y / lda d2 / rtl, 6 bytes from its end, which says what they were.
+  const xvel = plain.length ? plain[0].groups[0] : readU16(rom, codeAt + CHOPPY_LENGTH - 5)
+  const d2 = plain.length ? plain[0].groups[1] : rom[codeAt + CHOPPY_LENGTH - 2]
+  const xfrac = (plain[0] ?? hooked[0]).groups[plain.length ? 2 : 1]
+  // GetPeriodTimeRemaining: lda gsp / xba / and #$FF00 / asl x6 / ora PerTimeTotal / sec / sbc gameclock.
+  const clocks = findCodeAll(rom, 'ad....eb2900ff0a0a0a0a0a0a0d(....)38ed(....)')
+  if (clocks.length !== 1) return null
+  const [total, clock] = clocks[0].groups
+  const code = asm65([
+    bytesOf('C01C00'), { branch: BNE, to: 'plain' },
+    bytesOf('AD', word(total)), { branch: BEQ, to: 'plain' },
+    bytesOf('38 AD', word(total), 'ED', word(clock)), { branch: BMI, to: 'plain' }, { branch: BEQ, to: 'plain' },
+    bytesOf('0A 0A A20000'),
+    { label: 'loop' },
+    bytesOf('CD', word(total)), { branch: BCC, to: 'done' },
+    bytesOf('ED', word(total), 'E8 E00400'), { branch: BCC, to: 'loop' },
+    { label: 'done' },
+    bytesOf('8A 48 B9', word(xfrac), '290F00 C301 68'), { branch: BCS, to: 'plain' },
+    bytesOf('A5', d2, '3A 85', d2),
+    { label: 'plain' },
+    bytesOf('BE', word(xvel), 'A5', d2, '6B'),
+  ])
+  if (code.length !== CHOPPY_LENGTH) return null
+  return withFarCode(rom, site, bytesOf('BE', word(xvel), 'A5', d2), 1, code)
+}
+const CHOPPY_LENGTH = 64
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1865,6 +1914,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   timeOnIce: (rom) => timeOnIcePlaces(rom),
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
+  choppyIce: (rom) => choppyIcePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2945,7 +2995,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]

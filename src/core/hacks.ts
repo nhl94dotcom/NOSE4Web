@@ -178,6 +178,8 @@ export interface HackChoices {
   fightSeconds: number
   // In a tied regular-season game's shootout, a skater out for the game takes no attempt.
   shootoutInjuries: boolean
+  // The puck slows a little more as each period goes on.
+  choppyIce: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
   nhlShootout: boolean
   // A Time On Ice page in Player Stats, from the time on ice the game counts.
@@ -260,6 +262,7 @@ export type HackPart =
   | 'penaltySeconds'
   | 'fightSeconds'
   | 'shootoutInjuries'
+  | 'choppyIce'
   | 'nhlShootout'
   | 'timeOnIce'
   | 'puckColours'
@@ -336,6 +339,7 @@ export const NO_HACKS: HackChoices = {
   penaltySeconds: 60,
   fightSeconds: 0,
   shootoutInjuries: false,
+  choppyIce: false,
   nhlShootout: false,
   timeOnIce: false,
   puckColours: 'rink',
@@ -2646,6 +2650,30 @@ const nhlShootout: Part<boolean> = {
   },
 }
 
+// ---------------------------------------------------------------- choppy ice
+// The ice wears through each period: the puck slows a little more as the
+// period goes on, up to a quarter more at its end, and is back to fresh ice
+// after each intermission. updateplayers slows everything on the ice by its
+// speed >> d2 a frame (at least 1), in X and Y; the puck always glides (pfdoff,
+// d2 = 9, or the Puck friction option's). Those 40 bytes ($AC1E) become jsr /
+// nops to code that does the same, and for the puck (SCnum 14) adds that slowing
+// times L / 16, L the quarters of the period gone (0 to 4, from PerTimeTotal and
+// gameclock, overtime included), rounded by the low bits of its X position's
+// fraction so that on average it is exact (and the game's random numbers are not
+// touched). Skaters are as before. From Match Viewer's reading of the code.
+const CHOPPY_HOOK: Hook = { at: 0xac1e, original: bytes('302B 0028 6700 000E E460 6600 0004 7001 916B 0028 302B 002A 6700 000E E460 6600 0004 7001 916B 002A') }
+const CHOPPY_CODE = bytes('48E7 5400 7600 0C6B 000E 0052 6622 3238 C46C 671C 3A01 9A78 C468 6F14 E545 0285 0000 FFFF 8AC1 3605 0C43 0004 6302 7604 302B 0028 672C E460 6602 7001 4A43 671E 3200 6A02 4441 C2C3 7A00 1A2B 0003 0245 000F D245 E849 4A40 6A02 4441 D041 916B 0028 302B 002A 672C E460 6602 7001 4A43 671E 3200 6A02 4441 C2C3 7A00 1A2B 0003 0245 000F D245 E849 4A40 6A02 4441 D041 916B 002A 4CDF 002A 4E75')
+const choppyIce: Part<boolean> = {
+  detect: (rom) => (is(rom, CHOPPY_HOOK.at, CHOPPY_HOOK.original) ? false : hooked(rom, CHOPPY_HOOK, CHOPPY_CODE) !== null ? true : undefined),
+  remove(rom) {
+    const target = hooked(rom, CHOPPY_HOOK, CHOPPY_CODE)
+    if (target === null) return
+    erase(rom, target, CHOPPY_CODE.length)
+    rom.set(CHOPPY_HOOK.original, CHOPPY_HOOK.at)
+  },
+  apply: (work, value) => void (value && hook(work, CHOPPY_HOOK, CHOPPY_CODE)),
+}
+
 // -------------------------------------------------------- fighting penalty time
 // How long a fight keeps each fighter in the box, in seconds of the game clock,
 // whatever its minutes and the penalty time. penalty94's .Sa works out a
@@ -2811,6 +2839,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
+    choppyIce: found('choppyIce', choppyIce.detect(rom), NO_HACKS.choppyIce),
     nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
@@ -2918,6 +2947,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
+    ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
@@ -3173,6 +3203,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
   shootoutInjuries: 'The injured sit out the shootout',
+  choppyIce: 'Choppy ice',
   nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
@@ -3244,6 +3275,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltySeconds: 'penaltySeconds',
   fightSeconds: 'fightSeconds',
   shootoutInjuries: 'shootoutInjuries',
+  choppyIce: 'choppyIce',
   nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',
