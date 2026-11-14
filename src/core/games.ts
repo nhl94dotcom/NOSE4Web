@@ -351,9 +351,16 @@ export const NHL95: GameConfig = {
   introTextPointerOffset: 0xa14f8,
   introTextSize: 0x656,
   rinkPaletteOffset: 0xc8506,
-  // What each strip colour is for is not known yet for NHL '95.
+  // What each strip colour is for, as the NHL94 Match Viewer project found by recolouring each in the game (7 and 8,
+  // the goalie's pads and mask, still to be confirmed); shown down the player as NHL 94's are. Not NHL 94's order, so
+  // the strip checks, which go by NHL 94's, are left out (stripColorsKnown).
   stripColorsKnown: false,
-  stripColorOrder: undefined,
+  stripColorLabels: [
+    'Ice', 'Stick and skate blades', 'Helmet/Body/Leg (light)', 'Helmet/Body/Leg (dark)', 'Helmet/Body (main)',
+    'Face (light)', 'Face (dark)', 'Goalie pads and mask (light)', 'Goalie pads and mask (dark)', 'Gloves and boots',
+    'Shoulders and sleeves', 'Pants (light)', 'Pants (dark)', 'Shoulder and waist stripe', 'Stick shaft', 'Shadow',
+  ],
+  stripColorOrder: [4, 2, 3, 10, 13, 9, 11, 12, 7, 8, 1, 5, 6, 14, 15, 0],
   rulesOffset: 0x89c2e,
   periodLengthSecondsOffset: 0x7d4da,
   periodLengthTextOffset: 0x86d92,

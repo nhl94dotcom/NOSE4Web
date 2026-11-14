@@ -362,7 +362,7 @@ export default function App() {
         return current.game.platform === 'snes' ? (
           <SnesRinkEditor project={current} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
         ) : (
-          <RinkEditor palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
+          <RinkEditor palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} edition={current.game.edition} />
         )
       case SETTINGS:
         return (

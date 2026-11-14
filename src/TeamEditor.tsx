@@ -884,6 +884,8 @@ export function TeamEditor(props: Props) {
             <div className="strip">
               {game.platform === 'snes' ? (
                 (props.players ?? []).map((image, i) => <Preview key={i} template={image} palette={colors} scale={3} format={format} seeThrough />)
+              ) : game.edition === 95 ? (
+                <Preview template="sprites95" palette={colors} scale={2} />
               ) : (
                 <>
                   <Preview template="strip" palette={colors} scale={3} />

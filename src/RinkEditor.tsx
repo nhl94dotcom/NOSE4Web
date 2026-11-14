@@ -10,6 +10,13 @@ const VIEWS = [
   { template: 'rink-pause', title: 'Pause menu' },
 ]
 
+// NHL '95's, as NOSE has them (no pause menu).
+const VIEWS_95 = [
+  { template: 'rink95-center', title: 'Centre ice' },
+  { template: 'rink95-top', title: 'Top of the rink' },
+  { template: 'rink95-bottom', title: 'Bottom of the rink' },
+]
+
 const ICE_LABELS = Array.from({ length: 16 }, (_, i) => `Rink colour ${hex(i, 1)}`)
 const ARENA_LABELS = Array.from({ length: 16 }, (_, i) => `Arena colour ${hex(i, 1)}`)
 
@@ -18,10 +25,12 @@ interface Props {
   // The colours as they are in the ROM that was opened.
   original: number[]
   onChange: (palette: number[]) => void
+  edition?: 95
 }
 
-export function RinkEditor({ palette, original, onChange }: Props) {
-  const [view, setView] = useState(VIEWS[0].template)
+export function RinkEditor({ palette, original, onChange, edition }: Props) {
+  const views = edition === 95 ? VIEWS_95 : VIEWS
+  const [view, setView] = useState(views[0].template)
   const ice = palette.slice(0, 16)
   const arena = palette.slice(16)
   const differs = (from: number, to: number) => palette.slice(from, to).join() !== original.slice(from, to).join()
@@ -33,7 +42,7 @@ export function RinkEditor({ palette, original, onChange }: Props) {
         <p className="note">These colours are shared by every team's home rink.</p>
         <p>
           <select value={view} onChange={(e) => setView(e.target.value)}>
-            {VIEWS.map((v) => (
+            {views.map((v) => (
               <option key={v.template} value={v.template}>
                 {v.title}
               </option>

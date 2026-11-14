@@ -17,6 +17,11 @@ const TEMPLATES = [
   { folder: 'rinks', file: '94 Center Right', palette: 'Palette Rink', name: 'rink-center' },
   { folder: 'rinks', file: '94 Bottom Right', palette: 'Palette Rink', name: 'rink-bottom' },
   { folder: 'rinks', file: '94 Pause Menu', palette: 'Palette Rink', name: 'rink-pause' },
+  // NHL '95's, as NOSE has them.
+  { folder: 'strips', file: '95 Sprites', palette: 'Palette 0EEA', name: 'sprites95' },
+  { folder: 'rinks', file: '95 Top Right', palette: 'Palette Rink', name: 'rink95-top' },
+  { folder: 'rinks', file: '95 Center Right', palette: 'Palette Rink', name: 'rink95-center' },
+  { folder: 'rinks', file: '95 Bottom Right', palette: 'Palette Rink', name: 'rink95-bottom' },
 ]
 
 // Reads an uncompressed 24-bit BMP into rows of 0xRRGGBB values, top row first.
