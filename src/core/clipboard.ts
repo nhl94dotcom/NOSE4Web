@@ -1,3 +1,4 @@
+import { convertAttributes, type AttributeKind } from './attributes'
 import { isPlayerPhoto, type PlayerPhoto } from './playerphotos'
 import { goalieCount, type Player, type Team } from './team'
 
@@ -5,6 +6,13 @@ import { goalieCount, type Player, type Team } from './team'
 // they can be pasted into another team or into another ROM open in a second tab.
 
 const MARKER = 'nose-web players'
+
+// The kinds of attribute of the game players are copied from or pasted into, so that a paste into another game
+// (NHL 94 and NHL '95 keep the shooting hand and stick handling differently) brings them as they played.
+export interface CopyKinds {
+  playerAttributeKinds: AttributeKind[]
+  goalieAttributeKinds: AttributeKind[]
+}
 
 interface CopiedPlayer extends Player {
   goalie: boolean
@@ -14,10 +22,21 @@ interface CopiedPlayer extends Player {
 }
 
 // `photoOf` gives each player's own photo, where the ROM's photos can be read.
-export function copyPlayers(team: Team, indexes: number[], photoOf?: (index: number) => PlayerPhoto | null): string {
+export function copyPlayers(team: Team, indexes: number[], photoOf?: (index: number) => PlayerPhoto | null, game?: CopyKinds): string {
   const goalies = goalieCount(team)
   const players: CopiedPlayer[] = indexes.map((i) => ({ ...team.players[i], goalie: i < goalies, ...(photoOf ? { photo: photoOf(i) } : {}) }))
-  return JSON.stringify({ format: MARKER, players })
+  const kinds = game ? { player: game.playerAttributeKinds, goalie: game.goalieAttributeKinds } : undefined
+  return JSON.stringify({ format: MARKER, players, ...(kinds ? { kinds } : {}) })
+}
+
+// The kinds the copy was made from, where it says.
+function copiedKinds(text: string): { player: AttributeKind[]; goalie: AttributeKind[] } | null {
+  try {
+    const kinds = (JSON.parse(text) as { kinds?: { player?: unknown; goalie?: unknown } }).kinds
+    return kinds && Array.isArray(kinds.player) && Array.isArray(kinds.goalie) ? (kinds as { player: AttributeKind[]; goalie: AttributeKind[] }) : null
+  } catch {
+    return null
+  }
 }
 
 function readCopied(text: string): CopiedPlayer[] {
@@ -49,8 +68,10 @@ function readCopied(text: string): CopiedPlayer[] {
 // Pastes over the players at `indexes`, in order. As in NOSE, copied players
 // repeat if more rows are selected than were copied, and "attributes only"
 // leaves each row's name and jersey number alone.
-export function pastePlayers(team: Team, indexes: number[], text: string, attributesOnly: boolean): Team {
+// With `game`, values copied from another game are converted to this one's kinds of attribute.
+export function pastePlayers(team: Team, indexes: number[], text: string, attributesOnly: boolean, game?: CopyKinds): Team {
   const copied = readCopied(text)
+  const from = game ? copiedKinds(text) : null
   if (indexes.length === 0) throw new Error('Select the players to paste over first.')
   const goalies = goalieCount(team)
   const players = team.players.slice()
@@ -60,7 +81,8 @@ export function pastePlayers(team: Team, indexes: number[], text: string, attrib
       // Goalies and skaters use the attribute slots for different things.
       throw new Error('Goalies can only be pasted over goalies, and skaters over skaters.')
     }
-    const { name, jersey, attributes } = source
+    const { name, jersey } = source
+    const attributes = from && game ? convertAttributes(source.attributes, source.goalie ? from.goalie : from.player, source.goalie ? game.goalieAttributeKinds : game.playerAttributeKinds).values : source.attributes
     players[index] = attributesOnly ? { ...players[index], attributes } : { name, jersey, attributes }
   })
   return { ...team, players }
@@ -73,6 +95,22 @@ export function copiedPhotos(text: string, indexes: number[]): (PlayerPhoto | nu
   const copied = readCopied(text)
   if (copied.some((p) => p.photo === undefined)) return null
   return indexes.map((_, n) => copied[n % copied.length].photo ?? null)
+}
+
+// What a paste into `game` changes on the way, as a sentence, or ''.
+export function pasteConversionNote(text: string, game: CopyKinds): string {
+  const from = copiedKinds(text)
+  if (!from) return ''
+  const done = readCopied(text).map((p) =>
+    convertAttributes(p.attributes, p.goalie ? from.goalie : from.player, p.goalie ? game.goalieAttributeKinds : game.playerAttributeKinds),
+  )
+  const changes = [
+    ...(done.some((d) => d.weights) ? ['weights moved to the nearest here'] : []),
+    ...(done.some((d) => d.hands) ? ['shooting hands turned, as the two games keep them the other way round'] : []),
+    ...(done.some((d) => d.stickHandling) ? ['stick handling restated between 7 steps and 16'] : []),
+  ]
+  const stored = done.some((d) => d.unconverted.length > 0) ? ' Some attributes the two ROMs keep on different scales came across as stored: check them.' : ''
+  return (changes.length > 0 ? ` From the other game: ${changes.join(', ')}, so they play as they did.` : '') + stored
 }
 
 export function copiedPlayerCount(text: string): number {

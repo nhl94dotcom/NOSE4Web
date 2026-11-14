@@ -32,7 +32,7 @@ import {
   withSnesCentreIceColours,
   writeSnesPictures,
 } from './snespictures'
-import { convertWeight, isRating, weightBase, type AttributeKind } from './attributes'
+import { convertAttributes, convertWeight, isHandedFighting, isRating, weightBase, type AttributeKind } from './attributes'
 import { NHL94 } from './games'
 import { importPhotos } from './photoimport'
 import { snesBlockColours, withSnesBlockColours } from './snesblockcolours'
@@ -55,6 +55,14 @@ export interface ImportParts {
 }
 
 export const ALL_PARTS: ImportParts = { names: true, roster: true, colours: true, pictures: true, photos: true }
+
+// Each strip colour of one game, by the other game's entry for the same part of the player (games.ts' labels; -1:
+// none, kept as the team has it). NHL 94: 0 ice, 1 blade, 2 boots and gloves, 3 to 5 pants dark to light, 6 and 7
+// face, 8 and 9 trim, 10 shoulders, 11 to 13 helmet and body medium, light, dark, 14 stick, 15 shadow. NHL '95 (Match
+// Viewer): 0 ice, 1 blades, 2 and 3 helmet and body light and dark, 4 its main colour, 5 and 6 face, 7 and 8 goalie
+// pads and mask, 9 gloves and boots, 10 shoulders, 11 and 12 pants light and dark, 13 stripe, 14 stick, 15 shadow.
+const STRIP_TO_95 = [0, 1, 12, 13, 11, 6, 7, -1, -1, 2, 10, 5, 3, 8, 14, 15]
+const STRIP_TO_94 = [0, 1, 9, 12, 12, 11, 5, 6, 13, 13, 10, 4, 2, 3, 14, 15]
 
 // Colours 5 and up of a menu logo's 16 are its own; see graphics.ts.
 const LOGO_OWN_COLORS_FROM = 5
@@ -132,8 +140,27 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       team = { ...team, players: team.players.map((p) => ({ ...p, attributes: p.attributes.map((v, a) => (a === 0 ? convertWeight(v, theirs, ours) : v)) })) }
       notes.push(`The other ROM's weights start at ${theirs} pounds and this one's at ${ours}. Each player's weight was moved to the nearest here.`)
     }
-    // The two games' 0 to 6 ratings are kept alike, though their screens show them a little differently.
-    const ratings = (kinds: AttributeKind[]) => kinds.slice(1).map((kind) => (isRating(kind) ? 'rating' : kind)).join()
+    // NHL 94 and NHL '95 keep the shooting hand the other way round, and stick handling in 7 steps and 16: each player
+    // comes across as he played (the weights are done above).
+    {
+      const goalies = goalieCount(team)
+      let hands = false
+      let stickHandling = false
+      const players = team.players.map((p, i) => {
+        const [theirKinds, ourKinds] = i < goalies ? [other.game.goalieAttributeKinds, project.game.goalieAttributeKinds] : [other.game.playerAttributeKinds, project.game.playerAttributeKinds]
+        const done = convertAttributes(p.attributes, theirKinds.map((kind, a) => (a === 0 ? ourKinds[0] : kind)), ourKinds)
+        hands ||= done.hands
+        stickHandling ||= done.stickHandling
+        return { ...p, attributes: done.values }
+      })
+      if (hands || stickHandling) team = { ...team, players }
+      if (hands) notes.push("The two games keep the shooting hand the other way round: each player's was turned, so he shoots as he did.")
+      if (stickHandling) notes.push("NHL '95 keeps stick handling in 16 steps and NHL 94 in 7: each player's was restated, so he plays as he did.")
+    }
+    // The two games' 0 to 6 ratings are kept alike, though their screens show them a little differently; the shooting
+    // hand and NHL '95's stick handling were converted above.
+    const ratings = (kinds: AttributeKind[]) =>
+      kinds.slice(1).map((kind) => (isRating(kind) || kind === 'stickHandling95' ? 'rating' : isHandedFighting(kind) ? 'handedFighting' : kind)).join()
     // Between the original 0 to 6 ratings and a ROM hacked for 0 to 15, each
     // rating is restated so that the player plays as he did.
     const [theirScale, ourScale] = [hackState(other), hackState(project)]
@@ -156,6 +183,16 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
   // The Genesis and SNES games give their 16 strip colours different jobs.
   if (parts.colours && (project.game.platform !== other.game.platform || source.palette.length !== team.palette.length)) {
     notes.push('Colours were not brought in: the two games keep them in different ways.')
+  } else if (parts.colours && (project.game.edition === 95) !== (other.game.edition === 95)) {
+    // NHL 94 and NHL '95 give them different jobs too: each goes to the job it has here.
+    const map = project.game.edition === 95 ? STRIP_TO_95 : STRIP_TO_94
+    const remap = (strip: number[], own: number[]) => map.map((from, i) => (from < 0 ? own[i] : strip[from]))
+    team = { ...team, palette: [...remap(source.palette.slice(0, 16), team.palette.slice(0, 16)), ...remap(source.palette.slice(16), team.palette.slice(16))] }
+    notes.push(
+      project.game.edition === 95
+        ? "Home and away colours brought in, each moved to the part of the player it colours in NHL '95, which gives them different jobs from NHL 94; the goalie pads and mask kept this team's. Check them."
+        : "Home and away colours brought in, each moved to the part of the player it colours in NHL 94, which gives them different jobs from NHL '95. Check them.",
+    )
   } else if (parts.colours) {
     team = { ...team, palette: source.palette }
     notes.push('Home and away colours brought in.')

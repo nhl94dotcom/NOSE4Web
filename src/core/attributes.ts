@@ -102,3 +102,44 @@ export function attributeNote(kind: AttributeKind): string {
   }
   return notes[kind] ?? ''
 }
+
+// NHL 94's 0 to 6 stick handling as NHL '95's sixteen steps: the lowest of the steps play folds to it.
+const STICK_HANDLING_95_UP = [0, 1, 3, 6, 9, 12, 15]
+
+// What changed when values went from one game's kinds of attribute to another's.
+export interface AttributeConversion {
+  values: number[]
+  // The kinds of change made: a weight moved to another base, a shooting hand turned (the two games keep it the
+  // other way round), stick handling restated between seven steps and sixteen.
+  weights: boolean
+  hands: boolean
+  stickHandling: boolean
+  // Places whose kinds differ in a way that cannot be converted: the value is kept as stored.
+  unconverted: number[]
+}
+
+// A player's stored values, from attributes of kinds `from` to kinds `to`, so that he plays as he did.
+export function convertAttributes(values: number[], from: AttributeKind[], to: AttributeKind[]): AttributeConversion {
+  const result: AttributeConversion = { values: [], weights: false, hands: false, stickHandling: false, unconverted: [] }
+  values.forEach((value, i) => {
+    const [a, b] = [from[i], to[i]]
+    let next = value
+    if (a === undefined || b === undefined || a === b) next = value
+    else if (isWeight(a) && isWeight(b)) {
+      next = convertWeight(value, weightBase(a)!, weightBase(b)!)
+      result.weights ||= next !== value || weightBase(a) !== weightBase(b)
+    } else if (isHandedFighting(a) && isHandedFighting(b)) {
+      next = shootsRight(a, value) === shootsRight(b, value) ? value : value ^ 1
+      result.hands = true
+    } else if (isRating(a) && b === 'stickHandling95' && value <= 6) {
+      next = STICK_HANDLING_95_UP[value]
+      result.stickHandling = true
+    } else if (a === 'stickHandling95' && isRating(b)) {
+      next = stickHandling95Step(value)
+      result.stickHandling = true
+    } else if (isRating(a) && isRating(b)) next = value
+    else result.unconverted.push(i)
+    result.values.push(next)
+  })
+  return result
+}

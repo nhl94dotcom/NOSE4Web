@@ -4,7 +4,7 @@ import { readClipboard, writeClipboard } from './clipboard'
 import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
-import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteLines, pastePlayers } from './core/clipboard'
+import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteConversionNote, pasteLines, pastePlayers } from './core/clipboard'
 import type { PlayerPhoto } from './core/playerphotos'
 import { colorFormat } from './core/color'
 import type { GameConfig } from './core/games'
@@ -151,14 +151,14 @@ export function TeamEditor(props: Props) {
   }
 
   async function copyTicked() {
-    await writeClipboard(copyPlayers(team, ticked, photoOf))
+    await writeClipboard(copyPlayers(team, ticked, photoOf, game))
     setNotice(`Copied ${ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`}.`)
   }
 
   async function pasteOverTicked(attributesOnly: boolean) {
     try {
       const text = await readClipboard()
-      const pasted = pastePlayers(team, ticked, text, attributesOnly)
+      const pasted = pastePlayers(team, ticked, text, attributesOnly, game)
       // A whole player brings his photo, where the copy holds photos.
       const photos = attributesOnly || !onPasteWithPhotos ? null : copiedPhotos(text, ticked)
       const problems = photos && onPasteWithPhotos ? onPasteWithPhotos(pasted, ticked.map((slot, n) => ({ slot, goalie: slot < goalies, photo: photos[n] }))) : (onChange(pasted), [])
@@ -166,7 +166,7 @@ export function TeamEditor(props: Props) {
       const repeated = ticked.length > count ? ', repeating them to fill the rows' : ''
       const withPhotos = photos?.some((photo) => photo) ? (count === 1 ? ', with his photo' : ', with their photos') : ''
       const left = problems.length > 0 ? ` A photo could not be brought: ${problems[0]}` : ''
-      setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${withPhotos}${repeated}.${left}`)
+      setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${withPhotos}${repeated}.${left}${pasteConversionNote(text, game)}`)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e))
     }
