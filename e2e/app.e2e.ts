@@ -2083,10 +2083,10 @@ test.describe('with the NHL 94 ROM', () => {
 // project). Each is opened and walked through every page, to catch anything
 // that breaks the editor on a ROM unlike the original game.
 const localPath = resolve(process.cwd(), 'tests', 'local.json')
-const local: { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[] } = existsSync(localPath)
+const local: { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[]; nhl95Roms?: string[] } = existsSync(localPath)
   ? JSON.parse(readFileSync(localPath, 'utf8'))
   : {}
-const hackRoms = [local.league30Rom, ...(local.otherRoms ?? []), ...(local.snesRoms ?? [])]
+const hackRoms = [local.league30Rom, ...(local.otherRoms ?? []), ...(local.snesRoms ?? []), 'NHL95/NHL_95.bin', ...(local.nhl95Roms ?? [])]
   .filter((name): name is string => !!name)
   .map((name) => resolve(process.cwd(), '..', name))
   .filter((path) => existsSync(path))
@@ -2112,7 +2112,9 @@ test.describe('with the hacked ROMs on this computer', () => {
       // the 2-on-2 ROMs' playoff draws, which leave out their first two teams.
       expect(await page.locator('nav button').count()).toBeGreaterThanOrEqual(rom.teams.length + 6)
       const problems = checkProject(rom).filter((finding) => finding.level === 'problem')
-      const asMade = /2on2/.test(path) ? ['Playoff draws'] : []
+      // NHL '95 as it came has a team twice in its third draw; a league's placeholder teams ('-') have lines with no players.
+      const asMade = /2on2/.test(path) || rom.game.edition === 95 ? ['Playoff draws'] : []
+      if (rom.game.edition === 95) asMade.push(...rom.teams.filter((team) => team.names[0] === '-').map((team) => team.names.slice(0, 3).filter((n, i) => i !== 1).join(' ')))
       expect(problems.filter((finding) => !/ at both \w+ and \w+\./.test(finding.message) && !asMade.includes(finding.where))).toEqual([])
       await expect(entry(page, /Check ROM/)).toHaveText(problems.length > 0 ? `Check ROM (${problems.length})` : 'Check ROM')
       await expect(rows(page, 'Goalies').first()).toBeVisible()
@@ -2130,17 +2132,18 @@ test.describe('with the hacked ROMs on this computer', () => {
         await expect(page.locator('main h2').first()).toBeVisible()
         if ((await pages.nth(i).textContent()) === 'League') await page.screenshot({ path: `${shot}_league.png` })
       }
-      if (!snes) {
+      if (!snes && rom.graphicsSupported) {
         await teams.first().click()
         await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
         await page.screenshot({ path: `${shot}_pictures.png` })
       }
 
-      // An edit, and the ROM still downloads and opens with it. An SNES ROM
-      // may have no room to spare, so there the name keeps its length.
+      // An edit, and the ROM still downloads and opens with it. An SNES ROM, or
+      // one with no room to spare (NHL '95 as it came), keeps the name's length.
       await teams.first().click()
       const length = (await nameOf(rows(page, 'Skaters').first()).inputValue()).length
-      const name = snes ? 'Test Player'.padEnd(length, 'x').slice(0, length) : 'Test Player'
+      const sameLength = snes || rom.teams.every((team) => team.freeBytes === 0)
+      const name = sameLength ? 'Test Player'.padEnd(length, 'x').slice(0, length) : 'Test Player'
       await nameOf(rows(page, 'Skaters').first()).fill(name)
       const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
       const again = readRom(new Uint8Array(readFileSync(await download.path())))

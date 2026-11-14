@@ -329,8 +329,9 @@ export function checkProject(project: RomProject): Finding[] {
     }
   })
 
-  // New playoffs with a team no draw has freeze the game, whatever the menu offers.
-  {
+  // New playoffs with a team no draw has freeze the game, whatever the menu offers (NHL 94, as Match Viewer found;
+  // not known for NHL '95, whose playoff code the editor does not read).
+  if (game.edition !== 95) {
     const offered = settings.menuTeams?.offered ?? teams.length
     const last = playoffLastWritten(project.bytes, project.game, settings.menuTeams, settings.playoffDraws)
     const missing = teamsMissingFromDraws(offered, settings.playoffDraws, last)
