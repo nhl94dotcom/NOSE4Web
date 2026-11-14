@@ -241,6 +241,11 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
   return (
     <main className="team help">
       <h2>Hacks</h2>
+      <p className="notice">
+        <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the very bottom of the page.
+        Nothing in the ROM changes until you do. The list just above Apply shows exactly what will change, and Undo
+        takes it all back.
+      </p>
       <p className="note">
         Changes to the SNES game itself. They come from the patches of the community's disassembly of the game,{' '}
         <a href="https://github.com/Mhopkinsinc/NHL94SNESVault" target="_blank" rel="noreferrer">

@@ -218,6 +218,11 @@ export function HacksPage({ project, name, onChange }: Props) {
   return (
     <main className="team help">
       <h2>Hacks</h2>
+      <p className="notice">
+        <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the very bottom of the page.
+        Nothing in the ROM changes until you do. The list just above Apply shows exactly what will change, and Undo
+        takes it all back.
+      </p>
       <p className="note">
         Changes to the game itself: bug fixes, extra statistics, finer ratings, rules, and how it plays. They come
         from smozoma's program{' '}
