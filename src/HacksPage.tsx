@@ -1193,7 +1193,11 @@ export function HacksPage({ project, name, onChange }: Props) {
               drawn with streak tiles already in the rink, in its own light ice colour, so nothing else on the screen
               changes, and only the look changes, not how the game plays. Reverse-angle replays show the ice without
               them. For ROMs with the original game's rink tiles. From the NHL94 Match Viewer project's reading of the
-              game's code.
+              game's code, and tested by them in the game on the original and a league ROM: the marks under the
+              skaters and leaning their way, kept as the rink scrolls and through the pause menu, the stats and the
+              replays, about 190 to 240 by the end of a 5:00 period, no stray tiles and no slowdown. NOSE4Web's first
+              version could carry marks from the intermission's highlight of another game into the next period; a ROM
+              with it is updated when the hacks are next applied.
             </>,
           )}
       </section>

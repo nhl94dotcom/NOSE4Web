@@ -2853,6 +2853,9 @@ const greenFan: Part<boolean> = {
 //   frames / 2^20, marks the cell under him, column (X + 192) / 8 and row
 //   (371 - Y) / 8, if it is plain ice in the ROM's map; at most 240 a period, a
 //   tenth of the plain ice ("light"), whatever the period length.
+//   Nothing in another game's intermission highlight (gmode's gmhl, bit 4):
+//   it sets gsp to that game's period and plays through updateplayers, so it
+//   would clear the marks and mark the ice itself (Match Viewer).
 // - updatescroll sends new rink rows straight from the ROM's map. At its two
 //   row sites (lea mapwords(a0,d0.w),a1 / move.l a1,(a5), $15FA8 and $15FDE) a
 //   row with marks is copied into RAM with them put in, and that is sent
@@ -2879,6 +2882,11 @@ const SKATE_TILES: [number, Uint8Array][] = [
   [0xf4, bytes('0000 0000 0000 0000 0000 0000 0000 2000 0002 0000 0020 0000 0200 0000 2000 0000')],
 ]
 const SKATE_CODE = bytes(
+  '6000 000A 6000 00A0 6000 0118 43F0 0004 48E7 FCA0 0280 0000 FFFF 80FC 0060 6100 000A 4CDF 053F 2A89 4E75 0838 0004 C2F4 6672 3200 C2FC 000C 45F8 F800 D4C1 2212 82AA 0004 82AA 0008 675A 3200 0241 001F C2FC 0060 41F8 E400 D0C1 2F08 3400 760B 121A 7803 3A19 0801 0000 6728 0C45 008F 6622 3A3C 008E 0802 0000 670E 3A3C 00F4 0800 0001 6704 3A3C 18F4 0801 0001 6704 0A45 0800 30C5 E409 5242 51CC FFC8 51CB FFC0 225F 4E75 3A7C B8B4 4EB9 0001 5F34 4A78 FD52 676A 48E7 FEF0 0838 0007 C2EC 6656 0838 0004 C2F4 664E 47F8 FD54 3C38 FD52 5346 301B 721E 9278 BD1A B041 6D34 0641 001F B041 6E2C 227C 0005 605A D3E9 0004 3200 C2FC 0060 43F1 1004 6100 FF2C 2AC9 3AFC 0030 3200 0241 001F EF49 D278 B008 3AC1 51CE FFBE 4278 FD52 4CDF 0F7F 4E75 48E7 F880 0838 0004 C2EA 6600 0136 3038 C466 B078 FD4E 6720 31C0 FD4E 41F8 F800 323C 0152 4298 51C9 FFFC 4278 FD4C 4278 FD52 31FC 07D0 BD1A 0C6B 000C 0052 6400 0102 0838 0007 C2EC 6600 00F8 0C78 00F0 FD4C 6400 00EE 4A6B 0018 6600 00E6 082B 0005 0064 6600 00DC 322B 0028 6A02 4441 342B 002A 6A02 4442 D242 3007 0240 0003 C2C0 E889 3038 FD50 6604 303C ACE1 3400 EF4A B540 3400 E04A E24A B540 3400 E14A B540 31C0 FD50 0280 0000 FFFF B081 6400 0092 3213 0641 00C0 E641 0C41 0030 6400 0082 343C 0173 946B 0014 E642 0C42 0071 6400 0070 207C 0005 605A D1E8 0004 3602 C6FC 0030 D641 D643 0C70 008F 3004 6600 0052 3602 C6FC 000C 3801 E44C D644 41F8 F800 D0C3 3801 0244 0003 D844 0910 6600 0032 09D0 302B 0028 362B 002A B740 6A04 5244 09D0 5278 FD4C 3038 FD52 0C40 0004 6400 0010 41F8 FD54 D040 3182 0000 5278 FD52 4CDF 011F 3C2B 0052 BC78 B7AA 4E75',
+)
+// NOSE4Web's first version, without the highlight test: recognised, and
+// replaced when the hacks are next applied.
+const SKATE_CODE_FIRST = bytes(
   '6000 000A 6000 00A0 6000 0118 43F0 0004 48E7 FCA0 0280 0000 FFFF 80FC 0060 6100 000A 4CDF 053F 2A89 4E75 0838 0004 C2F4 6672 3200 C2FC 000C 45F8 F800 D4C1 2212 82AA 0004 82AA 0008 675A 3200 0241 001F C2FC 0060 41F8 E400 D0C1 2F08 3400 760B 121A 7803 3A19 0801 0000 6728 0C45 008F 6622 3A3C 008E 0802 0000 670E 3A3C 00F4 0800 0001 6704 3A3C 18F4 0801 0001 6704 0A45 0800 30C5 E409 5242 51CC FFC8 51CB FFC0 225F 4E75 3A7C B8B4 4EB9 0001 5F34 4A78 FD52 676A 48E7 FEF0 0838 0007 C2EC 6656 0838 0004 C2F4 664E 47F8 FD54 3C38 FD52 5346 301B 721E 9278 BD1A B041 6D34 0641 001F B041 6E2C 227C 0005 605A D3E9 0004 3200 C2FC 0060 43F1 1004 6100 FF2C 2AC9 3AFC 0030 3200 0241 001F EF49 D278 B008 3AC1 51CE FFBE 4278 FD52 4CDF 0F7F 4E75 48E7 F880 3038 C466 B078 FD4E 6720 31C0 FD4E 41F8 F800 323C 0152 4298 51C9 FFFC 4278 FD4C 4278 FD52 31FC 07D0 BD1A 0C6B 000C 0052 6400 0102 0838 0007 C2EC 6600 00F8 0C78 00F0 FD4C 6400 00EE 4A6B 0018 6600 00E6 082B 0005 0064 6600 00DC 322B 0028 6A02 4441 342B 002A 6A02 4442 D242 3007 0240 0003 C2C0 E889 3038 FD50 6604 303C ACE1 3400 EF4A B540 3400 E04A E24A B540 3400 E14A B540 31C0 FD50 0280 0000 FFFF B081 6400 0092 3213 0641 00C0 E641 0C41 0030 6400 0082 343C 0173 946B 0014 E642 0C42 0071 6400 0070 207C 0005 605A D1E8 0004 3602 C6FC 0030 D641 D643 0C70 008F 3004 6600 0052 3602 C6FC 000C 3801 E44C D644 41F8 F800 D0C3 3801 0244 0003 D844 0910 6600 0032 09D0 302B 0028 362B 002A B740 6A04 5244 09D0 5278 FD4C 3038 FD52 0C40 0004 6400 0010 41F8 FD54 D040 3182 0000 5278 FD52 4CDF 011F 3C2B 0052 BC78 B7AA 4E75',
 )
 // Entries: the row sites at +0, setvideo's at +4, updateplayers' at +8.
@@ -2895,13 +2903,15 @@ const skateJsr = (rom: Uint8Array, at: number, length: number): number | null =>
   for (let o = 6; o < length; o += 2) if (readU16(rom, at + o) !== OP_NOP) return null
   return readU32(rom, at + 2)
 }
-const skateCode = (rom: Uint8Array): number | null => {
+const skateCode = (rom: Uint8Array): { base: number; length: number } | null => {
   const base = skateJsr(rom, SKATE_ROW_AT[0], 6)
-  if (base === null || base + SKATE_CODE.length > rom.length || !is(rom, base, SKATE_CODE)) return null
+  if (base === null) return null
+  const code = [SKATE_CODE, SKATE_CODE_FIRST].find((c) => base + c.length <= rom.length && is(rom, base, c))
+  if (!code) return null
   return skateJsr(rom, SKATE_ROW_AT[1], 6) === base &&
     skateJsr(rom, SKATE_VIDEO.at, SKATE_VIDEO.original.length) === base + 4 &&
     skateJsr(rom, SKATE_MARK.at, SKATE_MARK.original.length) === base + 8
-    ? base
+    ? { base, length: code.length }
     : null
 }
 const skateMarks: Part<boolean> = {
@@ -2914,9 +2924,9 @@ const skateMarks: Part<boolean> = {
     return original && skateRinkFits(rom) ? false : undefined
   },
   remove(rom) {
-    const base = skateCode(rom)
-    if (base === null) return
-    erase(rom, base, SKATE_CODE.length)
+    const found = skateCode(rom)
+    if (found === null) return
+    erase(rom, found.base, found.length)
     for (const at of SKATE_ROW_AT) rom.set(SKATE_ROW_ORIGINAL, at)
     rom.set(SKATE_VIDEO.original, SKATE_VIDEO.at)
     rom.set(SKATE_MARK.original, SKATE_MARK.at)

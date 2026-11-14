@@ -30,9 +30,26 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('skate marks (Genesis)', () => {
     // setvideo's: movea.w #DMAList,a5 / jsr updatescroll.
     expect(hex(on.bytes, base + 0xa6, 10)).toBe('3a7cb8b44eb900015f34')
     // updateplayers' ends with the two instructions it replaces.
-    expect(hex(on.bytes, base + 0x268 - 10, 10)).toBe('3c2b0052bc78b7aa4e75')
+    expect(hex(on.bytes, base + 0x272 - 10, 10)).toBe('3c2b0052bc78b7aa4e75')
+    // updateplayers' first: movem, then nothing in a highlight (btst #gmhl,(gmode).w).
+    expect(hex(on.bytes, base + 0x122, 14)).toBe('48e7f8800838000' + '4c2ea66000136')
     expect(detectHacks(on.bytes).choices).toEqual({ ...NO_HACKS, skateMarks: true })
     expect(Buffer.compare(buildRom(applyHacks(on, NO_HACKS)), buildRom(rom))).toBe(0)
+  })
+
+  it("recognises the first version (no highlight test) and puts this one in its place", () => {
+    const rom = open('nhl94.bin')
+    const on = applyHacks(rom, { ...NO_HACKS, skateMarks: true }).bytes.slice()
+    const base = u32(on, 0x15fa8 + 2)
+    // The first version: the same without the 10 bytes of the highlight test, where it was.
+    const first = Buffer.concat([on.subarray(base, base + 0x126), on.subarray(base + 0x130, base + 0x272)])
+    on.fill(0xff, base, base + 0x272)
+    on.set(first, base)
+    const project = openRom(buildRom({ ...rom, bytes: on }))
+    expect(detectHacks(on).choices.skateMarks).toBe(true)
+    expect(Buffer.compare(buildRom(applyHacks(project, NO_HACKS)), buildRom(rom))).toBe(0)
+    const updated = applyHacks(project, { ...NO_HACKS, skateMarks: true })
+    expect(Buffer.from(updated.bytes).toString('hex')).toContain('48e7f8800838000' + '4c2ea6600')
   })
 
   it('goes with choppy ice, the three-round shootout and time on ice', () => {
