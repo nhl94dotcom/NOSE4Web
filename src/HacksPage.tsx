@@ -1195,9 +1195,11 @@ export function HacksPage({ project, name, onChange }: Props) {
               them. For ROMs with the original game's rink tiles. From the NHL94 Match Viewer project's reading of the
               game's code, and tested by them in the game on the original and a league ROM: the marks under the
               skaters and leaning their way, kept as the rink scrolls and through the pause menu, the stats and the
-              replays, about 190 to 240 by the end of a 5:00 period, no stray tiles and no slowdown. NOSE4Web's first
-              version could carry marks from the intermission's highlight of another game into the next period; a ROM
-              with it is updated when the hacks are next applied.
+              replays, about 190 to 240 by the end of a 5:00 period, no stray tiles and no slowdown; and, in four
+              more whole games, the marks untouched by 18 intermission highlights of other games and fresh ice at the
+              start of every period and overtime. NOSE4Web's first version could carry marks from the intermission's
+              highlight of another game into the next period; a ROM with it is updated when the hacks are next
+              applied.
             </>,
           )}
       </section>
