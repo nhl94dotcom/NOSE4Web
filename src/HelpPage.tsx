@@ -41,6 +41,7 @@ const SECTIONS = [
   ['download', 'Downloading your work'],
   ['roms', 'Supported ROMs and limits'],
   ['snes', 'The SNES game'],
+  ['nhl95', "NHL '95"],
   ['trouble', 'If something goes wrong'],
   ['credit', 'Credit'],
 ]
@@ -2316,6 +2317,54 @@ export function HelpPage() {
         SNES editing is new and has been checked against fewer ROMs than Genesis editing, so keep a copy of the file
         you opened, and try the ROM in an emulator before your league plays it.
       </p>
+
+      <h3 id="help-nhl95">NHL '95</h3>
+      <p>
+        NOSE4Web also opens NHL '95 for the Genesis: the original game and league ROMs built on it, such as the
+        WN95HL's 34-team ROMs. NHL '95 keeps its teams, players and lines as NHL 94 does, so the editor works the same
+        for rosters, names, jersey numbers, ratings, lines, team names and arenas, team and rink colours, playoff draws,
+        period lengths, rules, the main menu's starting choices, spreadsheet files, project files, the league page,
+        trades, bulk changes, importing a team, checking the ROM, changes and comparing. It reads NHL '95 as NOSE did,
+        and the NHL94 Match Viewer project has checked it against the game.
+      </p>
+      <ul>
+        <li>
+          <b>H/F</b>: the shooting hand and fighting share one value, as in NHL 94, but the other way round: an odd
+          value is a left-handed shot.
+        </li>
+        <li>
+          <b>StH</b>: stick handling has sixteen steps, 0 to 15, where the other ratings have seven. Each is shown as
+          the range the game displays, with its number in brackets; in play the game folds them to seven (0, 1-2, 3-5,
+          6-8, 9-11, 12-14, 15), and Ovr counts it that way.
+        </li>
+        <li>
+          <b>Ovr</b> is worked out as the game does on its roster screen: every overall in the original game matched.
+          The league value and the notes on what each rating does in play were found in NHL 94, and are not shown.
+        </li>
+        <li>
+          <b>Team colours</b>: NHL '95 gives a strip's 16 colours different jobs from NHL 94's (the jersey's main colour,
+          the goalie's pads and mask, a stripe at the shoulders and waist...). Each is labelled with its job, as Match
+          Viewer found by changing them one at a time in the game, and the previews are NHL '95's own players and rink.
+        </li>
+        <li>
+          <b>Between NHL 94 and NHL '95</b>: players copied from one and pasted into the other, or a team brought in from
+          the other, keep their shooting hand and their stick handling as they played; a team's colours are moved to
+          the part of the player they colour in the other game.
+        </li>
+        <li>
+          <b>The main menu</b>: Team 1 and Team 2 (or Home Team and Away Team), period length, goalies, user records,
+          penalties and line changes, and the play modes the game can start in.
+        </li>
+        <li>
+          <b>Room</b>: the original game's team data fills its place exactly, so a longer name needs another made
+          shorter; league ROMs such as the WN95HL's have room to spare. More room for the original game is not offered
+          yet.
+        </li>
+        <li>
+          <b>Not offered for NHL '95</b>: the hacks, logos and banners, player photos, organ and team songs, score logos,
+          the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
+        </li>
+      </ul>
 
       <h3 id="help-trouble">If something goes wrong</h3>
       <ul>

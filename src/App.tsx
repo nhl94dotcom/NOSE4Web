@@ -293,7 +293,7 @@ export default function App() {
     return (
       <main className="welcome">
         <h1>NOSE4Web</h1>
-        <p>An editor for NHL 94 on the Sega Genesis, and NHL '94 on the SNES: rosters, lines, colours and game settings.</p>
+        <p>An editor for NHL 94 and NHL '95 on the Sega Genesis, and NHL '94 on the SNES: rosters, lines, colours and game settings.</p>
         <p>
           {picker} <button onClick={() => setWelcomeHelp(true)}>How to use it</button>
         </p>
