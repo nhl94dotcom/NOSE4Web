@@ -34,6 +34,7 @@ import { gridKeyDown, stepKey, typedValue } from './gridKeys'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 import { useNarrow } from './useNarrow'
+import { NumberField } from './NumberField'
 
 const ATTRIBUTE_VALUES = Array.from({ length: 16 }, (_, i) => i)
 
@@ -365,17 +366,18 @@ export function TeamEditor(props: Props) {
       // Others on the team wearing the same number.
       const sharing = team.players.filter((other, i) => i !== index && other.jersey === player.jersey).map((other) => other.name)
       return (
-        <input
+        // The game keeps the number as two decimal digits in a byte ($12 for 12): typed and stepped as the number itself.
+        <NumberField
           className={sharing.length > 0 ? 'num shared' : 'num'}
           title={sharing.length > 0 ? `${sharing.join(', ')} ${sharing.length === 1 ? 'wears' : 'wear'} number ${hex(player.jersey)} too.` : undefined}
           aria-label={`Jersey number of ${player.name}`}
-          inputMode="numeric"
-          value={hex(player.jersey)}
+          value={Number.parseInt(hex(player.jersey), 10) || 0}
+          min={0}
+          max={99}
           maxLength={2}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/\D/g, '')
-            setPlayer(index, { ...player, jersey: parseInt(digits || '0', 16) })
-          }}
+          arrows={false}
+          format={(n) => String(n).padStart(2, '0')}
+          onValue={(n) => setPlayer(index, { ...player, jersey: parseInt(String(n), 16) })}
         />
       )
     }
@@ -596,28 +598,13 @@ export function TeamEditor(props: Props) {
         <div className="fields">
           <label title="How many skaters, counted down from the first player after the goalies, are forwards. The rest are defencemen.">
             Forwards
-            <input
-              className="num"
-              type="number"
-              min={0}
-              max={15}
-              value={team.forwards}
-              onChange={(e) => onChange(setForwards(team, Number(e.target.value) || 0))}
-            />
+            <NumberField min={0} max={15} value={team.forwards} onValue={(n) => onChange(setForwards(team, n))} />
           </label>
           <label title="One box for each goalie: 1 makes that roster spot a goalie, 0 leaves it out. Fill from the left: 1 1 0 0 is two goalies.">
             Goalie bytes
             <span>
               {team.goalieNibbles.map((value, i) => (
-                <input
-                  key={i}
-                  className="num"
-                  type="number"
-                  min={0}
-                  max={15}
-                  value={value}
-                  onChange={(e) => changeRoster(setGoalieNibble(team, i, Number(e.target.value) || 0))}
-                />
+                <NumberField key={i} min={0} max={15} value={value} onValue={(n) => changeRoster(setGoalieNibble(team, i, n))} />
               ))}
             </span>
           </label>
@@ -650,14 +637,7 @@ export function TeamEditor(props: Props) {
             <>
               <label title="The team's rating as the game shows it on the matchup screens and the player cards. The game keeps this number and does not work it out, so it does not change when the players do.">
                 Overall shown
-                <input
-                  className="num"
-                  type="number"
-                  min={0}
-                  max={shownRatingMost(game)}
-                  value={team.shownOverall}
-                  onChange={(e) => onChange({ ...team, shownOverall: Math.max(0, Math.min(shownRatingMost(game), Math.trunc(Number(e.target.value) || 0))) })}
-                />
+                <NumberField min={0} max={shownRatingMost(game)} value={team.shownOverall} onValue={(n) => onChange({ ...team, shownOverall: n })} />
               </label>
               <button
                 title="Sets the overall shown to the average overall rating of everyone on the roster, goalies included."

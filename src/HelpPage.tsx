@@ -458,6 +458,12 @@ export function HelpPage() {
           without Shift. This changes the one box you are in; the Quick edit keys change every ticked player.
         </li>
         <li>
+          Clicking into a number box, such as a jersey number, selects it, so what you type replaces it. You can empty
+          the box and type the number afresh; it is outlined in red until it holds a number it can take, and shows the
+          number as it is again when you leave it. <b>+</b> and <b>-</b> step it, and so do <b>Up</b> and{' '}
+          <b>Down</b> in boxes outside these tables.
+        </li>
+        <li>
           Where attributes show as stored values, type a number into a list to set it. Two digits typed quickly
           together count as one number, so 1 then 2 gives 12.
         </li>

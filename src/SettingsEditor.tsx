@@ -9,6 +9,7 @@ import { FEWEST_MENU_TEAMS, leagueDraws } from './core/menuteams'
 import { MAX_SECONDS, menuOptions, type FixedText, type Settings } from './core/settings'
 import { resetSettingsPart, settingsPartChanged } from './core/reset'
 import { ResetButton } from './ResetButton'
+import { NumberField } from './NumberField'
 
 function cleanText(text: string): string {
   return text.replace(/[^\x20-\x7d]/g, '')
@@ -69,14 +70,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
   function secondsInput(seconds: number, onSeconds: (next: number) => void) {
     return (
       <>
-        <input
-          className="seconds"
-          type="number"
-          min={0}
-          max={MAX_SECONDS}
-          value={seconds}
-          onChange={(e) => onSeconds(Math.min(MAX_SECONDS, Math.max(0, Math.floor(Number(e.target.value)) || 0)))}
-        />{' '}
+        <NumberField className="seconds" min={0} max={MAX_SECONDS} value={seconds} onValue={onSeconds} />{' '}
         <span className="note">{clock(seconds)}</span>
       </>
     )
@@ -84,14 +78,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
 
   function byteInput(value: number, onValue: (next: number) => void) {
     return (
-      <input
-        className="seconds"
-        type="number"
-        min={0}
-        max={255}
-        value={value}
-        onChange={(e) => onValue(Math.min(255, Math.max(0, Math.floor(Number(e.target.value)) || 0)))}
-      />
+      <NumberField className="seconds" min={0} max={255} value={value} onValue={onValue} />
     )
   }
 
@@ -131,16 +118,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
           <p>
             <label>
               Teams in the menu{' '}
-              <input
-                className="seconds"
-                type="number"
-                min={FEWEST_MENU_TEAMS}
-                max={teamNames.length}
-                value={settings.menuTeams.offered}
-                onChange={(e) =>
-                  setTeamsInMenu(Math.min(teamNames.length, Math.max(FEWEST_MENU_TEAMS, Math.floor(Number(e.target.value)) || FEWEST_MENU_TEAMS)))
-                }
-              />
+              <NumberField className="seconds" min={FEWEST_MENU_TEAMS} max={teamNames.length} value={settings.menuTeams.offered} onValue={setTeamsInMenu} />
             </label>{' '}
             <span className="note">
               of {teamNames.length}. The menu offers only the first so many teams in the team list, for a league smaller
@@ -256,17 +234,13 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
               <h3>Computer pulls its goalie</h3>
               <p>
                 In the third period, when behind by 1 to{' '}
-                <input
+                <NumberField
                   className="seconds"
-                  type="number"
                   aria-label="Most goals behind to pull the goalie"
                   min={0}
                   max={20}
                   value={settings.cpuPullGoalie.goalsUnder - 1}
-                  onChange={(e) => {
-                    const goals = Math.min(20, Math.max(0, Math.floor(Number(e.target.value)) || 0))
-                    onChange({ ...settings, cpuPullGoalie: { ...settings.cpuPullGoalie!, goalsUnder: goals + 1 } })
-                  }}
+                  onValue={(goals) => onChange({ ...settings, cpuPullGoalie: { ...settings.cpuPullGoalie!, goalsUnder: goals + 1 } })}
                 />{' '}
                 goals, with{' '}
                 {secondsInput(Math.max(0, settings.cpuPullGoalie.secondsUnder - 1), (seconds) =>

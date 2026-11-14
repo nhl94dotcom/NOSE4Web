@@ -431,6 +431,49 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('input.num.shared')).toHaveCount(0)
   })
 
+  test('types a number the way a person does: replaced, emptied and retyped, stepped with plus and minus', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const number = rows(page, 'Skaters').first().getByLabel(/^Jersey number of/)
+    // Clicking in selects the number, so typing replaces it.
+    await number.click()
+    await page.keyboard.type('7')
+    await expect(number).toHaveValue('7')
+    await number.blur()
+    await expect(number).toHaveValue('07')
+    // Emptied, the box stays empty (and marked) until a number is typed.
+    await number.click()
+    await page.keyboard.press('Backspace')
+    await expect(number).toHaveValue('')
+    await expect(number).toHaveAttribute('aria-invalid', 'true')
+    await page.keyboard.type('44')
+    await expect(number).toHaveValue('44')
+    // Plus and minus step it, as they do the ratings; in the roster the arrows still go to the row below.
+    await page.keyboard.press('+')
+    await expect(number).toHaveValue('45')
+    await page.keyboard.press('-')
+    await page.keyboard.press('-')
+    await expect(number).toHaveValue('43')
+    await page.keyboard.press('ArrowDown')
+    await expect(rows(page, 'Skaters').nth(1).getByLabel(/^Jersey number of/)).toBeFocused()
+    await expect(number).toHaveValue('43')
+    // A box whose number has a lowest value: typing 12 on the way through 1 does not snap it.
+    await entry(page, 'Game settings').click()
+    const teamsInMenu = page.getByLabel(/Teams in the menu/)
+    if (await teamsInMenu.count()) {
+      await teamsInMenu.click()
+      await page.keyboard.type('12')
+      await teamsInMenu.blur()
+      await expect(teamsInMenu).toHaveValue('12')
+    }
+    const overtime = page.locator('tr').filter({ hasText: 'Overtime' }).locator('input')
+    await overtime.click()
+    await page.keyboard.type('300')
+    await page.keyboard.press('ArrowUp')
+    await overtime.blur()
+    await expect(overtime).toHaveValue('301')
+  })
+
   test('copies a player to another team', async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()

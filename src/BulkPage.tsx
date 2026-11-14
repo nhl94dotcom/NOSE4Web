@@ -14,6 +14,7 @@ import { isRating, isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
 import type { RomProject } from './core/rom'
 import { rosterAverage } from './core/shownrating'
 import { teamLabels } from './core/team'
+import { NumberField } from './NumberField'
 
 const PREVIEW_LIMIT = 300
 const optionalNumber = (text: string) => (text.trim() === '' || Number.isNaN(Number(text)) ? null : Number(text))
@@ -144,7 +145,7 @@ export function BulkPage({ project, onChange }: Props) {
               ))}
             </select>
           ) : steps ? (
-            <input className="num" type="number" min={1} max={15} value={change.amount} onChange={(e) => setAmount(Number(e.target.value) || 1)} />
+            <NumberField min={1} max={15} value={change.amount} onValue={setAmount} />
           ) : (
             <select aria-label="Value to use" value={change.amount} onChange={(e) => setAmount(Number(e.target.value))}>
               {values.map((v) => (

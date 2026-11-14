@@ -9,6 +9,7 @@ import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
 import { hackSheetDiscord, hackSheetHtml, pictureItems, snesHackSheet, snesHackSummary, withPictures } from './core/hacksheet'
+import { NumberField } from './NumberField'
 import {
   applySnesHacks,
   detectSnesHacks,
@@ -342,14 +343,14 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     {wanted.fighting && (
                       <>
                         {' '}with a bonus of{' '}
-                        <input
-                          type="number"
+                        <NumberField
+                          className="seconds"
                           aria-label="Fighting rating bonus"
                           disabled={unknown}
                           min={SNES_AMOUNT_RANGES.fighting[0]}
                           max={SNES_AMOUNT_RANGES.fighting[1]}
                           value={wantedAmounts.fighting}
-                          onChange={(e) => setAmount('fighting', Math.max(SNES_AMOUNT_RANGES.fighting[0], Math.min(SNES_AMOUNT_RANGES.fighting[1], Math.round(Number(e.target.value) || 0))))}
+                          onValue={(n) => setAmount('fighting', n)}
                         />{' '}
                         <span className="note">on every player's fighting rating.</span>{' '}
                         <button type="button" disabled={unknown || wantedAmounts.fighting === SNES_FIGHT_BONUS_DEFAULT} onClick={() => setAmount('fighting', SNES_FIGHT_BONUS_DEFAULT)}>
@@ -361,14 +362,14 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                 ) : isAmount(hack) ? (
                   <label>
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
-                    <input
-                      type="number"
+                    <NumberField
+                      className="seconds"
                       aria-label={SNES_HACK_TITLES[hack]}
                       disabled={unknown}
                       min={SNES_AMOUNT_RANGES[hack][0]}
                       max={SNES_AMOUNT_RANGES[hack][1]}
                       value={wantedAmounts[hack]}
-                      onChange={(e) => setAmount(hack, Math.max(SNES_AMOUNT_RANGES[hack][0], Math.min(SNES_AMOUNT_RANGES[hack][1], Math.round(Number(e.target.value) || 0))))}
+                      onValue={(n) => setAmount(hack, n)}
                     />{' '}
                     <span className="note">{amountText(hack, wantedAmounts[hack])}</span>{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>

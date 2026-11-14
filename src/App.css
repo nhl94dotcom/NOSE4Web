@@ -464,7 +464,9 @@ details {
   margin-left: 0.4rem;
 }
 
-.hack input[aria-invalid='true'] {
+.hack input[aria-invalid='true'],
+input.num[aria-invalid='true'],
+input.seconds[aria-invalid='true'] {
   border-color: var(--bad);
   outline-color: var(--bad);
 }
