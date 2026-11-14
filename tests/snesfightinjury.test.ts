@@ -49,7 +49,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES fights: a player hurt in a
   it('recognises the first version, takes it out, and replaces it when the fights are applied', () => {
     const rom = open('NHL94.smc')
     const old = earlier(rom.bytes)
-    expect(snesFightState(old)).toEqual({ kind: 'in', bank: 0xa0, bonus: 2, earlier: true })
+    expect(snesFightState(old)).toEqual({ kind: 'in', bank: 0xa0, bonus: 2, earlier: true, version: 1 })
     expect(detectSnesHacks(old).choices.fighting).toBe(true)
     expect(Buffer.compare(withoutSnesFight(old), rom.bytes)).toBe(0)
     const project = openRom(buildRom({ ...rom, bytes: old }))

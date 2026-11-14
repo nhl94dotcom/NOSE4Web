@@ -1124,7 +1124,7 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
 // to code that does it, then for the fighting penalties ($2A, and $2C the
 // winner's, the penalty [a0] as InProgress logs it) puts $2000 and the set
 // time in d2. Minutes and coincidental majors as before. 0 is off.
-// McMarkis's 2 MB and SA-1 builds pair the two fighters' majors themselves
+// McMarkis's 2 MB and SA-1 builds, and NOSE4Web's 1 MB fights (snesfight.ts), pair the two fighters' majors
 // (FightCoincidental, after .7: d2 = 5:00 | $2000, and an other-team player
 // whose time, and #$07FF, is 5:00, both made coincidental), so there its two
 // 5:00s become the set time too (syncFightPairing). Its mask is why the time
@@ -1179,7 +1179,7 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   ]
 }
 
-// McMarkis's builds' FightCoincidental (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
+// McMarkis's FightCoincidental, in his builds and NOSE4Web's 1 MB fights (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
 // #$012C / beq) pairs two fighters' majors only at 5:00. Set after the hacks go in, from what they make a fight's box
 // time: the fight time if it is on, else 5 minutes at the penalty time (Match Viewer: else, with either, the fighters
 // no longer offset each other). Not a hack of its own: it follows those two.
@@ -2975,7 +2975,8 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   // The fights going in or out with the injury risk on: they share FallDown's count ($9E:9BD2), the injury risk
   // chained after the fights' jml where both are in. So the injury risk comes out, the rest is done, and it goes
   // back in, chained or not as the fights now are.
-  // NOSE4Web's earlier fights (without the fix for a player hurt in a fight) are replaced whenever the fights are applied.
+  // NOSE4Web's earlier fights (without the pairing of the fighters' majors, or the fix for a player hurt in a fight)
+  // are replaced whenever the fights are applied.
   const fightUpgrade = wanted.fighting === true && choices.fighting && snesFightState(project.bytes)?.kind === 'in' && (snesFightState(project.bytes) as { earlier?: boolean }).earlier === true
   const fightToggles = wanted.fighting !== undefined && (wanted.fighting !== choices.fighting || fightUpgrade) && !unknown.includes('fighting')
   const injuryAfter = wanted.injuryBonus ?? choices.injuryBonus

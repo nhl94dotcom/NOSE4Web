@@ -1609,9 +1609,9 @@ export function HelpPage() {
         <li>
           <b>Fighting penalty time</b> (both systems): how long a fight keeps each fighter in the box, in seconds of
           the game clock, whatever the penalty time; Off leaves a fight's 5 minutes at the penalty time. Both fighters
-          get the same, so the teams stay at full strength; on McMarkis's 2 MB and SA-1 builds their own pairing of
-          the fighters follows it (and the penalty time too), tested in the game there by the NHL94 Match Viewer
-          project.
+          get the same, so the teams stay at full strength; on the SNES, McMarkis's pairing of the fighters (in his 2 MB and SA-1
+          builds, and in NOSE4Web's fighting on the 1 MB game) follows it, and the penalty time too, tested in the game
+          on his builds by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
@@ -2167,7 +2167,10 @@ export function HelpPage() {
               It adds its frames and code in a bank past the first megabyte, growing a 1 MB ROM to 2 MB, and comes out
               cleanly. It goes with the injury risk, the two sharing the place in the game's code where a check is
               counted, each counting in turn (tested in the game by Match Viewer); for ROMs built on the
-              original game, not McMarkis's SA-1 and 32-team builds, which have fights of their own.
+              original game, not McMarkis's SA-1 and 32-team builds, which have fights of their own. With his later
+              fixes, as in those builds: a player hurt in a fight is out for the rest of the game, and the two
+              fighters' majors offset, so the teams stay at full strength while they sit (since 13 November 2026;
+              apply the hacks again to update an earlier fighting ROM).
             </li>
             <li>
               <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
