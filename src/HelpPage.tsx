@@ -2356,9 +2356,9 @@ export function HelpPage() {
           penalties and line changes, and the play modes the game can start in.
         </li>
         <li>
-          <b>Room</b>: the original game's team data fills its place exactly, so a longer name needs another made
-          shorter; league ROMs such as the WN95HL's have room to spare. More room for the original game is not offered
-          yet.
+          <b>Room</b>: the original game's team data fills its place exactly. <b>Add roster space</b> moves it to the
+          unused second half of the ROM with 16,384 bytes to spare, as the WN95HL's ROMs have theirs; the ROM stays 2 MB.
+          League ROMs that have moved their teams already have room of their own.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: the hacks, logos and banners, player photos, organ and team songs, score logos,

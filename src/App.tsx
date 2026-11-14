@@ -565,7 +565,9 @@ export default function App() {
           <button
             className="extra"
             title={
-              expansion.step === 'introText'
+              expansion.step === 'moveTeams'
+                ? "Moves the team data to the unused second half of the ROM, as the WN95HL's ROMs have it, with room to spare for rosters."
+                : expansion.step === 'introText'
                 ? 'Moves the opening screen text to the end of the ROM to make room for rosters.'
                 : 'Moves the playoff draw tables to the end of the ROM to make room for rosters.'
             }

@@ -2834,6 +2834,10 @@ test.describe("with the NHL '95 ROM", () => {
     await nameOf(skater).fill('Test Skater')
     await expect(nameOf(skater)).toHaveValue('Test Skater')
     await page.screenshot({ path: 'test-results/shots/nhl95-team.png', fullPage: true })
+    // The original game has no room: moving its teams to the unused half of the ROM gives some.
+    await expect(page.locator('header')).toContainText('over the limit')
+    await page.getByRole('button', { name: /Add 16384 bytes of roster space/ }).click()
+    await expect(page.locator('header')).toContainText('16382 bytes free')
     // The uniform colours, labelled as NHL '95 uses them, with its own preview.
     await expect(page.locator('[title^="Goalie pads and mask (light)"]').first()).toBeAttached()
     await page.locator('h2', { hasText: 'Home colours' }).scrollIntoViewIfNeeded()

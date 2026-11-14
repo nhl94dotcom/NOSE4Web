@@ -9,7 +9,7 @@ import { formatCsv } from '../src/core/csv'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { csvFileName, importCsvSet, importWorkbookSheets, tableRows, tablesFor, workbookSheets } from '../src/core/tables'
 import { checkProject } from '../src/core/check'
-import { nextExpansion } from '../src/core/expand'
+import { expandTeamSpace, nextExpansion } from '../src/core/expand'
 import { hacksSupported } from '../src/core/hacks'
 import { hasLeagueValue } from '../src/core/leaguevalue'
 import { overallRating } from '../src/core/rating'
@@ -53,11 +53,33 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     expect(settings.menu[0].options?.slice(0, 3)).toEqual(['Game With Trades', 'Continue Playoffs', 'New Playoffs'])
   })
 
-  it("leaves out what the editor made for NHL 94: hacks, pictures, more room, the league value", () => {
+  it("moves the original game's teams to the unused half of the ROM, for room, as the WN95HL's ROMs have them", () => {
+    const project = openRom(read(RETAIL))
+    expect(project.teams.every((team) => team.freeBytes === 0)).toBe(true)
+    expect(nextExpansion(project)).toEqual({ step: 'moveTeams', gain: 0x4000, romSize: 0x200000 })
+    const roomy = expandTeamSpace(project)
+    expect(roomy.layout.start).toBeGreaterThanOrEqual(0x1a72c2)
+    // A longer name, and a player more, now fit; the ROM opens with them and its room, the self-check's bra * kept.
+    const teams = roomy.teams.map((team, i) => (i === 0 ? { ...team, players: team.players.map((p, j) => (j === 2 ? { ...p, name: 'A Considerably Longer Name' } : p)) } : team))
+    const built = buildRom({ ...roomy, teams })
+    expect(Buffer.from(built.subarray(0x1a72c0, 0x1a72c2)).toString('hex')).toBe('60fe')
+    const again = openRom(built)
+    expect(again.teams[0].players[2].name).toBe('A Considerably Longer Name')
+    expect(again.teams.slice(1)).toEqual(project.teams.slice(1).map((team, i) => ({ ...team, freeBytes: again.teams[i + 1].freeBytes })))
+    expect(again.teams.reduce((sum, team) => sum + team.freeBytes, 0)).toBe(0x4000 - ('A Considerably Longer Name'.length - project.teams[0].players[2].name.length))
+    expect(again.settings).toEqual(project.settings)
+    // Once only.
+    expect(nextExpansion(again)).toBeNull()
+    // A project file made after the move moves them again when opened on the original ROM.
+    const reopened = openProjectFile(project, saveProjectFile({ ...roomy, teams }, project, 'set')).project
+    expect(reopened.teams[0].players[2].name).toBe('A Considerably Longer Name')
+    expect(reopened.layout.end - reopened.layout.start).toBe(roomy.layout.end - roomy.layout.start)
+  })
+
+  it("leaves out what the editor made for NHL 94: hacks, pictures, the league value", () => {
     const project = openRom(read(RETAIL))
     expect(hacksSupported(project.game)).toBe(false)
     expect(project.graphicsSupported).toBe(false)
-    expect(nextExpansion(project)).toBeNull()
     expect(hasLeagueValue(project.game)).toBe(false)
     expect(project.settings.credits ?? null).toBeNull()
     expect(project.teams.every((team) => team.songs === undefined && team.shownOverall === undefined)).toBe(true)
@@ -68,6 +90,8 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
       const file = read(name)
       const project = openRom(file)
       expect(project.teams.length).toBeGreaterThanOrEqual(28)
+      // A league ROM that has moved its teams has its own room, and is not offered more.
+      if (project.layout.start >= 0x100000) expect(nextExpansion(project)).toBeNull()
       // Unchanged: only the header checksum, and in the original game its self-check taken out, as NOSE did.
       const built = buildRom(project)
       const changed: number[] = []
