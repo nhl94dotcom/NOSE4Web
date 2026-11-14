@@ -228,7 +228,7 @@ const SNES: Record<SnesHack, string> = {
   nhlShootout: "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
   giveaways: "Each player's giveaways and takeaways are counted.",
   giveawaysShown: "Game Stats shows each team's giveaways and takeaways as Give/Take.",
-  giveawayPages: "Player Stats has Giveaways and Takeaways pages (right past Penalties), sorted by each player's giveaways or takeaways.",
+  giveawayPages: "Player Stats has Giveaways and Takeaways pages (right past Penalties), sorted by each player's giveaways or takeaways, and the Goalies page shows each goalie's giveaways.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
   timeOnIce: "Each player's time on ice is counted, a second at a time while he is on the ice and the clock runs, for reading from save states.",
   bodychecksShown: "Player Stats shows each player's bodychecks as Cf, in place of penalty minutes, and sorts that column by them.",

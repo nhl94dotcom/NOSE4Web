@@ -2247,8 +2247,8 @@ function giveawayPagesIn(rom: Uint8Array): PagesIn | null {
 
 function giveawayPagesPlaces(rom: Uint8Array): Placed[] | null {
   // McMarkis's builds, with Player Stats pages of their own.
-  if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) return mcPagesPlaces(rom)
-  return giveawayPagesWork(rom)?.places ?? null
+  if (only(rom, CLEAR_PLAYER_CHECKS) >= 0) return withGoalieColumn(rom, mcPagesPlaces(rom))
+  return withGoalieColumn(rom, giveawayPagesWork(rom)?.places ?? null)
 }
 
 // In McMarkis's 2 MB and SA-1 builds, whose Player Stats has pages of its own after Penalties (Checks For and
@@ -2429,6 +2429,99 @@ function mcPagesPlaces(rom: Uint8Array): Placed[] | null {
     { at: lastTitle + 2, original: ownTitle, hacked: text(shortened) },
     { at: room, original: unused(block.length), hacked: block },
   ]
+}
+
+// The Goalies page with each goalie's giveaways (GV), as the Genesis shows them, since the SNES lists goalies on no
+// other page. Its row is full, so goals against and shots against take two digits (a game's never reach 100) and the
+// save percentage moves left: GA at 18, Sh at 21, Ptg at 24 and its "%" at 27, GV at 29, under "GA Sh Ptg  GV".
+// DrawStatsList_rows' jsl .4 calls a copy of .4 with those places and the GV after; DrawStatsList's lda #bank / lda
+// #GoalieGaShPtgTxt point at the new header. The block starts with .4's address and the header's bank and address.
+const GOALIE_HEADER = '  Goalie         GA Sh Ptg  GV'
+const GOALIE_NOTE = 6
+
+function goaliePlaces(rom: Uint8Array): Placed[] | null {
+  const moved = shift(rom)
+  const ram = GT_RAM.find((layout) => layout.shift === moved)
+  const rows = findCodeAll(rom, 'ad(....)f00622(......)800422')
+  if (!ram || rows.length !== 1) return null
+  const site = rows[0].at + 11
+  if (rom[site] !== 0x22) return null
+  const target = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  const isGoalieRow = (at: number) => at >= 0 && same(rom, at, hexBytes('5AA5A948A9FFFF22'))
+  // In: the note before the copy says where the game's .4 is.
+  const noted = target >= GOALIE_NOTE ? loRomOffset(rom[target - GOALIE_NOTE + 2], readU16(rom, target - GOALIE_NOTE)) : -1
+  const isIn = noted !== target && isGoalieRow(noted) && isGoalieRow(target)
+  const four = isIn ? noted : target
+  if (!isGoalieRow(four)) return null
+  // DrawStatsList .t1: lda #bank / sta a1+2 / lda #GoalieGaShPtgTxt / sta a1 / jsl print / pla, its text "  Goalie".
+  const headers = findCodeAll(rom, 'a9(..)0085..a9(....)85..22......6885..6885..ad').filter((found) => {
+    // The game's header or this one, which starts the same.
+    const text = loRomOffset(found.groups[0], found.groups[1])
+    return text >= 0 && new TextDecoder().decode(rom.slice(text + 5, text + 13)) === '  Goalie'
+  })
+  if (headers.length !== 1) return null
+  const headerSite = headers[0].at
+  const [headerBank, headerAddress] = isIn ? [rom[target - GOALIE_NOTE + 3], readU16(rom, target - GOALIE_NOTE + 4)] : headers[0].groups
+  const headerText = loRomOffset(headerBank, headerAddress)
+  // The game's .4, to its pla / sta d1 / ply / rtl.
+  let end = four
+  while (end < four + 300 && !same(rom, end, hexBytes('6885A97A6B'))) end++
+  if (end >= four + 300) return null
+  const code = Array.from(rom.slice(four, end))
+  // Each of .4's places: lda #x / sta printx, and the width after it (lda #3 / sta d1) where it is two.
+  let from = 0
+  const place = (x: number, to: number, width?: number) => {
+    const at = code.findIndex((b, i) => i >= from && b === 0xa9 && code[i + 1] === x && code[i + 2] === 0 && code[i + 3] === 0x8d)
+    if (at < 0) return false
+    code[at + 1] = to
+    from = at + 4
+    if (width === undefined) return true
+    const w = code.findIndex((b, i) => i >= from && b === 0xa9 && code[i + 1] === 3 && code[i + 2] === 0 && code[i + 3] === 0x85 && code[i + 4] === 0xa9)
+    if (w < 0) return false
+    code[w + 1] = width
+    from = w + 5
+    return true
+  }
+  if (!place(0x12, 0x12, 2) || !place(0x16, 0x15, 2) || !place(0x1b, 0x18) || !place(0x1e, 0x1b)) return null
+  const printxAt = code.findIndex((b, i) => b === 0xa9 && code[i + 1] === 0x12 && code[i + 3] === 0x8d)
+  const printx = code.slice(printxAt + 4, printxAt + 6)
+  // PushNumberWrap and PrintToStatsPage, as .4 calls them after its first number.
+  const push = code.findIndex((b, i) => i > printxAt && b === 0x22)
+  if (printxAt < 0 || push < 0 || code[push + 4] !== 0x22) return null
+  const pushWrap = code.slice(push + 1, push + 4)
+  const print = code.slice(push + 5, push + 8)
+  const give = bytesOf(word((ram.at + GT_GIVE) & 0xffff), ram.bank)
+  const gv = bytesOf('A9 1D00 8D', printx, 'DA 8A 0A AA BF', give, '85A5 FA A90200 85A9 22', pushWrap, '22', print)
+  const header = bytesOf(rom.slice(headerText, headerText + 5), new TextEncoder().encode(GOALIE_HEADER))
+  const body = bytesOf(code, gv, '6885A97A6B')
+  const length = GOALIE_NOTE + body.length + header.length
+  let base = isIn ? target - GOALIE_NOTE : -1
+  if (!isIn) {
+    for (const bank of [0x9b, 0x80, 0xa0, loRomBank(site, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) base = roomInBank(rom, start, length)
+      if (base >= 0) break
+    }
+    if (base < 0) return null
+  }
+  const headerAt = base + GOALIE_NOTE + body.length
+  const block = bytesOf(word(loRomAddress(four)), loRomBank(four, 0x80), headerBank, word(headerAddress), body, header)
+  return [
+    { at: site, original: bytesOf('22', long(four)), hacked: bytesOf('22', long(base + GOALIE_NOTE)) },
+    { at: headerSite + 1, original: Uint8Array.of(headerBank), hacked: Uint8Array.of(loRomBank(headerAt, 0x80)) },
+    { at: headerSite + 6, original: Uint8Array.from(word(headerAddress)), hacked: Uint8Array.from(word(loRomAddress(headerAt))) },
+    { at: base, original: unused(block.length), hacked: block },
+  ]
+}
+
+// The pages' places and the goalies' column, the column's room looked for with the pages in, but not in room the pages
+// free (the time on ice page's code), which holds that code until they go in.
+function withGoalieColumn(rom: Uint8Array, places: Placed[] | null): Placed[] | null {
+  if (!places) return null
+  const work = rom.slice()
+  for (const place of places) if (!place.hacked.every((b) => b === 0xff)) work.set(place.hacked, place.at)
+  const goalies = goaliePlaces(work)
+  return goalies && [...places, ...goalies]
 }
 
 // ------------------------------------------------------------ NHL shootout

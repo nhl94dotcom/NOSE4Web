@@ -60,6 +60,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(text).toContain("[Giveaways ]")
     expect(text).toContain("[Takeaways  ")
     expect(text).toContain("  Player         G  A Pt GV TK")
+    // The Goalies page with each goalie's giveaways.
+    expect(text).toContain("  Goalie         GA Sh Ptg  GV")
     // Both at once, and each way round.
     const both = applySnesHacks(rom, { ...gt, ...toi }).bytes
     expect(pick(both)).toEqual([true, true])
