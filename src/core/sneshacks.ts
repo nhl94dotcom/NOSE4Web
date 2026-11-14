@@ -2483,6 +2483,12 @@ function goaliePlaces(rom: Uint8Array): Placed[] | null {
     return true
   }
   if (!place(0x12, 0x12, 2) || !place(0x16, 0x15, 2) || !place(0x1b, 0x18) || !place(0x1e, 0x1b)) return null
+  // The save percentage's cmp #0 / beq / jsl Div16U: Div16U changes X, which GV reads (the player's stats index), so
+  // it is kept around the call (phx / plx, the beq two further). Match Viewer found the first goalie showing another
+  // word: only a goalie with shots against reaches the division. NOSE4Web's first version (14 November 2026) had not.
+  const divide = code.findIndex((b, i) => b === 0xc9 && code[i + 1] === 0 && code[i + 2] === 0 && code[i + 3] === 0xf0 && code[i + 4] === 0x0a && code[i + 5] === 0x22)
+  if (divide < 0) return null
+  code.splice(divide + 3, 6, 0xf0, 0x0c, 0xda, ...code.slice(divide + 5, divide + 9), 0xfa)
   const printxAt = code.findIndex((b, i) => b === 0xa9 && code[i + 1] === 0x12 && code[i + 3] === 0x8d)
   const printx = code.slice(printxAt + 4, printxAt + 6)
   // PushNumberWrap and PrintToStatsPage, as .4 calls them after its first number.

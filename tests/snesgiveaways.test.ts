@@ -62,6 +62,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(text).toContain("  Player         G  A Pt GV TK")
     // The Goalies page with each goalie's giveaways.
     expect(text).toContain("  Goalie         GA Sh Ptg  GV")
+    // Div16U, which the save percentage calls for a goalie with shots against, keeps X (the stats index GV reads).
+    expect(Buffer.from(pages).includes(Buffer.from('c90000f00cda22', 'hex'))).toBe(true)
     // Both at once, and each way round.
     const both = applySnesHacks(rom, { ...gt, ...toi }).bytes
     expect(pick(both)).toEqual([true, true])
