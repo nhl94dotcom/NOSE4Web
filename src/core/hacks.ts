@@ -178,6 +178,8 @@ export interface HackChoices {
   fightSeconds: number
   // In a tied regular-season game's shootout, a skater out for the game takes no attempt.
   shootoutInjuries: boolean
+  // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
+  nhlShootout: boolean
   // A Time On Ice page in Player Stats, from the time on ice the game counts.
   timeOnIce: boolean
   // Which of the game's colour sets the puck is drawn in.
@@ -258,6 +260,7 @@ export type HackPart =
   | 'penaltySeconds'
   | 'fightSeconds'
   | 'shootoutInjuries'
+  | 'nhlShootout'
   | 'timeOnIce'
   | 'puckColours'
   | 'netColours'
@@ -333,6 +336,7 @@ export const NO_HACKS: HackChoices = {
   penaltySeconds: 60,
   fightSeconds: 0,
   shootoutInjuries: false,
+  nhlShootout: false,
   timeOnIce: false,
   puckColours: 'rink',
   netColours: 'rink',
@@ -2604,6 +2608,44 @@ const timeOnIce: Part<boolean> = {
   },
 }
 
+// ------------------------------------------------------------ NHL shootout
+// Today's NHL shootout: three rounds, then sudden death, and over as soon as
+// one team cannot catch up (the game plays five rounds and never ends early).
+// NextShooter's test after each attempt (btst #0,shootoutteam+1 / beq .switch
+// / cmpi #5,shootoutround / blt .switch / home goals = away goals / beq .switch,
+// 32 bytes at $FC51A) becomes jsr to code that says whether it is over (Z
+// clear), then beq.w .switch and nops; over, the game's own bset / jsr
+// EndShootout follows. The home team shoots first. After its shot in round r
+// (3 or less) it is over when home leads by more than the visitors' shots left
+// (4 - r) or trails by more than its own (3 - r); after the visitors' shot,
+// when either leads by more than 3 - r (none past round 3: sudden death). For
+// the season shootout and the main menu's Shootout mode alike.
+const NHL_SHOOTOUT_AT = 0xfc51a
+const NHL_SHOOTOUT_ORIGINAL = bytes('0838 0000 D595 6700 0028 0C78 0005 D578 6D00 001E 3038 D574 B078 D576 6700 0012')
+const NHL_SHOOTOUT_CODE = bytes('3238 D578 7403 9441 3038 D574 9078 D576 0838 0000 D595 6616 4A42 6B22 3602 5243 B043 6E1E 3602 4443 B043 6D16 6010 4A42 6A02 7400 B042 6E0A 4442 B042 6D04 B040 4E75 7201 4E75')
+const nhlShootout: Part<boolean> = {
+  detect(rom) {
+    if (is(rom, NHL_SHOOTOUT_AT, NHL_SHOOTOUT_ORIGINAL)) return false
+    if (readU16(rom, NHL_SHOOTOUT_AT) !== OP_JSR || !is(rom, NHL_SHOOTOUT_AT + 6, bytes('6700 0028'))) return undefined
+    for (let o = 10; o < 32; o += 2) if (readU16(rom, NHL_SHOOTOUT_AT + o) !== OP_NOP) return undefined
+    const target = readU32(rom, NHL_SHOOTOUT_AT + 2)
+    return target + NHL_SHOOTOUT_CODE.length <= rom.length && is(rom, target, NHL_SHOOTOUT_CODE) ? true : undefined
+  },
+  remove(rom) {
+    if (nhlShootout.detect(rom) !== true) return
+    erase(rom, readU32(rom, NHL_SHOOTOUT_AT + 2), NHL_SHOOTOUT_CODE.length)
+    rom.set(NHL_SHOOTOUT_ORIGINAL, NHL_SHOOTOUT_AT)
+  },
+  apply(work, value) {
+    if (!value) return
+    const target = place(work, NHL_SHOOTOUT_CODE)
+    writeU16(work.rom, NHL_SHOOTOUT_AT, OP_JSR)
+    writeU32(work.rom, NHL_SHOOTOUT_AT + 2, target)
+    work.rom.set(bytes('6700 0028'), NHL_SHOOTOUT_AT + 6)
+    for (let o = 10; o < 32; o += 2) writeU16(work.rom, NHL_SHOOTOUT_AT + o, OP_NOP)
+  },
+}
+
 // -------------------------------------------------------- fighting penalty time
 // How long a fight keeps each fighter in the box, in seconds of the game clock,
 // whatever its minutes and the penalty time. penalty94's .Sa works out a
@@ -2769,6 +2811,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     penaltySeconds: found('penaltySeconds', penaltySeconds.detect(rom), NO_HACKS.penaltySeconds),
     fightSeconds: found('fightSeconds', fightSeconds.detect(rom), NO_HACKS.fightSeconds),
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
+    nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
@@ -2875,6 +2918,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['penaltySeconds', () => penaltySeconds.remove(work.rom), () => penaltySeconds.apply(work, wanted.penaltySeconds)],
     ['fightSeconds', () => fightSeconds.remove(work.rom), () => fightSeconds.apply(work, wanted.fightSeconds)],
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
+    ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
@@ -3128,6 +3172,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
   shootoutInjuries: 'The injured sit out the shootout',
+  nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
   netColours: 'Net colours',
@@ -3198,6 +3243,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   penaltySeconds: 'penaltySeconds',
   fightSeconds: 'fightSeconds',
   shootoutInjuries: 'shootoutInjuries',
+  nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',
   netColours: 'netColours',

@@ -198,7 +198,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
+  const onOff = (key: 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -507,6 +507,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'plusMinus',
           onOff('plusMinus'),
           'Keeps a plus-minus for every player. The game does not show it; it is there to be read out of a save state by a league that tracks statistics.',
+        )}
+        {hack(
+          'nhlShootout',
+          onOff('nhlShootout'),
+          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up: 2-0 after two rounds, or a team ahead after its third shot when the other has none left to tie it; the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Waiting on a test in the game.",
         )}
         {hack(
           'timeOnIce',

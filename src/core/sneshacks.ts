@@ -64,6 +64,7 @@ export type SnesHack =
   | 'lockedDefenceFix'
   | 'timeOnIce'
   | 'timeOnIceShown'
+  | 'nhlShootout'
 
 interface Site {
   // The game's address.
@@ -315,6 +316,7 @@ export const SNES_HACKS: SnesHack[] = [
   'lockedDefenceFix',
   'timeOnIce',
   'timeOnIceShown',
+  'nhlShootout',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -366,6 +368,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   lockedDefenceFix: 'L and R while busy fix',
   timeOnIce: 'Time on ice for each player',
   timeOnIceShown: 'Time on ice in Player Stats',
+  nhlShootout: 'Three-round shootout',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -1634,6 +1637,89 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
   return places
 }
 
+// ------------------------------------------------------------ NHL shootout
+// As on the Genesis (hacks.ts, nhlShootout): three rounds, then sudden death,
+// over as soon as one team cannot catch up. The SNES's visitors shoot first.
+// PlayShootout's loop: stz shootoutdecider becomes inc (so ShootoutWonBy, where
+// every attempt ends, judges each one); the decider set after the visitors'
+// turn (lda round / cmp #5 / bmi / lda #1 / sta decider) becomes jsl to the
+// rule / bcs to the loop's end / nops; the round's end (lda round / cmp #6 /
+// bmi .loop / lda tmscore / cmp tmscore+2 / beq .loop, after inc round) becomes
+// jsl / bcs to the end / bra .loop / nops. ShootoutWonBy's "scores differ"
+// (lda tmscore / sec / sbc tmscore+2) becomes jsl / nops, so "<team> Wins!"
+// shows after the shot that settles it. The rule, after the visitors' shot in
+// round r (3 or less): over when they lead by more than the home team's shots
+// left (4 - r) or trail by more than their own (3 - r); after the home team's,
+// when either leads by more than 3 - r (any lead past round 3). One piece of
+// code: +0 ShootoutWonBy's entry (BA_Team says who shot), +10 the visitors',
+// +12 the round's end (round - 1, as it is already counted on).
+function nhlShootoutPlaces(rom: Uint8Array): Placed[] | null {
+  // The loop: stz decider / visitors' turn / decider after round 5 / home turn / inc round / round end; or the hack's.
+  const plain = findCodeAll(rom, '9c(....)a90200(..)(..)64(..)22......ad(....)c905003006a901008d....64..a9020085..22......22......ee(....)ad....c9060030caad(....)cd(....)f0c29c')
+  const hooked = findCodeAll(rom, 'ee(....)a90200(..)(..)64(..)22......22(......)b02aeaeaeaeaeaeaeaea64..a9020085..22......22......ee(....)22......b00a80caeaeaeaeaeaeaeaea9c')
+  if (plain.length + hooked.length !== 1) return null
+  const isIn = hooked.length === 1
+  const at = (plain[0] ?? hooked[0]).at
+  const decider = (plain[0] ?? hooked[0]).groups[0]
+  const round = isIn ? hooked[0].groups[5] : plain[0].groups[4]
+  // The visitors' turn's jsl calls 10 bytes into the code.
+  const codeAt = isIn ? loRomOffset(rom[at + 17], readU16(rom, at + 15)) - 10 : -1
+  const score = isIn ? readU16(rom, codeAt + 29) : plain[0].groups[6]
+  if (!isIn && plain[0].groups[7] !== score + 2) return null
+  // ShootoutWonBy: lda decider / bne / jmp .3 / lda tmscore / sec / sbc tmscore+2 / bne / jmp; or the hack's jsl / nops.
+  const deciderHex = hexOf(Uint8Array.from(word(decider)))
+  const wonPlain = findCodeAll(rom, 'ad' + deciderHex + 'd0034c....ad' + hexOf(Uint8Array.from(word(score))) + '38ed....d0034c')
+  const wonHooked = findCodeAll(rom, 'ad' + deciderHex + 'd0034c....22......eaeaead0034c')
+  if (wonPlain.length + wonHooked.length !== 1) return null
+  const wonSite = (wonPlain[0] ?? wonHooked[0]).at + 8
+  // BA_Team: the turn's lda a2 / beq / lda #2 / sta BA_Team.
+  const teams = findCodeAll(rom, '9c(....)a5..f006a902008d(....)22')
+  const team = teams.find(({ groups }) => groups[0] === groups[1])?.groups[0]
+  if (team === undefined) return null
+  const r = word(round), s = word(score), s2 = word(score + 2)
+  const code = asm65([
+    // +0 ShootoutWonBy: the visitors (BA_Team 2) or the home team, this round.
+    bytesOf('AD', word(team)), { branch: BNE, to: 'away' }, bytesOf('AD', r), { branch: BRA, to: 'full' },
+    // +10 the visitors' turn; +12 the round's end, the round already counted on.
+    { branch: BRA, to: 'away' }, bytesOf('AD', r, '3A'), { branch: BRA, to: 'full' },
+    { label: 'away' },
+    bytesOf('A90300 38 ED', r), { branch: BMI, to: 'no2' },
+    bytesOf('48 AD', s, '38 ED', s2, '48 38 E303'), { branch: BEQ, to: 'a2' }, { branch: BPL, to: 'yes' },
+    { label: 'a2' }, bytesOf('A90000 38 E301 38 E303 3A'), { branch: BEQ, to: 'no' }, { branch: BMI, to: 'no' }, { branch: BRA, to: 'yes' },
+    { label: 'full' },
+    bytesOf('49FFFF 1A 18 690300'), { branch: BPL, to: 'ok' }, bytesOf('A90000'),
+    { label: 'ok' },
+    bytesOf('48 AD', s, '38 ED', s2, '48 38 E303'), { branch: BEQ, to: 'f2' }, { branch: BPL, to: 'yes' },
+    { label: 'f2' }, bytesOf('A90000 38 E301 38 E303'), { branch: BEQ, to: 'no' }, { branch: BMI, to: 'no' },
+    { label: 'yes' }, bytesOf('68 68 A90100 38 6B'),
+    { label: 'no' }, bytesOf('68 68'),
+    { label: 'no2' }, bytesOf('A90000 18 6B'),
+  ])
+  const original = {
+    start: bytesOf('9C', word(decider)),
+    away: bytesOf('AD', r, 'C90500 3006 A90100 8D', word(decider)),
+    end: bytesOf('AD', r, 'C90600 30CA AD', s, 'CD', s2, 'F0C2'),
+    won: bytesOf('AD', s, '38 ED', s2),
+  }
+  const room = isIn ? codeAt : (() => {
+    for (const bank of [0x9b, 0x80, loRomBank(at, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      const found = start < rom.length ? roomInBank(rom, start, code.length) : -1
+      if (found >= 0) return found
+    }
+    return -1
+  })()
+  if (room < 0) return null
+  const call = (offset: number) => bytesOf('22', long(room + offset))
+  return [
+    { at, original: original.start, hacked: bytesOf('EE', word(decider)) },
+    { at: at + 14, original: original.away, hacked: bytesOf(call(10), 'B02A EAEAEAEAEAEAEAEA') },
+    { at: at + 46, original: original.end, hacked: bytesOf(call(12), 'B00A 80CA EAEAEAEAEAEAEAEA') },
+    { at: wonSite, original: original.won, hacked: bytesOf(call(0), 'EAEAEA') },
+    { at: room, original: unused(code.length), hacked: code },
+  ]
+}
+
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater
 // out for the game takes no attempt (Match Viewer's reading). PlayShootout
@@ -1778,6 +1864,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
   timeOnIce: (rom) => timeOnIcePlaces(rom),
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
+  nhlShootout: (rom) => nhlShootoutPlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -2857,7 +2944,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
 ]
