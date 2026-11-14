@@ -1262,7 +1262,12 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
 // the new carrier (a2) is still winding up a shot: his animation one of the
 // shots (SPA from SPAshotf up to ShotMode's own bound), not yet at the frame
 // ShotMode shoots at ($18). ShotMode checks the rest as before. A hold or hook
-// (holdcheck) still spoils the shot. Found by the code around them.
+// (holdcheck) still spoils the shot. Only for a person's shooter (pflags
+// pfjoycon, $0008): a computer's shot cannot come back once its assshoot has
+// ended, and with nothing to call its ShotMode the flag would linger until the
+// puck next changed hands, moving the computer goalie faster (Match Viewer).
+// NOSE4Web's first version (13 November 2026) set it for anyone: recognised,
+// and replaced when the hacks are next applied. Found by the code around them.
 function shotPlaces(rom: Uint8Array): Placed[] | null {
   // ShotMode: lda SPA,x / cmp #SPAshotf / bcc / cmp #bound / bcs / lda SPAnum,x / cmp #$18 / bcs.
   const modes = findCodeAll(rom, 'bd(....)c9(....)90..c9(....)b0..bd(....)c91800b0')
@@ -1279,8 +1284,13 @@ function shotPlaces(rom: Uint8Array): Placed[] | null {
   const a2 = plain.length ? plain[0].groups[1] : hooked[0].groups[2]
   const sflags = plain.length ? plain[0].groups[0] : readU16(rom, loRomOffset(hooked[0].groups[1], hooked[0].groups[0]) + 4)
   const original = bytesOf('A9 0C00 1C', word(sflags))
-  const code = asm65([
-    bytesOf('A9 0C00 1C', word(sflags), 'A4', a2, 'B9', word(spa), 'C9', word(first)),
+  const s = shift(rom)
+  if (s === null) return null
+  const pflags = 0x1283 + s
+  const codeOf = (personOnly: boolean) => asm65([
+    bytesOf('A9 0C00 1C', word(sflags), 'A4', a2),
+    ...(personOnly ? [bytesOf('B9', word(pflags), '89 0800'), { branch: BEQ, to: 'r' }] : []),
+    bytesOf('B9', word(spa), 'C9', word(first)),
     { branch: BCC, to: 'r' },
     bytesOf('C9', word(bound)),
     { branch: BCS, to: 'r' },
@@ -1290,6 +1300,14 @@ function shotPlaces(rom: Uint8Array): Placed[] | null {
     { label: 'r' },
     '6B',
   ])
+  const code = codeOf(true)
+  // NOSE4Web's first version, for anyone: recognised where it is in.
+  const first0 = codeOf(false)
+  const at = hooked.length ? loRomOffset(hooked[0].groups[1], hooked[0].groups[0]) : -1
+  if (at >= 0 && same(rom, at, first0)) {
+    const places = withFarCode(rom, site, original, 2, first0)
+    return places && [places[0], { ...places[1], earlier: true }]
+  }
   return withFarCode(rom, site, original, 2, code)
 }
 
@@ -1785,8 +1803,11 @@ const CHOPPY_LENGTH = 64
 // capped at 15. Gameloop's dec gameclock / lda CwdExciteLvl becomes jsl / nops
 // to code that, as the clock reaches 2:00 in a close third, adds the +1 to the
 // 12 players' stored ratings (the arrays setplayer's .8 results go to; aioff
-// and aidef are left to the next rebuild, being stored inverted). Found by
-// the code around them, so it goes into every build. From Match Viewer's reading.
+// and aidef are left to the next rebuild, being stored inverted). The pass
+// keeps X, Gameloop's count of frames to tick (NOSE4Web's first version did
+// not, so the clock ran out at 2:00, Match Viewer found: recognised, and
+// replaced when the hacks are next applied). Found by the code around them,
+// so it goes into every build. From Match Viewer's reading.
 function clutchTimePlaces(rom: Uint8Array): Placed[] | null {
   // .8: sta r3+2 / tya / clc / adc r3 / tay / sep / lda HotColdTable,y / ... / cmp #$0F / bcc / lda #$0F / then
   // rep / and #$FF / rtl, or the hack's jml / nops.
@@ -1833,18 +1854,23 @@ function clutchTimePlaces(rom: Uint8Array): Placed[] | null {
   const tickCode = plainTick ? -1 : loRomOffset(rom[tickSite + 3], readU16(rom, tickSite + 1))
   // The pass is last, with its own ending, so the tests' branches stay short: the first lda CwdExciteLvl is at 47.
   const crowd = plainTick ? ticks[0].groups[0] : readU16(rom, tickCode + 48)
-  const tick = asm65([
+  const tickOf = (keepX: boolean) => asm65([
     bytesOf('CE', word(clock), 'AD', word(clock), 'C97800'), { branch: BNE, to: 'x' },
     ...close('x'),
     { branch: BRA, to: 'pass' },
     { label: 'x' }, bytesOf('AD', word(crowd), '6B'),
-    { label: 'pass' }, bytesOf('A21600'),
+    { label: 'pass' }, keepX ? 'DA A21600' : 'A21600',
     { label: 'loop' },
     ...boosted.flatMap((array, i) => [bytesOf('BD', word(array), '1A C91000'), { branch: BCS, to: 's' + i }, bytesOf('9D', word(array)), { label: 's' + i }]),
     bytesOf('CA CA'), { branch: BPL, to: 'loop' },
+    keepX ? 'FA' : [],
     bytesOf('AD', word(crowd), '6B'),
   ])
+  const tick = tickOf(true)
   if (tick.length !== CLUTCH_TICK_LENGTH(boosted.length)) return null
+  // NOSE4Web's first version, which lost X: recognised where it is in.
+  const first = plainTick ? null : tickOf(false)
+  const earlier = first !== null && tickCode >= 0 && same(rom, tickCode, first)
   // .8's end: jml (no return on the stack, its rtl ends it), so placed here rather than by withFarCode (jsl).
   const endOriginal = hexBytes('C22029FF006B')
   const endIn = !same(rom, endSite, endOriginal)
@@ -1858,10 +1884,11 @@ function clutchTimePlaces(rom: Uint8Array): Placed[] | null {
   // The tick's room looked for with that in.
   const work = rom.slice()
   for (const place of one) work.set(place.hacked, place.at)
-  const two = withFarCode(work, tickSite, bytesOf('CE', word(clock), 'AD', word(crowd)), 2, tick)
-  return two && [...one, ...two]
+  const two = withFarCode(work, tickSite, bytesOf('CE', word(clock), 'AD', word(crowd)), 2, earlier ? first : tick)
+  if (!two) return null
+  return earlier ? [...one, two[0], { ...two[1], earlier: true }] : [...one, ...two]
 }
-const CLUTCH_TICK_LENGTH = (arrays: number) => 62 + arrays * 12
+const CLUTCH_TICK_LENGTH = (arrays: number) => 64 + arrays * 12
 
 // ------------------------------------------------ the injured out of the shootout
 // For the shootout of a tied regular-season game (seasonShootout): a skater

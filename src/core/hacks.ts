@@ -2687,7 +2687,9 @@ const choppyIce: Part<boolean> = {
 // fly and on leaving the box; so AttributeCalc's end (andi.w #$FF,d3 / movem /
 // rts, $F713A) becomes jmp to code that adds it there, capped at 30, before the
 // bonuses, clamps and the inversion of aioff / aidef. Aggression (attribute
-// $F, TempWord2) is left out. A goal or whistle that ends or starts it is
+// $F: setplayer puts the number in TempWord2, $BF14) is left out. NOSE4Web's
+// first version read $D6CC instead, so it boosted aggression too (Match
+// Viewer): recognised, and replaced when the hacks are next applied. A goal or whistle that ends or starts it is
 // picked up by the next faceoff's rebuild. The clock reaching 2:00 in play is
 // the one gap: the clock's tick (subq.w #1,gameclock / cmpi.w #61, $15DFA, in
 // the vblank interrupt, which saves every register) becomes jsr / nops to code
@@ -2696,14 +2698,16 @@ const choppyIce: Part<boolean> = {
 // inverted: the next rebuild has them). From Match Viewer's reading.
 const CLUTCH_CALC_AT = 0xf713a
 const CLUTCH_CALC_ORIGINAL = bytes('0243 00FF 4CDF 0207 4E75')
-const CLUTCH_CALC_CODE = bytes('0243 00FF 0C78 000F D6CC 672C 0C78 0002 C466 6624 0C78 0078 C468 621C 3038 C6DA 9078 CA3E 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75')
+const CLUTCH_CALC_CODE = bytes('0243 00FF 0C78 000F BF14 672C 0C78 0002 C466 6624 0C78 0078 C468 621C 3038 C6DA 9078 CA3E 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75')
+const CLUTCH_CALC_EARLIER = CLUTCH_CALC_CODE.slice()
+CLUTCH_CALC_EARLIER.set([0xd6, 0xcc], 8)
 const CLUTCH_TICK: Hook = { at: 0x15dfa, original: bytes('5378 C468 0C78 003D C468') }
 const CLUTCH_TICK_CODE = bytes('5378 C468 0C78 0078 C468 664E 0C78 0002 C466 6646 0C78 0078 C468 623E 3038 C6DA 9078 CA3E 6A02 4440 0C40 0001 622C 41F8 B04A 720B 43FA 002C 7408 3019 1630 0000 5603 0C03 001E 6302 761E 1183 0000 51CA FFEA 41E8 0080 51C9 FFDC 0C78 003D C468 4E75 0068 0069 006C 006D 006E 0070 0071 0072 0075')
 const clutchTime: Part<boolean> = {
   detect(rom) {
     const calcIn = readU16(rom, CLUTCH_CALC_AT) === 0x4ef9 && readU16(rom, CLUTCH_CALC_AT + 6) === OP_NOP && readU16(rom, CLUTCH_CALC_AT + 8) === OP_NOP
     const calcTarget = calcIn ? readU32(rom, CLUTCH_CALC_AT + 2) : -1
-    const calcOk = calcIn && calcTarget + CLUTCH_CALC_CODE.length <= rom.length && is(rom, calcTarget, CLUTCH_CALC_CODE)
+    const calcOk = calcIn && calcTarget + CLUTCH_CALC_CODE.length <= rom.length && (is(rom, calcTarget, CLUTCH_CALC_CODE) || is(rom, calcTarget, CLUTCH_CALC_EARLIER))
     const tickOk = hooked(rom, CLUTCH_TICK, CLUTCH_TICK_CODE) !== null
     if (is(rom, CLUTCH_CALC_AT, CLUTCH_CALC_ORIGINAL) && is(rom, CLUTCH_TICK.at, CLUTCH_TICK.original)) return false
     return calcOk && tickOk ? true : undefined
