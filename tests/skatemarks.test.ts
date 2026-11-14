@@ -98,18 +98,38 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('skate marks (SNES)', () => {
     expect(on[0xf8834]).toBe(0x22)
     const code = far(on, 0xf8834)
     expect(on[0xdc256]).toBe(0x5c)
-    expect(far(on, 0xdc256)).toBe(code + 0x203)
-    expect(far(on, 0xfb72a)).toBe(code + 0x252)
-    // Players only (cpx #$18); not in a highlight (gmode $15D4 bit $10) or the scoreboard view ($15DA).
-    expect(hex(on, code, 19)).toBe('e01800900382f601add415291000f00382eb01')
-    // The ROM's DMAToVRAM; BuildRinkMap's .loop ($9B:C22E, ldx #0); then lda puckx / sec / rtl.
-    expect(hex(on, code + 0x1ec, 4)).toBe('221f8980')
-    expect(hex(on, code + 0x1fe, 5)).toBe('ad710d386b')
-    expect(hex(on, code + 0x206, 4)).toBe('5c2ec29b')
+    expect(far(on, 0xdc256)).toBe(code + 0x222)
+    expect(far(on, 0xfb72a)).toBe(code + 0x271)
+    // Only on the step's last object (cpx #0), else lda puckx / sec / rtl at once; not in a highlight (gmode $15D4
+    // bit $10) or the scoreboard view ($15DA).
+    expect(hex(on, code, 24)).toBe('e00000f005ad710d386badd415291000d0f3adda15d0eeda')
+    // The ROM's DMAToVRAM; BuildRinkMap's .loop ($9B:C22E, ldx #0).
+    expect(hex(on, code + 0x20d, 4)).toBe('221f8980')
+    expect(hex(on, code + 0x225, 4)).toBe('5c2ec29b')
     // A new game: the count 0, the period kept, then LoadCenterIce.
-    expect(hex(on, code + 0x252, 18)).toBe('a900008f00f47fad30168f02f47f5c7cc19b')
+    expect(hex(on, code + 0x271, 18)).toBe('a900008f00f47fad30168f02f47f5c7cc19b')
     expect(detectSnesHacks(on).choices.skateMarks).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { skateMarks: false })), buildRom(rom))).toBe(0)
+  })
+
+  it('recognises the first version (a roll for every player) and puts this one in its place', () => {
+    const rom = open('NHL94.smc')
+    const on = applySnesHacks(rom, { skateMarks: true }).bytes.slice()
+    const code = far(on, 0xf8834)
+    const first = readFileSync(fileURLToPath(new URL('./skatemarks-snes-first.hex', import.meta.url)), 'utf8').trim()
+    on.fill(0xff, code, code + 0x283)
+    on.set(Buffer.from(first, 'hex'), code)
+    // Its entries were at +$203 and +$252.
+    on.set([code + 0x203 - (code & ~0x7fff) + 0x8000].flatMap((a) => [a & 0xff, (a >> 8) & 0xff]), 0xdc257)
+    on.set([code + 0x252 - (code & ~0x7fff) + 0x8000].flatMap((a) => [a & 0xff, (a >> 8) & 0xff]), 0xfb72b)
+    const state = detectSnesHacks(on)
+    expect(state.choices.skateMarks).toBe(true)
+    expect(state.vaultVersions).toContain('skateMarks')
+    const project = openRom(buildRom({ ...rom, bytes: on }))
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { skateMarks: false })), buildRom(rom))).toBe(0)
+    const updated = applySnesHacks(project, { skateMarks: true }, true)
+    expect(detectSnesHacks(updated.bytes).vaultVersions).not.toContain('skateMarks')
+    expect(far(updated.bytes, 0xdc256)).toBe(far(updated.bytes, 0xf8834) + 0x222)
   })
 
   snesNames.forEach((name) => {

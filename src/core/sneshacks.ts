@@ -2036,20 +2036,44 @@ function shootoutInjuryPlaces(rom: Uint8Array, noFight = false): Placed[] | null
 // - updateplayers' .11 (lda puckx / sec, after the position step): for a
 //   player (X < $18), not in another game's highlight (gmode's gmhl) or the
 //   scoreboard view (sfhormode), clears the marks when gsp changes (each cell
-//   back to plain, every row drawn again by an Oldrow far off), then, with
-//   chance (|Xvel| + |Yvel|) / 16 x frames (timestep & 3) / 65536, NOSE4Web's
+//   back to plain, every row drawn again by an Oldrow far off), then, once a
+//   game step (on its last object, X = 0), for one player in turn, with 12
+//   times the chance (|Xvel| + |Yvel|) / 16 x frames (timestep & 3) / 65536 (a
+//   still player none), NOSE4Web's
 //   own random numbers (the game's are not touched), marks the plain-ice cell
-//   under him, column (X + 192) / 8 and row (370 - Y) / 8 (rows 0-84, the
+//   under him (once a step, not for every player: Match Viewer found that
+//   made the game fall behind more often), column (X + 192) / 8 and row (370 - Y) / 8 (rows 0-84, the
 //   rink; the scoreboard view's map is below), up to 240 a period. A cell on
 //   the screen is sent to VRAM at once (DMAToVRAM, one word, queued).
 // - BuildRinkMap's end (dey / bne .loop / rtl): the listed marks laid back in,
 //   after a pause screen (ExitStatsScreen) and a highlight's rebuild.
 // - setupice's jsl LoadCenterIce, at each game's start: the list emptied.
 // RAM: $7F:F400 the count, $F402 the period it is for, $F404 the random
-// numbers, $F406-$F40D scratch, $F410-$F5EF the list; free on the original
+// numbers, $F406-$F40D scratch, $F40E the player whose turn it is, $F410-$F5EF the list; free on the original
 // game and Classic (Match Viewer). For builds laid out like the original game:
 // the SA-1 builds' updateplayers runs on the SA-1, which cannot reach $7F.
 const SKATE_CODE = hexBytes(
+  [
+    'E00000F005AD710D386BADD415291000D0F3ADDA15D0EEDA5AAD3016CF02F47FF0378F02F47FAF00F47FF020C9F100B0',
+    '1B0AA88888BBBF10F47F29FF7FAABF00C87F29003C9F00C87F98D0E7A900008F00F47FA9FF7F8D230DAF0EF47F1A1AC9',
+    '18009003A900008F0EF47FAAAF00F47FC9F000900382A501BDC30E100449FFFF1A8F06F47FBDE30E100449FFFF1A186F',
+    '06F47F9003A9FFFF4A4AD003827E018F06F47FADDB0A2903008F08F47F0A6F08F47FA8A90000C00000F00F186F06F47F',
+    '9005A9FFFF80038880EC8F06F47FAF04F47FD003A9E1AC8F08F47F0A0A0A0A0A0A0A4F08F47F8F08F47F4A4A4A4A4A4A',
+    '4A4A4A4F08F47F8F08F47FEB2900FF4F08F47F8F04F47FCF06F47F9003820D01BD550D1869C00010038201014A4A4AC9',
+    '3000900382F6008F06F47FA9720138FDB70D100382E6004A4A4AC95500900382DB008F08F47F0A0A0A0A0A8F0AF47F0A',
+    '186F0AF47F6F06F47F6F06F47F8F0CF47FAABF00C87F89FFC3F00382AF0029003C09BA008F0AF47FAF0EF47FA8B9C30E',
+    '59E30E100BAF0AF47F0900408F0AF47FAF0AF47F9F00C87FAF00F47F0AA8AF0AF47F2900400A0F0CF47FBB9F10F47FAF',
+    '00F47F1A8F00F47FAF08F47F38ED230D305BC91D00B056186D250D291F000A0A0A0A0A8F0AF47FAF06F47F38E9030030',
+    '3CC9200090041869E003186F0AF47F690004A8D40CD40ED414D416AF0CF47F186900C8850CA97F00850EA20200221111',
+    'A168851668851468850E68850C7AFA82E3FD88F0045C3333A3AF00F47FF041C9F100B03C0AA88888BBBF10F47F4829FF',
+    '7FAABF00C87F89FFC3D02129003C09BA008F0AF47FA301100BAF0AF47F0900408F0AF47FAF0AF47F9F00C87F6898D0C6',
+    '6BA900008F00F47FAD30168F02F47F5C2222A2',
+  ].join(''),
+)
+// NOSE4Web's first version (14 November 2026) rolled for every player on every
+// step, which made the game fall behind more often (Match Viewer): recognised,
+// and replaced when the hacks are next applied.
+const SKATE_CODE_FIRST = hexBytes(
   [
     'E01800900382F601ADD415291000F00382EB01ADDA15F00382E301DA5AAD3016CF02F47FF0378F02F47FAF00F47FF020',
     'C9F100B01B0AA88888BBBF10F47F29FF7FAABF00C87F29003C9F00C87F98D0E7A900008F00F47FA9FF7F8D230DA303AA',
@@ -2066,16 +2090,21 @@ const SKATE_CODE = hexBytes(
     '408F0AF47FAF0AF47F9F00C87F6898D0C66BA900008F00F47FAD30168F02F47F5C2222A2',
   ].join(''),
 )
-const SKATE_RELAY = 0x203
 const SKATE_SA1 = 'Skate marks are not yet offered for the SA-1 builds, whose game logic runs on the SA-1 chip, which cannot reach the rink map.'
-const SKATE_NEWGAME = 0x252
 const longOf = (value: number) => [value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff]
 const longAt = (rom: Uint8Array, at: number) => rom[at] | (rom[at + 1] << 8) | (rom[at + 2] << 16)
-function skateCode(dmaToVram: number, buildLoop: number, loadCenterIce: number): Uint8Array {
-  const code = SKATE_CODE.slice()
-  code.set(longOf(dmaToVram), 0x1ed)
-  code.set(longOf(buildLoop), 0x207)
-  code.set(longOf(loadCenterIce), 0x261)
+// Each version: its code, its entries (BuildRinkMap's, setupice's), and where its DMAToVRAM, BuildRinkMap .loop
+// and LoadCenterIce go.
+const SKATE_VERSIONS = [
+  { code: SKATE_CODE, relay: 0x222, newGame: 0x271, dma: 0x20e, loop: 0x226, center: 0x280 },
+  { code: SKATE_CODE_FIRST, relay: 0x203, newGame: 0x252, dma: 0x1ed, loop: 0x207, center: 0x261 },
+]
+type SkateVersion = (typeof SKATE_VERSIONS)[number]
+function skateCode(version: SkateVersion, dmaToVram: number, buildLoop: number, loadCenterIce: number): Uint8Array {
+  const code = version.code.slice()
+  code.set(longOf(dmaToVram), version.dma)
+  code.set(longOf(buildLoop), version.loop)
+  code.set(longOf(loadCenterIce), version.center)
   return code
 }
 function skateMarksPlaces(rom: Uint8Array): Placed[] | null {
@@ -2099,12 +2128,17 @@ function skateMarksPlaces(rom: Uint8Array): Placed[] | null {
   let room = -1
   let loop: number
   let center: number
+  let version = SKATE_VERSIONS[0]
   if (isIn) {
     if (rom[markAt] !== 0x22) return null
     room = loRomOffset(rom[markAt + 3], readU16(rom, markAt + 1))
-    if (room < 0 || room + SKATE_CODE.length > rom.length) return null
-    loop = longAt(rom, room + 0x207)
-    center = longAt(rom, room + 0x261)
+    if (room < 0) return null
+    // The version whose code is there: the call from BuildRinkMap's end says which.
+    const found = SKATE_VERSIONS.find((v) => room + v.code.length <= rom.length && rom[buildAt] === 0x5c && loRomOffset(rom[buildAt + 3], readU16(rom, buildAt + 1)) === room + v.relay)
+    if (!found) return null
+    version = found
+    loop = longAt(rom, room + version.loop)
+    center = longAt(rom, room + version.center)
   } else {
     if (rom[buildAt] !== 0x88 || rom[buildAt + 1] !== 0xd0 || rom[buildAt + 3] !== 0x6b || rom[startAt] !== 0x22) return null
     const loopAt = buildAt + 3 + ((rom[buildAt + 2] << 24) >> 24)
@@ -2117,15 +2151,16 @@ function skateMarksPlaces(rom: Uint8Array): Placed[] | null {
     }
     if (room < 0) return null
   }
+  const earlier = version !== SKATE_VERSIONS[0]
   const loopOffset = loRomOffset(loop >> 16, loop & 0xffff)
   const bne = loopOffset - (buildAt + 3)
   if (bne < -128 || bne > -1) return null
   const jump = (op: number, at: number) => bytesOf(op, word(loRomAddress(at)), loRomBank(at, 0x80))
   return [
     { at: markAt, original: markOriginal, hacked: jump(0x22, room) },
-    { at: buildAt, original: bytesOf('88 D0', bne & 0xff, '6B'), hacked: jump(0x5c, room + SKATE_RELAY) },
-    { at: startAt, original: bytesOf('22', longOf(center)), hacked: jump(0x22, room + SKATE_NEWGAME) },
-    { at: room, original: unused(SKATE_CODE.length), hacked: skateCode(dma, loop, center) },
+    { at: buildAt, original: bytesOf('88 D0', bne & 0xff, '6B'), hacked: jump(0x5c, room + version.relay) },
+    { at: startAt, original: bytesOf('22', longOf(center)), hacked: jump(0x22, room + version.newGame) },
+    { at: room, original: unused(version.code.length), hacked: skateCode(version, dma, loop, center), ...(earlier ? { earlier: true } : {}) },
   ]
 }
 
