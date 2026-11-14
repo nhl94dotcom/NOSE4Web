@@ -198,7 +198,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -517,6 +517,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'timeOnIce',
           onOff('timeOnIce'),
           "The game counts each player's time on ice, a second for every second of the clock he is on the ice, but never shows it. This adds a Time On Ice page to Player Stats: press right past Penalty Minutes, and the players are sorted by their time on ice, each row showing goals, assists, points and the time (m:ss, up to 99:59). Goalies' time shows too. The other pages are as before, the bodycheck counts' Chk column included, and playoff stats are unchanged (the game keeps no time on ice for the playoffs). As McMarkis's SNES builds show it. Tested in the game by the NHL94 Match Viewer project: the page, its sorting, times (goalies' included, from 10:00 to 99:59, and longer ones held at 99:59), switching teams and scrolling, every other page as before (the bodycheck counts' Checks For included), and Playoff Stats unchanged. The right arrow on Penalty Minutes' title shows in game stats only, not in Playoff Stats, where no page follows (tested too).",
+        )}
+        {hack(
+          'giveaways',
+          onOff('giveaways'),
+          "Counts each player's giveaways and takeaways, as the NHL94 Match Viewer project counts them: a change of puck carrier from one team to the other with no whistle between. A takeaway goes to the player who forced it, with a stick steal or a check that knocked the carrier down; any other loss is a giveaway for the player who lost the puck, such as a pass picked off. Shots, faceoff wins, passes between teammates and dump-ins collected by the other team's goalie are not counted, and nothing in highlights or a shootout. Game Stats shows each team's total in a new last row, Give/Takeaways, giveaways then takeaways, goalies included. Each player's counts will show in Player Stats in a later version; for now they are kept for save-state readers. Cleared at the start of each game.",
         )}
         {hack(
           'threeStars',

@@ -182,6 +182,8 @@ export interface HackChoices {
   clutchTime: boolean
   // The puck slows a little more as each period goes on.
   choppyIce: boolean
+  // Each player's giveaways and takeaways, counted, and the teams' in Game Stats.
+  giveaways: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
   nhlShootout: boolean
   // A Time On Ice page in Player Stats, from the time on ice the game counts.
@@ -266,6 +268,7 @@ export type HackPart =
   | 'shootoutInjuries'
   | 'clutchTime'
   | 'choppyIce'
+  | 'giveaways'
   | 'nhlShootout'
   | 'timeOnIce'
   | 'puckColours'
@@ -344,6 +347,7 @@ export const NO_HACKS: HackChoices = {
   shootoutInjuries: false,
   clutchTime: false,
   choppyIce: false,
+  giveaways: false,
   nhlShootout: false,
   timeOnIce: false,
   puckColours: 'rink',
@@ -2831,6 +2835,113 @@ const greenFan: Part<boolean> = {
   apply: (work, value) => void (value && GREEN_FAN.forEach((s) => work.rom.set(s.hacked, s.at))),
 }
 
+// ------------------------------------------------------ giveaways and takeaways
+// Each player's giveaways and takeaways, counted as the NHL94 Match Viewer
+// project counts them: the puck carrier changing from one team to the other
+// with no whistle between. A takeaway for the player who forced it (a stick
+// steal, puckstick's or puckgoalie's; or a check that knocked the carrier
+// down, FallDown), else a giveaway for the player who lost it (a pass picked
+// off, the puck simply lost). Not a shot (doshot forgets the carrier), a
+// faceoff win (sf3fo), a pass between teammates, or a dump-in the other
+// team's goalie collects; nothing in a highlight or a shootout.
+// - The counts, a byte a roster place (32 a team, home first): giveaways at
+//   $FFE810, takeaways at $FFE850; the last carrier $FFE800, who forced the
+//   puck loose $FFE802 ($FFFF none); each team's totals at its team struct +
+//   $2232 / $2234 (home $FFE900, visitors $FFEC64), in room Match Viewer
+//   found unused in every recorded game, well past smozROM's plus-minus log
+//   (from $FFDEF4, 14 bytes a goal). Cleared at each game's start
+//   (StartGame's .noso, $77B8).
+// - puckglue's move.w SCnum(a2),d0 / move.w d0,(puckc).w ($15288) counts;
+//   the steals' move.w SCnum(a0),(lastplayer).w ($151BC, $15548), FallDown's
+//   st (puckc).w / btst #gmhl ($143FA) and doshot's bset #sf2shot ($C340)
+//   say why the puck came loose.
+// - Game Stats has a row more, "Give/Takeaways" (giveaways / takeaways):
+//   DisplayStats' row count and table ($FDE5E with penalties, $FDE6C
+//   without) come from code with the ROM's tables and the new row, and the
+//   scroll limits ($FDCBC, $FDCCA) are a row further ($80, $40; Match Viewer).
+const GT_CODE = bytes(
+  '6000 001A 6000 00D2 6000 00DC 6000 00EA 6000 00FA 6000 011C 6000 0120 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 665A 0838 0000 C2FA 6646 0838 0004 C2F0 663E 3238 E800 6B38 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6720 3238 E802 6B0E EF49 43F8 B04A D2C1 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
+)
+const GT_HOOKS: [Hook, number][] = [
+  [{ at: 0x15288, original: bytes('302A 0052 31C0 B7AA') }, 0],
+  [{ at: 0x151bc, original: bytes('31E8 0052 BEDA') }, 4],
+  [{ at: 0x15548, original: bytes('31E8 0052 BEDA') }, 4],
+  [{ at: 0x143fa, original: bytes('50F8 B7AA 0838 0004 C2EA') }, 8],
+  [{ at: 0xc340, original: bytes('08F8 0004 C2EE') }, 0xc],
+  [{ at: 0x77b8, original: bytes('4278 C472 4278 C5DC') }, 0x10],
+  [{ at: 0xfde5e, original: bytes('7C0E 43FA 0148') }, 0x14],
+  [{ at: 0xfde6c, original: bytes('3C3C 000A 43FA 0226') }, 0x18],
+]
+const GT_LIMITS = [
+  { at: 0xfdcbc, original: 0x70, hacked: 0x80 },
+  { at: 0xfdcca, original: 0x30, hacked: 0x40 },
+]
+const GT_TABLE = 0xfdfaa
+const GT_TABLE_NO_PEN = 0xfe098
+// The row: its label (length word: 2 + the letters, even), then the team struct offsets of the two totals.
+const GT_ROW = bytes('0010' + [...'Give/Takeaways'].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('') + '2232 2234')
+// A table of the ROM's: `rows` rows of a label and two offsets.
+function gtTable(rom: Uint8Array, at: number, rows: number): Uint8Array | null {
+  let end = at
+  for (let i = 0; i < rows; i++) {
+    const length = readU16(rom, end)
+    if (length < 2 || length > 40 || length % 2) return null
+    end += length + 4
+  }
+  return rom.slice(at, end)
+}
+// The code, with the ROM's two tables and the row after each.
+function gtCode(rom: Uint8Array): Uint8Array | null {
+  const withPen = gtTable(rom, GT_TABLE, 15)
+  const noPen = gtTable(rom, GT_TABLE_NO_PEN, 11)
+  if (!withPen || !noPen) return null
+  const code = new Uint8Array(GT_CODE.length + withPen.length + noPen.length + 2 * GT_ROW.length)
+  code.set(GT_CODE)
+  let at = GT_CODE.length
+  const tableA = at
+  code.set(withPen, at)
+  code.set(GT_ROW, (at += withPen.length))
+  const tableB = (at += GT_ROW.length)
+  code.set(noPen, at)
+  code.set(GT_ROW, at + noPen.length)
+  // TBLA's and TBLB's lea (pc): the displacement from the extension word.
+  writeU16(code, 0x136, tableA - 0x136)
+  writeU16(code, 0x140, tableB - 0x140)
+  return code
+}
+function gtBase(rom: Uint8Array): number | null {
+  const code = gtCode(rom)
+  if (!code) return null
+  const base = readU16(rom, GT_HOOKS[0][0].at) === OP_JSR ? readU32(rom, GT_HOOKS[0][0].at + 2) : -1
+  if (base < 0 || base + code.length > rom.length || !is(rom, base, code)) return null
+  for (const [hook, entry] of GT_HOOKS) {
+    if (readU16(rom, hook.at) !== OP_JSR || readU32(rom, hook.at + 2) !== base + entry) return null
+    for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return null
+  }
+  return GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked) ? base : null
+}
+const giveaways: Part<boolean> = {
+  detect(rom) {
+    if (gtBase(rom) !== null) return true
+    const original = GT_HOOKS.every(([hook]) => is(rom, hook.at, hook.original)) && GT_LIMITS.every((l) => readU16(rom, l.at) === l.original)
+    return original && gtCode(rom) !== null ? false : undefined
+  },
+  remove(rom) {
+    const base = gtBase(rom)
+    if (base === null) return
+    erase(rom, base, gtCode(rom)!.length)
+    for (const [hook] of GT_HOOKS) rom.set(hook.original, hook.at)
+    for (const l of GT_LIMITS) writeU16(rom, l.at, l.original)
+  },
+  apply(work, value) {
+    if (!value) return
+    const code = gtCode(work.rom)!
+    const base = place(work, code)
+    for (const [hook, entry] of GT_HOOKS) writeHook(work.rom, hook, base + entry)
+    for (const l of GT_LIMITS) writeU16(work.rom, l.at, l.hacked)
+  },
+}
+
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -2909,6 +3020,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
     clutchTime: found('clutchTime', clutchTime.detect(rom), NO_HACKS.clutchTime),
     choppyIce: found('choppyIce', choppyIce.detect(rom), NO_HACKS.choppyIce),
+    giveaways: found('giveaways', giveaways.detect(rom), NO_HACKS.giveaways),
     nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
@@ -3018,6 +3130,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
     ['clutchTime', () => clutchTime.remove(work.rom), () => clutchTime.apply(work, wanted.clutchTime)],
     ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
+    ['giveaways', () => giveaways.remove(work.rom), () => giveaways.apply(work, wanted.giveaways)],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
@@ -3275,6 +3388,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   shootoutInjuries: 'The injured sit out the shootout',
   clutchTime: 'Clutch time',
   choppyIce: 'Choppy ice',
+  giveaways: 'Giveaways and takeaways',
   nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
@@ -3348,6 +3462,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   shootoutInjuries: 'shootoutInjuries',
   clutchTime: 'clutchTime',
   choppyIce: 'choppyIce',
+  giveaways: 'giveaways',
   nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',
