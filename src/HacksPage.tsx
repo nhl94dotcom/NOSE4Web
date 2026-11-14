@@ -521,7 +521,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'choppyIce',
           onOff('choppyIce'),
-          "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again after each intermission. Only the puck: skaters glide as before. It goes with the Puck friction setting above, wearing the ice from wherever that sets it. From the NHL94 Match Viewer project's reading of the game's code. Waiting on a test in the game.",
+          "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again after each intermission. Only the puck: skaters glide as before. It goes with the Puck friction setting above, wearing the ice from wherever that sets it. From the NHL94 Match Viewer project's reading of the game's code, and tested by them in the game: about 6%, 12%, 19% and 22% more slowing after one, two, three and four quarters of the period, and fresh ice at each period and in overtime.",
         )}
         {hack(
           'nhlShootout',
