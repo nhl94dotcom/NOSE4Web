@@ -182,8 +182,6 @@ export interface HackChoices {
   clutchTime: boolean
   // The puck slows a little more as each period goes on.
   choppyIce: boolean
-  // Skaters leave marks on the ice, fresh each period.
-  skateMarks: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
   nhlShootout: boolean
   // A Time On Ice page in Player Stats, from the time on ice the game counts.
@@ -268,7 +266,6 @@ export type HackPart =
   | 'shootoutInjuries'
   | 'clutchTime'
   | 'choppyIce'
-  | 'skateMarks'
   | 'nhlShootout'
   | 'timeOnIce'
   | 'puckColours'
@@ -347,7 +344,6 @@ export const NO_HACKS: HackChoices = {
   shootoutInjuries: false,
   clutchTime: false,
   choppyIce: false,
-  skateMarks: false,
   nhlShootout: false,
   timeOnIce: false,
   puckColours: 'rink',
@@ -2835,111 +2831,6 @@ const greenFan: Part<boolean> = {
   apply: (work, value) => void (value && GREEN_FAN.forEach((s) => work.rom.set(s.hacked, s.at))),
 }
 
-// --------------------------------------------------------------- skate marks
-// Skaters leave marks on the ice as they skate, fresh each period. The rink
-// is a 48 x 113 map of 8 x 8 tiles; a mark turns a plain-ice cell (tile $8F,
-// all colour 0) into one of the rink's own streak tiles (Match Viewer): $8E, a
-// diagonal in palette 0's colour 2, or $F4, half of one, flipped to lean the
-// way the skater was going. Nothing new goes into VRAM.
-// - The marks: 2 bits a cell (marked, and which diagonal), 12 bytes a row, at
-//   $FFF800-$FFFD4B; the count $FFFD4C, the period it is for (gsp) $FFFD4E,
-//   NOSE4Web's own random numbers $FFFD50 (the game's are not touched), and up
-//   to 4 rows marked this frame $FFFD52-$FFFD5B. Row copies at $FFE400, one a
-//   ring row (32 x 96 bytes). All free in every recorded game (Match Viewer).
-// - updateplayers' .done ($ACBA, move.w SCnum(a3),d6 / cmp.w (puckc).w,d6)
-//   becomes jsr / nop to code that clears the marks when gsp changes (and has
-//   every row drawn again), and for each player on his skates (SCnum 0-11, not
-//   falling, Z 0, not the scoreboard view), with chance (|Xvel| + |Yvel|) x
-//   frames / 2^20, marks the cell under him, column (X + 192) / 8 and row
-//   (371 - Y) / 8, if it is plain ice in the ROM's map; at most 240 a period, a
-//   tenth of the plain ice ("light"), whatever the period length.
-//   Nothing in another game's intermission highlight (gmode's gmhl, bit 4):
-//   it sets gsp to that game's period and plays through updateplayers, so it
-//   would clear the marks and mark the ice itself (Match Viewer).
-// - updatescroll sends new rink rows straight from the ROM's map. At its two
-//   row sites (lea mapwords(a0,d0.w),a1 / move.l a1,(a5), $15FA8 and $15FDE) a
-//   row with marks is copied into RAM with them put in, and that is sent
-//   instead. setvideo's call of it ($15ECC, movea.w #DMAList,a5 / bsr.w
-//   updatescroll) becomes jsr / nop to code that calls it, then also sends the
-//   rows marked this frame that are on the plane. setvideo runs in the main
-//   loop and the copies go out in the next vblank, as the ROM rows do.
-// - Not in a reverse-angle replay (its map is mirrored): the rows come from the
-//   ROM as before, and the marks are back when the replay ends.
-// For ROMs whose rink scrolling code and tiles are the original game's.
-const SKATE_ROW_AT = [0x15fa8, 0x15fde]
-const SKATE_ROW_ORIGINAL = bytes('43F0 0004 2A89')
-const SKATE_VIDEO: Hook = { at: 0x15ecc, original: bytes('3A7C B8B4 6100 0062') }
-const SKATE_MARK: Hook = { at: 0xacba, original: bytes('3C2B 0052 BC78 B7AA') }
-const SKATE_SCROLL_AT = 0x15f34
-const SKATE_SCROLL = bytes(
-  '0838 0007 C2EC 6600 F528 70C0 9078 BD1C 3238 BD18 31C0 BD1E 31C1 BD20 4478 BD20 3838 BD1A E641 31C1 BD1A 761F B244 6700 F500 207C 0005 605A 0838 0004 C2F4 6700 0008 207C 000B 5180 D1E8 0004 6D00 0038 3001 4440 0640 001E 0240 001F EF40 D078 B008 3B40 0006 303C 001E 9041 3B50 0004 C0D0 D040 43F0 0004 2A89 504D 5341 B244 57CB FFCE 4E75 3001 4440 0640 001D 0240 001F EF40 D078 B008 3B40 0006 303C 003D 9041 3B50 0004 C0D0 D040 43F0 0004 2A89 504D 5241 B244 57CB FFCE 4E75',
-)
-const SKATE_RINK = 0x5605a
-// Plain ice, the diagonal and the half diagonal, 8 x 8 in 4 bits a pixel.
-const SKATE_TILES: [number, Uint8Array][] = [
-  [0x8f, new Uint8Array(32)],
-  [0x8e, bytes('0000 0002 0000 0020 0000 0200 0000 2000 0002 0000 0020 0000 0200 0000 2000 0000')],
-  [0xf4, bytes('0000 0000 0000 0000 0000 0000 0000 2000 0002 0000 0020 0000 0200 0000 2000 0000')],
-]
-const SKATE_CODE = bytes(
-  '6000 000A 6000 00A0 6000 0118 43F0 0004 48E7 FCA0 0280 0000 FFFF 80FC 0060 6100 000A 4CDF 053F 2A89 4E75 0838 0004 C2F4 6672 3200 C2FC 000C 45F8 F800 D4C1 2212 82AA 0004 82AA 0008 675A 3200 0241 001F C2FC 0060 41F8 E400 D0C1 2F08 3400 760B 121A 7803 3A19 0801 0000 6728 0C45 008F 6622 3A3C 008E 0802 0000 670E 3A3C 00F4 0800 0001 6704 3A3C 18F4 0801 0001 6704 0A45 0800 30C5 E409 5242 51CC FFC8 51CB FFC0 225F 4E75 3A7C B8B4 4EB9 0001 5F34 4A78 FD52 676A 48E7 FEF0 0838 0007 C2EC 6656 0838 0004 C2F4 664E 47F8 FD54 3C38 FD52 5346 301B 721E 9278 BD1A B041 6D34 0641 001F B041 6E2C 227C 0005 605A D3E9 0004 3200 C2FC 0060 43F1 1004 6100 FF2C 2AC9 3AFC 0030 3200 0241 001F EF49 D278 B008 3AC1 51CE FFBE 4278 FD52 4CDF 0F7F 4E75 48E7 F880 0838 0004 C2EA 6600 0136 3038 C466 B078 FD4E 6720 31C0 FD4E 41F8 F800 323C 0152 4298 51C9 FFFC 4278 FD4C 4278 FD52 31FC 07D0 BD1A 0C6B 000C 0052 6400 0102 0838 0007 C2EC 6600 00F8 0C78 00F0 FD4C 6400 00EE 4A6B 0018 6600 00E6 082B 0005 0064 6600 00DC 322B 0028 6A02 4441 342B 002A 6A02 4442 D242 3007 0240 0003 C2C0 E889 3038 FD50 6604 303C ACE1 3400 EF4A B540 3400 E04A E24A B540 3400 E14A B540 31C0 FD50 0280 0000 FFFF B081 6400 0092 3213 0641 00C0 E641 0C41 0030 6400 0082 343C 0173 946B 0014 E642 0C42 0071 6400 0070 207C 0005 605A D1E8 0004 3602 C6FC 0030 D641 D643 0C70 008F 3004 6600 0052 3602 C6FC 000C 3801 E44C D644 41F8 F800 D0C3 3801 0244 0003 D844 0910 6600 0032 09D0 302B 0028 362B 002A B740 6A04 5244 09D0 5278 FD4C 3038 FD52 0C40 0004 6400 0010 41F8 FD54 D040 3182 0000 5278 FD52 4CDF 011F 3C2B 0052 BC78 B7AA 4E75',
-)
-// NOSE4Web's first version, without the highlight test: recognised, and
-// replaced when the hacks are next applied.
-const SKATE_CODE_FIRST = bytes(
-  '6000 000A 6000 00A0 6000 0118 43F0 0004 48E7 FCA0 0280 0000 FFFF 80FC 0060 6100 000A 4CDF 053F 2A89 4E75 0838 0004 C2F4 6672 3200 C2FC 000C 45F8 F800 D4C1 2212 82AA 0004 82AA 0008 675A 3200 0241 001F C2FC 0060 41F8 E400 D0C1 2F08 3400 760B 121A 7803 3A19 0801 0000 6728 0C45 008F 6622 3A3C 008E 0802 0000 670E 3A3C 00F4 0800 0001 6704 3A3C 18F4 0801 0001 6704 0A45 0800 30C5 E409 5242 51CC FFC8 51CB FFC0 225F 4E75 3A7C B8B4 4EB9 0001 5F34 4A78 FD52 676A 48E7 FEF0 0838 0007 C2EC 6656 0838 0004 C2F4 664E 47F8 FD54 3C38 FD52 5346 301B 721E 9278 BD1A B041 6D34 0641 001F B041 6E2C 227C 0005 605A D3E9 0004 3200 C2FC 0060 43F1 1004 6100 FF2C 2AC9 3AFC 0030 3200 0241 001F EF49 D278 B008 3AC1 51CE FFBE 4278 FD52 4CDF 0F7F 4E75 48E7 F880 3038 C466 B078 FD4E 6720 31C0 FD4E 41F8 F800 323C 0152 4298 51C9 FFFC 4278 FD4C 4278 FD52 31FC 07D0 BD1A 0C6B 000C 0052 6400 0102 0838 0007 C2EC 6600 00F8 0C78 00F0 FD4C 6400 00EE 4A6B 0018 6600 00E6 082B 0005 0064 6600 00DC 322B 0028 6A02 4441 342B 002A 6A02 4442 D242 3007 0240 0003 C2C0 E889 3038 FD50 6604 303C ACE1 3400 EF4A B540 3400 E04A E24A B540 3400 E14A B540 31C0 FD50 0280 0000 FFFF B081 6400 0092 3213 0641 00C0 E641 0C41 0030 6400 0082 343C 0173 946B 0014 E642 0C42 0071 6400 0070 207C 0005 605A D1E8 0004 3602 C6FC 0030 D641 D643 0C70 008F 3004 6600 0052 3602 C6FC 000C 3801 E44C D644 41F8 F800 D0C3 3801 0244 0003 D844 0910 6600 0032 09D0 302B 0028 362B 002A B740 6A04 5244 09D0 5278 FD4C 3038 FD52 0C40 0004 6400 0010 41F8 FD54 D040 3182 0000 5278 FD52 4CDF 011F 3C2B 0052 BC78 B7AA 4E75',
-)
-// Entries: the row sites at +0, setvideo's at +4, updateplayers' at +8.
-const skateRinkFits = (rom: Uint8Array) =>
-  is(rom, SKATE_SCROLL_AT, SKATE_SCROLL) &&
-  SKATE_RINK + 0x2000 < rom.length &&
-  (() => {
-    const map = SKATE_RINK + readU32(rom, SKATE_RINK + 4)
-    return map + 4 <= rom.length && readU16(rom, map) === 48 && readU16(rom, map + 2) === 113
-  })() &&
-  SKATE_TILES.every(([tile, pixels]) => is(rom, SKATE_RINK + 10 + 32 * tile, pixels))
-const skateJsr = (rom: Uint8Array, at: number, length: number): number | null => {
-  if (readU16(rom, at) !== OP_JSR) return null
-  for (let o = 6; o < length; o += 2) if (readU16(rom, at + o) !== OP_NOP) return null
-  return readU32(rom, at + 2)
-}
-const skateCode = (rom: Uint8Array): { base: number; length: number } | null => {
-  const base = skateJsr(rom, SKATE_ROW_AT[0], 6)
-  if (base === null) return null
-  const code = [SKATE_CODE, SKATE_CODE_FIRST].find((c) => base + c.length <= rom.length && is(rom, base, c))
-  if (!code) return null
-  return skateJsr(rom, SKATE_ROW_AT[1], 6) === base &&
-    skateJsr(rom, SKATE_VIDEO.at, SKATE_VIDEO.original.length) === base + 4 &&
-    skateJsr(rom, SKATE_MARK.at, SKATE_MARK.original.length) === base + 8
-    ? { base, length: code.length }
-    : null
-}
-const skateMarks: Part<boolean> = {
-  detect(rom) {
-    if (skateCode(rom) !== null) return true
-    const original =
-      SKATE_ROW_AT.every((at) => is(rom, at, SKATE_ROW_ORIGINAL)) &&
-      is(rom, SKATE_VIDEO.at, SKATE_VIDEO.original) &&
-      is(rom, SKATE_MARK.at, SKATE_MARK.original)
-    return original && skateRinkFits(rom) ? false : undefined
-  },
-  remove(rom) {
-    const found = skateCode(rom)
-    if (found === null) return
-    erase(rom, found.base, found.length)
-    for (const at of SKATE_ROW_AT) rom.set(SKATE_ROW_ORIGINAL, at)
-    rom.set(SKATE_VIDEO.original, SKATE_VIDEO.at)
-    rom.set(SKATE_MARK.original, SKATE_MARK.at)
-  },
-  apply(work, value) {
-    if (!value) return
-    const base = place(work, SKATE_CODE)
-    for (const at of SKATE_ROW_AT) writeHook(work.rom, { at, original: SKATE_ROW_ORIGINAL }, base)
-    writeHook(work.rom, SKATE_VIDEO, base + 4)
-    writeHook(work.rom, SKATE_MARK, base + 8)
-  },
-}
-
 // ------------------------------------------------------------ the whole ROM
 
 // What is in a ROM now.
@@ -3018,7 +2909,6 @@ export function detectHacks(rom: Uint8Array): HackState {
     shootoutInjuries: found('shootoutInjuries', shootoutInjuries.detect(rom), NO_HACKS.shootoutInjuries),
     clutchTime: found('clutchTime', clutchTime.detect(rom), NO_HACKS.clutchTime),
     choppyIce: found('choppyIce', choppyIce.detect(rom), NO_HACKS.choppyIce),
-    skateMarks: found('skateMarks', skateMarks.detect(rom), NO_HACKS.skateMarks),
     nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
@@ -3128,7 +3018,6 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['shootoutInjuries', () => shootoutInjuries.remove(work.rom), () => shootoutInjuries.apply(work, wanted.shootoutInjuries)],
     ['clutchTime', () => clutchTime.remove(work.rom), () => clutchTime.apply(work, wanted.clutchTime)],
     ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
-    ['skateMarks', () => skateMarks.remove(work.rom), () => skateMarks.apply(work, wanted.skateMarks)],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['timeOnIce', () => timeOnIce.remove(work.rom), () => timeOnIce.apply(work, wanted.timeOnIce)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
@@ -3386,7 +3275,6 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   shootoutInjuries: 'The injured sit out the shootout',
   clutchTime: 'Clutch time',
   choppyIce: 'Choppy ice',
-  skateMarks: 'Skate marks',
   nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
@@ -3460,7 +3348,6 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   shootoutInjuries: 'shootoutInjuries',
   clutchTime: 'clutchTime',
   choppyIce: 'choppyIce',
-  skateMarks: 'skateMarks',
   nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',
