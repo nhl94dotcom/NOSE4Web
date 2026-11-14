@@ -329,9 +329,10 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
 }
 
 // NHL '95 on the Genesis, from NOSE's roms.ini (GM T-50856 -00). Its teams, players and lines are kept as NHL 94
-// keeps them; three attributes are read as NOSE reads them for NHL '95: the shooting hand and fighting as NHL '93 keeps
-// them (an odd value a left-handed shot), the goalie's glove hand 0 for right and 1 for left, and stick handling in
-// sixteen steps (0 to 15) where the other ratings have seven.
+// keeps them; two attributes differ: the shooting hand and fighting as NHL '93 keeps them (an odd value a
+// left-handed shot), and stick handling in sixteen steps (0 to 15) where the other ratings have seven. The overall
+// rating is NHL 94's with stick handling folded to seven steps, as NOSE worked it out; the NHL94 Match Viewer project
+// confirmed all of it in the game (every overall on the roster screen matching).
 export const NHL95: GameConfig = {
   ...NHL94,
   edition: 95,
@@ -351,8 +352,8 @@ export const NHL95: GameConfig = {
   introTextPointerOffset: 0xa14f8,
   introTextSize: 0x656,
   rinkPaletteOffset: 0xc8506,
-  // What each strip colour is for, as the NHL94 Match Viewer project found by recolouring each in the game (7 and 8,
-  // the goalie's pads and mask, still to be confirmed); shown down the player as NHL 94's are. Not NHL 94's order, so
+  // What each strip colour is for, as the NHL94 Match Viewer project found by recolouring each in the game; shown
+  // down the player as NHL 94's are. Not NHL 94's order, so
   // the strip checks, which go by NHL 94's, are left out (stripColorsKnown).
   stripColorsKnown: false,
   stripColorLabels: [
@@ -379,16 +380,15 @@ export const NHL95: GameConfig = {
   menuPlayModeTablePointer: 0x8671c,
   notice:
     "This ROM is NHL '95. The editor reads it the way NOSE did: rosters, lines, team names, colours and the game " +
-    'settings. The pictures, songs, hacks and other additions made for NHL 94 are not offered for it. Overall ratings ' +
-    "are worked out as NOSE did for NHL '95, which has not been checked against the game. NHL '95 editing is new, so " +
-    'keep a copy of the file you opened.',
+    "settings. The pictures, songs, hacks and other additions made for NHL 94 are not offered for it. NHL '95 editing " +
+    'is new, so keep a copy of the file you opened.',
   playerAttributeKinds: [
     'weight', 'rating', 'rating', 'rating', 'rating', 'rating', 'rating',
     'handedFighting93', 'stickHandling95', 'rating', 'rating', 'rating', 'rating', 'rating',
   ],
   goalieAttributeKinds: [
     'weight', 'rating', 'rating', 'rating', 'rating', 'rating', 'zero',
-    'gloveHand92', 'zero', 'zero', 'rating', 'rating', 'rating', 'rating',
+    'gloveHand', 'zero', 'zero', 'rating', 'rating', 'rating', 'rating',
   ],
 }
 

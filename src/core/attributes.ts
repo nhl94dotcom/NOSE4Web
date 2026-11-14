@@ -7,9 +7,10 @@
 // for ROMs set up for another era; plain 'weight' is the original game's 140.
 // 'snesRating' is a 0 to 6 rating in the SNES game, whose screens show its
 // top steps a little higher than the Genesis game's do.
-// NHL '95 keeps three as other years of the game do (NOSE's hextext.ini): 'handedFighting93' as NHL '93, an odd
-// value a left-handed shot; 'gloveHand92' as NHL '92, 0 a right glove hand and 1 a left; and 'stickHandling95', its
-// own, in sixteen steps where the other ratings have seven.
+// NHL '95 keeps two its own way (NOSE's hextext.ini, confirmed in the game by the NHL94 Match Viewer project):
+// 'handedFighting93' as NHL '93, an odd value a left-handed shot; and 'stickHandling95' in sixteen steps, which
+// play folds to the seven of the other ratings. Its glove hand is NHL 94's (1 catches right: Fuhr, Barrasso and
+// Puppa), not the reverse that NOSE's file gives.
 export type AttributeKind =
   | 'weight'
   | `weight:${number}`
@@ -18,7 +19,6 @@ export type AttributeKind =
   | 'handedFighting'
   | 'handedFighting93'
   | 'gloveHand'
-  | 'gloveHand92'
   | 'stickHandling95'
   | 'zero'
   | 'value'
@@ -52,7 +52,8 @@ export const weightKind = (base: number): AttributeKind => (base === ORIGINAL_BA
 const RATINGS = ['25-29', '29-38', '38-47', '47-62', '63-80', '81-98', '99']
 const SNES_RATINGS = ['25-29', '29-38', '38-47', '47-63', '63-81', '81-99', '99-100']
 const FIGHTING = [0, 14, 28, 42, 57, 71, 85, 100]
-// NHL '95's stick handling steps, as NOSE shows them (0 to 15, folded to the 0 to 6 ratings by STICK_HANDLING_95_STEP).
+// NHL '95's stick handling steps (0 to 15), folded to the 0 to 6 ratings as play folds them (its table at $83C9E;
+// Match Viewer): 0 | 1-2 | 3-5 | 6-8 | 9-11 | 12-14 | 15.
 const STICK_HANDLING_95_STEP = [0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6]
 export const stickHandling95Step = (value: number): number => STICK_HANDLING_95_STEP[value] ?? 0
 
@@ -77,8 +78,6 @@ export function attributeText(kind: AttributeKind, value: number): string | null
       return `${shootsRight(kind, value) ? 'R' : 'L'}/${FIGHTING[value >> 1]}`
     case 'gloveHand':
       return value < 2 ? (value ? 'R' : 'L') : null
-    case 'gloveHand92':
-      return value < 2 ? (value ? 'L' : 'R') : null
     case 'stickHandling95':
       return value >= 0 && value <= 15 ? `${RATINGS[stickHandling95Step(value)]} (${value})` : null
     case 'zero':
@@ -97,7 +96,6 @@ export function attributeNote(kind: AttributeKind): string {
     handedFighting: 'shooting hand, then fighting',
     gloveHand: 'left or right',
     handedFighting93: 'shooting hand, then fighting',
-    gloveHand92: 'left or right',
     stickHandling95: 'NHL 95 keeps it in 16 steps',
     zero: 'not used by the game',
     value: 'the value stored, 0 to 15',

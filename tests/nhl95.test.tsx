@@ -33,8 +33,9 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     expect(attributeText(project.game.playerAttributeKinds[7], 8)).toBe('R/57')
     expect(attributeText(project.game.playerAttributeKinds[7], 7)).toBe('L/42')
     expect(attributeText(project.game.playerAttributeKinds[8], 6)).toBe('47-62 (6)')
-    expect(attributeText(project.game.goalieAttributeKinds[7], 1)).toBe('L')
-    // NOSE's overall: stick handling 6 counts as the 0 to 6 rating 3.
+    // The glove hand as NHL 94 keeps it: 1 catches right (Fuhr, Barrasso and Puppa, Match Viewer).
+    expect(attributeText(project.game.goalieAttributeKinds[7], 1)).toBe('R')
+    // The overall (NOSE's, the game's): stick handling 6 counts as the 0 to 6 rating 3.
     expect(overallRating(corkum.attributes, false, project.game)).toBe(overallRating(corkum.attributes.map((v, i) => (i === 8 ? 3 : v)), false, { overallIsEstimate: false }))
     expect(project.teams[0].lines).toHaveLength(8)
     const { settings } = project
