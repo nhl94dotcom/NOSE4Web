@@ -61,6 +61,7 @@ import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
 import './App.css'
 import { useCollapsibleSections } from './useCollapsibleSections'
+import { useSectionTabs } from './useSectionTabs'
 
 // Sidebar entries that are not teams.
 const RINK = -1
@@ -105,6 +106,8 @@ export default function App() {
   const [quickKeys, setQuickKeys] = useState(false)
   const [rosterSort, setRosterSort] = useState<RosterSort>('roster')
   useCollapsibleSections()
+  // The teams' pages share their tab; each other page has its own.
+  useSectionTabs(selected >= 0 ? 'team' : String(selected))
   // Whether the help is showing before any ROM has been opened.
   const [welcomeHelp, setWelcomeHelp] = useState(false)
   // Work stored by an earlier visit, offered on the welcome screen.

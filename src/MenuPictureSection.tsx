@@ -55,7 +55,7 @@ export function MenuPictureSection({ project, opened, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Menu picture">
       <h2>Main menu background</h2>
       <p className="note">
         The picture behind the Game Setup screen, the game's main menu. The menu, the team banners and logos and the

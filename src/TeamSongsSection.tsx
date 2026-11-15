@@ -52,7 +52,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Songs">
       <h2>Organ songs</h2>
       <p>
         <ResetButton
@@ -119,7 +119,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
   }
 
   return (
-    <section>
+    <section data-tab="Songs">
       <h2>Organ songs</h2>
       <p>
         <ResetButton

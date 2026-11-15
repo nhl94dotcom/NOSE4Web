@@ -37,7 +37,7 @@ export function RinkEditor({ palette, original, onChange, edition }: Props) {
 
   return (
     <main className="team">
-      <section>
+      <section data-tab-always>
         <h2>Rink colours</h2>
         <p className="note">These colours are shared by every team's home rink.</p>
         <p>

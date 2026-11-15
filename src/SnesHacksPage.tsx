@@ -3,7 +3,6 @@ import { HitsTable } from './HitsTable'
 import { snesCodeInPlace } from './core/snes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
-import { HackSectionLinks } from './HackSectionLinks'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
@@ -268,7 +267,6 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
         the game; each hack's note says whose it is. The page shows what this ROM has now. Change what you like and
         press Apply; nothing is changed until you do. Test a hacked ROM in a game before a league plays on it.
       </p>
-      <HackSectionLinks groups={GROUPS} />
       <HackShortcuts
         onRecommended={
           !sameChoices(withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks), wanted) &&
@@ -464,7 +462,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
           )}
         </section>
       ))}
-      <section id="hacks-apply">
+      <section id="hacks-apply" data-tab-always>
         <h3>Apply</h3>
         <p>
           <button disabled={changed.length === 0} onClick={apply}>

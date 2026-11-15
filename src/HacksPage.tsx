@@ -3,8 +3,6 @@ import { HitsTable } from './HitsTable'
 import { WEIGHT_BASES } from './core/attributes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
-import { GENESIS_HACK_GROUPS } from './core/hackgroups'
-import { HackSectionLinks } from './HackSectionLinks'
 import type { SeasonTies } from './core/hacks'
 import {
   applyHacks,
@@ -236,7 +234,6 @@ export function HacksPage({ project, name, onChange }: Props) {
         Skating are the game's own numbers, shown as its code holds them, so change them a little at a time and try
         the result in a game. Test a hacked ROM in a game before a league plays on it.
       </p>
-      <HackSectionLinks groups={GENESIS_HACK_GROUPS} />
       <HackShortcuts
         onRecommended={
           !sameHacks(withRecommendedFixes(wanted, state.unknown, menuLineChanges(project.settings.menu)), wanted) &&
@@ -1209,7 +1206,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
       </section>
 
-      <section id="hacks-apply">
+      <section id="hacks-apply" data-tab-always>
         <h3>Apply</h3>
         {changes.length === 0 ? (
           <p>Nothing is set to change.</p>

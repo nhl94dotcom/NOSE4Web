@@ -82,7 +82,7 @@ export function SnesRinkEditor({ project, original, onChange }: Props) {
 
   return (
     <main className="team">
-      <section>
+      <section data-tab-always>
         <h2>Rink colours</h2>
         <p className="note">
           The rink is the same for every game; the home team's centre ice logo is put in its middle, and the players on

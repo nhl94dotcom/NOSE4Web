@@ -875,3 +875,40 @@ main section[data-folded] > :not(:first-child) {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* A page's sections one at a time, chosen by the tabs at its top (useSectionTabs); kept in view while the page scrolls. */
+.section-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 -1rem 0.5rem;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--page);
+}
+.section-tabs button {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 0.3rem 0.3rem 0 0;
+  background: none;
+  white-space: nowrap;
+}
+.section-tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+main section[data-tab-hidden] {
+  display: none;
+}
+@media (max-width: 820px) {
+  /* One row that scrolls sideways, not several taking the screen. */
+  .section-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+}

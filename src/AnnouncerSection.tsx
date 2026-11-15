@@ -79,7 +79,7 @@ export function AnnouncerSection({ project, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Announcer">
       <h2>Announcer picture</h2>
       {snes ? (
         <p className="note">

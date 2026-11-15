@@ -73,7 +73,7 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
   }
 
   return (
-    <section>
+    <section data-tab="Logos">
       <h2>Name banner colours</h2>
       <p className="note">
         The colours of the block the team's name is drawn on, on the menus (team select, game setup, rosters, matchups

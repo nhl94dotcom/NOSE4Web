@@ -36,6 +36,18 @@ async function downloadFrom(page: Page, button: Locator): Promise<Download> {
   return download
 }
 
+// Pages show one section at a time, chosen by tabs; most tests work on the whole page, as the All tab shows it, as
+// when one browser chooses it for every page. (Set only where nothing is stored, so a test can store its own.)
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      if (localStorage.getItem('nose4web.sectionTabs') === null) localStorage.setItem('nose4web.sectionTabs', JSON.stringify({ '*': 'All' }))
+    } catch {
+      // No storage: the tests that need the whole page will say so.
+    }
+  })
+})
+
 // The League page's table of every team.
 const leagueTable = (page: Page) => page.locator('section').filter({ has: page.getByRole('heading', { name: 'How the teams compare' }) }).locator('table')
 
@@ -63,6 +75,52 @@ test.describe('without a ROM', () => {
 
 test.describe('with the NHL 94 ROM', () => {
   test.skip(!hasRom, 'needs ../nhl94.bin')
+
+  test('shows a page one section at a time, by the tabs at its top', async ({ page }) => {
+    // Nothing chosen yet, as for someone new (once: the reload below keeps what was chosen).
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem('tabs-test') !== null) return
+      sessionStorage.setItem('tabs-test', '1')
+      localStorage.setItem('nose4web.sectionTabs', '{}')
+    })
+    await openRom(page)
+    const tabs = page.locator('.section-tabs')
+    const tab = (name: string) => tabs.getByRole('tab', { name, exact: true })
+    const section = (name: string) => page.locator('main > section').filter({ has: page.getByRole('heading', { name, exact: true }) })
+    // A team opens on its roster: the team, its goalies and skaters.
+    await expect(tab('Roster')).toHaveAttribute('aria-selected', 'true')
+    for (const name of ['Team', 'Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
+    await expect(section('Lines')).toBeHidden()
+    await tab('Lines').click()
+    await expect(section('Lines')).toBeVisible()
+    await expect(section('Skaters')).toBeHidden()
+    // The teams share their tab.
+    await team(page, 'Boston Bruins').click()
+    await expect(tab('Lines')).toHaveAttribute('aria-selected', 'true')
+    await expect(section('Lines')).toBeVisible()
+    await tab('Colours').click()
+    for (const name of ['Home colours', 'Away colours']) await expect(section(name)).toBeVisible()
+    // Every section, one under another.
+    await tab('All').click()
+    for (const name of ['Team', 'Skaters', 'Lines', 'Home colours']) await expect(section(name)).toBeVisible()
+    // Each other page has its own, the first to start; the Hacks page's Apply under every tab.
+    await entry(page, 'Game settings').click()
+    await expect(tab('Main menu')).toHaveAttribute('aria-selected', 'true')
+    await expect(section('Clock')).toBeHidden()
+    await entry(page, 'Hacks').click()
+    await expect(tab('Fixes')).toHaveAttribute('aria-selected', 'true')
+    await tab('Rules').click()
+    await expect(page.locator('#hacks-rules')).toBeVisible()
+    await expect(page.locator('#hacks-fixes')).toBeHidden()
+    await expect(page.locator('#hacks-apply')).toBeVisible()
+    // Help is read through, and has none; its contents still go to each part.
+    await entry(page, 'Help').click()
+    await expect(tabs).toHaveCount(0)
+    // Remembered in this browser.
+    await page.reload()
+    await romPicker(page).setInputFiles(romPath)
+    await expect(tab('All')).toHaveAttribute('aria-selected', 'true')
+  })
 
   test('opens the ROM and shows a team', async ({ page }) => {
     await openRom(page)

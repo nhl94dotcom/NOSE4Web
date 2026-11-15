@@ -31,7 +31,7 @@ export function ProjectPage({ project, opened, name, onOpen }: Props) {
   }
 
   return (
-    <main className="team help">
+    <main className="team help" data-no-tabs>
       <h2>Project file</h2>
       <p className="note">
         A project file holds all your work without the ROM: every team, the colours, the game settings, the pictures

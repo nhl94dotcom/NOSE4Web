@@ -447,7 +447,7 @@ export function TeamEditor(props: Props) {
     // On a narrow window each player is a card: a line to read, opened to edit.
     if (narrow) {
       return (
-        <section>
+        <section data-tab="Roster">
           <h2>{title}</h2>
           <div className="cards">
             {shown.map((index) => {
@@ -498,7 +498,7 @@ export function TeamEditor(props: Props) {
     }
 
     return (
-      <section>
+      <section data-tab="Roster">
         <h2>{title}</h2>
         <div className="scroll">
           <table onKeyDown={gridKeyDown}>
@@ -561,7 +561,7 @@ export function TeamEditor(props: Props) {
           than editing the original game, so keep a copy of the file you opened.
         </p>
       )}
-      <section>
+      <section data-tab="Roster">
         <h2>Team</h2>
         <p>
           <ResetButton what="whole team" changed={props.changed} onReset={props.onResetAll} /> {reset('names', 'names')}{' '}
@@ -886,7 +886,7 @@ export function TeamEditor(props: Props) {
           onChange({ ...team, palette: strip === 0 ? [...next, ...other] : [...other, ...next] })
         const format = colorFormat(game.platform)
         return (
-          <section key={label}>
+          <section key={label} data-tab="Colours">
             <h2>{label} colours</h2>
             <div className="strip">
               {game.platform === 'snes' ? (

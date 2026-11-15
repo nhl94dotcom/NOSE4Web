@@ -24,7 +24,7 @@ describe('the Hacks pages and sheets group the hacks one way', () => {
   it.skipIf(!existsSync(romPath))('shows the Genesis groups on the page, in order, each hack in its own', () => {
     const project = openRom(new Uint8Array(readFileSync(romPath)))
     const html = renderToStaticMarkup(<HacksPage project={project} name="nhl94" onChange={() => {}} />)
-    const sections = [...html.matchAll(/<section id="hacks-([a-z]+)">(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
+    const sections = [...html.matchAll(/<section id="hacks-([a-z]+)"[^>]*>(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
     expect(sections.map((s) => s.id)).toEqual([...GENESIS_HACK_GROUPS.map((g) => g.id), 'apply'])
     for (const group of GENESIS_HACK_GROUPS) {
       const section = sections.find((s) => s.id === group.id)!.html

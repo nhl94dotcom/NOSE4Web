@@ -48,7 +48,7 @@ const SECTIONS = [
 
 export function HelpPage() {
   return (
-    <main className="team help">
+    <main className="team help" data-no-tabs>
       <h2>How to use NOSE4Web</h2>
       <ul className="contents">
         {SECTIONS.map(([id, title]) => (
@@ -91,6 +91,12 @@ export function HelpPage() {
         Your work is also kept in this browser, on this computer, a moment after each change. If the tab is closed or
         refreshed, the welcome screen offers <b>Continue editing</b> to pick it up again, or <b>Discard it</b>. Only
         the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
+      </p>
+      <p>
+        A page with several sections shows one at a time: pick it from the tabs along the top of the page (a team's
+        page opens on its <b>Roster</b>). <b>All</b> shows every section one under another, as one long page. Each
+        page remembers its tab in this browser, and the teams share theirs, so going from team to team stays on, say,
+        Lines. On the Hacks pages, <b>Apply</b> is under every tab.
       </p>
       <p>
         Every section on a page folds: click its heading (or Tab to it and press Enter) to hide the rest of it, and

@@ -105,7 +105,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
 
   return (
     <main className="team">
-      <section>
+      <section data-tab="Main menu">
         <h2>Main menu starting choices</h2>
         <p>
           <ResetButton
@@ -406,7 +406,7 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
   const fits = creditsFit(credits)
   const nameless = snes && credits.pages.some((page) => page.length < 2)
   return (
-    <section>
+    <section data-tab="Credits">
       <h2>Title screen credits</h2>
       <p>
         <ResetButton what="credits" changed={settingsPartChanged(settings, original, 'credits')} onReset={() => onChange(resetSettingsPart(settings, original, 'credits'))} />{' '}
