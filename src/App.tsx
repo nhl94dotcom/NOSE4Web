@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { BulkPage } from './BulkPage'
 import { ChangesPage } from './ChangesPage'
 import { CheckPage } from './CheckPage'
@@ -33,10 +33,8 @@ import { snesPictureKinds } from './core/snespictureset'
 import { playerPhoto, playerPhotosSupported, withPlayerPhotos } from './core/playerphotos'
 import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
-import { HacksPage } from './HacksPage'
 import { hacksSupported, withHacksOf } from './core/hacks'
 import { anyPosition } from './core/anyposition'
-import { HelpPage } from './HelpPage'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
 import { PicturesPage } from './PicturesPage'
@@ -45,7 +43,6 @@ import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { SettingsEditor } from './SettingsEditor'
-import { SnesHacksPage } from './SnesHacksPage'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { MenuPictureSection } from './MenuPictureSection'
@@ -62,6 +59,16 @@ import { TradePage } from './TradePage'
 import './App.css'
 import { useCollapsibleSections } from './useCollapsibleSections'
 import { useSectionTabs } from './useSectionTabs'
+
+// The biggest pages, which most visits never open, load when first opened, so the editor starts sooner.
+const HelpPage = lazy(() => import('./HelpPage').then((m) => ({ default: m.HelpPage })))
+const HacksPage = lazy(() => import('./HacksPage').then((m) => ({ default: m.HacksPage })))
+const SnesHacksPage = lazy(() => import('./SnesHacksPage').then((m) => ({ default: m.SnesHacksPage })))
+const loading = (
+  <main className="team">
+    <p className="note">Loading…</p>
+  </main>
+)
 
 // Sidebar entries that are not teams.
 const RINK = -1
@@ -296,7 +303,9 @@ export default function App() {
         </header>
         {error && <p className="error">{error}</p>}
         <div className="body">
-          <HelpPage />
+          <Suspense fallback={loading}>
+            <HelpPage />
+          </Suspense>
         </div>
       </div>
     )
@@ -656,7 +665,7 @@ export default function App() {
           {entry(COMPARE, 'Compare ROMs')}
           {entry(HELP, 'Help')}
         </nav>
-        {page(project, inOrder, original)}
+        <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>
       </div>
     </div>
   )
