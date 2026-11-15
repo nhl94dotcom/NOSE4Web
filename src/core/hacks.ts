@@ -2854,8 +2854,11 @@ const greenFan: Part<boolean> = {
 // (Match Viewer found goalies given takeaways when their own skater ran the
 // puck into them) and called every puck a goalie collected a dump-in.
 // - The counts, a byte a roster place (32 a team, home first): giveaways at
-//   $FFE810, takeaways at $FFE850; the last carrier $FFE800, who forced the
-//   puck loose $FFE802 ($FFFF none); each team's totals at its team struct +
+//   $FFE810, takeaways at $FFE850; the last carrier's spot on the ice
+//   $FFE800 and his roster place $FFE804 (kept from his pickup: the player
+//   counted, whoever is in his spot by the time the puck is picked up), who
+//   forced the puck loose $FFE802 ($FFFF none) and his roster place $FFE805;
+//   each team's totals at its team struct +
 //   $2232 / $2234 (home $FFE900, visitors $FFEC64), in room Match Viewer
 //   found unused in every recorded game, well past smozROM's plus-minus log
 //   (from $FFDEF4, 14 bytes a goal). Cleared at each game's start
@@ -2869,9 +2872,19 @@ const greenFan: Part<boolean> = {
 //   DisplayStats' row count and table ($FDE5E with penalties, $FDE6C
 //   without) come from code with the ROM's tables and the new row, and the
 //   scroll limits ($FDCBC, $FDCCA) are a row further ($80, $40; Match Viewer).
-const GT_CODE = bytes(
-  '6000 001E 6000 00F4 6000 00FE 6000 011E 6000 012E 6000 0150 6000 0154 6000 00FC 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6678 0838 0000 C2FA 6664 0838 0004 C2F0 665C 3238 E800 6B56 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 673E 3238 E802 0C41 FFFE 6728 4A41 6B2A EF49 43F8 B04A D2C1 4A69 0034 671C 1429 0062 102A 0062 B102 0802 0006 660C 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
-)
+// The code; a version's DisplayStats tables are its lea (pc)s' extension words, patched (gtCode).
+interface GtVersion {
+  code: Uint8Array
+  tableA: number
+  tableB: number
+}
+const GT_VERSIONS: GtVersion[] = [
+  { code: bytes('6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 0C41 FFFE 672C 4A41 6B2E EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x182, tableB: 0x18c },
+  // NOSE4Web's version of 14 November 2026 (dbc898a), which credited whoever held the carrier's or forcer's spot on
+  // the ice when the puck was picked up (a line change while it was loose, the player come on): recognised, and
+  // replaced when the hacks are next applied.
+  { code: bytes('6000 001E 6000 00F4 6000 00FE 6000 011E 6000 012E 6000 0150 6000 0154 6000 00FC 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6678 0838 0000 C2FA 6664 0838 0004 C2F0 665C 3238 E800 6B56 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 673E 3238 E802 0C41 FFFE 6728 4A41 6B2A EF49 43F8 B04A D2C1 4A69 0034 671C 1429 0062 102A 0062 B102 0802 0006 660C 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x16a, tableB: 0x174 },
+]
 const GT_HOOKS: [Hook, number][] = [
   [{ at: 0x15288, original: bytes('302A 0052 31C0 B7AA') }, 0],
   [{ at: 0x151bc, original: bytes('31E8 0052 BEDA') }, 4],
@@ -2902,13 +2915,14 @@ function gtTable(rom: Uint8Array, at: number, rows: number): Uint8Array | null {
   return rom.slice(at, end)
 }
 // The code, with the ROM's two tables and the row after each.
-function gtCode(rom: Uint8Array): Uint8Array | null {
+function gtCode(rom: Uint8Array, version: GtVersion = GT_VERSIONS[0]): Uint8Array | null {
   const withPen = gtTable(rom, GT_TABLE, 15)
   const noPen = gtTable(rom, GT_TABLE_NO_PEN, 11)
   if (!withPen || !noPen) return null
-  const code = new Uint8Array(GT_CODE.length + withPen.length + noPen.length + 2 * GT_ROW.length)
-  code.set(GT_CODE)
-  let at = GT_CODE.length
+  const { code: body } = version
+  const code = new Uint8Array(body.length + withPen.length + noPen.length + 2 * GT_ROW.length)
+  code.set(body)
+  let at = body.length
   const tableA = at
   code.set(withPen, at)
   code.set(GT_ROW, (at += withPen.length))
@@ -2916,21 +2930,26 @@ function gtCode(rom: Uint8Array): Uint8Array | null {
   code.set(noPen, at)
   code.set(GT_ROW, at + noPen.length)
   // TBLA's and TBLB's lea (pc): the displacement from the extension word.
-  writeU16(code, 0x16a, tableA - 0x16a)
-  writeU16(code, 0x174, tableB - 0x174)
+  writeU16(code, version.tableA, tableA - version.tableA)
+  writeU16(code, version.tableB, tableB - version.tableB)
   return code
 }
-function gtBase(rom: Uint8Array): number | null {
-  const code = gtCode(rom)
-  if (!code) return null
+// Where the code is, and how long (this version's or an earlier one).
+function gtIn(rom: Uint8Array): { base: number; length: number } | null {
   const base = readU16(rom, GT_HOOKS[0][0].at) === OP_JSR ? readU32(rom, GT_HOOKS[0][0].at + 2) : -1
-  if (base < 0 || base + code.length > rom.length || !is(rom, base, code)) return null
+  if (base < 0) return null
   for (const [hook, entry] of GT_HOOKS) {
     if (readU16(rom, hook.at) !== OP_JSR || readU32(rom, hook.at + 2) !== base + entry) return null
     for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return null
   }
-  return GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked) ? base : null
+  if (!GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked)) return null
+  for (const version of GT_VERSIONS) {
+    const code = gtCode(rom, version)
+    if (code && base + code.length <= rom.length && is(rom, base, code)) return { base, length: code.length }
+  }
+  return null
 }
+const gtBase = (rom: Uint8Array): number | null => gtIn(rom)?.base ?? null
 // Player Stats pages (game stats only, as the time on ice): past Penalty
 // Minutes (or the bodycheck counts' Checks For), Giveaways and Takeaways,
 // sorted by them, each row G, A, Pts, GV and TK; then Time On Ice, when it is
@@ -2982,9 +3001,9 @@ const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
   },
   remove(rom) {
     removePages(rom)
-    const base = gtBase(rom)
-    if (base === null) return
-    erase(rom, base, gtCode(rom)!.length)
+    const found = gtIn(rom)
+    if (!found) return
+    erase(rom, found.base, found.length)
     for (const [hook] of GT_HOOKS) rom.set(hook.original, hook.at)
     for (const l of GT_LIMITS) writeU16(rom, l.at, l.original)
   },

@@ -31,6 +31,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     // The clear goes on to Create_HotCold_Table.
     const clear = far(on, SITES.scout)
     expect(hex(on, clear, 11)).toBe('a9ffff8f10fd7e8f12fd7e')
+    // The carrier's and the forcer's roster places (pnum, $12A3) kept at $7E:FDEC and $FDEE as they get or force the
+    // puck, and those counted: lda pnum,x / sta $7EFDEC at the pickup, lda $7EFDEC / jsr give, lda $7EFDEE / jsr take.
+    const block = hex(on, far(on, SITES.glue), 0x140)
+    expect(block).toContain('bda3128fecfd7e')
+    expect(block).toContain('bda3128feefd7e')
+    expect(block).toContain('afecfd7e20')
+    expect(block).toContain('afeefd7e20')
     expect(detectSnesHacks(on).choices.giveaways).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { giveaways: false })), buildRom(rom))).toBe(0)
   })

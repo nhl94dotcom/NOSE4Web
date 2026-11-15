@@ -1709,7 +1709,9 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 // build; in the SA-1 builds, which cannot reach bank $7E, in BW-RAM at $40:5500
 // (past the season shootout's save). NOSE4Web's first version (14 November 2026)
 // kept them at $7E:E68C, which the 2 MB builds use for their fights (fighton,
-// ChkCnt, OptFights... from $E700; Match Viewer): not recognised.
+// ChkCnt, OptFights... from $E700; Match Viewer): not recognised. Its version of
+// 14 November 2026 (8650b4a) credited whoever held the carrier's or forcer's spot
+// on the ice when the puck was picked up: recognised, and replaced when asked.
 const GT_RAM = [
   { shift: 0, bank: 0x7e, at: 0xfd10 },
   { shift: 0x6000, bank: 0x40, at: 0x5500 },
@@ -1718,6 +1720,11 @@ const GT_GIVE = 4
 const GT_TAKE = GT_GIVE + 0x68
 const GT_TOTALS = GT_TAKE + 0x68
 const GT_SIZE = GT_TOTALS + 8
+// After them, the last carrier's roster place (pnum), kept from his pickup, and the forcer's, kept as he forces it: the
+// players counted, whoever is in their spots on the ice by the time the puck is picked up (a line change while it was
+// loose). Not cleared: each is set with the spot it goes with.
+const GT_LASTP = GT_SIZE
+const GT_CAUSEP = GT_SIZE + 2
 type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury'
 
 interface GtEnv {
@@ -1773,15 +1780,16 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
 type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'scout'
 
 // The block: COUNT give (x the player's object), COUNT take, then the entries; the clear's jml last.
-function gtCode(env: GtEnv, base: number, hotCold: Uint8Array): { code: Uint8Array; entries: Record<GtEntry, number> } {
+function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, earlier = false): { code: Uint8Array; entries: Record<GtEntry, number> } {
   const { ram, a2, a3 } = env
   const L = (offset: number) => bytesOf(word(ram.at + offset), ram.bank)
   const W = (address: number) => word(address + ram.shift)
   const [gmode, sflags3, shootoutmode, position, pnum] = [0x15d4, 0x15dc, 0x1d81, 0x0f43, 0x12a3]
-  // The player's word (his roster place x 2, the visitors' $34 on) and his team's total, one more each.
+  // The player's word (his roster place in A, x 2, the visitors' $34 on; x his object, for his team) and his team's
+  // total, one more each. The earlier version read the roster place of x's spot then (lda pnum,x).
   const counter = (array: number, totals: number) =>
     asm65([
-      bytesOf('BD', W(pnum), '29FF00 C91A00'),
+      bytesOf(earlier ? bytesOf('BD', W(pnum)) : [], '29FF00 C91A00'),
       { branch: BCS, to: 'r' },
       bytesOf('0A E00C00'),
       { branch: BCC, to: 'h' },
@@ -1803,7 +1811,8 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array): { code: Uint8Arr
   const glue = asm65([
     bytesOf('A4', a2, '8C', word(env.puckc), 'DA'),
     bytesOf('AD', W(gmode), '291000'),
-    { branch: BNE, to: 'x' },
+    // A highlight: nothing (past an 8-bit branch's reach with the roster places kept).
+    ...(earlier ? [{ branch: BNE, to: 'x' }] : [{ branch: BEQ, to: 'play' }, { brl: 'x' }, { label: 'play' }]),
     bytesOf('AD', W(shootoutmode), '29FF00'),
     { branch: BNE, to: 'reset' },
     bytesOf('AD', W(sflags3), '291000'),
@@ -1820,23 +1829,25 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array): { code: Uint8Arr
     { branch: BEQ, to: 'give' },
     bytesOf('8A', sameTeam),
     { branch: BMI, to: 'give' },
-    bytesOf('20', abs(base + give.length)),
+    bytesOf(earlier ? [] : bytesOf('AF', L(GT_CAUSEP)), '20', abs(base + give.length)),
     { branch: BRA, to: 'reset' },
     { label: 'pass' },
     bytesOf('A6', a2, 'BD', W(position)),
     { branch: BEQ, to: 'reset' },
     { label: 'give' },
-    bytesOf('AF', L(0), 'AA 20', abs(base)),
+    bytesOf('AF', L(0), 'AA', earlier ? [] : bytesOf('AF', L(GT_LASTP)), '20', abs(base)),
     { label: 'reset' },
-    bytesOf('A5', a2, '8F', L(0), 'A9FFFF 8F', L(2)),
+    bytesOf(earlier ? [] : bytesOf('A6', a2, 'BD', W(pnum), '8F', L(GT_LASTP)), 'A5', a2, '8F', L(0), 'A9FFFF 8F', L(2)),
     { label: 'x' },
     bytesOf('FA A4', a2, '6B'),
   ])
   const lastplayer = (from: string) => bytesOf(from, '4A 8D', word(env.lastplayer), '48')
-  const steal = bytesOf(lastplayer('98'), 'A5', a2, '8F', L(2), '68 6B')
+  // The forcer's roster place too, kept with his spot (X kept).
+  const forcer = (object: number) => (earlier ? [] : bytesOf('DA A6', object, 'BD', W(pnum), '8F', L(GT_CAUSEP), 'FA'))
+  const steal = bytesOf(lastplayer('98'), 'A5', a2, '8F', L(2), forcer(a2), '68 6B')
   const pass = bytesOf(lastplayer('8A'), 'A9FEFF 8F', L(2), '68 6B')
   const shot = bytesOf(lastplayer('8A'), 'A9FFFF 8F', L(0), '8F', L(2), '68 6B')
-  const fall = bytesOf('A9FFFF 8D', word(env.puckc), 'A5', a3, '8F', L(2), '6B')
+  const fall = bytesOf('A9FFFF 8D', word(env.puckc), 'A5', a3, '8F', L(2), forcer(a3), '6B')
   const scout = asm65([
     bytesOf('A9FFFF 8F', L(0), '8F', L(2), 'A90000 A2', word(GT_SIZE - GT_GIVE - 2)),
     { label: 'loop' },
@@ -1869,20 +1880,33 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     injury: bytesOf('A9FFFF 8D', word(env.puckc)),
   }
   const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2 }
-  const probe = gtCode(env, 0, new Uint8Array(3))
+  let probe = gtCode(env, 0, new Uint8Array(3))
   let base: number
   let hotCold = rom.slice(sites.scout + 1, sites.scout + 4)
+  let earlier = false
   if (!same(rom, sites.glue, originals.glue)) {
-    // In: the block from the glue's call, and Create_HotCold_Table from the clear's jml at its end.
+    // In: the block from the glue's call, and Create_HotCold_Table from the clear's jml at its end; this version's
+    // block, or the earlier one's.
     if (rom[sites.glue] !== 0x22) return null
-    base = loRomOffset(rom[sites.glue + 3], readU16(rom, sites.glue + 1)) - probe.entries.glue
+    const called = loRomOffset(rom[sites.glue + 3], readU16(rom, sites.glue + 1))
+    const blockAt = (version: { code: Uint8Array; entries: Record<GtEntry, number> }) => called - version.entries.glue
+    const holds = (old: boolean) => {
+      const version = gtCode(env, 0, new Uint8Array(3), old)
+      const at = blockAt(version)
+      if (at < 0) return false
+      const full = gtCode(env, at, rom.slice(at + version.code.length - 3, at + version.code.length), old)
+      return same(rom, at, full.code)
+    }
+    earlier = !holds(false) && holds(true)
+    if (earlier) probe = gtCode(env, 0, new Uint8Array(3), true)
+    base = blockAt(probe)
     if (base < 0) return null
     hotCold = rom.slice(base + probe.code.length - 3, base + probe.code.length)
   } else {
     base = farRoom(rom, sites.glue, originals.glue, probe.code.length)
     if (base < 0) return null
   }
-  const { code, entries } = gtCode(env, base, hotCold)
+  const { code, entries } = gtCode(env, base, hotCold, earlier)
   return [
     ...(Object.keys(originals) as GtSite[]).map((key) => ({
       at: sites[key],
@@ -1890,7 +1914,7 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
       hacked: jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
     })),
     { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
-    { at: base, original: unused(code.length), hacked: code },
+    { at: base, original: unused(code.length), hacked: code, ...(earlier ? { earlier } : {}) },
   ]
 }
 
