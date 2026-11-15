@@ -64,11 +64,14 @@ export function HelpPage() {
           Click <b>Open ROM…</b> and choose your ROM file. It is read by this browser tab only. Nothing is uploaded.
         </li>
         <li>
-          Pick a page from the list on the left. It is in groups: <b>Game</b> (Game settings, Hacks and Rink
-          colours), <b>Teams</b> (choose a team from its list; ◀ and ▶ beside it go to the team before and after),{' '}
-          <b>League administration</b> (the League page, Trade, Bulk changes and Import a
+          Pick a page from the list on the left. It is in groups: <b>Game</b> (Teams, Game settings, Hacks and Rink
+          colours), <b>League administration</b> (the League page, Trade, Bulk changes and Import a
           team), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
           Compare ROMs), then Help.
+        </li>
+        <li>
+          <b>Teams</b> opens a team's page. Choose the team from the list at the top of the page; ◀ and ▶ beside it go to
+          the team before and after.
         </li>
         <li>Make your changes. They take effect in the editor straight away, with no Apply button.</li>
         <li>

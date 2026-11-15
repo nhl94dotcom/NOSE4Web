@@ -85,6 +85,8 @@ interface Props {
   emptySlots: boolean[][]
   // Shown at the end of the page: the team's logos and banners.
   footer?: ReactNode
+  // At the page's top, above everything else: the list of teams to choose from.
+  header?: ReactNode
   // For the SNES game, its own players to show the colours on.
   players?: SpriteImage[]
   // The six team ratings as this ROM reads them (see ppfix.ts).
@@ -104,7 +106,7 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 
 export function TeamEditor(props: Props) {
   const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
-  const { rosterSort: chosenSort, onRosterSortChange, otherTeams, onMovePlayers, footer, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
+  const { rosterSort: chosenSort, onRosterSortChange, otherTeams, onMovePlayers, footer, header, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
@@ -544,6 +546,7 @@ export function TeamEditor(props: Props) {
 
   return (
     <main className="team">
+      {header}
       {game.credit && (
         <p className="notice">
           This ROM is <b>{game.credit.rom}</b>, made by <b>{game.credit.author}</b>. Its home is{' '}

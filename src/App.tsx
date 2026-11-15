@@ -483,6 +483,7 @@ export default function App() {
                 .then((png) => download(png, `${teamNames[selected].replace(/[^A-Za-z0-9]+/g, '_')}_roster.png`, 'image/png'))
                 .catch((e) => setError(e instanceof Error ? e.message : String(e)))
             }}
+            header={teamPicker}
             footer={
               current.graphicsSupported ? (
                 <>
@@ -513,13 +514,34 @@ export default function App() {
     }
   }
 
+  // The team shown, or on another page the last one looked at, which Teams in the bar on the left opens.
+  const shownTeam = selected >= 0 ? selected : Math.min(lastTeam, project.teams.length - 1)
+  // The team page's list of teams, at its top (a new member found a button for each team in the bar on the left too
+  // much): one to choose from, and the team before and after a click away, round from the last to the first.
+  const teamPicker = (
+    <div className="team-pick">
+      <button className="step" aria-label="Previous team" title="The team before" onClick={() => go((shownTeam + project.teams.length - 1) % project.teams.length)}>
+        ◀
+      </button>
+      <select aria-label="Team" value={shownTeam} onChange={(e) => go(Number(e.target.value))}>
+        {teamGroups(project.teams.length, groupStarts).map((group) => {
+          const options = group.teams.map((i) => (
+            <option key={i} value={i}>
+              {groupStarts.size > 0 ? teamDisplayName(project.teams[i]) : teamNames[i]}
+            </option>
+          ))
+          return group.name === null ? <Fragment key="all">{options}</Fragment> : <optgroup key={group.name + group.teams[0]} label={group.name}>{options}</optgroup>
+        })}
+      </select>
+      <button className="step" aria-label="Next team" title="The team after" onClick={() => go((shownTeam + 1) % project.teams.length)}>
+        ▶
+      </button>
+    </div>
+  )
   const go = (id: number) => {
     setSelected(id)
     setNavOpen(false)
   }
-  // The team the arrows beside the list step from: the one shown, or on another page the last one looked at. They
-  // leave a narrow window's list open, to step on through the teams.
-  const shownTeam = selected >= 0 ? selected : Math.min(lastTeam, project.teams.length - 1)
   const showSettings = hasSettings(project.game, project.settings)
   const showHacks = hacksSupported(project.game) || project.game.platform === 'snes'
   const showRink = project.rinkPalette.length > 0
@@ -610,37 +632,15 @@ export default function App() {
       <div className="body">
         {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
         <nav className={navOpen ? 'open' : ''}>
-          {/* The game as a whole first, then the teams (as league members asked), then the rest by what it is for. */}
-          {(showSettings || showHacks || showRink) && <div className="group">Game</div>}
+          {/* The game first: its teams (chosen on their page, from one list), settings, hacks and rink; then the rest by
+              what it is for. */}
+          <div className="group">Game</div>
+          <button className={selected >= 0 ? 'active' : ''} onClick={() => go(shownTeam)}>
+            Teams
+          </button>
           {showSettings && entry(SETTINGS, 'Game settings')}
           {showHacks && entry(HACKS, 'Hacks')}
           {showRink && entry(RINK, 'Rink colours')}
-          <div className="group">Teams</div>
-          {/* One list to pick from, not a button for each team (a new member found the long list too much), with the
-              team before and after a click away. On another page it asks for a team, so any choice goes to it. */}
-          <div className={selected >= 0 ? 'team-pick active' : 'team-pick'}>
-            <button className="step" aria-label="Previous team" title="The team before" onClick={() => setSelected((shownTeam + project.teams.length - 1) % project.teams.length)}>
-              ◀
-            </button>
-            <select aria-label="Team" value={selected >= 0 ? selected : ''} onChange={(e) => go(Number(e.target.value))}>
-              {selected < 0 && (
-                <option value="" disabled>
-                  Choose a team…
-                </option>
-              )}
-              {teamGroups(project.teams.length, groupStarts).map((group) => {
-                const options = group.teams.map((i) => (
-                  <option key={i} value={i}>
-                    {groupStarts.size > 0 ? teamDisplayName(project.teams[i]) : teamNames[i]}
-                  </option>
-                ))
-                return group.name === null ? <Fragment key="all">{options}</Fragment> : <optgroup key={group.name + group.teams[0]} label={group.name}>{options}</optgroup>
-              })}
-            </select>
-            <button className="step" aria-label="Next team" title="The team after" onClick={() => setSelected((shownTeam + 1) % project.teams.length)}>
-              ▶
-            </button>
-          </div>
           <div className="group">League administration</div>
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}

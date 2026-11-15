@@ -913,25 +913,21 @@ main > [data-tab-hidden] {
   }
 }
 
-/* The teams in one list in the nav, the team before and after beside it; marked while a team's page is shown. */
-nav .team-pick {
+/* The team page's list of teams at its top, the team before and after beside it. */
+.team-pick {
   display: flex;
-  gap: 0.25rem;
+  gap: 0.35rem;
   align-items: center;
-  padding: 0.25rem 0.75rem 0.25rem calc(0.75rem - 4px);
-  border-left: 4px solid transparent;
+  max-width: 30rem;
+  padding: 0.75rem 0 0.25rem;
 }
-nav .team-pick.active {
-  border-left-color: var(--accent);
-}
-nav .team-pick select {
+.team-pick select {
   flex: 1;
   min-width: 0;
-  padding: 0.3rem 0.25rem;
+  padding: 0.35rem 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 600;
 }
-nav .team-pick .step {
-  padding: 0.3rem 0.45rem;
-  border: 1px solid var(--line);
-  border-radius: 0.25rem;
-  text-align: center;
+.team-pick .step {
+  padding: 0.35rem 0.6rem;
 }
