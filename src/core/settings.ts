@@ -168,15 +168,17 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
       const ends = [...starts.filter((_, j) => !game.menuTeamItems.includes(j)), ...more]
       const stop = Math.min(end, ...ends.filter((s) => s > starts[i]))
       options = []
-      for (let o = starts[i]; o < stop && sizeAt(o) > 0; o += sizeAt(o)) options.push(readFixedText(rom, o).text)
+      // NHL 94 at the fixed step up to the next item, as always; NHL '95 by each choice's own length, while it is text.
+      if (game.edition !== 95) for (let o = starts[i]; o < stop; o += optionSize) options.push(readFixedText(rom, o).text)
+      else for (let o = starts[i]; o < stop && sizeAt(o) > 0; o += sizeAt(o)) options.push(readFixedText(rom, o).text)
     }
     const word = game.menuDefaultWords?.[i] ?? i
     let value = readU16(rom, at.defaults + word * 2)
     // NHL '95's play mode: the modes the game can start in, by the rows they are.
     if (i === 0 && options && game.menuPlayModeTablePointer !== undefined) {
       const rows = playModeRows(rom, game)
+      // The value as stored: one past the table is written back unchanged, and Check ROM says it is not a choice.
       options = rows.map((row, mode) => options![row] ?? `Play mode ${mode + 1}`)
-      value = Math.max(0, Math.min(options.length - 1, value))
     }
     items.push({ caption: readFixedText(rom, caption).text, options, value })
     caption += readU16(rom, caption)

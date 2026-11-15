@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { stepKey } from './gridKeys'
 
 interface Props {
@@ -32,12 +32,24 @@ export function NumberField({ value, min, max, onValue, format = String, parse =
     const n = parse(typed)
     return n !== null && Number.isInteger(n) && n >= min && n <= max ? n : null
   }
+  // The number last passed on. Where the page keeps another (Forwards, at most the team's skaters), the box shows the
+  // number kept, and steps from it.
+  const sent = useRef<number | null>(null)
+  useEffect(() => {
+    if (sent.current === null || value === sent.current) return
+    sent.current = null
+    latest.current = format(value)
+    setText((typed) => (typed === null ? null : format(value)))
+  }, [value, text, format])
   const shown = text ?? format(value)
   const set = (typed: string) => {
     latest.current = typed
     setText(typed)
     const n = read(typed)
-    if (n !== null && n !== value) onValue(n)
+    if (n !== null && n !== value) {
+      sent.current = n
+      onValue(n)
+    }
   }
   return (
     <input
@@ -56,6 +68,7 @@ export function NumberField({ value, min, max, onValue, format = String, parse =
       }}
       onBlur={() => {
         latest.current = null
+        sent.current = null
         setText(null)
       }}
       onChange={(e) => set(e.target.value)}

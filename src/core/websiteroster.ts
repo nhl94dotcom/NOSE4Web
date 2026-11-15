@@ -15,9 +15,10 @@ export const WEBSITE_HEADINGS = [
 const HAND = 7
 const STICK_HANDLING = 8
 
-// The games whose players keep the ratings in that order: NHL 94 (both systems), its hacks and NHL '95.
+// The games whose players keep the ratings in that order, 0 to 6: NHL 94 (both systems), most of its hacks and NHL '95.
 export function websiteRosterSupported(game: GameConfig): boolean {
-  return game.playerAttributeKinds.length === 14 && isHandedFighting(game.playerAttributeKinds[HAND])
+  // Not ROMs rated 0 to 15 or with an overall of their own (EVO): the website takes 0 to 6 and NHL 94's overall.
+  return !game.overallIsEstimate && game.playerAttributeKinds.length === 14 && isHandedFighting(game.playerAttributeKinds[HAND])
 }
 
 export function websiteRosterFileName(setName: string): string {

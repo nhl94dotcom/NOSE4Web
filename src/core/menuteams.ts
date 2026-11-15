@@ -144,6 +144,9 @@ export function playoffTeamCount(offered: number, draws: number[][]): number {
 // The last team new playoffs start with as the ROM has it: NewPO takes a team
 // past it as this one. Null where the code is not found.
 export function playoffLast(rom: Uint8Array, game: GameConfig): number | null {
+  // NHL '95: the word of its cmp.w #n (B47C) after the move from Team 1; null where the code differs.
+  const at = game.playoffLastAt
+  if (at !== undefined) return rom[at - 2] === 0xb4 && rom[at - 1] === 0x7c ? (rom[at] << 8) | rom[at + 1] : null
   const last = placesFor(rom, game).find((place) => place.kind === 'lastPlayoff')
   return last ? read(rom, game, last) : null
 }

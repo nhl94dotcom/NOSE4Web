@@ -43,6 +43,7 @@ export function useSectionTabs(pageKey: string): void {
     const sectionsOf = (main: Element) =>
       [...main.children].filter((child) => child.tagName === 'SECTION' && !child.hasAttribute('data-tab-always') && tabOf(child) !== '')
     // The tab chosen here, kept even while a team without it is shown (a team with no photos), the first otherwise.
+    // "*" is a choice for every page not chosen on (the browser tests store {"*": "All"} to see whole pages).
     const activeOf = (tabs: string[]) => {
       const wanted = chosen[pageKey] ?? chosen['*']
       return wanted === ALL_SECTIONS || (wanted !== undefined && tabs.includes(wanted)) ? wanted : tabs[0]

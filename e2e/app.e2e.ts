@@ -2896,6 +2896,20 @@ const nhl95Path = resolve(process.cwd(), '..', 'NHL95', 'NHL_95.bin')
 test.describe("with the NHL '95 ROM", () => {
   test.skip(!existsSync(nhl95Path), 'needs ../NHL95/NHL_95.bin')
 
+  test('a number the page keeps lower than typed shows as kept: Forwards past the skaters there are', async ({ page }) => {
+    // A league ROM with 10-player rosters: 2 goalies and 8 skaters.
+    const league = (local.nhl95Roms ?? []).map((name) => resolve(process.cwd(), '..', name)).find((path) => existsSync(path))
+    test.skip(!league, 'needs a league ROM named in local.json nhl95Roms')
+    await page.goto('/')
+    await romPicker(page).setInputFiles(league!)
+    const forwards = page.getByLabel('Forwards')
+    await forwards.click()
+    await page.keyboard.type('15')
+    await expect(forwards).toHaveValue('8')
+    await page.keyboard.press('-')
+    await expect(forwards).toHaveValue('7')
+  })
+
   test('opens it, edits a player, and shows its game settings, without the NHL 94 additions', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))

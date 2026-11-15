@@ -8,11 +8,6 @@ import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
 import { playoffLastWritten, teamsMissingFromDraws } from './menuteams'
-
-// NHL '95's last playoff team: the word of its cmp.w #n (B47C) after the move from Team 1; null where the code differs.
-function nhl95PlayoffLast(rom: Uint8Array, at: number): number | null {
-  return rom[at - 2] === 0xb4 && rom[at - 1] === 0x7c ? (rom[at] << 8) | rom[at + 1] : null
-}
 import { photoLayout, setupCardCount } from './photos'
 import { snesPlaceNameRoom } from './snesplacenames'
 import { snesLogosThatSpill } from './snespictures'
@@ -340,10 +335,7 @@ export function checkProject(project: RomProject): Finding[] {
   // is NHL 94's, as Match Viewer found; NHL '95's last team is read where its code keeps it).
   {
     const offered = settings.menuTeams?.offered ?? teams.length
-    const last =
-      game.playoffLastAt !== undefined
-        ? nhl95PlayoffLast(project.bytes, game.playoffLastAt)
-        : playoffLastWritten(project.bytes, project.game, settings.menuTeams, settings.playoffDraws)
+    const last = playoffLastWritten(project.bytes, project.game, settings.menuTeams, settings.playoffDraws)
     const missing = teamsMissingFromDraws(offered, settings.playoffDraws, last)
     if (missing.length > 0) {
       const one = missing.length === 1

@@ -56,13 +56,6 @@ export function expandTeamSpace(project: RomProject): RomProject {
   const { game, layout } = project
   const { gain } = expansion
 
-  // The moved data goes beyond everything already in the ROM, including any
-  // code a hack program has added there.
-  const claimed = claimSpace(project.bytes, gain)
-  if (!claimed) return project
-  const { rom: bytes, at: destination } = claimed
-  const playoffSize = game.playoffDrawCount * PLAYOFF_DRAW_SIZE
-
   if (expansion.step === 'moveTeams') {
     const size = layout.end - layout.start
     const moved = claimSpace(project.bytes, size + gain, true)
@@ -70,6 +63,13 @@ export function expandTeamSpace(project: RomProject): RomProject {
     moved.rom.copyWithin(moved.at, layout.start, layout.end)
     return { ...project, bytes: moved.rom, layout: { ...layout, start: moved.at, end: moved.at + size + gain } }
   }
+
+  // The moved data goes beyond everything already in the ROM, including any
+  // code a hack program has added there.
+  const claimed = claimSpace(project.bytes, gain)
+  if (!claimed) return project
+  const { rom: bytes, at: destination } = claimed
+  const playoffSize = game.playoffDrawCount * PLAYOFF_DRAW_SIZE
   if (expansion.step === 'introText') {
     const copyright = readU32(bytes, game.copyrightTextPointerOffset)
     const intro = readU32(bytes, game.introTextPointerOffset)

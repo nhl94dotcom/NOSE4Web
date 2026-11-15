@@ -2610,7 +2610,8 @@ const toiEarlier = (rom: Uint8Array) =>
 const timeOnIce: Part<boolean> = {
   detect(rom) {
     const pages = gpPages(rom)
-    if (pages) return pages.toi
+    // The giveaway pages without the counting code the editor knows: left alone, as giveaways are.
+    if (pages) return gtBase(rom) !== null ? pages.toi : undefined
     if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return false
     if (TOI_KEYS.every((key) => toiCode(rom, key) !== null)) return true
     return toiEarlier(rom) ? true : undefined

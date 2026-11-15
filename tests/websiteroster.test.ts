@@ -41,6 +41,8 @@ describe("the league website's players file", () => {
   it.skipIf(!existsSync(path('nhl94.bin')))('lists every player of every team, the hand as 0 or 1, the overall at most 99', () => {
     const project = open('nhl94.bin')
     expect(websiteRosterSupported(project.game)).toBe(true)
+    // Not for a ROM rated 0 to 15, or with an overall of its own: the website takes 0 to 6.
+    expect(websiteRosterSupported({ ...project.game, overallIsEstimate: true })).toBe(false)
     const rows = websiteRosterRows(project)
     expect(rows).toHaveLength(1 + project.teams.reduce((sum, team) => sum + team.players.length, 0))
     expect(rows[1].slice(0, 5)).toEqual(['Guy', 'Hebert', 'ANH', 'G', 29])
