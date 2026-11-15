@@ -1805,7 +1805,9 @@ export function HelpPage() {
         </li>
         <li>
           <b>Looks and screens</b>: <b>puck colours</b> and <b>net colours</b> (drawn in the crowd's or a team's
-          colours), <b>the fan in green</b> (his missing arm and leg put back), and the <b>intro screen wait</b>.
+          colours), <b>the fan in green</b> (his missing arm and leg put back), <b>Ron Barr's pick every game</b> (he
+          names the team that came out hotter before every game, not only when the gap is wide), and the <b>intro
+          screen wait</b>.
         </li>
       </ul>
       <p>
@@ -2155,7 +2157,7 @@ export function HelpPage() {
             <li>
               As on the Genesis: the power play and penalty kill, comeback bonus, faceoff spot, second-assist and
               regained-puck assist fixes, the computer forwards' awareness option, counting stick deflections as
-              shots, and the extra period length with its own 99-minute overtime.
+              shots, the extra period length with its own 99-minute overtime, and Ron Barr's pick every game.
             </li>
             <li>
               The SNES's own: penalty shot fixes (a penalty shot whistled dead because the net was knocked off, or

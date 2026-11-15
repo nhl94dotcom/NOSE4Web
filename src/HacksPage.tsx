@@ -1162,15 +1162,18 @@ export function HacksPage({ project, name, onChange }: Props) {
           'barrPick',
           onOff('barrPick'),
           <>
-            An option, from a league member's idea. Before each game every starter is rolled a little hot or cold, which
+            An option, from a league member's idea. Before each game every player is rolled a little hot or cold, which
             changes how he plays that night, and on the matchup screen Ron Barr says "Lately ... has been playing
-            well" of the team whose starters came out hotter, but only when the gap is wide, so most games have no such
-            line. With this on he names a team every game: the one that came out hotter, so his pick changes from game
-            to game and the team he picks has the better form that night. With a wide gap he still says "extremely".
-            On an exact tie he picks the visitors. What he says is the hotter-team line of Ron Barr's text on the Game
-            settings page, so a league can make it a pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot
-            and cold range at 0 every team's total is the same, so he always picks the visitors; at 2 or less hot and
-            cold does not change play, so his pick is only luck. From the game's code; not yet tested in the game.
+            well" of the team whose six starters came out hotter in all, but only when the gap is wide, so not every
+            game has the line. With this on he names a team every game: the one whose starters came out hotter, so his
+            pick changes from game to game and the team he picks has the starters in better form that night. With a
+            wide gap he still says "extremely". On an exact tie he picks the visitors. What he says is the hotter-team
+            line of Ron Barr's text on the Game settings page, which names the team's city, so a league can make it a
+            pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot and cold range at 0 every total is
+            the same, so he always picks the visitors; at 2 or less hot and cold does not change play, so his pick is
+            only luck. On a league ROM whose Ron Barr text has a line taken out by hand (the Check page says so), put
+            the line back first, or a line in the wrong place shows every game. EVO has a matchup screen of its own,
+            which this has not been tried on. From the game's code; not yet tested in the game.
           </>,
         )}
         {hack(

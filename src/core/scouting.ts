@@ -139,7 +139,7 @@ const GENESIS_ROLES: Record<number, string> = {
   33: 'Last: how to start',
   // ScoutingReport's CompareHotColdTotals: one of these only when the teams' totals of this game's hot and cold
   // values (new random tables each game) differ by $5E or more ($BD for 35), so they come and go.
-  34: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game',
+  34: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game (every game with Ron Barr’s pick on the Hacks page)',
   35: 'Instead of the line above when one team comes out much hotter this game',
 }
 const GENESIS_BLANK = 29
@@ -149,7 +149,7 @@ const SNES_ROLES: Record<number, string> = {
   29: 'First: the greeting',
   // ScoutingReport queues it only when hotterteam is set: the two teams' sums of this game's hot and cold values
   // differ by 4 or more (8 or more is "extremely"). Those values are rolled afresh each game, so it comes and goes.
-  30: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game',
+  30: 'Only when one team comes out hotter this game, by its hot and cold rolls, so not every game (every game with Ron Barr’s pick on the Hacks page)',
   31: 'The home team’s hot and cold players',
   32: 'The visitors’ hot and cold players (not when a team plays itself)',
   33: 'Last: how to start',
