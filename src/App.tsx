@@ -79,6 +79,16 @@ const PROJECT = -12
 const CHANGES = -13
 const HACKS = -14
 
+// The teams in the list, in the groups of a ROM with several leagues (name null where it has none).
+function teamGroups(count: number, starts: Map<number, string>): { name: string | null; teams: number[] }[] {
+  const groups: { name: string | null; teams: number[] }[] = []
+  for (let i = 0; i < count; i++) {
+    if (i === 0 || starts.has(i)) groups.push({ name: starts.get(i) ?? null, teams: [] })
+    groups[groups.length - 1].teams.push(i)
+  }
+  return groups
+}
+
 // How long after the last edit the work in progress is stored.
 const SESSION_SAVE_DELAY_MS = 800
 
@@ -507,6 +517,9 @@ export default function App() {
     setSelected(id)
     setNavOpen(false)
   }
+  // The team the arrows beside the list step from: the one shown, or on another page the last one looked at. They
+  // leave a narrow window's list open, to step on through the teams.
+  const shownTeam = selected >= 0 ? selected : Math.min(lastTeam, project.teams.length - 1)
   const showSettings = hasSettings(project.game, project.settings)
   const showHacks = hacksSupported(project.game) || project.game.platform === 'snes'
   const showRink = project.rinkPalette.length > 0
@@ -603,14 +616,31 @@ export default function App() {
           {showHacks && entry(HACKS, 'Hacks')}
           {showRink && entry(RINK, 'Rink colours')}
           <div className="group">Teams</div>
-          {project.teams.map((team, i) => (
-            <Fragment key={i}>
-              {groupStarts.has(i) && <div className="group">{groupStarts.get(i)}</div>}
-              <button className={i === selected ? 'active' : ''} data-team={i} onClick={() => go(i)}>
-                {groupStarts.size > 0 ? teamDisplayName(team) : teamNames[i]}
-              </button>
-            </Fragment>
-          ))}
+          {/* One list to pick from, not a button for each team (a new member found the long list too much), with the
+              team before and after a click away. On another page it asks for a team, so any choice goes to it. */}
+          <div className={selected >= 0 ? 'team-pick active' : 'team-pick'}>
+            <button className="step" aria-label="Previous team" title="The team before" onClick={() => setSelected((shownTeam + project.teams.length - 1) % project.teams.length)}>
+              ◀
+            </button>
+            <select aria-label="Team" value={selected >= 0 ? selected : ''} onChange={(e) => go(Number(e.target.value))}>
+              {selected < 0 && (
+                <option value="" disabled>
+                  Choose a team…
+                </option>
+              )}
+              {teamGroups(project.teams.length, groupStarts).map((group) => {
+                const options = group.teams.map((i) => (
+                  <option key={i} value={i}>
+                    {groupStarts.size > 0 ? teamDisplayName(project.teams[i]) : teamNames[i]}
+                  </option>
+                ))
+                return group.name === null ? <Fragment key="all">{options}</Fragment> : <optgroup key={group.name + group.teams[0]} label={group.name}>{options}</optgroup>
+              })}
+            </select>
+            <button className="step" aria-label="Next team" title="The team after" onClick={() => setSelected((shownTeam + 1) % project.teams.length)}>
+              ▶
+            </button>
+          </div>
           <div className="group">League administration</div>
           {entry(LEAGUE, 'League')}
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}

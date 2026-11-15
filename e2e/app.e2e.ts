@@ -18,7 +18,11 @@ const romPath = resolve(process.cwd(), '..', 'nhl94.bin')
 const hasRom = existsSync(romPath)
 
 const romPicker = (page: Page) => page.locator('input[type=file][accept*=".bin"]').first()
-const team = (page: Page, name: string) => page.locator('nav').getByRole('button', { name, exact: true })
+// The teams are one list in the nav; a team is chosen from it.
+const teamList = (page: Page) => page.locator('nav').getByRole('combobox', { name: 'Team' })
+const team = (page: Page, name: string) => ({ click: async () => void (await teamList(page).selectOption({ label: name })) })
+// The other pages' entries in the nav.
+const pageEntries = (page: Page) => page.locator('nav > button')
 const entry = (page: Page, name: string | RegExp) => page.locator('nav').getByRole('button', { name })
 const rows = (page: Page, table: 'Goalies' | 'Skaters') =>
   page.locator('section').filter({ has: page.getByRole('heading', { name: table, exact: true }) }).locator('tbody tr')
@@ -28,7 +32,8 @@ const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
 async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
-  await expect(page.locator('nav button')).toHaveCount(28 + 14)
+  await expect(teamList(page).locator('option')).toHaveCount(28)
+  await expect(pageEntries(page)).toHaveCount(14)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -138,6 +143,19 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('p.notice')).toHaveCount(0) // only for hacks with fewer skaters
     await team(page, 'Montreal Canadiens').click()
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Patrick Roy')
+    // The teams are one list; the arrows beside it go to the team before and after, round from the last to the first.
+    await page.getByRole('button', { name: 'Next team' }).click()
+    await expect(teamList(page).locator('option:checked')).toHaveText('New Jersey Devils')
+    await page.getByRole('button', { name: 'Previous team' }).click()
+    await expect(teamList(page).locator('option:checked')).toHaveText('Montreal Canadiens')
+    await team(page, 'Anaheim Mighty Ducks').click()
+    await page.getByRole('button', { name: 'Previous team' }).click()
+    await expect(teamList(page)).toHaveValue('27')
+    // On another page the list asks for a team, and the arrows step from the last one shown.
+    await entry(page, 'League').click()
+    await expect(teamList(page).locator('option:checked')).toHaveText('Choose a team…')
+    await page.getByRole('button', { name: 'Next team' }).click()
+    await expect(teamList(page)).toHaveValue('0')
     await page.screenshot({ path: 'test-results/shots/team.png', fullPage: true })
   })
 
@@ -841,8 +859,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(sort).toBeDisabled()
     await section.getByLabel('Move Boston Bruins to number').selectOption({ label: 'To 5' })
     await expect(section.getByText('Boston Bruins is now team 5. Undo takes it back.')).toBeVisible()
-    const nav = page.locator('nav button')
-    await expect(nav.filter({ hasText: 'Boston Bruins' })).toHaveCount(1)
+    await expect(teamList(page).locator('option').filter({ hasText: 'Boston Bruins' })).toHaveCount(1)
     expect(await section.locator('tbody tr').nth(4).locator('td').nth(1).textContent()).toBe('Boston Bruins')
     await section.getByRole('button', { name: 'Move Boston Bruins up' }).click()
     expect(await section.locator('tbody tr').nth(3).locator('td').nth(1).textContent()).toBe('Boston Bruins')
@@ -856,9 +873,9 @@ test.describe('with the NHL 94 ROM', () => {
     // Undoing and redoing the move, the page stays on its team.
     await team(page, 'Boston Bruins').click()
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
-    await expect(page.locator('nav button.active')).toHaveText('Boston Bruins')
+    await expect(teamList(page).locator('option:checked')).toHaveText('Boston Bruins')
     await page.getByRole('button', { name: 'Redo', exact: true }).click()
-    await expect(page.locator('nav button.active')).toHaveText('Boston Bruins')
+    await expect(teamList(page).locator('option:checked')).toHaveText('Boston Bruins')
     await entry(page, 'Game settings').click()
     // Sorting puts it back, and so does putting back the ROM's order.
     await sort.click()
@@ -1334,7 +1351,8 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
-    await expect(page.locator('nav button')).toHaveCount(28 + 14)
+    await expect(teamList(page).locator('option')).toHaveCount(28)
+  await expect(pageEntries(page)).toHaveCount(14)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2121,7 +2139,8 @@ test.describe('with the NHL 94 ROM', () => {
     // The downloaded ROM opens as a hacked ROM, with the hacks shown as there.
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
-    await expect(page.locator('nav button')).toHaveCount(28 + 14)
+    await expect(teamList(page).locator('option')).toHaveCount(28)
+  await expect(pageEntries(page)).toHaveCount(14)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -2185,7 +2204,8 @@ test.describe('with the hacked ROMs on this computer', () => {
       // Every team is listed, and nothing about the ROM as it stands is a
       // problem, but for a player twice on a line, as some league ROMs have, and
       // the 2-on-2 ROMs' playoff draws, which leave out their first two teams.
-      expect(await page.locator('nav button').count()).toBeGreaterThanOrEqual(rom.teams.length + 6)
+      await expect(teamList(page).locator('option')).toHaveCount(rom.teams.length)
+      expect(await pageEntries(page).count()).toBeGreaterThanOrEqual(6)
       const problems = checkProject(rom).filter((finding) => finding.level === 'problem')
       // NHL '95 as it came has a team twice in its third draw; a league's placeholder teams ('-') have lines with no players.
       const asMade = /2on2/.test(path) || rom.game.edition === 95 ? ['Playoff draws'] : []
@@ -2197,25 +2217,23 @@ test.describe('with the hacked ROMs on this computer', () => {
       await page.screenshot({ path: `${shot}.png` })
 
       // The last team, and each page in the list that is not a team's.
-      const teams = page.locator('nav button[data-team]')
-      await expect(teams).toHaveCount(rom.teams.length)
-      await teams.last().click()
+      await teamList(page).selectOption({ value: String(rom.teams.length - 1) })
       await expect(rows(page, 'Skaters').first()).toBeVisible()
-      const pages = page.locator('nav button:not([data-team])')
+      const pages = pageEntries(page)
       for (let i = 0; i < (await pages.count()); i++) {
         await pages.nth(i).click()
         await expect(page.locator('main h2').first()).toBeVisible()
         if ((await pages.nth(i).textContent()) === 'League') await page.screenshot({ path: `${shot}_league.png` })
       }
       if (!snes && rom.graphicsSupported) {
-        await teams.first().click()
+        await teamList(page).selectOption({ value: '0' })
         await page.locator('h2', { hasText: 'Logos and banners' }).scrollIntoViewIfNeeded()
         await page.screenshot({ path: `${shot}_pictures.png` })
       }
 
       // An edit, and the ROM still downloads and opens with it. An SNES ROM, or
       // one with no room to spare (NHL '95 as it came), keeps the name's length.
-      await teams.first().click()
+      await teamList(page).selectOption({ value: '0' })
       const length = (await nameOf(rows(page, 'Skaters').first()).inputValue()).length
       const sameLength = snes || rom.teams.every((team) => team.freeBytes === 0)
       const name = sameLength ? 'Test Player'.padEnd(length, 'x').slice(0, length) : 'Test Player'
@@ -2259,10 +2277,10 @@ test.describe('at different window widths', () => {
       await fits('A team')
       await page.screenshot({ path: `test-results/shots/width-${size.name}-team.png` })
 
-      const count = await page.locator('nav button').count()
-      for (let i = 28; i < count; i++) {
+      const count = await pageEntries(page).count()
+      for (let i = 0; i < count; i++) {
         await openList()
-        const button = page.locator('nav button').nth(i)
+        const button = pageEntries(page).nth(i)
         const name = (await button.textContent()) ?? ''
         await button.click()
         await expect(page.locator('main h2').first()).toBeVisible()
@@ -2288,7 +2306,7 @@ test.describe('at different window widths', () => {
     await expect(page.locator('nav')).toBeHidden()
     await toggle.click()
     await expect(page.locator('nav')).toBeVisible()
-    await page.locator('nav').getByRole('button', { name: 'Boston Bruins', exact: true }).click()
+    await team(page, 'Boston Bruins').click()
     await expect(page.locator('nav')).toBeHidden()
     await expect(toggle).toContainText('Boston Bruins')
     // Tapping outside the list shuts it.
@@ -2544,7 +2562,8 @@ test.describe('with the SNES game', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
-    await expect(page.locator('nav button')).toHaveCount(28 + 14)
+    await expect(teamList(page).locator('option')).toHaveCount(28)
+  await expect(pageEntries(page)).toHaveCount(14)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 

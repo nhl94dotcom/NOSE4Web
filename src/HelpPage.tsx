@@ -65,7 +65,8 @@ export function HelpPage() {
         </li>
         <li>
           Pick a page from the list on the left. It is in groups: <b>Game</b> (Game settings, Hacks and Rink
-          colours), <b>Teams</b>, <b>League administration</b> (the League page, Trade, Bulk changes and Import a
+          colours), <b>Teams</b> (choose a team from its list; ◀ and ▶ beside it go to the team before and after),{' '}
+          <b>League administration</b> (the League page, Trade, Bulk changes and Import a
           team), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
           Compare ROMs), then Help.
         </li>
