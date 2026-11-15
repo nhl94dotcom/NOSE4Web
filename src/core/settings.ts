@@ -1,5 +1,5 @@
 import { readAscii, readU16, readU32, writeAscii, writeU16 } from './bytes'
-import { parseCredits, writeCredits, type Credits } from './credits'
+import { parseCredits, repairCreditsPointer, writeCredits, type Credits } from './credits'
 import { isGenesis94, type GameConfig } from './games'
 import { parseMenuTeams, writeMenuTeams, type MenuTeams } from './menuteams'
 import { parseScouting, type Scouting, writeScoutingIfChanged } from './scouting'
@@ -249,6 +249,8 @@ export function writeSettings(rom: Uint8Array, game: GameConfig, settings: Setti
   // Only when changed, so that credits as the ROM has them keep their bytes.
   const credits = settings.credits
   if (credits && JSON.stringify(parseCredits(rom)?.pages) !== JSON.stringify(credits.pages)) writeCredits(rom, credits)
+  // A first page an earlier NOSE4Web gave a new length, with the second pointer left behind: put right.
+  if (credits) repairCreditsPointer(rom)
   writeScoutingIfChanged(rom, settings.scouting)
 }
 

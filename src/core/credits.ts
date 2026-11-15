@@ -110,7 +110,24 @@ export function writeCredits(rom: Uint8Array, credits: Credits): boolean {
   if (!pointerFound && pagesAt !== found.at + creditsBytes(found.pages.slice(0, 1)).length - PAGE_END.length) return false
   rom.fill(0, found.at, found.at + found.room)
   rom.set(creditsBytes(credits.pages), found.at)
-  if (pointerFound) for (let i = 0; i < 4; i++) rom[PAGES_POINTER_CODE_AT + 2 + i] = (pagesAt >>> (24 - i * 8)) & 0xff
+  if (pointerFound) setPagesPointer(rom, pagesAt)
+  return true
+}
+
+const setPagesPointer = (rom: Uint8Array, at: number) => {
+  for (let i = 0; i < 4; i++) rom[PAGES_POINTER_CODE_AT + 2 + i] = (at >>> (24 - i * 8)) & 0xff
+}
+
+// Points the second pointer just past the first page where it points anywhere
+// else: a ROM whose first page an earlier NOSE4Web changed the length of. True
+// if it was moved.
+export function repairCreditsPointer(rom: Uint8Array): boolean {
+  const found = locateCredits(rom)
+  if (!found || rom[PAGES_POINTER_CODE_AT] !== POINTER_CODE[0] || rom[PAGES_POINTER_CODE_AT + 1] !== POINTER_CODE[1]) return false
+  const pagesAt = found.at + creditsBytes(found.pages.slice(0, 1)).length - PAGE_END.length
+  const now = ((rom[PAGES_POINTER_CODE_AT + 2] << 24) | (rom[PAGES_POINTER_CODE_AT + 3] << 16) | (rom[PAGES_POINTER_CODE_AT + 4] << 8) | rom[PAGES_POINTER_CODE_AT + 5]) >>> 0
+  if (now === pagesAt) return false
+  setPagesPointer(rom, pagesAt)
   return true
 }
 

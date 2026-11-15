@@ -103,3 +103,16 @@ describe.skipIf(!hasRom)('the second credits pointer', () => {
     expect(pagesPointer(moved.bytes)).toBe(at + creditsBytes([pages[0]]).length - 4)
   })
 })
+
+describe.skipIf(!hasRom)('a ROM an earlier NOSE4Web left with the second credits pointer behind', () => {
+  it('is put right when it is built again, its credits kept', () => {
+    const project = open()
+    const credits = project.settings.credits!
+    const pages = [['NHL 94 League'], ...credits.pages.slice(1)]
+    const broken = buildRom({ ...project, settings: { ...project.settings, credits: { ...credits, pages } } })
+    broken.set([0, 0, 0x57, 0xb8], 0xff292)
+    const rebuilt = buildRom(openRom(broken))
+    expect(Array.from(rebuilt.subarray(0xff292, 0xff296))).toEqual([0, 0, 0x57, 0x76 + creditsBytes([pages[0]]).length - 4])
+    expect(openRom(rebuilt).settings.credits!.pages).toEqual(pages)
+  })
+})
