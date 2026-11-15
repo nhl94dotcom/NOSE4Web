@@ -102,6 +102,8 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(section('Team')).toBeVisible()
     await expect(section('Skaters')).toBeHidden()
     await expect(page.getByText('Show attributes as stored values')).toBeHidden()
+    // A tab shows its sections whole: their headings do not fold.
+    await expect(section('Team').locator('h2')).not.toHaveAttribute('aria-expanded')
     await tab('Roster').click()
     await expect(section('Team')).toBeHidden()
     for (const name of ['Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
@@ -125,6 +127,8 @@ test.describe('with the NHL 94 ROM', () => {
     // Every section, one under another.
     await tab('All').click()
     for (const name of ['Team', 'Skaters', 'Lines', 'Home colours']) await expect(section(name)).toBeVisible()
+    // There, as one long page, each folds.
+    await expect(section('Lines').locator('h2')).toHaveAttribute('aria-expanded', 'true')
     // Each other page has its own, the first to start; the Hacks page's Apply under every tab.
     await entry(page, 'Game settings').click()
     await expect(tab('Main menu')).toHaveAttribute('aria-selected', 'true')

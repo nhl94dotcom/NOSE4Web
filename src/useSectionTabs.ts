@@ -67,6 +67,7 @@ export function useSectionTabs(pageKey: string): void {
       const tabs = [...new Set(sections.map(tabOf))]
       if (tabs.length < MIN_TABS) {
         removeBar()
+        main?.removeAttribute('data-tabbed')
         for (const child of main?.children ?? []) child.removeAttribute('data-tab-hidden')
         return
       }
@@ -89,6 +90,8 @@ export function useSectionTabs(pageKey: string): void {
         main!.insertBefore(bar, sections[0])
       }
       const active = activeOf(tabs)
+      // One tab shown: its sections do not fold (useCollapsibleSections), as All's and a page's without tabs do.
+      if (main!.hasAttribute('data-tabbed') !== (active !== ALL_SECTIONS)) main!.toggleAttribute('data-tabbed', active !== ALL_SECTIONS)
       for (const button of bar.children) {
         const on = button.textContent === active
         if (button.getAttribute('aria-selected') !== String(on)) button.setAttribute('aria-selected', String(on))

@@ -103,7 +103,7 @@ export function HelpPage() {
         Lines. On the Hacks pages, <b>Apply</b> is under every tab.
       </p>
       <p>
-        Every section on a page folds: click its heading (or Tab to it and press Enter) to hide the rest of it, and
+        Where a page shows all its sections (under <b>All</b>, or on a page without tabs), each section folds: click its heading (or Tab to it and press Enter) to hide the rest of it, and
         again to show it. Folded sections stay folded, on every team and the next time you come back, in this
         browser. On the Hacks pages each option has a one-line summary under it; <b>More about it</b> opens the full
         description, with how it works and how it was tested.

@@ -24,6 +24,14 @@ export function useCollapsibleSections(): void {
     const keyOf = (heading: Element) => `${heading.tagName}:${(heading.textContent ?? '').trim()}`
     const apply = () => {
       for (const heading of document.querySelectorAll(HEADING)) {
+        // A page showing one tab (useSectionTabs) shows its sections whole: nothing to fold, what was folded kept for All.
+        if (heading.closest('main[data-tabbed]')) {
+          if (heading.hasAttribute('data-fold')) {
+            for (const name of ['data-fold', 'tabindex', 'title', 'aria-expanded']) heading.removeAttribute(name)
+            heading.parentElement!.removeAttribute('data-folded')
+          }
+          continue
+        }
         const isFolded = folded.has(keyOf(heading))
         // Still a heading (screen readers and the page's own outline), with a tab stop and its state.
         if (!heading.hasAttribute('data-fold')) {
@@ -58,7 +66,7 @@ export function useCollapsibleSections(): void {
       }
     }
     const observer = new MutationObserver(apply)
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-tabbed'] })
     apply()
     document.addEventListener('click', onClick)
     document.addEventListener('keydown', onKey)
