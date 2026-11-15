@@ -66,7 +66,7 @@ export function useSectionTabs(pageKey: string): void {
       const tabs = [...new Set(sections.map(tabOf))]
       if (tabs.length < MIN_TABS) {
         removeBar()
-        for (const section of sections) section.removeAttribute('data-tab-hidden')
+        for (const child of main?.children ?? []) child.removeAttribute('data-tab-hidden')
         return
       }
       if (!bar || bar.parentElement !== main || shownTabs.join('\n') !== tabs.join('\n')) {
@@ -93,9 +93,14 @@ export function useSectionTabs(pageKey: string): void {
         if (button.getAttribute('aria-selected') !== String(on)) button.setAttribute('aria-selected', String(on))
         button.classList.toggle('active', on)
       }
-      for (const section of sections) {
-        const hidden = active !== ALL_SECTIONS && tabOf(section) !== active
-        if (section.hasAttribute('data-tab-hidden') !== hidden) section.toggleAttribute('data-tab-hidden', hidden)
+      // What lies between sections (the team page's roster tools and Add player, between Team and Lines) goes with the
+      // section before it; what comes before the first, or after one shown under every tab, is always shown.
+      let tab: string | null = null
+      for (const child of main!.children) {
+        if (child === bar) continue
+        if (child.tagName === 'SECTION') tab = sections.includes(child) ? tabOf(child) : child.hasAttribute('data-tab-always') ? null : tab
+        const hidden = tab !== null && active !== ALL_SECTIONS && tab !== active
+        if (child.hasAttribute('data-tab-hidden') !== hidden) child.toggleAttribute('data-tab-hidden', hidden)
       }
     }
     // A link to a place in the page (the Help's contents, a note's "see below") opens the tab it is on.

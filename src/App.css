@@ -902,7 +902,7 @@ main section[data-folded] > :not(:first-child) {
   border-color: var(--accent);
   color: #fff;
 }
-main section[data-tab-hidden] {
+main > [data-tab-hidden] {
   display: none;
 }
 @media (max-width: 820px) {

@@ -90,10 +90,17 @@ test.describe('with the NHL 94 ROM', () => {
     // A team opens on its roster: the team, its goalies and skaters.
     await expect(tab('Roster')).toHaveAttribute('aria-selected', 'true')
     for (const name of ['Team', 'Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
+    await expect(page.getByText('Show attributes as stored values')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add player' })).toBeVisible()
     await expect(section('Lines')).toBeHidden()
     await tab('Lines').click()
     await expect(section('Lines')).toBeVisible()
     await expect(section('Skaters')).toBeHidden()
+    // The roster's tools, between its sections and Lines, go with the roster.
+    await expect(page.getByText('Show attributes as stored values')).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Add player' })).toBeHidden()
+    // Only the lines' Copy ticked is left (a hidden button is not one on the page).
+    await expect(page.getByRole('button', { name: 'Copy ticked' })).toHaveCount(1)
     // The teams share their tab.
     await team(page, 'Boston Bruins').click()
     await expect(tab('Lines')).toHaveAttribute('aria-selected', 'true')
