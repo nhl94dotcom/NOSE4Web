@@ -1172,8 +1172,12 @@ export function HacksPage({ project, name, onChange }: Props) {
             pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot and cold range at 0 every total is
             the same, so he always picks the visitors; at 2 or less hot and cold does not change play, so his pick is
             only luck. On a league ROM whose Ron Barr text has a line taken out by hand (the Check page says so), put
-            the line back first, or a line in the wrong place shows every game. EVO has a matchup screen of its own,
-            which this has not been tried on. From the game's code; not yet tested in the game.
+            the line back first, or a line in the wrong place shows every game. The Genesis types both New York teams
+            as "New York", so when they meet the line does not say which. EVO has a matchup screen of its own, which
+            this has not been tried on. From the game's code; tested in the game by the NHL94 Match Viewer project
+            (15 November 2026): the line in all 8 games played, always naming the team with the higher total, the
+            visitors on a tie, "extremely" from the same gap as before, and about 2 seconds more of typing, the box
+            still scrolling cleanly.
           </>,
         )}
         {hack(
