@@ -194,6 +194,8 @@ export interface HackChoices {
   netColours: PuckColours
   // The fan in green in the stands, with his arm and leg back.
   greenFan: boolean
+  // Ron Barr names the hotter team every game, not only when the gap is wide.
+  barrPick: boolean
   // NOSE4Web's head bleeding for players hurt for the game (genesisblood.ts).
   headBleeding: boolean
 }
@@ -274,6 +276,7 @@ export type HackPart =
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
+  | 'barrPick'
   | 'headBleeding'
 
 export interface HackState {
@@ -353,6 +356,7 @@ export const NO_HACKS: HackChoices = {
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
+  barrPick: false,
   headBleeding: false,
 }
 
@@ -2833,6 +2837,15 @@ const GREEN_FAN = [
   { at: 0xbdeae, original: bytes('0063'), hacked: bytes('206A') },
   { at: 0xbdeee, original: bytes('006E'), hacked: bytes('2074') },
 ]
+// Ron Barr's pick (bug-free, a matter of taste). The matchup screen's
+// CompareHotColdTotals sums each team's starters' hot and cold values, rolled
+// afresh each game, and queues "Lately $ has been playing well" only when the
+// two totals differ by $5E or more ($BD for "extremely"): cmp.w #$5E,d2 /
+// blt .x. With 0 the line comes every game, naming the hotter team (the
+// visitors on an exact tie, as awayhotter is set when the difference is not
+// negative).
+const barrPick = switchPart(0xf7360, bytes('B47C 005E'), bytes('B47C 0000'))
+
 const greenFan: Part<boolean> = {
   detect: (rom) => (GREEN_FAN.every((s) => is(rom, s.at, s.original)) ? false : GREEN_FAN.every((s) => is(rom, s.at, s.hacked)) ? true : undefined),
   remove: (rom) => GREEN_FAN.forEach((s) => rom.set(s.original, s.at)),
@@ -3101,6 +3114,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
+    barrPick: found('barrPick', barrPick.detect(rom), NO_HACKS.barrPick),
     // With the long fall the injury animation is not the original's, so the blood cannot go in: off, not unknown.
     headBleeding: found('headBleeding', bloodChoice(rom) ?? (injuries.detect(rom) === 'longFall' ? false : undefined), NO_HACKS.headBleeding),
   }
@@ -3212,6 +3226,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
+    ['barrPick', () => barrPick.remove(work.rom), () => barrPick.apply(work, wanted.barrPick)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
   ]
@@ -3470,6 +3485,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
+  barrPick: "Ron Barr's pick every game",
   headBleeding: 'Head bleeding',
 }
 
@@ -3544,6 +3560,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',
+  barrPick: 'barrPick',
   headBleeding: 'headBleeding',
 }
 

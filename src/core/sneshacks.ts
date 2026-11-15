@@ -25,6 +25,7 @@ export type SnesHack =
   | 'noPenaltyShots'
   | 'noGoalPosts'
   | 'skipEaIntro'
+  | 'barrPick'
   | 'skipPucksIntro'
   | 'faceoffFix'
   | 'penaltyShotFixes'
@@ -156,6 +157,11 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   // A puck that reaches the net between the posts is always a goal.
   noGoalPosts: [{ at: 0x9e9230, original: 'ADF90D', hacked: '4C0F92' }],
   skipEaIntro: [{ at: 0x9f8289, original: '2236F49F', hacked: 'EAEAEAEA' }],
+  // Ron Barr's pick: ScoutingReport sets hotterteam to the team whose players'
+  // hot and cold sum is higher (the home team on a tie), then clears it unless
+  // the two differ by 4 or more (cmp #$0004 / bcs), so his "hotter team" line
+  // comes only in some games. With 0 it comes every game.
+  barrPick: [{ at: 0x9d8324, original: 'C90400', hacked: 'C90000' }],
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
   // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: in Edit Lines,
   // picking a line's extra attacker for one of its positions puts him in both
@@ -282,6 +288,7 @@ export const SNES_HACKS: SnesHack[] = [
   'noPenaltyShots',
   'noGoalPosts',
   'skipEaIntro',
+  'barrPick',
   'skipPucksIntro',
   'faceoffFix',
   'penaltyShotFixes',
@@ -339,6 +346,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   noPenaltyShots: 'No penalty shots',
   noGoalPosts: 'No goal posts',
   skipEaIntro: 'Skip the EA intro',
+  barrPick: "Ron Barr's pick every game",
   skipPucksIntro: 'Skip the flying pucks intro',
   faceoffFix: 'Faceoff spot fix',
   penaltyShotFixes: 'Penalty shot fixes',
@@ -3259,6 +3267,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   },
   // The intros are skipped by taking out the call that plays them; to put it
   // back, the call is taken from the ROM as it was opened where it is not here.
+  barrPick: (rom) => {
+    const found = only(rom, 'c90800b0..9c....c9..00b0..a9ffff8d')
+    return found < 0 ? null : [{ at: found + 8, original: hexBytes('C90400'), hacked: hexBytes('C90000') }]
+  },
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
   penaltyShotFixes: (rom) => penaltyShotFixes(rom),
@@ -4016,7 +4028,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

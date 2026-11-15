@@ -196,7 +196,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -1157,6 +1157,21 @@ export function HacksPage({ project, name, onChange }: Props) {
           'greenFan',
           onOff('greenFan'),
           "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post, tested in the game by the NHL94 Match Viewer project; several league ROMs have it.",
+        )}
+        {hack(
+          'barrPick',
+          onOff('barrPick'),
+          <>
+            An option, from a league member's idea. Before each game every starter is rolled a little hot or cold, which
+            changes how he plays that night, and on the matchup screen Ron Barr says "Lately ... has been playing
+            well" of the team whose starters came out hotter, but only when the gap is wide, so most games have no such
+            line. With this on he names a team every game: the one that came out hotter, so his pick changes from game
+            to game and the team he picks has the better form that night. With a wide gap he still says "extremely".
+            On an exact tie he picks the visitors. What he says is the hotter-team line of Ron Barr's text on the Game
+            settings page, so a league can make it a pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot
+            and cold range at 0 every team's total is the same, so he always picks the visitors; at 2 or less hot and
+            cold does not change play, so his pick is only luck. From the game's code; not yet tested in the game.
+          </>,
         )}
         {hack(
           'introWait',
