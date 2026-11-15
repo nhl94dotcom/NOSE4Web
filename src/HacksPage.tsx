@@ -1192,7 +1192,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             colder. He always says "well", never "extremely". Turning one of the two on turns the other off. The same
             line of Ron Barr's text is used, and the same cautions apply: a league ROM with a line of his text taken
             out by hand needs it put back, and when the two New York teams meet the Genesis types both as "New York".
-            From the game's code; not yet tested in the game.
+            Tested by Match Viewer in 24 games: he named the visitors 12 times and the home team 12, the hotter team
+            in only about half the games, never "extremely", and his picks differed from one power-on to the next.
           </>,
         )}
         {hack(
