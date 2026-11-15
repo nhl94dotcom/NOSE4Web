@@ -130,6 +130,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
   greenFan: () => 'The fan in green in the stands has his arm and leg back.',
   barrPick: () => "Ron Barr names the team that came out hotter before every game, not only when one is much hotter.",
+  barrCoin: () => 'Ron Barr names a team before every game by a coin flip, whatever their form.',
   fewerSkaterLines: (c) => `Edit Lines and Team Rosters show only the positions this ROM plays, ${fewerSkaterLinesText(c.fewerSkaterLines)}, so they no longer crash.`,
   bCheckPenaltiesOff: (c) =>
     c.bCheckPenaltiesOff === 'forum'
@@ -248,6 +249,7 @@ const SNES: Record<SnesHack, string> = {
   noGoalPosts: 'A puck between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'The game starts without the EA logo.',
   barrPick: 'Ron Barr names the team that came out hotter before every game, not only when one is much hotter.',
+  barrCoin: 'Ron Barr names a team before every game by a coin flip, whatever their form.',
   skipPucksIntro: 'The game starts without the flying pucks.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',

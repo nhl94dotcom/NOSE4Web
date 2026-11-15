@@ -160,7 +160,9 @@ export function HacksPage({ project, name, onChange }: Props) {
   const suspect = (choices: HackChoices) =>
     choices.wideRatings && choices.bonuses === 'linesMatchPlayers' && !(state.choices.wideRatings && state.choices.bonuses === 'linesMatchPlayers')
   const set = (change: Partial<HackChoices>) => {
-    const next = { ...wanted, ...change }
+    // Ron Barr picks one way or the other, not both.
+    const barr = change.barrPick ? { barrCoin: false } : change.barrCoin ? { barrPick: false } : {}
+    const next = { ...wanted, ...change, ...barr }
     setDraft({ rom: project.bytes, choices: suspect(next) ? { ...next, bonuses: 'original' } : next })
     setNotice(suspect(next) ? `The bonuses were set back to the original game's, since "Edit Lines matches players" is not offered with 0 to 15 ratings.` : '')
     setError('')
@@ -196,7 +198,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -1178,6 +1180,19 @@ export function HacksPage({ project, name, onChange }: Props) {
             (15 November 2026): the line in all 8 games played, always naming the team with the higher total, the
             visitors on a tie, "extremely" from the same gap as before, and about 2 seconds more of typing, the box
             still scrolling cleanly.
+          </>,
+        )}
+        {hack(
+          'barrCoin',
+          onOff('barrCoin'),
+          <>
+            An option, instead of the one above: Ron Barr names a team every game by a coin flip, home or visitors
+            alike, using the game's own random numbers, whatever the teams' hot and cold rolls. His pick then has
+            nothing to do with their form that night: about half the time he names the team whose starters came out
+            colder. He always says "well", never "extremely". Turning one of the two on turns the other off. The same
+            line of Ron Barr's text is used, and the same cautions apply: a league ROM with a line of his text taken
+            out by hand needs it put back, and when the two New York teams meet the Genesis types both as "New York".
+            From the game's code; not yet tested in the game.
           </>,
         )}
         {hack(

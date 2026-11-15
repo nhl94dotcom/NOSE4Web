@@ -33,7 +33,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
   { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },
   { id: 'lines', title: 'Edit Lines and controls', hacks: ['fewerSkaterLines', 'anyPosition'] },
-  { id: 'looks', title: 'Looks and screens', hacks: ['puckColours', 'netColours', 'greenFan', 'barrPick', 'introWait', 'headBleeding'] },
+  { id: 'looks', title: 'Looks and screens', hacks: ['puckColours', 'netColours', 'greenFan', 'barrPick', 'barrCoin', 'introWait', 'headBleeding'] },
   { id: 'legacy', title: 'Legacy hacks', hacks: ['weightFix'] },
 ]
 
@@ -48,5 +48,5 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie'] },
   { id: 'lines', title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'defenceControl'] },
-  { id: 'looks', title: 'Looks and screens', hacks: ['skipEaIntro', 'skipPucksIntro', 'barrPick'] },
+  { id: 'looks', title: 'Looks and screens', hacks: ['skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin'] },
 ]

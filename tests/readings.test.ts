@@ -19,6 +19,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
       [{ awarenessFix: true }, { 0xd0e1: '6a', 0xd2d9: '6a' }],
       [{ crowdFix: true }, { 0xfef66: '4e714e71' }],
       [{ barrPick: true }, { 0xf7362: '0000' }],
+      [{ barrCoin: true }, { 0xf7342: '303c00024eb90001108631c0bf50343c005e4e714e714e714e71' }],
     ] as const) {
       const before = rom()
       const after = hackRom(before, { ...NO_HACKS, ...choice })

@@ -196,6 +196,8 @@ export interface HackChoices {
   greenFan: boolean
   // Ron Barr names the hotter team every game, not only when the gap is wide.
   barrPick: boolean
+  // Ron Barr picks home or visitors by a coin flip every game (instead of barrPick).
+  barrCoin: boolean
   // NOSE4Web's head bleeding for players hurt for the game (genesisblood.ts).
   headBleeding: boolean
 }
@@ -277,6 +279,7 @@ export type HackPart =
   | 'netColours'
   | 'greenFan'
   | 'barrPick'
+  | 'barrCoin'
   | 'headBleeding'
 
 export interface HackState {
@@ -357,6 +360,7 @@ export const NO_HACKS: HackChoices = {
   netColours: 'rink',
   greenFan: false,
   barrPick: false,
+  barrCoin: false,
   headBleeding: false,
 }
 
@@ -2845,6 +2849,17 @@ const GREEN_FAN = [
 // visitors on an exact tie, as awayhotter is set when the difference is not
 // negative).
 const barrPick = switchPart(0xf7360, bytes('B47C 005E'), bytes('B47C 0000'))
+// Ron Barr's pick by a coin flip: the code before the threshold that sets
+// awayhotter by the totals' difference (move.w #0,(awayhotter).w / tst.w d2 /
+// bmi / move.w #1 ... / neg.w d2) becomes move.w #2,d0 / jsr randomd0 (0 or
+// 1, the game's own random numbers) / move.w d0,(awayhotter).w / move.w
+// #$5E,d2, so the threshold after always queues the line, never
+// "extremely". It leaves barrPick's word alone, so either may be in.
+const barrCoin = switchPart(
+  0xf7342,
+  bytes('31FC 0000 BF50 4A42 6B00 0008 31FC 0001 BF50 4A42 6A00 0004 4442'),
+  bytes('303C 0002 4EB9 0001 1086 31C0 BF50 343C 005E 4E71 4E71 4E71 4E71'),
+)
 
 const greenFan: Part<boolean> = {
   detect: (rom) => (GREEN_FAN.every((s) => is(rom, s.at, s.original)) ? false : GREEN_FAN.every((s) => is(rom, s.at, s.hacked)) ? true : undefined),
@@ -3115,6 +3130,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
     barrPick: found('barrPick', barrPick.detect(rom), NO_HACKS.barrPick),
+    barrCoin: found('barrCoin', barrCoin.detect(rom), NO_HACKS.barrCoin),
     // With the long fall the injury animation is not the original's, so the blood cannot go in: off, not unknown.
     headBleeding: found('headBleeding', bloodChoice(rom) ?? (injuries.detect(rom) === 'longFall' ? false : undefined), NO_HACKS.headBleeding),
   }
@@ -3136,6 +3152,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   }
   if (wanted.injuries === 'longFall' && wanted.headBleeding) {
     throw new HackError('A long fall instead of an injury and head bleeding cannot both be on: the blood is drawn in the injury animation the long fall turns into a fall that gets up, and with no injuries it would never show.')
+  }
+  if (wanted.barrPick && wanted.barrCoin) {
+    throw new HackError("Ron Barr's pick every game and his pick by a coin flip cannot both be on: he picks one way or the other.")
   }
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
@@ -3227,6 +3246,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     ['barrPick', () => barrPick.remove(work.rom), () => barrPick.apply(work, wanted.barrPick)],
+    ['barrCoin', () => barrCoin.remove(work.rom), () => barrCoin.apply(work, wanted.barrCoin)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
   ]
@@ -3486,6 +3506,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   netColours: 'Net colours',
   greenFan: 'The fan in green',
   barrPick: "Ron Barr's pick every game",
+  barrCoin: "Ron Barr's pick by a coin flip",
   headBleeding: 'Head bleeding',
 }
 
@@ -3561,6 +3582,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   netColours: 'netColours',
   greenFan: 'greenFan',
   barrPick: 'barrPick',
+  barrCoin: 'barrCoin',
   headBleeding: 'headBleeding',
 }
 

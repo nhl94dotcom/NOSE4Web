@@ -26,6 +26,7 @@ export type SnesHack =
   | 'noGoalPosts'
   | 'skipEaIntro'
   | 'barrPick'
+  | 'barrCoin'
   | 'skipPucksIntro'
   | 'faceoffFix'
   | 'penaltyShotFixes'
@@ -162,6 +163,12 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   // the two differ by 4 or more (cmp #$0004 / bcs), so his "hotter team" line
   // comes only in some games. With 0 it comes every game.
   barrPick: [{ at: 0x9d8324, original: 'C90400', hacked: 'C90000' }],
+  // Ron Barr's pick by a coin flip: from lda #$0001 / sta hotextreme to the
+  // bra that skips the visitors' branch, the difference of the two sums
+  // becomes stz hotextreme / jsl RandomWord / bpl to the rtl (the home team,
+  // already in hotterteam) / lda VisTeam / sta hotterteam / rtl, so a team is
+  // named every game, never "extremely", and the threshold after is skipped.
+  barrCoin: [{ at: 0x9d82fe, original: 'A90100 8D431E AD451E 38 ED471E 3002 800D', hacked: '9C431E 22588680 1006 AD9A1C 8D411E 6B EA' }],
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
   // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: in Edit Lines,
   // picking a line's extra attacker for one of its positions puts him in both
@@ -289,6 +296,7 @@ export const SNES_HACKS: SnesHack[] = [
   'noGoalPosts',
   'skipEaIntro',
   'barrPick',
+  'barrCoin',
   'skipPucksIntro',
   'faceoffFix',
   'penaltyShotFixes',
@@ -347,6 +355,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   noGoalPosts: 'No goal posts',
   skipEaIntro: 'Skip the EA intro',
   barrPick: "Ron Barr's pick every game",
+  barrCoin: "Ron Barr's pick by a coin flip",
   skipPucksIntro: 'Skip the flying pucks intro',
   faceoffFix: 'Faceoff spot fix',
   penaltyShotFixes: 'Penalty shot fixes',
@@ -399,7 +408,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
 const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways', giveawayPages: 'giveaways' }
-const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout']]
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout'], ['barrPick', 'barrCoin']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
 export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
@@ -414,7 +423,10 @@ export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on:
 
 // A hack's title inside a sentence: "the hot and cold bug fix", but "a shootout for ..." as it is.
 const theTitle = (hack: SnesHack) => {
-  const title = SNES_HACK_TITLES[hack].toLowerCase()
+  // Only the first letter lowered, so the rest keeps its capitals; one that starts with a name as it is.
+  const whole = SNES_HACK_TITLES[hack]
+  if (/^Ron Barr/.test(whole)) return whole
+  const title = whole.replace(/^[A-Z](?=[a-z ])/, (letter) => letter.toLowerCase())
   return /^(a|an) /.test(title) ? title : `the ${title}`
 }
 
@@ -3271,6 +3283,23 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const found = only(rom, 'c90800b0..9c....c9..00b0..a9ffff8d')
     return found < 0 ? null : [{ at: found + 8, original: hexBytes('C90400'), hacked: hexBytes('C90000') }]
   },
+  // Its addresses from the code neither way changes: hotextreme and hotterteam
+  // from the threshold, VisTeam and the sums from the visitors' branch before
+  // it, and RandomWord from deflect's jsl.
+  barrCoin: (rom) => {
+    const found = only(rom, 'c90800b0..9c....c9..00b0..a9ffff8d')
+    const random = only(rom, 'a9ffff8d....22......29ff1f38e90010')
+    if (found < 0 || random < 0 || rom[found - 13] !== 0xad || rom[found - 10] !== 0x8d || rom[found - 4] !== 0x38) return null
+    const at = (o: number) => rom[o] | (rom[o + 1] << 8)
+    const [extreme, hotter, visitors, sum] = [at(found + 6), at(found + 17), at(found - 12), at(found - 2)]
+    return [
+      {
+        at: found - 30,
+        original: bytesOf('A90100 8D', word(extreme), 'AD', word(sum), '38 ED', word(sum + 2), '3002 800D'),
+        hacked: bytesOf('9C', word(extreme), '22', rom.slice(random + 7, random + 10), '1006 AD', word(visitors), '8D', word(hotter), '6B EA'),
+      },
+    ]
+  },
   skipEaIntro: (rom, source) => intro(rom, source, '68858d68858f6b6bc23022......', '22....80a90000aa9f00007fcacad0f8'),
   skipPucksIntro: (rom, source) => intro(rom, source, '2226859ba900008d....2226859b9c....', '22......ad....d0fbad....d0f6a900008f'),
   penaltyShotFixes: (rom) => penaltyShotFixes(rom),
@@ -4028,7 +4057,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
