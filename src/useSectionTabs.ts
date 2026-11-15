@@ -86,6 +86,23 @@ export function useSectionTabs(pageKey: string): void {
           button.addEventListener('click', () => choose(tab))
           bar.append(button)
         }
+        // As tabs usually go: the left and right arrows (Home and End) choose the tab before or after, and Tab goes on
+        // into the page from the chosen one, not through every tab.
+        bar.addEventListener('keydown', (event) => {
+          const buttons = [...bar!.children] as HTMLElement[]
+          const at = buttons.indexOf(event.target as HTMLElement)
+          if (at < 0) return
+          const to =
+            event.key === 'ArrowRight' ? (at + 1) % buttons.length
+            : event.key === 'ArrowLeft' ? (at + buttons.length - 1) % buttons.length
+            : event.key === 'Home' ? 0
+            : event.key === 'End' ? buttons.length - 1
+            : -1
+          if (to < 0) return
+          event.preventDefault()
+          choose(buttons[to].textContent ?? '')
+          ;(bar!.children[to] as HTMLElement).focus()
+        })
         shownTabs = tabs
         main!.insertBefore(bar, sections[0])
       }
@@ -96,6 +113,7 @@ export function useSectionTabs(pageKey: string): void {
         const on = button.textContent === active
         if (button.getAttribute('aria-selected') !== String(on)) button.setAttribute('aria-selected', String(on))
         button.classList.toggle('active', on)
+        button.setAttribute('tabindex', on ? '0' : '-1')
       }
       // What lies between sections (the team page's roster tools and Add player, between Team and Lines) goes with the
       // section before it; what comes before the first, or after one shown under every tab, is always shown.

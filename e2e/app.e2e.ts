@@ -122,6 +122,15 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Boston Bruins').click()
     await expect(tab('Lines')).toHaveAttribute('aria-selected', 'true')
     await expect(section('Lines')).toBeVisible()
+    // The arrow keys go from tab to tab, Home and End to the first and last.
+    await tab('Lines').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(tab('Colours')).toHaveAttribute('aria-selected', 'true')
+    await expect(tab('Colours')).toBeFocused()
+    await page.keyboard.press('Home')
+    await expect(tab('Team')).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(tab('All')).toHaveAttribute('aria-selected', 'true')
     await tab('Colours').click()
     for (const name of ['Home colours', 'Away colours']) await expect(section(name)).toBeVisible()
     // Every section, one under another.

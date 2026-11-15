@@ -97,7 +97,7 @@ export function HelpPage() {
         the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
       </p>
       <p>
-        A page with several sections shows one at a time: pick it from the tabs along the top of the page (a team's
+        A page with several sections shows one at a time: pick it from the tabs along the top of the page, or with the left and right arrow keys once a tab has the focus (a team's
         page opens on <b>Team</b>, its names, counts and ratings, with its players on <b>Roster</b>). <b>All</b> shows every section one under another, as one long page. Each
         page remembers its tab in this browser, and the teams share theirs, so going from team to team stays on, say,
         Lines. On the Hacks pages, <b>Apply</b> is under every tab.
