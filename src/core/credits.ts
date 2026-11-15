@@ -10,6 +10,12 @@ import { snesCreditsBytes, snesCreditsFit } from './snescredits'
 // edit has to fit that room. "$" is the copyright sign in the game's font.
 // NOSE's roster space expansion moves them to the end of the ROM, with no
 // room to spare, and repoints the game at them; they are found either way.
+// The title code prints the first page from there, then loads the rest with
+// a second movea.l #CreditsPages,a1 at $FF290, which has to point just past
+// the first page's end: when the first page changes length it is moved too,
+// or the game reads the pages from the middle of a line and crashes. Every
+// page needs a line, and there must be a page after the first, or the game
+// prints a page end as a line, whose $FF is a print command.
 
 export interface Credits {
   // Each page's lines, as shown. On the SNES a page is one credit title, then its names.
@@ -22,6 +28,7 @@ export interface Credits {
 
 const POINTER_CODE_AT = 0xff224
 const POINTER_CODE = [0x22, 0x7c]
+const PAGES_POINTER_CODE_AT = 0xff290
 // The original game's place and room; a ROM that keeps them there keeps the room.
 const ORIGINAL_AT = 0x5776
 const ORIGINAL_ROOM = 0x3a6
@@ -40,6 +47,9 @@ export function parseCredits(rom: Uint8Array): Credits | null {
   const found = locateCredits(rom)
   return found && { pages: found.pages, room: found.room }
 }
+
+// Where in the ROM the credits start, for the roster space expansion that moves them.
+export const creditsAt = (rom: Uint8Array) => locateCredits(rom)?.at ?? null
 
 function locateCredits(rom: Uint8Array): (Credits & { at: number }) | null {
   if (rom[POINTER_CODE_AT] !== POINTER_CODE[0] || rom[POINTER_CODE_AT + 1] !== POINTER_CODE[1]) return null
@@ -94,12 +104,21 @@ export const creditsUsed = (credits: Credits) => (credits.format === 'snes' ? sn
 export function writeCredits(rom: Uint8Array, credits: Credits): boolean {
   const found = locateCredits(rom)
   if (!found || !creditsFit({ ...credits, room: found.room })) return false
+  // The second pointer, to the pages after the first: moved with the first page's end.
+  const pagesAt = found.at + creditsBytes(credits.pages.slice(0, 1)).length - PAGE_END.length
+  const pointerFound = rom[PAGES_POINTER_CODE_AT] === POINTER_CODE[0] && rom[PAGES_POINTER_CODE_AT + 1] === POINTER_CODE[1]
+  if (!pointerFound && pagesAt !== found.at + creditsBytes(found.pages.slice(0, 1)).length - PAGE_END.length) return false
   rom.fill(0, found.at, found.at + found.room)
   rom.set(creditsBytes(credits.pages), found.at)
+  if (pointerFound) for (let i = 0; i < 4; i++) rom[PAGES_POINTER_CODE_AT + 2 + i] = (pagesAt >>> (24 - i * 8)) & 0xff
   return true
 }
 
 export function creditsFit(credits: Credits): boolean {
   if (credits.format === 'snes') return snesCreditsFit(credits)
-  return credits.pages.length > 0 && credits.pages.every((page) => page.every(creditsText)) && creditsBytes(credits.pages).length <= credits.room
+  return (
+    credits.pages.length >= 2 &&
+    credits.pages.every((page) => page.length > 0 && page.every(creditsText)) &&
+    creditsBytes(credits.pages).length <= credits.room
+  )
 }

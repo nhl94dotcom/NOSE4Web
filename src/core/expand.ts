@@ -1,4 +1,5 @@
 import { isGenesis94 } from './games'
+import { creditsAt, parseCredits } from './credits'
 import { readU32, writeU32 } from './bytes'
 import type { RomProject } from './rom'
 import { claimSpace } from './space'
@@ -44,7 +45,9 @@ export function nextExpansion(project: RomProject): Expansion | null {
   const textFollows = copyright === layout.end + playoffSize
   if (textFollows && intro <= copyright) return null
   const step = textFollows ? 'introText' : 'playoffDraws'
-  const gain = textFollows ? intro + game.introTextSize - copyright : playoffSize
+  // The text's room: the credits' own where they start there, which an edited first page does not change.
+  const credits = creditsAt(bytes) === copyright ? parseCredits(bytes) : null
+  const gain = textFollows ? (credits?.room ?? intro + game.introTextSize - copyright) : playoffSize
 
   const claimed = claimSpace(bytes, gain)
   return claimed ? { step, gain, romSize: claimed.rom.length } : null

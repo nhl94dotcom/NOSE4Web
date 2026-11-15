@@ -61,3 +61,45 @@ describe.skipIf(!hasRom)('the player cards the team setup screen cycles through'
     expect(setupCardCount(other)).toBe(6)
   })
 })
+
+describe.skipIf(!hasRom)('the second credits pointer', () => {
+  const pagesPointer = (rom: Uint8Array) => ((rom[0xff292] << 24) | (rom[0xff293] << 16) | (rom[0xff294] << 8) | rom[0xff295]) >>> 0
+
+  it("is at $FF290 in the original game, just past the first page, and moves when the first page's length changes", () => {
+    const project = open()
+    expect(pagesPointer(project.bytes)).toBe(0x57b8)
+    const credits = project.settings.credits!
+    for (const first of [['NHL 94 League'], ['$ 1993 Electronic Arts', 'Licensed by', 'Sega Enterprises Ltd.', 'Edited for the league']]) {
+      const pages = [first, ...credits.pages.slice(1, 5)]
+      const bytes = buildRom({ ...project, settings: { ...project.settings, credits: { ...credits, pages } } })
+      expect(pagesPointer(bytes)).toBe(0x5776 + creditsBytes([first]).length - 4)
+      // What the game prints from there: the second page's first line.
+      const at = pagesPointer(bytes)
+      expect(String.fromCharCode(...bytes.subarray(at + 2, at + ((bytes[at] << 8) | bytes[at + 1])))).toBe(pages[1][0].padEnd(pages[1][0].length + (pages[1][0].length % 2), '\0'))
+      expect(openRom(bytes).settings.credits!.pages).toEqual(pages)
+    }
+  })
+
+  it('needs a page after the first and a line on every page', () => {
+    const project = open()
+    const credits = project.settings.credits!
+    for (const pages of [[credits.pages[0]], [credits.pages[0], []]]) {
+      const only = { ...project, settings: { ...project.settings, credits: { ...credits, pages } } }
+      expect(checkProject(only).some((finding) => finding.where === 'Title screen credits' && finding.message.includes('page of credits after the first'))).toBe(true)
+      expect(openRom(buildRom(only)).settings.credits!.pages).toEqual(credits.pages)
+    }
+  })
+
+  it('keeps the whole room when the roster space expansion moves edited credits', async () => {
+    const { expandTeamSpace, nextExpansion } = await import('../src/core/expand')
+    const project = open()
+    const credits = project.settings.credits!
+    const pages = [['NHL 94 League'], ...credits.pages.slice(1)]
+    const edited = openRom(buildRom({ ...project, settings: { ...project.settings, credits: { ...credits, pages } } }))
+    expect(nextExpansion(edited)?.gain).toBe(934)
+    const moved = openRom(buildRom(expandTeamSpace(edited)))
+    expect(moved.settings.credits!.pages).toEqual(pages)
+    const at = (moved.bytes[0xff226] << 24) | (moved.bytes[0xff227] << 16) | (moved.bytes[0xff228] << 8) | moved.bytes[0xff229]
+    expect(pagesPointer(moved.bytes)).toBe(at + creditsBytes([pages[0]]).length - 4)
+  })
+})

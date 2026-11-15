@@ -429,7 +429,7 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
         <p className="note">
           The credits roll page by page on the title screen, each page held for a moment. A page has up to {CREDITS_PAGE_LINES} lines of up to{' '}
           {CREDITS_LINE_LENGTH} letters, centred by the game; an empty line is a gap. <b>$</b> shows as the copyright sign. The first page is EA's
-          copyright notice: smozoma's guide to the credits warns that changing it can cause trouble, though league ROMs have changed it.
+          copyright notice, shown first on its own: the game has to have at least one page after it.
         </p>
       )}
       <ol className="credits">
@@ -452,7 +452,7 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
                 {snes ? 'Add title' : 'Add page'}
               </button>{' '}
               <button
-                disabled={credits.pages.length <= 1}
+                disabled={credits.pages.length <= (snes ? 1 : 2)}
                 title={snes ? 'Remove this title and its names' : 'Remove this page'}
                 onClick={() => setPages(credits.pages.filter((_, i) => i !== p))}
               >

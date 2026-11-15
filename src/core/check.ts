@@ -276,7 +276,9 @@ export function checkProject(project: RomProject): Finding[] {
       message:
         settings.credits.format === 'snes' && settings.credits.pages.some((page) => page.length < 2)
           ? 'A credit title has no name under it, which the game cannot show, so the credits are not written: give each title a name on the Game settings page.'
-          : `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
+          : settings.credits.format !== 'snes' && (settings.credits.pages.length < 2 || settings.credits.pages.some((page) => page.length === 0))
+            ? 'The game needs a page of credits after the first and a line on every page, or its title screen crashes, so the credits are not written: add a page or a line on the Game settings page.'
+            : `The credits need more room than the ROM has for them (${settings.credits.room} bytes), so they are not written: shorten them on the Game settings page.`,
     })
   }
 
