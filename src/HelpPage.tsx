@@ -922,7 +922,10 @@ export function HelpPage() {
           above the boxes says how much is used. A league can put its own name in them. The first page, EA's copyright notice, is
           shown on its own and the game finds the rest with a second pointer, which NOSE4Web moves when the first
           page changes length (since 15 November 2026: before then, a first page of a new length crashed the title
-          screen, the trouble smozoma's guide warned of). The game needs at least one page after the first. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
+          screen, the trouble smozoma's guide warned of; played by the NHL94 Match Viewer project with first pages of one
+          and four lines, every page shown in order, and a ROM with the old crash put right by downloading it again).
+          A fourth line on the first page shows right at the bottom edge of the picture. The game needs at least one
+          page after the first. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
           guide; checked in the game by the NHL94 Match Viewer project.
         </li>
         <li>
