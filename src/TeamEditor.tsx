@@ -564,7 +564,7 @@ export function TeamEditor(props: Props) {
           than editing the original game, so keep a copy of the file you opened.
         </p>
       )}
-      <section data-tab="Roster">
+      <section>
         <h2>Team</h2>
         <p>
           <ResetButton what="whole team" changed={props.changed} onReset={props.onResetAll} /> {reset('names', 'names')}{' '}
@@ -667,105 +667,108 @@ export function TeamEditor(props: Props) {
         </p>
       </section>
 
-      <p>
-        {!storedOnly && (
+      {/* The roster's tools, with its tables on the Roster tab. */}
+      <div data-tab="Roster">
+        <p>
+          {!storedOnly && (
+            <label>
+              <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
+              Show attributes as stored values (0–15)
+            </label>
+          )}{' '}
           <label>
-            <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
-            Show attributes as stored values (0–15)
+            <input type="checkbox" checked={quickKeys} onChange={(e) => onQuickKeysChange(e.target.checked)} /> Quick
+            edit keys
           </label>
-        )}{' '}
-        <label>
-          <input type="checkbox" checked={quickKeys} onChange={(e) => onQuickKeysChange(e.target.checked)} /> Quick
-          edit keys
-        </label>
-      </p>
-      {quickKeys && (
-        <p className="note">
-          With players ticked, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
-          attribute, in column order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
-          to lower it. The {QUICK_EDIT_JERSEY_LABEL} keys change the jersey number. Hover a column heading to see its key.
         </p>
-      )}
-      <p>
-        <button disabled={ticked.length === 0} onClick={() => void copyTicked()}>
-          Copy ticked
-        </button>{' '}
-        <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(false)}>
-          Paste over ticked
-        </button>{' '}
-        <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(true)}>
-          Paste attributes only
-        </button>{' '}
-        <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
-      </p>
-      <p className="note" hidden={narrow}>
-        In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
-        arrow to open a list. In an attribute's list, + and - raise and lower it
-        {storedOnly || rawAttributes ? ', and typing a number sets it' : ''}.
-      </p>
-      <p>
-        {reset('roster', 'roster')}{' '}
-        <span className="note">The players, their order and attributes, and the forwards and goalie bytes.</span>
-      </p>
-      <p>
-        <button disabled={ticked.length === 0 || otherTeams.length === 0} onClick={moveTicked}>
-          Move ticked to
-        </button>{' '}
-        <select className="wide" aria-label="Team to move players to" value={moveTo} onChange={(e) => setMoveTo(Number(e.target.value))}>
-          {otherTeams.map((other) => (
-            <option key={other.index} value={other.index}>
-              {other.teamName}
-            </option>
-          ))}
-        </select>{' '}
-        <button disabled={ticked.length === 0} onClick={releaseTicked}>
-          Release ticked
-        </button>
-      </p>
-      <p>
-        <button disabled={props.freeAgents.length === 0} onClick={sign}>
-          Sign
-        </button>{' '}
-        <select
-          className="wide"
-          aria-label="Free agent to sign"
-          disabled={props.freeAgents.length === 0}
-          value={Math.min(signing, Math.max(0, props.freeAgents.length - 1))}
-          onChange={(e) => setSigning(Number(e.target.value))}
-        >
-          {props.freeAgents.length === 0 && <option value={0}>no free agents</option>}
-          {props.freeAgents.map((agent, i) => (
-            <option key={i} value={i}>
-              {agent.role} {agent.name} ({agent.overall})
-            </option>
-          ))}
-        </select>{' '}
-        <span className="note">
-          Released players wait as free agents, off every team and out of the ROM. To sign a goalie, tick the goalie
-          he replaces.
-        </span>
-      </p>
-      <p>
-        <button onClick={props.onRosterCard}>Roster card (PNG)</button>{' '}
-        <span className="note">The roster as a picture, to post where the league can see it.</span>
-      </p>
-      <p>
-        <label>
-          Show in order of{' '}
-          <select className="wide" value={rosterSort} onChange={(e) => onRosterSortChange(e.target.value as RosterSort)}>
-            {ROSTER_SORTS.filter((sort) => sort.value !== 'value' || hasLeagueValue(game)).map((sort) => (
-              <option key={sort.value} value={sort.value}>
-                {sort.label}
+        {quickKeys && (
+          <p className="note">
+            With players ticked, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
+            attribute, in column order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
+            to lower it. The {QUICK_EDIT_JERSEY_LABEL} keys change the jersey number. Hover a column heading to see its key.
+          </p>
+        )}
+        <p>
+          <button disabled={ticked.length === 0} onClick={() => void copyTicked()}>
+            Copy ticked
+          </button>{' '}
+          <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(false)}>
+            Paste over ticked
+          </button>{' '}
+          <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked(true)}>
+            Paste attributes only
+          </button>{' '}
+          <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
+        </p>
+        <p className="note" hidden={narrow}>
+          In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
+          arrow to open a list. In an attribute's list, + and - raise and lower it
+          {storedOnly || rawAttributes ? ', and typing a number sets it' : ''}.
+        </p>
+        <p>
+          {reset('roster', 'roster')}{' '}
+          <span className="note">The players, their order and attributes, and the forwards and goalie bytes.</span>
+        </p>
+        <p>
+          <button disabled={ticked.length === 0 || otherTeams.length === 0} onClick={moveTicked}>
+            Move ticked to
+          </button>{' '}
+          <select className="wide" aria-label="Team to move players to" value={moveTo} onChange={(e) => setMoveTo(Number(e.target.value))}>
+            {otherTeams.map((other) => (
+              <option key={other.index} value={other.index}>
+                {other.teamName}
               </option>
             ))}
-          </select>
-        </label>{' '}
-        <label>
-          Find{' '}
-          <input placeholder="part of a name" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
-        </label>{' '}
-        {!plainView && <span className="note">This changes only what is shown, not the roster.</span>}
-      </p>
+          </select>{' '}
+          <button disabled={ticked.length === 0} onClick={releaseTicked}>
+            Release ticked
+          </button>
+        </p>
+        <p>
+          <button disabled={props.freeAgents.length === 0} onClick={sign}>
+            Sign
+          </button>{' '}
+          <select
+            className="wide"
+            aria-label="Free agent to sign"
+            disabled={props.freeAgents.length === 0}
+            value={Math.min(signing, Math.max(0, props.freeAgents.length - 1))}
+            onChange={(e) => setSigning(Number(e.target.value))}
+          >
+            {props.freeAgents.length === 0 && <option value={0}>no free agents</option>}
+            {props.freeAgents.map((agent, i) => (
+              <option key={i} value={i}>
+                {agent.role} {agent.name} ({agent.overall})
+              </option>
+            ))}
+          </select>{' '}
+          <span className="note">
+            Released players wait as free agents, off every team and out of the ROM. To sign a goalie, tick the goalie
+            he replaces.
+          </span>
+        </p>
+        <p>
+          <button onClick={props.onRosterCard}>Roster card (PNG)</button>{' '}
+          <span className="note">The roster as a picture, to post where the league can see it.</span>
+        </p>
+        <p>
+          <label>
+            Show in order of{' '}
+            <select className="wide" value={rosterSort} onChange={(e) => onRosterSortChange(e.target.value as RosterSort)}>
+              {ROSTER_SORTS.filter((sort) => sort.value !== 'value' || hasLeagueValue(game)).map((sort) => (
+                <option key={sort.value} value={sort.value}>
+                  {sort.label}
+                </option>
+              ))}
+            </select>
+          </label>{' '}
+          <label>
+            Find{' '}
+            <input placeholder="part of a name" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
+          </label>{' '}
+          {!plainView && <span className="note">This changes only what is shown, not the roster.</span>}
+        </p>
+      </div>
       {roster('Goalies', true, 0, goalies)}
       {roster('Skaters', false, goalies, team.players.length)}
       <p>

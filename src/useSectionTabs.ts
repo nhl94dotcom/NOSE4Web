@@ -100,7 +100,10 @@ export function useSectionTabs(pageKey: string): void {
       for (const child of main!.children) {
         if (child === bar) continue
         if (child.tagName === 'SECTION') tab = sections.includes(child) ? tabOf(child) : child.hasAttribute('data-tab-always') ? null : tab
-        const hidden = tab !== null && active !== ALL_SECTIONS && tab !== active
+        // Something between sections that names its tab (the team page's roster tools, before the roster's tables).
+        const own = child.tagName === 'SECTION' ? null : child.getAttribute('data-tab')
+        const on = own ?? tab
+        const hidden = on !== null && active !== ALL_SECTIONS && on !== active
         if (child.hasAttribute('data-tab-hidden') !== hidden) child.toggleAttribute('data-tab-hidden', hidden)
       }
     }

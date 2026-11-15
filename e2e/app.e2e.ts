@@ -97,9 +97,14 @@ test.describe('with the NHL 94 ROM', () => {
     const tabs = page.locator('.section-tabs')
     const tab = (name: string) => tabs.getByRole('tab', { name, exact: true })
     const section = (name: string) => page.locator('main > section').filter({ has: page.getByRole('heading', { name, exact: true }) })
-    // A team opens on its roster: the team, its goalies and skaters.
-    await expect(tab('Roster')).toHaveAttribute('aria-selected', 'true')
-    for (const name of ['Team', 'Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
+    // A team opens on its names, counts and ratings; the roster, its tools and tables, is a tab of its own.
+    await expect(tab('Team')).toHaveAttribute('aria-selected', 'true')
+    await expect(section('Team')).toBeVisible()
+    await expect(section('Skaters')).toBeHidden()
+    await expect(page.getByText('Show attributes as stored values')).toBeHidden()
+    await tab('Roster').click()
+    await expect(section('Team')).toBeHidden()
+    for (const name of ['Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
     await expect(page.getByText('Show attributes as stored values')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add player' })).toBeVisible()
     await expect(section('Lines')).toBeHidden()
