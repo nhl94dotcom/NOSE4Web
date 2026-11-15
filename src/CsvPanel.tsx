@@ -15,6 +15,7 @@ import {
 } from './core/tables'
 import { readWorkbook, writeWorkbook } from './core/workbook'
 import { download } from './download'
+import { websiteRosterCsv, websiteRosterFileName, websiteRosterSupported } from './core/websiteroster'
 
 const MAX_PROBLEMS_SHOWN = 20
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -196,6 +197,24 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
             ))}
           </tbody>
         </table>
+
+        {websiteRosterSupported(project.game) && (
+          <>
+            <h2>League website players file</h2>
+            <p>
+              <button onClick={() => download(websiteRosterCsv(project), websiteRosterFileName(setName), 'text/csv')}>
+                Export {websiteRosterFileName(setName)}
+              </button>
+            </p>
+            <p className="note">
+              Every player in the format the league website asks for when a new league is set up: first and last name
+              (split at the first space), team initials, position, jersey number, overall and the 14 ratings, a
+              goalie's under the same headings. Hnd is the shooting hand, 1 for a right shot, and for a goalie the
+              glove hand as the ROM keeps it. The overall is the Genesis game's, at most 99, as the website has it.
+              For the website only: it does not import back.
+            </p>
+          </>
+        )}
       </section>
     </main>
   )

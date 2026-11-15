@@ -696,6 +696,16 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText('Not downloaded yet')).toBeHidden()
   })
 
+  test("exports the league website's players file", async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Spreadsheet files').click()
+    const file = await downloadFrom(page, page.getByRole('button', { name: 'Export nhl94_website_players.csv' }))
+    expect(file.suggestedFilename()).toBe('nhl94_website_players.csv')
+    const lines = readFileSync(await file.path(), 'utf8').trim().split('\n')
+    expect(lines[0]).toBe('First,Last,Team,Pos,JNo,Ovr,Wgt,Agl,Spd,OfA,DfA,ShP-PkC,Chk,Hnd,StH,ShA,End-StR,Rgh-StL,Pas-GlR,Agr-GlL')
+    expect(lines[1]).toMatch(/^Guy,Hebert,ANH,G,29,\d+,/)
+  })
+
   test('exports and imports an Excel workbook and a set of CSV files', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Spreadsheet files').click()
