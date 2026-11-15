@@ -50,7 +50,7 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     // The main menu: the two teams the 1994 final's, Rangers and Vancouver; the play mode by the game's own table.
     expect(settings.menu.map((item) => item.caption)).toEqual(['Play Mode', 'Team 1', 'Team 2', 'Per. Length', 'Goalies', 'User Records', 'Penalties', 'Line Changes'])
     expect(settings.menu.map((item) => item.value).slice(1, 3)).toEqual([14, 23])
-    expect(settings.menu[0].options?.slice(0, 3)).toEqual(['Game With Trades', 'Continue Playoffs', 'New Playoffs'])
+    expect(settings.menu[0].options).toEqual(['Game With Trades', 'Continue Playoffs', 'New Playoffs', 'New Playoffs/7 game', 'Shootout'])
   })
 
   it("moves the original game's teams to the unused half of the ROM, for room, as the WN95HL's ROMs have them", () => {

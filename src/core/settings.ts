@@ -146,14 +146,14 @@ function parseMenu(rom: Uint8Array, game: GameConfig): MenuItem[] {
   for (let i = game.menuItemCount; i < count; i++) more.push(at.options + readU16(rom, at.options + i * 2))
 
   // Every choice is the same size, so the list ends where that stops being true. In NHL '95 each is read by its own
-  // length word, as a hack may have changed some (the WN95HL's Create Player is 12 bytes, the rest 22), up to the
-  // first that is not text.
+  // length word, as they differ (its Create Player is 18 bytes, with two tabs, the rest 22), up to the first that is
+  // not text.
   const optionSize = readU16(rom, Math.min(...starts))
   const sizeAt = (o: number) => {
     if (game.edition !== 95) return readU16(rom, o) === optionSize ? optionSize : 0
     const size = readU16(rom, o)
     if (size < 3 || size > 0x30 || o + size > rom.length) return 0
-    return Array.from(rom.subarray(o + 2, o + size)).every((c) => c === 0 || (c >= 0x20 && c < 0x7f)) ? size : 0
+    return Array.from(rom.subarray(o + 2, o + size)).every((c) => c === 0 || c === 9 || (c >= 0x20 && c < 0x7f)) ? size : 0
   }
   let end = Math.max(...starts)
   while (optionSize > 0 && end + 2 <= rom.length && sizeAt(end) > 0) end += sizeAt(end)
