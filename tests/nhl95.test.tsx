@@ -76,6 +76,19 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     expect(reopened.layout.end - reopened.layout.start).toBe(roomy.layout.end - roomy.layout.start)
   })
 
+  it('says new playoffs freeze with a team in no draw, as in NHL 94, past the last team the code takes', () => {
+    const project = openRom(read(RETAIL))
+    const freezes = (p: typeof project) => checkProject(p).filter((f) => f.where === 'Playoff draws' && /freezes the game/.test(f.message))
+    expect(freezes(project)).toEqual([])
+    // Match Viewer's test in the game: team 0 out of every draw, and new playoffs with it froze.
+    const draws = project.settings.playoffDraws.map((draw) => draw.map((team) => (team === 0 ? 1 : team)))
+    const found = freezes({ ...project, settings: { ...project.settings, playoffDraws: draws } })
+    expect(found).toHaveLength(1)
+    expect(found[0].message).toContain(project.teams[0].names[0])
+    // The All-Star teams (26 and 27) start them as team 25, the last the code takes (cmp #$19 at $87A14).
+    expect(found[0].message).not.toContain(project.teams[26].names[0])
+  })
+
   it("leaves out what the editor made for NHL 94: hacks, pictures, the league value", () => {
     const project = openRom(read(RETAIL))
     expect(hacksSupported(project.game)).toBe(false)

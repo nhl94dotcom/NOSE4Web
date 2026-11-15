@@ -614,17 +614,16 @@ export function TeamEditor(props: Props) {
           The game splits the roster by order, not by each player's own position: the first {goalies} on the roster{' '}
           {goalies === 1 ? 'is the goalie' : 'are goalies'}, the next {team.forwards} {team.forwards === 1 ? 'is a forward' : 'are forwards'}, and the other{' '}
           {Math.max(0, team.players.length - goalies - team.forwards)} defencemen. <b>Goalie bytes</b> set how many
-          goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies).{' '}
-          {game.edition === 95
-            ? "The original rosters have other numbers there; whether NHL '95 uses them, beyond a box being 0 or not, has not been checked."
-            : 'The original rosters have other numbers there, such as 13 6 0 0: EA meant them as how often each goalie would start (13 to 6, the first about two games in three), but neither the Genesis nor the SNES game ever uses them, so 13 6 0 0 plays exactly as 1 1 0 0. Only whether a box is 0 matters.'}{' '}
-          <b>Forwards</b> sets how many of the skaters
+          goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies). The
+          original rosters have other numbers there, such as 13 6 0 0: EA meant them as how often each goalie would
+          start (13 to 6, the first about two games in three), but neither the Genesis nor the SNES game ever uses
+          them, so 13 6 0 0 plays exactly as 1 1 0 0. Only whether a box is 0 matters. <b>Forwards</b> sets how many of the skaters
           after them are forwards. The <b>Pos</b> column in the tables below shows where each player ends up. To make a
           player a forward or a defenceman, move him into that part of the roster.
         </p>
         <div className="fields">
           {(props.teamRatingList ?? TEAM_RATINGS).map((rating, i) => (
-            <label key={rating.label} title={game.edition === 95 ? rating.label : `${rating.label}: ${rating.about}.`}>
+            <label key={rating.label} title={`${rating.label}: ${rating.about}.`}>
               {rating.label}
               <select aria-label={`${rating.label} rating`} value={ratings[i]} onChange={(e) => onChange(setTeamRating(team, i, Number(e.target.value)))}>
                 {teamRatingChoices(i, ratings[i], props.teamRatingList).map((value) => (
@@ -652,18 +651,12 @@ export function TeamEditor(props: Props) {
           )}
           {reset('ratings', 'team ratings')}
         </div>
-        {game.edition === 95 ? (
-          <p className="note">
-            The six team ratings, kept as NHL 94 keeps them. What each does in NHL '95 has not been checked in the game.
-          </p>
-        ) : (
-          <p className="note">
-            The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
-            good for Defence, Penalty kill and Away. Offence and Defence are the team's, not its players' Offensive and
-            Defensive Awareness: they score the other playoff games the game plays out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
-            ratings in those situations, by less than half a point; see Help.
-          </p>
-        )}
+        <p className="note">
+          The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
+          good for Defence, Penalty kill and Away. Offence and Defence are the team's, not its players' Offensive and
+          Defensive Awareness: they score the other playoff games the game plays out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
+          ratings in those situations, by less than half a point; see Help.
+        </p>
         <p className="note">
           {team.players.length} players: {goalies} goalies, {team.forwards} forwards, {team.defense} defence. The
           first skaters on the roster are the forwards. The roster's first players are goalies, one for each goalie

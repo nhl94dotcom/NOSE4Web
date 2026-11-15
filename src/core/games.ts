@@ -90,6 +90,9 @@ export interface GameConfig {
   // and where the code holds the address of the table that turns the play mode (its word) into its row.
   menuDefaultWords?: number[]
   menuPlayModeTablePointer?: number
+  // Where new playoffs' last team is kept: the word of a cmp.w #last after a move from Team 1 ($CC50). A Team 1 past
+  // it starts them as it (NHL '95: $87A14, retail 25, the WN95HL's 33; Match Viewer).
+  playoffLastAt?: number
   lineLabels: string[]
   linePositionLabels: string[]
   teamNameLabels: string[]
@@ -378,6 +381,7 @@ export const NHL95: GameConfig = {
   // $86716), and the play mode from word 0 through the table at $8676A (movea.l #table,a0 at $8671A).
   menuDefaultWords: [0, 2, 3, 4, 5, 6, 7, 8],
   menuPlayModeTablePointer: 0x8671c,
+  playoffLastAt: 0x87a14,
   notice:
     "This ROM is NHL '95. The editor reads it the way NOSE did: rosters, lines, team names, colours and the game " +
     "settings. The pictures, songs, hacks and other additions made for NHL 94 are not offered for it. NHL '95 editing " +

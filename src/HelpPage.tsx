@@ -2362,6 +2362,13 @@ export function HelpPage() {
           penalties and line changes, and the play modes the game can start in.
         </li>
         <li>
+          <b>As in NHL 94</b> (Match Viewer, from NHL '95's code and in the game): the goalie bytes and forward count
+          split the roster the same way, and only whether a goalie box is 0 matters; the six team ratings do the same
+          jobs; and new playoffs freeze with a Team 1 that is in none of the playoff draws, which Check ROM looks for.
+          One difference: a season keeps its own copy of each team's forward and defence counts, made when it starts,
+          so a change to them reaches only seasons started after it.
+        </li>
+        <li>
           <b>Room</b>: the original game's team data fills its place exactly. <b>Add roster space</b> moves it to the
           unused second half of the ROM with 16,384 bytes to spare, as the WN95HL's ROMs have theirs; the ROM stays 2 MB.
           League ROMs that have moved their teams already have room of their own.
