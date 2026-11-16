@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { checkProject } from '../src/core/check'
 import { brokenLines, buildLines, knowsHands, type HandSide } from '../src/core/linebuilder'
 import { emptyLineSlots, playerRole, SKATER_LINE_SLOTS } from '../src/core/lines'
-import { buildRom, openRom } from '../src/core/rom'
+import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { goalieCount } from '../src/core/team'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -118,11 +118,21 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the side each hand goes to', ()
   })
 })
 
-const SMALL = ['NHL94 3vs3 [Spring 2006 GENS].bin', '2on2_update.bin', 'NHL941on1.bin'].filter((name) => existsSync(path(name)))
-describe.skipIf(SMALL.length === 0)('on a ROM with fewer skaters', () => {
-  SMALL.forEach((name) => {
-    it(`${name}: the best take the open positions, and the hand never decides who plays`, () => {
-      const project = open(name)
+// The Genesis ROMs on this computer whose lines leave positions empty (hacks for 3 on 3, 2 on 2 or 1 on 1), found
+// by their lines, so that no ROM is named here or in the results.
+const fewer = names
+  .filter((name) => !/\.(smc|sfc)$/i.test(name))
+  .map(open)
+  .filter((project) => emptyLineSlots(project.teams).some((line) => line?.some(Boolean)))
+// The 3 on 3 one: three skaters on the first scoring line.
+const skatersOnSc1 = (project: RomProject) => {
+  const sc1 = project.game.lineLabels.indexOf('Sc1')
+  return SKATER_LINE_SLOTS.filter((slot) => !emptyLineSlots(project.teams)[sc1]?.[slot]).length
+}
+const threeOnThree = fewer.find((project) => skatersOnSc1(project) === 3)
+describe.skipIf(fewer.length === 0)('on a ROM with fewer skaters', () => {
+  fewer.forEach((project, n) => {
+    it(`ROM with fewer skaters ${n + 1}: the best take the open positions, and the hand never decides who plays`, () => {
       const empty = emptyLineSlots(project.teams)
       const who = (line: number[]) => SKATER_LINE_SLOTS.map((slot) => line[slot]).filter(Boolean).sort((a, b) => a - b).join()
       for (const team of project.teams) {
@@ -136,8 +146,8 @@ describe.skipIf(SMALL.length === 0)('on a ROM with fewer skaters', () => {
       }
     })
   })
-  it.skipIf(!SMALL.includes('NHL94 3vs3 [Spring 2006 GENS].bin'))("3 on 3: Boston's best defenceman plays the one defence position", () => {
-    const project = open('NHL94 3vs3 [Spring 2006 GENS].bin')
+  it.skipIf(!threeOnThree)("3 on 3: Boston's best defenceman plays the one defence position", () => {
+    const project = threeOnThree!
     const empty = emptyLineSlots(project.teams)
     const team = project.teams[1]
     const sc1 = project.game.lineLabels.indexOf('Sc1')
@@ -148,8 +158,8 @@ describe.skipIf(SMALL.length === 0)('on a ROM with fewer skaters', () => {
 })
 
 describe.skipIf(names.length === 0)('building every team\'s lines on every ROM', () => {
-  names.forEach((name) => {
-    it(`${name}: nothing broken, no new problems, the positions this ROM leaves empty still empty`, () => {
+  names.forEach((name, n) => {
+    it(`ROM ${n + 1}: nothing broken, no new problems, the positions this ROM leaves empty still empty`, () => {
       const project = open(name)
       const empty = emptyLineSlots(project.teams)
       const teams = project.teams.map((team) => ({ ...team, lines: buildLines(team, project.game, team.lines.map((_, l) => l), empty).lines }))

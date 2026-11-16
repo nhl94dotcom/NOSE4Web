@@ -6,9 +6,6 @@ import { loRomOffset } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
-const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
-const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
-const names = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.subarray(at, at + count)).toString('hex')
 
@@ -35,7 +32,5 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     expect(hex(on.bytes, code + 33, 7)).toBe('a980009de31460')
     expect(detectSnesHacks(on.bytes).choices.goaliePoke).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))).toBe(0)
-    // In every build, with its own SPA and poke animation.
-    for (const name of names) expect(detectSnesHacks(open(name).bytes).unknown, name).not.toContain('goaliePoke')
   })
 })

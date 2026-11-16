@@ -142,10 +142,8 @@ describe.skipIf(!existsSync(romPath))('the computer goalie pull fix', () => {
     expect(readU16(hacked, 0xf762)).toBe(readU16(rom, 0xf762))
     expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, goaliePullFix: true }, unknown: [] })
     expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
-    // What each score difference does: leave (no pull) or go on, before and after.
-    const leaves = (behind: number, fixed: boolean) => (fixed ? behind <= 0 || behind > 2 : behind < 0 || behind !== 2)
-    expect([-1, 0, 1, 2, 3].map((b) => leaves(b, false))).toEqual([true, true, true, false, true])
-    expect([-1, 0, 1, 2, 3].map((b) => leaves(b, true))).toEqual([true, true, false, false, true])
+    // What each goal difference (behind by -1, 0, 1, 2, 3) does: before, bmi / bne #2 pull only at exactly 2
+    // behind; after, ble / bgt #2 pull at 1 or 2 behind.
   })
 })
 

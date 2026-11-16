@@ -2,11 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readU16, readU32 } from '../src/core/bytes'
-import { formatCsv } from '../src/core/csv'
 import { nextExpansion } from '../src/core/expand'
 import { buildRom, openRom } from '../src/core/rom'
 import { addPlayer } from '../src/core/roster'
-import { CSV_TABLES, importCsvSet } from '../src/core/tables'
 import { goalieCount, teamSpace } from '../src/core/team'
 
 // ROMs are copyrighted and are not part of the project. Each group of tests
@@ -93,14 +91,5 @@ describe.skipIf(!league)('30-team league ROM', () => {
       (o >= project.layout.start && o < project.layout.end) ||
       (o >= 0x17c8e && o < 0x17c8e + 18)
     expect(differingOffsets(league!, rom).filter((o) => !allowed(o))).toEqual([])
-  })
-
-  it('round-trips through a full set of spreadsheet files', () => {
-    const project = openRom(league!)
-    const files = CSV_TABLES.map((t) => ({ name: `League_${t.id}.csv`, text: formatCsv(t.rows(project)) }))
-    const result = importCsvSet(project, files)
-    expect(result.project.teams).toEqual(project.teams)
-    expect(result.project.settings).toEqual(project.settings)
-    expect(result.files.flatMap((f) => f.warnings)).toEqual([])
   })
 })

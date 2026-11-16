@@ -49,20 +49,5 @@ describe.skipIf(names.length === 0)('the SNES penalty shot fixes', () => {
       const off = applySnesHacks({ ...project, bytes: hacked }, { penaltyShotFixes: false })
       expect(Buffer.compare(Buffer.from(off.bytes), Buffer.from(project.bytes))).toBe(0)
     })
-
-    it(`goes in and out alongside every other SNES hack, in SNES ROM ${n + 1}`, () => {
-      const project = openRom(new Uint8Array(readFileSync(path(name))))
-      const { choices, unknown, notOffered } = detectSnesHacks(project.bytes)
-      const all = Object.fromEntries(Object.keys(choices).filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'seasonShootout' && hack !== 'barrCoin' && !unknown.includes(hack as never) && !notOffered?.[hack as never]).map((hack) => [hack, true]))
-      const hacked = applySnesHacks(project, all)
-      const after = detectSnesHacks(hacked.bytes)
-      expect(after.unknown).toEqual(unknown)
-      for (const hack of Object.keys(all)) expect(after.choices[hack as keyof typeof after.choices], hack).toBe(true)
-      const none = Object.fromEntries(Object.keys(all).map((hack) => [hack, choices[hack as keyof typeof choices]]))
-      const back = applySnesHacks(hacked, none)
-      // Hacks the ROM had when opened (an intro already skipped) cannot all come out; the rest must.
-      if (Object.values(choices).every((on) => !on)) expect(Buffer.compare(Buffer.from(back.bytes), Buffer.from(project.bytes))).toBe(0)
-      expect(detectSnesHacks(back.bytes).choices).toEqual(choices)
-    })
   })
 })

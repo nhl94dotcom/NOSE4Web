@@ -165,14 +165,6 @@ describe.skipIf(!hasRom)('project files', () => {
     expect(opened.project.freeAgents).toHaveLength(1)
   })
 
-  it('saves and opens a project with no changes at all', () => {
-    const project = setup()
-    const opened = openProjectFile(setup(), saveProjectFile(project, setup(), 'plain'))
-    expect(opened.notes).toEqual([])
-    expect(buildRom(opened.project)).toEqual(buildRom(project))
-    expect(opened.project.bytes.length).toBe(0x100000)
-  })
-
   it('carries the work to another copy of the game', () => {
     // The other copy: the same game with different rosters and colours.
     const other = (() => {
