@@ -291,11 +291,13 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { injuryBonus: 2 },
       { injuryBonus: 2, injuryCap: 12, hitEnergy: 204 },
     ]
+    // Built once: applyHacks works on a copy, so every change below starts from the same full set.
+    const full = applyHacks(opened, FULL)
     for (const change of each) {
       const wanted = { ...NO_HACKS, ...change }
       const direct = applyHacks(opened, wanted)
       expect(detectHacks(direct.bytes)).toEqual({ choices: wanted, unknown: [] })
-      const viaFull = applyHacks(applyHacks(opened, FULL), wanted)
+      const viaFull = applyHacks(full, wanted)
       expect(Buffer.compare(viaFull.bytes, direct.bytes)).toBe(0)
       expect(Buffer.compare(applyHacks(direct, wanted).bytes, direct.bytes)).toBe(0)
     }
