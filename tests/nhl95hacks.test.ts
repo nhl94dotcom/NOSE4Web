@@ -132,9 +132,32 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     ])
     expect(applyNhl95Hacks(on, { rocketFix: false }).bytes).toEqual(rom.bytes)
     // With every other NHL '95 hack, in and out.
-    const every = applyNhl95Hacks(rom, { secondAssist: true, oneTimerAssist: true, regainAssist: true, rocketFix: true, passFix: true })
-    expect(detectNhl95Hacks(buildRom(every)).choices).toEqual({ secondAssist: true, oneTimerAssist: true, regainAssist: true, rocketFix: true, passFix: true })
+    const allOn = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, true])) as typeof NO_NHL95_HACKS
+    const every = applyNhl95Hacks(rom, allOn)
+    expect(detectNhl95Hacks(buildRom(every)).choices).toEqual(allOn)
     expect(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes).toEqual(rom.bytes)
+  })
+
+  it.each(names)("puts NHL 94's Aggression, comeback bonus and open-net fixes into %s, each a change in place", (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const cases = [
+      { hack: 'aggressionFix', at: 0x83c7c, bytes: '6100000ae20b17430073' },
+      { hack: 'comebackFix', at: 0x83a2c, bytes: '6d000026' },
+      { hack: 'openNetFix', at: 0x84ed2, bytes: '7008b87c002c' },
+    ] as const
+    for (const { hack, at, bytes } of cases) {
+      const on = applyNhl95Hacks(rom, { [hack]: true })
+      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [hack]: true })
+      expect(hex(on.bytes, at, bytes.length / 2)).toBe(bytes)
+      // Only those bytes change.
+      expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBeLessThanOrEqual(bytes.length / 2)
+      expect(applyNhl95Hacks(on, { [hack]: false }).bytes).toEqual(rom.bytes)
+    }
+    // A ROM whose code around a place differs leaves that fix alone.
+    const odd = rom.bytes.slice()
+    odd[0x83c77] ^= 1
+    expect(detectNhl95Hacks(odd).unknown).toEqual(['aggressionFix'])
   })
 })
 

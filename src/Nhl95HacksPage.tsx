@@ -24,6 +24,9 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  aggressionFix: 'Aggression works as the rating reads, where the original wraps it round (a 4 plays like a 1).',
+  comebackFix: 'A team tied or behind in the third period gets its boost in the second half of it, not the first.',
+  openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
 }
@@ -56,6 +59,31 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       When the other team takes the puck, the game marks the list so the next touch replaces the last toucher. A
       player who wins the puck straight back skips the step that clears the mark, so the teammate he passes to
       replaces him and his assist is lost. In NHL 94 it happened in 8 of 274 recorded goals. {FROM_NHL94}
+    </p>
+  ),
+  aggressionFix: (
+    <p className="note">
+      In play a rating counts five times its value, give or take a little for being hot or cold, so 0 to 30. Aggression
+      is then cut to 0 to 15 by keeping only its last four bits, so it wraps round: a 4 plays like a 1, and a 6 or a 3 is
+      the most penalised. The fix keeps it in bounds with the game's own clamp and halves it, so it runs from 0 to 15 with
+      the rating. For goalies the same place holds the glove rating, which lets him make the reaching glove save at 11
+      and over: with the fix that takes about 5. {FROM_NHL94}
+    </p>
+  ),
+  comebackFix: (
+    <p className="note">
+      A team tied or behind in the third period is meant to get a small boost late on, but the test of the clock is the
+      wrong way round, so the boost comes while more than half the period is left and goes for the rest. Overtime is not
+      affected: both teams have it throughout. {FROM_NHL94}
+    </p>
+  ),
+  openNetFix: (
+    <p className="note">
+      The game aims a one-timer itself, and computer shooters the same way. Where the sightline from the puck through the
+      goalie misses the net, the goalie having wandered out of the puck's line, it aims high in the middle, just under the
+      crossbar, and the scatter only goes up, so close in about 4 in 10 sail over or hit the bar. The fix aims there as
+      it does with no goalie at all, at the middle at mid-height; the penalty shot and shootout aim still follow. In NHL
+      94, open-net one-timer goals went from 56% to 86% with it. An option, not a recommended fix. {FROM_NHL94}
     </p>
   ),
   rocketFix: (

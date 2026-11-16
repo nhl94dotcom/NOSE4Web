@@ -9,12 +9,29 @@ import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 // these are NHL '95's own, or NHL 94's where NHL '95 has the same code at
 // other addresses (the NHL95Genesis disassembly).
 
-export type Nhl95Hack = 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'rocketFix' | 'passFix'
+export type Nhl95Hack =
+  | 'secondAssist'
+  | 'oneTimerAssist'
+  | 'regainAssist'
+  | 'aggressionFix'
+  | 'comebackFix'
+  | 'rocketFix'
+  | 'openNetFix'
+  | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'rocketFix', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
-export const NO_NHL95_HACKS: Nhl95HackChoices = { secondAssist: false, oneTimerAssist: false, regainAssist: false, rocketFix: false, passFix: false }
+export const NO_NHL95_HACKS: Nhl95HackChoices = {
+  secondAssist: false,
+  oneTimerAssist: false,
+  regainAssist: false,
+  aggressionFix: false,
+  comebackFix: false,
+  rocketFix: false,
+  openNetFix: false,
+  passFix: false,
+}
 
 export interface Nhl95HackState {
   choices: Nhl95HackChoices
@@ -27,7 +44,10 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   secondAssist: 'Second-assist bug fix',
   oneTimerAssist: 'One-timer assist fix',
   regainAssist: 'Regained-puck assist fix',
+  aggressionFix: 'Aggression bug fix',
+  comebackFix: 'Comeback bonus fix',
   rocketFix: 'Rocket pass fix',
+  openNetFix: 'One-timer open net fix',
   passFix: 'Pass direction fix',
 }
 
@@ -55,6 +75,40 @@ function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
 }
 const assist = assistFixes({ assist: [0x81476, 0x82f28], regain: 0x81464, regainSame: 0x81492 }, placeCode)
 const rocket = () => hookedFix(ROCKET_HOOK, ROCKET_CODE, ROCKET_EDITS, placeCode)
+
+// ------------------------------------------ fixes of one or two instructions
+// NHL 94's (hacks.ts), where NHL '95's code is the same instruction for
+// instruction, with what follows it, in the original game and the WN95HL's
+// ROMs:
+// - Aggression (setplayer, $83C7C): move.b d3,aggress(a3) / andi.b #$F,aggress(a3)
+//   keeps the last four bits of a 0-30 rating, so it wraps; the fix calls
+//   ClampNibble, just after it as in NHL 94 (so the same bsr.w +$A), halves it
+//   and stores it.
+// - The comeback bonus (setplayer, $83A2C): the test of the clock against half
+//   the period is bgt where it should be blt.
+// - A one-timer at an open net (shotdiradj, $84ED2): the clr.w d0 that aims it
+//   just under the crossbar becomes moveq #8,d0, the aim with no goalie.
+const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; hacked: Uint8Array }>> = {
+  aggressionFix: { at: 0x83c7c, original: hex('1743 0073 022B 000F 0073'), hacked: hex('6100 000A E20B 1743 0073') },
+  comebackFix: { at: 0x83a2c, original: hex('6E00 0026'), hacked: hex('6D00 0026') },
+  openNetFix: { at: 0x84ed2, original: hex('4240 B87C 002C'), hacked: hex('7008 B87C 002C') },
+}
+// What must come before and after each, as NHL '95 has it, for it to be the place.
+const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
+  aggressionFix: [
+    { at: 0x83c76, bytes: hex('4EB9 0008 3CDE') }, // jsr AttributeCalc
+    { at: 0x83c86, bytes: hex('4E75 4A03 6A00 0004 4243 B63C 001E') },
+  ],
+  comebackFix: [{ at: 0x83a20, bytes: hex('4EB9 0007 D4CA E248 B078 C022') }],
+  openNetFix: [{ at: 0x84ecc, bytes: hex('6100 004C D845') }],
+}
+
+function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
+  const place = SWITCHES[hack]!
+  if (!(AROUND[hack] ?? []).every((around) => matches(rom, around.at, around.bytes))) return undefined
+  if (matches(rom, place.at, place.hacked)) return true
+  return matches(rom, place.at, place.original) ? false : undefined
+}
 
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
@@ -127,7 +181,10 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
     regainAssist: assist.regainAssist.detect(rom),
+    aggressionFix: switchState(rom, 'aggressionFix'),
+    comebackFix: switchState(rom, 'comebackFix'),
     rocketFix: rocket().detect(rom),
+    openNetFix: switchState(rom, 'openNetFix'),
     passFix: passFixState(rom),
   }
   return {
@@ -153,6 +210,10 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
+    ...(['aggressionFix', 'comebackFix', 'openNetFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+      const place = SWITCHES[hack]!
+      return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
+    }),
     ['rocketFix', () => rocket().remove(work.rom), () => rocket().apply(work, want.rocketFix)],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
@@ -183,6 +244,12 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  aggressionFix:
+    'Aggression works as the rating reads: a higher rating means more penalties, where the original game mixes the values up (a 4 plays like a 1).',
+  comebackFix:
+    'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
+  openNetFix:
+    'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   rocketFix:
     'Passes go at their own speed: the game no longer sends some of them up to twice as fast, or many times faster, when it rounds the time a pass takes to reach its man. Slow flat passes stay four times as slow.',
   passFix:
@@ -192,7 +259,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'passFix'] },
+  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'passFix'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.
