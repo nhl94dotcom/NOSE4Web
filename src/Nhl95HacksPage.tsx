@@ -50,7 +50,8 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
     <p className="note">
       The fighting patch sets its Game Setup row to On when the game is switched on. With this, it starts at Off, so a
       game has no fights unless the players turn them on; the row still offers On and On - Arcade Mode. It needs
-      Fighting, and turns it on.
+      Fighting, and turns it on. Tested by the NHL94 Match Viewer project on the WN95HL's Season 18 ROM: the row reads
+      Off at power-on and a whole game left at Off had no fights, while On still gave fights.
     </p>
   ),
   fighting: (
