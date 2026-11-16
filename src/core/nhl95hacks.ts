@@ -120,13 +120,18 @@ function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
 // lift ($00-$47 of its code, which works the time out in 64ths of a second);
 // the end is NHL '95's, the same steps on the 64ths: four times as long with
 // the flag, the lift in whole eighths (12 at most, cleared with the flag), at
-// NHL '95's puckvz ($B38E). Then the receiver's wait, 64ths - 10, at most 127:
-// it is a signed byte, which asspassrec counts down with bpl, so a wait over
-// 127 is taken as over already and the receiver skates off. The original's
-// wait passes 127 only on passes over about 2.3 s; with the slow pass's four
-// times and the exact time it would from about half a second (Match Viewer,
-// who played it: 64 slow passes received against the original's 75 before
-// the cap). The hook takes the 74 bytes from the time's loop to .5 ($84804);
+// NHL '95's puckvz ($B38E). Then the receiver's wait. It is a signed byte,
+// which asspassrec counts down with bpl, so a wait over 127 is taken as over
+// already and the receiver goes back to his own play. The original's wait
+// passes 127 only on passes over about 2.3 s; with the slow pass's four times
+// and the exact time, from about half a second. Match Viewer played three
+// ways: with no cap fewer slow passes were caught (original game 64 against 75,
+// WN95HL 88 against 91); capped at 127 the original game caught 100, but the
+// WN95HL's ROM 77, its receivers standing still up to 2.1 s and leaving before
+// a slow puck came, where uncapped they gave up and their own play often took
+// them to it. So the wait is the original's (the 64ths' whole eighths x 8 - 10,
+// four times with the flag) where that is over 127, the receiver giving up as
+// in the original, and otherwise the exact one, at most 127. The hook takes the 74 bytes from the time's loop to .5 ($84804);
 // after it the wait comes from the code in d0 (.5's move.w d2,d0 / asl.w
 // #3,d0 / subi.w #10,d0 become NOPs), the puck's no-touch time is it less 6
 // as before, and as in NHL 94 where he will be is / 16 (asr.l #4 for #1) and
@@ -140,9 +145,13 @@ const ROCKET_HOOK = {
 }
 const ROCKET_CODE = Uint8Array.from([
   ...PASS_CODE.subarray(0, 0x48),
-  ...hex('0838 0001 BF08 6702 E542 3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E'),
-  // $72, where both lift paths end: the wait, 64ths - 10, at most 127, in d0.
-  ...hex('3002 0440 000A B07C 007F 6F02 707F 4E75'),
+  // d1 the time as the original has it, the 64ths' whole eighths; then the slow pass's four times on both.
+  ...hex('3202 E649 0838 0001 BF08 6704 E542 E541'),
+  // The lift, as NHL '95 makes it.
+  ...hex('3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E'),
+  // $78, where both lift paths end: the wait in d0. The original's (eighths x 8 - 10) where that is over 127,
+  // so the receiver gives up as he would there; otherwise the exact one (64ths - 10), at most 127.
+  ...hex('E741 0441 000A B27C 007F 6E10 3002 0440 000A B07C 007F 6F02 707F 4E75 3001 4E75'),
 ])
 const ROCKET_EDITS = [
   // The wait is in d0 from the code above.

@@ -31,10 +31,10 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
 }
 
-// NHL 94's fixes, found the same in NHL '95's code but not yet played in NHL '95.
-const FROM_NHL94 =
-  "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in NHL 94 by the NHL94 Match Viewer project; not yet tested in an NHL '95 game."
-// The same, tested in NHL '95 too.
+// NHL 94's fixes, tested in NHL '95 too.
+const TESTED =
+  "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM."
+// The assist fixes, with what was tested.
 const ASSISTS_TESTED =
   "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM, with the game's own code doing every pickup, pass and shot: a player who wins the puck back and passes to the scorer gets the assist, a give-and-go credits both passers, and a one-timer whose shooter's stick touched the pass keeps its two assists, where the original gives none; a plain one-timer and a teammate's regained puck are as before."
 
@@ -69,15 +69,16 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       In play a rating counts five times its value, give or take a little for being hot or cold, so 0 to 30. Aggression
       is then cut to 0 to 15 by keeping only its last four bits, so it wraps round: a 4 plays like a 1, and a 6 or a 3 is
       the most penalised. The fix keeps it in bounds with the game's own clamp and halves it, so it runs from 0 to 15 with
-      the rating. For goalies the same place holds the glove rating, which lets him make the reaching glove save at 11
-      and over: with the fix that takes about 5. {FROM_NHL94}
+      the rating. On the original, ratings 16 to 23 played as 0 to 7 (a 22 like a 6). For goalies the same place holds
+      the glove rating, but NHL '95 has no reaching glove save (its test branches to the next instruction), so goalies
+      play as before. {TESTED}
     </p>
   ),
   comebackFix: (
     <p className="note">
       A team tied or behind in the third period is meant to get a small boost late on, but the test of the clock is the
       wrong way round, so the boost comes while more than half the period is left and goes for the rest. Overtime is not
-      affected: both teams have it throughout. {FROM_NHL94}
+      affected: both teams have it throughout. {TESTED}
     </p>
   ),
   openNetFix: (
@@ -86,7 +87,8 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       goalie misses the net, the goalie having wandered out of the puck's line, it aims high in the middle, just under the
       crossbar, and the scatter only goes up, so close in about 4 in 10 sail over or hit the bar. The fix aims there as
       it does with no goalie at all, at the middle at mid-height; the penalty shot and shootout aim still follow. In NHL
-      94, open-net one-timer goals went from 56% to 86% with it. An option, not a recommended fix. {FROM_NHL94}
+      94, open-net one-timer goals went from 56% to 86% with it; in Match Viewer's NHL '95 test, 10 of 16 against 15 of
+      16. An option, not a recommended fix. {TESTED}
     </p>
   ),
   rocketFix: (
@@ -100,11 +102,13 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       when its lift reaches the cap, as in the original. Also in the WN95HL's ROMs. Tested in the game by Match Viewer on
       the original game and the WN95HL's Season 18 ROM, 144 targeted passes on each: the original's middle pass went
       1.09 times its speed, with 18 and 23 over 1.3 times; with the fix 0.99 and 1.01, none over 1.3 times, the middle
-      80% within 0.96 to 1.03. Lift and receptions as before or a little better. The receiver's wait is also capped at
-      127 frames: the game keeps it in a signed byte, so a longer wait counts as over at once and the receiver skates
-      off. In the original that happens only on passes over about 2.3 seconds, but the slow pass, four times as long,
-      reached it with the exact time from about half a second, and fewer slow passes were caught (64 against 75 in
-      Match Viewer's test). The cap is in since that test, and still to be played.
+      80% within 0.96 to 1.03. Lift and receptions as before or a little better. The receiver's wait is kept in a
+      signed byte, so a wait over 127 frames counts as over at once and he goes back to his own play. The slow pass,
+      four times as long, reached that with the exact time from about half a second, and fewer slow passes were caught
+      (64 against the original's 75 on the original game). Capping the wait at 127 helped there (100) but cost the
+      WN95HL's ROM (77 against 91), its receivers standing still up to 2.1 seconds and leaving before a slow puck came.
+      So now the wait is the original's wherever the original's is over 127, the receiver giving up there as he
+      always has, and otherwise the exact one, at most 127. That last change is still to be played.
     </p>
   ),
   passFix: (

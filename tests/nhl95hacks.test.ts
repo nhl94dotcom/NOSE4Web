@@ -123,9 +123,11 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const code = read32(on.bytes, 0x847bc)
     // NHL 94's code up to the lift, then NHL '95's end on puckvz $B38E with GameFlags bit 1.
     expect(on.bytes.subarray(code, code + 0x48)).toEqual(PASS_CODE.subarray(0, 0x48))
-    expect(hex(on.bytes, code + 0x48, 0x2a)).toBe('08380001bf086702e5423002e64811c0b38eb07c000c6d1211fc000cb38e08380001bf0867044278b38e')
-    // At $72, where both lift paths end: the receiver's wait, 64ths - 10, at most 127 (a signed byte).
-    expect(hex(on.bytes, code + 0x72, 0x10)).toBe('30020440000ab07c007f6f02707f4e75')
+    // The original's whole eighths in d1, the slow pass's four times, the lift as NHL '95 makes it, then at $78 the
+    // receiver's wait: the original's where over 127 (a signed byte, so he gives up as there), else the exact, at most 127.
+    expect(hex(on.bytes, code + 0x48, 0x10)).toBe('3202e64908380001bf086704e542e541')
+    expect(hex(on.bytes, code + 0x58, 0x20)).toBe('3002e64811c0b38eb07c000c6d1211fc000cb38e08380001bf0867044278b38e')
+    expect(hex(on.bytes, code + 0x78, 0x20)).toBe('e7410441000ab27c007f6e1030020440000ab07c007f6f02707f4e7530014e75')
     expect([hex(on.bytes, 0x84804, 8), hex(on.bytes, 0x8481c, 2), hex(on.bytes, 0x8482c, 2), hex(on.bytes, 0x8483a, 4)]).toEqual([
       '4e714e714e714e71',
       'e880',
