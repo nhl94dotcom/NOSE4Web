@@ -2407,7 +2407,8 @@ export function HelpPage() {
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own. Where its code is NHL 94's instruction for instruction, NHL
           94's fixes go in at NHL '95's places: the three assist fixes (the second assist, the one-timer assist and the
-          regained-puck assist), the Aggression and comeback bonus fixes, the one-timer open net fix, and the{' '}
+          regained-puck assist), the Aggression and comeback bonus fixes, the one-timer open net fix, the five-hole blind ring
+          fix (not yet tested in an NHL '95 game), and the{' '}
           <b>rocket pass fix</b>, with NHL '95's slow flat pass kept. The NHL94 Match Viewer project has tested the assist
           fixes, the Aggression and comeback bonus fixes, the open net fix and the rocket pass fix in NHL '95 on the
           original game and the WN95HL's Season 18 ROM (the rocket pass fix's last change, to the receiver's wait on slow

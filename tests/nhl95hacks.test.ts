@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { PASS_CODE } from '../src/core/hacks'
+import { PASS_CODE, RING_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
 import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -162,6 +162,25 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const odd = rom.bytes.slice()
     odd[0x83c77] ^= 1
     expect(detectNhl95Hacks(odd).unknown).toEqual(['aggressionFix'])
+  })
+
+  it.each(names)("puts NHL 94's five-hole blind ring fix into %s, with NHL '95's addresses", (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    expect(hex(rom.bytes, 0x7b6b8, 8)).toBe('6100024a60000052')
+    const on = applyNhl95Hacks(rom, { blindRingFix: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, blindRingFix: true })
+    // jsr to the code, then bne.s .exit ($7B710).
+    expect(hex(on.bytes, 0x7b6b8, 2)).toBe('4eb9')
+    expect(hex(on.bytes, 0x7b6be, 2)).toBe('6650')
+    expect(0x7b6c0 + 0x50).toBe(0x7b710)
+    const code = read32(on.bytes, 0x7b6ba)
+    // NHL 94's code (hacks.ts RING_CODE) with NHL '95's puckc, gmode and puckstick.
+    expect(hex(on.bytes, code, 46)).toBe(
+      Buffer.from(RING_CODE).toString('hex').replace('4a78b7aa', '4a78b3c2').replace('08380004c2ea', '08380004bef0').replace('4eb9000150e4', '4eb90007b904'),
+    )
+    expect(applyNhl95Hacks(on, { blindRingFix: false }).bytes).toEqual(rom.bytes)
   })
 })
 

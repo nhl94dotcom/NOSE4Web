@@ -17,10 +17,11 @@ export type Nhl95Hack =
   | 'comebackFix'
   | 'rocketFix'
   | 'openNetFix'
+  | 'blindRingFix'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   secondAssist: false,
@@ -30,6 +31,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   comebackFix: false,
   rocketFix: false,
   openNetFix: false,
+  blindRingFix: false,
   passFix: false,
 }
 
@@ -48,6 +50,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   comebackFix: 'Comeback bonus fix',
   rocketFix: 'Rocket pass fix',
   openNetFix: 'One-timer open net fix',
+  blindRingFix: 'Five-hole blind ring fix',
   passFix: 'Pass direction fix',
 }
 
@@ -75,6 +78,8 @@ function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
 }
 const assist = assistFixes({ assist: [0x81476, 0x82f28], regain: 0x81464, regainSame: 0x81492 }, placeCode)
 const rocket = () => hookedFix(ROCKET_HOOK, ROCKET_CODE, ROCKET_EDITS, placeCode)
+const ring = () => hookedFix(RING_HOOK, RING_CODE_95, RING_EDITS, placeCode)
+const ringState = (rom: Uint8Array) => (RING_AROUND.every((around) => matches(rom, around.at, around.bytes)) ? ring().detect(rom) : undefined)
 
 // ------------------------------------------ fixes of one or two instructions
 // NHL 94's (hacks.ts), where NHL '95's code is the same instruction for
@@ -109,6 +114,30 @@ function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
   if (matches(rom, place.at, place.hacked)) return true
   return matches(rom, place.at, place.original) ? false : undefined
 }
+
+// ---------------------------------------------------- five-hole blind ring
+// NHL 94's (hacks.ts, the blind ring). checkpuckcoll hands a low loose puck in
+// a goalie's stick box to puckstick and skips the body test (bsr.w puckstick /
+// bra.w .exit at $7B6B8), but puckstick takes it for a goalie only within 8
+// units of his blade (cmp.l #$40,d0), so between nothing touches the puck.
+// NHL '95's box is a square of +-14 ($E; goalies are never in a one-timer),
+// and its distance test compares with the address of ChkStickSqP, not its
+// value ($FFFFDC76 at $7B6A2), so always passes: the dead area runs from 8
+// units straight out to about 20 at the box's corners, where NHL 94's ring was
+// 8 to 14 (Match Viewer, from the code). NHL 94's fix sends that case on to
+// the body test (.chkbody, then puckgoalie for a goalie) instead; anything
+// else calls puckstick as before, the highlights (gmode bit 4) included. Its
+// code with NHL '95's puckc ($B3C2), gmode ($BEF0) and puckstick ($7B904),
+// the same instructions, so the same branches. d0 is the squared distance
+// there, as in NHL 94. The hook: jsr / bne.s .exit ($7B710).
+const RING_HOOK = { at: 0x7b6b8, original: hex('6100 024A 6000') }
+const RING_EDITS = [{ at: 0x7b6be, original: hex('0052'), hacked: hex('6650') }]
+const RING_CODE_95 = hex('4A6A 0034 661C 4A78 B3C2 6A16 0838 0004 BEF0 660E 0C80 0000 0040 6306 003C 0004 4E75 4EB9 0007 B904 023C 00FB 4E75')
+// What must be around it for it to be the place: cmp.l d1,d0 / bhi.w .chkbody before, .chkbody's tst.w position(a2) after.
+const RING_AROUND = [
+  { at: 0x7b6b2, bytes: hex('B081 6200 000A') },
+  { at: 0x7b6c0, bytes: hex('4A6A 0034 6700') },
+]
 
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
@@ -204,6 +233,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     comebackFix: switchState(rom, 'comebackFix'),
     rocketFix: rocket().detect(rom),
     openNetFix: switchState(rom, 'openNetFix'),
+    blindRingFix: ringState(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -234,6 +264,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
     ['rocketFix', () => rocket().remove(work.rom), () => rocket().apply(work, want.rocketFix)],
+    ['blindRingFix', () => ring().remove(work.rom), () => ring().apply(work, want.blindRingFix)],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -267,6 +298,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
     'Aggression works as the rating reads: a higher rating means more penalties, where the original game mixes the values up (a 4 plays like a 1).',
   comebackFix:
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
+  blindRingFix:
+    "A loose puck close to the goalie's stick but not on its blade now meets the goalie, where the original game lets it through untouched, the way some five-hole goals go in.",
   openNetFix:
     'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   rocketFix:
@@ -279,7 +312,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'passFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.

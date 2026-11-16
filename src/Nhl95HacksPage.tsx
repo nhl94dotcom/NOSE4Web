@@ -27,6 +27,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   aggressionFix: 'Aggression works as the rating reads, where the original wraps it round (a 4 plays like a 1).',
   comebackFix: 'A team tied or behind in the third period gets its boost in the second half of it, not the first.',
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
+  blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
 }
@@ -89,6 +90,19 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       it does with no goalie at all, at the middle at mid-height; the penalty shot and shootout aim still follow. In NHL
       94, open-net one-timer goals went from 56% to 86% with it; in Match Viewer's NHL '95 test, 10 of 16 against 15 of
       16. An option, not a recommended fix. {TESTED}
+    </p>
+  ),
+  blindRingFix: (
+    <p className="note">
+      When a low loose puck comes within a goalie's stick box, the game hands it to his stick and skips the test of his
+      body; but his stick takes a loose puck only within 8 units of its blade. So a puck between the two touches nothing
+      and slides on, which is how some five-hole goals go in. In NHL 94 the gap was a ring from 8 to 14 units; NHL '95's
+      box is a square of 14 each way, and a mistake in its distance test (it compares with an address, not a value)
+      makes the whole square count, so its gap runs from 8 units to about 20 at the corners (the NHL94 Match Viewer
+      project, from the code). NHL 94's fix, Match Viewer's, sends that case on to the goalie's body test, which saves or
+      holds it by his ratings; everything else is as before. In NHL 94 it changed expected goals by about -0.3% over
+      928 recorded shots, and 3 of 218 recorded goals were five-hole goals. An option, not a recommended fix. Also in the
+      WN95HL's ROMs. Not yet tested in an NHL '95 game.
     </p>
   ),
   rocketFix: (
