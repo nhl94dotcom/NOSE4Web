@@ -18,10 +18,11 @@ export type Nhl95Hack =
   | 'rocketFix'
   | 'openNetFix'
   | 'blindRingFix'
+  | 'seasonOvertime'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   secondAssist: false,
@@ -32,6 +33,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   rocketFix: false,
   openNetFix: false,
   blindRingFix: false,
+  seasonOvertime: false,
   passFix: false,
 }
 
@@ -51,6 +53,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   rocketFix: 'Rocket pass fix',
   openNetFix: 'One-timer open net fix',
   blindRingFix: 'Five-hole blind ring fix',
+  seasonOvertime: 'Overtime until a goal in the regular season',
   passFix: 'Pass direction fix',
 }
 
@@ -138,6 +141,28 @@ const RING_AROUND = [
   { at: 0x7b6b2, bytes: hex('B081 6200 000A') },
   { at: 0x7b6c0, bytes: hex('4A6A 0034 6700') },
 ]
+
+// ------------------------------------------ overtime until a goal
+// NHL 94's (hacks.ts, seasonTies 'overtime'). A regular-season game is over
+// after one overtime in two places: PeriodOver sets gsp to 4, game over, at
+// .0 ($8CB9E), and the end of a period (clockcont_0's .10, $8CCDA) sends the
+// end of overtime to .eog with beq.s after tst.w (OptPlayMode).w. In NHL '95
+// both first let a season's playoff games (GameFlags bit 3 with SeasonDay+1
+// bit 5) play on, as the exhibition playoffs (OptPlayMode not 0) do. With
+// both gone, a tied regular-season game plays overtime after overtime, each
+// 10:00 (ResetClock's in OptPlayMode 0), until a goal, as the playoffs do.
+const OVERTIME_PLACES = [
+  // PeriodOver: btst #5,(SeasonDay+1).w; bne.w .1 before; .1's move.w (HmGoals).w,d0 after.
+  { at: 0x8cb9e, original: hex('31FC 0004 C020'), hacked: hex('4E71 4E71 4E71'), before: hex('0838 0005 D1A7 6600 0008'), after: hex('3038 C294') },
+  // clockcont_0 .10: tst.w (OptPlayMode).w before; .eop_ex's move.w #PenEOP,d0 after.
+  { at: 0x8ccda, original: hex('67AC'), hacked: hex('4E71'), before: hex('6600 0008 4A78 CC4C'), after: hex('303C') },
+]
+
+function overtimeState(rom: Uint8Array): boolean | undefined {
+  if (!OVERTIME_PLACES.every((p) => matches(rom, p.at - p.before.length, p.before) && matches(rom, p.at + p.original.length, p.after))) return undefined
+  if (OVERTIME_PLACES.every((p) => matches(rom, p.at, p.hacked))) return true
+  return OVERTIME_PLACES.every((p) => matches(rom, p.at, p.original)) ? false : undefined
+}
 
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
@@ -234,6 +259,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     rocketFix: rocket().detect(rom),
     openNetFix: switchState(rom, 'openNetFix'),
     blindRingFix: ringState(rom),
+    seasonOvertime: overtimeState(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -265,6 +291,11 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     }),
     ['rocketFix', () => rocket().remove(work.rom), () => rocket().apply(work, want.rocketFix)],
     ['blindRingFix', () => ring().remove(work.rom), () => ring().apply(work, want.blindRingFix)],
+    [
+      'seasonOvertime',
+      () => OVERTIME_PLACES.forEach((p) => work.rom.set(p.original, p.at)),
+      () => want.seasonOvertime && OVERTIME_PLACES.forEach((p) => work.rom.set(p.hacked, p.at)),
+    ],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -300,6 +331,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   blindRingFix:
     "A loose puck close to the goalie's stick but not on its blade now meets the goalie, where the original game lets it through untouched, the way some five-hole goals go in.",
+  seasonOvertime:
+    'A regular-season game tied after overtime plays another 10-minute overtime, and another, until someone scores, as playoff games do. It never ends in a tie.',
   openNetFix:
     'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   rocketFix:
@@ -313,6 +346,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.

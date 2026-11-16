@@ -183,5 +183,17 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     )
     expectSameBytes(applyNhl95Hacks(on, { blindRingFix: false }).bytes, rom.bytes)
   })
+
+  it.each(names)('lets a tied regular-season game in %s play overtime until a goal, at both places', (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const on = applyNhl95Hacks(rom, { seasonOvertime: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonOvertime: true })
+    // PeriodOver's move.w #4,(gsp).w and the end of overtime's beq.s .eog, and nothing else.
+    expect(hex(on.bytes, 0x8cb9e, 6)).toBe('4e714e714e71')
+    expect(hex(on.bytes, 0x8ccda, 2)).toBe('4e71')
+    expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBe(8)
+    expectSameBytes(applyNhl95Hacks(on, { seasonOvertime: false }).bytes, rom.bytes)
+  })
 })
 

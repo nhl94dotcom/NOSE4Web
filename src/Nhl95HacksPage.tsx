@@ -28,6 +28,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   comebackFix: 'A team tied or behind in the third period gets its boost in the second half of it, not the first.',
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
   blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
+  seasonOvertime: 'A tied regular-season game plays overtime after overtime until a goal, as the playoffs do.',
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
 }
@@ -107,6 +108,15 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       his reach that nothing touched fell from 2,933 to 549 (3,503 to 647), the channel through his middle in the
       stick saves closed, a standing goalie's gap all but gone; every point that played before plays the same. What is
       left is at the edge of his reach, where his body test never reached.
+    </p>
+  ),
+  seasonOvertime: (
+    <p className="note">
+      In the original game a regular-season game still tied after one overtime ends in a tie, while a playoff game
+      (exhibition playoffs, or a season's playoffs) plays another overtime, and another, until a goal. With this on the
+      regular season plays on the same way, each overtime 10 minutes, as NHL '95's regular-season overtime always is.
+      NHL 94's option, made from the same two places in NHL '95's code (from the NHL95Genesis disassembly), also in the
+      WN95HL's ROMs. Not yet tested in an NHL '95 game.
     </p>
   ),
   rocketFix: (
