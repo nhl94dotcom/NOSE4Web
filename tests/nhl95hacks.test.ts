@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { applyNhl95Hacks, detectNhl95Hacks, Nhl95HackError, nhl95HacksSupported } from '../src/core/nhl95hacks'
+import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
+import { applyNhl95Hacks, detectNhl95Hacks, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { changesSince, startSeason } from '../src/core/season'
@@ -65,5 +66,18 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     ])
     const compared = compareProjects(opened, openRom(buildRom(on)))
     expect(compared.find((s) => s.heading === 'Hacks')?.changes).toEqual(['Pass direction fix: off to on.'])
+  })
+
+  it('names the fix in a Discord post and explains it in the hack sheet', () => {
+    const rom = open(RETAIL)
+    expect(nhl95HacksForDiscord(rom.bytes, 'W18')).toBe(['**Hacks in W18**', 'None: it plays as the original game.'].join('\n'))
+    expect(nhl95HackSheet(rom.bytes, 'W18').sections).toEqual([])
+    const on = applyNhl95Hacks(rom, { passFix: true }).bytes
+    expect(nhl95HacksForDiscord(on, 'W18')).toBe(['**Hacks in W18**', '- **Pass direction fix**'].join('\n'))
+    const sheet = nhl95HackSheet(on, 'W18')
+    expect(sheet.game).toBe("NHL '95 for the Genesis")
+    expect(sheet.sections[0].items[0].title).toBe('Pass direction fix')
+    expect(hackSheetDiscord(sheet)[0]).toContain('- **Pass direction fix**: A pass goes the way the pad points')
+    expect(hackSheetHtml(sheet)).toContain('<dt>Pass direction fix</dt>')
   })
 })

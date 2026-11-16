@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_TITLES, NHL95_HACKS, type Nhl95Hack, type Nhl95HackChoices } from './core/nhl95hacks'
+import { HackShortcuts } from './HackShortcuts'
+import { hackSheetDiscord, hackSheetHtml } from './core/hacksheet'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_TITLES, NHL95_HACKS, nhl95HackSheet, nhl95HacksForDiscord, type Nhl95Hack, type Nhl95HackChoices } from './core/nhl95hacks'
 import type { RomProject } from './core/rom'
 
 interface Props {
   project: RomProject
+  name: string
   onChange: (project: RomProject) => void
 }
 
@@ -11,7 +14,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
 }
 
-export function Nhl95HacksPage({ project, onChange }: Props) {
+export function Nhl95HacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectNhl95Hacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
@@ -44,6 +47,13 @@ export function Nhl95HacksPage({ project, onChange }: Props) {
         were made for NHL 94's code and are not offered here. The page shows what this ROM has now. Test a hacked ROM in
         a game before a league plays on it.
       </p>
+      <HackShortcuts
+        onRecommended={null}
+        discordText={() => nhl95HacksForDiscord(project.bytes, name)}
+        discordMessages={() => hackSheetDiscord(nhl95HackSheet(project.bytes, name))}
+        sheet={() => hackSheetHtml(nhl95HackSheet(project.bytes, name))}
+        name={name}
+      />
       <section id="hacks-play">
         <h3>How the game plays</h3>
         <div className="hack">

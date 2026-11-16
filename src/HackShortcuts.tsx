@@ -3,8 +3,8 @@ import { writeClipboard } from './clipboard'
 import { download } from './download'
 
 interface Props {
-  // Sets the page's choices to the recommended fixes; false where they are all set already.
-  onRecommended: (() => void) | false
+  // Sets the page's choices to the recommended fixes; false where they are all set already, null where the game has none.
+  onRecommended: (() => void) | false | null
   // What this ROM has, as a short post for a league's Discord.
   discordText: () => string
   // The same, each hack explained, as Discord messages to paste one after another.
@@ -35,16 +35,18 @@ export function HackShortcuts({ onRecommended, discordText, discordMessages, she
   return (
     <>
       <p>
-        <button
-          disabled={!onRecommended}
-          onClick={() => {
-            if (!onRecommended) return
-            onRecommended()
-            setNotice('The recommended fixes are set. Check the list under Apply below, then press Apply.')
-          }}
-        >
-          Turn on the recommended fixes
-        </button>{' '}
+        {onRecommended !== null && (
+          <button
+            disabled={!onRecommended}
+            onClick={() => {
+              if (!onRecommended) return
+              onRecommended()
+              setNotice('The recommended fixes are set. Check the list under Apply below, then press Apply.')
+            }}
+          >
+            Turn on the recommended fixes
+          </button>
+        )}{' '}
         <button
           onClick={() => {
             copy(messages(), 0)
@@ -64,7 +66,7 @@ export function HackShortcuts({ onRecommended, discordText, discordMessages, she
         >
           Download hack sheet
         </button>{' '}
-        <span className="note">{notice || (onRecommended ? '' : 'Every recommended fix is set.')}</span>
+        <span className="note">{notice || (onRecommended === false ? 'Every recommended fix is set.' : '')}</span>
       </p>
       {shownMessages.map((text, i) => (
         <div key={i} className="discord-message">

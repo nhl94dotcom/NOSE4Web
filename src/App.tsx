@@ -450,7 +450,7 @@ export default function App() {
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HACKS:
-        if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} onChange={change} />
+        if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} name={name || 'rom'} onChange={change} />
         return current.game.platform === 'snes' ? <SnesHacksPage project={current} name={name || 'rom'} onChange={change} /> : <HacksPage project={current} name={name || 'rom'} onChange={change} />
       case HELP:
         return <HelpPage />

@@ -1,4 +1,6 @@
+import { discordPost } from './discord'
 import type { GameConfig } from './games'
+import type { HackSheet } from './hacksheet'
 import type { RomProject } from './rom'
 
 // Hacks to NHL '95 for the Genesis. NHL 94's hacks are made for NHL 94's code
@@ -78,4 +80,29 @@ export function nhl95HackStateChanges(was: Pick<Nhl95HackState, 'choices' | 'unk
 
 export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): string[] {
   return nhl95HackStateChanges(detectNhl95Hacks(before), detectNhl95Hacks(after))
+}
+
+// What each hack means for how the game plays, in plain words, for a league's owners.
+export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  passFix:
+    "A pass goes the way the pad points, split into the eight directions as NHL 94 splits them. NHL '95 splits them differently, so with the pad between straight across and a diagonal a pass can go another way than in NHL 94. The same routine also turns skaters for other things, which change the same way.",
+}
+
+// The hacks this ROM has, as a short post for a league's Discord.
+export function nhl95HacksForDiscord(rom: Uint8Array, name: string): string {
+  const { choices, unknown } = detectNhl95Hacks(rom)
+  const lines = NHL95_HACKS.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => `- **${NHL95_HACK_TITLES[hack]}**`)
+  return discordPost(name, lines, NHL95_HACKS.filter((hack) => unknown.includes(hack)).map((hack) => NHL95_HACK_TITLES[hack]))
+}
+
+// The same, each hack explained, as a hack sheet (hacksheet.ts).
+export function nhl95HackSheet(rom: Uint8Array, name: string): HackSheet {
+  const { choices, unknown } = detectNhl95Hacks(rom)
+  const items = NHL95_HACKS.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => ({ title: NHL95_HACK_TITLES[hack], text: NHL95_HACK_TEXTS[hack] }))
+  return {
+    name,
+    game: "NHL '95 for the Genesis",
+    sections: items.length > 0 ? [{ heading: 'How the game plays', items }] : [],
+    unread: NHL95_HACKS.filter((hack) => unknown.includes(hack)).map((hack) => NHL95_HACK_TITLES[hack]),
+  }
 }

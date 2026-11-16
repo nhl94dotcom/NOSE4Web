@@ -766,14 +766,14 @@ test.describe('with the NHL 94 ROM', () => {
       buffer: readFileSync(await workbook.path()),
     })
     await expect(page.locator('.outcome')).toContainText('Imported Season_9.xlsx')
-    await expect(page.locator('.outcome li')).toHaveCount(9)
+    await expect(page.locator('.outcome li')).toHaveCount(11)
     await expect(page.locator('.outcome')).not.toHaveClass(/error/)
     await expect(page.locator('input.rom-name')).toHaveValue('Season_9')
 
     const downloads: Download[] = []
     page.on('download', (download) => downloads.push(download))
-    await page.getByRole('button', { name: 'Export all 9 files' }).click()
-    await expect.poll(() => downloads.length, { timeout: 15000 }).toBe(9)
+    await page.getByRole('button', { name: 'Export all 11 files' }).click()
+    await expect.poll(() => downloads.length, { timeout: 15000 }).toBe(11)
     expect(downloads.map((d) => d.suggestedFilename()).sort()).toContain('Season_9_players.csv')
 
     const files = await Promise.all(
@@ -784,7 +784,7 @@ test.describe('with the NHL 94 ROM', () => {
       })),
     )
     await page.locator('input[type=file][accept*=".csv"]').setInputFiles(files)
-    await expect(page.locator('.outcome')).toContainText('Imported 9 files')
+    await expect(page.locator('.outcome')).toContainText('Imported 11 files')
     await expect(page.locator('input.rom-name')).toHaveValue('Season_10')
     await page.screenshot({ path: 'test-results/shots/spreadsheets.png', fullPage: true })
 
@@ -794,6 +794,25 @@ test.describe('with the NHL 94 ROM', () => {
       buffer: Buffer.from('Team,Name\r\n1,Bob\r\n'),
     })
     await expect(page.locator('.outcome.error')).toContainText('Nothing was imported')
+  })
+
+  test("changes every team's organ songs by number in the songs file, the song list naming them", async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Spreadsheet files').click()
+    const row = (title: string) => page.locator('tr').filter({ has: page.locator('strong', { hasText: new RegExp(`^${title}$`) }) })
+    const list = await downloadFrom(page, row('Song list').getByRole('button', { name: 'Export CSV' }))
+    expect(list.suggestedFilename()).toBe('nhl94_songlist.csv')
+    expect(readFileSync(await list.path(), 'utf8')).toContain('17,Brass Bonanza (HFD)')
+    const file = await downloadFrom(page, row('Organ songs').getByRole('button', { name: 'Export CSV' }))
+    expect(file.suggestedFilename()).toBe('nhl94_songs.csv')
+    const lines = readFileSync(await file.path(), 'utf8').split(/\r?\n/)
+    // Boston: $31 $32 $30 Random $5A $31. Its home goal becomes 17, Brass Bonanza.
+    expect(lines[2]).toBe('2,Boston Bruins,2,3,1,0,43,2')
+    lines[2] = '2,Boston Bruins,2,3,1,17,43,2'
+    await page.locator('input[type=file][accept*=".csv"]').setInputFiles({ name: 'nhl94_songs.csv', mimeType: 'text/csv', buffer: Buffer.from(lines.join('\r\n')) })
+    await expect(page.locator('.outcome')).toContainText('Updated the songs of 1 team.')
+    await team(page, 'Boston Bruins').click()
+    await expect(page.getByLabel('Organ song: Home goal').locator('option:checked')).toHaveText('17. Brass Bonanza (HFD)')
   })
 
   test('edits game settings, then checks and compares the ROM', async ({ page }) => {
@@ -2989,6 +3008,12 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(page.getByText('Pass direction fix: off to on')).toBeVisible()
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
     await expect(page.getByText('Done: 1 change to the game.')).toBeVisible()
+    // No recommended fixes for NHL '95; the Discord post and the hack sheet name the fix.
+    await expect(page.getByRole('button', { name: 'Turn on the recommended fixes' })).toHaveCount(0)
+    await page.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
+    await expect(page.getByLabel("This ROM's hacks for Discord")).toHaveValue(/- \*\*Pass direction fix\*\*: A pass goes the way the pad points/)
+    const sheet = await downloadFrom(page, page.getByRole('button', { name: 'Download hack sheet' }))
+    expect(readFileSync(await sheet.path(), 'utf8')).toContain('<dt>Pass direction fix</dt>')
     await page.screenshot({ path: 'test-results/shots/nhl95-hacks.png', fullPage: true })
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Pass direction fix: off to on.')).toBeVisible()
