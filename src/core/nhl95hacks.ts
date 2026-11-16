@@ -2,6 +2,7 @@ import { discordPost } from './discord'
 import type { GameConfig } from './games'
 import { assistFixes, hookedFix, NHL_SHOOTOUT_CODE, PASS_CODE } from './hacks'
 import type { HackSheet } from './hacksheet'
+import { FIGHT95_AT, FIGHT95_BLOCK, FIGHT95_CHOICES_AT, FIGHT95_HOOKS, FIGHT95_LABELS_AT } from './nhl95fightdata'
 import type { RomProject } from './rom'
 import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 
@@ -10,6 +11,7 @@ import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 // other addresses (the NHL95Genesis disassembly).
 
 export type Nhl95Hack =
+  | 'fighting'
   | 'secondAssist'
   | 'oneTimerAssist'
   | 'regainAssist'
@@ -24,10 +26,12 @@ export type Nhl95Hack =
   | 'nhlShootout'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
-// place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'passFix']
+// place the second-assist fix calls from, as in NHL 94; fighting, whose code
+// has a place of its own, goes in before the others claim free space.
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
+  fighting: false,
   secondAssist: false,
   oneTimerAssist: false,
   regainAssist: false,
@@ -51,6 +55,7 @@ export interface Nhl95HackState {
 
 // NHL 94's titles where the fix is NHL 94's.
 export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
+  fighting: 'Fighting',
   secondAssist: 'Second-assist bug fix',
   oneTimerAssist: 'One-timer assist fix',
   regainAssist: 'Regained-puck assist fix',
@@ -395,6 +400,52 @@ function passFixState(rom: Uint8Array): boolean | undefined {
   return matches(rom, PASS_AT, ORIGINAL) ? false : undefined
 }
 
+// ---------------------------------------------------------------- fighting
+// Vancecookcobxin's fighting patch (nhl95fightdata.ts, FIGHTING_ROM_PATCH.md): EA's unused
+// fight frames brought back with the NHL 2026 - 94 Edition's fight engine, and a
+// Fighting row on the Game Setup screen (Off, On, On - Arcade Mode; On at
+// power-on), its setting at $FFCC63 and its engine's RAM at $FFE800. Its code
+// and tables must be at $1E0000 (its jumps and pointers are to there), free
+// in the original game, the 34-team ROM and the WN95HL's. Its thirteen hooks
+// are changed only where all are the original game's or all the patch's. The
+// Game Setup screen's choice counts and row labels are copied into its tables
+// from the ROM's own, as the patch's build does.
+const FIGHT_HOOKS = FIGHT95_HOOKS.map((h) => ({ at: h.at, original: hex(h.original), patched: hex(h.patched) }))
+const FIGHT_CODE = hex(FIGHT95_BLOCK)
+const FIGHT_END = FIGHT95_AT + FIGHT_CODE.length
+const SETUP_CHOICES = 0x85eaa
+const SETUP_LABELS = 0x86be8
+const SETUP_ROWS = 8
+const SETUP_LABEL_BYTES = 16
+
+function fightCode(rom: Uint8Array): Uint8Array {
+  const code = FIGHT_CODE.slice()
+  code.set(rom.subarray(SETUP_CHOICES, SETUP_CHOICES + SETUP_ROWS), FIGHT95_CHOICES_AT - FIGHT95_AT)
+  code.set(rom.subarray(SETUP_LABELS, SETUP_LABELS + SETUP_ROWS * SETUP_LABEL_BYTES), FIGHT95_LABELS_AT - FIGHT95_AT)
+  return code
+}
+
+function fightState(rom: Uint8Array): boolean | undefined {
+  if (rom.length < FIGHT_END) return undefined
+  if (FIGHT_HOOKS.every((h) => matches(rom, h.at, h.original))) return false
+  return FIGHT_HOOKS.every((h) => matches(rom, h.at, h.patched)) && matches(rom, FIGHT95_AT, fightCode(rom)) ? true : undefined
+}
+
+function removeFight(rom: Uint8Array) {
+  if (fightState(rom) !== true) return
+  for (const h of FIGHT_HOOKS) rom.set(h.original, h.at)
+  rom.fill(0xff, FIGHT95_AT, FIGHT_END)
+}
+
+function applyFight(rom: Uint8Array, on: boolean) {
+  if (!on) return
+  for (let at = FIGHT95_AT; at < FIGHT_END; at++) {
+    if (rom[at] !== 0xff) throw new Error(`Fighting: its code goes at $1E0000, and this ROM has other data there ($${at.toString(16).toUpperCase()}).`)
+  }
+  rom.set(fightCode(rom), FIGHT95_AT)
+  for (const h of FIGHT_HOOKS) rom.set(h.patched, h.at)
+}
+
 // --------------------------------------------------------------- the page
 
 export function nhl95HacksSupported(game: GameConfig): boolean {
@@ -404,6 +455,7 @@ export function nhl95HacksSupported(game: GameConfig): boolean {
 export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
   const ties = tiesState(rom)
   const found: Record<Nhl95Hack, boolean | undefined> = {
+    fighting: fightState(rom),
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
     regainAssist: assist.regainAssist.detect(rom),
@@ -441,6 +493,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   const work = { rom: project.bytes.slice() }
   // Every known hack comes out, then those wanted go in, as for NHL 94.
   const steps: [Nhl95Hack, () => void, () => void][] = [
+    ['fighting', () => removeFight(work.rom), () => applyFight(work.rom, want.fighting)],
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
@@ -483,6 +536,8 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  fighting:
+    'Players can fight. Now and then a hard check between two aggressive players starts one, more likely as a game gets rougher (about one a game or two, never in overtime): they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -499,7 +554,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   seasonShootoutNow:
     'A regular-season game tied after period 3 goes straight to a shootout, with no overtime; the winners get one goal more, so it never ends in a tie.',
   seasonOvertime:
-    'A regular-season game tied after overtime plays another 10-minute overtime, and another, until someone scores, as playoff games do. It never ends in a tie.',
+    'A regular-season game tied after overtime plays another overtime, and another, until someone scores, as playoff games do. It never ends in a tie.',
   openNetFix:
     'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   rocketFix:
@@ -514,6 +569,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
   { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.

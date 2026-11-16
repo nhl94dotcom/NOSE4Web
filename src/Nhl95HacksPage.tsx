@@ -21,6 +21,7 @@ interface Props {
 }
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
+  fighting: 'Players can fight: now and then a hard check between two aggressive players starts one. Off, On or Arcade Mode on Game Setup.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -44,6 +45,22 @@ const ASSISTS_TESTED =
   "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM, with the game's own code doing every pickup, pass and shot: a player who wins the puck back and passes to the scorer gets the assist, a give-and-go credits both passers, and a one-timer whose shooter's stick touched the pass keeps its two assists, where the original gives none; a plain one-timer and a teammate's regained puck are as before."
 
 const MORE: Record<Nhl95Hack, ReactNode> = {
+  fighting: (
+    <>
+      <p className="note">
+        EA drew a fight for NHL '95 and left it in the cartridge unused. Vancecookcobxin's fighting patch brings it back
+        with the fight engine of the NHL 2026 - 94 Edition. Now and then a hard check between two aggressive players starts a fight, more likely
+        as a game gets rougher: about one a game or two, never in overtime. The two drop their gloves and sticks and trade
+        punches until one goes down; both get five minutes, and the winner's penalty shows a tick. With a controller you
+        fight with C (high punch), B (low punch) and A (grab).
+      </p>
+      <p className="note">
+        The Game Setup screen gets a Fighting row: Off, On (the default at power-on) or On - Arcade Mode, with more
+        fights. The patch's code goes at $1E0000, which is free in the original game, the 34-team ROM and the WN95HL's
+        ROMs. Not yet tested in a NOSE4Web-built ROM.
+      </p>
+    </>
+  ),
   secondAssist: (
     <>
       <p className="note">

@@ -256,5 +256,55 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(both.bytes).choices).toEqual({ ...NO_NHL95_HACKS, nhlShootout: true, seasonShootout: true })
     expectSameBytes(applyNhl95Hacks(both, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
+
+  // The fighting patch's own IPS files, where present: for the original game and the WN95HL's Season 18 ROM.
+  const FIGHT_IPS: Record<string, string> = { 'NHL95/NHL_95.bin': 'nhl95_fighting.ips', 'NHL95/W18.bin': 'w18_fighting.ips' }
+  function ipsRecords(file: string): [number, Uint8Array][] {
+    const d = readFileSync(path(file))
+    const out: [number, Uint8Array][] = []
+    let i = 5
+    while (d.toString('latin1', i, i + 3) !== 'EOF') {
+      const at = d.readUIntBE(i, 3)
+      const n = d.readUInt16BE(i + 3)
+      i += 5
+      if (n === 0) {
+        out.push([at, new Uint8Array(d.readUInt16BE(i)).fill(d[i + 2])])
+        i += 3
+      } else {
+        out.push([at, new Uint8Array(d.subarray(i, i + n))])
+        i += n
+      }
+    }
+    return out
+  }
+
+  it.each(names)('puts the fighting patch into %s as its own IPS patch does, and takes it out again', (name) => {
+    const rom = open(name)
+    const on = applyNhl95Hacks(rom, { fighting: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, fighting: true })
+    expect(detectNhl95Hacks(buildRom(on)).choices.fighting).toBe(true)
+    const ips = FIGHT_IPS[name]
+    if (ips && existsSync(path(ips))) {
+      // The patch's bytes, but its header checksum and the original game's own ROM check sum (that check is off).
+      const patched = rom.bytes.slice()
+      for (const [at, bytes] of ipsRecords(ips)) if (at !== 0x18e && at !== 0x1a72dc) patched.set(bytes, at)
+      expectSameBytes(on.bytes, patched)
+      // A ROM the patch made itself reads as fighting on, and comes out.
+      const theirs = rom.bytes.slice()
+      for (const [at, bytes] of ipsRecords(ips)) theirs.set(bytes, at)
+      expect(detectNhl95Hacks(theirs).choices.fighting).toBe(true)
+      expect(detectNhl95Hacks(applyNhl95Hacks({ ...rom, bytes: theirs }, { fighting: false }).bytes).choices.fighting).toBe(false)
+    }
+    expectSameBytes(applyNhl95Hacks(on, { fighting: false }).bytes, rom.bytes)
+    // With every other NHL '95 hack, their code placed after its own, through a rebuild.
+    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season')])) as typeof NO_NHL95_HACKS
+    const all = applyNhl95Hacks(rom, every)
+    expect(detectNhl95Hacks(buildRom(all)).choices).toEqual(every)
+    expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    // Not where its place holds something else.
+    const taken = rom.bytes.slice()
+    taken[0x1e0800] = 0
+    expect(() => applyNhl95Hacks({ ...rom, bytes: taken }, { fighting: true })).toThrow(/1E0800/)
+  })
 })
 
