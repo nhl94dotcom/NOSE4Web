@@ -22,6 +22,7 @@ import { creditsFit, type Credits } from './credits'
 import { type Scouting, scoutingWithMissingLines } from './scouting'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, nhl95HacksSupported, type Nhl95HackChoices } from './nhl95hacks'
 import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
@@ -79,6 +80,7 @@ interface ProjectFile {
   // The same for an SNES ROM, with the amounts of those that hold one.
   snesHacks?: SnesHackChoices
   snesHackAmounts?: Partial<Record<SnesAmount, number>>
+  nhl95Hacks?: Nhl95HackChoices
   // An SNES ROM's replaced logos.
   snesPictures?: {
     logos: Record<string, { pixels: string; palette: number[] }>
@@ -200,6 +202,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     hacks: hackState(project)?.choices,
     snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
     snesHackAmounts: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).amounts : undefined,
+    nhl95Hacks: nhl95HacksSupported(project.game) ? detectNhl95Hacks(project.bytes).choices : undefined,
     snesPictures: project.snesPictures && {
       logos: Object.fromEntries(
         Object.entries(project.snesPictures.logos).map(([team, logo]) => [team, { pixels: pack(logo.picture.pixels), palette: logo.palette }]),
@@ -452,6 +455,18 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
     if (amountsDiffer || SNES_HACKS.some((hack) => typeof file.snesHacks![hack] === 'boolean' && file.snesHacks![hack] !== now[hack])) {
       try {
         opened = applySnesHacks(opened, file.snesHacks, false, amounts)
+        notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
+      } catch (e) {
+        throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+  }
+  if (!exact && file.nhl95Hacks && nhl95HacksSupported(opened.game)) {
+    const { choices: now } = detectNhl95Hacks(opened.bytes)
+    const wanted = Object.fromEntries(NHL95_HACKS.flatMap((hack) => (typeof file.nhl95Hacks![hack] === 'boolean' ? [[hack, file.nhl95Hacks![hack]]] : []))) as Partial<Nhl95HackChoices>
+    if (NHL95_HACKS.some((hack) => wanted[hack] !== undefined && wanted[hack] !== now[hack])) {
+      try {
+        opened = applyNhl95Hacks(opened, wanted)
         notes.push("The project's hacks were put into this ROM. See the Hacks page for what it now has.")
       } catch (e) {
         throw new ProjectFileError(`This project's hacks could not be put into this ROM: ${e instanceof Error ? e.message : String(e)}`)

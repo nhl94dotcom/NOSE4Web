@@ -6,6 +6,7 @@ import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { SONG_NUMBERS, songName, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
+import { nhl95HackDifferences, nhl95HacksSupported } from './nhl95hacks'
 import { snesHackDifferences } from './sneshacks'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
@@ -302,6 +303,9 @@ export function compareProjects(before: RomProject, after: RomProject): Differen
   } else if (before.game.platform === 'snes' && after.game.platform === 'snes') {
     // As above: the ROM as opened is given the work's hacks (App.tsx), so its own bytes say what it had.
     const hacks = snesHackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
+    if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
+  } else if (nhl95HacksSupported(before.game) && nhl95HacksSupported(after.game)) {
+    const hacks = nhl95HackDifferences(before.source === after.source ? after.source : before.bytes, after.bytes)
     if (hacks.length > 0) sections.push({ heading: 'Hacks', changes: hacks })
   }
 

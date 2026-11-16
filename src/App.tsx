@@ -34,6 +34,7 @@ import { playerPhoto, playerPhotosSupported, withPlayerPhotos } from './core/pla
 import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { hacksSupported, withHacksOf } from './core/hacks'
+import { nhl95HacksSupported } from './core/nhl95hacks'
 import { anyPosition } from './core/anyposition'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
@@ -64,6 +65,7 @@ import { useSectionTabs } from './useSectionTabs'
 const HelpPage = lazy(() => import('./HelpPage').then((m) => ({ default: m.HelpPage })))
 const HacksPage = lazy(() => import('./HacksPage').then((m) => ({ default: m.HacksPage })))
 const SnesHacksPage = lazy(() => import('./SnesHacksPage').then((m) => ({ default: m.SnesHacksPage })))
+const Nhl95HacksPage = lazy(() => import('./Nhl95HacksPage').then((m) => ({ default: m.Nhl95HacksPage })))
 const loading = (
   <main className="team">
     <p className="note">Loading…</p>
@@ -448,6 +450,7 @@ export default function App() {
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HACKS:
+        if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} onChange={change} />
         return current.game.platform === 'snes' ? <SnesHacksPage project={current} name={name || 'rom'} onChange={change} /> : <HacksPage project={current} name={name || 'rom'} onChange={change} />
       case HELP:
         return <HelpPage />
@@ -552,7 +555,7 @@ export default function App() {
     setNavOpen(false)
   }
   const showSettings = hasSettings(project.game, project.settings)
-  const showHacks = hacksSupported(project.game) || project.game.platform === 'snes'
+  const showHacks = hacksSupported(project.game) || project.game.platform === 'snes' || nhl95HacksSupported(project.game)
   const showRink = project.rinkPalette.length > 0
   const entry = (id: number, label: string) => (
     <button className={selected === id ? 'active' : ''} onClick={() => go(id)}>
