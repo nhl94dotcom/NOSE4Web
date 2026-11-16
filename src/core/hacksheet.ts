@@ -252,6 +252,7 @@ const SNES: Record<SnesHack, string> = {
   barrPick: 'Ron Barr names the team that came out hotter before every game, not only when one is much hotter.',
   barrCoin: 'Ron Barr names a team before every game by a coin flip, whatever their form.',
   skipPucksIntro: 'The game starts without the flying pucks.',
+  organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
   manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts him back, with a beep.',

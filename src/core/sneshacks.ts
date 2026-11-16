@@ -72,6 +72,7 @@ export type SnesHack =
   | 'giveaways'
   | 'giveawaysShown'
   | 'giveawayPages'
+  | 'organResume'
 
 interface Site {
   // The game's address.
@@ -342,6 +343,7 @@ export const SNES_HACKS: SnesHack[] = [
   'giveaways',
   'giveawaysShown',
   'giveawayPages',
+  'organResume',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -401,6 +403,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   giveaways: 'Giveaways and takeaways for each player',
   giveawaysShown: 'Giveaways and takeaways in Game Stats',
   giveawayPages: 'Giveaways and takeaways in Player Stats',
+  organResume: 'Organ music after a pause',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -2933,7 +2936,88 @@ function shootoutInjuryPlaces(rom: Uint8Array, noFight = false): Placed[] | null
   ]
 }
 
+// ------------------------------------------------------ organ after a pause
+// As on the Genesis (hacks.ts, organResume). The SNES game sequences its songs
+// on the 65816 (SoundUpdate, every NMI); the SPC700 only plays what it is
+// sent. The song is all in low RAM: SongPtr ($07ED), TempoAcc and TempoTick
+// ($07F5), MusicOn ($07F3), TrackCount ($0801), the track tables
+// ($0804-$08F1), its bank (direct page $58) and the sample set (direct page
+// $34); SoundLock ($07E5) keeps SoundUpdate out. The pause (Pausemode)
+// fades the sound out (jsl FadeOutSound), which at the end of the fade
+// clears all of it, and on the way out resets the sound (jsl SoundInit), and
+// nothing starts the song again.
+// - The jsl FadeOutSound becomes a jsl to code that keeps the song's state,
+//   248 bytes, then goes on to FadeOutSound.
+// - The jsl SoundInit becomes a jsl to code that calls SoundInit, then, where
+//   a song was playing and the sample set is the same (a replay with music on
+//   leaves the menu's), puts it all back, so the song carries on.
+// The two are one block. The places are found by the code around them, and
+// the calls' own targets kept, so it is the same in every build: the kept
+// state at $7E:FF00 in the LoROM builds and $40:5C00 in the SA-1 ones (whose
+// low variables are $6000 on), both found unused by the NHL94 Match Viewer
+// project through whole games, the pause menu, replays and the menus.
+const ORGAN_RAM = [
+  { shift: 0, at: 0x7eff00 },
+  { shift: 0x6000, at: 0x405c00 },
+]
+const ORGAN_SAVE_SITE = 'a2000822......fa22......ad....48ad....4822'
+const ORGAN_RESTORE_SITE = 'a900008f......9c....9c....22......22......22......22......da'
+const long24 = (value: number) => [value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff]
+// The two pieces: save (going on to FadeOutSound at `fade`) and restore (calling SoundInit at `init`).
+function organCode(moved: number, kept: number, fade: number, init: number): { save: Uint8Array; restore: Uint8Array } {
+  const at = (address: number) => word(address + moved)
+  const [lock, on, count, song, tempo, tracks] = [0x07e5, 0x07f3, 0x0801, 0x07ed, 0x07f5, 0x0804].map(at)
+  const s = (offset: number) => long24(kept + offset)
+  const save = bytesOf(
+    '08 DA E2 20 C2 10 CE', lock,
+    'AD', on, '8F', s(4), 'AD', count, '8F', s(5), 'A5 58 8F', s(6),
+    'C2 20 AD', song, '8F', s(0), 'AD', tempo, '8F', s(2), 'A5 34 8F', s(8),
+    'A2 EC 00 BD', tracks, '9F', s(10), 'CA CA 10 F5',
+    'E2 20 EE', lock, 'FA 28 5C', long24(fade),
+  )
+  // Past the sample set test (bne), to the end of the body.
+  const rest = bytesOf(
+    'E2 20 CE', lock, 'AF', s(5), '8D', count, 'AF', s(6), '85 58',
+    'C2 20 AF', s(0), '8D', song, 'AF', s(2), '8D', tempo,
+    'A2 EC 00 BF', s(10), '9D', tracks, 'CA CA 10 F5',
+    'E2 20 AF', s(4), '8D', on, 'A9 00 8F', s(4), 'EE', lock,
+  )
+  const body = bytesOf('C2 20 A5 34 CF', s(8), 'D0', rest.length, rest)
+  const restore = bytesOf('22', long24(init), '08 DA E2 20 C2 10 AF', s(4), 'F0', body.length, body, 'FA 28 6B')
+  return { save, restore }
+}
+// The prefixes the two pieces start with, to know a ROM that has them.
+const ORGAN_SAVE_START = hexBytes('08DAE220C210CE')
+const ORGAN_SAVE_LENGTH = 76
+function organPlaces(rom: Uint8Array): Placed[] | null {
+  const moved = shift(rom)
+  const ram = ORGAN_RAM.find((layout) => layout.shift === moved)
+  const saveFound = only(rom, ORGAN_SAVE_SITE)
+  const restoreFound = only(rom, ORGAN_RESTORE_SITE)
+  if (!ram || saveFound < 0 || restoreFound < 0) return null
+  const [saveSite, restoreSite] = [saveFound + 8, restoreFound + 25]
+  const target = (site: number) => loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  const operand = (offset: number) => rom[offset] | (rom[offset + 1] << 8) | (rom[offset + 2] << 16)
+  // In a ROM that has it, the calls' own targets are in the code: the save's jml at its end, the restore's jsl at
+  // its start.
+  const block = target(saveSite)
+  const isIn = block >= 0 && block + ORGAN_SAVE_LENGTH < rom.length && same(rom, block, ORGAN_SAVE_START)
+  const fade = isIn ? operand(block + ORGAN_SAVE_LENGTH - 3) : operand(saveSite + 1)
+  const init = isIn ? operand(block + ORGAN_SAVE_LENGTH + 1) : operand(restoreSite + 1)
+  const { save, restore } = organCode(ram.shift, ram.at, fade, init)
+  if (save.length !== ORGAN_SAVE_LENGTH) return null
+  const placed = withFarCode(rom, saveSite, bytesOf('22', long24(fade)), 0, bytesOf(save, restore))
+  if (!placed) return null
+  const room = placed[1].at
+  if (isIn && loRomOffset(rom[restoreSite + 3], readU16(rom, restoreSite + 1)) !== room + save.length) return null
+  return [
+    ...placed,
+    { at: restoreSite, original: bytesOf('22', long24(init)), hacked: bytesOf('22', word(loRomAddress(room + save.length)), loRomBank(room + save.length, 0x80)) },
+  ]
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
+  organResume: (rom) => organPlaces(rom),
   // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
   shootoutInjuries: (rom) => {
     const places = shootoutInjuryPlaces(rom)
@@ -4057,7 +4141,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
