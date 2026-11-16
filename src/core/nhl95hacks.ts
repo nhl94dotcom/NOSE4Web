@@ -159,7 +159,8 @@ const RING_AROUND = [
 // both first let a season's playoff games (GameFlags bit 3 with SeasonDay+1
 // bit 5) play on, as the exhibition playoffs (OptPlayMode not 0) do. With
 // both gone, a tied regular-season game plays overtime after overtime, each
-// 10:00 (ResetClock's in OptPlayMode 0), until a goal, as the playoffs do.
+// ResetClock's overtime for OptPlayMode 0 (10:00 retail, 5:00 in W18), until a
+// goal, as the playoffs do. Match Viewer played it on both (a961bb7).
 const PERIOD_OVER = { at: 0x8cb9e, original: hex('31FC 0004 C020'), overtime: hex('4E71 4E71 4E71') }
 const END_OF_OVERTIME = { at: 0x8ccda, original: hex('67AC'), overtime: hex('4E71') }
 // What must be around the places for them to be the original game's (and the WN95HL's).

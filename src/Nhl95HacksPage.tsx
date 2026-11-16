@@ -144,9 +144,10 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
     <p className="note">
       In the original game a regular-season game still tied after one overtime ends in a tie, while a playoff game
       (exhibition playoffs, or a season's playoffs) plays another overtime, and another, until a goal. With this on the
-      regular season plays on the same way, each overtime 10 minutes, as NHL '95's regular-season overtime always is.
-      NHL 94's option, made from the same two places in NHL '95's code (from the NHL95Genesis disassembly), also in the
-      WN95HL's ROMs. Not yet tested in an NHL '95 game.
+      regular season plays on the same way, each overtime as long as the ROM's own (10 minutes in the original game, 5
+      in the WN95HL's). NHL 94's option, made from the same two places in NHL '95's code (from the NHL95Genesis
+      disassembly), also in the WN95HL's ROMs. Tested in NHL '95 games on the original and the WN95HL's ROM: exhibition
+      and season games went to another overtime and ended on the goal, playoffs and untied games played as before.
     </p>
   ),
   rocketFix: (
