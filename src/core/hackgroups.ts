@@ -33,7 +33,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
   { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },
   { id: 'lines', title: 'Edit Lines and controls', hacks: ['fewerSkaterLines', 'anyPosition'] },
-  { id: 'looks', title: 'Looks and screens', hacks: ['puckColours', 'netColours', 'greenFan', 'barrPick', 'barrCoin', 'introWait', 'headBleeding'] },
+  { id: 'looks', title: 'Looks and screens', hacks: ['puckColours', 'netColours', 'greenFan', 'barrPick', 'barrCoin', 'introWait', 'headBleeding', 'organResume'] },
   { id: 'legacy', title: 'Legacy hacks', hacks: ['weightFix'] },
 ]
 

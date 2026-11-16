@@ -200,6 +200,8 @@ export interface HackChoices {
   barrCoin: boolean
   // NOSE4Web's head bleeding for players hurt for the game (genesisblood.ts).
   headBleeding: boolean
+  // The organ song carries on from where it was after a pause.
+  organResume: boolean
 }
 
 export type PuckColours = 'rink' | 'crowd' | 'home' | 'away'
@@ -281,6 +283,7 @@ export type HackPart =
   | 'barrPick'
   | 'barrCoin'
   | 'headBleeding'
+  | 'organResume'
 
 export interface HackState {
   choices: HackChoices
@@ -362,6 +365,7 @@ export const NO_HACKS: HackChoices = {
   barrPick: false,
   barrCoin: false,
   headBleeding: false,
+  organResume: false,
 }
 
 // The least and most each number can be.
@@ -2906,6 +2910,59 @@ const greenFan: Part<boolean> = {
   apply: (work, value) => void (value && GREEN_FAN.forEach((s) => work.rom.set(s.hacked, s.at))),
 }
 
+// ------------------------------------------------------ organ after a pause
+// The pause (Pausemode, $7CF8) silences everything with p_turnoff ($1A264),
+// which frees every track slot of the music driver, and nothing starts the
+// song again: the organ stays quiet after the pause. A song plays from one
+// track slot (fm_track_slots, $FFD3D4, 8 x 6 bytes: its event pointer and the
+// frames to its next event), the one whose pointer is at or past the first
+// song's stream (stop_current_song's test, SongPointerTable $2C708), with
+// the voices of its track in fm_voice_usage_table ($FFD1A4: 8 bytes for each
+// midi channel and track, midi channel * 64 + track * 8): patch, volume and
+// pitch bend. p_turnoff keeps the voices but frees the slot, and a sound
+// on the pause menu taking the slot would clear them.
+// - The pause's jsr p_turnoff ($7D0C) calls code that keeps the song's slot
+//   and voices, 72 bytes, on the stack under its return address, and goes
+//   on to p_turnoff. The pause has the one way in and one way out, and its
+//   own stack use sits on top, so they are there when it ends.
+// - Its last move.w (Vcount).w,(OldVcount).w ($7DC6), before the rts, calls
+//   code that puts the song back in its slot (or the first free one, its
+//   voices with it), takes the 72 bytes off and does the move. The driver
+//   carries on from the song's next event, so a note held through the pause
+//   is heard again at the next one; p_turnoff leaves every channel's patch
+//   to be sent again, so the voices sound as before.
+// Music frames are kept out while the slot and voices are read and written.
+const ORGAN_SAVE_HOOK: Hook = { at: 0x7d0c, original: bytes('4EB9 0001 A264') }
+const ORGAN_RESTORE_HOOK: Hook = { at: 0x7dc6, original: bytes('31F8 B03E B040') }
+const ORGAN_SAVE = bytes('4FEF FFB8 2EAF 0048 48E7 F0E0 45EF 0020 40E7 46FC 2700 34BC FFFF 43F8 D3D4 7607 2079 0002 C708 B1D1 5C49 5FCB FFFA 6E2E 43E9 FFFA 3483 2551 0002 3569 0004 0006 41F8 D1A4 3003 E748 D0C0 43EA 0008 7207 22D0 22E8 0004 41E8 0040 51C9 FFF4 46DF 4CDF 070F 4EF9 0001 A264')
+const ORGAN_RESTORE = bytes('48E7 F0E0 45EF 0020 3612 6B00 005A 40E7 46FC 2700 7007 9043 3200 D241 D240 D241 43F8 D3D4 D2C1 4A51 6B12 43F8 D3D4 7607 4A51 6B08 5C49 51CB FFF8 6028 22AA 0002 336A 0006 0004 41F8 D1A4 3003 E748 D0C0 43EA 0008 7207 2099 2159 0004 41E8 0040 51C9 FFF4 46DF 4CDF 070F 2F57 0048 4FEF 0048 31F8 B03E B040 4E75')
+// What must be as the original game has it for the code to be right: the wait before the jsr, the pause's rts,
+// stop_current_song's search (the slots and SongPointerTable) and ClearAllTrackAndSFXSlots' lea of the slots.
+const ORGAN_AROUND = [
+  { at: 0x7cfe, bytes: bytes('3F00 3038 B03E B078 B03E 67FA 301F') },
+  { at: 0x7dcc, bytes: bytes('4E75') },
+  { at: 0x1a30e, bytes: bytes('43F8 D3D4 7607 2079 0002 C708') },
+  { at: 0x1ad54, bytes: bytes('41F8 D3D4') },
+]
+const organSave = hookedFix(ORGAN_SAVE_HOOK, ORGAN_SAVE, [])
+const organRestore = hookedFix(ORGAN_RESTORE_HOOK, ORGAN_RESTORE, [])
+const organResume: Part<boolean> = {
+  detect(rom) {
+    if (!ORGAN_AROUND.every((around) => is(rom, around.at, around.bytes))) return undefined
+    const [save, restore] = [organSave.detect(rom), organRestore.detect(rom)]
+    if (save === false && restore === false) return false
+    return save === true && restore === true ? true : undefined
+  },
+  remove(rom) {
+    organSave.remove(rom)
+    organRestore.remove(rom)
+  },
+  apply(work, value) {
+    organSave.apply(work, value)
+    organRestore.apply(work, value)
+  },
+}
+
 // ------------------------------------------------------ giveaways and takeaways
 // Each player's giveaways and takeaways, counted as the NHL94 Match Viewer
 // project counts them: the puck carrier changing from one team to the other
@@ -3172,6 +3229,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     barrCoin: found('barrCoin', barrCoin.detect(rom), NO_HACKS.barrCoin),
     // With the long fall the injury animation is not the original's, so the blood cannot go in: off, not unknown.
     headBleeding: found('headBleeding', bloodChoice(rom) ?? (injuries.detect(rom) === 'longFall' ? false : undefined), NO_HACKS.headBleeding),
+    organResume: found('organResume', organResume.detect(rom), NO_HACKS.organResume),
   }
   const [width, out] = [goalieWidth.detect(rom), goalieOut.detect(rom)]
   if (width === undefined || out === undefined) unknown.push('goalieBox')
@@ -3286,6 +3344,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     ['barrPick', () => barrPick.remove(work.rom), () => barrPick.apply(work, wanted.barrPick)],
     ['barrCoin', () => barrCoin.remove(work.rom), () => barrCoin.apply(work, wanted.barrCoin)],
+    ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
   ]
@@ -3547,6 +3606,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   barrPick: "Ron Barr's pick every game",
   barrCoin: "Ron Barr's pick by a coin flip",
   headBleeding: 'Head bleeding',
+  organResume: 'Organ music after a pause',
 }
 
 // Which part's code each choice is kept in.
@@ -3623,6 +3683,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   barrPick: 'barrPick',
   barrCoin: 'barrCoin',
   headBleeding: 'headBleeding',
+  organResume: 'organResume',
 }
 
 export const BONUS_TEXTS: Record<Bonuses, string> = {
