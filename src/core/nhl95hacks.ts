@@ -190,10 +190,12 @@ const TIES_AROUND = [
 // each in NHL '95 ($6CC, $1B3 longs), and the scoring summary's length are kept
 // while the shootout plays and put back after it, the winners given one goal
 // more; NHL 94's copy of its plus-minus hack's log is left out (NHL '95 has no
-// such hack). The mark and the kept structs need RAM no game writes:
-// PROVISIONAL, awaiting the NHL94 Match Viewer project's check of NHL '95's
-// RAM (NHL '95 keeps a copy of its save RAM in main RAM, so NHL 94's $FFF082
-// cannot be assumed).
+// such hack). The mark and the kept structs need RAM no game writes: the
+// NHL94 Match Viewer project found $FFDC84-$FFFC03 unchanged through whole
+// games, shootouts and season screens on the original and W18, and
+// $FFF000-$FFF6CF untouched outside the shootout (NHL 94's $FFF082 could not
+// be assumed: NHL '95 keeps a copy of its save RAM in main RAM). The fighting
+// patch's RAM is at $FFE800-$FFE879.
 const SHOOTOUT_MARK = 0xf000
 const SHOOTOUT_SAVE = 0xf002
 const word = (value: number) => value.toString(16).toUpperCase().padStart(4, '0')
@@ -559,7 +561,7 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   fighting:
-    "Players can fight. Now and then a hard check between two players who fight (their Fighting ratings) starts one, more likely as a game gets rougher, never in overtime: they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights. Players with no fighting rating never fight.",
+    "Players can fight. Now and then a hard check between two players who fight (their Fighting ratings) starts one, more likely as a game gets rougher, never in overtime: they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights. Only players with a Fighting rating of 71 or more start fights (42 in Arcade Mode), against one rated 14 or more; about 0.8 fights a game in the original game.",
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',

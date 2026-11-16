@@ -55,9 +55,10 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
         with C (high punch), B (low punch) and A (grab).
       </p>
       <p className="note">
-        Who fights is the players' <b>Fighting</b> rating (in Handed/Fighting): a fight needs both players rated, and the
-        higher the rating the likelier. In the original game nearly every player has one. In the WN95HL's Season 18 ROM
-        no player does, so there are no fights until a league gives some players a fighting rating.
+        Who fights is the players' <b>Fighting</b> rating (in Handed/Fighting). Only a player rated 71 or more can start a
+        fight (42 or more in Arcade Mode), and only against one rated 14 or more who has taken enough hits. In the
+        original game nearly every player is rated. In the WN95HL's Season 18 ROM no player is, so there are no fights
+        until a league rates some.
       </p>
       <p className="note">
         The Game Setup screen gets a Fighting row: Off, On (the default at power-on) or On - Arcade Mode, with more
@@ -65,8 +66,9 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
         ROMs. With the NHL94 Match Viewer project's fix: as the patch came, a register its fight check used was
         overwritten, so on 5- and 10-minute periods no fight could ever start. Match Viewer played it with the fix on the
         original game and the WN95HL's Season 18 ROM (its players given fighting ratings): fights start from hard checks,
-        both fighters get five minutes, and Off means no fights. How often fights happen in a normal game is still to be
-        measured.
+        both fighters get five minutes, and Off means no fights. In 60 computer games on the original game with 5-minute
+        periods there were 48 fights, about 0.8 a game: most in the third period, as games get rougher, none in the
+        first.
       </p>
     </>
   ),
@@ -145,7 +147,9 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       today's NHL rule: three rounds, then sudden death, and it ends as soon as the result is settled (for example after
       the home team's third shot when it trails by two). The home team shoots first. For Shootout mode on the main menu
       and the regular-season shootouts above. NHL 94's option, made from NHL '95's code, which tests the end of a
-      shootout the same way, also in the WN95HL's ROMs. Not yet tested in an NHL '95 game.
+      shootout the same way, also in the WN95HL's ROMs. Tested by the NHL94 Match Viewer project on the original game
+      and the WN95HL's Season 18 ROM: in 16 shootouts each ended exactly where the NHL's rule says, after three
+      rounds, part-way through one, or in sudden death.
     </p>
   ),
   seasonShootout: (
@@ -154,16 +158,19 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       side, then sudden death. The winners get one goal more in the score, so the game never ends in a tie; the shootout
       itself counts in no statistics, the players' and goalies' stats, goals by period and scoring summary being kept as
       they were at the end of overtime. Playoff games are unchanged. NHL 94's option, made from NHL '95's code (the
-      NHL95Genesis disassembly), also in the WN95HL's ROMs. Not yet tested in an NHL '95 game. Only one of the three ways
-      of settling a tie can be on.
+      NHL95Genesis disassembly), also in the WN95HL's ROMs. Tested by the NHL94 Match Viewer project on the original
+      game and the WN95HL's Season 18 ROM, in exhibition and season games: the shootout starts after the tied
+      overtime, the end screens show its winner a goal up, every statistic is as it was before it, the standings give
+      a win and a loss, and playoff and untied games play as before. Only one of the three ways of settling a tie can
+      be on.
     </p>
   ),
   seasonShootoutNow: (
     <p className="note">
       A regular-season game tied after period 3 goes straight to a shootout, with no overtime, played and counted as the
       shootout after overtime is. Playoff games, exhibition or a season's, are unchanged. NHL 94's option, made from NHL
-      '95's code, also in the WN95HL's ROMs. Not yet tested in an NHL '95 game. Only one of the three ways of settling a
-      tie can be on.
+      '95's code, also in the WN95HL's ROMs. Tested by the NHL94 Match Viewer project on both, as the shootout after
+      overtime was: it starts straight after period 3. Only one of the three ways of settling a tie can be on.
     </p>
   ),
   seasonOvertime: (

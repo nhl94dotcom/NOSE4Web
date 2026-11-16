@@ -2415,15 +2415,14 @@ export function HelpPage() {
           project: in NHL '95 a pass now and then goes straight across, or back behind the passer, instead of to the
           teammate he's pointing at; the fix makes passes go where they do in NHL 94. Match Viewer played it on the
           WN95HL's Season 18 ROM. It's an option, not a recommended fix. Also, from NHL 94's overtime and shootout
-          options, <b>overtime until a goal in the regular season</b> (Match Viewer played it on both ROMs), a{' '}
-          <b>shootout</b> for tied regular-season games (after overtime or after period 3) and the <b>NHL shootout</b>{' '}
-          (three rounds, then sudden death), the shootouts not yet tested in an NHL '95 game; 3 on 3 overtime is to
-          come. And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
+          options, <b>overtime until a goal in the regular season</b>, a <b>shootout</b> for tied regular-season games
+          (after overtime or after period 3) and the <b>NHL shootout</b> (three rounds, then sudden death), all played
+          by Match Viewer on both ROMs; 3 on 3 overtime is to come. And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
           and left unused, with the NHL 2026 - 94 Edition's fight engine, and adds a Fighting row (Off, On, On - Arcade
           Mode) to the Game Setup screen; for the original game, the 34-team ROM and the WN95HL's ROMs, with the NHL94
           Match Viewer project's fix (as it came, no fight could start on 5- or 10-minute periods), and played by Match
-          Viewer with it. Players fight by their Fighting rating (in Handed/Fighting): the WN95HL's Season 18 ROM gives
-          none, so a league there raises some.
+          Viewer with it. Players fight by their Fighting rating (in Handed/Fighting): 71 or more to start a fight, 14 or
+          more to fight back. The WN95HL's Season 18 ROM rates no one, so a league there raises some.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,
