@@ -214,8 +214,7 @@ interface Layout {
 }
 
 // The address a pointer place holds, where its instruction is the one expected (games.ts pointerOpcode).
-function pointer(rom: Uint8Array, game: GameConfig, at: number): number {
-  const opcode = game.graphics.pointerOpcode
+function pointer(rom: Uint8Array, game: GameConfig, at: number, opcode = game.graphics.pointerOpcode): number {
   if (opcode !== undefined && readU16(rom, at - 2) !== opcode) throw new Error('unexpected code')
   const value = readU32(rom, at)
   if (value <= 0 || value >= rom.length) throw new Error('bad pointer')
@@ -224,12 +223,12 @@ function pointer(rom: Uint8Array, game: GameConfig, at: number): number {
 
 function layout(rom: Uint8Array, game: GameConfig): Layout {
   const g = game.graphics
-  const table = (pointerAt: number) => {
-    const at = pointer(rom, game, pointerAt)
+  const table = (pointerAt: number, opcode?: number) => {
+    const at = pointer(rom, game, pointerAt, opcode)
     if (at + game.teamCount * 4 > rom.length) throw new Error('bad table')
     return Array.from({ length: game.teamCount }, (_, team) => readU32(rom, at + team * 4))
   }
-  const rinkLogos = g.rinkLogoTablePointer === null ? [] : table(g.rinkLogoTablePointer)
+  const rinkLogos = g.rinkLogoTablePointer === null ? [] : table(g.rinkLogoTablePointer, g.rinkLogoPointerOpcode ?? g.pointerOpcode)
   for (const at of rinkLogos) {
     const block = readBlock(rom, at)
     // Each has room for all its tiles even where a hack has set the count
@@ -265,7 +264,7 @@ function bannersOf(where: Layout): Record<BannerKind, Block> {
   return where.banners
 }
 
-// Whether this game has centre-ice logos the editor reads (not NHL '95, whose are compressed).
+// Whether this game has centre-ice logos the editor reads.
 export function rinkLogosSupported(project: Source): boolean {
   return project.game.graphics.rinkLogoTablePointer !== null
 }

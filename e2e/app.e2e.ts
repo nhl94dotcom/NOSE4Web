@@ -2972,13 +2972,13 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(forwards).toHaveValue('7')
   })
 
-  test("shows a team's menu logo, exports it and takes it back in, the only picture NHL '95 offers yet", async ({ page }) => {
+  test("shows a team's centre-ice and menu logos, exports the menu logo and takes it back in; no banners yet", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(nhl95Path)
     await team(page, 'Boston Bruins').click()
     const logo = page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Menu logo$/ }) })
     await expect(logo).toContainText('48 by 48')
-    await expect(page.locator('.picture strong', { hasText: 'Centre-ice logo' })).toHaveCount(0)
+    await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: 'Centre-ice logo' }) })).toContainText('48 by 32')
     await expect(page.locator('.picture strong', { hasText: /banner/i })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Menu banner colours' })).toHaveCount(0)
     await logo.scrollIntoViewIfNeeded()

@@ -90,11 +90,11 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     expect(found[0].message).not.toContain(project.teams[26].names[0])
   })
 
-  it("leaves out what the editor made for NHL 94: its hacks, pictures but the menu logos, the league value", () => {
+  it("leaves out what the editor made for NHL 94: its hacks, pictures but the logos, the league value", () => {
     const project = openRom(read(RETAIL))
     expect(hacksSupported(project.game)).toBe(false)
-    // The menu logos only (nhl95logos.test.ts).
-    expect(pictureKinds(project)).toEqual(['menuLogo'])
+    // The centre-ice and menu logos only (nhl95logos.test.ts).
+    expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo'])
     expect(hasLeagueValue(project.game)).toBe(false)
     expect(project.settings.credits ?? null).toBeNull()
     expect(project.teams.every((team) => team.songs === undefined && team.shownOverall === undefined)).toBe(true)

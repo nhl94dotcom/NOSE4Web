@@ -25,7 +25,7 @@ export interface GameConfig {
   // tables of one address per team for the logos, and single blocks holding
   // every team's banner.
   graphics: {
-    // Null where the game keeps its centre-ice logos in a way the editor does not read (NHL '95 compresses them).
+    // Null where the game keeps its centre-ice logos in a way the editor does not read.
     rinkLogoTablePointer: number | null
     menuLogoTablePointer: number
     // Each team's banner stripe colours on the menus.
@@ -38,6 +38,8 @@ export interface GameConfig {
     // Where the pointers are operands of instructions (NHL '95's movea.l #table,a0), the word each must follow:
     // a ROM whose code differs there is not read.
     pointerOpcode?: number
+    // The same for the centre-ice logo table's pointer, where its instruction differs (NHL '95's movea.l #table,a2).
+    rinkLogoPointerOpcode?: number
     // Whether the banners are kept as the original game keeps them. Hacks
     // that draw their banners with code of their own are left alone.
     banners: boolean
@@ -358,10 +360,14 @@ export const NHL95: GameConfig = {
   ],
   // The menu logos (TeamLogoBitmaps, 6 x 6 tiles) and their colours (TeamLogoPalettes, 16 a team: 1 and 2 the
   // team's stripes, 5 and 6 white and black as in NHL 94, 7 to 15 the logo's), found through GetTeamLogo's and
-  // DrawTeamLogo's movea.l, which the WN95HL's ROMs point elsewhere. The centre-ice logos are compressed
-  // (ArenaGfxBank) and the banners take their colours from each screen's palettes, so neither is offered yet.
+  // DrawTeamLogo's movea.l, which the WN95HL's ROMs point elsewhere. The centre-ice logos are kept as NHL 94's are
+  // (not compressed: NHL '95 has no decompressor), 24 tiles each in ArenaGfxBank, through TeamGfxList, which
+  // LoadHomeTeamGfx reads with movea.l #TeamGfxList,a2 ($7DEA6; the WN95HL's ROMs point it at their own 34). They
+  // are drawn 6 x 4 at centre ice in the home team's strip colours, as NHL 94's. The banners take their colours
+  // from each screen's palettes, so they are not offered yet.
   graphics: {
-    rinkLogoTablePointer: null,
+    rinkLogoTablePointer: 0x7dea8,
+    rinkLogoPointerOpcode: 0x247c,
     menuLogoTablePointer: 0x7d3ee,
     menuLogoPalettePointer: 0x7d486,
     menuPaletteColors: 16,

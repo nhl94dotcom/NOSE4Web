@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { canAddGenesisScoreLogos } from '../src/core/genesisscorelogos'
-import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, rinkLogosSupported, withMenuLogo, writeGraphics, type Picture } from '../src/core/graphics'
+import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, rinkLogo, rinkLogosSupported, withMenuLogo, withRinkLogo, writeGraphics, type Picture } from '../src/core/graphics'
 import { importTeam, ALL_PARTS } from '../src/core/importteam'
 import { pictureKinds } from '../src/core/pictureset'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -28,8 +28,12 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
   it.each(names)('reads every team’s 6 x 6 logo and its colours in %s, and nothing NHL 94 keeps differently', (name) => {
     const project = open(name)
     expect(project.graphicsSupported).toBe(true)
-    expect(pictureKinds(project)).toEqual(['menuLogo'])
-    expect(rinkLogosSupported(project)).toBe(false)
+    expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo'])
+    expect(rinkLogosSupported(project)).toBe(true)
+    project.teams.forEach((_, team) => {
+      const logo = rinkLogo(project, team)
+      expect([logo.width, logo.height]).toEqual([48, 32])
+    })
     expect(canAddGenesisScoreLogos(project)).toBe(false)
     project.teams.forEach((_, team) => {
       const logo = menuLogo(project, team)
@@ -80,14 +84,37 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
     expect(openRom(odd).graphicsSupported).toBe(false)
   })
 
-  it.skipIf(!existsSync(path('nhl94.bin')))('comes across from NHL 94 with a team, the centre-ice logo left out', () => {
+  it.skipIf(!existsSync(path('nhl94.bin')))('comes across from NHL 94 with a team, centre-ice logo too', () => {
     const nhl95 = expandPictureSpace(open(RETAIL))
     const nhl94 = open('nhl94.bin')
     const { project, notes } = importTeam(nhl95, nhl94, BOSTON, BOSTON, { ...ALL_PARTS, names: false, roster: false, photos: false })
     expect(menuLogo(project, BOSTON)).toEqual(menuLogo(nhl94, BOSTON))
     expect(menuLogoPalette(project, BOSTON).slice(7)).toEqual(menuLogoPalette(nhl94, BOSTON).slice(7))
-    expect(notes).toContain("Centre-ice logo left alone: the editor does not read NHL '95's.")
+    expect(notes).toContain('Centre-ice logo brought in.')
     expect(notes).toContain('Menu logo brought in.')
-    expect(menuLogo(openRom(buildRom(project)), BOSTON)).toEqual(menuLogo(nhl94, BOSTON))
+    const rebuilt = openRom(buildRom(project))
+    expect(menuLogo(rebuilt, BOSTON)).toEqual(menuLogo(nhl94, BOSTON))
+    expect(rinkLogo(rebuilt, BOSTON)).toEqual(rinkLogo(nhl94, BOSTON))
+  })
+
+  it.each(names)('replaces one team’s centre-ice logo in %s, in its own 24 tiles, the others left as they were', (name) => {
+    const project = open(name)
+    const table = ((project.bytes[0x7dea8] << 24) | (project.bytes[0x7dea9] << 16) | (project.bytes[0x7deaa] << 8) | project.bytes[0x7deab]) >>> 0
+    const blockOf = (bytes: Uint8Array, team: number) => ((bytes[table + team * 4] << 24) | (bytes[table + team * 4 + 1] << 16) | (bytes[table + team * 4 + 2] << 8) | bytes[table + team * 4 + 3]) >>> 0
+    // A 48 x 32 picture in the home strip colours 1 to 15, every tile different.
+    const pixels = new Uint8Array(48 * 32)
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 48; x++) pixels[y * 48 + x] = (x * 5 + y * 3 + ((x * y) >> 3)) % 16
+    const picture: Picture = { width: 48, height: 32, pixels }
+    const edited = { ...project, graphics: withRinkLogo(project, BOSTON, picture) }
+    const bytes = buildRom(edited)
+    const reopened = openRom(bytes)
+    expect(rinkLogo(reopened, BOSTON)).toEqual(picture)
+    // In place: the same block, still 24 tiles (LoadHomeTeamGfx loads exactly $18 before the next characters).
+    const at = blockOf(bytes, BOSTON)
+    expect(at).toBe(blockOf(project.bytes, BOSTON))
+    expect(Array.from(bytes.subarray(at, at + 10))).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0x18])
+    project.teams.forEach((_, team) => {
+      if (team !== BOSTON) expect(rinkLogo(reopened, team)).toEqual(rinkLogo(project, team))
+    })
   })
 })

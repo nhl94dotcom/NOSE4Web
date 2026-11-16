@@ -380,7 +380,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         <p className="note">
           {isGenesis94(project.game)
             ? 'This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.'
-            : "NHL '95's banners and centre-ice logos are not offered yet: only the menu logos can be replaced here."}
+            : "NHL '95's banners are not offered yet: only the centre-ice and menu logos can be replaced here."}
         </p>
       )}
       {hasBanners && (

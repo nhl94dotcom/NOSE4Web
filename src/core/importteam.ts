@@ -247,7 +247,7 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
   if (rinkLogosSupported(project) && rinkLogosSupported(other)) {
     attempt('Centre-ice logo', (p) => ({ ...p, graphics: withRinkLogo(p, to, rinkLogo(other, from)) }))
   } else if (rinkLogosSupported(project) || rinkLogosSupported(other)) {
-    notes.push("Centre-ice logo left alone: the editor does not read NHL '95's.")
+    notes.push("Centre-ice logo left alone: the editor does not read one of the two ROMs' centre-ice logos.")
   }
   attempt('Menu logo', (p) => {
     const palette = menuLogoStart(p, to)
