@@ -56,6 +56,10 @@ export interface GameConfig {
     // expected, rather than all or none (NHL '95, whose league ROMs leave out
     // the menu banners).
     bannersPerKind?: boolean
+    // Where a screen loads the in-game banners' tiles and then other graphics after them, up to a character it must
+    // not pass: the most tiles the banners may have is what is left. Each of the others is found through the place
+    // that holds its address (`at`, after the instruction `opcode`), its tile count `countAt` bytes in.
+    gameBannerRoom?: { firstChar: number; endChar: number; others: { at: number; opcode: number; countAt: number }[] }
   }
   // Whether the playoff draws, clock, rule messages and main menu are where
   // the original game keeps them. Hacks that rebuild the menus move them.
@@ -407,6 +411,21 @@ export const NHL95: GameConfig = {
       // The pause screen's nickname banners (PauseTeamBlocksMap, 12 x 2 a team, in the pause screen's own colours):
       // move.l #PauseTeamBlocksMap,(teamblocksmapptr). The WN95HL's ROMs keep theirs elsewhere, through the same place.
       pause: [{ at: 0x7ea14, offset: 0, opcode: 0x23fc }],
+    },
+    // The playoff tree loads the in-game banners' tiles from character 1, then the small font, the big font, the
+    // arrows, its background and the playoff picture, all below its first map at $B000 (character $580). In the
+    // original game that leaves room for 565 banner tiles (it has 502); the WN95HL's smaller playoff picture leaves
+    // more. Found by the NHL94 Match Viewer project: at 616 the tree's top rows were garbage.
+    gameBannerRoom: {
+      firstChar: 1,
+      endChar: 0x580,
+      others: [
+        { at: 0x87c52, opcode: 0x23fc, countAt: 8 }, // move.l #SmallFontMap,(smallfontptr)
+        { at: 0x87c78, opcode: 0x247c, countAt: 0 }, // movea.l #BigFontMap2+8,a2
+        { at: 0x87c84, opcode: 0x247c, countAt: 0 }, // movea.l #Arrowsmap+8,a2
+        { at: 0x87ca0, opcode: 0x207c, countAt: 8 }, // movea.l #ScoutMap,a0
+        { at: 0x87cc0, opcode: 0x227c, countAt: 8 }, // movea.l #PlayoffSprite,a1
+      ],
     },
   },
   playoffDrawPointerOffsets: [0x87a04, 0x87a6e],

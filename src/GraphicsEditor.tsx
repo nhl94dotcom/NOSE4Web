@@ -172,7 +172,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
       case 'pauseBanner':
         return "The team's nickname on the pause screen, in the pause screen's own colours."
       default:
-        if (!isGenesis94(project.game)) return "Shown on Game Setup, in the team's two stripe colours, white and black."
+        if (!isGenesis94(project.game)) return "Shown on Game Setup, in white, black and the team's two banner colours below."
         return (
           `Shown on the menus${kinds.includes('visitorBanner') ? (kind === 'visitorBanner' ? ' for the visiting team' : ' for the home team') : ''}, with its two stripes in the banner colours below.` +
           (everyTeam(kind)
@@ -345,7 +345,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                     ? 'In the colours every team shares for these.'
                     : isGenesis94(project.game)
                       ? 'In the banner colours, which are changed below.'
-                      : "In the team's two stripe colours, white and black."}
+                      : 'In white, black and the banner colours, which are changed below.'}
               {shared.length > 0 &&
                 ` It is shared with ${everyTeam(drawing) ? 'every team' : shared.map((other) => teamDisplayName(project.teams[other])).join(', ')}, so it changes for ${shared.length === 1 ? 'that team' : 'them'} too.`}
             </p>
@@ -456,8 +456,8 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         </>
       )}
 
-      {/* NHL '95's stripe colours (its logo colours 1 and 2) show on screens not yet checked in the game. */}
-      {isGenesis94(project.game) && (
+      {/* NHL '95's stripe colours (its menu colours 1 and 2) colour its menu banners on Game Setup, where it has them. */}
+      {(isGenesis94(project.game) || kinds.includes('menuBanner')) && (
         <>
           <h2>Menu banner colours</h2>
           <PaletteEditor

@@ -2,7 +2,21 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { NHL95 } from '../src/core/games'
-import { banner, bannerKindSupported, bannerPalette, bannersEditable, expandPictureSpace, menuLogo, rinkLogo, withBanner } from '../src/core/graphics'
+import {
+  banner,
+  bannerColors,
+  bannerKindSupported,
+  bannerPalette,
+  bannersEditable,
+  expandPictureSpace,
+  gameBannerMost,
+  menuLogo,
+  menuLogoPalette,
+  menuPalette,
+  rinkLogo,
+  withBanner,
+  withBannerColors,
+} from '../src/core/graphics'
 import { paintableColours } from '../src/core/pictureset'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
@@ -71,6 +85,17 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     expect(banner(openProjectFile(project, text).project, 'game', 1)).toEqual(banner(project, 'game', 2))
   })
 
+  it('changes a team’s menu banner colours in the original game: its menu colours 1 and 2, the logo’s left as they were', () => {
+    const project = open(RETAIL)
+    const was = menuLogoPalette(project, 1)
+    const graphics = { ...project.graphics, menuPalettes: { [1]: withBannerColors(menuPalette(project, 1), [0x00e, 0x0e0]) } }
+    const reopened = openRom(buildRom({ ...project, graphics }))
+    expect(bannerColors(reopened, 1)).toEqual([0x00e, 0x0e0])
+    expect(bannerPalette(reopened, 'menu', 1).slice(1, 3)).toEqual([0x00e, 0x0e0])
+    expect(menuLogoPalette(reopened, 1).slice(5)).toEqual(was.slice(5))
+    expect(bannerColors(reopened, 2)).toEqual(bannerColors(project, 2))
+  })
+
   it('gives the original game’s banners room of their own, every place that reads them following', () => {
     const project = open(RETAIL)
     const roomy = expandPictureSpace(project)
@@ -92,5 +117,18 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     const picture = { width: 88, height: 16, pixels }
     const reopened = openRom(buildRom({ ...roomy, graphics: withBanner(roomy, 'menu', 1, picture) }))
     expect(banner(reopened, 'menu', 1)).toEqual(picture)
+    // The in-game banners are held to what the playoff tree has room for: 565 tiles in the original game (it
+    // loads other graphics after them, below its first map). Every team's all-new is too many.
+    expect(gameBannerMost(roomy.bytes, roomy.game)).toBe(565)
+    let crowded = roomy
+    roomy.teams.forEach((_, team) => {
+      const noise = new Uint8Array(88 * 16)
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 88; x++) noise[y * 88 + x] = 1 + ((x * 3 + y * 5 + team * 7 + ((x * y + team) >> 2)) % 15)
+      crowded = { ...crowded, graphics: withBanner(crowded, 'game', team, { width: 88, height: 16, pixels: noise }) }
+    })
+    expect(() => buildRom(crowded)).toThrow(/playoff tree/)
+    // A few teams' are fine.
+    const few = Object.fromEntries(Object.entries(crowded.graphics.gameBanners).slice(0, 2))
+    expect(() => buildRom({ ...roomy, graphics: { ...roomy.graphics, gameBanners: few } })).not.toThrow()
   })
 })

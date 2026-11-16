@@ -693,7 +693,7 @@ function writeMenuLogos(rom: Uint8Array, game: GameConfig, blocks: Block[], edit
 // Writes sets of banners that are laid out by one map: a single set, or the
 // home and visiting teams' menu banners together. The first block's map is
 // the one the game reads; the others are given the same, to stay readable.
-function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Picture>[], name: string): void {
+function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Picture>[], name: string, most?: number): void {
   if (edits.every((set) => Object.keys(set).length === 0)) return
   const pictures = blocks.map((block, i) => {
     const all = decodeMapped(rom, block, blocks[0])
@@ -701,6 +701,14 @@ function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Pi
     return all
   })
   const { tiles, entries } = encodeTogether(pictures, 0)
+  // A screen that has room for fewer than the block holds sets the limit.
+  if (most !== undefined && tiles[0].length > most && tiles[0].length > blocks[0].tileCount) {
+    const over = tiles[0].length - most
+    throw new NoRoomError(
+      `The ${name} banners can have ${most} different squares of 8 by 8 pixels between them, as many as the playoff tree has room for, and this change needs ${over} more. ` +
+        'A square that is an exact copy of another, in any team’s banner, costs nothing extra: lettering that repeats shapes takes less room.',
+    )
+  }
   // Each block keeps its size and layout, so nothing that points into it moves.
   const capacity = Math.min(...blocks.map((block) => block.capacity))
   if (tiles[0].length > capacity) {
@@ -717,6 +725,21 @@ function writeBanners(rom: Uint8Array, blocks: Block[], edits: Record<number, Pi
     writeU16(rom, block.at + 8, Math.max(tiles[i].length, block.tileCount))
     entries.forEach((entry, e) => writeU16(rom, block.mapAt + 4 + e * 2, entry | mapFlags(block)))
   })
+}
+
+// The most tiles the in-game banners may have, where a screen loads other graphics after them (games.ts
+// gameBannerRoom); 0, so that they cannot grow, where the code that finds those graphics is not as expected.
+export function gameBannerMost(rom: Uint8Array, game: GameConfig): number | undefined {
+  const room = game.graphics.gameBannerRoom
+  if (!room) return undefined
+  let used = 0
+  for (const other of room.others) {
+    if (readU16(rom, other.at - 2) !== other.opcode) return 0
+    const at = readU32(rom, other.at) + other.countAt
+    if (at + 2 > rom.length) return 0
+    used += readU16(rom, at) & 0x7fff
+  }
+  return Math.max(0, room.endChar - room.firstChar - used)
 }
 
 // Writes the replaced pictures into `rom`. With no edits it changes nothing.
@@ -755,7 +778,7 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
     if (!kinds.every((kind) => bannersAsExpected(rom, game, kind, where))) {
       throw new Error(`This ROM keeps its ${name} banners in a way the editor cannot change.`)
     }
-    writeBanners(rom, kinds.map((kind) => bannerSet(where, kind)), pictures, name)
+    writeBanners(rom, kinds.map((kind) => bannerSet(where, kind)), pictures, name, kinds[0] === 'game' ? gameBannerMost(rom, game) : undefined)
   }
   // Last, because it can move the logos and so change where things are.
   writeMenuLogos(rom, game, where.menuLogos, edits.menuLogos)
