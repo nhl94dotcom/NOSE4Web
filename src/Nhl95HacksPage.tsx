@@ -102,7 +102,11 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       project, from the code). NHL 94's fix, Match Viewer's, sends that case on to the goalie's body test, which saves or
       holds it by his ratings; everything else is as before. In NHL 94 it changed expected goals by about -0.3% over
       928 recorded shots, and 3 of 218 recorded goals were five-hole goals. An option, not a recommended fix. Also in the
-      WN95HL's ROMs. Not yet tested in an NHL '95 game.
+      WN95HL's ROMs. Tested in the game by Match Viewer on the original game and the WN95HL's Season 18 ROM, a slow low
+      puck placed at every point of a grid round the goalie in 33 of his frames (37 on the WN95HL's): the points inside
+      his reach that nothing touched fell from 2,933 to 549 (3,503 to 647), the channel through his middle in the
+      stick saves closed, a standing goalie's gap all but gone; every point that played before plays the same. What is
+      left is at the edge of his reach, where his body test never reached.
     </p>
   ),
   rocketFix: (
