@@ -2411,8 +2411,8 @@ export function HelpPage() {
           for. NHL 94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own, its options tested in the game by the NHL94 Match Viewer
-          project but the newest few, as their texts say. NHL 94's fixes where NHL '95 has the same code: the three
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
+          Viewer project. NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression and comeback bonus fixes, the one-timer open net fix, the five-hole blind ring fix,
           the <b>rocket pass fix</b>, the runaway speed fix, the computer goalie pull fix, the pulled-goalie sniping fix
           (an option) and the two penalty shot fixes.

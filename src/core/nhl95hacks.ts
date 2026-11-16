@@ -835,7 +835,7 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
-    'A skater no longer slides on far past top speed after you take him over with a pass coming, after he gets up from a fall into the boards, or after a missed one-timer.',
+    'A skater no longer glides on, barely slowing, after getting up from a fall into the boards or after you take him over with a pass coming.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two behind.',
   snipingFix:
     "A team whose goalie is off the ice no longer has every shot within range go exactly where aimed: it takes the shooter's accuracy roll as any other shot does.",
