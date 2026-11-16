@@ -410,7 +410,7 @@ interface Work {
 
 // A place where the game's own instructions are replaced by a call to code
 // added at the end of the ROM, padded out with instructions that do nothing.
-interface Hook {
+export interface Hook {
   at: number
   original: Uint8Array
 }
@@ -1607,25 +1607,38 @@ const PASS_EDITS = [
   { at: 0xbfa6, original: bytes('C4FC 0078'), hacked: bytes('C4FC 000F') },
 ]
 
-const passFix: Part<boolean> = {
-  detect(rom) {
-    if (is(rom, PASS_HOOK.at, PASS_HOOK.original) && PASS_EDITS.every((edit) => is(rom, edit.at, edit.original))) return false
-    if (hooked(rom, PASS_HOOK, PASS_CODE) !== null && PASS_EDITS.every((edit) => is(rom, edit.at, edit.hacked))) return true
-    return undefined
-  },
-  remove(rom) {
-    const target = hooked(rom, PASS_HOOK, PASS_CODE)
-    if (target === null) return
-    erase(rom, target, PASS_CODE.length)
-    rom.set(PASS_HOOK.original, PASS_HOOK.at)
-    for (const edit of PASS_EDITS) rom.set(edit.original, edit.at)
-  },
-  apply(work, value) {
-    if (!value) return
-    hook(work, PASS_HOOK, PASS_CODE)
-    for (const edit of PASS_EDITS) work.rom.set(edit.hacked, edit.at)
-  },
+// A fix made of a call to added code and some instructions changed in place: on or off. `placeCode` puts the code
+// in the ROM and says where (by default, after the ROM's last used byte). Used for NHL '95's rocket pass fix too.
+export function hookedFix(
+  from: Hook,
+  code: Uint8Array,
+  edits: { at: number; original: Uint8Array; hacked: Uint8Array }[],
+  placeCode: (work: Work, code: Uint8Array) => number = place,
+): Part<boolean> {
+  return {
+    detect(rom) {
+      if (is(rom, from.at, from.original) && edits.every((edit) => is(rom, edit.at, edit.original))) return false
+      if (hooked(rom, from, code) !== null && edits.every((edit) => is(rom, edit.at, edit.hacked))) return true
+      return undefined
+    },
+    remove(rom) {
+      const target = hooked(rom, from, code)
+      if (target === null) return
+      erase(rom, target, code.length)
+      rom.set(from.original, from.at)
+      for (const edit of edits) rom.set(edit.original, edit.at)
+    },
+    apply(work, value) {
+      if (!value) return
+      // The code first: placing it can replace work.rom with a larger copy.
+      const target = placeCode(work, code)
+      writeHook(work.rom, from, target)
+      for (const edit of edits) work.rom.set(edit.hacked, edit.at)
+    },
+  }
 }
+
+const passFix = hookedFix(PASS_HOOK, PASS_CODE, PASS_EDITS)
 
 // One-timers at an open net (Match Viewer's GENESIS_SHOOTING.md, 4.4). The
 // game aims a one-timer itself (shotdiradj, logic94.asm), and computer

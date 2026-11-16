@@ -24,6 +24,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
 }
 
@@ -55,6 +56,18 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       When the other team takes the puck, the game marks the list so the next touch replaces the last toucher. A
       player who wins the puck straight back skips the step that clears the mark, so the teammate he passes to
       replaces him and his assist is lost. In NHL 94 it happened in 8 of 274 recorded goals. {FROM_NHL94}
+    </p>
+  ),
+  rocketFix: (
+    <p className="note">
+      The game aims a pass at where its receiver will be: it works out when the two meet, in whole eighths of a second,
+      and sets the puck's speed to cover the distance in that time. It rounds the time down, so a meeting due in 1.9
+      eighths is made in 1, nearly twice as fast, and a time just below 0 is taken as an eighth. In NHL 94's recorded
+      games 345 of 2,535 passes went over 1.3 times their speed and 69 over 27,000. NHL '95 (passtoa0, $847BA) works the
+      time out the same way, and NHL 94's fix, the NHL94 Match Viewer project's, goes in: it works in 64ths of a second.
+      NHL '95's own step after it is kept: its slow flat pass ($BF08 bit 1) still takes four times as long and stays on
+      the ice. Also in the WN95HL's ROMs. Tested in NHL 94 by Match Viewer (no targeted pass over 1.23 times its speed
+      in 2,535 replayed); not yet tested in an NHL '95 game.
     </p>
   ),
   passFix: (

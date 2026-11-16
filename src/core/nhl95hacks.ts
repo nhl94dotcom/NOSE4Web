@@ -1,6 +1,6 @@
 import { discordPost } from './discord'
 import type { GameConfig } from './games'
-import { assistFixes } from './hacks'
+import { assistFixes, hookedFix, PASS_CODE } from './hacks'
 import type { HackSheet } from './hacksheet'
 import type { RomProject } from './rom'
 import { claimBeforeTail, claimSpace, fullRomReason } from './space'
@@ -9,12 +9,12 @@ import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 // these are NHL '95's own, or NHL 94's where NHL '95 has the same code at
 // other addresses (the NHL95Genesis disassembly).
 
-export type Nhl95Hack = 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'passFix'
+export type Nhl95Hack = 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'rocketFix' | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'rocketFix', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
-export const NO_NHL95_HACKS: Nhl95HackChoices = { secondAssist: false, oneTimerAssist: false, regainAssist: false, passFix: false }
+export const NO_NHL95_HACKS: Nhl95HackChoices = { secondAssist: false, oneTimerAssist: false, regainAssist: false, rocketFix: false, passFix: false }
 
 export interface Nhl95HackState {
   choices: Nhl95HackChoices
@@ -27,6 +27,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   secondAssist: 'Second-assist bug fix',
   oneTimerAssist: 'One-timer assist fix',
   regainAssist: 'Regained-puck assist fix',
+  rocketFix: 'Rocket pass fix',
   passFix: 'Pass direction fix',
 }
 
@@ -53,6 +54,39 @@ function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
   return claimed.at
 }
 const assist = assistFixes({ assist: [0x81476, 0x82f28], regain: 0x81464, regainSame: 0x81492 }, placeCode)
+const rocket = () => hookedFix(ROCKET_HOOK, ROCKET_CODE, ROCKET_EDITS, placeCode)
+
+// ------------------------------------------------------- rocket pass fix
+// passtoa0 ($847BA here; input95.asm) works out when a pass meets its
+// receiver in whole eighths of a second, rounding toward zero, as NHL 94's
+// does, so it has NHL 94's rocket pass (hacks.ts, the rocket pass fix). NHL
+// '95 adds one thing after the time is found: with GameFlags ($BF08) bit 1 set
+// (the slow, flat pass) the time is four times as long, and a lift of 12 or
+// more is cleared. NHL 94's fix, Match Viewer's, goes in as it is up to the
+// lift ($00-$47 of its code, which works the time out in 64ths of a second);
+// the end is NHL '95's, the same steps on the 64ths: four times as long with
+// the flag, the lift in whole eighths (12 at most, cleared with the flag), at
+// NHL '95's puckvz ($B38E). The hook takes the 74 bytes from the time's loop
+// to .5 ($84804); after it, as in NHL 94, the receiver's wait and the puck's
+// no-touch time take the 64ths as they are (asl.w #3 out), where he will be is
+// / 16 (asr.l #4 for #1) and the speed / 15 t (mulu.w #$F, for #$78).
+const ROCKET_HOOK = {
+  at: 0x847ba,
+  original: hex(
+    '3400 4440 9444 48C2 85C5 5ACB FFF4 6600 0004 5242 B47C 0018 6300 0004 7418 0838 0001 BF08 6700 0004 E542 11C2 B38E ' +
+      'B47C 000C 6D00 0016 11FC 000C B38E 0838 0001 BF08 6700 0006 4278 B38E',
+  ),
+}
+const ROCKET_CODE = Uint8Array.from([
+  ...PASS_CODE.subarray(0, 0x48),
+  ...hex('0838 0001 BF08 6702 E542 3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E 4E75'),
+])
+const ROCKET_EDITS = [
+  { at: 0x84804, original: hex('3002 E740 0440 000A'), hacked: hex('3002 4E71 0440 000A') },
+  { at: 0x8481c, original: hex('E280'), hacked: hex('E880') },
+  { at: 0x8482c, original: hex('E281'), hacked: hex('E881') },
+  { at: 0x8483a, original: hex('C4FC 0078'), hacked: hex('C4FC 000F') },
+]
 
 // ------------------------------------------------------------- pass fix
 // The NHL94 Match Viewer project's reading of NHL '95's code. vtoa ($7C586)
@@ -93,6 +127,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
     regainAssist: assist.regainAssist.detect(rom),
+    rocketFix: rocket().detect(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -118,6 +153,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
+    ['rocketFix', () => rocket().remove(work.rom), () => rocket().apply(work, want.rocketFix)],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -147,6 +183,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  rocketFix:
+    'Passes go at their own speed: the game no longer sends some of them up to twice as fast, or many times faster, when it rounds the time a pass takes to reach its man. Slow flat passes stay four times as slow.',
   passFix:
     "A pass goes the way the pad points, split into the eight directions as NHL 94 splits them. NHL '95 splits them differently, so with the pad between straight across and a diagonal a pass can go another way than in NHL 94. The same routine also turns skaters for other things, which change the same way.",
 }
@@ -154,7 +192,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
-  { id: 'play', title: 'How the game plays', hacks: ['passFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'passFix'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.

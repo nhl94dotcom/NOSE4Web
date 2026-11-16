@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
+import { PASS_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
 import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -83,11 +84,11 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)("puts NHL 94's three assist fixes into %s at NHL '95's places, alone and together, and takes them out", (name) => {
     const rom = open(name)
-    expect(detectNhl95Hacks(rom.bytes)).toEqual({ choices: { secondAssist: false, oneTimerAssist: false, regainAssist: false, passFix: false }, unknown: [] })
+    expect(detectNhl95Hacks(rom.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS }, unknown: [] })
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const jsrAt = (b: Uint8Array, at: number) => (b[at] === 0x4e && b[at + 1] === 0xb9 ? read32(b, at + 2) : null)
     const all = applyNhl95Hacks(rom, { secondAssist: true, oneTimerAssist: true, regainAssist: true })
-    expect(detectNhl95Hacks(all.bytes).choices).toEqual({ secondAssist: true, oneTimerAssist: true, regainAssist: true, passFix: false })
+    expect(detectNhl95Hacks(all.bytes).choices).toEqual({ ...NO_NHL95_HACKS, secondAssist: true, oneTimerAssist: true, regainAssist: true })
     // a2touchpuck's list move and its compare call the fixes; onetimershot calls the one-timer fix, with the second-assist check.
     const regain = jsrAt(all.bytes, 0x81464)!
     expect(Buffer.from(all.bytes.subarray(regain, regain + 20)).toString('hex')).toBe('b0680018660c08a8000300302ebc000814924e75')
@@ -108,6 +109,32 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(Buffer.from(kept.bytes.subarray(kept1 + 14, kept1 + 18)).toString('hex')).toBe('3168001a')
     // Through a rebuild, as downloaded.
     expect(detectNhl95Hacks(buildRom(all)).choices).toMatchObject({ secondAssist: true, oneTimerAssist: true, regainAssist: true })
+  })
+
+  it.each(names)("puts the rocket pass fix into %s with NHL '95's slow flat pass kept, alone and with the rest", (name) => {
+    const rom = open(name)
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const on = applyNhl95Hacks(rom, { rocketFix: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, rocketFix: true })
+    // A call over the 74 bytes from the time's loop to .5, and NOPs after it.
+    expect(hex(on.bytes, 0x847ba, 2)).toBe('4eb9')
+    for (let at = 0x847c0; at < 0x84804; at += 2) expect(hex(on.bytes, at, 2)).toBe('4e71')
+    const code = read32(on.bytes, 0x847bc)
+    // NHL 94's code up to the lift, then NHL '95's end on puckvz $B38E with GameFlags bit 1.
+    expect(on.bytes.subarray(code, code + 0x48)).toEqual(PASS_CODE.subarray(0, 0x48))
+    expect(hex(on.bytes, code + 0x48, 0x2c)).toBe('08380001bf086702e5423002e64811c0b38eb07c000c6d1211fc000cb38e08380001bf0867044278b38e4e75')
+    expect([hex(on.bytes, 0x84804, 8), hex(on.bytes, 0x8481c, 2), hex(on.bytes, 0x8482c, 2), hex(on.bytes, 0x8483a, 4)]).toEqual([
+      '30024e710440000a',
+      'e880',
+      'e881',
+      'c4fc000f',
+    ])
+    expect(applyNhl95Hacks(on, { rocketFix: false }).bytes).toEqual(rom.bytes)
+    // With every other NHL '95 hack, in and out.
+    const every = applyNhl95Hacks(rom, { secondAssist: true, oneTimerAssist: true, regainAssist: true, rocketFix: true, passFix: true })
+    expect(detectNhl95Hacks(buildRom(every)).choices).toEqual({ secondAssist: true, oneTimerAssist: true, regainAssist: true, rocketFix: true, passFix: true })
+    expect(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes).toEqual(rom.bytes)
   })
 })
 

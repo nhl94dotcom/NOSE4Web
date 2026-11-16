@@ -2404,7 +2404,8 @@ export function HelpPage() {
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own. NHL 94's three assist fixes (the second assist, the
           one-timer assist and the regained-puck assist) go in at NHL '95's places, since its code there is NHL 94's
-          instruction for instruction; they are not yet tested in an NHL '95 game. And the <b>pass direction fix</b>, from
+          instruction for instruction, and the <b>rocket pass fix</b>, NHL 94's with NHL '95's slow flat pass kept; these are
+          not yet tested in an NHL '95 game. And the <b>pass direction fix</b>, from
           the NHL94 Match Viewer project: NHL '95 splits the pad's directions for a pass differently from NHL 94, and the
           fix puts NHL 94's way back. Match Viewer played it on the WN95HL's Season 18 ROM. It's an option, not a
           recommended fix.
