@@ -94,7 +94,7 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     const project = openRom(read(RETAIL))
     expect(hacksSupported(project.game)).toBe(false)
     // The logos and the banners (nhl95logos.test.ts, nhl95banners.test.ts).
-    expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo', 'menuBanner', 'gameBanner'])
+    expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo', 'menuBanner', 'gameBanner', 'pauseBanner'])
     expect(hasLeagueValue(project.game)).toBe(false)
     expect(project.settings.credits ?? null).toBeNull()
     expect(project.teams.every((team) => team.songs === undefined && team.shownOverall === undefined)).toBe(true)

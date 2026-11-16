@@ -2404,10 +2404,11 @@ export function HelpPage() {
           <b>Banners</b>: each team's name banners, 11 by 2 tiles, replaced as in NHL 94. The <b>menu banner</b> is the
           location on Game Setup, in the team's two stripe colours, white and black only. The <b>in-game banner</b> is
           the location with the stripes drawn in, on the line change, stats, standings and other screens, in colours
-          every team shares. The WN95HL's ROMs have no menu banners of their own, so only the in-game ones are offered
-          there. In the original game the banners are packed tight, so a detailed one needs{' '}
-          <b>Give logos and banners more room</b> first. The pause screen's nickname banners are not offered yet, nor is
-          NHL 94's banner lettering. Not yet tested in an NHL '95 game.
+          every team shares. The <b>pause screen banner</b> is the team's nickname on the pause screen, 12 by 2 tiles, in
+          the pause screen's colours. The WN95HL's ROMs have no menu banners of their own, so only the other two are
+          offered there. In the original game the banners are packed tight, so a detailed one needs{' '}
+          <b>Give logos and banners more room</b> first. NHL 94's banner lettering is not offered for NHL '95. Not yet
+          tested in an NHL '95 game.
         </li>
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match

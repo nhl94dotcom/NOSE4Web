@@ -5,6 +5,7 @@ import {
   banner,
   bannerColors,
   bannerSharedWith,
+  bannerKindSupported,
   bannersEditable,
   bannersSupported,
   menuLogo,
@@ -284,10 +285,18 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
     ['menu', 'menu', visitorBannersApart(project) ? 'Menu banner (home)' : 'Menu banner'],
     ['game', 'game', 'In-game banner'],
   ]
+  if (bannerKindSupported(project, 'pause') || bannerKindSupported(other, 'pause')) banners.push(['pause', 'pause', 'Pause screen banner'])
   // A ROM without visitor banners of its own shows its menu banner for both sides.
   if (visitorBannersApart(project)) banners.push([visitorBannersApart(other) ? 'visitor' : 'menu', 'visitor', 'Menu banner (visitor)'])
   for (const [theirs, ours, name] of banners) {
-    if (!bannersEditable(project, ours)) {
+    if (!bannerKindSupported(project, ours) || !bannerKindSupported(other, theirs)) {
+      notes.push(`${name} left alone: one of the two ROMs has none the editor can follow.`)
+    } else if (project.game.edition !== other.game.edition) {
+      // NHL 94's and NHL '95's banners are drawn in colours that mean different things.
+      notes.push(`${name} left alone: NHL 94's and NHL '95's banners are not drawn the same way.`)
+    } else if (banner(project, ours, to).width !== banner(other, theirs, from).width) {
+      notes.push(`${name} left alone: the two ROMs' banners are not the same size.`)
+    } else if (!bannersEditable(project, ours)) {
       notes.push(`${name} left alone: this ROM keeps it in a way the editor cannot change.`)
     } else if (bannerSharedWith(project, ours, to).length > 1) {
       notes.push(`${name} left alone: in this ROM every team shows the same one. Give the logos and banners more room first if each team should have its own.`)

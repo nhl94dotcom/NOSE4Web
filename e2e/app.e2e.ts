@@ -2981,6 +2981,7 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: 'Centre-ice logo' }) })).toContainText('48 by 32')
     await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Menu banner$/ }) })).toContainText('88 by 16')
     await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^In-game banner$/ }) })).toContainText('88 by 16')
+    await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Pause screen banner$/ }) })).toContainText('96 by 16')
     // NHL 94's lettering and banner colours are not offered for NHL '95's banners.
     await expect(page.getByRole('heading', { name: 'Banner lettering' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Menu banner colours' })).toHaveCount(0)

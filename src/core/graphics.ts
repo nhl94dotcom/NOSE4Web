@@ -56,7 +56,8 @@ export interface Picture {
   pixels: Uint8Array
 }
 
-export type BannerKind = 'menu' | 'visitor' | 'game'
+// 'pause': NHL '95's pause screen nickname banners.
+export type BannerKind = 'menu' | 'visitor' | 'game' | 'pause'
 
 // Pictures the user has replaced, by team. Anything not listed is left
 // exactly as it is in the ROM.
@@ -69,9 +70,10 @@ export interface GraphicsEdits {
   // Only for ROMs that keep a separate set of banners for the visiting team.
   visitorBanners: Record<number, Picture>
   gameBanners: Record<number, Picture>
+  pauseBanners: Record<number, Picture>
 }
 
-const BANNER_EDITS = { menu: 'menuBanners', visitor: 'visitorBanners', game: 'gameBanners' } as const
+const BANNER_EDITS = { menu: 'menuBanners', visitor: 'visitorBanners', game: 'gameBanners', pause: 'pauseBanners' } as const
 
 export const NO_GRAPHICS_EDITS: GraphicsEdits = {
   rinkLogos: {},
@@ -80,6 +82,7 @@ export const NO_GRAPHICS_EDITS: GraphicsEdits = {
   menuBanners: {},
   visitorBanners: {},
   gameBanners: {},
+  pauseBanners: {},
 }
 
 interface Block {
@@ -242,7 +245,7 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     return readBlock(rom, at)
   })
   const bannerBlock = (kind: BannerKind) => {
-    const ref = g.bannerReferences[kind][0]
+    const ref = (g.bannerReferences[kind] ?? [])[0]
     if (ref.opcode !== undefined && readU16(rom, ref.at - 2) !== ref.opcode) throw new Error('unexpected code')
     const block = readBlock(rom, readU32(rom, ref.at) - ref.offset)
     if (block.mapAt === 0) throw new Error('picture has no map')
@@ -253,8 +256,8 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
   if (g.banners && g.bannersPerKind) {
     // Each set where it is kept as expected; the visitors' are the menu banners where they have no places of their own.
     banners = {}
-    for (const kind of ['menu', 'visitor', 'game'] as const) {
-      if (g.bannerReferences[kind].length === 0) continue
+    for (const kind of ['menu', 'visitor', 'game', 'pause'] as const) {
+      if ((g.bannerReferences[kind] ?? []).length === 0) continue
       try {
         banners[kind] = bannerBlock(kind)
       } catch {
@@ -290,7 +293,7 @@ function bannerSet(where: Layout, kind: BannerKind): Block {
 
 // The sets of banners a ROM has that the editor can show: the visitors' only where they are a set of their own.
 function bannerKindsOf(where: Layout): BannerKind[] {
-  return (['menu', 'visitor', 'game'] as const).filter((kind) => where.banners?.[kind] !== undefined && (kind !== 'visitor' || where.visitorBannersApart))
+  return (['menu', 'visitor', 'game', 'pause'] as const).filter((kind) => where.banners?.[kind] !== undefined && (kind !== 'visitor' || where.visitorBannersApart))
 }
 
 // Whether this game has centre-ice logos the editor reads.
@@ -312,7 +315,7 @@ export function bannerKindSupported(project: Source, kind: BannerKind): boolean 
 // have no set of their own, theirs are the menu banners.
 function bannerReferences(game: GameConfig, kind: BannerKind, where: Layout) {
   const refs = game.graphics.bannerReferences
-  return kind === 'menu' && !where.visitorBannersApart ? [...refs.menu, ...refs.visitor] : refs[kind]
+  return kind === 'menu' && !where.visitorBannersApart ? [...refs.menu, ...refs.visitor] : (refs[kind] ?? [])
 }
 
 // Whether every place known to use a set of banners points at the one block
@@ -386,6 +389,7 @@ export function graphicsInTeamOrder(from: Uint8Array, rom: Uint8Array, game: Gam
     menuBanners: moved(edits.menuBanners),
     visitorBanners: moved(edits.visitorBanners),
     gameBanners: moved(edits.gameBanners),
+    pauseBanners: moved(edits.pauseBanners ?? {}),
   }
 }
 
@@ -468,7 +472,7 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   const block = bannerSet(layout(project.bytes, project.game), kind)
   const line = (block.entries[0] >> 13) & 3
   const palette = Array.from({ length: 16 }, (_, i) => readU16(project.bytes, block.paletteAt + (line * 16 + i) * 2))
-  if (kind !== 'game') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
+  if (kind === 'menu' || kind === 'visitor') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
   return palette
 }
 
@@ -744,6 +748,7 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
       ? { kinds: ['menu', 'visitor'], pictures: [edits.menuBanners, visitors], name: 'menu' }
       : { kinds: ['menu'], pictures: [edits.menuBanners], name: 'menu' },
     { kinds: ['game'], pictures: [edits.gameBanners], name: 'in-game' },
+    { kinds: ['pause'], pictures: [edits.pauseBanners ?? {}], name: 'pause screen' },
   ]
   for (const { kinds, pictures, name } of sets) {
     if (pictures.every((set) => Object.keys(set).length === 0)) continue

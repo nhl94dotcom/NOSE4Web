@@ -24,6 +24,15 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     expect(bannerKindSupported(project, 'menu')).toBe(name === RETAIL)
     expect(bannerKindSupported(project, 'game')).toBe(true)
     expect(bannerKindSupported(project, 'visitor')).toBe(false)
+    expect(bannerKindSupported(project, 'pause')).toBe(true)
+    expect(bannersEditable(project, 'pause')).toBe(true)
+    project.teams.forEach((_, team) => {
+      const picture = banner(project, 'pause', team)
+      expect([picture.width, picture.height]).toEqual([96, 16])
+    })
+    // The pause banners are in the pause screen's colours, the same for all, no stripes put in.
+    expect(bannerPalette(project, 'pause', 0)).toEqual(bannerPalette(project, 'pause', 1))
+    expect(bannerPalette(project, 'pause', 0).slice(1, 4)).toEqual([0xeee, 0xeec, 0xccc])
     expect(bannersEditable(project, 'game')).toBe(true)
     for (const kind of name === RETAIL ? (['menu', 'game'] as const) : (['game'] as const)) {
       project.teams.forEach((_, team) => {
@@ -42,14 +51,17 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     }
   })
 
-  it.each(names)('replaces one team’s in-game banner in %s in place, the others as they were', (name) => {
+  it.each(names)('replaces one team’s in-game and pause banners in %s in place, the others as they were', (name) => {
     const project = open(name)
     // Another team's banner uses only tiles the set has already.
-    const graphics = withBanner(project, 'game', 1, banner(project, 'game', 2))
+    let graphics = withBanner(project, 'game', 1, banner(project, 'game', 2))
+    graphics = withBanner({ ...project, graphics }, 'pause', 1, banner(project, 'pause', 2))
     const reopened = openRom(buildRom({ ...project, graphics }))
     expect(banner(reopened, 'game', 1)).toEqual(banner(project, 'game', 2))
+    expect(banner(reopened, 'pause', 1)).toEqual(banner(project, 'pause', 2))
     project.teams.forEach((_, team) => {
       if (team !== 1) expect(banner(reopened, 'game', team)).toEqual(banner(project, 'game', team))
+      if (team !== 1) expect(banner(reopened, 'pause', team)).toEqual(banner(project, 'pause', team))
       expect(rinkLogo(reopened, team)).toEqual(rinkLogo(project, team))
       expect(menuLogo(reopened, team)).toEqual(menuLogo(project, team))
     })
@@ -63,11 +75,12 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     const project = open(RETAIL)
     const roomy = expandPictureSpace(project)
     const refs = NHL95.graphics.bannerReferences
-    for (const kind of ['menu', 'game'] as const) {
-      const blockAt = read32(roomy.bytes, refs[kind][0].at) - refs[kind][0].offset
+    for (const kind of ['menu', 'game', 'pause'] as const) {
+      const first = (refs[kind] ?? [])[0]
+      const blockAt = read32(roomy.bytes, first.at) - first.offset
       // In the unused space from the self-check NOSE4Web takes out ($1A72C0) on.
       expect(blockAt).toBeGreaterThanOrEqual(0x1a72c0)
-      for (const ref of refs[kind]) {
+      for (const ref of refs[kind] ?? []) {
         expect(read32(roomy.bytes, ref.at)).toBe(blockAt + ref.offset)
         expect(read16(roomy.bytes, ref.at - 2)).toBe(ref.opcode)
       }

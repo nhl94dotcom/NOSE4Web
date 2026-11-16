@@ -73,11 +73,13 @@ const FILE_ENDINGS: Record<PictureKind, string> = {
   menuBanner: 'menu_banner',
   visitorBanner: 'visitor_banner',
   gameBanner: 'game_banner',
+  pauseBanner: 'pause_banner',
 }
 const BANNERS: { kind: PictureKind; banner: BannerKind }[] = [
   { kind: 'menuBanner', banner: 'menu' },
   { kind: 'visitorBanner', banner: 'visitor' },
   { kind: 'gameBanner', banner: 'game' },
+  { kind: 'pauseBanner', banner: 'pause' },
 ]
 
 interface Props {
@@ -164,8 +166,13 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
       case 'menuLogo':
         return `Uses white, black and ${LOGO_COLORS} colours of its own, taken from the image you import.`
       case 'gameBanner':
-        return 'Shown during play. Every team shares the same 16 colours for these.'
+        return isGenesis94(project.game)
+          ? 'Shown during play. Every team shares the same 16 colours for these.'
+          : 'Shown on the line change, stats, standings and other screens. Every team shares the same 16 colours for these.'
+      case 'pauseBanner':
+        return "The team's nickname on the pause screen, in the pause screen's own colours."
       default:
+        if (!isGenesis94(project.game)) return "Shown on Game Setup, in the team's two stripe colours, white and black."
         return (
           `Shown on the menus${kinds.includes('visitorBanner') ? (kind === 'visitorBanner' ? ' for the visiting team' : ' for the home team') : ''}, with its two stripes in the banner colours below.` +
           (everyTeam(kind)
@@ -334,9 +341,11 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
                 ? 'In the home colours, which are changed above.'
                 : drawing === 'menuLogo'
                   ? 'In white, black and nine colours of its own, which you can change below.'
-                  : drawing === 'gameBanner'
+                  : drawing === 'gameBanner' || drawing === 'pauseBanner'
                     ? 'In the colours every team shares for these.'
-                    : 'In the banner colours, which are changed below.'}
+                    : isGenesis94(project.game)
+                      ? 'In the banner colours, which are changed below.'
+                      : "In the team's two stripe colours, white and black."}
               {shared.length > 0 &&
                 ` It is shared with ${everyTeam(drawing) ? 'every team' : shared.map((other) => teamDisplayName(project.teams[other])).join(', ')}, so it changes for ${shared.length === 1 ? 'that team' : 'them'} too.`}
             </p>

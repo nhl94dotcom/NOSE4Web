@@ -62,7 +62,7 @@ export function resetTeamPart(team: Team, original: Team, part: TeamPart): Team 
 
 // ------------------------------------------------------------ team pictures
 
-export type PicturePart = 'rinkLogo' | 'menuLogo' | 'menuBanner' | 'visitorBanner' | 'gameBanner' | 'bannerColors'
+export type PicturePart = 'rinkLogo' | 'menuLogo' | 'menuBanner' | 'visitorBanner' | 'gameBanner' | 'pauseBanner' | 'bannerColors'
 
 const without = <T>(record: Record<number, T>, teams: number[]): Record<number, T> =>
   Object.fromEntries(Object.entries(record).filter(([team]) => !teams.includes(Number(team))))
@@ -86,6 +86,8 @@ export function pictureChanged(project: RomProject, team: number, part: PictureP
       return team in edits.visitorBanners
     case 'gameBanner':
       return team in edits.gameBanners
+    case 'pauseBanner':
+      return team in (edits.pauseBanners ?? {})
     case 'bannerColors':
       return !same(bannerColors(project, team), bannerColors(unedited(project), team))
   }
@@ -118,6 +120,8 @@ export function resetPicture(project: RomProject, team: number, part: PicturePar
       return { ...edits, visitorBanners: without(edits.visitorBanners, bannerSharedWith(project, 'visitor', team)) }
     case 'gameBanner':
       return { ...edits, gameBanners: without(edits.gameBanners, bannerSharedWith(project, 'game', team)) }
+    case 'pauseBanner':
+      return { ...edits, pauseBanners: without(edits.pauseBanners ?? {}, bannerSharedWith(project, 'pause', team)) }
     case 'bannerColors':
       return { ...edits, menuPalettes: menuPalettes(bannerColors(original, team), team in edits.menuLogos) }
   }

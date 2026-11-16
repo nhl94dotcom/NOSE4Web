@@ -53,7 +53,8 @@ export function picturesMayDiffer(before: RomProject, after: RomProject, team: n
     x.menuPalettes[team] !== y.menuPalettes[team] ||
     x.menuBanners[team] !== y.menuBanners[team] ||
     x.visitorBanners[team] !== y.visitorBanners[team] ||
-    x.gameBanners[team] !== y.gameBanners[team]
+    x.gameBanners[team] !== y.gameBanners[team] ||
+    x.pauseBanners?.[team] !== y.pauseBanners?.[team]
   )
 }
 

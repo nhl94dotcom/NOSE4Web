@@ -148,6 +148,7 @@ const PICTURE_SETS: Record<Exclude<keyof GraphicsEdits, 'menuPalettes'>, Picture
   menuBanners: 'menuBanner',
   visitorBanners: 'visitorBanner',
   gameBanners: 'gameBanner',
+  pauseBanners: 'pauseBanner',
 }
 const SET_NAMES = Object.keys(PICTURE_SETS) as (keyof typeof PICTURE_SETS)[]
 

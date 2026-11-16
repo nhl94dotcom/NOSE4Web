@@ -48,7 +48,10 @@ export interface GameConfig {
     // the original game draws both from one block, some hacks from two. Where
     // the place is the operand of an instruction, `opcode` is the word it
     // must follow. With no places for the visitor, the menu banners serve.
-    bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number; opcode?: number }[]>
+    bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number; opcode?: number }[]> & {
+      // NHL '95's pause screen nickname banners.
+      pause?: { at: number; offset: number; opcode?: number }[]
+    }
     // Whether each set of banners is offered on its own, where it is kept as
     // expected, rather than all or none (NHL '95, whose league ROMs leave out
     // the menu banners).
@@ -374,7 +377,8 @@ export const NHL95: GameConfig = {
   // location on Game Setup) take their stripes from the menu colours 1 and 2, as NHL 94's; the WN95HL's ROMs point
   // them at a 1 x 1 dummy, so there they are not offered. The in-game banners (Teamblocksmap, 11 x 2: the location
   // with the team's stripes drawn in, on some 15 screens) have one set of colours for all, which each screen's own
-  // palette repeats. No set of the visitors' own: the menu banners serve both.
+  // palette repeats. No set of the visitors' own: the menu banners serve both. The pause screen's nickname banners
+  // (PauseTeamBlocksMap, 12 x 2) are in the pause screen's colours.
   graphics: {
     rinkLogoTablePointer: 0x7dea8,
     rinkLogoPointerOpcode: 0x247c,
@@ -400,6 +404,9 @@ export const NHL95: GameConfig = {
         ...[0x8d2de, 0x90328, 0x9153a, 0x91b78, 0x93bb0, 0x940ee, 0x94df4, 0x962cc, 0x9758a].map((at) => ({ at, offset: 0, opcode: 0x207c })),
         ...[0x87c46, 0x8b09a, 0x8b22a, 0x8d1dc, 0x9045a, 0x91232, 0x919e8, 0x97524, 0x97d3e, 0xa1814].map((at) => ({ at, offset: 8, opcode: 0x247c })),
       ],
+      // The pause screen's nickname banners (PauseTeamBlocksMap, 12 x 2 a team, in the pause screen's own colours):
+      // move.l #PauseTeamBlocksMap,(teamblocksmapptr). The WN95HL's ROMs keep theirs elsewhere, through the same place.
+      pause: [{ at: 0x7ea14, offset: 0, opcode: 0x23fc }],
     },
   },
   playoffDrawPointerOffsets: [0x87a04, 0x87a6e],

@@ -30,7 +30,7 @@ import {
 import type { RomProject } from './rom'
 import { teamDisplayName } from './team'
 
-export type PictureKind = 'rinkLogo' | 'menuLogo' | 'menuBanner' | 'visitorBanner' | 'gameBanner'
+export type PictureKind = 'rinkLogo' | 'menuLogo' | 'menuBanner' | 'visitorBanner' | 'gameBanner' | 'pauseBanner'
 
 // `file` ends the name of a picture's file, as "_players" does a spreadsheet's.
 const KINDS: { kind: PictureKind; file: string }[] = [
@@ -39,9 +39,10 @@ const KINDS: { kind: PictureKind; file: string }[] = [
   { kind: 'menuBanner', file: 'menu_banner' },
   { kind: 'visitorBanner', file: 'visitor_banner' },
   { kind: 'gameBanner', file: 'game_banner' },
+  { kind: 'pauseBanner', file: 'pause_banner' },
 ]
 
-const BANNER_KINDS: Partial<Record<PictureKind, BannerKind>> = { menuBanner: 'menu', visitorBanner: 'visitor', gameBanner: 'game' }
+const BANNER_KINDS: Partial<Record<PictureKind, BannerKind>> = { menuBanner: 'menu', visitorBanner: 'visitor', gameBanner: 'game', pauseBanner: 'pause' }
 const ALL_COLORS = Array.from({ length: 15 }, (_, i) => i + 1)
 // A menu banner leaves colours 3 and 4 to the other team's banner beside it.
 const MENU_BANNER_COLORS = ALL_COLORS.filter((color) => color !== 3 && color !== 4)
@@ -67,6 +68,7 @@ export function pictureTitle(project: RomProject, kind: PictureKind): string {
     menuBanner: apart ? 'Menu banner (home)' : 'Menu banner',
     visitorBanner: 'Menu banner (visitor)',
     gameBanner: 'In-game banner',
+    pauseBanner: 'Pause screen banner',
   }[kind]
 }
 
@@ -133,7 +135,7 @@ export function withPictureFromImage(
   }
   const bannerKind = BANNER_KINDS[kind]
   if (bannerKind) {
-    const colors = bannerKind === 'game' ? ALL_COLORS : menuBannerColors(project)
+    const colors = bannerKind === 'menu' || bannerKind === 'visitor' ? menuBannerColors(project) : ALL_COLORS
     const picture = pictureFromImage(image.rgba, old.width, old.height, palette, colors, old)
     return { graphics: withBanner(project, bannerKind, team, picture), note: '' }
   }
@@ -169,7 +171,7 @@ export function pictureFileName(project: RomProject, team: number, kind: Picture
 // `name` is the team name in the middle of the file's name, as it was written there.
 export function identifyPictureFile(fileName: string): { team: number; name: string; kind: PictureKind } | null {
   const base = fileName.replace(/^.*[\\/]/, '')
-  const match = /^(\d+)_(?:(.*)_)?(rink_logo|menu_logo|menu_banner|visitor_banner|game_banner)\.png$/i.exec(base)
+  const match = /^(\d+)_(?:(.*)_)?(rink_logo|menu_logo|menu_banner|visitor_banner|game_banner|pause_banner)\.png$/i.exec(base)
   if (!match) return null
   const kind = KINDS.find((k) => k.file === match[3].toLowerCase())!.kind
   return { team: Number(match[1]) - 1, name: match[2] ?? '', kind }
