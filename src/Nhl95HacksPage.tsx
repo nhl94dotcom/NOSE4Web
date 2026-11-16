@@ -26,6 +26,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   threeOnThreeAll: 'Every overtime is 3 on 3, playoffs included; a penalty makes it 4 on 3.',
   fightingOff: 'What the Fighting setting on Game Setup starts at when the game is switched on. Players can still change it.',
   fightingArcade: '',
+  organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix: 'A skater no longer slides on far past top speed after you take him over, after a fall into the boards, or after a missed one-timer.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two.',
   snipingFix: "With its goalie off the ice, a team's shots take the normal accuracy roll instead of always going exactly where aimed.",
@@ -74,6 +75,13 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
     </p>
   ),
   fightingArcade: null,
+  organResume: (
+    <p className="note">
+      Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on
+      the organ carries on with its song from where it was. A note that was sounding when the game was paused is heard
+      again at the song's next note. Not yet tested in an NHL '95 game.
+    </p>
+  ),
   runawayFix: (
     <p className="note">
       Now and then a skater shoots off past top speed and slides out of control for a second or two. The game lets a

@@ -402,5 +402,24 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     }
     expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
-})
 
+  it.each(names)('keeps the organ song through the pause in %s: its two calls, and out again', (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    const on = applyNhl95Hacks(rom, { organResume: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, organResume: true })
+    expect(detectNhl95Hacks(buildRom(on)).choices.organResume).toBe(true)
+    // The save: masks interrupts first, and ends with the btst it replaces and rts.
+    expect(hex(on.bytes, 0x7e38c, 2)).toBe('4eb9')
+    const save = read32(on.bytes, 0x7e38e)
+    expect(hex(on.bytes, save, 6)).toBe('40e746fc2700')
+    expect(hex(on.bytes, save + 0x8a, 8)).toBe('08380000bef24e75')
+    // The restore: ends its own part with the move it replaces and rts, then its call of SndPutZ80Cmd.
+    expect(hex(on.bytes, 0x7e4bc, 2)).toBe('4eb9')
+    const restore = read32(on.bytes, 0x7e4be)
+    expect(hex(on.bytes, restore + 0x14a, 8)).toBe('31f8ac56ac584e75')
+    expect(hex(on.bytes, restore + 0x15e, 6)).toBe('4eb90000b4dc')
+    expectSameBytes(applyNhl95Hacks(on, { organResume: false }).bytes, rom.bytes)
+  })
+})

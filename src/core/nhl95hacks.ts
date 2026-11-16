@@ -33,11 +33,12 @@ export type Nhl95Hack =
   | 'snipingFix'
   | 'penaltyShotTableFix'
   | 'penaltyShotFixes'
+  | 'organResume'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -62,6 +63,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   snipingFix: false,
   penaltyShotTableFix: false,
   penaltyShotFixes: false,
+  organResume: false,
   passFix: false,
 }
 
@@ -95,6 +97,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   snipingFix: 'Pulled-goalie sniping fix',
   penaltyShotTableFix: 'Penalty shot table fix',
   penaltyShotFixes: 'Penalty shot fixes',
+  organResume: 'Organ music after a pause',
   passFix: 'Pass direction fix',
 }
 
@@ -494,6 +497,62 @@ const PS_EDITS = [
 ]
 const psFixes = () => hookedFix(PS_HOOK, PS_CODE, PS_EDITS, placeCode)
 
+// --------------------------------------------------- organ after a pause
+// NHL 94's option (hacks.ts, organResume), made for NHL '95's own sound
+// driver (sound95.asm), which sequences songs on the 68000 in eight slots
+// (SndSeqPtr $FFFDFE, SndSeqPos $FFFE1E, SndSeqId $FFFE3E, SndSeqWait
+// $FFFE4E, SndSeqTempo $FFFE5E, SndSeqFrac $FFFE6E, SndSeqState $FFFE7E)
+// and sends the Z80 each event. The pause (Pausemode, $7E36C) stops every
+// song (SoundOff) and at its end reloads the Z80 program, so nothing plays
+// on. The organ songs ($32-$55, PlayingSong $FFCFD8) are notes after one or
+// two program changes.
+// - The pause's btst #0,(sflags).w at $7E38C, the first thing after its
+//   vblank wait, calls code that keeps the playing organ song's slot (its
+//   pointer, position, wait, tempo, fraction and running status) at $FFF800,
+//   22 bytes, where the pause is the player's (sfpz) and plays no music on
+//   through it (sflags9 bit 5 clear); then the btst.
+// - Its move.w (Vcount).w,(OldVcount).w at $7E4BC, after the fade back in on
+//   every way out, calls code that, with the sound driver on ($FFFDFC is
+//   $1234), puts the song back in its slot (or the first free one), first
+//   sending the Z80 the slot's reset and the song's controllers and program
+//   changes up to the kept place, as the reload lost them; then the move.
+// The free RAM is in what the NHL94 Match Viewer project found unused
+// ($FFDC84-$FFFC03), clear of the fighting patch and the shootouts.
+const ORGAN_SAVE_HOOK = { at: 0x7e38c, original: hex('0838 0000 BEF2') }
+const ORGAN_RESTORE_HOOK = { at: 0x7e4bc, original: hex('31F8 AC56 AC58') }
+const ORGAN_SAVE = hex(
+  '40E7 46FC 2700 48E7 E0C0 43F8 F800 32BC FFFF 0838 0000 BEF2 676A 0838 0005 BF06 6662 3238 CFD8 0C41 0032 6D58 0C41 0055 ' +
+  '6E52 41F8 FE3E 7007 B258 57C8 FFFC 6644 3341 0002 7207 9240 3001 D040 3400 D442 41F8 FE3E 2370 20C0 0004 0CA9 FFFF FFFF ' +
+  '0004 6720 2370 20E0 0008 3370 0010 000C 3370 0020 000E 3370 0030 0010 2370 2040 0012 3281 4CDF 0307 46DF 0838 0000 BEF2 ' +
+  '4E75',
+)
+const ORGAN_RESTORE = hex(
+  '48E7 FFF0 43F8 F800 3211 6B00 013A 32BC FFFF 0C78 1234 FDFC 6600 012C 41F8 FE3E 3401 D442 D442 0CB0 FFFF FFFF 20C0 671C ' +
+  '7200 7400 0CB0 FFFF FFFF 20C0 670E 5241 5842 0C41 0008 6DEC 6000 00FC 45F8 FDFC 3F12 4252 3801 760C E76C 3004 4840 303C ' +
+  '01FF 6100 00EE 2669 0004 2C29 0008 7A00 1A13 E14D 1A2B 0001 DA85 5485 7600 3E3C 0FFF BA86 6C00 0086 4A33 5800 6A04 5285 ' +
+  '60F6 5285 4A33 5800 6A06 1633 5800 5285 1003 0200 00F0 0C00 0090 6610 5485 4A33 5800 6A04 5285 60F6 5285 604C 0C00 00B0 ' +
+  '6620 0C33 0075 5800 6714 3004 1033 5801 4840 1033 5800 E148 1003 6100 0076 5485 6026 0C00 00C0 6706 0C00 00E0 6614 3004 ' +
+  '4840 1033 5800 E148 1003 6100 0056 5285 6006 0C03 00FF 6704 51CF FF78 3002 E248 41F8 FE3E 31A9 0002 0000 21A9 0008 20E0 ' +
+  '31A9 000C 0010 31A9 000E 0020 31A9 0010 0030 21A9 0012 2040 21A9 0004 20C0 31E9 0002 CFD8 349F 4CDF 0FFF 31F8 AC56 AC58 ' +
+  '4E75 48E7 6000 2200 343C 7FFF 2001 4EB9 0000 B4DC 4A40 57CA FFF4 4CDF 0006 4E75',
+)
+// What must be as NHL '95 has it: the wait and SoundOff's call before the first, the fade wait before and the
+// pause's end after the second, and SndPutZ80Cmd, which the code calls.
+const ORGAN_AROUND = [
+  { at: 0x7e3a0, bytes: hex('4EB9') },
+  { at: 0x7e4b6, bytes: hex('4A78 B940 6AFA') },
+  { at: 0x7e4c2, bytes: hex('31DF AC16 4E75') },
+  { at: 0xb4dc, bytes: hex('48E7 4080') },
+]
+const organSave = () => hookedFix(ORGAN_SAVE_HOOK, ORGAN_SAVE, [], placeCode)
+const organRestore = () => hookedFix(ORGAN_RESTORE_HOOK, ORGAN_RESTORE, [], placeCode)
+function organState(rom: Uint8Array): boolean | undefined {
+  if (!ORGAN_AROUND.every((around) => matches(rom, around.at, around.bytes))) return undefined
+  const [save, restore] = [organSave().detect(rom), organRestore().detect(rom)]
+  if (save === false && restore === false) return false
+  return save === true && restore === true ? true : undefined
+}
+
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
 // receiver in whole eighths of a second, rounding toward zero, as NHL 94's
@@ -687,6 +746,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     snipingFix: switchState(rom, 'snipingFix'),
     penaltyShotTableFix: switchState(rom, 'penaltyShotTableFix'),
     penaltyShotFixes: psFixes().detect(rom),
+    organResume: organState(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -742,6 +802,11 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['threeOnThreeAll', () => {}, () => {}],
     ['runawayFix', () => runawayParts().forEach((part) => part.remove(work.rom)), () => runawayParts().forEach((part) => part.apply(work, want.runawayFix))],
     ['penaltyShotFixes', () => psFixes().remove(work.rom), () => psFixes().apply(work, want.penaltyShotFixes)],
+    [
+      'organResume',
+      () => [organSave(), organRestore()].forEach((part) => part.remove(work.rom)),
+      () => [organSave(), organRestore()].forEach((part) => part.apply(work, want.organResume)),
+    ],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -768,6 +833,7 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
     'A skater no longer slides on far past top speed after you take him over with a pass coming, after he gets up from a fall into the boards, or after a missed one-timer.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two behind.',
@@ -816,6 +882,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
   { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'penaltyShotTableFix', 'penaltyShotFixes'] },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade'] },
+  { id: 'sound', title: 'Sound', hacks: ['organResume'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.
