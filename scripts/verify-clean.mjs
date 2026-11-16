@@ -89,7 +89,11 @@ if (!withRoms) {
 
 // Its parent is the ROM folder, where the tests look for the ROMs; the dot keeps it apart from them.
 const beside = mkdtempSync(join(romFolder, '.nose4web-verify-'))
-const romsFailed = inCheckout(beside, beside, "with this computer's ROMs", [unit, browser], (checkout) => {
+// The ROM run's unit tests also write how long each file took, to this folder's test-results (not committed), so the
+// slowest can be found and made quicker.
+const timings = join(here, 'test-results', 'unit-timings.json')
+const timedUnit = ['unit tests', ['npx', ['vitest', 'run', '--maxWorkers=1', '--reporter=default', '--reporter=json', `--outputFile.json=${timings}`]]]
+const romsFailed = inCheckout(beside, beside, "with this computer's ROMs", [timedUnit, browser], (checkout) => {
   const local = join(here, 'tests', 'local.json')
   if (existsSync(local)) copyFileSync(local, join(checkout, 'tests', 'local.json'))
 })
