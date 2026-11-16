@@ -2398,8 +2398,16 @@ export function HelpPage() {
           has white, black and 9 colours of its own; its other colours are the team's stripe colours and colours every
           team shares. In the original game the menu logos are packed tight, so a detailed one needs{' '}
           <b>Give the logos more room</b> first; the WN95HL's ROMs have the room already. Logos can come from an NHL 94
-          ROM with <b>Import a team</b>. Both tested in the game by the NHL94 Match Viewer project. The name banners
-          (coloured by each screen's own colours) are not offered yet.
+          ROM with <b>Import a team</b>. Both tested in the game by the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Banners</b>: each team's name banners, 11 by 2 tiles, replaced as in NHL 94. The <b>menu banner</b> is the
+          location on Game Setup, in the team's two stripe colours, white and black only. The <b>in-game banner</b> is
+          the location with the stripes drawn in, on the line change, stats, standings and other screens, in colours
+          every team shares. The WN95HL's ROMs have no menu banners of their own, so only the in-game ones are offered
+          there. In the original game the banners are packed tight, so a detailed one needs{' '}
+          <b>Give logos and banners more room</b> first. The pause screen's nickname banners are not offered yet, nor is
+          NHL 94's banner lettering. Not yet tested in an NHL '95 game.
         </li>
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
@@ -2415,7 +2423,7 @@ export function HelpPage() {
           rates no one, so a league there raises some.
         </li>
         <li>
-          <b>Not offered for NHL '95</b>: NHL 94's hacks, the banners, player photos, organ and team songs, score logos,
+          <b>Not offered for NHL '95</b>: NHL 94's hacks, player photos, organ and team songs, score logos,
           the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
         </li>
       </ul>

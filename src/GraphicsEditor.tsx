@@ -345,7 +345,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
               title={pictureTitle(project, drawing)}
               picture={picture}
               palette={palette}
-              colours={paintableColours(drawing)}
+              colours={paintableColours(drawing, project)}
               editable={
                 ownColours(drawing).length > 0
                   ? { slots: ownColours(drawing), onChange: (next) => apply(withPainted(project, team, drawing, picture, next), '') }
@@ -377,13 +377,10 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
       )}
 
       {!hasBanners && (
-        <p className="note">
-          {isGenesis94(project.game)
-            ? 'This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.'
-            : "NHL '95's banners are not offered yet: only the centre-ice and menu logos can be replaced here."}
-        </p>
+        <p className="note">This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.</p>
       )}
-      {hasBanners && (
+      {/* The lettering is NHL 94's, so it is not offered for NHL '95's banners, which look different. */}
+      {hasBanners && isGenesis94(project.game) && (
         <>
           <h2>Banner lettering</h2>
           <p className="note">

@@ -5,7 +5,7 @@ import {
   bannerPalette,
   bannerSharedWith,
   bannersEditable,
-  bannersSupported,
+  bannerKindSupported,
   LOGO_COLORS,
   LOGO_FIRST_COLOR,
   menuLogo,
@@ -45,14 +45,18 @@ const BANNER_KINDS: Partial<Record<PictureKind, BannerKind>> = { menuBanner: 'me
 const ALL_COLORS = Array.from({ length: 15 }, (_, i) => i + 1)
 // A menu banner leaves colours 3 and 4 to the other team's banner beside it.
 const MENU_BANNER_COLORS = ALL_COLORS.filter((color) => color !== 3 && color !== 4)
+// NHL '95's menu banners have only the team's stripes (1, 2), white (5) and black (6): Game Setup sets 1, 2 and 5
+// in the line it draws each team's in, and the rest of that line is the screen's own.
+const MENU_BANNER_COLORS_95 = [1, 2, 5, 6]
+const menuBannerColors = (project?: Pick<RomProject, 'game'>) => (project?.game.edition === 95 ? MENU_BANNER_COLORS_95 : MENU_BANNER_COLORS)
 
 // The kinds of picture this ROM has for each team.
 export function pictureKinds(project: RomProject): PictureKind[] {
-  const banners = bannersSupported(project)
   const rink = rinkLogosSupported(project)
-  return KINDS.map((k) => k.kind).filter(
-    (kind) => (BANNER_KINDS[kind] ? banners : kind === 'rinkLogo' ? rink : true) && (kind !== 'visitorBanner' || visitorBannersApart(project)),
-  )
+  return KINDS.map((k) => k.kind).filter((kind) => {
+    const bannerKind = BANNER_KINDS[kind]
+    return bannerKind ? bannerKindSupported(project, bannerKind) : kind === 'rinkLogo' ? rink : true
+  })
 }
 
 export function pictureTitle(project: RomProject, kind: PictureKind): string {
@@ -88,9 +92,9 @@ export function currentPicture(project: RomProject, team: number, kind: PictureK
 
 // The colours a picture may be painted in, by number. A menu logo has white
 // (5) and black (6), which every team shares, and nine of its own.
-export function paintableColours(kind: PictureKind): number[] {
+export function paintableColours(kind: PictureKind, project?: Pick<RomProject, 'game'>): number[] {
   if (kind === 'menuLogo') return [5, 6, ...Array.from({ length: LOGO_COLORS }, (_, i) => LOGO_FIRST_COLOR + i)]
-  return kind === 'menuBanner' || kind === 'visitorBanner' ? MENU_BANNER_COLORS : ALL_COLORS
+  return kind === 'menuBanner' || kind === 'visitorBanner' ? menuBannerColors(project) : ALL_COLORS
 }
 
 // The colours of a picture that can be changed along with it: a menu
@@ -129,7 +133,7 @@ export function withPictureFromImage(
   }
   const bannerKind = BANNER_KINDS[kind]
   if (bannerKind) {
-    const colors = bannerKind === 'game' ? ALL_COLORS : MENU_BANNER_COLORS
+    const colors = bannerKind === 'game' ? ALL_COLORS : menuBannerColors(project)
     const picture = pictureFromImage(image.rgba, old.width, old.height, palette, colors, old)
     return { graphics: withBanner(project, bannerKind, team, picture), note: '' }
   }

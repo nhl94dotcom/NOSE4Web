@@ -45,8 +45,14 @@ export interface GameConfig {
     banners: boolean
     // Every place that holds a banner block's address, or an address a fixed
     // distance into it. The menus show a home team's banner and a visitor's;
-    // the original game draws both from one block, some hacks from two.
-    bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number }[]>
+    // the original game draws both from one block, some hacks from two. Where
+    // the place is the operand of an instruction, `opcode` is the word it
+    // must follow. With no places for the visitor, the menu banners serve.
+    bannerReferences: Record<'menu' | 'visitor' | 'game', { at: number; offset: number; opcode?: number }[]>
+    // Whether each set of banners is offered on its own, where it is kept as
+    // expected, rather than all or none (NHL '95, whose league ROMs leave out
+    // the menu banners).
+    bannersPerKind?: boolean
   }
   // Whether the playoff draws, clock, rule messages and main menu are where
   // the original game keeps them. Hacks that rebuild the menus move them.
@@ -363,8 +369,12 @@ export const NHL95: GameConfig = {
   // DrawTeamLogo's movea.l, which the WN95HL's ROMs point elsewhere. The centre-ice logos are kept as NHL 94's are
   // (not compressed: NHL '95 has no decompressor), 24 tiles each in ArenaGfxBank, through TeamGfxList, which
   // LoadHomeTeamGfx reads with movea.l #TeamGfxList,a2 ($7DEA6; the WN95HL's ROMs point it at their own 34). They
-  // are drawn 6 x 4 at centre ice in the home team's strip colours, as NHL 94's. The banners take their colours
-  // from each screen's palettes, so they are not offered yet.
+  // are drawn 6 x 4 at centre ice in the home team's strip colours, as NHL 94's.
+  // The banners are blocks as NHL 94's, two map rows a team. The menu banners (TeamBitmaps, 11 x 2 a team: the
+  // location on Game Setup) take their stripes from the menu colours 1 and 2, as NHL 94's; the WN95HL's ROMs point
+  // them at a 1 x 1 dummy, so there they are not offered. The in-game banners (Teamblocksmap, 11 x 2: the location
+  // with the team's stripes drawn in, on some 15 screens) have one set of colours for all, which each screen's own
+  // palette repeats. No set of the visitors' own: the menu banners serve both.
   graphics: {
     rinkLogoTablePointer: 0x7dea8,
     rinkLogoPointerOpcode: 0x247c,
@@ -373,8 +383,24 @@ export const NHL95: GameConfig = {
     menuPaletteColors: 16,
     menuLogoColorsPointer: 0x7d486,
     pointerOpcode: 0x207c,
-    banners: false,
-    bannerReferences: { menu: [], visitor: [], game: [] },
+    banners: true,
+    bannersPerKind: true,
+    bannerReferences: {
+      // DrawTeamBitmap's movea.l #TeamBitmaps,a0 and LoadSetupTiles' movea.l #TeamBitmaps+8,a2.
+      menu: [
+        { at: 0x86f6c, offset: 0, opcode: 0x207c },
+        { at: 0x86a4c, offset: 8, opcode: 0x247c },
+      ],
+      visitor: [],
+      // Every screen that draws them: move.l #Teamblocksmap to RAM, movea.l #Teamblocksmap into a1 or a0, and
+      // movea.l #Teamblocksmap+8,a2 for the tiles.
+      game: [
+        ...[0x84ff8, 0x8ad6a, 0x8aefe, 0x8b3aa].map((at) => ({ at, offset: 0, opcode: 0x23fc })),
+        ...[0x87f86, 0xa196a].map((at) => ({ at, offset: 0, opcode: 0x227c })),
+        ...[0x8d2de, 0x90328, 0x9153a, 0x91b78, 0x93bb0, 0x940ee, 0x94df4, 0x962cc, 0x9758a].map((at) => ({ at, offset: 0, opcode: 0x207c })),
+        ...[0x87c46, 0x8b09a, 0x8b22a, 0x8d1dc, 0x9045a, 0x91232, 0x919e8, 0x97524, 0x97d3e, 0xa1814].map((at) => ({ at, offset: 8, opcode: 0x247c })),
+      ],
+    },
   },
   playoffDrawPointerOffsets: [0x87a04, 0x87a6e],
   copyrightTextPointerOffset: 0xa1444,

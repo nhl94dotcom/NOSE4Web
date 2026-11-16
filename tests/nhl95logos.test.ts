@@ -28,7 +28,8 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
   it.each(names)('reads every team’s 6 x 6 logo and its colours in %s, and nothing NHL 94 keeps differently', (name) => {
     const project = open(name)
     expect(project.graphicsSupported).toBe(true)
-    expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo'])
+    // The WN95HL's ROMs point their menu banners at a dummy, so those are not offered there.
+    expect(pictureKinds(project)).toEqual(name === RETAIL ? ['rinkLogo', 'menuLogo', 'menuBanner', 'gameBanner'] : ['rinkLogo', 'menuLogo', 'gameBanner'])
     expect(rinkLogosSupported(project)).toBe(true)
     project.teams.forEach((_, team) => {
       const logo = rinkLogo(project, team)

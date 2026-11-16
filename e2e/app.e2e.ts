@@ -2972,14 +2972,17 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(forwards).toHaveValue('7')
   })
 
-  test("shows a team's centre-ice and menu logos, exports the menu logo and takes it back in; no banners yet", async ({ page }) => {
+  test("shows a team's logos and banners, exports the menu logo and takes it back in", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(nhl95Path)
     await team(page, 'Boston Bruins').click()
     const logo = page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Menu logo$/ }) })
     await expect(logo).toContainText('48 by 48')
     await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: 'Centre-ice logo' }) })).toContainText('48 by 32')
-    await expect(page.locator('.picture strong', { hasText: /banner/i })).toHaveCount(0)
+    await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Menu banner$/ }) })).toContainText('88 by 16')
+    await expect(page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^In-game banner$/ }) })).toContainText('88 by 16')
+    // NHL 94's lettering and banner colours are not offered for NHL '95's banners.
+    await expect(page.getByRole('heading', { name: 'Banner lettering' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Menu banner colours' })).toHaveCount(0)
     await logo.scrollIntoViewIfNeeded()
     await page.screenshot({ path: 'test-results/shots/nhl95-logo.png' })
