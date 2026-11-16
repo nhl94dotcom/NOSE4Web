@@ -19,10 +19,12 @@ export type Nhl95Hack =
   | 'openNetFix'
   | 'blindRingFix'
   | 'seasonOvertime'
+  | 'seasonShootout'
+  | 'seasonShootoutNow'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   secondAssist: false,
@@ -34,6 +36,8 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   openNetFix: false,
   blindRingFix: false,
   seasonOvertime: false,
+  seasonShootout: false,
+  seasonShootoutNow: false,
   passFix: false,
 }
 
@@ -54,6 +58,8 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   openNetFix: 'One-timer open net fix',
   blindRingFix: 'Five-hole blind ring fix',
   seasonOvertime: 'Overtime until a goal in the regular season',
+  seasonShootout: 'A shootout for tied regular-season games, after overtime',
+  seasonShootoutNow: 'A shootout for tied regular-season games, after period 3',
   passFix: 'Pass direction fix',
 }
 
@@ -151,17 +157,139 @@ const RING_AROUND = [
 // bit 5) play on, as the exhibition playoffs (OptPlayMode not 0) do. With
 // both gone, a tied regular-season game plays overtime after overtime, each
 // 10:00 (ResetClock's in OptPlayMode 0), until a goal, as the playoffs do.
-const OVERTIME_PLACES = [
-  // PeriodOver: btst #5,(SeasonDay+1).w; bne.w .1 before; .1's move.w (HmGoals).w,d0 after.
-  { at: 0x8cb9e, original: hex('31FC 0004 C020'), hacked: hex('4E71 4E71 4E71'), before: hex('0838 0005 D1A7 6600 0008'), after: hex('3038 C294') },
+const PERIOD_OVER = { at: 0x8cb9e, original: hex('31FC 0004 C020'), overtime: hex('4E71 4E71 4E71') }
+const END_OF_OVERTIME = { at: 0x8ccda, original: hex('67AC'), overtime: hex('4E71') }
+// What must be around the places for them to be the original game's (and the WN95HL's).
+const TIES_AROUND = [
+  // PeriodOver: btst #5,(SeasonDay+1).w; bne.w .1 before .0; .1's tie test after it.
+  { at: 0x8cb94, bytes: hex('0838 0005 D1A7 6600 0008') },
   // clockcont_0 .10: tst.w (OptPlayMode).w before; .eop_ex's move.w #PenEOP,d0 after.
-  { at: 0x8ccda, original: hex('67AC'), hacked: hex('4E71'), before: hex('6600 0008 4A78 CC4C'), after: hex('303C') },
+  { at: 0x8ccd2, bytes: hex('6600 0008 4A78 CC4C') },
+  { at: 0x8ccdc, bytes: hex('303C') },
+  // NextShooter: btst #3,(gmode2).w; beq.w .0 before its jmp ExitToOpening.
+  { at: 0x9dd3e, bytes: hex('0838 0003 BF00 6700 0008') },
 ]
 
-function overtimeState(rom: Uint8Array): boolean | undefined {
-  if (!OVERTIME_PLACES.every((p) => matches(rom, p.at - p.before.length, p.before) && matches(rom, p.at + p.original.length, p.after))) return undefined
-  if (OVERTIME_PLACES.every((p) => matches(rom, p.at, p.hacked))) return true
-  return OVERTIME_PLACES.every((p) => matches(rom, p.at, p.original)) ? false : undefined
+// Or a shootout, as NHL 94's (hacks.ts, seasonTies 'shootout' and 'shootoutNow'),
+// with NHL '95's addresses. NHL '95's Shootout mode starts one as NHL 94's does
+// (gmode2 bit 0, ClearShootout $9DA50, Create_HotCold_Table $83E88 for both
+// teams) and ends it the same way (NextShooter's jmp ExitToOpening at
+// $9DD48, when CountShootoutGoals has set gmode2 bit 3), so NHL 94's code goes
+// in with NHL '95's HmGoals ($C294), AwGoals ($C5FA), gmode2 ($BF00), gmode
+// ($BEF0), gsp ($C020), ScoreSumbytes ($C02C), shootout goals ($D180, $D182),
+// forceblack ($7A02A) and PeriodOver_sp ($9D18). Both team structs, $366
+// each in NHL '95 ($6CC, $1B3 longs), and the scoring summary's length are kept
+// while the shootout plays and put back after it, the winners given one goal
+// more; NHL 94's copy of its plus-minus hack's log is left out (NHL '95 has no
+// such hack). The mark and the kept structs need RAM no game writes:
+// PROVISIONAL, awaiting the NHL94 Match Viewer project's check of NHL '95's
+// RAM (NHL '95 keeps a copy of its save RAM in main RAM, so NHL 94's $FFF082
+// cannot be assumed).
+const SHOOTOUT_MARK = 0xf000
+const SHOOTOUT_SAVE = 0xf002
+const word = (value: number) => value.toString(16).toUpperCase().padStart(4, '0')
+//   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x; btst #0,(gmode2).w; bne.s .x
+//   bset #0,(gmode2).w; st (mark).w; movem.l d0-d7/a0-a6,-(sp)
+//   lea (tmstruct).w,a0; lea (save).w,a1; move.w #$1B2,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
+//   move.w (ScoreSumbytes).w,(a1); bclr #1,(gmode).w; jsr ClearShootout
+//   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (AwShots).w,a0; jsr Create_HotCold_Table
+//   movem.l (sp)+,d0-d7/a0-a6; .x rts
+const SHOOTOUT_START_95 = hex(
+  `3038 C294 B078 C5FA 6650 0838 0000 BF00 6648 08F8 0000 BF00 50F8 ${word(SHOOTOUT_MARK)} 48E7 FFFE 41F8 C288 43F8 ${word(SHOOTOUT_SAVE)} ` +
+    '303C 01B2 22D8 51C8 FFFC 32B8 C02C 08B8 0001 BEF0 4EB9 0009 DA50 41F8 C288 4EB9 0008 3E88 41F8 C5EE 4EB9 0008 3E88 4CDF 7FFF 4E75',
+)
+//   addq.l #4,sp; tst.b (mark).w; beq.s .title; cmpi.w #3,(gsp).w; beq.s .ours; .title jmp ExitToOpening
+//   .ours sf (mark).w; lea (save).w,a0; lea (tmstruct).w,a1; move.w #$1B2,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
+//   move.w (a0),(ScoreSumbytes).w; move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
+//   addq.w #1,(AwGoals).w; bra.s .done; .home addq.w #1,(HmGoals).w
+//   .done andi.b #$F4,(gmode2).w; move.w #4,(gsp).w; jsr forceblack; jmp PeriodOver_sp
+const SHOOTOUT_END_95 = hex(
+  `588F 4A38 ${word(SHOOTOUT_MARK)} 6708 0C78 0003 C020 6706 4EF9 0008 CD02 51F8 ${word(SHOOTOUT_MARK)} 41F8 ${word(SHOOTOUT_SAVE)} 43F8 C288 ` +
+    '303C 01B2 22D8 51C8 FFFC 31D0 C02C 3038 D180 B078 D182 6E06 5278 C5FA 6004 5278 C294 0238 00F4 BF00 31FC 0004 C020 4EB9 0007 A02A 4EF9 0000 9D18',
+)
+const SHOOTOUT_END_AT = 0x9dd48
+const SHOOTOUT_END_ORIGINAL = hex('4EF9 0008 CD02')
+// The shootout straight after period 3: PeriodOver's tie test (.1, $8CBA4) becomes a call to code that, in a
+// regular-season game (OptPlayMode 0, and not a season's playoffs) with period 3 just over (gsp 3), runs the start
+// code first, then makes the same test, so the beq after it sees its result.
+//   tst.w (OptPlayMode).w; bne.s .t; btst #3,(GameFlags).w; beq.s .r; btst #5,(SeasonDay+1).w; bne.s .t
+//   .r cmpi.w #3,(gsp).w; bne.s .t; jsr start; .t move.w (HmGoals).w,d0; sub.w (AwGoals).w,d0; rts
+const TIE_TEST_AT = 0x8cba4
+const TIE_TEST_ORIGINAL = hex('3038 C294 9078 C5FA')
+const nowCode95 = (start: number) =>
+  hex(`4A78 CC4C 661E 0838 0003 BF08 6708 0838 0005 D1A7 660E 0C78 0003 C020 6606 4EB9 ${start.toString(16).padStart(8, '0')} 3038 C294 9078 C5FA 4E75`)
+
+type Ties = 'tie' | 'overtime' | 'shootout' | 'shootoutNow'
+const read32 = (rom: Uint8Array, at: number) => ((rom[at] << 24) | (rom[at + 1] << 16) | (rom[at + 2] << 8) | rom[at + 3]) >>> 0
+// Where a jsr at `at` (then `nops` NOPs) calls, if it calls `code`.
+function calls(rom: Uint8Array, at: number, nops: number, code: (target: number) => Uint8Array): number | null {
+  if (rom[at] !== 0x4e || rom[at + 1] !== 0xb9) return null
+  for (let i = 0; i < nops; i++) if (rom[at + 6 + i * 2] !== 0x4e || rom[at + 7 + i * 2] !== 0x71) return null
+  const target = read32(rom, at + 2)
+  return target < rom.length && matches(rom, target, code(target)) ? target : null
+}
+const startAt = (rom: Uint8Array, at: number) => calls(rom, at, 0, () => SHOOTOUT_START_95)
+const endAt = (rom: Uint8Array) => calls(rom, SHOOTOUT_END_AT, 0, () => SHOOTOUT_END_95)
+// The code the tie test calls for the shootout after period 3, and the start code it calls.
+function nowAt(rom: Uint8Array): { now: number; start: number } | null {
+  if (rom[TIE_TEST_AT] !== 0x4e || rom[TIE_TEST_AT + 1] !== 0xb9 || rom[TIE_TEST_AT + 6] !== 0x4e || rom[TIE_TEST_AT + 7] !== 0x71) return null
+  const now = read32(rom, TIE_TEST_AT + 2)
+  if (now + 0x2e > rom.length) return null
+  const start = read32(rom, now + 0x20)
+  return matches(rom, now, nowCode95(start)) && start < rom.length && matches(rom, start, SHOOTOUT_START_95) ? { now, start } : null
+}
+
+function tiesState(rom: Uint8Array): Ties | undefined {
+  if (!TIES_AROUND.every((around) => matches(rom, around.at, around.bytes))) return undefined
+  const eop = matches(rom, END_OF_OVERTIME.at, END_OF_OVERTIME.original) ? 'original' : matches(rom, END_OF_OVERTIME.at, END_OF_OVERTIME.overtime) ? 'nop' : null
+  const po = matches(rom, PERIOD_OVER.at, PERIOD_OVER.original) ? 'original' : matches(rom, PERIOD_OVER.at, PERIOD_OVER.overtime) ? 'nop' : startAt(rom, PERIOD_OVER.at) !== null ? 'start' : null
+  const tie = matches(rom, TIE_TEST_AT, TIE_TEST_ORIGINAL) ? 'original' : nowAt(rom) !== null ? 'now' : null
+  const end = matches(rom, SHOOTOUT_END_AT, SHOOTOUT_END_ORIGINAL) ? 'original' : endAt(rom) !== null ? 'end' : null
+  const is = (e: string, p: string, t: string, n: string) => eop === e && po === p && tie === t && end === n
+  if (is('original', 'original', 'original', 'original')) return 'tie'
+  if (is('nop', 'nop', 'original', 'original')) return 'overtime'
+  if (is('nop', 'start', 'original', 'end')) return 'shootout'
+  if (is('original', 'original', 'now', 'end')) return 'shootoutNow'
+  return undefined
+}
+
+const UNUSED = 0xff
+function removeTies(work: { rom: Uint8Array }): void {
+  const rom = work.rom
+  const now = nowAt(rom)
+  if (now !== null) {
+    rom.fill(UNUSED, now.now, now.now + 0x2e)
+    rom.fill(UNUSED, now.start, now.start + SHOOTOUT_START_95.length)
+  }
+  const start = startAt(rom, PERIOD_OVER.at)
+  if (start !== null) rom.fill(UNUSED, start, start + SHOOTOUT_START_95.length)
+  const end = endAt(rom)
+  if (end !== null) rom.fill(UNUSED, end, end + SHOOTOUT_END_95.length)
+  rom.set(PERIOD_OVER.original, PERIOD_OVER.at)
+  rom.set(END_OF_OVERTIME.original, END_OF_OVERTIME.at)
+  rom.set(TIE_TEST_ORIGINAL, TIE_TEST_AT)
+  rom.set(SHOOTOUT_END_ORIGINAL, SHOOTOUT_END_AT)
+}
+
+const jsrTo = (target: number) => hex(`4EB9 ${target.toString(16).padStart(8, '0')}`)
+function applyTies(work: { rom: Uint8Array }, value: Ties): void {
+  if (value === 'tie') return
+  if (value === 'overtime') {
+    work.rom.set(PERIOD_OVER.overtime, PERIOD_OVER.at)
+    work.rom.set(END_OF_OVERTIME.overtime, END_OF_OVERTIME.at)
+    return
+  }
+  // The code first: placing it can replace work.rom with a larger copy.
+  const end = placeCode(work, SHOOTOUT_END_95)
+  work.rom.set(jsrTo(end), SHOOTOUT_END_AT)
+  const start = placeCode(work, SHOOTOUT_START_95)
+  if (value === 'shootout') {
+    work.rom.set(END_OF_OVERTIME.overtime, END_OF_OVERTIME.at)
+    work.rom.set(jsrTo(start), PERIOD_OVER.at)
+    return
+  }
+  const now = placeCode(work, nowCode95(start))
+  work.rom.set(Uint8Array.from([...jsrTo(now), 0x4e, 0x71]), TIE_TEST_AT)
 }
 
 // ------------------------------------------------------- rocket pass fix
@@ -250,6 +378,7 @@ export function nhl95HacksSupported(game: GameConfig): boolean {
 }
 
 export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
+  const ties = tiesState(rom)
   const found: Record<Nhl95Hack, boolean | undefined> = {
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
@@ -259,7 +388,9 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     rocketFix: rocket().detect(rom),
     openNetFix: switchState(rom, 'openNetFix'),
     blindRingFix: ringState(rom),
-    seasonOvertime: overtimeState(rom),
+    seasonOvertime: ties === undefined ? undefined : ties === 'overtime',
+    seasonShootout: ties === undefined ? undefined : ties === 'shootout',
+    seasonShootoutNow: ties === undefined ? undefined : ties === 'shootoutNow',
     passFix: passFixState(rom),
   }
   return {
@@ -279,6 +410,9 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   }
   if (change.length === 0) return project
   const want: Nhl95HackChoices = { ...choices, ...Object.fromEntries(change.map((hack) => [hack, wanted[hack]])) }
+  if ([want.seasonOvertime, want.seasonShootout, want.seasonShootoutNow].filter(Boolean).length > 1) {
+    throw new Nhl95HackError('Only one of overtime until a goal and the two shootouts can be on: they decide a tied game three different ways.')
+  }
   const work = { rom: project.bytes.slice() }
   // Every known hack comes out, then those wanted go in, as for NHL 94.
   const steps: [Nhl95Hack, () => void, () => void][] = [
@@ -291,10 +425,11 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     }),
     ['rocketFix', () => rocket().remove(work.rom), () => rocket().apply(work, want.rocketFix)],
     ['blindRingFix', () => ring().remove(work.rom), () => ring().apply(work, want.blindRingFix)],
+    // The three for tied regular-season games share their places, so they are one step.
     [
       'seasonOvertime',
-      () => OVERTIME_PLACES.forEach((p) => work.rom.set(p.original, p.at)),
-      () => want.seasonOvertime && OVERTIME_PLACES.forEach((p) => work.rom.set(p.hacked, p.at)),
+      () => removeTies(work),
+      () => applyTies(work, want.seasonShootoutNow ? 'shootoutNow' : want.seasonShootout ? 'shootout' : want.seasonOvertime ? 'overtime' : 'tie'),
     ],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
@@ -331,6 +466,10 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   blindRingFix:
     "A loose puck close to the goalie's stick but not on its blade now meets the goalie, where the original game lets it through untouched, the way some five-hole goals go in.",
+  seasonShootout:
+    'A regular-season game still tied after overtime is settled by a shootout, as in Shootout mode; the winners get one goal more, so it never ends in a tie.',
+  seasonShootoutNow:
+    'A regular-season game tied after period 3 goes straight to a shootout, with no overtime; the winners get one goal more, so it never ends in a tie.',
   seasonOvertime:
     'A regular-season game tied after overtime plays another 10-minute overtime, and another, until someone scores, as playoff games do. It never ends in a tie.',
   openNetFix:
@@ -346,7 +485,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.

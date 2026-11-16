@@ -29,6 +29,8 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
   blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
   seasonOvertime: 'A tied regular-season game plays overtime after overtime until a goal, as the playoffs do.',
+  seasonShootout: 'A regular-season game still tied after overtime is settled by a shootout.',
+  seasonShootoutNow: 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime.',
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
 }
@@ -108,6 +110,24 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       his reach that nothing touched fell from 2,933 to 549 (3,503 to 647), the channel through his middle in the
       stick saves closed, a standing goalie's gap all but gone; every point that played before plays the same. What is
       left is at the edge of his reach, where his body test never reached.
+    </p>
+  ),
+  seasonShootout: (
+    <p className="note">
+      A regular-season game still tied after its overtime goes to a shootout, played as in Shootout mode: five shooters a
+      side, then sudden death. The winners get one goal more in the score, so the game never ends in a tie; the shootout
+      itself counts in no statistics, the players' and goalies' stats, goals by period and scoring summary being kept as
+      they were at the end of overtime. Playoff games are unchanged. NHL 94's option, made from NHL '95's code (the
+      NHL95Genesis disassembly), also in the WN95HL's ROMs. Not yet tested in an NHL '95 game. Only one of the three ways
+      of settling a tie can be on.
+    </p>
+  ),
+  seasonShootoutNow: (
+    <p className="note">
+      A regular-season game tied after period 3 goes straight to a shootout, with no overtime, played and counted as the
+      shootout after overtime is. Playoff games, exhibition or a season's, are unchanged. NHL 94's option, made from NHL
+      '95's code, also in the WN95HL's ROMs. Not yet tested in an NHL '95 game. Only one of the three ways of settling a
+      tie can be on.
     </p>
   ),
   seasonOvertime: (
@@ -219,7 +239,11 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
                   disabled={unknown(hack)}
                   value={wanted[hack] ? 'on' : 'off'}
                   onChange={(e) => {
-                    setDraft({ rom: project.bytes, choices: { ...wanted, [hack]: e.target.value === 'on' } })
+                    const on = e.target.value === 'on'
+                    // The three ways of settling a tie exclude each other: one on turns the others off.
+                    const ties = ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] as const
+                    const others = on && (ties as readonly string[]).includes(hack) ? Object.fromEntries(ties.filter((t) => t !== hack).map((t) => [t, false])) : {}
+                    setDraft({ rom: project.bytes, choices: { ...wanted, ...others, [hack]: on } })
                     setNotice('')
                     setError('')
                   }}
