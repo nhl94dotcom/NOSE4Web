@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { backgroundNote, withSeeThroughBackground } from './core/background'
 import type { ColorFormat } from './core/color'
+import { isGenesis94 } from './core/games'
 import {
   bannerColors,
   expandPictureSpace,
@@ -103,7 +104,7 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
   const hasBanners = BANNERS.some((b) => kinds.includes(b.kind))
   const moreRoom = pictureSpace(project)
   const roomButton = moreRoom
-    ? `Give logos and banners more room${moreRoom.grows ? ` (ROM grows to ${moreRoom.romSize / 0x100000} MB)` : ''}`
+    ? `Give ${hasBanners ? 'logos and banners' : 'the logos'} more room${moreRoom.grows ? ` (ROM grows to ${moreRoom.romSize / 0x100000} MB)` : ''}`
     : ''
 
   // Applies a replacement if it can be written into the ROM. Pictures share
@@ -377,45 +378,51 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
 
       {!hasBanners && (
         <p className="note">
-          This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.
+          {isGenesis94(project.game)
+            ? 'This ROM keeps its banners in a way the editor cannot follow, so only its logos can be replaced here.'
+            : "NHL '95's banners and centre-ice logos are not offered yet: only the menu logos can be replaced here."}
         </p>
       )}
-      <h2 hidden={!hasBanners}>Banner lettering</h2>
-      <p className="note">
-        Makes a banner that reads whatever you type, in the game's own lettering, with the stripes in the banner
-        colours below.
-      </p>
-      <p>
-        <input
-          className="wide-input"
-          aria-label="Banner text"
-          value={wanted}
-          onChange={(e) => setLetteringText(e.target.value)}
-        />{' '}
-        {letterable.map((b) => (
-          <span key={b.kind}>
-            <button disabled={!preview} onClick={() => letter([b])}>
-              Use for the {pictureTitle(project, b.kind).toLowerCase()}
-            </button>{' '}
-          </span>
-        ))}
-        {letterable.length > 1 && (
-          <button disabled={!preview} onClick={() => letter(letterable)}>
-            Use for all {letterable.length}
-          </button>
-        )}
-      </p>
-      {preview && <PictureView picture={preview.picture} palette={preview.palette} scale={3} />}
-      <p className={lettering.tooWide > 0 ? 'error' : 'note'}>
-        {lettering.tooWide > 0
-          ? `That is ${lettering.tooWide} pixels too wide for a banner. Try a shorter form of the name.`
-          : lettering.text === ''
-            ? 'Type the name to put on the banner.'
-            : `${lettering.width} of 82 pixels wide.`}
-        {lettering.dropped && ` There is no lettering for ${[...lettering.dropped].join(' ')}, so it is left out.`}
-        {letterable.length === 0 &&
-          ' In this ROM every team shows the same banners, so there is none to letter for one team. Give the logos and banners more room first.'}
-      </p>
+      {hasBanners && (
+        <>
+          <h2>Banner lettering</h2>
+          <p className="note">
+            Makes a banner that reads whatever you type, in the game's own lettering, with the stripes in the banner
+            colours below.
+          </p>
+          <p>
+            <input
+              className="wide-input"
+              aria-label="Banner text"
+              value={wanted}
+              onChange={(e) => setLetteringText(e.target.value)}
+            />{' '}
+            {letterable.map((b) => (
+              <span key={b.kind}>
+                <button disabled={!preview} onClick={() => letter([b])}>
+                  Use for the {pictureTitle(project, b.kind).toLowerCase()}
+                </button>{' '}
+              </span>
+            ))}
+            {letterable.length > 1 && (
+              <button disabled={!preview} onClick={() => letter(letterable)}>
+                Use for all {letterable.length}
+              </button>
+            )}
+          </p>
+          {preview && <PictureView picture={preview.picture} palette={preview.palette} scale={3} />}
+          <p className={lettering.tooWide > 0 ? 'error' : 'note'}>
+            {lettering.tooWide > 0
+              ? `That is ${lettering.tooWide} pixels too wide for a banner. Try a shorter form of the name.`
+              : lettering.text === ''
+                ? 'Type the name to put on the banner.'
+                : `${lettering.width} of 82 pixels wide.`}
+            {lettering.dropped && ` There is no lettering for ${[...lettering.dropped].join(' ')}, so it is left out.`}
+            {letterable.length === 0 &&
+              ' In this ROM every team shows the same banners, so there is none to letter for one team. Give the logos and banners more room first.'}
+          </p>
+        </>
+      )}
 
       {letterable.length > 0 && others.length > 0 && (
         <>
@@ -443,27 +450,32 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
         </>
       )}
 
-      <h2>Menu banner colours</h2>
-      <PaletteEditor
-        palette={bannerColors(project, team)}
-        labels={['Top stripe', 'Bottom stripe']}
-        onChange={(colors) =>
-          onChange({
-            ...project,
-            graphics: {
-              ...project.graphics,
-              menuPalettes: { ...project.graphics.menuPalettes, [team]: withBannerColors(menuPalette(project, team), colors) },
-            },
-          })
-        }
-      />
-      <p>
-        <ResetButton
-          what="banner colours"
-          changed={pictureChanged(project, team, 'bannerColors')}
-          onReset={() => onChange({ ...project, graphics: resetPicture(project, team, 'bannerColors') })}
-        />
-      </p>
+      {/* NHL '95's stripe colours (its logo colours 1 and 2) show on screens not yet checked in the game. */}
+      {isGenesis94(project.game) && (
+        <>
+          <h2>Menu banner colours</h2>
+          <PaletteEditor
+            palette={bannerColors(project, team)}
+            labels={['Top stripe', 'Bottom stripe']}
+            onChange={(colors) =>
+              onChange({
+                ...project,
+                graphics: {
+                  ...project.graphics,
+                  menuPalettes: { ...project.graphics.menuPalettes, [team]: withBannerColors(menuPalette(project, team), colors) },
+                },
+              })
+            }
+          />
+          <p>
+            <ResetButton
+              what="banner colours"
+              changed={pictureChanged(project, team, 'bannerColors')}
+              onReset={() => onChange({ ...project, graphics: resetPicture(project, team, 'bannerColors') })}
+            />
+          </p>
+        </>
+      )}
 
       <h2>Copy to another team</h2>
       <p>

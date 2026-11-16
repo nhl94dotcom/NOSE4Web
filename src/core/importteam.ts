@@ -11,6 +11,7 @@ import {
   menuLogoPalette,
   menuLogoStart,
   rinkLogo,
+  rinkLogosSupported,
   visitorBannersApart,
   withBanner,
   withBannerColors,
@@ -243,11 +244,17 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
     }
   }
 
-  attempt('Centre-ice logo', (p) => ({ ...p, graphics: withRinkLogo(p, to, rinkLogo(other, from)) }))
+  if (rinkLogosSupported(project) && rinkLogosSupported(other)) {
+    attempt('Centre-ice logo', (p) => ({ ...p, graphics: withRinkLogo(p, to, rinkLogo(other, from)) }))
+  } else if (rinkLogosSupported(project) || rinkLogosSupported(other)) {
+    notes.push("Centre-ice logo left alone: the editor does not read NHL '95's.")
+  }
   attempt('Menu logo', (p) => {
     const palette = menuLogoStart(p, to)
     menuLogoPalette(other, from).forEach((word, i) => {
-      if (i >= LOGO_OWN_COLORS_FROM) palette[i] = palette[16 + i] = word
+      if (i < LOGO_OWN_COLORS_FROM) return
+      palette[i] = word
+      if (palette.length > 16) palette[16 + i] = word
     })
     return {
       ...p,

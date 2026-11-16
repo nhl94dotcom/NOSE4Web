@@ -568,7 +568,7 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
       graphics[set] = pictures
     }
     graphics.menuPalettes = Object.fromEntries(
-      Object.entries(file.menuPalettes ?? {}).filter(([team, palette]) => Number(team) < teams.length && isNumbers(palette, 32, 0xffff)),
+      Object.entries(file.menuPalettes ?? {}).filter(([team, palette]) => Number(team) < teams.length && isNumbers(palette, game.graphics.menuPaletteColors ?? 32, 0xffff)),
     )
     if (skipped > 0) notes.push(`${skipped} of the project's pictures do not fit this ROM's kinds of picture, and were left out.`)
     try {

@@ -246,7 +246,8 @@ export function buildRom(project: RomProject): Uint8Array {
   }
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
   if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)
-  if (isGenesis94(project.game)) writeGraphics(rom, project.game, project.graphics)
+  // NHL 94's pictures, and NHL '95's menu logos; nothing where none were edited.
+  writeGraphics(rom, project.game, project.graphics)
   writeU32(rom, HEADER_ROM_END, rom.length - 1)
   writeU16(rom, HEADER_CHECKSUM, headerChecksum(rom))
   return rom

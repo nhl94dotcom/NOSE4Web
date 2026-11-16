@@ -235,10 +235,10 @@ It can also:
   ROM's addresses.
 - NHL '95 for the Genesis (product code `GM T-50856 -00`), the original game and
   league ROMs built on it, such as the WN95HL's 34-team ROMs (`GM T-50856 -34`):
-  rosters, lines, team names, team and rink colours, playoff draws, period
-  lengths, rules, the main menu's starting choices, and the editor's other
-  tools. The hacks, pictures, songs and screens made for NHL 94's code are not
-  offered for it.
+  rosters, lines, team names, team and rink colours, the menu logos, playoff
+  draws, period lengths, rules, the main menu's starting choices, its own
+  Hacks page, and the editor's other tools. The rest of NHL 94's hacks,
+  pictures, songs and screens are not offered for it yet.
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
 SNES `.smc` and `.sfc` files can be opened, with or without a copier header,

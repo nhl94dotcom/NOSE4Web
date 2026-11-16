@@ -25,12 +25,19 @@ export interface GameConfig {
   // tables of one address per team for the logos, and single blocks holding
   // every team's banner.
   graphics: {
-    rinkLogoTablePointer: number
+    // Null where the game keeps its centre-ice logos in a way the editor does not read (NHL '95 compresses them).
+    rinkLogoTablePointer: number | null
     menuLogoTablePointer: number
     // Each team's banner stripe colours on the menus.
     menuLogoPalettePointer: number
+    // How many colours each team has in that table: 32 in NHL 94 (the logo's and a second set for a team listed
+    // second), 16 in NHL '95, whose one table serves the logo and the stripes.
+    menuPaletteColors?: 16 | 32
     // Each team's 16 menu logo colours.
     menuLogoColorsPointer: number
+    // Where the pointers are operands of instructions (NHL '95's movea.l #table,a0), the word each must follow:
+    // a ROM whose code differs there is not read.
+    pointerOpcode?: number
     // Whether the banners are kept as the original game keeps them. Hacks
     // that draw their banners with code of their own are left alone.
     banners: boolean
@@ -349,7 +356,20 @@ export const NHL95: GameConfig = {
     { team: 13, pointerOffset: 0x86570, defaultTextOffset: 0x86578 },
     { team: 14, pointerOffset: 0x8655e, defaultTextOffset: 0x8658c },
   ],
-  graphics: { ...NHL94.graphics, banners: false },
+  // The menu logos (TeamLogoBitmaps, 6 x 6 tiles) and their colours (TeamLogoPalettes, 16 a team: 1 and 2 the
+  // team's stripes, 5 and 6 white and black as in NHL 94, 7 to 15 the logo's), found through GetTeamLogo's and
+  // DrawTeamLogo's movea.l, which the WN95HL's ROMs point elsewhere. The centre-ice logos are compressed
+  // (ArenaGfxBank) and the banners take their colours from each screen's palettes, so neither is offered yet.
+  graphics: {
+    rinkLogoTablePointer: null,
+    menuLogoTablePointer: 0x7d3ee,
+    menuLogoPalettePointer: 0x7d486,
+    menuPaletteColors: 16,
+    menuLogoColorsPointer: 0x7d486,
+    pointerOpcode: 0x207c,
+    banners: false,
+    bannerReferences: { menu: [], visitor: [], game: [] },
+  },
   playoffDrawPointerOffsets: [0x87a04, 0x87a6e],
   copyrightTextPointerOffset: 0xa1444,
   introTextPointerOffset: 0xa14f8,

@@ -2393,13 +2393,22 @@ export function HelpPage() {
           League ROMs that have moved their teams already have room of their own.
         </li>
         <li>
+          <b>Menu logos</b>: each team's logo on the menus, 6 by 6 tiles as in NHL 94, can be exported, drawn and
+          imported, on the team page and in Picture files. As in NHL 94 it has white, black and 9 colours of its own; its
+          other colours are the team's stripe colours and colours every team shares, and stay as they are. In the
+          original game the logos are packed tight, so a detailed one needs <b>Give the logos more room</b> first; the
+          WN95HL's ROMs have the room already. A logo can come from an NHL 94 ROM with <b>Import a team</b>. The
+          centre-ice logos (compressed in NHL '95) and the name banners (coloured by each screen's own colours) are not
+          offered yet.
+        </li>
+        <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own, with one option so far: the <b>pass direction fix</b>, from
           the NHL94 Match Viewer project. NHL '95 splits the pad's directions for a pass differently from NHL 94, and the
           fix puts NHL 94's way back. Match Viewer played it on the WN95HL's Season 18 ROM. It's an option, not a
           recommended fix.
         </li>
         <li>
-          <b>Not offered for NHL '95</b>: NHL 94's hacks, logos and banners, player photos, organ and team songs, score logos,
+          <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,
           the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
         </li>
       </ul>

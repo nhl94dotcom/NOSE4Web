@@ -17,6 +17,7 @@ import {
   pictureToImage,
   rinkLogo,
   rinkLogoSharedWith,
+  rinkLogosSupported,
   visitorBannersApart,
   withBanner,
   withMenuLogo,
@@ -48,7 +49,10 @@ const MENU_BANNER_COLORS = ALL_COLORS.filter((color) => color !== 3 && color !==
 // The kinds of picture this ROM has for each team.
 export function pictureKinds(project: RomProject): PictureKind[] {
   const banners = bannersSupported(project)
-  return KINDS.map((k) => k.kind).filter((kind) => (BANNER_KINDS[kind] ? banners : true) && (kind !== 'visitorBanner' || visitorBannersApart(project)))
+  const rink = rinkLogosSupported(project)
+  return KINDS.map((k) => k.kind).filter(
+    (kind) => (BANNER_KINDS[kind] ? banners : kind === 'rinkLogo' ? rink : true) && (kind !== 'visitorBanner' || visitorBannersApart(project)),
+  )
 }
 
 export function pictureTitle(project: RomProject, kind: PictureKind): string {

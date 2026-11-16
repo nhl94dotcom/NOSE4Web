@@ -1,6 +1,6 @@
 import { readU16, readU32, reorderEntries, writeU16, writeU32 } from './bytes'
 import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
-import { isGenesis94, type GameConfig } from './games'
+import type { GameConfig } from './games'
 import { claimSpace } from './space'
 
 // Team pictures: the logo at centre ice, the logo on the main menu, and the
@@ -34,6 +34,9 @@ const LOGO_PALETTE_BYTES = 0x40
 // The first table has places for the logo's colours as well, kept in step
 // here, though the game does not draw the logo from them.
 const LOGO_COLOR_BYTES = 0x20
+// A team's menu colours: 32 in NHL 94, 16 in NHL '95 (games.ts).
+const paletteColors = (game: GameConfig) => game.graphics.menuPaletteColors ?? LOGO_PALETTE_BYTES / 2
+const paletteBytes = (game: GameConfig) => paletteColors(game) * 2
 const BANNER_COLOR_SLOTS = [1, 2]
 const BANNER_COLOR_SLOTS_SECOND = [3, 4]
 const WHITE = 0x0eee
@@ -210,13 +213,23 @@ interface Layout {
   visitorBannersApart: boolean
 }
 
+// The address a pointer place holds, where its instruction is the one expected (games.ts pointerOpcode).
+function pointer(rom: Uint8Array, game: GameConfig, at: number): number {
+  const opcode = game.graphics.pointerOpcode
+  if (opcode !== undefined && readU16(rom, at - 2) !== opcode) throw new Error('unexpected code')
+  const value = readU32(rom, at)
+  if (value <= 0 || value >= rom.length) throw new Error('bad pointer')
+  return value
+}
+
 function layout(rom: Uint8Array, game: GameConfig): Layout {
   const g = game.graphics
   const table = (pointerAt: number) => {
-    const at = readU32(rom, pointerAt)
+    const at = pointer(rom, game, pointerAt)
+    if (at + game.teamCount * 4 > rom.length) throw new Error('bad table')
     return Array.from({ length: game.teamCount }, (_, team) => readU32(rom, at + team * 4))
   }
-  const rinkLogos = table(g.rinkLogoTablePointer)
+  const rinkLogos = g.rinkLogoTablePointer === null ? [] : table(g.rinkLogoTablePointer)
   for (const at of rinkLogos) {
     const block = readBlock(rom, at)
     // Each has room for all its tiles even where a hack has set the count
@@ -224,7 +237,10 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
     const tiles = RINK_LOGO.tilesWide * RINK_LOGO.tilesHigh
     if (block.mapAt !== 0 || block.tileCount > tiles || at + HEADER_BYTES + tiles * TILE_BYTES > rom.length) throw new Error('bad rink logo')
   }
-  const menuLogos = table(g.menuLogoTablePointer).map((at) => readBlock(rom, at))
+  const menuLogos = table(g.menuLogoTablePointer).map((at) => {
+    if (at <= 0 || at + HEADER_BYTES > rom.length) throw new Error('bad logo')
+    return readBlock(rom, at)
+  })
   const bannerBlock = (kind: BannerKind) => {
     const ref = g.bannerReferences[kind][0]
     return readBlock(rom, readU32(rom, ref.at) - ref.offset)
@@ -237,8 +253,8 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
   return {
     rinkLogos,
     menuLogos,
-    menuPalettesAt: readU32(rom, g.menuLogoPalettePointer),
-    menuLogoColorsAt: readU32(rom, g.menuLogoColorsPointer),
+    menuPalettesAt: pointer(rom, game, g.menuLogoPalettePointer),
+    menuLogoColorsAt: pointer(rom, game, g.menuLogoColorsPointer),
     banners,
     visitorBannersApart: banners !== null && banners.visitor.at !== banners.menu.at,
   }
@@ -247,6 +263,11 @@ function layout(rom: Uint8Array, game: GameConfig): Layout {
 function bannersOf(where: Layout): Record<BannerKind, Block> {
   if (!where.banners) throw new Error('This ROM keeps its banners in a way the editor cannot follow.')
   return where.banners
+}
+
+// Whether this game has centre-ice logos the editor reads (not NHL '95, whose are compressed).
+export function rinkLogosSupported(project: Source): boolean {
+  return project.game.graphics.rinkLogoTablePointer !== null
 }
 
 // Whether this ROM has banners the editor can show and replace at all.
@@ -280,7 +301,7 @@ export function visitorBannersApart(project: Source): boolean {
 
 // Whether this ROM keeps its team pictures where and how the editor expects.
 export function graphicsSupported(rom: Uint8Array, game: GameConfig): boolean {
-  if (!isGenesis94(game)) return false
+  if (game.platform !== 'genesis') return false
   try {
     layout(rom, game)
     return true
@@ -308,10 +329,11 @@ export function bannersFollowable(rom: Uint8Array, game: GameConfig): boolean {
 export function graphicsInTeamOrder(from: Uint8Array, rom: Uint8Array, game: GameConfig, edits: GraphicsEdits, order: number[]): GraphicsEdits {
   const where = layout(from, game)
   const g = game.graphics
-  reorderEntries(from, rom, readU32(from, g.rinkLogoTablePointer), 4, order)
-  reorderEntries(from, rom, readU32(from, g.menuLogoTablePointer), 4, order)
-  reorderEntries(from, rom, where.menuPalettesAt, LOGO_PALETTE_BYTES, order)
-  reorderEntries(from, rom, where.menuLogoColorsAt, LOGO_COLOR_BYTES, order)
+  if (g.rinkLogoTablePointer !== null) reorderEntries(from, rom, readU32(from, g.rinkLogoTablePointer), 4, order)
+  reorderEntries(from, rom, pointer(from, game, g.menuLogoTablePointer), 4, order)
+  reorderEntries(from, rom, where.menuPalettesAt, paletteBytes(game), order)
+  // In NHL '95 the logo colours are the same table, moved already.
+  if (where.menuLogoColorsAt !== where.menuPalettesAt) reorderEntries(from, rom, where.menuLogoColorsAt, LOGO_COLOR_BYTES, order)
   const maps = new Map<number, Block>()
   for (const block of Object.values(where.banners ?? {})) maps.set(block.mapAt, block)
   for (const block of maps.values()) reorderEntries(from, rom, block.mapAt + 4, BANNER_TILES_HIGH * block.mapWidth * 2, order)
@@ -369,8 +391,8 @@ export function menuLogo(project: Source, team: number): Picture {
 export function menuPalette(project: Source, team: number): number[] {
   const edited = project.graphics.menuPalettes[team]
   if (edited) return edited
-  const at = layout(project.bytes, project.game).menuPalettesAt + team * LOGO_PALETTE_BYTES
-  return Array.from({ length: LOGO_PALETTE_BYTES / 2 }, (_, i) => readU16(project.bytes, at + i * 2))
+  const at = layout(project.bytes, project.game).menuPalettesAt + team * paletteBytes(project.game)
+  return Array.from({ length: paletteColors(project.game) }, (_, i) => readU16(project.bytes, at + i * 2))
 }
 
 // The two colours of a team's banner stripes on the menus.
@@ -383,7 +405,7 @@ export function withBannerColors(palette: number[], colors: number[]): number[] 
   const next = palette.slice()
   colors.forEach((color, i) => {
     next[BANNER_COLOR_SLOTS[i]] = color
-    next[16 + BANNER_COLOR_SLOTS_SECOND[i]] = color
+    if (next.length > 16) next[16 + BANNER_COLOR_SLOTS_SECOND[i]] = color
   })
   return next
 }
@@ -451,8 +473,12 @@ export function menuLogoPalette(project: Source, team: number): number[] {
 // and white and black stay as every team has them.
 export function withMenuLogo(project: Source, team: number, picture: Picture, logoPalette: number[]): GraphicsEdits {
   const palette = (project.graphics.menuLogos[team] && project.graphics.menuPalettes[team]?.slice()) || menuLogoStart(project, team)
-  for (let i = LOGO_FIRST_COLOR; i < 16; i++) palette[i] = palette[16 + i] = logoPalette[i]
-  for (const { slot, word } of LOGO_FIXED_COLORS) palette[slot] = palette[16 + slot] = word
+  const both = (i: number, word: number) => {
+    palette[i] = word
+    if (palette.length > 16) palette[16 + i] = word
+  }
+  for (let i = LOGO_FIRST_COLOR; i < 16; i++) both(i, logoPalette[i])
+  for (const { slot, word } of LOGO_FIXED_COLORS) both(slot, word)
   return {
     ...project.graphics,
     menuLogos: { ...project.graphics.menuLogos, [team]: picture },
@@ -464,7 +490,9 @@ export function withMenuLogo(project: Source, team: number, picture: Picture, lo
 export function menuLogoStart(project: Source, team: number): number[] {
   const palette = menuPalette(project, team).slice()
   menuLogoPalette(project, team).forEach((word, i) => {
-    if (i >= LOGO_FIRST_COLOR) palette[i] = palette[16 + i] = word
+    if (i < LOGO_FIRST_COLOR) return
+    palette[i] = word
+    if (palette.length > 16) palette[16 + i] = word
   })
   return palette
 }
@@ -662,7 +690,7 @@ export function writeGraphics(rom: Uint8Array, game: GameConfig, edits: Graphics
     writeTiles(rom, where.rinkLogos[Number(team)] + HEADER_BYTES, tiles)
   }
   for (const [team, palette] of Object.entries(edits.menuPalettes)) {
-    palette.forEach((word, i) => writeU16(rom, where.menuPalettesAt + Number(team) * LOGO_PALETTE_BYTES + i * 2, word))
+    palette.forEach((word, i) => writeU16(rom, where.menuPalettesAt + Number(team) * paletteBytes(game) + i * 2, word))
     // The colours the game really draws the logo with change only with the logo.
     if (!edits.menuLogos[Number(team)]) continue
     const at = where.menuLogoColorsAt + Number(team) * LOGO_COLOR_BYTES
@@ -761,7 +789,7 @@ export function expandPictureSpace<P extends Source>(project: P): P {
       movedTo.set(block.at, at)
       at += roomyLogoSize(block)
     }
-    const tableAt = readU32(rom, game.graphics.menuLogoTablePointer)
+    const tableAt = pointer(rom, game, game.graphics.menuLogoTablePointer)
     where.menuLogos.forEach((block, team) => writeU32(rom, tableAt + team * 4, movedTo.get(block.at)!))
   }
   return { ...project, bytes: rom }

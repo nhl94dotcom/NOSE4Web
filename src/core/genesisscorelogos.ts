@@ -1,5 +1,6 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import { colorRgb } from './color'
+import { isGenesis94 } from './games'
 import type { Picture } from './graphics'
 import { rinkLogo } from './graphics'
 import type { RomProject } from './rom'
@@ -283,7 +284,8 @@ function sites(rom: Uint8Array): Sites | null {
 }
 
 export function canAddGenesisScoreLogos(project: RomProject): boolean {
-  return project.game.platform !== 'snes' && project.graphicsSupported && sites(project.bytes) !== null
+  // NHL '95 draws its score box its own way, and has no centre-ice logos the editor reads.
+  return isGenesis94(project.game) && project.graphicsSupported && sites(project.bytes) !== null
 }
 
 // The ROM with the code in and every team given home and away logos made
@@ -393,7 +395,7 @@ export function genesisScoreLogoTable(rom: Uint8Array, teamCount: number): numbe
 export const SCORE_LOGO_ENTRY = ENTRY
 
 export function hasGenesisScoreLogos(project: RomProject): boolean {
-  return project.game.platform !== 'snes' && added(project.bytes, project.teams.length) !== null
+  return isGenesis94(project.game) && added(project.bytes, project.teams.length) !== null
 }
 
 // The code taken out, and the logos with it: the ROM as it was, but for its size.

@@ -2972,6 +2972,26 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(forwards).toHaveValue('7')
   })
 
+  test("shows a team's menu logo, exports it and takes it back in, the only picture NHL '95 offers yet", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await team(page, 'Boston Bruins').click()
+    const logo = page.locator('.picture').filter({ has: page.locator('strong', { hasText: /^Menu logo$/ }) })
+    await expect(logo).toContainText('48 by 48')
+    await expect(page.locator('.picture strong', { hasText: 'Centre-ice logo' })).toHaveCount(0)
+    await expect(page.locator('.picture strong', { hasText: /banner/i })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Menu banner colours' })).toHaveCount(0)
+    await logo.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'test-results/shots/nhl95-logo.png' })
+    const png = await downloadFrom(page, logo.getByRole('button', { name: 'Export PNG' }))
+    expect(png.suggestedFilename()).toBe('Boston_Bruins_menu_logo.png')
+    // The same picture back in changes nothing visible but is taken as a replacement.
+    await logo.locator('input[type=file]').setInputFiles(await png.path())
+    await expect(page.locator('.picture').first().locator('xpath=ancestor::section[1]')).not.toContainText('could not')
+    await entry(page, 'Picture files').click()
+    await expect(page.getByText('menu_logo', { exact: false }).first()).toBeVisible()
+  })
+
   test('opens it, edits a player, and shows its game settings, without the NHL 94 additions', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
