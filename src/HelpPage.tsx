@@ -1209,6 +1209,14 @@ export function HelpPage() {
         </li>
         <li>In the teams file, only the columns present are changed, and an empty cell keeps the current value.</li>
         <li>
+          In the songs file, each team has a row and each of its six organ songs a column, holding the song's number,
+          or 0 for Random. The songlist file says which song each number is: on the Genesis these are the forum
+          list's numbers, 1 to 72; on the SNES they number the songs the ROM's song tables hold, so export the two
+          files together, and again after putting a song in from a MIDI file. An empty cell keeps the song the team
+          has. A league ROM whose song table has no room for its last teams gets the table moved to free space when
+          one of them is given songs, as on the team page. Importing the songlist file changes nothing.
+        </li>
+        <li>
           Colours are written like <i>#24ffff</i> and are matched to the nearest colour the console can show.
         </li>
         <li>Importing a workbook follows the same rules, and problems are listed by sheet and row.</li>

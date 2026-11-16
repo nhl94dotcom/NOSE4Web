@@ -1,5 +1,5 @@
 import { FEWEST_MENU_TEAMS } from './menuteams'
-import type { GameConfig } from './games'
+import { isGenesis94, type GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
 import { emptyLineSlots, LINE_SLOTS, withoutRepeats } from './lines'
 import { parseCsv, type Cell } from './csv'
@@ -11,6 +11,9 @@ import { MAX_SECONDS, menuOptions } from './settings'
 import { goalieCount, teamDisplayName, type Player, type Team } from './team'
 import { projectTeamRatings } from './ppfix'
 import { setTeamRating, teamRatings } from './teamratings'
+import { splitSnesFile } from './snes'
+import { SNES_RANDOM_SONG, SNES_SONG_SLOTS, snesSongChoices } from './snessongs'
+import { RANDOM_SONG, SONG_NUMBERS, SONG_SLOTS, isSong, songName, teamSongsRoom, withRoomForTeamSongs } from './teamsongs'
 
 // Each table is one CSV file: a view of part of the ROM that can be exported,
 // edited in a spreadsheet and imported again. An import changes nothing unless
@@ -657,9 +660,138 @@ const rink: CsvTable = {
   },
 }
 
+// ------------------------------------------------------------------ songs
+// Each team's six organ songs, by number: on the Genesis the forum list's
+// numbers (1 to 72), on the SNES the place in the song list the editor makes
+// from the songs the ROM's tables point at. 0 is Random. The song list table
+// names every number.
+
+const RANDOM_CELL = 0
+
+// The songs a team may be given, in number order from 1, and how a song is written.
+interface SongNumbering {
+  slots: string[]
+  names: string[]
+  // A team's songs as stored, or undefined where the ROM has none for it.
+  songs: (team: Team) => number[] | undefined
+  withSongs: (team: Team, songs: number[]) => Team
+  // A stored song as its number: 0 Random, '' where it is none of the songs.
+  number: (value: number) => Cell
+  // A number as the song stored.
+  value: (number: number) => number
+  isRandom: (value: number) => boolean
+}
+
+function songNumbering(project: RomProject): SongNumbering | null {
+  if (project.game.platform === 'snes') {
+    const opened = splitSnesFile(project.source)?.rom
+    const choices = snesSongChoices(project.bytes, ...(opened ? [opened] : []))
+    const isRandom = (value: number) => value >>> 16 >= 0x8000
+    return {
+      slots: SNES_SONG_SLOTS,
+      names: choices.map((choice) => choice.name),
+      songs: (team) => team.snesSongs,
+      withSongs: (team, snesSongs) => ({ ...team, snesSongs }),
+      number: (value) => (isRandom(value) ? RANDOM_CELL : choices.findIndex((choice) => choice.pointer === value >>> 0) + 1 || ''),
+      value: (number) => (number === RANDOM_CELL ? SNES_RANDOM_SONG : choices[number - 1].pointer),
+      isRandom,
+    }
+  }
+  if (!isGenesis94(project.game)) return null
+  return {
+    slots: SONG_SLOTS,
+    names: SONG_NUMBERS.map((value) => songName(value, project.bytes).replace(/^\d+\. /, '')),
+    songs: (team) => team.songs,
+    withSongs: (team, songs) => ({ ...team, songs }),
+    number: (value) => (value === RANDOM_SONG ? RANDOM_CELL : isSong(value) ? value - SONG_NUMBERS[0] + 1 : ''),
+    value: (number) => (number === RANDOM_CELL ? RANDOM_SONG : SONG_NUMBERS[number - 1]),
+    isRandom: (value) => value === RANDOM_SONG,
+  }
+}
+
+const songs: CsvTable = {
+  id: 'songs',
+  title: 'Organ songs',
+  description:
+    "Each team's six organ songs by number, 0 for Random; the song list file names each number. A blank cell leaves that song as it is.",
+
+  rows(project) {
+    const numbering = songNumbering(project)
+    if (!numbering) return [['Team', 'Team name']]
+    const rows: Cell[][] = [['Team', 'Team name', ...numbering.slots]]
+    project.teams.forEach((team, t) => {
+      const six = numbering.songs(team)
+      if (six) rows.push([t + 1, teamDisplayName(team), ...six.map(numbering.number)])
+    })
+    return rows
+  },
+
+  apply(project, sheet) {
+    const numbering = songNumbering(project)
+    if (!numbering) throw new CsvImportError(['This game has no organ songs the editor can change.'])
+    sheet.require(['Team'])
+    const columns = numbering.slots.filter((slot) => sheet.has(slot))
+    if (columns.length === 0) throw new CsvImportError([`The file has none of the song columns: ${numbering.slots.join(', ')}.`])
+    const changed = new Map<number, Team>()
+    for (let row = 0; row < sheet.rowCount; row++) {
+      const t = sheet.int(row, 'Team', 1, project.teams.length) - 1
+      const team = changed.get(t) ?? project.teams[t]
+      const six = numbering.songs(team)
+      if (!six) {
+        sheet.problem(row, `${teamDisplayName(team)} has no songs of its own in this ROM.`)
+        continue
+      }
+      const next = six.slice()
+      numbering.slots.forEach((slot, s) => {
+        if (!columns.includes(slot)) return
+        const text = sheet.text(row, slot)
+        if (text === '') return
+        const number = sameText(text, 'Random') ? RANDOM_CELL : Number(text)
+        if (!Number.isInteger(number) || number < 0 || number > numbering.names.length) {
+          sheet.problem(row, `${slot} must be a song number from 0 (Random) to ${numbering.names.length}, not "${text}".`)
+          return
+        }
+        // Random stays as stored when it is Random already (the SNES has more than one way to write it).
+        if (number === RANDOM_CELL ? !numbering.isRandom(next[s]) : numbering.number(next[s]) !== number) next[s] = numbering.value(number)
+      })
+      if (next.some((value, s) => value !== six[s])) changed.set(t, numbering.withSongs(team, next))
+    }
+    sheet.finish()
+    let result = project
+    // On the Genesis, teams past the song table's room get it moved to free space, as the team page does.
+    const room = project.game.platform === 'genesis' ? teamSongsRoom(project.bytes, project.teams.length) : null
+    if (room !== null && [...changed.keys()].some((t) => t >= room)) {
+      const bytes = withRoomForTeamSongs(project.bytes, project.teams.length)
+      if (!bytes) throw new CsvImportError(['There is no room left in this ROM to give every team its own songs.'])
+      result = { ...project, bytes }
+    }
+    return { project: replaceTeams(result, changed), summary: `Updated the songs of ${plural(changed.size, 'team')}.`, warnings: [] }
+  },
+}
+
+const songList: CsvTable = {
+  id: 'songlist',
+  title: 'Song list',
+  description: 'The number of every song, for the organ songs file. For reading only: importing it changes nothing.',
+
+  rows(project) {
+    const numbering = songNumbering(project)
+    const rows: Cell[][] = [['Song', 'Name']]
+    if (!numbering) return rows
+    rows.push([RANDOM_CELL, 'Random'])
+    numbering.names.forEach((name, i) => rows.push([i + 1, name]))
+    return rows
+  },
+
+  apply(project) {
+    return { project, summary: 'The song list is for reading only, so nothing was changed.', warnings: [] }
+  },
+}
+
 // In the order a set of files has to be imported: lines are matched against
 // the roster, and playoff draws and menu choices against the team names.
-export const CSV_TABLES: CsvTable[] = [teams, players, lines, freeAgents, playoffs, rules, clock, menu, rink]
+export const CSV_TABLES: CsvTable[] = [teams, players, lines, freeAgents, playoffs, rules, clock, menu, rink, songs, songList]
+const SONG_TABLES: CsvTable[] = [songs, songList]
 const SETTINGS_TABLES: CsvTable[] = [playoffs, rules, clock, menu]
 
 // The tables a ROM has. Some hacks keep their game settings where the editor
@@ -683,7 +815,8 @@ export function tableRows(project: RomProject, table: CsvTable, order: TeamOrder
 }
 
 export function tablesFor(game: GameConfig): CsvTable[] {
-  return game.settingsSupported ? CSV_TABLES : CSV_TABLES.filter((table) => !SETTINGS_TABLES.includes(table))
+  const hasSongs = game.platform === 'snes' || isGenesis94(game)
+  return CSV_TABLES.filter((table) => (game.settingsSupported || !SETTINGS_TABLES.includes(table)) && (hasSongs || !SONG_TABLES.includes(table)))
 }
 
 export function importCsv(table: CsvTable, project: RomProject, text: string): ImportResult {
@@ -748,6 +881,7 @@ const TEAM_NAME_COLUMNS = new Map<CsvTable, string[]>([
   [teams, ['Location', 'Name']],
   [players, ['Team name']],
   [lines, ['Team name']],
+  [songs, ['Team name']],
 ])
 
 // Rows with their team numbers set from their team names, as the teams stand

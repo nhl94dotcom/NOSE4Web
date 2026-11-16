@@ -180,7 +180,7 @@ It can also:
 - make room for longer rosters in the original game by moving other data to
   the end of the ROM
 - export everything as an Excel workbook or a set of CSV files, and import
-  them again, and export the players file a league website takes for a new
+  them again (each team's organ songs among them, by song number), and export the players file a league website takes for a new
   league
 - move players between teams, keeping both teams' lines in step
 - check a ROM for mistakes that cause trouble in the game, and against limits
