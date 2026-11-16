@@ -8,6 +8,7 @@ import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl9
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { changesSince, startSeason } from '../src/core/season'
+import { expectSameBytes } from './samebytes'
 
 // NHL '95 (USA) at ../NHL95/NHL_95.bin, and any NHL '95 league ROMs named in local.json's nhl95Roms.
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -31,7 +32,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(on.bytes).choices.passFix).toBe(true)
     // It survives a rebuild, and comes out byte for byte.
     expect(detectNhl95Hacks(buildRom(on)).choices.passFix).toBe(true)
-    expect(applyNhl95Hacks(on, { passFix: false }).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyNhl95Hacks(on, { passFix: false }).bytes, rom.bytes)
     expect(applyNhl95Hacks(rom, { passFix: false })).toBe(rom)
   })
 
@@ -59,7 +60,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(openProjectFile(opened, text).project.bytes).choices.passFix).toBe(true)
     const result = openProjectFile(opened, JSON.stringify({ ...JSON.parse(text), rom: undefined }))
     expect(result.notes.join(' ')).toContain("The project's hacks were put into this ROM.")
-    expect(buildRom(result.project)).toEqual(buildRom(on))
+    expectSameBytes(buildRom(result.project), buildRom(on))
 
     const season = startSeason(opened, 'S', { clearFreeAgents: false })
     expect(changesSince(applyNhl95Hacks(season, { passFix: true }), season.baseline!).details.find((d) => d.heading === 'Hacks')?.changes).toEqual([
@@ -99,9 +100,9 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     for (const hack of ['secondAssist', 'oneTimerAssist', 'regainAssist'] as const) {
       const one = applyNhl95Hacks(rom, { [hack]: true })
       expect(detectNhl95Hacks(one.bytes).choices[hack]).toBe(true)
-      expect(applyNhl95Hacks(one, { [hack]: false }).bytes).toEqual(rom.bytes)
+      expectSameBytes(applyNhl95Hacks(one, { [hack]: false }).bytes, rom.bytes)
     }
-    expect(applyNhl95Hacks(all, { secondAssist: false, oneTimerAssist: false, regainAssist: false }).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyNhl95Hacks(all, { secondAssist: false, oneTimerAssist: false, regainAssist: false }).bytes, rom.bytes)
     // The second-assist fix out with the one-timer fix kept: its check leaves the one-timer code too.
     const kept = applyNhl95Hacks(all, { secondAssist: false })
     expect(detectNhl95Hacks(kept.bytes).choices).toMatchObject({ secondAssist: false, oneTimerAssist: true })
@@ -134,12 +135,12 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       'e881',
       'c4fc000f',
     ])
-    expect(applyNhl95Hacks(on, { rocketFix: false }).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyNhl95Hacks(on, { rocketFix: false }).bytes, rom.bytes)
     // With every other NHL '95 hack, in and out.
     const allOn = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, true])) as typeof NO_NHL95_HACKS
     const every = applyNhl95Hacks(rom, allOn)
     expect(detectNhl95Hacks(buildRom(every)).choices).toEqual(allOn)
-    expect(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
 
   it.each(names)("puts NHL 94's Aggression, comeback bonus and open-net fixes into %s, each a change in place", (name) => {
@@ -156,7 +157,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       expect(hex(on.bytes, at, bytes.length / 2)).toBe(bytes)
       // Only those bytes change.
       expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBeLessThanOrEqual(bytes.length / 2)
-      expect(applyNhl95Hacks(on, { [hack]: false }).bytes).toEqual(rom.bytes)
+      expectSameBytes(applyNhl95Hacks(on, { [hack]: false }).bytes, rom.bytes)
     }
     // A ROM whose code around a place differs leaves that fix alone.
     const odd = rom.bytes.slice()
@@ -180,7 +181,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(hex(on.bytes, code, 46)).toBe(
       Buffer.from(RING_CODE).toString('hex').replace('4a78b7aa', '4a78b3c2').replace('08380004c2ea', '08380004bef0').replace('4eb9000150e4', '4eb90007b904'),
     )
-    expect(applyNhl95Hacks(on, { blindRingFix: false }).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyNhl95Hacks(on, { blindRingFix: false }).bytes, rom.bytes)
   })
 })
 

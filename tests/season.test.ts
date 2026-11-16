@@ -16,6 +16,7 @@ import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { changeCount, changesSince, nextSeasonName, startSeason } from '../src/core/season'
 import { CSV_TABLES, CsvImportError, importCsvSet, importWorkbookSheets } from '../src/core/tables'
 import { FREE_AGENTS, trade } from '../src/core/trade'
+import { expectSameBytes } from './samebytes'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -213,7 +214,7 @@ describe.skipIf(!hasRom)('a season and its changes', () => {
     expect(cleared.freeAgents).toEqual([])
     expect(cleared.baseline!.freeAgents).toEqual([])
     // None of it is in the ROM.
-    expect(buildRom(season)).toEqual(buildRom(edited))
+    expectSameBytes(buildRom(season), buildRom(edited))
   })
 
   it('carries the starting point in a project file', () => {

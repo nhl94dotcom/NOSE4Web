@@ -29,6 +29,7 @@ import {
 import { expandTeamSpace, nextExpansion } from '../src/core/expand'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { addPlayer } from '../src/core/roster'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const load = (name: string) => (existsSync(path(name)) ? new Uint8Array(readFileSync(path(name))) : null)
@@ -479,6 +480,6 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
     expect(reopened.teams[0].players[0].name).toBe('New Name')
     expect(reopened.teams.slice(1).map((t) => t.players)).toEqual(project.teams.slice(1).map((t) => t.players))
     // Unedited, a ROM given room is rebuilt exactly as it is.
-    expect(buildRom(openRom(buildRom(roomy)))).toEqual(buildRom(roomy))
+    expectSameBytes(buildRom(openRom(buildRom(roomy))), buildRom(roomy))
   })
 })

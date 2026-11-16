@@ -28,6 +28,7 @@ import {
 } from '../src/core/reset'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { deletePlayer } from '../src/core/roster'
+import { expectSameBytes } from './samebytes'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -62,7 +63,7 @@ describe.skipIf(!hasRom)('resetting parts of the work', () => {
     }
     // With every part reset the ROM is rebuilt exactly as it was opened.
     const all = parts.reduce((t, part) => resetTeamPart(t, before, part), team)
-    expect(buildRom(withTeam(original, BOSTON, all))).toEqual(buildRom(original))
+    expectSameBytes(buildRom(withTeam(original, BOSTON, all)), buildRom(original))
   })
 
   it('puts back one picture, for every team that shares it', () => {
@@ -135,7 +136,7 @@ describe.skipIf(!hasRom)('resetting parts of the work', () => {
     expect(reset.teams[0].names[0]).toBe('Kept')
     expect(banner(reset, 'game', 0)).toEqual(plain(88, 16, 7))
     // Putting the other team back as well leaves the ROM exactly as opened.
-    expect(buildRom(resetTeam(reset, original, 0))).toEqual(buildRom(original))
+    expectSameBytes(buildRom(resetTeam(reset, original, 0)), buildRom(original))
   })
 
   it('resets game settings a section at a time', () => {

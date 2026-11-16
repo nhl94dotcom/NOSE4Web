@@ -13,6 +13,7 @@ import { CSV_TABLES, csvFileName, importCsvSet, tablesFor } from '../src/core/ta
 import { currentPicture, pictureKinds } from '../src/core/pictureset'
 import { addPlayer } from '../src/core/roster'
 import { goalieCount, overfullTeams, teamContentSize, teamSpace } from '../src/core/team'
+import { expectSameBytes } from './samebytes'
 
 // Hacked ROMs are checked against whatever copies are on this computer. Their
 // file names are listed in tests/local.json, which is not part of the project:
@@ -68,14 +69,14 @@ describe.skipIf(names.length === 0)('every ROM on this computer', () => {
         const result = importCsvSet(project, files)
         expect(result.files.flatMap((file) => file.warnings)).toEqual([])
         expect(state(result.project)).toEqual(state(project))
-        expect(buildRom(result.project)).toEqual(buildRom(project))
+        expectSameBytes(buildRom(result.project), buildRom(project))
       })
 
       it('comes back the same from a project file, and trades a player', () => {
         const project = open(name)
         const reopened = openProjectFile(open(name), saveProjectFile(project, project, 'Set'))
         expect(reopened.notes).toEqual([])
-        expect(buildRom(reopened.project)).toEqual(buildRom(project))
+        expectSameBytes(buildRom(reopened.project), buildRom(project))
 
         // The last skater of one team for the last of another, and the ROM still holds together.
         const last = (team: number) => project.teams[team].players.length - 1
@@ -189,7 +190,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('a ROM whose teams each have the
     expect(project.layout.slots).toHaveLength(28)
     expect(project.layout.slots![5]).toEqual({ at: BASE + 5 * SLOT, size: SLOT })
     expect(project.teams.map((t) => t.players)).toEqual(open('nhl94.bin').teams.map((t) => t.players))
-    expect(buildRom(project)).toEqual(buildRom(openRom(buildRom(project))))
+    expectSameBytes(buildRom(project), buildRom(openRom(buildRom(project))))
     expect(checkProject(project).filter((f) => f.level === 'problem')).toEqual([])
     // The original game's teams share their room, and have no places of their own.
     expect(open('nhl94.bin').layout.slots).toBeUndefined()

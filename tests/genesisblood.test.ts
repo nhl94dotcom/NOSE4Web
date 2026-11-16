@@ -7,6 +7,7 @@ import { hasGenesisScoreLogos, withGenesisScoreLogosAdded, withGenesisScoreLogos
 import { pictureItems } from '../src/core/hacksheet'
 import { claimSpace } from '../src/core/space'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -28,7 +29,7 @@ function frames(rom: Uint8Array, sprites = SPRITES): Uint8Array[] {
 
 function sameAsBefore(after: RomProject, before: RomProject) {
   const rom = after.bytes
-  expect(rom.subarray(0, before.bytes.length)).toEqual(before.bytes)
+  expectSameBytes(rom.subarray(0, before.bytes.length), before.bytes)
   expect(rom.subarray(before.bytes.length).every((b) => b === 0xff)).toBe(true)
 }
 
@@ -140,7 +141,7 @@ describe.skipIf(leagueRoms.length === 0)('head bleeding in league ROMs', () => {
       expect(frames(added.bytes).filter((_, f) => f < 369 || f > 372), name).toEqual(frames(project.bytes).filter((_, f) => f < 369 || f > 372))
       expect(hasGenesisBlood(added), name).toBe(true)
       const out = withGenesisBloodTakenOut(added)
-      expect(out.bytes.subarray(0, project.bytes.length), name).toEqual(project.bytes)
+      expectSameBytes(out.bytes.subarray(0, project.bytes.length), project.bytes, name)
     }
   })
 })

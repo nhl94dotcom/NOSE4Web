@@ -30,6 +30,7 @@ import { CSV_TABLES } from '../src/core/tables'
 import { changesSince } from '../src/core/season'
 import { claimSpace } from '../src/core/space'
 import expected from './smozrom-hashes.json'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const hasRom = existsSync(path('nhl94.bin'))
@@ -353,7 +354,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       expect(detectHacks(changed.bytes).choices.seasonTies).toBe(other)
       expect(at(changed.bytes, 0xfc4ca, 6)).toBe('4ef9000172e4')
     }
-    expect(Array.from(buildRom(applyHacks(shootout, NO_HACKS)))).toEqual(Array.from(buildRom(opened)))
+    expectSameBytes(buildRom(applyHacks(shootout, NO_HACKS)), buildRom(opened))
     // The start code clears gmdir, so the shooters attack Shootout mode's ends (Match Viewer), and keeps the team structs.
     const startAt = (shootout.bytes[0x1725e] << 24) | (shootout.bytes[0x1725f] << 16) | (shootout.bytes[0x17260] << 8) | shootout.bytes[0x17261]
     expect(at(shootout.bytes, startAt + 60, 6)).toBe('08b80001c2ea')
@@ -372,7 +373,7 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       expect(detectHacks(changed.bytes).choices.seasonTies).toBe(other)
       expect(at(changed.bytes, 0x17262, 8)).toBe('3038c6da9078ca3e')
     }
-    expect(Array.from(buildRom(applyHacks(now, NO_HACKS)))).toEqual(Array.from(buildRom(opened)))
+    expectSameBytes(buildRom(applyHacks(now, NO_HACKS)), buildRom(opened))
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')
@@ -914,7 +915,7 @@ describe.skipIf(!hasRom)('the power play and penalty kill fix', () => {
     const differing = fixed.bytes.reduce((count, byte, i) => count + (byte !== opened.bytes[i] ? 1 : 0), 0)
     expect(differing).toBeLessThanOrEqual(28)
     expect(detectHacks(fixed.bytes).choices.ppPkFix).toBe(true)
-    expect(applyHacks(fixed, { ...choices, ppPkFix: false }).bytes).toEqual(opened.bytes)
+    expectSameBytes(applyHacks(fixed, { ...choices, ppPkFix: false }).bytes, opened.bytes)
 
     // The team page, spreadsheets and comparisons follow the ROM.
     expect(projectTeamRatings(opened).map((rating) => rating.label).slice(2, 4)).toEqual(['Penalty kill', 'Power play'])

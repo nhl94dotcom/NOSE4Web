@@ -41,6 +41,7 @@ import { goalieCount, teamDisplayName, teamSpace } from '../src/core/team'
 import { overallRating } from '../src/core/rating'
 import { trade } from '../src/core/trade'
 import { addPlayer } from '../src/core/roster'
+import { expectSameBytes } from './samebytes'
 
 // SNES ROMs are checked against whatever copies are on this computer: the
 // original game as NHL94.smc, and league ROMs named in tests/local.json as
@@ -158,7 +159,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(openRom(buildRom(hacked)).teams.map((t) => t.players)).toEqual(teams.map((t) => t.players))
 
         // Taken out again, every team is back where the game had it.
-        expect(buildRom({ ...reopened, teams: project.teams })).toEqual(buildRom(project))
+        expectSameBytes(buildRom({ ...reopened, teams: project.teams }), buildRom(project))
       })
 
       it('says so when the rosters no longer fit', () => {
@@ -257,7 +258,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         const result = importCsvSet(project, files)
         expect(result.files.flatMap((file) => file.warnings)).toEqual([])
         expect(teamsOf(result.project)).toEqual(teamsOf(project))
-        expect(buildRom(result.project)).toEqual(buildRom(project))
+        expectSameBytes(buildRom(result.project), buildRom(project))
 
         const teams = project.teams.map((t, i) => (i === 3 ? { ...t, shownOverall: 66 } : t))
         const edited = { ...project, teams }
@@ -268,7 +269,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
 
         const reopened = openProjectFile(openRom(read(name)), saveProjectFile(edited, project, 'Set'))
         expect(reopened.notes).toEqual([])
-        expect(buildRom(reopened.project)).toEqual(buildRom(edited))
+        expectSameBytes(buildRom(reopened.project), buildRom(edited))
       })
 
       it('trades players, resets the team ratings, and makes a patch', () => {
@@ -388,7 +389,7 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
       expect(detectSnesHacks(reopened.bytes).choices).toEqual({ ...allOff, ...wanted })
       expect(teamsOf(reopened)).toEqual(teamsOf(project))
       // Back to what it had, byte for byte.
-      expect(applySnesHacks(on, before.choices).bytes).toEqual(project.bytes)
+      expectSameBytes(applySnesHacks(on, before.choices).bytes, project.bytes)
       if (snesCodeInPlace(project.bytes)) return
       // Where the code has moved, the call an intro skip takes out is found from the ROM as opened; a ROM opened
       // with the skip in cannot have it taken out.
@@ -462,7 +463,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting', 'threeOnThree', 'creaseIcing', 'hybridIcing', 'shootoutInjuries', 'oneTimerFix', 'shotFix', 'giveaways', 'giveawaysShown', 'giveawayPages'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
-    expect(buildRom(project)).toEqual(moved)
+    expectSameBytes(buildRom(project), moved)
   })
 })
 
@@ -514,7 +515,7 @@ describe.skipIf(!existsSync(path(STOCK)))('the SNES power play and penalty kill 
     expect(at(fixed.bytes)).toBe('f011a00100b7894a4a4a4a290f008d0b0d800fa00100b789290f0049ffff1a8d090d')
     expect(detectSnesHacks(fixed.bytes).choices.ppPkFix).toBe(true)
     expect(projectTeamRatings(fixed).map((rating) => rating.label).slice(2, 4)).toEqual(['Power play', 'Penalty kill'])
-    expect(applySnesHacks(fixed, { ppPkFix: false }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(fixed, { ppPkFix: false }).bytes, project.bytes)
   })
 })
 
@@ -555,7 +556,7 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
       }
       const rom = project.bytes.slice()
       writeSnesPictures(rom, teams, all)
-      expect(rom).toEqual(project.bytes)
+      expectSameBytes(rom, project.bytes)
     })
 
     it(`replace logos in SNES ROM ${n + 1} where it keeps them unpacked in the ROM, moving them to free space as they need`, () => {
@@ -698,7 +699,7 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
     const edited = { ...project, snesPictures: { logos: { 0: boston }, centreIce: { 2: snesCentreIce(project.bytes, 28, none, 1).picture } } }
     const reopened = openProjectFile(openRom(read(STOCK)), saveProjectFile(edited, project, 'Set'))
     expect(reopened.notes).toEqual([])
-    expect(buildRom(reopened.project)).toEqual(buildRom(edited))
+    expectSameBytes(buildRom(reopened.project), buildRom(edited))
   })
 })
 

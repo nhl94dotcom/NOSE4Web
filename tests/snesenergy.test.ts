@@ -5,6 +5,7 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { loRomOffset } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, snesHackDifferences, snesHacksForDiscord } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -74,7 +75,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     const more = applySnesHacks(again, {}, false, { hitEnergy: 204 })
     expect(detectSnesHacks(more.bytes).amounts).toMatchObject({ hitEnergy: 204, holdEnergy: 50 })
     expect(snesHackDifferences(again.bytes, more.bytes)).toEqual(['Energy lost when knocked down: 100 to 204.'])
-    expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes, project.bytes)
     expect(() => applySnesHacks(project, {}, false, { hitEnergy: 4097 })).toThrow('from 0 to 4096')
     // NOSE4Web's first version (41def89), which took energy after the whistle: recognised as an earlier version, and replaced on request.
     const first = on.bytes.slice()
@@ -102,6 +103,6 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     expect(before.unknown).not.toContain('holdEnergy')
     const on = applySnesHacks(project, {}, false, { hitEnergy: 100, holdEnergy: 50 })
     expect(detectSnesHacks(openRom(buildRom(on)).bytes).amounts).toMatchObject({ hitEnergy: 100, holdEnergy: 50 })
-    expect(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, {}, false, { hitEnergy: 0, holdEnergy: 0 }).bytes, project.bytes)
   })
 })

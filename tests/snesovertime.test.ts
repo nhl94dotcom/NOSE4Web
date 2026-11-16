@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { loRomOffset } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, withSnesHackChoice } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -36,7 +37,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES 99-minute overtime on the 
     expect(clock.settings.overtimeSeconds).toBe(240)
     expect(detectSnesHacks(clock.bytes).choices.fourthPeriodOvertime).toBe(true)
     // Out again: the original game.
-    expect(applySnesHacks(on, { ...choices, fourthPeriodOvertime: false, thirtySecondPeriods: false }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, { ...choices, fourthPeriodOvertime: false, thirtySecondPeriods: false }).bytes, project.bytes)
   })
 
   it.each(names)('goes into %s and comes out again', (name) => {
@@ -50,6 +51,6 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES 99-minute overtime on the 
     expect(detectSnesHacks(again.bytes).choices.fourthPeriodOvertime).toBe(true)
     expect(again.settings.overtimeSeconds).toBe(project.settings.overtimeSeconds)
     expect(again.settings.shootoutSeconds).toBe(project.settings.shootoutSeconds)
-    expect(applySnesHacks(on, before.choices).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, before.choices).bytes, project.bytes)
   })
 })

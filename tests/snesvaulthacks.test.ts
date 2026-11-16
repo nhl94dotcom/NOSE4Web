@@ -6,6 +6,7 @@ import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks, snesAnyPosition, withSnesHackChoice } from '../src/core/sneshacks'
 import { pullGoalieText } from '../src/core/settings'
 import { goalieCount } from '../src/core/team'
+import { expectSameBytes } from './samebytes'
 
 // The retail SNES ROM, without a copier header: NHL94SNESVault's offsets are
 // the forum posts' for a headerless file.
@@ -43,7 +44,7 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     const state = detectSnesHacks(openRom(buildRom(on)).bytes)
     expect(state.unknown).toEqual([])
     expect([state.choices.forwardsAndDefence, state.choices.manualPullGoalie, state.choices.showMaxBoost]).toEqual([true, true, true])
-    expect(applySnesHacks(on, detectSnesHacks(project.bytes).choices).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, detectSnesHacks(project.bytes).choices).bytes, project.bytes)
   })
 
   it("recognise the Vault's own versions, and put in NOSE4Web's when asked", () => {
@@ -72,10 +73,10 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     // Updated when asked, and then NOSE4Web's own.
     const updated = applySnesHacks(vault, { extraAttackerFix: true, showMaxBoost: true, manualPullGoalie: true }, true)
     const fresh = applySnesHacks(project, { extraAttackerFix: true, showMaxBoost: true, manualPullGoalie: true })
-    expect(updated.bytes).toEqual(fresh.bytes)
+    expectSameBytes(updated.bytes, fresh.bytes)
     expect(detectSnesHacks(updated.bytes).vaultVersions).toEqual([])
     // Taken out, the Vault's versions leave the original game.
-    expect(applySnesHacks(vault, { extraAttackerFix: false, showMaxBoost: false, manualPullGoalie: false }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(vault, { extraAttackerFix: false, showMaxBoost: false, manualPullGoalie: false }).bytes, project.bytes)
   })
 
   it("recognise NOSE4Web's L and R of the morning of 9 November 2026, which counted presses made in a pause", () => {
@@ -86,8 +87,8 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     bytes.set(Uint8Array.from('8da20aa20000bdb80a293000f013bd760729ff00c93000d008a918009df01e8009bdf01ef0043a9df01ee8e8e00400d0d560'.match(/../g)!.map((pair) => parseInt(pair, 16))), 0xdcedb)
     const earlier = openRom(bytes)
     expect(detectSnesHacks(earlier.bytes).vaultVersions).toEqual(['manualPullGoalie'])
-    expect(applySnesHacks(earlier, { manualPullGoalie: true }, true).bytes).toEqual(on.bytes)
-    expect(applySnesHacks(earlier, { manualPullGoalie: false }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(earlier, { manualPullGoalie: true }, true).bytes, on.bytes)
+    expectSameBytes(applySnesHacks(earlier, { manualPullGoalie: false }).bytes, project.bytes)
   })
 
   it('go together as the Vault has them', () => {
@@ -140,7 +141,7 @@ describe.skipIf(!hasRom)('the regained-puck assist fix', () => {
     // cmp tmtouch1,y; beq +1; rts; pla; lda tmflags,y; and #$FFFB; sta tmflags,y; lda $A5; jmp $C565
     expect(hex(on.bytes, to, 21)).toBe('d99a17f0016068b9de1729fbff99de17a5a54c65c5')
     expect(detectSnesHacks(openRom(buildRom(on)).bytes).choices.regainAssist).toBe(true)
-    expect(applySnesHacks(on, { regainAssist: false }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, { regainAssist: false }).bytes, project.bytes)
   })
 
   // The other SNES builds (tests/local.json), the 2 MB ones with RAM $6000 on.
@@ -153,7 +154,7 @@ describe.skipIf(!hasRom)('the regained-puck assist fix', () => {
       expect(detectSnesHacks(rom.bytes).unknown, file).not.toContain('regainAssist')
       const on = applySnesHacks(rom, { regainAssist: true })
       expect(detectSnesHacks(on.bytes).choices.regainAssist, file).toBe(true)
-      expect(applySnesHacks(on, { regainAssist: false }).bytes, file).toEqual(rom.bytes)
+      expectSameBytes(applySnesHacks(on, { regainAssist: false }).bytes, rom.bytes, file)
     }
   })
 })

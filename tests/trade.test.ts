@@ -9,6 +9,7 @@ import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { addPlayer } from '../src/core/roster'
 import { goalieCount } from '../src/core/team'
 import { FREE_AGENTS, linePositionsLost, trade, tradeSummary } from '../src/core/trade'
+import { expectSameBytes } from './samebytes'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -158,7 +159,7 @@ describe.skipIf(!hasRom)('project files', () => {
     expect(opened.name).toBe('Season_10')
     expect(opened.notes).toEqual([])
     expect(state(opened.project)).toEqual(state(project))
-    expect(buildRom(opened.project)).toEqual(buildRom(project))
+    expectSameBytes(buildRom(opened.project), buildRom(project))
     // The room that had been made is made again.
     expect(pictureSpace(opened.project)).toBeNull()
     expect(opened.project.bytes.length).toBe(project.bytes.length)

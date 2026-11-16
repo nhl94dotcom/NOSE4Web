@@ -8,6 +8,7 @@ import { quickEdit } from '../src/core/quickedit'
 import { buildPatch, buildRom, openRom } from '../src/core/rom'
 import { addPlayer } from '../src/core/roster'
 import { goalieCount } from '../src/core/team'
+import { expectSameBytes } from './samebytes'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -42,14 +43,14 @@ describe.skipIf(!hasRom)('tools on the NHL 94 ROM', () => {
   it('makes a patch that turns the opened ROM into the edited one', () => {
     let project = openRom(original)
     project.teams[4].players[2].name = 'Ed B'
-    expect(applyIps(original, buildPatch(project))).toEqual(buildRom(project))
+    expectSameBytes(applyIps(original, buildPatch(project)), buildRom(project))
     expect(buildPatch(project).length).toBeLessThan(40000)
 
     // Both expansions, which grow the ROM to 2 MB.
     project = expandTeamSpace(openRom(buildRom(expandTeamSpace(project))))
     project.teams[0] = addPlayer(project.teams[0])
     const patch = createIps(original, buildRom(project))
-    expect(applyIps(original, patch)).toEqual(buildRom(project))
+    expectSameBytes(applyIps(original, patch), buildRom(project))
     expect(patch.length).toBeLessThan(40000)
   })
 

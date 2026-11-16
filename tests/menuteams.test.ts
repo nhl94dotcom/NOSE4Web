@@ -10,6 +10,7 @@ import { resetSettingsPart, settingsPartChanged } from '../src/core/reset'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { CSV_TABLES, importCsv } from '../src/core/tables'
 import { formatCsv } from '../src/core/csv'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const GENESIS = path('nhl94.bin')
@@ -126,7 +127,7 @@ describe.skipIf(!existsSync(GENESIS))('teams in the menu, Genesis', () => {
     // Back to 28: the playoffs go back to the 26 the draws have.
     const back = buildRom(withTeams(openRom(ten), 28))
     expect(counts(back)).toEqual(counts(project.bytes))
-    expect(back).toEqual(buildRom(project))
+    expectSameBytes(back, buildRom(project))
   })
 
   it('says so when a team line starts past the teams in the menu', () => {

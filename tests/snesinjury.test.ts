@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { loRomOffset, snesCodeInPlace } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -38,12 +39,12 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES injury risk from knockdown
     expect(detectSnesHacks(again.bytes).amounts).toMatchObject({ injuryBonus: 4 })
     // A new bonus in place, and out again.
     expect(detectSnesHacks(applySnesHacks(again, {}, false, { injuryBonus: 2 }).bytes).amounts).toMatchObject({ injuryBonus: 2 })
-    expect(applySnesHacks(on, {}, false, { injuryBonus: 0 }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, {}, false, { injuryBonus: 0 }).bytes, project.bytes)
     expect(() => applySnesHacks(project, {}, false, { injuryBonus: 21 })).toThrow('from 0 to 20')
     // With the energy options too.
     const all = applySnesHacks(project, {}, false, { injuryBonus: 4, hitEnergy: 204, holdEnergy: 102 })
     expect(detectSnesHacks(openRom(buildRom(all)).bytes).amounts).toEqual({ injuryBonus: 4, hitEnergy: 204, holdEnergy: 102, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0, threeOnThree: 0, fightTime: 0 })
-    expect(applySnesHacks(all, {}, false, { injuryBonus: 0, hitEnergy: 0, holdEnergy: 0 }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(all, {}, false, { injuryBonus: 0, hitEnergy: 0, holdEnergy: 0 }).bytes, project.bytes)
   })
 
   it.each(names)('in %s goes in and out, its counts where the build has room', (name) => {
@@ -55,6 +56,6 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES injury risk from knockdown
     expect(Buffer.from(applySnesHacks(project, {}, false, { injuryBonus: 4 }).bytes).toString('hex')).toContain(`bf${counts}`)
     const on = applySnesHacks(project, {}, false, { injuryBonus: 4 })
     expect(detectSnesHacks(openRom(buildRom(on)).bytes).amounts).toMatchObject({ injuryBonus: 4 })
-    expect(applySnesHacks(on, {}, false, { injuryBonus: 0 }).bytes).toEqual(project.bytes)
+    expectSameBytes(applySnesHacks(on, {}, false, { injuryBonus: 0 }).bytes, project.bytes)
   })
 })

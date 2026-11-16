@@ -21,6 +21,7 @@ import { NHL94 } from '../src/core/games'
 import { redirectedTeam } from '../src/core/rom'
 import { shownTeamRatings } from '../src/core/shownrating'
 import { snesLongNameTeams, alphabeticalOrder, teamMovedTo, teamMoveRange, withTeamOrder } from '../src/core/teamorder'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -99,7 +100,7 @@ describe.skipIf(!existsSync(GENESIS))('moving teams, Genesis', () => {
     expect(checkProject(again).filter((f) => f.level === 'problem')).toEqual([])
     // Moved back, the ROM is as it was.
     const back = withTeamOrder(again, order.map((_, n) => order.indexOf(n)))
-    expect(Array.from(buildRom(back)).join() === Array.from(buildRom(project)).join()).toBe(true)
+    expectSameBytes(buildRom(back), buildRom(project))
   })
 
   it('takes replaced pictures, score logos and the season with their teams', () => {
@@ -256,7 +257,7 @@ describe.skipIf(snes.length === 0)('moving teams, SNES', () => {
       expectMoved(project, reopen(withTeamOrder(project, last)), last)
       // Moved back, the ROM is as it was.
       const back = withTeamOrder(again, order.map((_, n) => order.indexOf(n)))
-      expect(Array.from(buildRom(back)).join() === Array.from(buildRom(project)).join()).toBe(true)
+      expectSameBytes(buildRom(back), buildRom(project))
     })
   })
 })

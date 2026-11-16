@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
@@ -18,7 +19,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("Ron Barr's pick on the Genesis"
     expect(changed(rom.bytes, on.bytes)).toEqual([0xf7363])
     expect(hex(on.bytes, 0xf7360, 4)).toBe('b47c0000')
     expect(detectHacks(on.bytes).choices.barrPick).toBe(true)
-    expect(applyHacks(on, NO_HACKS).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyHacks(on, NO_HACKS).bytes, rom.bytes)
   })
 })
 
@@ -34,7 +35,7 @@ describe.skipIf(SNES.length === 0)("Ron Barr's pick on the SNES", () => {
       expect(at, name).toHaveLength(1)
       expect(hex(on.bytes, at[0] - 9, 12), name).toMatch(/^c90800b0..9c....c90000b0/)
       expect(detectSnesHacks(on.bytes).choices.barrPick, name).toBe(true)
-      expect(applySnesHacks(on, { barrPick: false }).bytes, name).toEqual(rom.bytes)
+      expectSameBytes(applySnesHacks(on, { barrPick: false }).bytes, rom.bytes, name)
     }
   })
 })
@@ -51,7 +52,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("Ron Barr's pick by a coin flip 
     expect(hex(rom.bytes, 0x11086, 4)).toBe('48e7e000')
     expect(hex(rom.bytes, 0xf7342, 6)).toBe('31fc0000bf50')
     expect(detectHacks(on.bytes).choices).toMatchObject({ barrCoin: true, barrPick: false })
-    expect(applyHacks(on, NO_HACKS).bytes).toEqual(rom.bytes)
+    expectSameBytes(applyHacks(on, NO_HACKS).bytes, rom.bytes)
     expect(() => applyHacks(rom, { ...NO_HACKS, barrCoin: true, barrPick: true })).toThrow(/cannot both be on/)
   })
 })
@@ -75,7 +76,7 @@ describe.skipIf(SNES.length === 0)("Ron Barr's pick by a coin flip on the SNES",
       expect(deflect, name).toHaveLength(1)
       expect(block.slice(8, 14), name).toBe(deflect[0][1])
       expect(detectSnesHacks(on.bytes).choices, name).toMatchObject({ barrCoin: true, barrPick: false })
-      expect(applySnesHacks(on, { barrCoin: false }).bytes, name).toEqual(rom.bytes)
+      expectSameBytes(applySnesHacks(on, { barrCoin: false }).bytes, rom.bytes, name)
       expect(() => applySnesHacks(rom, { barrCoin: true, barrPick: true }), name).toThrow(/Ron Barr's pick every game and Ron Barr's pick by a coin flip cannot both be on/)
     }
   })
