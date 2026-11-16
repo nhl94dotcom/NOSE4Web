@@ -51,13 +51,15 @@ export function parseCredits(rom: Uint8Array): Credits | null {
 // Where in the ROM the credits start, for the roster space expansion that moves them.
 export const creditsAt = (rom: Uint8Array) => locateCredits(rom)?.at ?? null
 
-function locateCredits(rom: Uint8Array): (Credits & { at: number }) | null {
+// `secondPageAt` is where the second page starts as the ROM has it (a line may carry more padding than the editor writes).
+function locateCredits(rom: Uint8Array): (Credits & { at: number; secondPageAt: number }) | null {
   if (rom[POINTER_CODE_AT] !== POINTER_CODE[0] || rom[POINTER_CODE_AT + 1] !== POINTER_CODE[1]) return null
   const at = (rom[POINTER_CODE_AT + 2] << 24) | (rom[POINTER_CODE_AT + 3] << 16) | (rom[POINTER_CODE_AT + 4] << 8) | rom[POINTER_CODE_AT + 5]
   if (at <= 0 || at >= rom.length) return null
   const pages: string[][] = []
   let page: string[] = []
   let o = at
+  let secondPageAt = -1
   // No credits run longer than this; anything else is not credits.
   const limit = Math.min(rom.length, at + 0x2000)
   while (o + 4 <= limit) {
@@ -65,10 +67,11 @@ function locateCredits(rom: Uint8Array): (Credits & { at: number }) | null {
       pages.push(page)
       page = []
       o += 4
+      if (secondPageAt < 0) secondPageAt = o
       if (isPageEnd(rom, o)) {
         const used = o + 4 - at
         const room = at === ORIGINAL_AT ? Math.max(ORIGINAL_ROOM, used) : used
-        return pages.length > 0 ? { pages, at, room } : null
+        return pages.length > 0 ? { pages, at, room, secondPageAt } : null
       }
       continue
     }
@@ -124,7 +127,8 @@ const setPagesPointer = (rom: Uint8Array, at: number) => {
 export function repairCreditsPointer(rom: Uint8Array): boolean {
   const found = locateCredits(rom)
   if (!found || rom[PAGES_POINTER_CODE_AT] !== POINTER_CODE[0] || rom[PAGES_POINTER_CODE_AT + 1] !== POINTER_CODE[1]) return false
-  const pagesAt = found.at + creditsBytes(found.pages.slice(0, 1)).length - PAGE_END.length
+  // Where the first page ends as the ROM has it, not as the editor would write it again.
+  const pagesAt = found.secondPageAt
   const now = ((rom[PAGES_POINTER_CODE_AT + 2] << 24) | (rom[PAGES_POINTER_CODE_AT + 3] << 16) | (rom[PAGES_POINTER_CODE_AT + 4] << 8) | rom[PAGES_POINTER_CODE_AT + 5]) >>> 0
   if (now === pagesAt) return false
   setPagesPointer(rom, pagesAt)

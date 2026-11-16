@@ -115,4 +115,24 @@ describe.skipIf(!hasRom)('a ROM an earlier NOSE4Web left with the second credits
     expect(Array.from(rebuilt.subarray(0xff292, 0xff296))).toEqual([0, 0, 0x57, 0x76 + creditsBytes([pages[0]]).length - 4])
     expect(openRom(rebuilt).settings.credits!.pages).toEqual(pages)
   })
+
+  it('is told from a first page whose line carries more padding than the editor writes (as DPWM3 has)', () => {
+    const project = open()
+    const credits = project.settings.credits!
+    const pages = [['NHL 94 League'], ...credits.pages.slice(1)]
+    const built = buildRom({ ...project, settings: { ...project.settings, credits: { ...credits, pages } } })
+    // The first line, "NHL 94 League" with one 0 after it, given four more: the rest moved on 4, the pointer with it.
+    const line = 0x5776
+    expect(Array.from(built.subarray(line, line + 2))).toEqual([0, 16])
+    const padded = built.slice()
+    padded.set(built.subarray(line + 16, 0x5776 + 900), line + 20)
+    padded.set([0, 0, 0, 0], line + 16)
+    padded[line + 1] = 20
+    const second = 0x5776 + 20 + 4
+    padded.set([0, 0, 0x57, second & 0xff], 0xff292)
+    expect(openRom(padded).settings.credits!.pages).toEqual(pages)
+    // Nothing to put right: rebuilt unedited, the pointer stays where the ROM's own first page ends.
+    const rebuilt = buildRom(openRom(padded))
+    expect(Array.from(rebuilt.subarray(0xff292, 0xff296))).toEqual([0, 0, 0x57, second & 0xff])
+  })
 })
