@@ -2397,7 +2397,10 @@ export function HelpPage() {
           imported, on the team page and in Picture files. As in NHL 94 it has white, black and 9 colours of its own; its
           other colours are the team's stripe colours and colours every team shares, and stay as they are. In the
           original game the logos are packed tight, so a detailed one needs <b>Give the logos more room</b> first; the
-          WN95HL's ROMs have the room already. A logo can come from an NHL 94 ROM with <b>Import a team</b>. The
+          WN95HL's ROMs have the room already. A logo can come from an NHL 94 ROM with <b>Import a team</b>. Tested in the
+          game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM: Game Setup,
+          Evaluate Trade, the Scouting Report, the pre-game roster, Name Entry and Period Stats all show the new logo, and
+          every other team's is as before. The
           centre-ice logos (compressed in NHL '95) and the name banners (coloured by each screen's own colours) are not
           offered yet.
         </li>
