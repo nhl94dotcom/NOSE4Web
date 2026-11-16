@@ -1226,7 +1226,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on
             the organ carries on with its song from where it was. A note that was sounding when the game was paused is
-            heard again at the song's next note. Not yet tested in the game.
+            heard again at the song's next note. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
       </section>
