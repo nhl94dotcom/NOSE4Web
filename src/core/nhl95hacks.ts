@@ -120,10 +120,17 @@ function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
 // lift ($00-$47 of its code, which works the time out in 64ths of a second);
 // the end is NHL '95's, the same steps on the 64ths: four times as long with
 // the flag, the lift in whole eighths (12 at most, cleared with the flag), at
-// NHL '95's puckvz ($B38E). The hook takes the 74 bytes from the time's loop
-// to .5 ($84804); after it, as in NHL 94, the receiver's wait and the puck's
-// no-touch time take the 64ths as they are (asl.w #3 out), where he will be is
-// / 16 (asr.l #4 for #1) and the speed / 15 t (mulu.w #$F, for #$78).
+// NHL '95's puckvz ($B38E). Then the receiver's wait, 64ths - 10, at most 127:
+// it is a signed byte, which asspassrec counts down with bpl, so a wait over
+// 127 is taken as over already and the receiver skates off. The original's
+// wait passes 127 only on passes over about 2.3 s; with the slow pass's four
+// times and the exact time it would from about half a second (Match Viewer,
+// who played it: 64 slow passes received against the original's 75 before
+// the cap). The hook takes the 74 bytes from the time's loop to .5 ($84804);
+// after it the wait comes from the code in d0 (.5's move.w d2,d0 / asl.w
+// #3,d0 / subi.w #10,d0 become NOPs), the puck's no-touch time is it less 6
+// as before, and as in NHL 94 where he will be is / 16 (asr.l #4 for #1) and
+// the speed / 15 t (mulu.w #$F, for #$78).
 const ROCKET_HOOK = {
   at: 0x847ba,
   original: hex(
@@ -133,10 +140,13 @@ const ROCKET_HOOK = {
 }
 const ROCKET_CODE = Uint8Array.from([
   ...PASS_CODE.subarray(0, 0x48),
-  ...hex('0838 0001 BF08 6702 E542 3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E 4E75'),
+  ...hex('0838 0001 BF08 6702 E542 3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E'),
+  // $72, where both lift paths end: the wait, 64ths - 10, at most 127, in d0.
+  ...hex('3002 0440 000A B07C 007F 6F02 707F 4E75'),
 ])
 const ROCKET_EDITS = [
-  { at: 0x84804, original: hex('3002 E740 0440 000A'), hacked: hex('3002 4E71 0440 000A') },
+  // The wait is in d0 from the code above.
+  { at: 0x84804, original: hex('3002 E740 0440 000A'), hacked: hex('4E71 4E71 4E71 4E71') },
   { at: 0x8481c, original: hex('E280'), hacked: hex('E880') },
   { at: 0x8482c, original: hex('E281'), hacked: hex('E881') },
   { at: 0x8483a, original: hex('C4FC 0078'), hacked: hex('C4FC 000F') },

@@ -34,6 +34,9 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
 // NHL 94's fixes, found the same in NHL '95's code but not yet played in NHL '95.
 const FROM_NHL94 =
   "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in NHL 94 by the NHL94 Match Viewer project; not yet tested in an NHL '95 game."
+// The same, tested in NHL '95 too.
+const ASSISTS_TESTED =
+  "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM, with the game's own code doing every pickup, pass and shot: a player who wins the puck back and passes to the scorer gets the assist, a give-and-go credits both passers, and a one-timer whose shooter's stick touched the pass keeps its two assists, where the original gives none; a plain one-timer and a teammate's regained puck are as before."
 
 const MORE: Record<Nhl95Hack, ReactNode> = {
   secondAssist: (
@@ -42,7 +45,7 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
         The game keeps a list of the last three players of a team to touch the puck: the scorer and his two assists.
         When two players pass back and forth, the list moves down at each touch, so the earlier passer drops off and
         the goal has only one assist. The fix moves the list down only when the new toucher is not the first assist
-        already. {FROM_NHL94}
+        already. {ASSISTS_TESTED}
       </p>
     </>
   ),
@@ -51,14 +54,14 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       A one-timer puts the shooter on the list by its own three moves, without the checks a touch makes, so where his
       stick touched the pass before he shot the list reads shooter, shooter, passer, and the goal has no assist. The
       fix uses a touch's own update there. In NHL 94 it happened in 3 of 71 one-timer goals in recorded games.{' '}
-      {FROM_NHL94}
+      {ASSISTS_TESTED}
     </p>
   ),
   regainAssist: (
     <p className="note">
       When the other team takes the puck, the game marks the list so the next touch replaces the last toucher. A
       player who wins the puck straight back skips the step that clears the mark, so the teammate he passes to
-      replaces him and his assist is lost. In NHL 94 it happened in 8 of 274 recorded goals. {FROM_NHL94}
+      replaces him and his assist is lost. In NHL 94 it happened in 8 of 274 recorded goals. {ASSISTS_TESTED}
     </p>
   ),
   aggressionFix: (
@@ -93,9 +96,15 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       eighths is made in 1, nearly twice as fast, and a time just below 0 is taken as an eighth. In NHL 94's recorded
       games 345 of 2,535 passes went over 1.3 times their speed and 69 over 27,000. NHL '95 (passtoa0, $847BA) works the
       time out the same way, and NHL 94's fix, the NHL94 Match Viewer project's, goes in: it works in 64ths of a second.
-      NHL '95's own step after it is kept: its slow flat pass ($BF08 bit 1) still takes four times as long and stays on
-      the ice. Also in the WN95HL's ROMs. Tested in NHL 94 by Match Viewer (no targeted pass over 1.23 times its speed
-      in 2,535 replayed); not yet tested in an NHL '95 game.
+      NHL '95's own step after it is kept: its slow flat pass ($BF08 bit 1) still takes four times as long, and is flat
+      when its lift reaches the cap, as in the original. Also in the WN95HL's ROMs. Tested in the game by Match Viewer on
+      the original game and the WN95HL's Season 18 ROM, 144 targeted passes on each: the original's middle pass went
+      1.09 times its speed, with 18 and 23 over 1.3 times; with the fix 0.99 and 1.01, none over 1.3 times, the middle
+      80% within 0.96 to 1.03. Lift and receptions as before or a little better. The receiver's wait is also capped at
+      127 frames: the game keeps it in a signed byte, so a longer wait counts as over at once and the receiver skates
+      off. In the original that happens only on passes over about 2.3 seconds, but the slow pass, four times as long,
+      reached it with the exact time from about half a second, and fewer slow passes were caught (64 against 75 in
+      Match Viewer's test). The cap is in since that test, and still to be played.
     </p>
   ),
   passFix: (
