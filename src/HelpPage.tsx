@@ -2420,8 +2420,10 @@ export function HelpPage() {
           (three rounds, then sudden death), the shootouts not yet tested in an NHL '95 game; 3 on 3 overtime is to
           come. And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
           and left unused, with the NHL 2026 - 94 Edition's fight engine, and adds a Fighting row (Off, On, On - Arcade
-          Mode) to the Game Setup screen; for the original game, the 34-team ROM and the WN95HL's ROMs. Not yet tested
-          in a NOSE4Web-built ROM.
+          Mode) to the Game Setup screen; for the original game, the 34-team ROM and the WN95HL's ROMs, with the NHL94
+          Match Viewer project's fix (as it came, no fight could start on 5- or 10-minute periods), and played by Match
+          Viewer with it. Players fight by their Fighting rating (in Handed/Fighting): the WN95HL's Season 18 ROM gives
+          none, so a league there raises some.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,

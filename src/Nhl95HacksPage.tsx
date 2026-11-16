@@ -21,7 +21,7 @@ interface Props {
 }
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
-  fighting: 'Players can fight: now and then a hard check between two aggressive players starts one. Off, On or Arcade Mode on Game Setup.',
+  fighting: 'Players can fight: now and then a hard check between two players who fight starts one. Off, On or Arcade Mode on Game Setup.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -49,15 +49,24 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
     <>
       <p className="note">
         EA drew a fight for NHL '95 and left it in the cartridge unused. Vancecookcobxin's fighting patch brings it back
-        with the fight engine of the NHL 2026 - 94 Edition. Now and then a hard check between two aggressive players starts a fight, more likely
-        as a game gets rougher: about one a game or two, never in overtime. The two drop their gloves and sticks and trade
-        punches until one goes down; both get five minutes, and the winner's penalty shows a tick. With a controller you
-        fight with C (high punch), B (low punch) and A (grab).
+        with the fight engine of the NHL 2026 - 94 Edition. Now and then a hard check between two players who fight starts
+        one, more likely as a game gets rougher, never in overtime. The two drop their gloves and sticks and trade punches
+        until one goes down; both get five minutes, and the winner's penalty shows a tick. With a controller you fight
+        with C (high punch), B (low punch) and A (grab).
+      </p>
+      <p className="note">
+        Who fights is the players' <b>Fighting</b> rating (in Handed/Fighting): a fight needs both players rated, and the
+        higher the rating the likelier. In the original game nearly every player has one. In the WN95HL's Season 18 ROM
+        no player does, so there are no fights until a league gives some players a fighting rating.
       </p>
       <p className="note">
         The Game Setup screen gets a Fighting row: Off, On (the default at power-on) or On - Arcade Mode, with more
         fights. The patch's code goes at $1E0000, which is free in the original game, the 34-team ROM and the WN95HL's
-        ROMs. Not yet tested in a NOSE4Web-built ROM.
+        ROMs. With the NHL94 Match Viewer project's fix: as the patch came, a register its fight check used was
+        overwritten, so on 5- and 10-minute periods no fight could ever start. Match Viewer played it with the fix on the
+        original game and the WN95HL's Season 18 ROM (its players given fighting ratings): fights start from hard checks,
+        both fighters get five minutes, and Off means no fights. How often fights happen in a normal game is still to be
+        measured.
       </p>
     </>
   ),

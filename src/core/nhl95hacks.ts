@@ -418,17 +418,37 @@ const SETUP_LABELS = 0x86be8
 const SETUP_ROWS = 8
 const SETUP_LABEL_BYTES = 16
 
-function fightCode(rom: Uint8Array): Uint8Array {
+// Match Viewer's fix to the patch: its willingness test builds the opponent's
+// hits term in d1 (-2 x his hits) and then calls the routine at $1E04D2 for
+// the 8 or 16 by period length, which loads the period length into d1 and so
+// overwrites it: on 5- and 10-minute periods no fight could ever start, on
+// 20-minute ones hits played no part. That routine uses d2 instead, which
+// neither of its callers has live there.
+const FIGHT_FIX = [
+  { at: 0x1e04d2, original: hex('3238'), fixed: hex('3438') }, // move.w (PeriodLength).w,d1 -> d2
+  { at: 0x1e04d6, original: hex('0C41'), fixed: hex('0C42') }, // cmpi.w #$4B0,d1 -> d2
+  { at: 0x1e04e0, original: hex('0C41'), fixed: hex('0C42') }, // cmpi.w #$1A4,d1 -> d2
+  { at: 0x1e04ea, original: hex('0C41'), fixed: hex('0C42') }, // cmpi.w #$78,d1 -> d2
+]
+
+function fightCode(rom: Uint8Array, fixed = true): Uint8Array {
   const code = FIGHT_CODE.slice()
   code.set(rom.subarray(SETUP_CHOICES, SETUP_CHOICES + SETUP_ROWS), FIGHT95_CHOICES_AT - FIGHT95_AT)
   code.set(rom.subarray(SETUP_LABELS, SETUP_LABELS + SETUP_ROWS * SETUP_LABEL_BYTES), FIGHT95_LABELS_AT - FIGHT95_AT)
+  if (fixed) for (const f of FIGHT_FIX) code.set(f.fixed, f.at - FIGHT95_AT)
   return code
 }
+
+const fightHooked = (rom: Uint8Array) => FIGHT_HOOKS.every((h) => matches(rom, h.at, h.patched))
+
+// The patch as it came, without Match Viewer's fix (a ROM made with its own IPS): on, and replaced by the fixed
+// one whenever the hacks are applied.
+const fightUnfixed = (rom: Uint8Array) => rom.length >= FIGHT_END && fightHooked(rom) && matches(rom, FIGHT95_AT, fightCode(rom, false))
 
 function fightState(rom: Uint8Array): boolean | undefined {
   if (rom.length < FIGHT_END) return undefined
   if (FIGHT_HOOKS.every((h) => matches(rom, h.at, h.original))) return false
-  return FIGHT_HOOKS.every((h) => matches(rom, h.at, h.patched)) && matches(rom, FIGHT95_AT, fightCode(rom)) ? true : undefined
+  return fightHooked(rom) && (matches(rom, FIGHT95_AT, fightCode(rom)) || fightUnfixed(rom)) ? true : undefined
 }
 
 function removeFight(rom: Uint8Array) {
@@ -482,6 +502,8 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if (!nhl95HacksSupported(project.game)) throw new Nhl95HackError("These hacks are for NHL '95 only.")
   const { choices, unknown } = detectNhl95Hacks(project.bytes)
   const change = NHL95_HACKS.filter((hack) => wanted[hack] !== undefined && wanted[hack] !== choices[hack])
+  // The fighting patch without Match Viewer's fix is put in again with it.
+  if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
   for (const hack of change) {
     if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: this ROM's code there is not the original game's, so it is left as it is.`)
   }
@@ -537,7 +559,7 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   fighting:
-    'Players can fight. Now and then a hard check between two aggressive players starts one, more likely as a game gets rougher (about one a game or two, never in overtime): they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights.',
+    "Players can fight. Now and then a hard check between two players who fight (their Fighting ratings) starts one, more likely as a game gets rougher, never in overtime: they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights. Players with no fighting rating never fight.",
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',

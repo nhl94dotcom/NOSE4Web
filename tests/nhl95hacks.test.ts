@@ -285,14 +285,21 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(buildRom(on)).choices.fighting).toBe(true)
     const ips = FIGHT_IPS[name]
     if (ips && existsSync(path(ips))) {
-      // The patch's bytes, but its header checksum and the original game's own ROM check sum (that check is off).
+      // The patch's bytes, but its header checksum and the original game's own ROM check sum (that check is off),
+      // with Match Viewer's fix: the period-length routine at $1E04D2 uses d2, not d1.
       const patched = rom.bytes.slice()
       for (const [at, bytes] of ipsRecords(ips)) if (at !== 0x18e && at !== 0x1a72dc) patched.set(bytes, at)
+      const unfixed = patched.slice()
+      patched.set([0x34, 0x38], 0x1e04d2)
+      for (const at of [0x1e04d6, 0x1e04e0, 0x1e04ea]) patched.set([0x0c, 0x42], at)
       expectSameBytes(on.bytes, patched)
-      // A ROM the patch made itself reads as fighting on, and comes out.
+      expect(on.bytes.reduce((n, b, i) => n + (b !== unfixed[i] ? 1 : 0), 0)).toBe(4)
+      // A ROM the patch made itself reads as fighting on; applying puts the fix in, and it comes out.
       const theirs = rom.bytes.slice()
       for (const [at, bytes] of ipsRecords(ips)) theirs.set(bytes, at)
       expect(detectNhl95Hacks(theirs).choices.fighting).toBe(true)
+      const upgraded = applyNhl95Hacks({ ...rom, bytes: theirs }, { fighting: true })
+      expect(Array.from(upgraded.bytes.subarray(0x1e04d2, 0x1e04d4))).toEqual([0x34, 0x38])
       expect(detectNhl95Hacks(applyNhl95Hacks({ ...rom, bytes: theirs }, { fighting: false }).bytes).choices.fighting).toBe(false)
     }
     expectSameBytes(applyNhl95Hacks(on, { fighting: false }).bytes, rom.bytes)
