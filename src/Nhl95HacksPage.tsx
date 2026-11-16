@@ -22,6 +22,8 @@ interface Props {
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
   fighting: 'Players can fight: now and then a hard check between two players who fight starts one. Off, On or Arcade Mode on Game Setup.',
+  threeOnThree: 'Overtime is 3 on 3, as in the NHL; a penalty makes it 4 on 3. Playoff games stay 5 on 5.',
+  threeOnThreeAll: 'Every overtime is 3 on 3, playoffs included; a penalty makes it 4 on 3.',
   fightingOff: "The Game Setup screen's Fighting row starts at Off when the game is switched on; players can still choose On or Arcade Mode.",
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
@@ -45,7 +47,22 @@ const TESTED =
 const ASSISTS_TESTED =
   "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM, with the game's own code doing every pickup, pass and shot: a player who wins the puck back and passes to the scorer gets the assist, a give-and-go credits both passers, and a one-timer whose shooter's stick touched the pass keeps its two assists, where the original gives none; a plain one-timer and a teammate's regained puck are as before."
 
+const OT3_MORE = (
+  <p className="note">
+    Each team plays its goalie and three skaters from the line on the ice: the centre (for the draws), the left wing
+    and the right defenceman. A penalty gives the other team a skater more, 4 on 3, then 5 on 3 with a second one, and
+    a team never has more than two skaters more than the other. When a penalty ends the player comes back, 4 on 4,
+    and at the next stoppage it is 3 on 3 again; a penalty from the third period carries into overtime. With the goalie
+    pulled, a team plays four skaters. Line changes On or Off make no difference. NHL 94's option, which the NHL94
+    Match Viewer project tested and helped put right, made from NHL '95's code at its own places, also in the WN95HL's
+    ROMs. Not yet tested in an NHL '95 game. Only one of the two can be on; it works with overtime until a goal and the
+    shootout after overtime.
+  </p>
+)
+
 const MORE: Record<Nhl95Hack, ReactNode> = {
+  threeOnThree: OT3_MORE,
+  threeOnThreeAll: OT3_MORE,
   fightingOff: (
     <p className="note">
       The fighting patch sets its Game Setup row to On when the game is switched on. With this, it starts at Off, so a
@@ -298,6 +315,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
                     const others = on && (ties as readonly string[]).includes(hack) ? Object.fromEntries(ties.filter((t) => t !== hack).map((t) => [t, false])) : {}
                     // Fighting starts Off is part of fighting: it turns fighting on, and fighting off turns it off.
                     if (hack === 'fightingOff' && on) Object.assign(others, { fighting: true })
+                    // The two 3 on 3 choices exclude each other.
+                    if (hack === 'threeOnThree' && on) Object.assign(others, { threeOnThreeAll: false })
+                    if (hack === 'threeOnThreeAll' && on) Object.assign(others, { threeOnThree: false })
                     if (hack === 'fighting' && !on) Object.assign(others, { fightingOff: false })
                     setDraft({ rom: project.bytes, choices: { ...wanted, ...others, [hack]: on } })
                     setNotice('')

@@ -25,11 +25,13 @@ export type Nhl95Hack =
   | 'seasonShootout'
   | 'seasonShootoutNow'
   | 'nhlShootout'
+  | 'threeOnThree'
+  | 'threeOnThreeAll'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -46,6 +48,8 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   seasonShootout: false,
   seasonShootoutNow: false,
   nhlShootout: false,
+  threeOnThree: false,
+  threeOnThreeAll: false,
   passFix: false,
 }
 
@@ -71,6 +75,8 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   seasonShootout: 'A shootout for tied regular-season games, after overtime',
   seasonShootoutNow: 'A shootout for tied regular-season games, after period 3',
   nhlShootout: 'The NHL shootout: three rounds, then sudden death',
+  threeOnThree: '3 on 3 overtime, outside the playoffs',
+  threeOnThreeAll: '3 on 3 overtime, playoffs included',
   passFix: 'Pass direction fix',
 }
 
@@ -326,6 +332,74 @@ const NHL_SO_AFTER = { at: 0x9ddb8, bytes: hex('08F8 0003 BF00 4EB9') }
 const nhlSo = () => hookedFix(NHL_SO_HOOK, NHL_SO_CODE, NHL_SO_EDITS, placeCode)
 const nhlSoState = (rom: Uint8Array) => (matches(rom, NHL_SO_AFTER.at, NHL_SO_AFTER.bytes) ? nhlSo().detect(rom) : undefined)
 
+// ------------------------------------------------------- 3 on 3 overtime
+// NHL 94's (hacks.ts, threeOnThree; see its notes for how each part works and
+// the three things Match Viewer's tests put right): in overtime each team
+// plays its goalie, C, LW and RD, a penalty giving the other team a skater
+// more (4 on 3, then 5 on 3), 4 on 4 after a penalty ends to the next
+// stoppage, then 3 on 3 again. NHL '95 has the same code at these places (a
+// research reading of the NHL95Genesis disassembly, every hook's bytes the
+// same in the WN95HL's ROMs), and NHL 94's code goes in with NHL '95's
+// addresses: sflags7 $BF02 (bit 1, overtime), gmode2 $BF00, the team structs
+// at $C288, $366 each (the home team's tmap from the away struct -$342; tmap
+// $C2AC and $C612), the players' tmpdst at $68, the box list at $9C,
+// InProgress_ap $89514, priolist $83E16.
+// - priolist's three readers: releasepl ($8966A), getlinee ($8A392) and
+//   SetPlList ($83790).
+// - InProgress's two calls of InProgress_ap at $894C6.
+// - The overtime mark, bset #1,sflags7 at $9DCC, the end of PeriodOver_sp
+//   just before StartPer (NHL 94's is in StartPer).
+// - The faceoff's .apl row at $888E8.
+// - GetLowestPen's tmap test at $9F560.
+// - setpersonel's second pass at $83754.
+// 'Outside the playoffs' tests the play mode, and a season's playoff games as
+// NHL '95's own PeriodOver does (GameFlags bit 3 with $D1A7 bit 5).
+const OT3_PRIO_HOOKS = [0x8966a, 0x8a392, 0x83790].map((at) => ({ at, original: hex('207C 0008 3E16') }))
+const OT3_RECOUNT_HOOK = { at: 0x894c6, original: hex('347C C288 6100 0048 D4FC 0366 6100 0040') }
+const OT3_START_HOOK = { at: 0x9dcc, original: hex('08F8 0001 BF02') }
+const OT3_FACEOFF_HOOK = { at: 0x888e8, original: hex('4444 5C44 E744') }
+const OT3_BOX_HOOK = { at: 0x9f560, original: hex('0C6B 0006 0024') }
+const OT3_PERS_HOOK = { at: 0x83754, original: hex('D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8') }
+const OT3_PRIO_ALL = hex('207C 0008 3E16 0838 0001 BF02 670C 0838 0000 BF00 6604 41FA 0004 4E75 0004 0302 0105 06FF')
+const OT3_RECOUNT_ALL = hex('0838 0001 BF02 6700 008A 0838 0000 BF00 6600 0080 48E7 3C00 347C C288 6100 008A 3601 3A04 D4FC 0366 6100 007E 3403 9441 6A02 7400 5842 7006 9044 0C40 0003 6C02 7003 B440 6F02 3400 3542 0024 3401 9443 6A02 7400 5842 7006 9045 0C40 0003 6C02 7003 B440 6F02 3400 3542 FCBE 302A 0024 322A FCBE 3401 5442 B042 6F04 3542 0024 3400 5442 B242 6F04 3542 FCBE 4CDF 003C 4E75 347C C288 4EB9 0008 9514 D4FC 0366 4EB9 0008 9514 4E75 7200 7800 7032 4A72 0068 6F20 5244 08B2 0005 0068 0832 0006 0068 6610 0832 0004 0068 6608 0C41 0002 6702 5241 5540 6AD6 4E75')
+const OT3_START_ALL = hex('08F8 0001 BF02 0838 0000 BF00 6600 0080 48E7 3C00 347C C288 6100 0082 3601 3A04 D4FC 0366 6100 0076 3403 9441 6A02 7400 5842 7006 9044 0C40 0003 6C02 7003 B440 6F02 3400 3542 0024 3401 9443 6A02 7400 5842 7006 9045 0C40 0003 6C02 7003 B440 6F02 3400 3542 FCBE 302A 0024 322A FCBE 3401 5442 B042 6F04 3542 0024 3400 5442 B242 6F04 3542 FCBE 4CDF 003C 4E75 31FC 0006 C2AC 31FC 0006 C612 4E75 7200 7800 7032 4A72 0068 6F20 5244 08B2 0005 0068 0832 0006 0068 6610 0832 0004 0068 6608 0C41 0002 6702 5241 5540 6AD6 4E75')
+const OT3_FACEOFF_ALL = hex('0838 0001 BF02 670C 0838 0000 BF00 6604 7800 4E75 4444 5C44 E744 4E75')
+const OT3_BOX_ALL = hex('0838 0001 BF02 6722 0838 0000 BF00 661A 41EB 009C 4242 1418 6B0C 0833 0006 2068 66F4 7401 4E75 4242 4E75 0C6B 0006 0024 4E75')
+const OT3_PERS_ALL = hex('0838 0001 BF02 6748 0838 0000 BF00 6640 48E7 C040 91C8 7005 224B D2FC 0080 4A29 0061 6A18 7200 1229 0066 6B08 D241 4A72 1068 6E08 2049 4A69 0034 6A0E 51C8 FFDC 2008 6606 4CDF 0203 6006 4CDF 0203 4E75 D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8 4E75')
+const OT3_PRIO_SEASON = hex('207C 0008 3E16 0838 0001 BF02 6722 0838 0000 BF00 661A 4A78 CC4C 6614 0838 0003 BF08 6708 0838 0005 D1A7 6604 41FA 0004 4E75 0004 0302 0105 06FF')
+const OT3_RECOUNT_SEASON = hex('0838 0001 BF02 6700 00A4 0838 0000 BF00 6600 009A 4A78 CC4C 6600 0092 0838 0003 BF08 670A 0838 0005 D1A7 6600 0080 48E7 3C00 347C C288 6100 008A 3601 3A04 D4FC 0366 6100 007E 3403 9441 6A02 7400 5842 7006 9044 0C40 0003 6C02 7003 B440 6F02 3400 3542 0024 3401 9443 6A02 7400 5842 7006 9045 0C40 0003 6C02 7003 B440 6F02 3400 3542 FCBE 302A 0024 322A FCBE 3401 5442 B042 6F04 3542 0024 3400 5442 B242 6F04 3542 FCBE 4CDF 003C 4E75 347C C288 4EB9 0008 9514 D4FC 0366 4EB9 0008 9514 4E75 7200 7800 7032 4A72 0068 6F20 5244 08B2 0005 0068 0832 0006 0068 6610 0832 0004 0068 6608 0C41 0002 6702 5241 5540 6AD6 4E75')
+const OT3_START_SEASON = hex('08F8 0001 BF02 0838 0000 BF00 6600 009A 4A78 CC4C 6600 009E 0838 0003 BF08 670A 0838 0005 D1A7 6600 008C 48E7 3C00 347C C288 6100 0082 3601 3A04 D4FC 0366 6100 0076 3403 9441 6A02 7400 5842 7006 9044 0C40 0003 6C02 7003 B440 6F02 3400 3542 0024 3401 9443 6A02 7400 5842 7006 9045 0C40 0003 6C02 7003 B440 6F02 3400 3542 FCBE 302A 0024 322A FCBE 3401 5442 B042 6F04 3542 0024 3400 5442 B242 6F04 3542 FCBE 4CDF 003C 4E75 31FC 0006 C2AC 31FC 0006 C612 4E75 7200 7800 7032 4A72 0068 6F20 5244 08B2 0005 0068 0832 0006 0068 6610 0832 0004 0068 6608 0C41 0002 6702 5241 5540 6AD6 4E75')
+const OT3_FACEOFF_SEASON = hex('0838 0001 BF02 6722 0838 0000 BF00 661A 4A78 CC4C 6614 0838 0003 BF08 6708 0838 0005 D1A7 6604 7800 4E75 4444 5C44 E744 4E75')
+const OT3_BOX_SEASON = hex('0838 0001 BF02 6738 0838 0000 BF00 6630 4A78 CC4C 662A 0838 0003 BF08 6708 0838 0005 D1A7 661A 41EB 009C 4242 1418 6B0C 0833 0006 2068 66F4 7401 4E75 4242 4E75 0C6B 0006 0024 4E75')
+const OT3_PERS_SEASON = hex('0838 0001 BF02 675E 0838 0000 BF00 6656 4A78 CC4C 6650 0838 0003 BF08 6708 0838 0005 D1A7 6640 48E7 C040 91C8 7005 224B D2FC 0080 4A29 0061 6A18 7200 1229 0066 6B08 D241 4A72 1068 6E08 2049 4A69 0034 6A0E 51C8 FFDC 2008 6606 4CDF 0203 6006 4CDF 0203 4E75 D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8 4E75')
+
+type Ot3 = 'off' | 'season' | 'all'
+const ot3Parts = (choice: Exclude<Ot3, 'off'>) => {
+  const all = choice === 'all'
+  return [
+    ...OT3_PRIO_HOOKS.map((hook) => hookedFix(hook, all ? OT3_PRIO_ALL : OT3_PRIO_SEASON, [], placeCode)),
+    hookedFix(OT3_RECOUNT_HOOK, all ? OT3_RECOUNT_ALL : OT3_RECOUNT_SEASON, [], placeCode),
+    hookedFix(OT3_START_HOOK, all ? OT3_START_ALL : OT3_START_SEASON, [], placeCode),
+    hookedFix(OT3_FACEOFF_HOOK, all ? OT3_FACEOFF_ALL : OT3_FACEOFF_SEASON, [], placeCode),
+    hookedFix(OT3_BOX_HOOK, all ? OT3_BOX_ALL : OT3_BOX_SEASON, [], placeCode),
+    hookedFix(OT3_PERS_HOOK, all ? OT3_PERS_ALL : OT3_PERS_SEASON, [], placeCode),
+  ]
+}
+
+function ot3State(rom: Uint8Array): Ot3 | undefined {
+  if (ot3Parts('all').every((part) => part.detect(rom) === false)) return 'off'
+  for (const choice of ['season', 'all'] as const) if (ot3Parts(choice).every((part) => part.detect(rom) === true)) return choice
+  return undefined
+}
+
+function removeOt3(rom: Uint8Array) {
+  for (const choice of ['season', 'all'] as const) for (const part of ot3Parts(choice)) part.remove(rom)
+}
+
+function applyOt3(work: { rom: Uint8Array }, choice: Ot3) {
+  if (choice !== 'off') for (const part of ot3Parts(choice)) part.apply(work, true)
+}
+
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
 // receiver in whole eighths of a second, rounding toward zero, as NHL 94's
@@ -497,6 +571,7 @@ export function nhl95HacksSupported(game: GameConfig): boolean {
 
 export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
   const ties = tiesState(rom)
+  const ot3 = ot3State(rom)
   const found: Record<Nhl95Hack, boolean | undefined> = {
     fighting: fightState(rom),
     fightingOff: fightOffState(rom),
@@ -512,6 +587,8 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     seasonShootout: ties === undefined ? undefined : ties === 'shootout',
     seasonShootoutNow: ties === undefined ? undefined : ties === 'shootoutNow',
     nhlShootout: nhlSoState(rom),
+    threeOnThree: ot3 === undefined ? undefined : ot3 === 'season',
+    threeOnThreeAll: ot3 === undefined ? undefined : ot3 === 'all',
     passFix: passFixState(rom),
   }
   return {
@@ -536,6 +613,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if ([want.seasonOvertime, want.seasonShootout, want.seasonShootoutNow].filter(Boolean).length > 1) {
     throw new Nhl95HackError('Only one of overtime until a goal and the two shootouts can be on: they decide a tied game three different ways.')
   }
+  if (want.threeOnThree && want.threeOnThreeAll) throw new Nhl95HackError('Only one of the two 3 on 3 overtime choices can be on.')
   if (want.fightingOff && !want.fighting) throw new Nhl95HackError('Fighting starts Off needs Fighting on: it sets where the Fighting row starts.')
   const work = { rom: project.bytes.slice() }
   // Every known hack comes out, then those wanted go in, as for NHL 94.
@@ -559,6 +637,9 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
       () => applyTies(work, want.seasonShootoutNow ? 'shootoutNow' : want.seasonShootout ? 'shootout' : want.seasonOvertime ? 'overtime' : 'tie'),
     ],
     ['nhlShootout', () => nhlSo().remove(work.rom), () => nhlSo().apply(work, want.nhlShootout)],
+    // The two 3 on 3 choices share their places, so they are one step.
+    ['threeOnThree', () => removeOt3(work.rom), () => applyOt3(work, want.threeOnThreeAll ? 'all' : want.threeOnThree ? 'season' : 'off')],
+    ['threeOnThreeAll', () => {}, () => {}],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -585,6 +666,10 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  threeOnThree:
+    'Overtime is played 3 on 3, as in the NHL: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage. Playoff games stay 5 on 5.',
+  threeOnThreeAll:
+    'Every overtime, playoffs included, is played 3 on 3: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage.',
   fightingOff: "The Game Setup screen's Fighting row starts at Off when the game is switched on, so there are no fights unless the players choose On or On - Arcade Mode.",
   fighting:
     "Players can fight. Now and then a hard check between two players who fight (their Fighting ratings) starts one, more likely as a game gets rougher, never in overtime: they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights. Only players with a Fighting rating of 71 or more start fights (42 in Arcade Mode), against one rated 14 or more; about 0.8 fights a game in the original game.",
@@ -618,7 +703,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll'] },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff'] },
 ]
 

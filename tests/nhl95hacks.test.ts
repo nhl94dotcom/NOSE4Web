@@ -138,7 +138,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { rocketFix: false }).bytes, rom.bytes)
     // With every other NHL '95 hack, in and out.
     // Every hack on, but only one way of settling a tie (they exclude each other).
-    const allOn = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, hack !== 'seasonShootout' && hack !== 'seasonShootoutNow'])) as typeof NO_NHL95_HACKS
+    const allOn = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, hack !== 'seasonShootout' && hack !== 'seasonShootoutNow' && hack !== 'threeOnThreeAll'])) as typeof NO_NHL95_HACKS
     const every = applyNhl95Hacks(rom, allOn)
     expect(detectNhl95Hacks(buildRom(every)).choices).toEqual(allOn)
     expectSameBytes(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
@@ -231,7 +231,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonShootoutNow: true })
     expectSameBytes(applyNhl95Hacks(swapped, { seasonShootoutNow: false }).bytes, rom.bytes)
     // With every other NHL '95 hack, through a rebuild.
-    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season')])) as typeof NO_NHL95_HACKS
+    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll'])) as typeof NO_NHL95_HACKS
     const all = applyNhl95Hacks(rom, { ...every, seasonShootout: true })
     expect(detectNhl95Hacks(buildRom(all)).choices).toEqual({ ...every, seasonShootout: true })
     expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
@@ -312,7 +312,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(startOff, { fighting: false, fightingOff: false }).bytes, rom.bytes)
     expect(() => applyNhl95Hacks(rom, { fightingOff: true })).toThrow(Nhl95HackError)
     // With every other NHL '95 hack, their code placed after its own, through a rebuild.
-    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season')])) as typeof NO_NHL95_HACKS
+    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll'])) as typeof NO_NHL95_HACKS
     const all = applyNhl95Hacks(rom, every)
     expect(detectNhl95Hacks(buildRom(all)).choices).toEqual(every)
     expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
@@ -320,6 +320,45 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const taken = rom.bytes.slice()
     taken[0x1e0800] = 0
     expect(() => applyNhl95Hacks({ ...rom, bytes: taken }, { fighting: true })).toThrow(/1E0800/)
+  })
+
+  it.each(names)('puts 3 on 3 overtime into %s at its eight places, either way, and takes it out again', (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    // Each place: its length, and how the code it calls begins (the replaced instruction, or the overtime tests).
+    const places: [number, number, string][] = [
+      [0x8966a, 6, '207c00083e16'],
+      [0x8a392, 6, '207c00083e16'],
+      [0x83790, 6, '207c00083e16'],
+      [0x894c6, 16, '08380001bf02'],
+      [0x9dcc, 6, '08f80001bf02'],
+      [0x888e8, 6, '08380001bf02'],
+      [0x9f560, 6, '08380001bf02'],
+      [0x83754, 26, '08380001bf02'],
+    ]
+    for (const [choice, other] of [['threeOnThree', 'threeOnThreeAll'], ['threeOnThreeAll', 'threeOnThree']] as const) {
+      const on = applyNhl95Hacks(rom, { [choice]: true })
+      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [choice]: true })
+      expect(detectNhl95Hacks(buildRom(on)).choices[choice]).toBe(true)
+      for (const [at, length, begins] of places) {
+        expect(hex(on.bytes, at, 2)).toBe('4eb9')
+        expect(hex(on.bytes, at + 6, length - 6)).toBe('4e71'.repeat((length - 6) / 2))
+        expect(hex(on.bytes, read32(on.bytes, at + 2), 6)).toBe(begins)
+      }
+      // The playoff test only outside the playoffs: tst.w (OptPlayMode).w in the faceoff's code.
+      expect(hex(on.bytes, read32(on.bytes, 0x888ea), 32).includes('4a78cc4c')).toBe(choice === 'threeOnThree')
+      // From one to the other directly, and out byte for byte.
+      const swapped = applyNhl95Hacks(on, { [choice]: false, [other]: true })
+      expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [other]: true })
+      expectSameBytes(applyNhl95Hacks(on, { [choice]: false }).bytes, rom.bytes)
+      expectSameBytes(applyNhl95Hacks(swapped, { [other]: false }).bytes, rom.bytes)
+    }
+    expect(() => applyNhl95Hacks(rom, { threeOnThree: true, threeOnThreeAll: true })).toThrow(Nhl95HackError)
+    // With overtime until a goal, a shootout and fighting.
+    const league = applyNhl95Hacks(rom, { threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
+    expect(detectNhl95Hacks(buildRom(league)).choices).toEqual({ ...NO_NHL95_HACKS, threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
+    expectSameBytes(applyNhl95Hacks(league, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
 })
 
