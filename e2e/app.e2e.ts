@@ -2992,6 +2992,26 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(page.getByText('menu_logo', { exact: false }).first()).toBeVisible()
   })
 
+  test('sets the Fighting setting at power-on, one of three, only with fighting on', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await entry(page, 'Hacks').click()
+    const start = page.getByLabel('Fighting setting at power-on')
+    await expect(start).toBeDisabled()
+    await expect(start.locator('option')).toHaveText(['Off', 'On', 'On - Arcade Mode'])
+    await page.getByLabel('Fighting', { exact: true }).selectOption('on')
+    await expect(start).toBeEnabled()
+    await expect(start).toHaveValue('on')
+    await start.selectOption('arcade')
+    await page.getByRole('button', { name: 'Apply' }).click()
+    await expect(page.getByText(/Done: 2 changes/)).toBeVisible()
+    await expect(start).toHaveValue('arcade')
+    // Fighting off puts it back to On, and greys it out.
+    await page.getByLabel('Fighting', { exact: true }).selectOption('off')
+    await expect(start).toHaveValue('on')
+    await expect(start).toBeDisabled()
+  })
+
   test('opens it, edits a player, and shows its game settings, without the NHL 94 additions', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))

@@ -2393,40 +2393,29 @@ export function HelpPage() {
           League ROMs that have moved their teams already have room of their own.
         </li>
         <li>
-          <b>Menu logos</b>: each team's logo on the menus, 6 by 6 tiles as in NHL 94, can be exported, drawn and
-          imported, on the team page and in Picture files. As in NHL 94 it has white, black and 9 colours of its own; its
-          other colours are the team's stripe colours and colours every team shares, and stay as they are. In the
-          original game the logos are packed tight, so a detailed one needs <b>Give the logos more room</b> first; the
-          WN95HL's ROMs have the room already. A logo can come from an NHL 94 ROM with <b>Import a team</b>. Tested in the
-          game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM: Game Setup,
-          Evaluate Trade, the Scouting Report, the pre-game roster, Name Entry and Period Stats all show the new logo, and
-          every other team's is as before. The <b>centre-ice logos</b> are kept as NHL 94's are, 6 by 4 tiles in the home
-          team's strip colours, and are replaced the same way (not yet tested in an NHL '95 game). The name banners
+          <b>Logos</b>: each team's menu logo (6 by 6 tiles) and centre-ice logo (6 by 4 tiles, in the home team's strip
+          colours) can be exported, drawn and imported, as in NHL 94, on the team page and in Picture files. A menu logo
+          has white, black and 9 colours of its own; its other colours are the team's stripe colours and colours every
+          team shares. In the original game the menu logos are packed tight, so a detailed one needs{' '}
+          <b>Give the logos more room</b> first; the WN95HL's ROMs have the room already. Logos can come from an NHL 94
+          ROM with <b>Import a team</b>. Both tested in the game by the NHL94 Match Viewer project. The name banners
           (coloured by each screen's own colours) are not offered yet.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Where its code is NHL 94's instruction for instruction, NHL
-          94's fixes go in at NHL '95's places: the three assist fixes (the second assist, the one-timer assist and the
-          regained-puck assist), the Aggression and comeback bonus fixes, the one-timer open net fix, the five-hole blind ring
-          fix, and the{' '}
-          <b>rocket pass fix</b>, with NHL '95's slow flat pass kept. The NHL94 Match Viewer project has tested the assist
-          fixes, the Aggression and comeback bonus fixes, the open net fix, the five-hole fix and the rocket pass fix in NHL '95 on the
-          original game and the WN95HL's Season 18 ROM. And the <b>pass direction fix</b>, from the NHL94 Match Viewer
-          project: in NHL '95 a pass now and then goes straight across, or back behind the passer, instead of to the
-          teammate he's pointing at; the fix makes passes go where they do in NHL 94. Match Viewer played it on the
-          WN95HL's Season 18 ROM. It's an option, not a recommended fix. Also, from NHL 94's overtime and shootout
-          options, <b>overtime until a goal in the regular season</b>, a <b>shootout</b> for tied regular-season games
-          (after overtime or after period 3) and the <b>NHL shootout</b> (three rounds, then sudden death), all played
-          by Match Viewer on both ROMs; and <b>3 on 3 overtime</b>, outside the playoffs or in every overtime, as NHL
-          94's, played by Match Viewer on both ROMs. And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
-          and left unused, with the NHL 2026 - 94 Edition's fight engine, and adds a Fighting row (Off, On, On - Arcade
-          Mode) to the Game Setup screen, which starts at On, or at Off with <b>Fighting starts Off</b>; for the original game, the 34-team ROM and the WN95HL's ROMs, with the NHL94
-          Match Viewer project's fix (as it came, no fight could start on 5- or 10-minute periods), and played by Match
-          Viewer with it. Players fight by their Fighting rating (in Handed/Fighting): 71 or more to start a fight, 14 or
-          more to fight back. The WN95HL's Season 18 ROM rates no one, so a league there raises some.
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
+          Viewer project. NHL 94's fixes where NHL '95 has the same code: the three assist fixes, the Aggression and
+          comeback bonus fixes, the one-timer open net fix, the five-hole blind ring fix and the <b>rocket pass fix</b>.
+          The <b>pass direction fix</b>, an option: in NHL '95 a pass now and then goes straight across, or back behind
+          the passer, instead of to the teammate he's pointing at. NHL 94's overtime and shootout options:{' '}
+          <b>overtime until a goal</b>, a <b>shootout</b> for tied regular-season games (after overtime or after period
+          3), the <b>NHL shootout</b> (three rounds, then sudden death) and <b>3 on 3 overtime</b>. And{' '}
+          <b>Fighting</b>, Vancecookcobxin's fighting patch with a fix by Match Viewer: it adds a Fighting setting to Game
+          Setup (Off, On, or On - Arcade Mode), and a league chooses which it starts at. Players fight by their Fighting
+          rating (in Handed/Fighting): 71 or more to start a fight, 14 or more to fight back. The WN95HL's Season 18 ROM
+          rates no one, so a league there raises some.
         </li>
         <li>
-          <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,
+          <b>Not offered for NHL '95</b>: NHL 94's hacks, the banners, player photos, organ and team songs, score logos,
           the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
         </li>
       </ul>

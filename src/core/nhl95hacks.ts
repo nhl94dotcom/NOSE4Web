@@ -13,6 +13,7 @@ import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 export type Nhl95Hack =
   | 'fighting'
   | 'fightingOff'
+  | 'fightingArcade'
   | 'secondAssist'
   | 'oneTimerAssist'
   | 'regainAssist'
@@ -31,11 +32,12 @@ export type Nhl95Hack =
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
   fightingOff: false,
+  fightingArcade: false,
   secondAssist: false,
   oneTimerAssist: false,
   regainAssist: false,
@@ -63,6 +65,7 @@ export interface Nhl95HackState {
 export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   fighting: 'Fighting',
   fightingOff: 'Fighting starts Off',
+  fightingArcade: 'Fighting starts in Arcade Mode',
   secondAssist: 'Second-assist bug fix',
   oneTimerAssist: 'One-timer assist fix',
   regainAssist: 'Regained-puck assist fix',
@@ -511,15 +514,17 @@ const FIGHT_FIX = [
 ]
 
 // setup_defaults ($1E0E2E): jsr the game's own defaults, then move.w #1,($FFCC62).w, the Fighting row On at
-// power-on; Fighting starts Off makes it #0. The row's choices are 0 Off, 1 On, 2 On - Arcade Mode.
+// power-on. The row's choices are 0 Off, 1 On, 2 On - Arcade Mode; the two start options make it #0 or #2.
 const FIGHT_START_AT = 0x1e0e36
+type FightStart = 0 | 1 | 2
+const FIGHT_STARTS: FightStart[] = [1, 0, 2]
 
-function fightCode(rom: Uint8Array, fixed = true, startOff = false): Uint8Array {
+function fightCode(rom: Uint8Array, fixed = true, start: FightStart = 1): Uint8Array {
   const code = FIGHT_CODE.slice()
   code.set(rom.subarray(SETUP_CHOICES, SETUP_CHOICES + SETUP_ROWS), FIGHT95_CHOICES_AT - FIGHT95_AT)
   code.set(rom.subarray(SETUP_LABELS, SETUP_LABELS + SETUP_ROWS * SETUP_LABEL_BYTES), FIGHT95_LABELS_AT - FIGHT95_AT)
   if (fixed) for (const f of FIGHT_FIX) code.set(f.fixed, f.at - FIGHT95_AT)
-  if (startOff) code.set([0, 0], FIGHT_START_AT - FIGHT95_AT)
+  code.set([0, start], FIGHT_START_AT - FIGHT95_AT)
   return code
 }
 
@@ -529,23 +534,19 @@ const fightHooked = (rom: Uint8Array) => FIGHT_HOOKS.every((h) => matches(rom, h
 // one whenever the hacks are applied.
 const fightUnfixed = (rom: Uint8Array) => rom.length >= FIGHT_END && fightHooked(rom) && matches(rom, FIGHT95_AT, fightCode(rom, false))
 
-// Fighting: off, on starting On, or on starting Off.
-function fightMode(rom: Uint8Array): 'off' | 'on' | 'startOff' | undefined {
+// Fighting: not in the ROM (null), or in it with the Fighting row starting at 0, 1 or 2.
+function fightMode(rom: Uint8Array): FightStart | null | undefined {
   if (rom.length < FIGHT_END) return undefined
-  if (FIGHT_HOOKS.every((h) => matches(rom, h.at, h.original))) return 'off'
+  if (FIGHT_HOOKS.every((h) => matches(rom, h.at, h.original))) return null
   if (!fightHooked(rom)) return undefined
-  if (matches(rom, FIGHT95_AT, fightCode(rom)) || fightUnfixed(rom)) return 'on'
-  return matches(rom, FIGHT95_AT, fightCode(rom, true, true)) ? 'startOff' : undefined
+  if (fightUnfixed(rom)) return 1
+  return FIGHT_STARTS.find((start) => matches(rom, FIGHT95_AT, fightCode(rom, true, start)))
 }
 
-function fightState(rom: Uint8Array): boolean | undefined {
+function fightState(rom: Uint8Array, start?: FightStart): boolean | undefined {
   const mode = fightMode(rom)
-  return mode === undefined ? undefined : mode !== 'off'
-}
-
-function fightOffState(rom: Uint8Array): boolean | undefined {
-  const mode = fightMode(rom)
-  return mode === undefined ? undefined : mode === 'startOff'
+  if (mode === undefined) return undefined
+  return start === undefined ? mode !== null : mode === start
 }
 
 function removeFight(rom: Uint8Array) {
@@ -554,12 +555,12 @@ function removeFight(rom: Uint8Array) {
   rom.fill(0xff, FIGHT95_AT, FIGHT_END)
 }
 
-function applyFight(rom: Uint8Array, on: boolean, startOff: boolean) {
+function applyFight(rom: Uint8Array, on: boolean, start: FightStart) {
   if (!on) return
   for (let at = FIGHT95_AT; at < FIGHT_END; at++) {
     if (rom[at] !== 0xff) throw new Error(`Fighting: its code goes at $1E0000, and this ROM has other data there ($${at.toString(16).toUpperCase()}).`)
   }
-  rom.set(fightCode(rom, true, startOff), FIGHT95_AT)
+  rom.set(fightCode(rom, true, start), FIGHT95_AT)
   for (const h of FIGHT_HOOKS) rom.set(h.patched, h.at)
 }
 
@@ -574,7 +575,8 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
   const ot3 = ot3State(rom)
   const found: Record<Nhl95Hack, boolean | undefined> = {
     fighting: fightState(rom),
-    fightingOff: fightOffState(rom),
+    fightingOff: fightState(rom, 0),
+    fightingArcade: fightState(rom, 2),
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
     regainAssist: assist.regainAssist.detect(rom),
@@ -614,11 +616,13 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     throw new Nhl95HackError('Only one of overtime until a goal and the two shootouts can be on: they decide a tied game three different ways.')
   }
   if (want.threeOnThree && want.threeOnThreeAll) throw new Nhl95HackError('Only one of the two 3 on 3 overtime choices can be on.')
-  if (want.fightingOff && !want.fighting) throw new Nhl95HackError('Fighting starts Off needs Fighting on: it sets where the Fighting row starts.')
+  if ((want.fightingOff || want.fightingArcade) && !want.fighting) throw new Nhl95HackError('The Fighting setting at power-on needs Fighting on.')
+  if (want.fightingOff && want.fightingArcade) throw new Nhl95HackError('The Fighting setting at power-on is one of Off, On and On - Arcade Mode.')
   const work = { rom: project.bytes.slice() }
   // Every known hack comes out, then those wanted go in, as for NHL 94.
   const steps: [Nhl95Hack, () => void, () => void][] = [
-    ['fighting', () => removeFight(work.rom), () => applyFight(work.rom, want.fighting, want.fightingOff)],
+    ['fighting', () => removeFight(work.rom), () => applyFight(work.rom, want.fighting, want.fightingOff ? 0 : want.fightingArcade ? 2 : 1)],
+    ['fightingArcade', () => {}, () => {}],
     // Part of fighting's code, put in with it.
     ['fightingOff', () => {}, () => {}],
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
@@ -670,9 +674,10 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
     'Overtime is played 3 on 3, as in the NHL: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage. Playoff games stay 5 on 5.',
   threeOnThreeAll:
     'Every overtime, playoffs included, is played 3 on 3: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage.',
-  fightingOff: "The Game Setup screen's Fighting row starts at Off when the game is switched on, so there are no fights unless the players choose On or On - Arcade Mode.",
+  fightingOff: 'The Game Setup screen starts with Fighting set to Off; players can still choose On or On - Arcade Mode.',
+  fightingArcade: 'The Game Setup screen starts with Fighting set to On - Arcade Mode; players can still choose Off or On.',
   fighting:
-    "Players can fight. Now and then a hard check between two players who fight (their Fighting ratings) starts one, more likely as a game gets rougher, never in overtime: they drop their gloves and sticks and trade punches until one goes down, and both get five minutes. The Game Setup screen gets a Fighting row: Off, On (the default) or On - Arcade Mode, with more fights. Only players with a Fighting rating of 71 or more start fights (42 in Arcade Mode), against one rated 14 or more; about 0.8 fights a game in the original game.",
+    'Players can fight. A hard check between two players with Fighting ratings can start one, more often as a game gets rougher. Both get five minutes. Game Setup gets a Fighting setting: Off, On, or On - Arcade Mode (more fights).',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -704,7 +709,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
   { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll'] },
-  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.
