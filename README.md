@@ -261,7 +261,7 @@ Then open the address it prints. Other commands:
 | `npm run test:browser` | Opens the built site in a real browser and uses it |
 | `npm run build` | Builds the site into `dist` |
 | `npm run lint` | Checks the code for common mistakes |
-| `npm run verify` | Checks the last commit as GitHub will: a fresh copy with no ROMs, then the lint, the tests and the build |
+| `npm run verify` | Checks the last commit as GitHub will: a fresh copy with no ROMs, then the lint, the tests and the build; then the tests again in a fresh copy with your ROMs, where you have them (`npm run verify -- --no-roms` leaves that out) |
 
 The browser tests need a one-off download of the browser they drive:
 
