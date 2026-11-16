@@ -22,6 +22,7 @@ interface Props {
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
   fighting: 'Players can fight: now and then a hard check between two players who fight starts one. Off, On or Arcade Mode on Game Setup.',
+  fightingOff: "The Game Setup screen's Fighting row starts at Off when the game is switched on; players can still choose On or Arcade Mode.",
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -45,6 +46,13 @@ const ASSISTS_TESTED =
   "NHL '95's code here is NHL 94's instruction for instruction (from the NHL95Genesis disassembly), so it has the same bug, and NHL 94's fix goes in unchanged at NHL '95's addresses, also in the WN95HL's ROMs. Tested in the game by the NHL94 Match Viewer project on the original game and the WN95HL's Season 18 ROM, with the game's own code doing every pickup, pass and shot: a player who wins the puck back and passes to the scorer gets the assist, a give-and-go credits both passers, and a one-timer whose shooter's stick touched the pass keeps its two assists, where the original gives none; a plain one-timer and a teammate's regained puck are as before."
 
 const MORE: Record<Nhl95Hack, ReactNode> = {
+  fightingOff: (
+    <p className="note">
+      The fighting patch sets its Game Setup row to On when the game is switched on. With this, it starts at Off, so a
+      game has no fights unless the players turn them on; the row still offers On and On - Arcade Mode. It needs
+      Fighting, and turns it on.
+    </p>
+  ),
   fighting: (
     <>
       <p className="note">
@@ -287,6 +295,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
                     // The three ways of settling a tie exclude each other: one on turns the others off.
                     const ties = ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] as const
                     const others = on && (ties as readonly string[]).includes(hack) ? Object.fromEntries(ties.filter((t) => t !== hack).map((t) => [t, false])) : {}
+                    // Fighting starts Off is part of fighting: it turns fighting on, and fighting off turns it off.
+                    if (hack === 'fightingOff' && on) Object.assign(others, { fighting: true })
+                    if (hack === 'fighting' && !on) Object.assign(others, { fightingOff: false })
                     setDraft({ rom: project.bytes, choices: { ...wanted, ...others, [hack]: on } })
                     setNotice('')
                     setError('')

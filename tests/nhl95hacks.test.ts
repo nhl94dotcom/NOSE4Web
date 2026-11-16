@@ -303,6 +303,14 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       expect(detectNhl95Hacks(applyNhl95Hacks({ ...rom, bytes: theirs }, { fighting: false }).bytes).choices.fighting).toBe(false)
     }
     expectSameBytes(applyNhl95Hacks(on, { fighting: false }).bytes, rom.bytes)
+    // Starting Off: setup_defaults' move.w #1,($FFCC62).w becomes #0, and back; it needs fighting.
+    const startOff = applyNhl95Hacks(on, { fightingOff: true })
+    expect(detectNhl95Hacks(startOff.bytes).choices).toEqual({ ...NO_NHL95_HACKS, fighting: true, fightingOff: true })
+    expect(Array.from(startOff.bytes.subarray(0x1e0e34, 0x1e0e3a))).toEqual([0x31, 0xfc, 0, 0, 0xcc, 0x62])
+    expect(startOff.bytes.reduce((n, b, i) => n + (b !== on.bytes[i] ? 1 : 0), 0)).toBe(1)
+    expectSameBytes(applyNhl95Hacks(startOff, { fightingOff: false }).bytes, on.bytes)
+    expectSameBytes(applyNhl95Hacks(startOff, { fighting: false, fightingOff: false }).bytes, rom.bytes)
+    expect(() => applyNhl95Hacks(rom, { fightingOff: true })).toThrow(Nhl95HackError)
     // With every other NHL '95 hack, their code placed after its own, through a rebuild.
     const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season')])) as typeof NO_NHL95_HACKS
     const all = applyNhl95Hacks(rom, every)
