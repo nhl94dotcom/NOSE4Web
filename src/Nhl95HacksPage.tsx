@@ -30,6 +30,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
   seasonOvertime: 'A tied regular-season game plays overtime after overtime until a goal, as the playoffs do.',
   seasonShootout: 'A regular-season game still tied after overtime is settled by a shootout.',
+  nhlShootout: "Shootouts follow today's NHL rule: three rounds, then sudden death, over once a team can't catch up.",
   seasonShootoutNow: 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime.',
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
@@ -110,6 +111,15 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       his reach that nothing touched fell from 2,933 to 549 (3,503 to 647), the channel through his middle in the
       stick saves closed, a standing goalie's gap all but gone; every point that played before plays the same. What is
       left is at the edge of his reach, where his body test never reached.
+    </p>
+  ),
+  nhlShootout: (
+    <p className="note">
+      The game plays every shootout to five rounds, even when one team can no longer catch up. With this on it follows
+      today's NHL rule: three rounds, then sudden death, and it ends as soon as the result is settled (for example after
+      the home team's third shot when it trails by two). The home team shoots first. For Shootout mode on the main menu
+      and the regular-season shootouts above. NHL 94's option, made from NHL '95's code, which tests the end of a
+      shootout the same way, also in the WN95HL's ROMs. Not yet tested in an NHL '95 game.
     </p>
   ),
   seasonShootout: (

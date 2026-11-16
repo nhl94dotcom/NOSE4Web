@@ -2415,8 +2415,9 @@ export function HelpPage() {
           project: in NHL '95 a pass now and then goes straight across, or back behind the passer, instead of to the
           teammate he's pointing at; the fix makes passes go where they do in NHL 94. Match Viewer played it on the
           WN95HL's Season 18 ROM. It's an option, not a recommended fix. Also, from NHL 94's overtime and shootout
-          options, <b>overtime until a goal in the regular season</b> (not yet tested in an NHL '95 game); the shootouts
-          and 3 on 3 overtime are to come.
+          options, <b>overtime until a goal in the regular season</b>, a <b>shootout</b> for tied regular-season games
+          (after overtime or after period 3) and the <b>NHL shootout</b> (three rounds, then sudden death), none yet
+          tested in an NHL '95 game; 3 on 3 overtime is to come.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,

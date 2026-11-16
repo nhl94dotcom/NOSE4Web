@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { PASS_CODE, RING_CODE } from '../src/core/hacks'
+import { NHL_SHOOTOUT_CODE, PASS_CODE, RING_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
 import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -235,6 +235,26 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const all = applyNhl95Hacks(rom, { ...every, seasonShootout: true })
     expect(detectNhl95Hacks(buildRom(all)).choices).toEqual({ ...every, seasonShootout: true })
     expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+  })
+
+  it.each(names)("plays %s's shootouts to the NHL's rule: NHL 94's code with NHL '95's four addresses", (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    const on = applyNhl95Hacks(rom, { nhlShootout: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, nhlShootout: true })
+    // jsr / beq.w .switch / NOPs, then the game's own bset #3,(gmode2).w / jsr EndShootout.
+    expect(hex(on.bytes, 0x9dd98, 2)).toBe('4eb9')
+    expect(hex(on.bytes, 0x9dd9e, 4)).toBe('67000028')
+    expect(hex(on.bytes, 0x9dda2, 22)).toBe('4e71'.repeat(11))
+    const code = read32(on.bytes, 0x9dd9a)
+    const expected = Buffer.from(NHL_SHOOTOUT_CODE).toString('hex').replace(/d595/g, 'd1a1').replace(/d578/g, 'd184').replace(/d574/g, 'd180').replace(/d576/g, 'd182')
+    expect(hex(on.bytes, code, NHL_SHOOTOUT_CODE.length)).toBe(expected)
+    expectSameBytes(applyNhl95Hacks(on, { nhlShootout: false }).bytes, rom.bytes)
+    // With a regular-season shootout too.
+    const both = applyNhl95Hacks(rom, { nhlShootout: true, seasonShootout: true })
+    expect(detectNhl95Hacks(both.bytes).choices).toEqual({ ...NO_NHL95_HACKS, nhlShootout: true, seasonShootout: true })
+    expectSameBytes(applyNhl95Hacks(both, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
 })
 

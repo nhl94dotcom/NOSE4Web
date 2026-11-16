@@ -1,6 +1,6 @@
 import { discordPost } from './discord'
 import type { GameConfig } from './games'
-import { assistFixes, hookedFix, PASS_CODE } from './hacks'
+import { assistFixes, hookedFix, NHL_SHOOTOUT_CODE, PASS_CODE } from './hacks'
 import type { HackSheet } from './hacksheet'
 import type { RomProject } from './rom'
 import { claimBeforeTail, claimSpace, fullRomReason } from './space'
@@ -21,10 +21,11 @@ export type Nhl95Hack =
   | 'seasonOvertime'
   | 'seasonShootout'
   | 'seasonShootoutNow'
+  | 'nhlShootout'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94.
-export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   secondAssist: false,
@@ -38,6 +39,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   seasonOvertime: false,
   seasonShootout: false,
   seasonShootoutNow: false,
+  nhlShootout: false,
   passFix: false,
 }
 
@@ -60,6 +62,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   seasonOvertime: 'Overtime until a goal in the regular season',
   seasonShootout: 'A shootout for tied regular-season games, after overtime',
   seasonShootoutNow: 'A shootout for tied regular-season games, after period 3',
+  nhlShootout: 'The NHL shootout: three rounds, then sudden death',
   passFix: 'Pass direction fix',
 }
 
@@ -292,6 +295,26 @@ function applyTies(work: { rom: Uint8Array }, value: Ties): void {
   work.rom.set(Uint8Array.from([...jsrTo(now), 0x4e, 0x71]), TIE_TEST_AT)
 }
 
+// ------------------------------------------------------------ NHL shootout
+// NHL 94's (hacks.ts, nhlShootout): three rounds, then sudden death, over as
+// soon as one team cannot catch up. CountShootoutGoals ($9DD94) makes NHL 94's
+// test after each attempt, 32 bytes at $9DD98, with NHL '95's shootoutteam
+// ($D1A0, its low byte $D1A1), shootoutround ($D184) and shootout goals ($D180,
+// $D182); then, as in NHL 94, bset #3,(gmode2).w and jsr EndShootout. So NHL
+// 94's code goes in with those four addresses, called from the first 6 bytes;
+// its beq.w .switch stays, and the rest of the test become NOPs.
+const NHL_SO_HOOK = { at: 0x9dd98, original: hex('0838 0000 D1A1') }
+const NHL_SO_EDITS = [
+  { at: 0x9dd9e, original: hex('6700 0028'), hacked: hex('6700 0028') },
+  { at: 0x9dda2, original: hex('0C78 0005 D184 6D00 001E 3038 D180 B078 D182 6700 0012'), hacked: hex('4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71') },
+]
+const toHex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+const NHL_SO_CODE = hex(toHex(NHL_SHOOTOUT_CODE).replace(/d595/g, 'd1a1').replace(/d578/g, 'd184').replace(/d574/g, 'd180').replace(/d576/g, 'd182'))
+// What must follow it: bset #3,(gmode2).w; jsr EndShootout.
+const NHL_SO_AFTER = { at: 0x9ddb8, bytes: hex('08F8 0003 BF00 4EB9') }
+const nhlSo = () => hookedFix(NHL_SO_HOOK, NHL_SO_CODE, NHL_SO_EDITS, placeCode)
+const nhlSoState = (rom: Uint8Array) => (matches(rom, NHL_SO_AFTER.at, NHL_SO_AFTER.bytes) ? nhlSo().detect(rom) : undefined)
+
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
 // receiver in whole eighths of a second, rounding toward zero, as NHL 94's
@@ -391,6 +414,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     seasonOvertime: ties === undefined ? undefined : ties === 'overtime',
     seasonShootout: ties === undefined ? undefined : ties === 'shootout',
     seasonShootoutNow: ties === undefined ? undefined : ties === 'shootoutNow',
+    nhlShootout: nhlSoState(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -431,6 +455,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
       () => removeTies(work),
       () => applyTies(work, want.seasonShootoutNow ? 'shootoutNow' : want.seasonShootout ? 'shootout' : want.seasonOvertime ? 'overtime' : 'tie'),
     ],
+    ['nhlShootout', () => nhlSo().remove(work.rom), () => nhlSo().apply(work, want.nhlShootout)],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -466,6 +491,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   blindRingFix:
     "A loose puck close to the goalie's stick but not on its blade now meets the goalie, where the original game lets it through untouched, the way some five-hole goals go in.",
+  nhlShootout:
+    "Shootouts follow today's NHL rule: three rounds, then sudden death, over as soon as one team can't catch up, instead of the game's five rounds played out. For Shootout mode and the regular-season shootouts alike.",
   seasonShootout:
     'A regular-season game still tied after overtime is settled by a shootout, as in Shootout mode; the winners get one goal more, so it never ends in a tie.',
   seasonShootoutNow:
@@ -485,7 +512,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout'] },
 ]
 
 // The hacks this ROM has, as a short post for a league's Discord.
