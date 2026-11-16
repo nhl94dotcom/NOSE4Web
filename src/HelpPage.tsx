@@ -2407,8 +2407,8 @@ export function HelpPage() {
           every team shares. The <b>pause screen banner</b> is the team's nickname on the pause screen, 12 by 2 tiles, in
           the pause screen's colours. The WN95HL's ROMs have no menu banners of their own, so only the other two are
           offered there. In the original game the banners are packed tight, so a detailed one needs{' '}
-          <b>Give logos and banners more room</b> first. NHL 94's banner lettering is not offered for NHL '95. Not yet
-          tested in an NHL '95 game.
+          <b>Give logos and banners more room</b> first; the in-game banners are held to what the playoff tree has room
+          for. NHL 94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
