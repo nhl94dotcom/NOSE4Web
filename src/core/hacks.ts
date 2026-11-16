@@ -539,52 +539,21 @@ const bodychecks: Part<Bodychecks> = {
 // ----------------------------------------------------- second-assist bug fix
 // When two players pass back and forth and one scores, the original game
 // gives no assist to the player who passed to them. Two places call one fix.
+//
+// The three assist fixes below work on a2touchpuck's and onetimershot's
+// instructions, which NHL '95 has unchanged at other addresses: they are made
+// for either game from where those are (assistFixes).
 
-const ASSIST_HOOKS: Hook[] = [0x10188, 0xf6ce4].map((at) => ({ at, original: bytes('3168 001A 001C') }))
-const ASSIST_CODE = bytes('B068 001A 6700 0008 3168 001A 001C 4E75')
-
-// Where the one-timer assist fix has taken over the second place, the fix's
-// own check is in the one-timer fix's code instead (oneTimerAssist below).
-const secondAssist: Part<boolean> = {
-  detect(rom) {
-    const oneTimer = oneTimerCode(rom)
-    if (oneTimer) {
-      if (is(rom, ASSIST_HOOKS[0].at, ASSIST_HOOKS[0].original)) return oneTimer.assist ? undefined : false
-      return hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE) !== null && oneTimer.assist ? true : undefined
-    }
-    if (ASSIST_HOOKS.every((hook) => is(rom, hook.at, hook.original))) return false
-    const targets = ASSIST_HOOKS.map((hook) => hooked(rom, hook, ASSIST_CODE))
-    return targets[0] !== null && targets[0] === targets[1] ? true : undefined
-  },
-  remove(rom) {
-    const target = hooked(rom, ASSIST_HOOKS[0], ASSIST_CODE)
-    if (target === null) return
-    const second = hooked(rom, ASSIST_HOOKS[1], ASSIST_CODE) === target
-    erase(rom, target, ASSIST_CODE.length)
-    rom.set(ASSIST_HOOKS[0].original, ASSIST_HOOKS[0].at)
-    if (second) rom.set(ASSIST_HOOKS[1].original, ASSIST_HOOKS[1].at)
-  },
-  apply(work, value) {
-    if (!value) return
-    const target = place(work, ASSIST_CODE)
-    for (const hook of ASSIST_HOOKS) writeHook(work.rom, hook, target)
-  },
+// Where the assist fixes go in a game.
+export interface AssistPlaces {
+  // a2touchpuck's move.w tmtouch2(a0),tmtouch3(a0), and onetimershot's.
+  assist: [number, number]
+  // a2touchpuck's cmp.w tmtouch1(a0),d0 / beq.w .same, and .same.
+  regain: number
+  regainSame: number
 }
 
-// ------------------------------------------------------ one-timer assist fix
-// Found by the NHL94 Match Viewer project. a2touchpuck adds a player to the
-// last-touch list with three checks: not if he is the last touch already;
-// tmflast, which replaces the last touch rather than moving the list down;
-// and clearing a second assist who is the new last touch. onetimershot puts
-// the shooter on the list with three plain moves at $F6CE4 instead, so when
-// the receiver's stick touched the pass without catching it before the
-// one-timer, the list reads shooter, shooter, passer and the goal has no
-// assist (3 of 71 one-timer goals in recorded games). The fix calls
-// a2touchpuck's own list update there (42 bytes, Match Viewer's). With the
-// second-assist fix on, that fix's check goes in its code too (48 bytes),
-// since this takes over the place the second-assist fix also calls from.
-
-const ONE_TIMER_HOOK: Hook = { at: 0xf6ce4, original: bytes('3168 001A 001C 3168 0018 001A 3140 0018') }
+const ASSIST_CODE = bytes('B068 001A 6700 0008 3168 001A 001C 4E75')
 
 // a2touchpuck's list update as a routine of its own, with d0 the toucher and
 // a0 his team: not if he is the last toucher already; else with the overwrite
@@ -605,36 +574,18 @@ function listUpdate(assist: boolean): Uint8Array {
 }
 const LIST_UPDATES = [false, true].map((assist) => ({ assist, code: listUpdate(assist) }))
 
-// The one-timer fix's code in this ROM, if it has it, where, and which version.
-function oneTimerCode(rom: Uint8Array): { code: Uint8Array; target: number; assist: boolean } | null {
-  for (const version of LIST_UPDATES) {
-    const target = hooked(rom, ONE_TIMER_HOOK, version.code)
-    if (target !== null) return { ...version, target }
-  }
-  return null
-}
-
-const ONE_TIMER_REST = ONE_TIMER_HOOK.original.subarray(6)
-
-const oneTimerAssist = {
-  detect(rom: Uint8Array): boolean | undefined {
-    if (oneTimerCode(rom)) return true
-    // The place as the original game has it, or with the second-assist fix's call in its first six bytes.
-    if (!is(rom, ONE_TIMER_HOOK.at + 6, ONE_TIMER_REST)) return undefined
-    return is(rom, ONE_TIMER_HOOK.at, ONE_TIMER_HOOK.original) || hooked(rom, ASSIST_HOOKS[1], ASSIST_CODE) !== null ? false : undefined
-  },
-  remove(rom: Uint8Array) {
-    const found = oneTimerCode(rom)
-    if (!found) return
-    erase(rom, found.target, found.code.length)
-    rom.set(ONE_TIMER_HOOK.original, ONE_TIMER_HOOK.at)
-  },
-  // After the second-assist fix, whose call at the same place this replaces.
-  apply(work: Work, value: boolean, secondAssistOn: boolean) {
-    if (!value) return
-    hook(work, ONE_TIMER_HOOK, listUpdate(secondAssistOn))
-  },
-}
+// ------------------------------------------------------ one-timer assist fix
+// Found by the NHL94 Match Viewer project. a2touchpuck adds a player to the
+// last-touch list with three checks: not if he is the last touch already;
+// tmflast, which replaces the last touch rather than moving the list down;
+// and clearing a second assist who is the new last touch. onetimershot puts
+// the shooter on the list with three plain moves at $F6CE4 instead, so when
+// the receiver's stick touched the pass without catching it before the
+// one-timer, the list reads shooter, shooter, passer and the goal has no
+// assist (3 of 71 one-timer goals in recorded games). The fix calls
+// a2touchpuck's own list update there (42 bytes, Match Viewer's). With the
+// second-assist fix on, that fix's check goes in its code too (48 bytes),
+// since this takes over the place the second-assist fix also calls from.
 
 // --------------------------------------------- regained-puck assist fix
 // Match Viewer: 8 of 274 recorded goals. puckglue sets tmflast when the
@@ -647,24 +598,99 @@ const oneTimerAssist = {
 // same player they clear the flag and go on to .same ($101A4, by changing
 // the return address), and otherwise return to the original bclr and list
 // update, the second-assist fix's call in it included.
-const REGAIN_HOOK: Hook = { at: 0x10176, original: bytes('B068 0018 6700 0028') }
-const REGAIN_CODE = bytes('B068 0018 660C 08A8 0003 0030 2EBC 0001 01A4 4E75')
 
-const regainAssist: Part<boolean> = {
-  detect(rom) {
-    if (is(rom, REGAIN_HOOK.at, REGAIN_HOOK.original)) return false
-    return hooked(rom, REGAIN_HOOK, REGAIN_CODE) !== null ? true : undefined
-  },
-  remove(rom) {
-    const target = hooked(rom, REGAIN_HOOK, REGAIN_CODE)
-    if (target === null) return
-    erase(rom, target, REGAIN_CODE.length)
-    rom.set(REGAIN_HOOK.original, REGAIN_HOOK.at)
-  },
-  apply(work, value) {
-    if (value) hook(work, REGAIN_HOOK, REGAIN_CODE)
-  },
+// The three fixes, for a game whose instructions are at `places`. `placeCode` puts their code in the ROM and says
+// where (by default, after the ROM's last used byte).
+export function assistFixes(places: AssistPlaces, placeCode: (work: Work, code: Uint8Array) => number = place) {
+  // The code first: placing it can replace work.rom with a larger copy, which the hook must go into.
+  const hook = (work: Work, from: Hook, code: Uint8Array) => {
+    const target = placeCode(work, code)
+    writeHook(work.rom, from, target)
+  }
+  const assistHooks: Hook[] = places.assist.map((at) => ({ at, original: bytes('3168 001A 001C') }))
+  const oneTimerHook: Hook = { at: places.assist[1], original: bytes('3168 001A 001C 3168 0018 001A 3140 0018') }
+  const oneTimerRest = oneTimerHook.original.subarray(6)
+  const regainHook: Hook = { at: places.regain, original: bytes('B068 0018 6700 0028') }
+  const same = places.regainSame.toString(16).toUpperCase().padStart(8, '0')
+  const regainCode = bytes(`B068 0018 660C 08A8 0003 0030 2EBC ${same} 4E75`)
+
+  // The one-timer fix's code in this ROM, if it has it, where, and which version.
+  function oneTimerCode(rom: Uint8Array): { code: Uint8Array; target: number; assist: boolean } | null {
+    for (const version of LIST_UPDATES) {
+      const target = hooked(rom, oneTimerHook, version.code)
+      if (target !== null) return { ...version, target }
+    }
+    return null
+  }
+
+  // Where the one-timer assist fix has taken over the second place, the fix's
+  // own check is in the one-timer fix's code instead (oneTimerAssist below).
+  const secondAssist: Part<boolean> = {
+    detect(rom) {
+      const oneTimer = oneTimerCode(rom)
+      if (oneTimer) {
+        if (is(rom, assistHooks[0].at, assistHooks[0].original)) return oneTimer.assist ? undefined : false
+        return hooked(rom, assistHooks[0], ASSIST_CODE) !== null && oneTimer.assist ? true : undefined
+      }
+      if (assistHooks.every((hook) => is(rom, hook.at, hook.original))) return false
+      const targets = assistHooks.map((hook) => hooked(rom, hook, ASSIST_CODE))
+      return targets[0] !== null && targets[0] === targets[1] ? true : undefined
+    },
+    remove(rom) {
+      const target = hooked(rom, assistHooks[0], ASSIST_CODE)
+      if (target === null) return
+      const second = hooked(rom, assistHooks[1], ASSIST_CODE) === target
+      erase(rom, target, ASSIST_CODE.length)
+      rom.set(assistHooks[0].original, assistHooks[0].at)
+      if (second) rom.set(assistHooks[1].original, assistHooks[1].at)
+    },
+    apply(work, value) {
+      if (!value) return
+      const target = placeCode(work, ASSIST_CODE)
+      for (const hook of assistHooks) writeHook(work.rom, hook, target)
+    },
+  }
+
+  const oneTimerAssist = {
+    detect(rom: Uint8Array): boolean | undefined {
+      if (oneTimerCode(rom)) return true
+      // The place as the original game has it, or with the second-assist fix's call in its first six bytes.
+      if (!is(rom, oneTimerHook.at + 6, oneTimerRest)) return undefined
+      return is(rom, oneTimerHook.at, oneTimerHook.original) || hooked(rom, assistHooks[1], ASSIST_CODE) !== null ? false : undefined
+    },
+    remove(rom: Uint8Array) {
+      const found = oneTimerCode(rom)
+      if (!found) return
+      erase(rom, found.target, found.code.length)
+      rom.set(oneTimerHook.original, oneTimerHook.at)
+    },
+    // After the second-assist fix, whose call at the same place this replaces.
+    apply(work: Work, value: boolean, secondAssistOn: boolean) {
+      if (!value) return
+      hook(work, oneTimerHook, listUpdate(secondAssistOn))
+    },
+  }
+
+  const regainAssist: Part<boolean> = {
+    detect(rom) {
+      if (is(rom, regainHook.at, regainHook.original)) return false
+      return hooked(rom, regainHook, regainCode) !== null ? true : undefined
+    },
+    remove(rom) {
+      const target = hooked(rom, regainHook, regainCode)
+      if (target === null) return
+      erase(rom, target, regainCode.length)
+      rom.set(regainHook.original, regainHook.at)
+    },
+    apply(work, value) {
+      if (value) hook(work, regainHook, regainCode)
+    },
+  }
+
+  return { secondAssist, oneTimerAssist, regainAssist }
 }
+
+const { secondAssist, oneTimerAssist, regainAssist } = assistFixes({ assist: [0x10188, 0xf6ce4], regain: 0x10176, regainSame: 0x101a4 })
 
 // ------------------------------------------------ fourth period length's overtime
 // McMarkis's "5 Minutes, 99 Min OT" (NHL94-Gens-Patches, 99MinOT_Menu), made

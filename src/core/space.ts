@@ -69,6 +69,29 @@ function claimBelow(rom: Uint8Array, size: number, limit: number): { rom: Uint8A
   return { rom: rom.slice(), at }
 }
 
+// Room for `size` bytes in a ROM whose last part is another tool's data, as the WN95HL's NHL '95 ROMs keep
+// theirs (tiles and text) at the very end: at the start of the run of unused bytes just before that part, where
+// the run is long enough (BLOCK at least) that it is surely unused and not part of a picture. Null where there
+// is no such run, or it is too short.
+export function claimBeforeTail(rom: Uint8Array, size: number): { rom: Uint8Array; at: number } | null {
+  const BLOCK = 0x4000
+  let end = rom.length
+  while (end > 0 && rom[end - 1] === UNUSED) end--
+  // Back over the tail's data, to the first long run before it.
+  let i = end
+  while (i > 0) {
+    if (rom[i - 1] !== UNUSED) {
+      i--
+      continue
+    }
+    let start = i
+    while (start > 0 && rom[start - 1] === UNUSED) start--
+    if (i - start >= BLOCK) return i - start >= size + 4 * GAP ? claimBelow(rom, size, i - GAP) : null
+    i = start
+  }
+  return null
+}
+
 // Where room freed in the middle of the ROM, with something added after it,
 // ends: 'NOSEFREE' and where the room starts. So that, when what follows it is
 // taken out too, the room is known to be NOSE4Web's to take back, and not a

@@ -8,7 +8,7 @@
 import { changeReport, type ChangeReport } from './report'
 import { detectHacks, hackChanges, hacksSupported, type HackChoices, type HackPart } from './hacks'
 import { detectSnesHacks, snesHackStateChanges, type SnesHack, type SnesHackChoices, type SnesAmount } from './sneshacks'
-import { detectNhl95Hacks, nhl95HacksSupported, nhl95HackStateChanges, type Nhl95Hack, type Nhl95HackChoices } from './nhl95hacks'
+import { detectNhl95Hacks, NO_NHL95_HACKS, nhl95HacksSupported, nhl95HackStateChanges, type Nhl95Hack, type Nhl95HackChoices } from './nhl95hacks'
 import type { RomProject } from './rom'
 import type { Settings } from './settings'
 import type { Team } from './team'
@@ -58,7 +58,7 @@ function hackChangesSince(project: RomProject, was: HackSnapshot): string[] {
     return hackChanges(was.choices as unknown as HackChoices, now.choices as unknown as HackChoices, [...was.unknown, ...now.unknown] as HackPart[])
   }
   if (nhl95HacksSupported(project.game)) {
-    const state95 = (s: HackSnapshot) => ({ choices: { passFix: false, ...(s.choices as Partial<Nhl95HackChoices>) }, unknown: s.unknown as Nhl95Hack[] })
+    const state95 = (s: HackSnapshot) => ({ choices: { ...NO_NHL95_HACKS, ...(s.choices as Partial<Nhl95HackChoices>) }, unknown: s.unknown as Nhl95Hack[] })
     return nhl95HackStateChanges(state95(was), state95(now))
   }
   const state = (s: HackSnapshot) => ({ choices: s.choices as unknown as SnesHackChoices, unknown: s.unknown as SnesHack[], amounts: s.amounts as Record<SnesAmount, number> | undefined })

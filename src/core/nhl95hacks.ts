@@ -1,24 +1,20 @@
 import { discordPost } from './discord'
 import type { GameConfig } from './games'
+import { assistFixes } from './hacks'
 import type { HackSheet } from './hacksheet'
 import type { RomProject } from './rom'
+import { claimBeforeTail, claimSpace, fullRomReason } from './space'
 
-// Hacks to NHL '95 for the Genesis. NHL 94's hacks are made for NHL 94's code
-// and are not offered here; these are NHL '95's own.
-//
-// The pass direction fix (the NHL94 Match Viewer project's reading of NHL '95's
-// code). vtoa ($7C586) turns the pad's direction into one of the eight ways a
-// pass can go. NHL '95's version scales one of the two axes differently from
-// NHL 94's (lsr.w #1,d0 at $7C5B8), so the eight ways are not split as NHL
-// 94 splits them: Match Viewer measured 26 degrees round left and right where
-// NHL 94 has 63. asl.w #2,d0 in its place
-// gives NHL 94's directions. vtoa has 36 callers, and the change is to all of
-// them; Match Viewer played it on the WN95HL's ROM.
+// Hacks to NHL '95 for the Genesis. NHL 94's hacks are made for NHL 94's code;
+// these are NHL '95's own, or NHL 94's where NHL '95 has the same code at
+// other addresses (the NHL95Genesis disassembly).
 
-export type Nhl95Hack = 'passFix'
-export const NHL95_HACKS: Nhl95Hack[] = ['passFix']
+export type Nhl95Hack = 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'passFix'
+// In the order they are taken out and put in: the one-timer fix takes over a
+// place the second-assist fix calls from, as in NHL 94.
+export const NHL95_HACKS: Nhl95Hack[] = ['secondAssist', 'oneTimerAssist', 'regainAssist', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
-export const NO_NHL95_HACKS: Nhl95HackChoices = { passFix: false }
+export const NO_NHL95_HACKS: Nhl95HackChoices = { secondAssist: false, oneTimerAssist: false, regainAssist: false, passFix: false }
 
 export interface Nhl95HackState {
   choices: Nhl95HackChoices
@@ -26,11 +22,47 @@ export interface Nhl95HackState {
   unknown: Nhl95Hack[]
 }
 
+// NHL 94's titles where the fix is NHL 94's.
 export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
+  secondAssist: 'Second-assist bug fix',
+  oneTimerAssist: 'One-timer assist fix',
+  regainAssist: 'Regained-puck assist fix',
   passFix: 'Pass direction fix',
 }
 
 const hex = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
+
+// ------------------------------------------------------------ assist fixes
+// a2touchpuck ($8142C) and onetimershot are NHL 94's instruction for
+// instruction, with the team struct's last-touch list at the same offsets, so
+// they have the same three assist bugs (the NHL94 Match Viewer project found
+// them in NHL '95's code), and NHL 94's fixes (hacks.ts) go in as they are:
+// a2touchpuck's move.w tmtouch2(a0),tmtouch3(a0) at $81476 and onetimershot's
+// at $82F28; its cmp.w tmtouch1(a0),d0 / beq.w .same at $81464, .same at
+// $81492. The WN95HL's ROMs have them at the same places. Each is changed
+// only where its bytes are the original game's or the fix's.
+//
+// Their code goes after the ROM's last used byte, or where something else is
+// at the very end, as the WN95HL's ROMs keep tiles and text there, at the start
+// of the long run of unused bytes before it (claimBeforeTail).
+function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
+  const claimed = claimSpace(work.rom, code.length, true) ?? claimBeforeTail(work.rom, code.length)
+  if (!claimed) throw new Nhl95HackError(`There is no room left in this ROM for the code this needs.${fullRomReason(work.rom)}`)
+  work.rom = claimed.rom
+  work.rom.set(code, claimed.at)
+  return claimed.at
+}
+const assist = assistFixes({ assist: [0x81476, 0x82f28], regain: 0x81464, regainSame: 0x81492 }, placeCode)
+
+// ------------------------------------------------------------- pass fix
+// The NHL94 Match Viewer project's reading of NHL '95's code. vtoa ($7C586)
+// turns the pad's direction into one of the eight ways a pass can go. NHL
+// '95's version scales one of the two axes differently from NHL 94's
+// (lsr.w #1,d0 at $7C5B8), so the eight ways are not split as NHL 94 splits
+// them: Match Viewer measured 26 degrees round left and right where NHL 94
+// has 63. asl.w #2,d0 in its place gives NHL 94's directions. vtoa has 36
+// callers, and the change is to all of them; Match Viewer played it on the
+// WN95HL's ROM.
 
 // vtoa, from its movem to the instruction before the one changed: the same in
 // the original game and the WN95HL's ROMs.
@@ -42,17 +74,31 @@ const FIXED = hex('E548') // asl.w #2,d0
 // After it: cmp.w d0,d1 / bhi.w +6 / bset #3,d2.
 const AFTER = hex('B240 6200 0006 08C2 0003')
 
+const matches = (rom: Uint8Array, at: number, bytes: Uint8Array) => at + bytes.length <= rom.length && bytes.every((b, i) => rom[at + i] === b)
+
+function passFixState(rom: Uint8Array): boolean | undefined {
+  if (!matches(rom, VTOA_AT, VTOA) || !matches(rom, PASS_AT + 2, AFTER)) return undefined
+  if (matches(rom, PASS_AT, FIXED)) return true
+  return matches(rom, PASS_AT, ORIGINAL) ? false : undefined
+}
+
+// --------------------------------------------------------------- the page
+
 export function nhl95HacksSupported(game: GameConfig): boolean {
   return game.platform === 'genesis' && game.edition === 95
 }
 
-const matches = (rom: Uint8Array, at: number, bytes: Uint8Array) => at + bytes.length <= rom.length && bytes.every((b, i) => rom[at + i] === b)
-
 export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
-  const around = matches(rom, VTOA_AT, VTOA) && matches(rom, PASS_AT + 2, AFTER)
-  const passFix = around && matches(rom, PASS_AT, FIXED)
-  const known = around && (passFix || matches(rom, PASS_AT, ORIGINAL))
-  return { choices: { passFix }, unknown: known ? [] : ['passFix'] }
+  const found: Record<Nhl95Hack, boolean | undefined> = {
+    secondAssist: assist.secondAssist.detect(rom),
+    oneTimerAssist: assist.oneTimerAssist.detect(rom),
+    regainAssist: assist.regainAssist.detect(rom),
+    passFix: passFixState(rom),
+  }
+  return {
+    choices: Object.fromEntries(NHL95_HACKS.map((hack) => [hack, found[hack] ?? false])) as Nhl95HackChoices,
+    unknown: NHL95_HACKS.filter((hack) => found[hack] === undefined),
+  }
 }
 
 export class Nhl95HackError extends Error {}
@@ -65,16 +111,30 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: this ROM's code there is not the original game's, so it is left as it is.`)
   }
   if (change.length === 0) return project
-  const rom = project.bytes.slice()
-  if (change.includes('passFix')) rom.set(wanted.passFix ? FIXED : ORIGINAL, PASS_AT)
-  return { ...project, bytes: rom }
+  const want: Nhl95HackChoices = { ...choices, ...Object.fromEntries(change.map((hack) => [hack, wanted[hack]])) }
+  const work = { rom: project.bytes.slice() }
+  // Every known hack comes out, then those wanted go in, as for NHL 94.
+  const steps: [Nhl95Hack, () => void, () => void][] = [
+    ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
+    ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
+    ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
+    ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
+  ]
+  const known = steps.filter(([hack]) => !unknown.includes(hack))
+  try {
+    for (const [, remove] of known) remove()
+    for (const [, , apply] of known) apply()
+  } catch (e) {
+    throw new Nhl95HackError(e instanceof Error ? e.message : String(e))
+  }
+  return { ...project, bytes: work.rom }
 }
 
 // "Pass direction fix: off to on.", for each hack that differs.
 export function nhl95HackStateChanges(was: Pick<Nhl95HackState, 'choices' | 'unknown'>, now: Pick<Nhl95HackState, 'choices' | 'unknown'>): string[] {
   const onOff = (value: boolean) => (value ? 'on' : 'off')
-  return NHL95_HACKS.filter((hack) => was.choices[hack] !== now.choices[hack] && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map(
-    (hack) => `${NHL95_HACK_TITLES[hack]}: ${onOff(was.choices[hack])} to ${onOff(now.choices[hack])}.`,
+  return NHL95_HACKS.filter((hack) => (was.choices[hack] ?? false) !== now.choices[hack] && !was.unknown.includes(hack) && !now.unknown.includes(hack)).map(
+    (hack) => `${NHL95_HACK_TITLES[hack]}: ${onOff(was.choices[hack] ?? false)} to ${onOff(now.choices[hack])}.`,
   )
 }
 
@@ -84,9 +144,18 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
+  oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
+  regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   passFix:
     "A pass goes the way the pad points, split into the eight directions as NHL 94 splits them. NHL '95 splits them differently, so with the pad between straight across and a diagonal a pass can go another way than in NHL 94. The same routine also turns skaters for other things, which change the same way.",
 }
+
+// Where each is shown: the page's sections, and the hack sheet's.
+export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
+  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
+  { id: 'play', title: 'How the game plays', hacks: ['passFix'] },
+]
 
 // The hacks this ROM has, as a short post for a league's Discord.
 export function nhl95HacksForDiscord(rom: Uint8Array, name: string): string {
@@ -98,11 +167,9 @@ export function nhl95HacksForDiscord(rom: Uint8Array, name: string): string {
 // The same, each hack explained, as a hack sheet (hacksheet.ts).
 export function nhl95HackSheet(rom: Uint8Array, name: string): HackSheet {
   const { choices, unknown } = detectNhl95Hacks(rom)
-  const items = NHL95_HACKS.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => ({ title: NHL95_HACK_TITLES[hack], text: NHL95_HACK_TEXTS[hack] }))
-  return {
-    name,
-    game: "NHL '95 for the Genesis",
-    sections: items.length > 0 ? [{ heading: 'How the game plays', items }] : [],
-    unread: NHL95_HACKS.filter((hack) => unknown.includes(hack)).map((hack) => NHL95_HACK_TITLES[hack]),
-  }
+  const sections = NHL95_HACK_SECTIONS.map((section) => ({
+    heading: section.title,
+    items: section.hacks.filter((hack) => choices[hack] && !unknown.includes(hack)).map((hack) => ({ title: NHL95_HACK_TITLES[hack], text: NHL95_HACK_TEXTS[hack] })),
+  })).filter((section) => section.items.length > 0)
+  return { name, game: "NHL '95 for the Genesis", sections, unread: NHL95_HACKS.filter((hack) => unknown.includes(hack)).map((hack) => NHL95_HACK_TITLES[hack]) }
 }
