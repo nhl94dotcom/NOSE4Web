@@ -2418,7 +2418,7 @@ export function HelpPage() {
           options, <b>overtime until a goal in the regular season</b>, a <b>shootout</b> for tied regular-season games
           (after overtime or after period 3) and the <b>NHL shootout</b> (three rounds, then sudden death), all played
           by Match Viewer on both ROMs; and <b>3 on 3 overtime</b>, outside the playoffs or in every overtime, as NHL
-          94's (not yet tested in an NHL '95 game). And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
+          94's, played by Match Viewer on both ROMs. And <b>Fighting</b>: Vancecookcobxin's fighting patch, which brings back the fight EA drew for NHL '95
           and left unused, with the NHL 2026 - 94 Edition's fight engine, and adds a Fighting row (Off, On, On - Arcade
           Mode) to the Game Setup screen, which starts at On, or at Off with <b>Fighting starts Off</b>; for the original game, the 34-team ROM and the WN95HL's ROMs, with the NHL94
           Match Viewer project's fix (as it came, no fight could start on 5- or 10-minute periods), and played by Match

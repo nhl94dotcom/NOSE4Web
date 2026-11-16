@@ -50,13 +50,15 @@ const ASSISTS_TESTED =
 const OT3_MORE = (
   <p className="note">
     Each team plays its goalie and three skaters from the line on the ice: the centre (for the draws), the left wing
-    and the right defenceman. A penalty gives the other team a skater more, 4 on 3, then 5 on 3 with a second one, and
-    a team never has more than two skaters more than the other. When a penalty ends the player comes back, 4 on 4,
-    and at the next stoppage it is 3 on 3 again; a penalty from the third period carries into overtime. With the goalie
+    and the right defenceman. A penalty gives the other team a skater more, 4 on 3, then 5 on 3 with a second one.
+    With three of a team in the box at once it plays two skaters, as the game has room on the ice for no more then
+    (each team has six places, and a boxed player keeps his). When a penalty ends the player comes back, 4 on 4, and at
+    the next stoppage it is 3 on 3 again; a penalty from the third period carries into overtime. With the goalie
     pulled, a team plays four skaters. Line changes On or Off make no difference. NHL 94's option, which the NHL94
     Match Viewer project tested and helped put right, made from NHL '95's code at its own places, also in the WN95HL's
-    ROMs. Not yet tested in an NHL '95 game. Only one of the two can be on; it works with overtime until a goal and the
-    shootout after overtime.
+    ROMs. Tested by Match Viewer in 25 overtimes on the original game and the WN95HL's Season 18 ROM: the units,
+    power plays and returns, the power-play clock, the draws, a pulled goalie, playoffs and the shootout after it all
+    as above. Only one of the two can be on; it works with overtime until a goal and the shootout after overtime.
   </p>
 )
 
