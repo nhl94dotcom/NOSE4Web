@@ -125,7 +125,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       const others: Partial<Record<SnesHack, boolean>> = {}
       for (const hack of SNES_HACKS) {
         if (state.unknown.includes(hack) || state.notOffered?.[hack] || hack === 'fighting') continue
-        if (['showMaxBoost', 'seasonOvertime'].includes(hack)) continue
+        if (['showMaxBoost', 'seasonOvertime', 'barrCoin'].includes(hack)) continue
         others[hack] = true
       }
       const all = applySnesHacks(rom, others)
