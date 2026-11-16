@@ -28,11 +28,16 @@ export type Nhl95Hack =
   | 'nhlShootout'
   | 'threeOnThree'
   | 'threeOnThreeAll'
+  | 'runawayFix'
+  | 'goaliePullFix'
+  | 'snipingFix'
+  | 'penaltyShotTableFix'
+  | 'penaltyShotFixes'
   | 'passFix'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'passFix']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -52,6 +57,11 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   nhlShootout: false,
   threeOnThree: false,
   threeOnThreeAll: false,
+  runawayFix: false,
+  goaliePullFix: false,
+  snipingFix: false,
+  penaltyShotTableFix: false,
+  penaltyShotFixes: false,
   passFix: false,
 }
 
@@ -80,6 +90,11 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   nhlShootout: 'The NHL shootout: three rounds, then sudden death',
   threeOnThree: '3 on 3 overtime, outside the playoffs',
   threeOnThreeAll: '3 on 3 overtime, playoffs included',
+  runawayFix: 'Runaway speed fix',
+  goaliePullFix: 'Computer goalie pull fix',
+  snipingFix: 'Pulled-goalie sniping fix',
+  penaltyShotTableFix: 'Penalty shot table fix',
+  penaltyShotFixes: 'Penalty shot fixes',
   passFix: 'Pass direction fix',
 }
 
@@ -126,6 +141,19 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   aggressionFix: { at: 0x83c7c, original: hex('1743 0073 022B 000F 0073'), hacked: hex('6100 000A E20B 1743 0073') },
   comebackFix: { at: 0x83a2c, original: hex('6E00 0026'), hacked: hex('6D00 0026') },
   openNetFix: { at: 0x84ed2, original: hex('4240 B87C 002C'), hacked: hex('7008 B87C 002C') },
+  // NHL 94's fixes at NHL '95's places (the same code there):
+  // - CPgoalie ($83662) pulls a computer goalie in the last minute only when
+  //   exactly two behind (bmi / cmp #2 / bne at $83674); ble / bgt pulls him
+  //   one or two behind, as NHL 94's fix does.
+  goaliePullFix: { at: 0x83674, original: hex('6B00 E3E6 B07C 0002 6600 E3DE'), hacked: hex('6F00 E3E6 B07C 0002 6E00 E3DE') },
+  // - doshot: within range, a shot by a team whose goalie is off the ice goes
+  //   exactly where aimed (jsr ReadGoaliePulled / bmi.w .perf at $84CCC); the
+  //   bmi becomes NOPs, so it takes the accuracy roll as any other shot.
+  snipingFix: { at: 0x84ccc, original: hex('6B00 008C'), hacked: hex('4E71 4E71') },
+  // - PenShotPenalties ($89FFC), the penalty shot for each foul, read by
+  //   PenShotChk with (a0,d0.w) one place too far along: words 10 to 17 move
+  //   along one, as in NHL 94, so each foul gives its own.
+  penaltyShotTableFix: { at: 0x8a010, original: hex('0038 003C 0036 003A 002E 0030 0034 FFFF'), hacked: hex('FFFF 0038 003C 0036 003A 002E 0030 0034') },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -135,6 +163,15 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
   ],
   comebackFix: [{ at: 0x83a20, bytes: hex('4EB9 0007 D4CA E248 B078 C022') }],
   openNetFix: [{ at: 0x84ecc, bytes: hex('6100 004C D845') }],
+  goaliePullFix: [
+    { at: 0x8366c, bytes: hex('3029 000C 906A 000C') }, // move.w tmscore(a1),d0 / sub.w tmscore(a2),d0
+    { at: 0x83680, bytes: hex('0C78 003C C022') },
+  ],
+  snipingFix: [
+    { at: 0x84cc6, bytes: hex('4EB9 0007 CB0A') }, // jsr ReadGoaliePulled
+    { at: 0x84cd0, bytes: hex('0838 0000 BF00') },
+  ],
+  penaltyShotTableFix: [{ at: 0x9ef02, bytes: hex('207C 0008 9FFC') }], // PenShotChk's movea.l #PenShotPenalties,a0
 }
 
 function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
@@ -403,6 +440,60 @@ function applyOt3(work: { rom: Uint8Array }, choice: Ot3) {
   if (choice !== 'off') for (const part of ot3Parts(choice)) part.apply(work, true)
 }
 
+// ------------------------------------------------------- runaway speed fix
+// NHL 94's (hacks.ts, runawayFix). pfdoff (pflags bit 0) makes a skater slow
+// far less each frame, for a computer skater gliding onto a pass, a one-timer,
+// and a skater knocked into the boards; three ways leave it on. At NHL '95's
+// places, the same code:
+// - asspassrec's branch for a person's skater (bne.w at $81972) goes to .exit
+//   ($81A3C: bclr #pfdoff, then assexit) rather than past it.
+// - The end of a fall clears pf3fall (pflags3 bit 5) at three places in NHL
+//   '95 ($A5C6, $A5F2, $A60E; NHL 94 has one); each also clears pfdoff where
+//   pf3fall was set.
+// - EndOneTimer clears pf3onetimer at $82F64; it also clears pfdoff.
+// NHL '95's speed burst already clears pfdoff (NHL 94's does not), so bursts
+// do not stack there, but the glide is still left on.
+const RUNAWAY_FALL_HOOKS = [0xa5c6, 0xa5f2, 0xa60e].map((at) => ({ at, original: hex('08AB 0005 0064') }))
+const RUNAWAY_FALL_CODE = hex('08AB 0005 0064 6706 08AB 0000 0062 4E75')
+const RUNAWAY_ONETIMER_HOOK = { at: 0x82f64, original: hex('08AB 0003 0064') }
+const RUNAWAY_ONETIMER_CODE = hex('08AB 0003 0064 08AB 0000 0062 4E75')
+const RUNAWAY_EDITS = [{ at: 0x81974, original: hex('FBEA'), hacked: hex('00C8') }]
+// What must be around: btst #pfjoycon / bne.w before the branch, and .exit where it is to go.
+const RUNAWAY_AROUND = [
+  { at: 0x8196c, bytes: hex('082B 0003 0062 6600') },
+  { at: 0x81a3c, bytes: hex('08AB 0000 0062 4EF9 0008 155E') },
+]
+const runawayParts = () => [
+  ...RUNAWAY_FALL_HOOKS.map((hook) => hookedFix(hook, RUNAWAY_FALL_CODE, [], placeCode)),
+  hookedFix(RUNAWAY_ONETIMER_HOOK, RUNAWAY_ONETIMER_CODE, RUNAWAY_EDITS, placeCode),
+]
+function runawayState(rom: Uint8Array): boolean | undefined {
+  if (!RUNAWAY_AROUND.every((around) => matches(rom, around.at, around.bytes))) return undefined
+  const states = runawayParts().map((part) => part.detect(rom))
+  if (states.every((state) => state === false)) return false
+  return states.every((state) => state === true) ? true : undefined
+}
+
+// ---------------------------------------------------- penalty shot fixes
+// NHL 94's two (hacks.ts, penaltyShotFixes), at NHL '95's places, the same code:
+// - The repeated penalty shot: puckshootout's .initflags ($9E64E) clears
+//   BA_PS_flags ($BEF8) bits 2, 4, 5 and 6 but not 3, the penalty shot's own,
+//   so a whistle that is not one of its endings sends the game back to it.
+//   andi.b #$83 clears bits 2 to 6, then NOPs.
+// - The ghost puck: a puck that went out of play keeps pfnc (pflags bit 2,
+//   $B3C4) into the penalty shot. SetupPenaltyShot ($9ED4E) clears it, after
+//   its movea.w tmsort(a2),a3 / moveq #5,d4 at $9ED52.
+const PS_HOOK = { at: 0x9ed52, original: hex('366A 0022 7805') }
+const PS_CODE = hex('366A 0022 7805 08B8 0002 B3C4 4E75')
+const PS_EDITS = [
+  {
+    at: 0x9e64e,
+    original: hex('08B8 0002 BEF8 08B8 0004 BEF8 08B8 0005 BEF8 08B8 0006 BEF8'),
+    hacked: hex('0238 0083 BEF8 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71'),
+  },
+]
+const psFixes = () => hookedFix(PS_HOOK, PS_CODE, PS_EDITS, placeCode)
+
 // ------------------------------------------------------- rocket pass fix
 // passtoa0 ($847BA here; input95.asm) works out when a pass meets its
 // receiver in whole eighths of a second, rounding toward zero, as NHL 94's
@@ -591,6 +682,11 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     nhlShootout: nhlSoState(rom),
     threeOnThree: ot3 === undefined ? undefined : ot3 === 'season',
     threeOnThreeAll: ot3 === undefined ? undefined : ot3 === 'all',
+    runawayFix: runawayState(rom),
+    goaliePullFix: switchState(rom, 'goaliePullFix'),
+    snipingFix: switchState(rom, 'snipingFix'),
+    penaltyShotTableFix: switchState(rom, 'penaltyShotTableFix'),
+    penaltyShotFixes: psFixes().detect(rom),
     passFix: passFixState(rom),
   }
   return {
@@ -628,7 +724,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -644,6 +740,8 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     // The two 3 on 3 choices share their places, so they are one step.
     ['threeOnThree', () => removeOt3(work.rom), () => applyOt3(work, want.threeOnThreeAll ? 'all' : want.threeOnThree ? 'season' : 'off')],
     ['threeOnThreeAll', () => {}, () => {}],
+    ['runawayFix', () => runawayParts().forEach((part) => part.remove(work.rom)), () => runawayParts().forEach((part) => part.apply(work, want.runawayFix))],
+    ['penaltyShotFixes', () => psFixes().remove(work.rom), () => psFixes().apply(work, want.penaltyShotFixes)],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
@@ -670,6 +768,14 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  runawayFix:
+    'A skater no longer slides on far past top speed after you take him over with a pass coming, after he gets up from a fall into the boards, or after a missed one-timer.',
+  goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two behind.',
+  snipingFix:
+    "A team whose goalie is off the ice no longer has every shot within range go exactly where aimed: it takes the shooter's accuracy roll as any other shot does.",
+  penaltyShotTableFix: 'Each foul on a breakaway gives its own penalty shot, where the original calls every one as the next foul along.',
+  penaltyShotFixes:
+    'A penalty shot stopped by a stray whistle is no longer taken all over again, and a puck shot out just before a penalty shot no longer floats through everything.',
   threeOnThree:
     'Overtime is played 3 on 3, as in the NHL: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage. Playoff games stay 5 on 5.',
   threeOnThreeAll:
@@ -707,8 +813,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'penaltyShotTableFix', 'penaltyShotFixes'] },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade'] },
 ]
 

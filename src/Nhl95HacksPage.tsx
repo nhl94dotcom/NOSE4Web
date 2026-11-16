@@ -26,6 +26,11 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   threeOnThreeAll: 'Every overtime is 3 on 3, playoffs included; a penalty makes it 4 on 3.',
   fightingOff: 'What the Fighting setting on Game Setup starts at when the game is switched on. Players can still change it.',
   fightingArcade: '',
+  runawayFix: 'A skater no longer slides on far past top speed after you take him over, after a fall into the boards, or after a missed one-timer.',
+  goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two.',
+  snipingFix: "With its goalie off the ice, a team's shots take the normal accuracy roll instead of always going exactly where aimed.",
+  penaltyShotTableFix: 'Each foul on a breakaway gives its own penalty shot, not the next foul along.',
+  penaltyShotFixes: 'A penalty shot stopped by a stray whistle is not taken again, and no "ghost puck" floats through everything.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
@@ -69,6 +74,49 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
     </p>
   ),
   fightingArcade: null,
+  runawayFix: (
+    <p className="note">
+      Now and then a skater shoots off past top speed and slides out of control for a second or two. The game lets a
+      skater glide, barely slowing, while a pass comes to him, after he is knocked into the boards, and during a
+      one-timer, and three things leave the glide on: taking him over while a pass is coming, getting up from the fall,
+      and a one-timer that misses. This turns it off in all three, so he skates normally. In NHL '95 a speed burst
+      already ends the glide, so the runaway is milder than in NHL 94. NHL 94's fix, at NHL '95's places (also in the
+      WN95HL's ROMs). Not yet tested in an NHL '95 game.
+    </p>
+  ),
+  goaliePullFix: (
+    <p className="note">
+      In the last minute of the third period the computer pulls its goalie for an extra attacker, but only when exactly
+      two goals behind, never when one down. With this on it pulls him when one or two behind, as a real coach would.
+      While he is out, the computer's shots within range go exactly where aimed unless the pulled-goalie sniping fix is
+      on too. NHL 94's fix, at NHL '95's places. Not yet tested in an NHL '95 game.
+    </p>
+  ),
+  snipingFix: (
+    <p className="note">
+      An option, a matter of taste: some leagues like it as it is. Whenever a team's goalie is off the ice (on a
+      delayed penalty, or pulled late in a game) the game makes every one of its shots from within range go exactly
+      where aimed, whatever the shooter's Shot Accuracy. With the fix such a shot takes the normal accuracy roll. Shots
+      at an empty net are not affected. NHL 94's fix, at NHL '95's places. Not yet tested in an NHL '95 game.
+    </p>
+  ),
+  penaltyShotTableFix: (
+    <p className="note">
+      A foul on a skater on a breakaway can give a penalty shot. The game looks each foul up one place too far along
+      its table, so every penalty shot is called for the wrong foul: charging as slashing, slashing as roughing, and so
+      on. This gives each foul its own. Which fouls give penalty shots does not change. NHL 94's fix, at NHL '95's
+      places. Not yet tested in an NHL '95 game.
+    </p>
+  ),
+  penaltyShotFixes: (
+    <p className="note">
+      Two penalty shot bugs. A penalty shot stopped by a whistle that is not one of its own endings, such as the puck
+      going over the glass, is taken all over again; with the fix the game goes on to a faceoff. And a puck shot over
+      the glass just before a penalty shot can enter it unable to touch anything, floating through the net and the
+      boards (the "ghost puck"); with the fix it plays normally. NHL 94's fixes, at NHL '95's places. Not yet tested
+      in an NHL '95 game.
+    </p>
+  ),
   fighting: (
     <p className="note">
       Brings back the fight EA drew for NHL '95 and left unused: Vancecookcobxin's fighting patch, with a fix by the

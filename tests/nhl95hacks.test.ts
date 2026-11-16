@@ -369,5 +369,38 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(buildRom(league)).choices).toEqual({ ...NO_NHL95_HACKS, threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
     expectSameBytes(applyNhl95Hacks(league, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
+
+  it.each(names)("puts NHL 94's runaway, goalie pull, sniping and penalty shot fixes into %s at NHL '95's places", (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    const fixes = { runawayFix: true, goaliePullFix: true, snipingFix: true, penaltyShotTableFix: true, penaltyShotFixes: true }
+    const on = applyNhl95Hacks(rom, fixes)
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    // The switches.
+    expect(hex(on.bytes, 0x83674, 12)).toBe('6f00e3e6b07c00026e00e3de')
+    expect(hex(on.bytes, 0x84ccc, 4)).toBe('4e714e71')
+    expect(hex(on.bytes, 0x8a010, 16)).toBe('ffff0038003c0036003a002e00300034')
+    // The runaway fix: each fall end calls its own copy of the code; the one-timer's end, and the branch to .exit.
+    const falls = [0xa5c6, 0xa5f2, 0xa60e].map((at) => {
+      expect(hex(on.bytes, at, 2)).toBe('4eb9')
+      const code = read32(on.bytes, at + 2)
+      expect(hex(on.bytes, code, 16)).toBe('08ab0005006467060' + '8ab000000624e75')
+      return code
+    })
+    expect(new Set(falls).size).toBe(3)
+    expect(hex(on.bytes, read32(on.bytes, 0x82f66), 14)).toBe('08ab0003006408ab000000624e75')
+    expect(hex(on.bytes, 0x81972, 4)).toBe('660000c8')
+    // The penalty shot fixes: andi.b #$83,($BEF8).w then NOPs; SetupPenaltyShot's hook clearing the puck's pfnc.
+    expect(hex(on.bytes, 0x9e64e, 24)).toBe('02380083bef8' + '4e71'.repeat(9))
+    expect(hex(on.bytes, read32(on.bytes, 0x9ed54), 14)).toBe('366a0022780508b80002b3c44e75')
+    // Each comes out on its own, and all of them byte for byte.
+    for (const fix of Object.keys(fixes)) {
+      const without = applyNhl95Hacks(on, { [fix]: false })
+      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes, [fix]: false })
+    }
+    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+  })
 })
 
