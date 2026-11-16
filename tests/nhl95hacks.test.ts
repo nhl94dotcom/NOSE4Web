@@ -79,7 +79,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const sheet = nhl95HackSheet(on, 'W18')
     expect(sheet.game).toBe("NHL '95 for the Genesis")
     expect(sheet.sections[0].items[0].title).toBe('Pass direction fix')
-    expect(hackSheetDiscord(sheet)[0]).toContain('- **Pass direction fix**: A pass goes the way the pad points')
+    expect(hackSheetDiscord(sheet)[0]).toContain("- **Pass direction fix**: Passes go to the teammate you're pointing at")
     expect(hackSheetHtml(sheet)).toContain('<dt>Pass direction fix</dt>')
   })
 

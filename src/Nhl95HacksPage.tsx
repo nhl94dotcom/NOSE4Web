@@ -29,7 +29,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
   blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
-  passFix: 'Passes go the way the pad points, split into the eight directions as NHL 94 splits them.',
+  passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
 }
 
 // NHL 94's fixes, tested in NHL '95 too.
@@ -132,20 +132,26 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
   passFix: (
     <>
       <p className="note">
-        A pass goes the way the carrier faces when the pass button is let go, and the pad turns him. The routine that
-        turns the pad's direction into one of the eight ways (vtoa, at $7C586) is NHL 94's with one instruction changed,
-        which splits the eight ways differently from NHL 94. The fix puts NHL 94's instruction back (at $7C5B8). The
-        game uses that routine in 35 other places as well, and they change the same way. An option, not a recommended
-        fix: some leagues may prefer the game as it is.
+        When you pass, the game looks for a teammate in the direction you're pointing. NHL '95 changed one instruction
+        in how it works that direction out, compared with NHL 94, and now and then the pass goes somewhere you didn't
+        aim. Match Viewer played the same 31 passes on the WN95HL's Season 18 ROM with and without the fix:
       </p>
+      <ul className="note">
+        <li>26 went exactly the same.</li>
+        <li>
+          Twice, a player facing right, with a teammate off at an angle on that side, passed straight across instead of to him.
+          With the fix, the pass went to the teammate.
+        </li>
+        <li>
+          Three times, a player facing on a diagonal passed back to a teammate well behind him. With the fix, the pass
+          went the way he was facing.
+        </li>
+      </ul>
       <p className="note">
-        Tested by Match Viewer in the game on the WN95HL's Season 18 ROM, at 31 moments played the same way on both
-        ROMs: the B pass went the same way 26 times. Of the other 5, twice the carrier faced right with a teammate about
-        50 degrees off it, and the fix passed to him where the original passed straight across; three times he faced a
-        diagonal with a teammate well behind, and the original passed back to him (54 to 108 degrees off the way he
-        faced) where the fix passed along the way he faced. The A pass, the soft pass, does not use the routine: 18 of 18
-        the same. In 8 of 26 moments where the pass was the same, a different player got the puck next, probably because
-        the computer's skaters turned a little differently; that was not looked into further.
+        The fix puts back NHL 94's instruction. Only the regular pass (B) changes; the soft pass (A) works out its
+        direction another way and never changes (18 of 18 the same). The game uses the same step to turn computer players
+        in other situations, so they may move a little differently too. An option, not a recommended fix: some leagues
+        may prefer passing as NHL '95 has always done it.
       </p>
     </>
   ),

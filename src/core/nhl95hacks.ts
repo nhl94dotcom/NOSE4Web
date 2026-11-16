@@ -305,7 +305,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
   rocketFix:
     'Passes go at their own speed: the game no longer sends some of them up to twice as fast, or many times faster, when it rounds the time a pass takes to reach its man. Slow flat passes stay four times as slow.',
   passFix:
-    "A pass goes the way the pad points, split into the eight directions as NHL 94 splits them. NHL '95 splits them differently, so with the pad between straight across and a diagonal a pass can go another way than in NHL 94. The same routine also turns skaters for other things, which change the same way.",
+    "Passes go to the teammate you're pointing at, as in NHL 94. In the original NHL '95 a pass now and then goes straight across instead of to a teammate off at an angle on that side, or back to a teammate behind the passer. The soft pass is unchanged.",
 }
 
 // Where each is shown: the page's sections, and the hack sheet's.

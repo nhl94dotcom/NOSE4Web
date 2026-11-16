@@ -2411,11 +2411,10 @@ export function HelpPage() {
           fix, and the{' '}
           <b>rocket pass fix</b>, with NHL '95's slow flat pass kept. The NHL94 Match Viewer project has tested the assist
           fixes, the Aggression and comeback bonus fixes, the open net fix, the five-hole fix and the rocket pass fix in NHL '95 on the
-          original game and the WN95HL's Season 18 ROM (the rocket pass fix's last change, to the receiver's wait on slow
-          passes, is still to be played). And the <b>pass direction fix</b>, from
-          the NHL94 Match Viewer project: NHL '95 splits the pad's directions for a pass differently from NHL 94, and the
-          fix puts NHL 94's way back. Match Viewer played it on the WN95HL's Season 18 ROM. It's an option, not a
-          recommended fix.
+          original game and the WN95HL's Season 18 ROM. And the <b>pass direction fix</b>, from the NHL94 Match Viewer
+          project: in NHL '95 a pass now and then goes straight across, or back behind the passer, instead of to the
+          teammate he's pointing at; the fix makes passes go where they do in NHL 94. Match Viewer played it on the
+          WN95HL's Season 18 ROM. It's an option, not a recommended fix.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, the centre-ice logos and banners, player photos, organ and team songs, score logos,

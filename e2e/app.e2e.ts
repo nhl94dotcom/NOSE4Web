@@ -3031,7 +3031,7 @@ test.describe("with the NHL '95 ROM", () => {
     // No recommended fixes for NHL '95; the Discord post and the hack sheet name the fix.
     await expect(page.getByRole('button', { name: 'Turn on the recommended fixes' })).toHaveCount(0)
     await page.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
-    await expect(page.getByLabel("This ROM's hacks for Discord")).toHaveValue(/- \*\*Pass direction fix\*\*: A pass goes the way the pad points/)
+    await expect(page.getByLabel("This ROM's hacks for Discord")).toHaveValue(/- \*\*Pass direction fix\*\*: Passes go to the teammate you're pointing at/)
     const sheet = await downloadFrom(page, page.getByRole('button', { name: 'Download hack sheet' }))
     expect(readFileSync(await sheet.path(), 'utf8')).toContain('<dt>Pass direction fix</dt>')
     await page.screenshot({ path: 'test-results/shots/nhl95-hacks.png', fullPage: true })
