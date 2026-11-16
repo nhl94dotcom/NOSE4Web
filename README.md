@@ -1,7 +1,7 @@
 # NOSE4Web
 
-A web editor for NHL 94 on the Sega Genesis, and NHL '94 on the SNES. Open a
-ROM in your browser, change rosters, lines, colours and game settings, and
+A web editor for NHL 94 on the Sega Genesis, NHL '94 on the SNES, and NHL '95
+on the Genesis. Open a ROM in your browser, change rosters, lines, colours and game settings, and
 download the result.
 
 Everything happens in the browser tab. Your ROM is never uploaded, and no ROM
@@ -91,7 +91,9 @@ That licence does not cover:
   position offering only the players it is for and no one on a line twice;
   and lines built from the ratings, for one team or every team, with wingers
   and defence on the side of the ice you choose by their shooting hand
-- What Ron Barr says on the matchup screen, on both systems
+- What Ron Barr says on the matchup screen, on both systems, and options for
+  him to name a team before every game: the hotter one, or one picked by a coin
+  flip
 - The credits rolled on the title screen, and each team's songs (on the
   Genesis the organ's, with MIDI files)
 - Rink colours
@@ -161,6 +163,11 @@ That licence does not cover:
 - Time on ice: a Time On Ice page in Player Stats on both systems (the Genesis
   counts it but never showed it; on the SNES, McMarkis's count, adapted with his
   permission)
+- Giveaways and takeaways, counted for each player on both systems, with each
+  team's totals in Game Stats and Giveaways and Takeaways pages in Player Stats
+- Clutch time (everyone on the ice a little better in the last two minutes of
+  a close third period), choppy ice (the puck slowing more as a period wears
+  on) and the NHL's three-round shootout, on both systems
 - On both Hacks pages: turn on every recommended fix at once, copy a ROM's
   hacks as a Discord post for a league's owners, download a hack sheet that
   explains each of them in plain words, and copy the hacks of another ROM
@@ -173,7 +180,8 @@ It can also:
 - make room for longer rosters in the original game by moving other data to
   the end of the ROM
 - export everything as an Excel workbook or a set of CSV files, and import
-  them again
+  them again, and export the players file a league website takes for a new
+  league
 - move players between teams, keeping both teams' lines in step
 - check a ROM for mistakes that cause trouble in the game, and against limits
   your league sets itself: roster sizes, rating caps, nobody on two teams
@@ -225,6 +233,12 @@ It can also:
   colours, logos, rink, settings and menu (with the Fighting line these
   builds add), and to the code the hacks change, which are put in with that
   ROM's addresses.
+- NHL '95 for the Genesis (product code `GM T-50856 -00`), the original game and
+  league ROMs built on it, such as the WN95HL's 34-team ROMs (`GM T-50856 -34`):
+  rosters, lines, team names, team and rink colours, playoff draws, period
+  lengths, rules, the main menu's starting choices, and the editor's other
+  tools. The hacks, pictures, songs and screens made for NHL 94's code are not
+  offered for it.
 
 Genesis `.bin` and `.smd` files can be opened, and are downloaded as `.bin`.
 SNES `.smc` and `.sfc` files can be opened, with or without a copier header,
@@ -285,6 +299,8 @@ editor reads it and gives back exactly what it was given:
 
 The SNES tests use the original SNES game, named `NHL94.smc`, in the same
 folder, and any SNES league ROMs listed as `"snesRoms"` in `tests/local.json`.
+The NHL '95 tests use the original game at `NHL95/NHL_95.bin` in that folder,
+and any NHL '95 league ROMs listed as `"nhl95Roms"`, by their path from it.
 
 ## How the code is laid out
 
