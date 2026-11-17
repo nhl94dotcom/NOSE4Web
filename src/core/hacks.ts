@@ -408,7 +408,7 @@ const OP_NOP = 0x4e71
 const UNUSED = 0xff
 
 // The ROM being changed. Adding code can make it larger, so it is held here.
-interface Work {
+export interface Work {
   rom: Uint8Array
 }
 
@@ -420,14 +420,14 @@ export interface Hook {
 }
 
 // Where a hook calls, if it is there and what it calls is `code`.
-function hooked(rom: Uint8Array, hook: Hook, code: Uint8Array): number | null {
+export function hooked(rom: Uint8Array, hook: Hook, code: Uint8Array): number | null {
   if (readU16(rom, hook.at) !== OP_JSR) return null
   for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return null
   const target = readU32(rom, hook.at + 2)
   return is(rom, target, code) ? target : null
 }
 
-function writeHook(rom: Uint8Array, hook: Hook, target: number): void {
+export function writeHook(rom: Uint8Array, hook: Hook, target: number): void {
   writeU16(rom, hook.at, OP_JSR)
   writeU32(rom, hook.at + 2, target)
   for (let o = 6; o < hook.original.length; o += 2) writeU16(rom, hook.at + o, OP_NOP)
@@ -457,7 +457,7 @@ const erase = (rom: Uint8Array, at: number, length: number) => rom.fill(UNUSED, 
 // (undefined if the code is not recognised), how to put the original game's
 // code back, and how to put a state in. `apply` is only ever called on the
 // original code.
-interface Part<T> {
+export interface Part<T> {
   detect(rom: Uint8Array): T | undefined
   remove(rom: Uint8Array): void
   apply(work: Work, value: T): void
@@ -923,9 +923,9 @@ const seasonTies: Part<SeasonTies> = {
 // #SPAflail,d1 / bsr.w SetSPA ($13F5C), the moment a hold catches a3 (once
 // a hold: a3 is then locked), becomes jsr / nop to code that takes its
 // amount off a3, then sets the flail and goes on to SetSPA.
-type Asm = (string | { label: string } | { branch: number; to: string })[]
+export type Asm = (string | { label: string } | { branch: number; to: string })[]
 // Machine code from hex and short branches (forward or back) to labels in it.
-function assemble(parts: Asm): Uint8Array {
+export function assemble(parts: Asm): Uint8Array {
   const sizes = parts.map((part) => (typeof part === 'string' ? bytes(part).length : 'label' in part ? 0 : 2))
   const labels: Record<string, number> = {}
   let at = 0
@@ -2033,24 +2033,24 @@ const ppPkFix = switchPart(
 
 // A number in the game's code, known by the instruction just before it. Some
 // are kept as the negative of what they mean, for the other end of the ice.
-interface NumberSite {
+export interface NumberSite {
   at: number
   lead: Uint8Array
   negative?: boolean
 }
-const site = (at: number, lead: string, negative = false): NumberSite => ({ at, lead: bytes(lead), negative })
+export const site = (at: number, lead: string, negative = false): NumberSite => ({ at, lead: bytes(lead), negative })
 
-function readSite(rom: Uint8Array, { at, lead, negative }: NumberSite): number | undefined {
+export function readSite(rom: Uint8Array, { at, lead, negative }: NumberSite): number | undefined {
   if (!is(rom, at - lead.length, lead)) return undefined
   const value = readU16(rom, at)
   if (!negative) return value
   const signed = value >= 0x8000 ? value - 0x10000 : value
   return signed <= 0 ? -signed : undefined
 }
-const writeSite = (rom: Uint8Array, { at, negative }: NumberSite, value: number) => writeU16(rom, at, (negative ? -value : value) & 0xffff)
+export const writeSite = (rom: Uint8Array, { at, negative }: NumberSite, value: number) => writeU16(rom, at, (negative ? -value : value) & 0xffff)
 
 // One number kept in one or more places, which have to agree.
-function numberPart(sites: NumberSite[], original: number): Part<number> {
+export function numberPart(sites: NumberSite[], original: number): Part<number> {
   return {
     detect(rom) {
       const values = sites.map((each) => readSite(rom, each))
@@ -2062,7 +2062,7 @@ function numberPart(sites: NumberSite[], original: number): Part<number> {
 }
 
 // An instruction that is either the original game's or its replacement.
-function switchPart(at: number, original: Uint8Array, hacked: Uint8Array): Part<boolean> {
+export function switchPart(at: number, original: Uint8Array, hacked: Uint8Array): Part<boolean> {
   return {
     detect: (rom) => (is(rom, at, original) ? false : is(rom, at, hacked) ? true : undefined),
     remove: (rom) => rom.set(original, at),
