@@ -1956,8 +1956,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
     `Penalties last ${c.penaltySeconds < N.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
   fightSeconds: (c) => `A fight keeps each fighter in the box ${clockTime(c.fightSeconds)}, whatever its minutes; the penalty minutes in the statistics are as before.`,
   noIcing: 'Icing is never called.',
-  hybridIcing: 'Hybrid icing: decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.',
-  delayedCalls: 'While one team has a penalty pending, the other can be called too.',
+  hybridIcing: "Hybrid icing, as in today's NHL: icing is decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.",
+  delayedCalls: 'While one team has a penalty coming, the other team can be called for one too.',
   bCheckPenaltiesOff: (c) =>
     c.bCheckPenaltiesOff === 'forum'
       ? "B-checks with penalties off trip as they do with penalties on; with penalties on, the computer's B-checks trip less often (the forum's version)."
