@@ -33,7 +33,7 @@
 // 65,536 items of whatever follows it.
 
 import { claimSpace95, fullRomReason, releaseSpace } from './space'
-import { DRUMS, FRAMES_PER_SECOND, isSampled, MidiError, NOISE_HAT, ORGAN, planOrganNotes, SongError, type MadeSong, type MidiNote, type Song, type SongEvent } from './genesismusic'
+import { DRUMS, FRAMES_PER_SECOND, isSampled, MidiError, NHL95_DRUM_PATCH, NOISE_HAT, ORGAN, planOrganNotes, SongError, type MadeSong, type MidiNote, type Song, type SongEvent } from './genesismusic'
 
 export const NHL95_FIRST_SONG = 0x32
 export const NHL95_LAST_SONG = 0x55
@@ -232,14 +232,17 @@ export function nhl95StreamBytes(events: Nhl95Event[], firstWait = 0): Uint8Arra
 // third of the velocity (as NHL 94's volume); the organ's patch as NHL 94's organ, the claps' as a sampled sound. A
 // note sounding again before its end ends the one before.
 // `velocity` divides the velocities (the organ songs' are a third of NHL 94's volume; the other music's are MIDI's).
-function songEvents(stream: Nhl95Stream, velocity = 3, patch = (value: number) => (value === ORGAN_PATCH ? ORGAN : value === CLAPS_PATCH ? 0x60 : value)): SongEvent[] {
+// `asWritten` is the patches whose notes are kept as written (a drum played at notes as low as 0).
+function songEvents(stream: Nhl95Stream, velocity = 3, patch = (value: number) => (value === ORGAN_PATCH ? ORGAN : value === CLAPS_PATCH ? 0x60 : value), asWritten = new Set<number>()): SongEvent[] {
   const events: SongEvent[] = []
   const sounding = new Map<number, SongEvent>()
+  const patches = new Map<number, number>()
   for (const { frame, status, data } of stream.events) {
     const command = status & 0xf0
     const channel = status & 0x0f
+    if (command === 0xc0) patches.set(channel, data[0])
     if (command === 0x90) {
-      const note = Math.max(0, data[0] - PITCH)
+      const note = asWritten.has(patches.get(channel) ?? -1) ? data[0] : Math.max(0, data[0] - PITCH)
       const before = sounding.get(channel * 128 + note)
       if (before && before.frame > frame) before.frame = frame
       const off: SongEvent = { frame: frame + Math.max(1, data[2]), status: 0x80 | channel, data: [note, 0x40] }
@@ -292,8 +295,9 @@ export const NHL95_GAME_MUSIC: { number: number; name: string; where: string }[]
 ]
 const NOISE_PATCH = 0x13
 
-// One of those pieces as NHL 94's events (as readNhl95Song gives the organ songs), its velocities as they are and its
-// noise patch as the hi-hats (NOISE_HAT).
+// One of those pieces as NHL 94's events (as readNhl95Song gives the organ songs), its velocities as they are, its
+// noise patch as the hi-hats (NOISE_HAT) and its drum patch's notes as written (NHL95_DRUM_PATCH). Played and exported
+// as NHL '95's (gameMusicTune and gameMusicToMidi with 95), not on NHL 94's patches.
 export function readNhl95Music(rom: Uint8Array, number: number): Song | null {
   if (!NHL95_GAME_MUSIC.some((piece) => piece.number === number)) return null
   const item = findBankItem(rom, SONG, number)
@@ -301,7 +305,7 @@ export function readNhl95Music(rom: Uint8Array, number: number): Song | null {
   const stream = readNhl95Stream(rom.subarray(item.at, item.at + item.size))
   if (stream.used < 0) return null
   const end = stream.events.length ? stream.events[stream.events.length - 1].frame : 0
-  const events = songEvents(stream, 1, (value) => (value === NOISE_PATCH ? NOISE_HAT : value))
+  const events = songEvents(stream, 1, (value) => (value === NOISE_PATCH ? NOISE_HAT : value), new Set([NHL95_DRUM_PATCH]))
   return { number, events, seconds: end / FRAMES_PER_SECOND, loops: true, custom: null }
 }
 

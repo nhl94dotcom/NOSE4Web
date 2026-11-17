@@ -214,11 +214,11 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
         const song = readNhl95Music(rom, number)!
         // The organ songs' reader does not take them.
         expect(readNhl95Song(rom, number)).toBeNull()
-        const notes = readMidi(gameMusicToMidi(song)).notes
+        const notes = readMidi(gameMusicToMidi(song, '', 95)).notes
         const hats = notes.filter((note) => note.channel === 9 && note.note === 42).length
         expect(hats).toBeGreaterThan(0)
         // Every tune note is in the MIDI file, at its time; the drums on the drum channel.
-        const tune = gameMusicTune(song).filter((e) => (e.status & 0xf0) === 0x90)
+        const tune = gameMusicTune(song, 95).filter((e) => (e.status & 0xf0) === 0x90)
         expect(notes.filter((note) => note.channel !== 9).length).toBe(tune.length)
         expect(tune.length).toBeGreaterThan(300)
         return Math.round(song.seconds)
@@ -227,5 +227,28 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
     }
     // Only songs 0, 2 and 3.
     expect(readNhl95Music(open(RETAIL).bytes, 1)).toBeNull()
+  })
+
+  it("plays NHL '95's patches as its own, not NHL 94's: channel 9 a tune, patch $15 a drum, no octave moved", () => {
+    const rom = open(RETAIL).bytes
+    const scouting = readNhl95Music(rom, 3)!
+    const ons = (events: SongEvent[], channel: number) => events.filter((e) => (e.status & 0xf0) === 0x90 && (e.status & 0x0f) === channel)
+    // The scouting report's channel 9 is a tune on patch $14 (363 notes, 52 to 67 as written, 40 to 55 as NHL 94's).
+    const tune = gameMusicTune(scouting, 95)
+    const nine = ons(tune, 9)
+    expect(nine.length).toBe(363)
+    expect([Math.min(...nine.map((e) => e.data[0])), Math.max(...nine.map((e) => e.data[0]))]).toEqual([40, 55])
+    // Patch $0D (NHL 94's bass, an octave down there) as written: channel 5, 52 to 65 as written.
+    const five = ons(tune, 5)
+    expect([Math.min(...five.map((e) => e.data[0])), Math.max(...five.map((e) => e.data[0]))]).toEqual([40, 53])
+    // Patch $15 a drum, so not in the tune, and its notes kept as written (0 to 19 in the title music, not all 0).
+    expect(ons(tune, 7)).toEqual([])
+    const title = readNhl95Music(rom, 0)!
+    expect(Math.max(...ons(title.events, 6).map((e) => e.data[0]))).toBe(19)
+    const midi = readMidi(gameMusicToMidi(scouting, '', 95)).notes
+    expect(midi.filter((n) => n.channel === 9 && n.note === 45).length).toBe(221 + 152)
+    expect(midi.filter((n) => n.channel !== 9).length).toBe(tune.filter((e) => (e.status & 0xf0) === 0x90).length)
+    // As NHL 94's, channel 9 would be the drums.
+    expect(ons(gameMusicTune(scouting), 9)).toEqual([])
   })
 })

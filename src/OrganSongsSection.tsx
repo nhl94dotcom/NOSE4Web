@@ -329,8 +329,8 @@ export function GameMusicSection({ project, onChange }: Props) {
                 <td>{where}</td>
                 <td>{seconds(song!.seconds)}</td>
                 <td>
-                  <button onClick={() => player.toggle(number, gameMusicTune(song!), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
-                  <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  <button onClick={() => player.toggle(number, gameMusicTune(song!, nhl95 ? 95 : 94), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
+                  <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name, nhl95 ? 95 : 94), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
                   {!nhl95 && (
                   <label className="button">
                     Replace…

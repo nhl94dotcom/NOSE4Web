@@ -423,11 +423,17 @@ type ChannelPart = { drum: number } | { program: number; shift: number }
 const KICK = 36
 const SNARE = 38
 const CLOSED_HAT = 42
+const LOW_TOM = 45
 // NHL '95's noise voice (nhl95music.ts), the hi-hats, as a patch number of its own past the sampled ones'.
 export const NOISE_HAT = 0x7f
+// NHL '95's patch $15, a drum played at many pitches (notes 0 to 19), as a tom.
+export const NHL95_DRUM_PATCH = 0x15
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
-function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
+// Whose piece it is: NHL '95's patches are numbered otherwise than NHL 94's, and its channel 9 may be a tune, so its
+// pieces take no NHL 94 patch's sound or octave, and only its noise and its drum patch are drums.
+export type MusicEdition = 94 | 95
+function channelParts(events: SongEvent[], edition: MusicEdition = 94): Map<number, ChannelPart> {
   const patches = new Map<number, number>()
   const notes = new Map<number, number[]>()
   for (const event of events) {
@@ -438,10 +444,15 @@ function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
   const parts = new Map<number, ChannelPart>()
   for (const [channel, played] of notes) {
     const patch = patches.get(channel) ?? 0
+    const nhl94 = edition === 94
     if (patch === NOISE_HAT) parts.set(channel, { drum: CLOSED_HAT })
-    else if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
+    else if (!nhl94 && patch === NHL95_DRUM_PATCH) parts.set(channel, { drum: LOW_TOM })
+    else if (isSampled(patch) || (nhl94 && channel === DRUMS)) parts.set(channel, { drum: SNARE })
     else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
-    else parts.set(channel, { program: EXPORT_PROGRAM[patch] ?? (played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS), shift: OCTAVE_BELOW.has(patch) ? -12 : 0 })
+    else {
+      const byRange = played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS
+      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 } : { program: byRange, shift: 0 })
+    }
   }
   return parts
 }
@@ -660,8 +671,8 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
 }
 
 // The piece without its drums, for the browser's rough preview, which plays every note as a tone.
-export const gameMusicTune = (song: { events: SongEvent[] }): SongEvent[] => {
-  const parts = channelParts(song.events)
+export const gameMusicTune = (song: { events: SongEvent[] }, edition: MusicEdition = 94): SongEvent[] => {
+  const parts = channelParts(song.events, edition)
   return song.events.flatMap((event): SongEvent[] => {
     const part = parts.get(event.status & 0x0f)
     if (part && 'drum' in part) return []
@@ -675,8 +686,8 @@ export const gameMusicTune = (song: { events: SongEvent[] }): SongEvent[] => {
 // A piece as a MIDI file (format 0, a tick a frame, as songToMidi): each channel on its own MIDI channel, the bass
 // on a synth bass and the other tunes on synth brass (the game's own FM sounds have no General MIDI match), and the
 // drums on MIDI's drum channel, the kick as a bass drum and the hits as a snare.
-export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number }, name = ''): Uint8Array {
-  const parts = channelParts(song.events)
+export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number }, name = '', edition: MusicEdition = 94): Uint8Array {
+  const parts = channelParts(song.events, edition)
   const track: number[] = []
   const vlq = (value: number) => {
     const bytes = [value & 0x7f]
