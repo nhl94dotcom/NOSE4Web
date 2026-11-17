@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { defaultPartChoices, GAME_MUSIC, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
+import { defaultPartChoices, GAME_MUSIC, type PartChoice, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 import { expectSameBytes } from './samebytes'
@@ -56,6 +56,36 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
       [62, 0.4, 0.4],
     ])
     expect(notes.some((n) => n.channel === 9)).toBe(true)
+  })
+
+  it('reads notes of no length as notes of their own, and a new note on a key ending the one before', () => {
+    const vlq = (value: number) => {
+      const bytes = [value & 0x7f]
+      for (value >>= 7; value > 0; value >>= 7) bytes.unshift((value & 0x7f) | 0x80)
+      return bytes
+    }
+    const file = (events: number[]) => Uint8Array.from([0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 96, 0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, events.length + 4, ...events, 0, 0xff, 0x2f, 0])
+    const notes = (events: number[]) => readMidi(file(events)).notes.map((n) => [n.channel, n.note, +n.start.toFixed(3), +n.length.toFixed(3)])
+    // A grace C of no length at the start, then a C on beats 2 and 3 (120 beats a minute: 0.5 s a beat).
+    expect(notes([...vlq(0), 0x90, 60, 90, ...vlq(0), 0x80, 60, 0, ...vlq(96), 0x90, 60, 90, ...vlq(96), 0x80, 60, 0])).toEqual([
+      [0, 60, 0, 0],
+      [0, 60, 0.5, 0.5],
+    ])
+    // Three drum hits of no length: three notes.
+    expect(notes([0, 0x99, 38, 100, 0, 0x89, 38, 0, ...vlq(48), 0x99, 38, 100, 0, 0x89, 38, 0, ...vlq(48), 0x99, 38, 100, 0, 0x89, 38, 0]).length).toBe(3)
+    // A repeated note whose new on comes before the old one's off at the same tick, and one whose new on comes while
+    // the old one sounds: the old one ends where the new one starts, and its off ends nothing.
+    expect(notes([0, 0x90, 64, 90, ...vlq(96), 0x90, 64, 90, 0, 0x80, 64, 0, ...vlq(96), 0x80, 64, 0])).toEqual([
+      [0, 64, 0, 0.5],
+      [0, 64, 0.5, 0.5],
+    ])
+    expect(notes([0, 0x90, 64, 90, ...vlq(48), 0x90, 64, 90, ...vlq(48), 0x80, 64, 0, ...vlq(96), 0x80, 64, 0])).toEqual([
+      [0, 64, 0, 0.25],
+      [0, 64, 0.25, 0.75],
+    ])
+    // A note of no length is left out of an organ song.
+    const made = songFromMidi(readMidi(file([...vlq(0), 0x90, 60, 90, ...vlq(0), 0x80, 60, 0, ...vlq(96), 0x90, 60, 90, ...vlq(96), 0x80, 60, 0])).notes)
+    expect(made.events.filter((e) => e.status === 0x90).map((e) => e.frame)).toEqual([30])
   })
 
   it('makes an organ song of at most four notes at once, without drums, in the range, and puts it in and back', () => {
@@ -276,6 +306,25 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     const back = withOriginalSong(edited.bytes, 0x78)
     expect(readSong(back, 0x78)!.custom).toBeNull()
     expect(readSong(back, 0x78)!.events).toEqual(readSong(project.bytes, 0x78)!.events)
+  })
+
+  it('ends a hit still sounding where the next begins, as the driver starts the sample again only once it is off', () => {
+    // Hits 6 frames apart, and one 20 frames after.
+    const hits = [0, 0.1, 0.2, 0.3, 0.6333].map((start) => ({ start, length: 0.1, note: 38, velocity: 100, channel: 9 }))
+    const made = gameMusicFromMidi([{ start: 0, length: 1, note: 60, velocity: 80, channel: 0 }, ...hits], new Map<number, PartChoice>([[0, 14], [9, 'drums']]))
+    const hit = made.events.filter((e) => (e.status & 0x0f) === 7 && (e.status & 0xf0) !== 0xc0).map((e) => [e.frame, e.status & 0xf0])
+    expect(hit).toEqual([
+      [0, 0x90],
+      [6, 0x80],
+      [6, 0x90],
+      [12, 0x80],
+      [12, 0x90],
+      [18, 0x80],
+      [18, 0x90],
+      [24, 0x80],
+      [38, 0x90],
+      [44, 0x80],
+    ])
   })
 
   it("brings a loud MIDI file down to the game's loudness", () => {

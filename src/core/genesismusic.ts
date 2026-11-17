@@ -194,13 +194,22 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; 
     }
     at = end
   }
-  raw.sort((x, y) => x.tick - y.tick || (x.kind === 'tempo' ? -1 : y.kind === 'tempo' ? 1 : 0) || (x.kind === 'off' ? -1 : y.kind === 'off' ? 1 : 0) || x.order - y.order)
+  // In time order, tempo changes first, and otherwise as the file has them.
+  raw.sort((x, y) => x.tick - y.tick || (x.kind === 'tempo' ? -1 : y.kind === 'tempo' ? 1 : 0) || x.order - y.order)
   // Ticks to seconds, through the tempo changes (120 beats a minute until the first).
   let tempo = 500000
   let lastTick = 0
   let seconds = 0
-  const open = new Map<string, { start: number; velocity: number }[]>()
+  // The note sounding on each key, and for each key the offs still to come of notes a new note on ended (a file may
+  // put a new note's on before the old one's off, at the same tick or before it): those offs end nothing.
+  const open = new Map<string, { start: number; velocity: number }>()
+  const owed = new Map<string, number>()
   const notes: MidiNote[] = []
+  const close = (key: string, channel: number, note: number) => {
+    const started = open.get(key)!
+    open.delete(key)
+    notes.push({ start: started.start, length: seconds - started.start, note, velocity: started.velocity, channel })
+  }
   for (const event of raw) {
     seconds += ((event.tick - lastTick) * tempo) / division / 1e6
     lastTick = event.tick
@@ -210,11 +219,15 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; 
     }
     const key = `${event.channel}:${event.note}`
     if (event.kind === 'on') {
-      open.set(key, [...(open.get(key) ?? []), { start: seconds, velocity: event.velocity }])
-    } else {
-      const started = open.get(key)?.shift()
-      if (started) notes.push({ start: started.start, length: seconds - started.start, note: event.note, velocity: started.velocity, channel: event.channel })
-    }
+      // A new note on a key already sounding ends the one before. A note of no length (its on and off at one tick)
+      // stays a note of its own, and the next note on the key keeps its own start.
+      if (open.has(key)) {
+        owed.set(key, (owed.get(key) ?? 0) + 1)
+        close(key, event.channel, event.note)
+      }
+      open.set(key, { start: seconds, velocity: event.velocity })
+    } else if (owed.get(key)) owed.set(key, owed.get(key)! - 1)
+    else if (open.has(key)) close(key, event.channel, event.note)
   }
   if (notes.length === 0) throw new MidiError('This MIDI file has no notes.')
   notes.sort((a, b) => a.start - b.start || a.note - b.note)
@@ -254,6 +267,8 @@ export function planOrganNotes(notes: MidiNote[], lowest: number, highest: numbe
       drums++
       continue
     }
+    // A note of no length sounds nothing.
+    if (midi.length <= 0) continue
     let note = midi.note
     while (note < lowest) note += 12
     while (note > highest) note -= 12
@@ -650,6 +665,7 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
   type Planned = { on: number; off: number; note: number; velocity: number; channel: number; rank: number }
   const played: Planned[] = []
   let active: Planned[] = []
+  let lastHit: Planned | null = null
   let leftOut = 0
   let dropped = 0
   let moved = 0
@@ -659,11 +675,16 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
       leftOut++
       continue
     }
+    // A tune's note of no length sounds nothing (a drum's is a hit).
+    if (choice !== 'drums' && midi.length <= 0) continue
     const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
     const off = Math.max(on + 2, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
     if (choice === 'drums' && !MIDI_KICKS.includes(midi.note)) {
-      // The hit is a sample, on the console's one sample voice.
-      played.push({ on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 })
+      // The hit is a sample, on the console's one sample voice. The driver does not start the sample again while it is
+      // on (sound94.asm's handle_command_10 .pcm), so a hit still sounding is ended where the next begins.
+      if (lastHit && lastHit.off > on) lastHit.off = on
+      lastHit = { on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 }
+      played.push(lastHit)
       continue
     }
     const written = choice === 'drums' ? KICK_NOTE : midi.note + shifts.get(midi.channel)!
