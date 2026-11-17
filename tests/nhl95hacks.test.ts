@@ -22,12 +22,14 @@ const RETAIL = 'NHL95/NHL_95.bin'
 const names = [RETAIL, ...(local.nhl95Roms ?? [])].filter((name) => existsSync(path(name)))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const PASS_AT = 0x7c5b8
+// The on-or-off options (the others are settings with values of their own).
+const SWITCHES = NHL95_HACKS.filter((hack) => typeof NO_NHL95_HACKS[hack] === 'boolean')
 
 describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
   it.each(names)('puts the pass direction fix into %s and takes it out again', (name) => {
     const rom = open(name)
     expect(nhl95HacksSupported(rom.game)).toBe(true)
-    expect(detectNhl95Hacks(rom.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS }, unknown: [] })
+    expect(detectNhl95Hacks(rom.bytes).unknown).toEqual([])
     const on = applyNhl95Hacks(rom, { passFix: true })
     expect(Array.from(on.bytes.subarray(PASS_AT, PASS_AT + 2))).toEqual([0xe5, 0x48])
     // Only the instruction's first byte differs ($E2 to $E5); nothing else changes.
@@ -89,11 +91,12 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)("puts NHL 94's three assist fixes into %s at NHL '95's places, alone and together, and takes them out", (name) => {
     const rom = open(name)
-    expect(detectNhl95Hacks(rom.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS }, unknown: [] })
+    const base = detectNhl95Hacks(rom.bytes).choices
+    expect(detectNhl95Hacks(rom.bytes).unknown).toEqual([])
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const jsrAt = (b: Uint8Array, at: number) => (b[at] === 0x4e && b[at + 1] === 0xb9 ? read32(b, at + 2) : null)
     const all = applyNhl95Hacks(rom, { secondAssist: true, oneTimerAssist: true, regainAssist: true })
-    expect(detectNhl95Hacks(all.bytes).choices).toEqual({ ...NO_NHL95_HACKS, secondAssist: true, oneTimerAssist: true, regainAssist: true })
+    expect(detectNhl95Hacks(all.bytes).choices).toEqual({ ...base, secondAssist: true, oneTimerAssist: true, regainAssist: true })
     // a2touchpuck's list move and its compare call the fixes; onetimershot calls the one-timer fix, with the second-assist check.
     const regain = jsrAt(all.bytes, 0x81464)!
     expect(Buffer.from(all.bytes.subarray(regain, regain + 20)).toString('hex')).toBe('b0680018660c08a8000300302ebc000814924e75')
@@ -118,10 +121,11 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)("puts the rocket pass fix into %s with NHL '95's slow flat pass kept, alone and with the rest", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const on = applyNhl95Hacks(rom, { rocketFix: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, rocketFix: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, rocketFix: true })
     // A call over the 74 bytes from the time's loop to .5, and NOPs after it.
     expect(hex(on.bytes, 0x847ba, 2)).toBe('4eb9')
     for (let at = 0x847c0; at < 0x84804; at += 2) expect(hex(on.bytes, at, 2)).toBe('4e71')
@@ -142,14 +146,15 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { rocketFix: false }).bytes, rom.bytes)
     // With every other NHL '95 hack, in and out.
     // Every hack on, but only one way of settling a tie (they exclude each other).
-    const allOn = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, hack !== 'seasonShootout' && hack !== 'seasonShootoutNow' && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade'])) as typeof NO_NHL95_HACKS
+    const allOn = { ...base, ...Object.fromEntries(SWITCHES.map((hack) => [hack, hack !== 'seasonShootout' && hack !== 'seasonShootoutNow' && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade'])) } as typeof NO_NHL95_HACKS
     const every = applyNhl95Hacks(rom, allOn)
     expect(detectNhl95Hacks(buildRom(every)).choices).toEqual(allOn)
-    expectSameBytes(applyNhl95Hacks(every, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expectSameBytes(applyNhl95Hacks(every, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)("puts NHL 94's Aggression, comeback bonus and open-net fixes into %s, each a change in place", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const cases = [
       { hack: 'aggressionFix', at: 0x83c7c, bytes: '6100000ae20b17430073' },
@@ -158,7 +163,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     ] as const
     for (const { hack, at, bytes } of cases) {
       const on = applyNhl95Hacks(rom, { [hack]: true })
-      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [hack]: true })
+      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, [hack]: true })
       expect(hex(on.bytes, at, bytes.length / 2)).toBe(bytes)
       // Only those bytes change.
       expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBeLessThanOrEqual(bytes.length / 2)
@@ -172,11 +177,12 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)("puts NHL 94's five-hole blind ring fix into %s, with NHL '95's addresses", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     expect(hex(rom.bytes, 0x7b6b8, 8)).toBe('6100024a60000052')
     const on = applyNhl95Hacks(rom, { blindRingFix: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, blindRingFix: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, blindRingFix: true })
     // jsr to the code, then bne.s .exit ($7B710).
     expect(hex(on.bytes, 0x7b6b8, 2)).toBe('4eb9')
     expect(hex(on.bytes, 0x7b6be, 2)).toBe('6650')
@@ -191,9 +197,10 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)('lets a tied regular-season game in %s play overtime until a goal, at both places', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const on = applyNhl95Hacks(rom, { seasonOvertime: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonOvertime: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, seasonOvertime: true })
     // PeriodOver's move.w #4,(gsp).w and the end of overtime's beq.s .eog, and nothing else.
     expect(hex(on.bytes, 0x8cb9e, 6)).toBe('4e714e714e71')
     expect(hex(on.bytes, 0x8ccda, 2)).toBe('4e71')
@@ -203,12 +210,13 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)('settles a tied regular-season game in %s by a shootout, after overtime or after period 3, and takes it out', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     // After overtime: the end of overtime's beq.s a NOP, PeriodOver's move.w #4,(gsp).w a call to the start code,
     // NextShooter's jmp ExitToOpening a call to the end code.
     const after = applyNhl95Hacks(rom, { seasonShootout: true })
-    expect(detectNhl95Hacks(after.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonShootout: true })
+    expect(detectNhl95Hacks(after.bytes).choices).toEqual({ ...base, seasonShootout: true })
     expect(hex(after.bytes, 0x8ccda, 2)).toBe('4e71')
     expect(hex(after.bytes, 0x8cb9e, 2)).toBe('4eb9')
     expect(hex(after.bytes, 0x9dd48, 2)).toBe('4eb9')
@@ -222,7 +230,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(after, { seasonShootout: false }).bytes, rom.bytes)
     // After period 3: PeriodOver's tie test a call to code that runs the start code first, in a regular-season game.
     const now = applyNhl95Hacks(rom, { seasonShootoutNow: true })
-    expect(detectNhl95Hacks(now.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonShootoutNow: true })
+    expect(detectNhl95Hacks(now.bytes).choices).toEqual({ ...base, seasonShootoutNow: true })
     expect(hex(now.bytes, 0x8ccda, 2)).toBe('67ac')
     expect(hex(now.bytes, 0x8cb9e, 6)).toBe('31fc0004c020')
     expect([hex(now.bytes, 0x8cba4, 2), hex(now.bytes, 0x8cbaa, 2)]).toEqual(['4eb9', '4e71'])
@@ -232,21 +240,22 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     // One way to settle a tie at a time; from one to another directly.
     expect(() => applyNhl95Hacks(rom, { seasonShootout: true, seasonOvertime: true })).toThrow(Nhl95HackError)
     const swapped = applyNhl95Hacks(after, { seasonShootout: false, seasonShootoutNow: true })
-    expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...NO_NHL95_HACKS, seasonShootoutNow: true })
+    expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...base, seasonShootoutNow: true })
     expectSameBytes(applyNhl95Hacks(swapped, { seasonShootoutNow: false }).bytes, rom.bytes)
     // With every other NHL '95 hack, through a rebuild.
-    const every = Object.fromEntries(Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade'])) as typeof NO_NHL95_HACKS
+    const every = { ...base, ...Object.fromEntries(SWITCHES.map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade'])) } as typeof NO_NHL95_HACKS
     const all = applyNhl95Hacks(rom, { ...every, seasonShootout: true })
     expect(detectNhl95Hacks(buildRom(all)).choices).toEqual({ ...every, seasonShootout: true })
-    expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expectSameBytes(applyNhl95Hacks(all, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)("plays %s's shootouts to the NHL's rule: NHL 94's code with NHL '95's four addresses", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const on = applyNhl95Hacks(rom, { nhlShootout: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, nhlShootout: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, nhlShootout: true })
     // jsr / beq.w .switch / NOPs, then the game's own bset #3,(gmode2).w / jsr EndShootout.
     expect(hex(on.bytes, 0x9dd98, 2)).toBe('4eb9')
     expect(hex(on.bytes, 0x9dd9e, 4)).toBe('67000028')
@@ -257,8 +266,8 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { nhlShootout: false }).bytes, rom.bytes)
     // With a regular-season shootout too.
     const both = applyNhl95Hacks(rom, { nhlShootout: true, seasonShootout: true })
-    expect(detectNhl95Hacks(both.bytes).choices).toEqual({ ...NO_NHL95_HACKS, nhlShootout: true, seasonShootout: true })
-    expectSameBytes(applyNhl95Hacks(both, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expect(detectNhl95Hacks(both.bytes).choices).toEqual({ ...base, nhlShootout: true, seasonShootout: true })
+    expectSameBytes(applyNhl95Hacks(both, { ...base }).bytes, rom.bytes)
   })
 
   // The fighting patch's own IPS files, where present: for the original game and the WN95HL's Season 18 ROM.
@@ -284,8 +293,9 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)('puts the fighting patch into %s as its own IPS patch does, and takes it out again', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const on = applyNhl95Hacks(rom, { fighting: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, fighting: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, fighting: true })
     expect(detectNhl95Hacks(buildRom(on)).choices.fighting).toBe(true)
     const ips = FIGHT_IPS[name]
     if (ips && existsSync(path(ips))) {
@@ -309,7 +319,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { fighting: false }).bytes, rom.bytes)
     // Starting Off: setup_defaults' move.w #1,($FFCC62).w becomes #0, and back; it needs fighting.
     const startOff = applyNhl95Hacks(on, { fightingOff: true })
-    expect(detectNhl95Hacks(startOff.bytes).choices).toEqual({ ...NO_NHL95_HACKS, fighting: true, fightingOff: true })
+    expect(detectNhl95Hacks(startOff.bytes).choices).toEqual({ ...base, fighting: true, fightingOff: true })
     expect(Array.from(startOff.bytes.subarray(0x1e0e34, 0x1e0e3a))).toEqual([0x31, 0xfc, 0, 0, 0xcc, 0x62])
     expect(startOff.bytes.reduce((n, b, i) => n + (b !== on.bytes[i] ? 1 : 0), 0)).toBe(1)
     expectSameBytes(applyNhl95Hacks(startOff, { fightingOff: false }).bytes, on.bytes)
@@ -317,18 +327,16 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(() => applyNhl95Hacks(rom, { fightingOff: true })).toThrow(Nhl95HackError)
     // Starting in Arcade Mode: #2; and from Off to Arcade directly. One of the three at a time.
     const arcade = applyNhl95Hacks(startOff, { fightingOff: false, fightingArcade: true })
-    expect(detectNhl95Hacks(arcade.bytes).choices).toEqual({ ...NO_NHL95_HACKS, fighting: true, fightingArcade: true })
+    expect(detectNhl95Hacks(arcade.bytes).choices).toEqual({ ...base, fighting: true, fightingArcade: true })
     expect(Array.from(arcade.bytes.subarray(0x1e0e34, 0x1e0e3a))).toEqual([0x31, 0xfc, 0, 2, 0xcc, 0x62])
     expectSameBytes(applyNhl95Hacks(arcade, { fightingArcade: false }).bytes, on.bytes)
     expect(() => applyNhl95Hacks(on, { fightingOff: true, fightingArcade: true })).toThrow(Nhl95HackError)
     expect(() => applyNhl95Hacks(rom, { fightingArcade: true })).toThrow(Nhl95HackError)
     // With every other NHL '95 hack, their code placed after its own, through a rebuild.
-    const every = Object.fromEntries(
-      Object.keys(NO_NHL95_HACKS).map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade']),
-    ) as typeof NO_NHL95_HACKS
+    const every = { ...base, ...Object.fromEntries(SWITCHES.map((hack) => [hack, !hack.startsWith('season') && hack !== 'threeOnThreeAll' && hack !== 'fightingArcade'])) } as typeof NO_NHL95_HACKS
     const all = applyNhl95Hacks(rom, every)
     expect(detectNhl95Hacks(buildRom(all)).choices).toEqual(every)
-    expectSameBytes(applyNhl95Hacks(all, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expectSameBytes(applyNhl95Hacks(all, { ...base }).bytes, rom.bytes)
     // Not where its place holds something else.
     const taken = rom.bytes.slice()
     taken[0x1e0800] = 0
@@ -337,6 +345,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)('puts 3 on 3 overtime into %s at its eight places, either way, and takes it out again', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     // Each place: its length, and how the code it calls begins (the replaced instruction, or the overtime tests).
@@ -352,7 +361,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     ]
     for (const [choice, other] of [['threeOnThree', 'threeOnThreeAll'], ['threeOnThreeAll', 'threeOnThree']] as const) {
       const on = applyNhl95Hacks(rom, { [choice]: true })
-      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [choice]: true })
+      expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, [choice]: true })
       expect(detectNhl95Hacks(buildRom(on)).choices[choice]).toBe(true)
       for (const [at, length, begins] of places) {
         expect(hex(on.bytes, at, 2)).toBe('4eb9')
@@ -363,25 +372,26 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       expect(hex(on.bytes, read32(on.bytes, 0x888ea), 32).includes('4a78cc4c')).toBe(choice === 'threeOnThree')
       // From one to the other directly, and out byte for byte.
       const swapped = applyNhl95Hacks(on, { [choice]: false, [other]: true })
-      expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...NO_NHL95_HACKS, [other]: true })
+      expect(detectNhl95Hacks(swapped.bytes).choices).toEqual({ ...base, [other]: true })
       expectSameBytes(applyNhl95Hacks(on, { [choice]: false }).bytes, rom.bytes)
       expectSameBytes(applyNhl95Hacks(swapped, { [other]: false }).bytes, rom.bytes)
     }
     expect(() => applyNhl95Hacks(rom, { threeOnThree: true, threeOnThreeAll: true })).toThrow(Nhl95HackError)
     // With overtime until a goal, a shootout and fighting.
     const league = applyNhl95Hacks(rom, { threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
-    expect(detectNhl95Hacks(buildRom(league)).choices).toEqual({ ...NO_NHL95_HACKS, threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
-    expectSameBytes(applyNhl95Hacks(league, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expect(detectNhl95Hacks(buildRom(league)).choices).toEqual({ ...base, threeOnThree: true, seasonShootout: true, nhlShootout: true, fighting: true, fightingOff: true })
+    expectSameBytes(applyNhl95Hacks(league, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)("puts NHL 94's runaway, goalie pull, sniping and penalty shot fixes into %s at NHL '95's places", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const fixes = { runawayFix: true, goaliePullFix: true, snipingFix: true, penaltyShotTableFix: true, penaltyShotFixes: true }
     const on = applyNhl95Hacks(rom, fixes)
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
-    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, ...fixes })
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...base, ...fixes })
     // The switches.
     expect(hex(on.bytes, 0x83674, 12)).toBe('6f00e3e6b07c00026e00e3de')
     expect(hex(on.bytes, 0x84ccc, 4)).toBe('4e714e71')
@@ -402,17 +412,18 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     // Each comes out on its own, and all of them byte for byte.
     for (const fix of Object.keys(fixes)) {
       const without = applyNhl95Hacks(on, { [fix]: false })
-      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes, [fix]: false })
+      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...base, ...fixes, [fix]: false })
     }
-    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)('keeps the organ song through the pause in %s: its two calls, and out again', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const on = applyNhl95Hacks(rom, { organResume: true })
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, organResume: true })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, organResume: true })
     expect(detectNhl95Hacks(buildRom(on)).choices.organResume).toBe(true)
     // The save: masks interrupts first, and ends with the btst it replaces and rts.
     expect(hex(on.bytes, 0x7e38c, 2)).toBe('4eb9')
@@ -455,13 +466,14 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
 
   it.each(names)("puts NHL 94's power play, faceoff, awareness and stick-shot fixes into %s at NHL '95's places", (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
     const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
     const fixes = { ppPkFix: true, faceoffFix: true, awarenessFix: true, stickShots: true }
     expect(hasPpPkFix(rom)).toBe(false)
     const on = applyNhl95Hacks(rom, fixes)
-    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
-    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, ...fixes })
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...base, ...fixes })
     expect(hasPpPkFix(on)).toBe(true)
     // The power play: NHL 94's change, with PPBonus $CAF0 and PKBonus $CAF1.
     expect(hex(on.bytes, 0x839d8, 28)).toBe('10280001e80811c0caf04e716000000e700fc02800014400' + '11c0caf1')
@@ -489,18 +501,45 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     // Each comes out on its own, and all of them byte for byte.
     for (const fix of Object.keys(fixes)) {
       const without = applyNhl95Hacks(on, { [fix]: false })
-      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes, [fix]: false })
+      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...base, ...fixes, [fix]: false })
     }
-    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)('puts every NHL 95 option into %s together, each read back, and takes them all out', (name) => {
     const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
     const left = ['fightingOff', 'fightingArcade', 'seasonOvertime', 'seasonShootout', 'threeOnThree']
-    const all = Object.fromEntries(NHL95_HACKS.map((hack) => [hack, !left.includes(hack)]))
+    // Every switch on but the few that exclude another, and every setting away from the original game's.
+    const all = {
+      ...Object.fromEntries(SWITCHES.map((hack) => [hack, !left.includes(hack)])),
+      threeStars: 'linesOff',
+      bodychecks: 'on',
+      penaltySeconds: 40,
+      fightSeconds: 90,
+      bCheckPenaltiesOff: 'asPenaltiesOn',
+      injuries: 'longFall',
+      fourthPeriodOvertime: 300,
+      energyDrain: 20,
+      energyRecovery: 15,
+      burstEnergy: 50,
+      hitEnergy: 204,
+      holdEnergy: 102,
+      injuryBonus: 10,
+      injuryCap: 50,
+      goalieHold: 0,
+      goalieWidth: 30,
+      goalieOut: 200,
+      goalieLine: 150,
+      goalieDelay: 20,
+      speedBurst: 24,
+      turnRate: 120,
+      puckFriction: 6,
+    } as Partial<typeof NO_NHL95_HACKS>
     const on = applyNhl95Hacks(rom, all)
-    expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS, ...all }, unknown: [] })
-    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+    expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...base, ...all }, unknown: [] })
+    expect(detectNhl95Hacks(buildRom(on))).toEqual({ choices: { ...base, ...all }, unknown: [] })
+    expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
   })
 
   it.each(names)('lets Edit Lines in %s put any skater at any position, a change in place', (name) => {
@@ -509,7 +548,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const on = applyNhl95Hacks(rom, { anyPosition: true })
     expect(Buffer.from(on.bytes.subarray(0x95312, 0x95318)).toString('hex')).toBe('4e714e714e71')
     expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBe(6)
-    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, anyPosition: true })
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...detectNhl95Hacks(rom.bytes).choices, anyPosition: true })
     expect(anyPosition(on)).toBe(true)
     expectSameBytes(applyNhl95Hacks(on, { anyPosition: false }).bytes, rom.bytes)
   })

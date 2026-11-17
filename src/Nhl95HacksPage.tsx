@@ -1,17 +1,25 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { HackShortcuts } from './HackShortcuts'
+import { NumberBox } from './NumberBox'
+import { HITS_ONLY, holdSeconds, RECOMMENDED_HIT_ENERGY, RECOMMENDED_HOLD_ENERGY, RECOMMENDED_INJURY_BONUS, RECOMMENDED_INJURY_CAP } from './core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from './core/hacksheet'
 import {
   applyNhl95Hacks,
   detectNhl95Hacks,
+  NHL95_HACK_CHOICES,
+  NHL95_HACK_RANGES,
   NHL95_HACK_SECTIONS,
   NHL95_HACK_TITLES,
-  NHL95_HACKS,
+  NO_NHL95_HACKS,
   nhl95HackSheet,
   nhl95HacksForDiscord,
+  nhl95HackStateChanges,
+  type Nhl95ChoiceHack,
   type Nhl95Hack,
   type Nhl95HackChoices,
+  type Nhl95NumberHack,
 } from './core/nhl95hacks'
+import { clockTime, penaltyLengths } from './core/penaltytime'
 import type { RomProject } from './core/rom'
 
 interface Props {
@@ -21,6 +29,38 @@ interface Props {
 }
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
+  threeStars: 'How the three stars of the game are picked.',
+  bodychecks: "Counts each player's checks and shows them in Player Stats as Chk, where penalty minutes were.",
+  timeOnIce: 'A Time On Ice page in Player Stats, from the time on ice the game counts but never shows.',
+  giveaways: "Counts each player's giveaways and takeaways, with Player Stats pages and a Game Stats row for them.",
+  realTime: 'The game, penalty and shootout clocks count true seconds.',
+  penaltySeconds: 'How long each penalty minute keeps a player in the box, for leagues that play shorter periods.',
+  fightSeconds: 'How long a fight keeps each fighter in the box.',
+  noIcing: 'Icing is never called.',
+  hybridIcing: 'Icing decided as the puck crosses the goal line, by who is nearer the end-zone faceoff dots.',
+  delayedCalls: 'While one team has a penalty pending, the other can be called too.',
+  bCheckPenaltiesOff: 'Whether a B-check trips with penalties off as it does with them on.',
+  injuries: 'How often hits injure, and how long an injury lasts.',
+  shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt.',
+  fourthPeriodOvertime: 'Adds a period length to Game Setup whose regular-season games get their own overtime, such as 99 minutes.',
+  stamina: 'With line changes on, players on the ice do not tire.',
+  energyDrain: 'With line changes on, how fast skaters tire on the ice.',
+  energyRecovery: 'With line changes on, how fast skaters get their energy back on the bench.',
+  noSkatingDrain: 'With line changes on, skating costs no energy; hits, holds and bursts still can.',
+  burstEnergy: 'With line changes on, how much energy a C-button speed burst costs.',
+  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so he tires sooner.',
+  holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
+  injuryBonus: 'Each knockdown a skater takes makes a later injury a little likelier.',
+  injuryCap: 'The most the knockdowns above can add to the injury risk.',
+  goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  goalieWidth: 'How far a goalie you control goes to each side without the puck.',
+  goalieOut: 'How far up the ice a goalie you control comes without the puck.',
+  goalieLine: 'The line a goalie you control is whistled past.',
+  goalieDelay: 'How long B is held before you take control of the goalie.',
+  speedBurst: 'How much speed a C-button burst gives.',
+  turnRate: 'How sharply skaters stop and turn.',
+  puckFriction: 'How quickly a sliding puck slows down.',
+  choppyIce: 'The puck slows a little more as each period wears on, and the ice is fresh again after each intermission.',
   fighting: 'Players can fight. Adds a Fighting setting to Game Setup: Off, On, or On - Arcade Mode.',
   threeOnThree: 'Overtime is 3 on 3, as in the NHL; a penalty makes it 4 on 3. Playoff games stay 5 on 5.',
   threeOnThreeAll: 'Every overtime is 3 on 3, playoffs included; a penalty makes it 4 on 3.',
@@ -69,7 +109,7 @@ const OT3_MORE = (
   </p>
 )
 
-const MORE: Record<Nhl95Hack, ReactNode> = {
+const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   anyPosition: (
     <p className="note">
       The game's Edit Lines lists only forwards for the forward positions and only defencemen for the defence. With
@@ -282,6 +322,205 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
   ),
 }
 
+// The line each of NHL 94's settings ends with: none has been played in NHL '95 yet.
+const UNTESTED = "NHL 94's option, at NHL '95's places (also in the WN95HL's ROMs). Not yet tested in the game."
+const N = NO_NHL95_HACKS
+const chance = (impact: number) => Math.round((impact / 160) * 100)
+
+// The notes of NHL 94's settings, some with the values chosen; `stock` says what NHL '95 has, and this ROM.
+const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: string) => ReactNode>> = {
+  threeStars: () => (
+    <>
+      The original game picks its three stars very simply. The improved way weighs goals, assists, shots and checks for
+      skaters, and goals against, shots faced and shutouts for goalies. Choose it for how the ROM will mostly be played:
+      skaters are given a little more with line changes on, when each plays less. It uses the checks NHL '95 counts for
+      each player itself, so it needs no bodycheck statistics.
+    </>
+  ),
+  bodychecks: () => (
+    <>
+      Counts each player's checks, while the clock runs, and shows them in Player Stats as Chk, where penalty minutes were
+      (sorted as Checks For); players' penalty minutes are then not kept. NHL '95 already counts each player's checks for
+      itself, and this leaves that count as it is, so the checks a player takes are not counted, as NHL 94's version does.
+    </>
+  ),
+  timeOnIce: () => (
+    <>
+      The game counts each player's time on ice but never shows it. This adds a Time On Ice page to Player Stats: press
+      right past Penalty Minutes, and the players are sorted by their time on ice, each row showing goals, assists, points
+      and the time (m:ss, up to 99:59). Playoff stats are unchanged. With giveaways and takeaways on, it comes after their
+      two pages.
+    </>
+  ),
+  giveaways: () => (
+    <>
+      Counts each player's giveaways and takeaways, as the NHL94 Match Viewer project counts them: a change of puck carrier
+      from one team to the other with no whistle between. A takeaway goes to the skater who forced it, with a stick steal
+      or a check that knocked the carrier down or made him lose the puck; any other loss is a giveaway for the player who
+      lost it. Shots, faceoff wins, passes between teammates and dump-ins are not counted, nor anything in highlights or a
+      shootout. Game Stats gets a last row, Give/Takeaways, and Player Stats a page for each, past Penalty Minutes (or
+      Checks For), game stats only.
+    </>
+  ),
+  realTime: () => (
+    <>
+      The original game's clock runs two and a half times as fast as a real one. This makes the game clock, the penalty
+      clock and the shootout clock count true seconds. Periods then last as long as they say, so choose shorter ones.
+    </>
+  ),
+  penaltySeconds: (c, stock) => (
+    <>
+      How long each penalty minute keeps a player in the box: at 60, as in the original game, a minute is a minute; at 30
+      every penalty lasts half as long. Now {penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics, which
+      penalties are called, and a power-play goal letting a player out early are as before. {stock}
+    </>
+  ),
+  fightSeconds: (c) => (
+    <>
+      For leagues that play with fighting: how long a fight keeps each fighter in the box, in seconds of the game clock,
+      whatever its five minutes and the penalty time give ({c.fightSeconds === 0 ? 'now off' : `now ${clockTime(c.fightSeconds)}`}). 0
+      is off, as the original. The fight still counts as 5 penalty minutes, and both fighters get the same time.
+    </>
+  ),
+  noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM with the forum's version (TheTome's) is read as on.</>,
+  hybridIcing: () => (
+    <>
+      The icing rule the NHL has played since 2013. The original game plays touch icing. With this on, icing is decided as
+      the puck crosses the goal line: if the defending team's nearest skater is as near as or nearer to the end-zone faceoff
+      dots than the icing team's, icing is called there and then; if an attacker is nearer, it is waved off. Goalies do not
+      count, and a team short-handed never ices. No effect with No icing on.
+    </>
+  ),
+  delayedCalls: () => (
+    <>
+      A matter of taste. In the original game, while one team has a penalty pending, the other cannot be called for
+      anything until the whistle. With this on it can be; a foul by the team with the puck stops play at once.
+    </>
+  ),
+  bCheckPenaltiesOff: () => (
+    <>
+      With penalties off, the original game lets your B-check trip a player only after an extra roll of your Checking
+      against his Agility; with penalties on there is no such roll. <b>As with penalties on</b> drops it, so B-checks trip
+      the same either way. A ROM with the forum's version (CoachMac's) shows it as such, and can be set back.
+    </>
+  ),
+  injuries: () => (
+    <>
+      In the original game a hard hit can injure the player knocked down, for the rest of the period or of the game. With{' '}
+      <b>never</b> a hit is only a fall. With <b>the penalty, but no injury</b> the hit is still called but no one is hurt.{' '}
+      <b>Every injury for the period</b> and <b>for the game</b> make every injury last that long. With <b>a long fall
+      instead</b> the player stays down about 5 seconds, then gets up and plays on: no injury and no penalty. The WN95HL's
+      ROMs already have every injury for the game.
+    </>
+  ),
+  shootoutInjuries: () => (
+    <>
+      With one of the shootouts for tied regular-season games on (above): a skater injured for the game, by a hit or in a
+      fight, takes no attempt, and the next healthy player on the team's shootout list shoots in his place. If all five are
+      out, the listed players shoot as before. Without a season shootout it does nothing; Shootout mode is as it was.
+    </>
+  ),
+  fourthPeriodOvertime: (c) => (
+    <>
+      Lets one ROM play two kinds of regular-season game: the usual ones, and ones with an overtime of their own, such as
+      99 minutes. Game Setup's Period Length offers three of the game's four lengths; this adds the fourth, in Season
+      Setup too (set it and its menu text on the Game settings page; the original game's is 30 seconds). A regular-season
+      game played at it gets this many seconds of overtime ({c.fourthPeriodOvertime === 0 ? 'now off' : `now ${clockTime(c.fourthPeriodOvertime)}`}; 5940
+      is 99 minutes); 0 is off. The other lengths keep their overtime, and exhibition and season playoffs are as before.
+    </>
+  ),
+  stamina: () => <>With line changes on, players on the ice do not tire, so lines need changing only when you want to.</>,
+  energyDrain: (_, stock) => (
+    <>
+      How fast a player tires on the ice with line changes on. A larger number tires him sooner. At least 16, as in NHL 94:
+      below that a player with high endurance can get more back than he loses. {stock}
+    </>
+  ),
+  energyRecovery: (_, stock) => <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock}</>,
+  noSkatingDrain: () => (
+    <>
+      With line changes on, skating costs no energy. Players then tire only from hits and holds (below) and speed bursts,
+      and rest on the bench as usual. Unlike Unlimited stamina, hits still count.
+    </>
+  ),
+  burstEnergy: (_, stock) => <>The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none. {stock}</>,
+  hitEnergy: (c) => (
+    <>
+      A skater knocked down by a check or a poke check loses this much energy, out of 4096, so he is slower until he rests
+      ({c.hitEnergy === 0 ? 'now none' : `now ${Math.round((c.hitEnergy / 4096) * 1000) / 10}%`}). 0 is the original game. Only with line changes on, and
+      nothing after the whistle. Recommended in NHL 94: {RECOMMENDED_HIT_ENERGY} (5%). <b>Energy from hits only</b> turns on Skating costs
+      no energy, makes a speed burst cost nothing, and sets a knockdown to {HITS_ONLY.hitEnergy} and a hold to {HITS_ONLY.holdEnergy}.
+    </>
+  ),
+  holdEnergy: () => (
+    <>The same for a skater caught by a hold or hook, once each time it catches him in play. Recommended in NHL 94: {RECOMMENDED_HOLD_ENERGY}, half a knockdown's.</>
+  ),
+  injuryBonus: () => (
+    <>
+      Each knockdown a skater takes this game makes a later injury a little likelier, and half of it wears off at each
+      intermission. 0 is the original game. Only hits that can already injure are affected. The numbers mean what they do
+      in NHL 94: NHL '95 rolls 0 to 399 against a hit's impact where NHL 94 rolls 0 to 159, so the code adds two and a half
+      times them, the same extra chance, about the number in 160 a knockdown. Recommended in NHL 94: {RECOMMENDED_INJURY_BONUS} a
+      knockdown, at most {RECOMMENDED_INJURY_CAP}.
+    </>
+  ),
+  injuryCap: (c) => (
+    <>The most the knockdowns can add, as in NHL 94: at {c.injuryCap}, about {chance(c.injuryCap)} in 100 more on a hit that can injure. Used only when the risk above is more than 0.</>
+  ),
+  goalieHold: () => (
+    <>
+      How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(N.goalieHold)} seconds. 0 for no
+      whistle at all; a goalie the game controls still gives the puck up by himself.
+    </>
+  ),
+  goalieWidth: (_, stock) => <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. {stock}</>,
+  goalieOut: (_, stock) => (
+    <>
+      How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
+      him come farther out. For scale, NHL '95's goal line is about 267 from centre ice and its blue line 86. {stock}
+    </>
+  ),
+  goalieLine: (_, stock) => (
+    <>
+      The line a goalie you control may not skate past without a whistle, as a distance from centre ice, so a smaller number
+      lets him go farther; NHL '95's end-zone faceoff dots are 215 from centre ice. In practice it is the line he may carry
+      the puck to. {stock}
+    </>
+  ),
+  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie, in counts of the game's timer: about half a second at 17. The same for all four pads. {stock}</>,
+  speedBurst: () => (
+    <>
+      The push the C button gives. 0 for the original game's, which is 32 for a fresh player and less for a tired one. Any
+      other number is the push for everybody: 1 as good as takes it away, 16 is half the original's.
+    </>
+  ),
+  turnRate: (_, stock) => <>How quickly a skater stops and turns when he reverses. A larger number stops him sooner. {stock}</>,
+  puckFriction: (_, stock) => (
+    <>
+      How fast the puck slows on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller number slows it
+      faster (6 twice as fast as 7, 8 half as fast). The puck alone: NHL '95's puck has a number of its own (NHL 94's 9 is
+      shared with gliding skaters), so skaters glide as before. {stock}
+    </>
+  ),
+  choppyIce: () => (
+    <>
+      From a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by
+      the period's end, and is fresh again after each intermission. Only the puck. It goes with Puck friction above.
+    </>
+  ),
+}
+
+// The words a number is shown with.
+const UNITS: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices) => string>> = {
+  goalieHold: () => 'seconds',
+  penaltySeconds: () => 'seconds in the box for each penalty minute',
+  fightSeconds: (c) => `seconds in the box for each fighter (${c.fightSeconds === 0 ? 'off' : clockTime(c.fightSeconds)})`,
+  fourthPeriodOvertime: (c) => `seconds of overtime (${c.fourthPeriodOvertime === 0 ? 'off' : clockTime(c.fourthPeriodOvertime)})`,
+}
+
+const isNumber = (hack: Nhl95Hack): hack is Nhl95NumberHack => hack in NHL95_HACK_RANGES
+const isChoice = (hack: Nhl95Hack): hack is Nhl95ChoiceHack => hack in NHL95_HACK_CHOICES
+
 export function Nhl95HacksPage({ project, name, onChange }: Props) {
   const state = useMemo(() => detectNhl95Hacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
@@ -290,13 +529,99 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
   const wanted: Nhl95HackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  const changed = NHL95_HACKS.filter((hack) => wanted[hack] !== state.choices[hack])
+  const changes = nhl95HackStateChanges(state, { choices: wanted, unknown: state.unknown })
   const unknown = (hack: Nhl95Hack) => state.unknown.includes(hack)
+
+  const set = (change: Partial<Nhl95HackChoices>) => {
+    setNotice('')
+    setError('')
+    const others: Partial<Nhl95HackChoices> = {}
+    // The three ways of settling a tie exclude each other: one on turns the others off.
+    const ties = ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] as const
+    for (const tie of ties) if (change[tie]) for (const other of ties) if (other !== tie) others[other] = false
+    // The two 3 on 3 choices exclude each other.
+    if (change.threeOnThree) others.threeOnThreeAll = false
+    if (change.threeOnThreeAll) others.threeOnThree = false
+    // Without fighting, its setting at power-on goes back to On.
+    if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false })
+    setDraft({ rom: project.bytes, choices: { ...wanted, ...others, ...change } })
+  }
+  // "NHL '95 has 150", with what this ROM has if that is different.
+  const stock = (hack: Nhl95Hack) =>
+    `NHL '95 has ${String(N[hack])}${!unknown(hack) && state.choices[hack] !== N[hack] ? `, and this ROM has ${String(state.choices[hack])}` : ''}.`
+  const button = (label: string, change: Partial<Nhl95HackChoices>) => {
+    const keys = Object.keys(change) as Nhl95Hack[]
+    return (
+      <button type="button" disabled={keys.some(unknown) || keys.every((key) => wanted[key] === change[key])} onClick={() => set(change)}>
+        {label}
+      </button>
+    )
+  }
+  const BESIDE: Partial<Record<Nhl95Hack, ReactNode>> = {
+    hitEnergy: (
+      <p>
+        {button(`Use the recommended ${RECOMMENDED_HIT_ENERGY}`, { hitEnergy: RECOMMENDED_HIT_ENERGY })} {button('Energy from hits only', HITS_ONLY)}
+      </p>
+    ),
+    holdEnergy: <p>{button(`Use the recommended ${RECOMMENDED_HOLD_ENERGY}`, { holdEnergy: RECOMMENDED_HOLD_ENERGY })}</p>,
+    injuryBonus: <p>{button(`Use the recommended ${RECOMMENDED_INJURY_BONUS} and ${RECOMMENDED_INJURY_CAP}`, { injuryBonus: RECOMMENDED_INJURY_BONUS, injuryCap: RECOMMENDED_INJURY_CAP })}</p>,
+  }
+
+  // The control for one hack: on or off, a number, or one of a few choices.
+  function control(hack: Nhl95Hack): ReactNode {
+    const label = hack === 'fightingOff' ? FIGHT_START : NHL95_HACK_TITLES[hack]
+    if (isNumber(hack)) {
+      return (
+        <>
+          <NumberBox
+            label={label}
+            value={wanted[hack]}
+            range={NHL95_HACK_RANGES[hack]}
+            perUnit={hack === 'goalieHold' ? 60 : 1}
+            fresh={project.bytes}
+            disabled={unknown(hack)}
+            onChange={(value) => set({ [hack]: value })}
+          />
+          {UNITS[hack] && ` ${UNITS[hack](wanted)}`}
+        </>
+      )
+    }
+    if (isChoice(hack)) {
+      const choices = NHL95_HACK_CHOICES[hack] as Record<string, string>
+      return (
+        <select aria-label={label} className="wide" disabled={unknown(hack)} value={wanted[hack]} onChange={(e) => set({ [hack]: e.target.value })}>
+          {/* The forum's B-checks are shown only where the ROM has them, to keep or set back. */}
+          {Object.keys(choices)
+            .filter((choice) => !(hack === 'bCheckPenaltiesOff' && choice === 'forum' && state.choices.bCheckPenaltiesOff !== 'forum'))
+            .map((choice) => (
+              <option key={choice} value={choice}>
+                {choices[choice]}
+              </option>
+            ))}
+        </select>
+      )
+    }
+    return (
+      <select
+        aria-label={label}
+        disabled={unknown(hack) || (hack === 'fightingOff' && !wanted.fighting)}
+        value={hack === 'fightingOff' ? (wanted.fightingOff ? 'off' : wanted.fightingArcade ? 'arcade' : 'on') : wanted[hack] ? 'on' : 'off'}
+        onChange={(e) => {
+          if (hack === 'fightingOff') set({ fightingOff: e.target.value === 'off', fightingArcade: e.target.value === 'arcade' })
+          else set({ [hack]: e.target.value === 'on' })
+        }}
+      >
+        <option value="off">Off</option>
+        <option value="on">On</option>
+        {hack === 'fightingOff' && <option value="arcade">On - Arcade Mode</option>}
+      </select>
+    )
+  }
 
   function apply() {
     try {
       onChange(applyNhl95Hacks(project, wanted))
-      setNotice(`Done: ${changed.length === 1 ? '1 change' : `${changed.length} changes`} to the game. Undo puts it back.`)
+      setNotice(`Done: ${changes.length === 1 ? '1 change' : `${changes.length} changes`} to the game. Undo puts it back.`)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -311,9 +636,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
         Nothing in the ROM changes until you do, and Undo takes it all back.
       </p>
       <p className="note">
-        Changes to NHL '95 itself: NHL 94's fixes where NHL '95 has the same code, and NHL '95's own, from the NHL94
-        Match Viewer project's reading of the game's code. The rest of NHL 94's hacks were made for NHL 94's code and are
-        not offered here. The page shows what this ROM has now. Test a hacked ROM in a game before a league plays on it.
+        Changes to NHL '95 itself: NHL 94's fixes and settings where NHL '95 has the same code, and NHL '95's own, from the
+        NHL94 Match Viewer project's reading of the game's code. The rest of NHL 94's hacks were made for NHL 94's code and
+        are not offered here. The page shows what this ROM has now. Test a hacked ROM in a game before a league plays on it.
       </p>
       <HackShortcuts
         onRecommended={null}
@@ -329,43 +654,20 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
           {section.hacks.filter((hack) => hack !== 'fightingArcade').map((hack) => (
             <div className="hack" key={hack}>
               <label>
-                <b>{hack === 'fightingOff' ? FIGHT_START : NHL95_HACK_TITLES[hack]}</b>{' '}
-                <select
-                  aria-label={hack === 'fightingOff' ? FIGHT_START : NHL95_HACK_TITLES[hack]}
-                  disabled={unknown(hack) || (hack === 'fightingOff' && !wanted.fighting)}
-                  value={hack === 'fightingOff' ? (wanted.fightingOff ? 'off' : wanted.fightingArcade ? 'arcade' : 'on') : wanted[hack] ? 'on' : 'off'}
-                  onChange={(e) => {
-                    setNotice('')
-                    setError('')
-                    if (hack === 'fightingOff') {
-                      const start = e.target.value
-                      setDraft({ rom: project.bytes, choices: { ...wanted, fightingOff: start === 'off', fightingArcade: start === 'arcade' } })
-                      return
-                    }
-                    const on = e.target.value === 'on'
-                    // The three ways of settling a tie exclude each other: one on turns the others off.
-                    const ties = ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] as const
-                    const others = on && (ties as readonly string[]).includes(hack) ? Object.fromEntries(ties.filter((t) => t !== hack).map((t) => [t, false])) : {}
-                    // The two 3 on 3 choices exclude each other.
-                    if (hack === 'threeOnThree' && on) Object.assign(others, { threeOnThreeAll: false })
-                    if (hack === 'threeOnThreeAll' && on) Object.assign(others, { threeOnThree: false })
-                    // Without fighting, its setting at power-on goes back to On.
-                    if (hack === 'fighting' && !on) Object.assign(others, { fightingOff: false, fightingArcade: false })
-                    setDraft({ rom: project.bytes, choices: { ...wanted, ...others, [hack]: on } })
-                  }}
-                >
-                  <option value="off">Off</option>
-                  <option value="on">On</option>
-                  {hack === 'fightingOff' && <option value="arcade">On - Arcade Mode</option>}
-                </select>
+                <b>{hack === 'fightingOff' ? FIGHT_START : NHL95_HACK_TITLES[hack]}</b> {control(hack)}
               </label>
+              {BESIDE[hack]}
               <p className="summary">
                 {SUMMARIES[hack]}
                 {unknown(hack) && <b> This ROM's code here is neither the original game's nor this hack's, so it is left exactly as it is.</b>}
               </p>
               <details className="more">
                 <summary>More about it</summary>
-                {MORE[hack]}
+                {MORE[hack] ?? (
+                  <p className="note">
+                    {SETTING_MORE[hack]!(wanted, stock(hack))} {UNTESTED}
+                  </p>
+                )}
               </details>
             </div>
           ))}
@@ -374,19 +676,17 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
       <section id="hacks-apply" data-tab-always>
         <h3>Apply</h3>
         <p>
-          <button disabled={changed.length === 0} onClick={apply}>
+          <button disabled={changes.length === 0} onClick={apply}>
             Apply
           </button>{' '}
           <span className="note">{notice}</span>
         </p>
-        {changed.length > 0 && (
+        {changes.length > 0 && (
           <div className="outcome">
             <p>Applying will make these changes to the game:</p>
             <ul>
-              {changed.map((hack) => (
-                <li key={hack}>
-                  {NHL95_HACK_TITLES[hack]}: {state.choices[hack] ? 'on' : 'off'} to {wanted[hack] ? 'on' : 'off'}
-                </li>
+              {changes.map((change) => (
+                <li key={change}>{change}</li>
               ))}
             </ul>
           </div>

@@ -21,7 +21,7 @@ import { creditsFit, type Credits } from './credits'
 import { type Scouting, scoutingWithMissingLines } from './scouting'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, nhl95HacksSupported, type Nhl95HackChoices } from './nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, nhl95HacksSupported, type Nhl95HackChoices } from './nhl95hacks'
 import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
@@ -463,7 +463,8 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   }
   if (!exact && file.nhl95Hacks && nhl95HacksSupported(opened.game)) {
     const { choices: now } = detectNhl95Hacks(opened.bytes)
-    const wanted = Object.fromEntries(NHL95_HACKS.flatMap((hack) => (typeof file.nhl95Hacks![hack] === 'boolean' ? [[hack, file.nhl95Hacks![hack]]] : []))) as Partial<Nhl95HackChoices>
+    // Each as the kind of value it is (a project file from before a setting was offered has none for it).
+    const wanted = Object.fromEntries(NHL95_HACKS.flatMap((hack) => (typeof file.nhl95Hacks![hack] === typeof NO_NHL95_HACKS[hack] ? [[hack, file.nhl95Hacks![hack]]] : []))) as Partial<Nhl95HackChoices>
     if (NHL95_HACKS.some((hack) => wanted[hack] !== undefined && wanted[hack] !== now[hack])) {
       try {
         opened = applyNhl95Hacks(opened, wanted)

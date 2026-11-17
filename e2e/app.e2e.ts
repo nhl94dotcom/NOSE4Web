@@ -3045,9 +3045,9 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(page.getByText('Per. Length')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Organ songs' })).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/nhl95-settings.png', fullPage: true })
-    // Its own Hacks page, with the pass direction fix and none of NHL 94's hacks.
+    // Its own Hacks page, with the pass direction fix and none of the hacks made for NHL 94's code alone.
     await entry(page, 'Hacks').click()
-    await expect(page.getByLabel('Bodycheck statistics')).toHaveCount(0)
+    await expect(page.getByLabel('Weight bug and C-then-B fix')).toHaveCount(0)
     await page.getByLabel('Pass direction fix').selectOption('on')
     await expect(page.getByText('Pass direction fix: off to on')).toBeVisible()
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
