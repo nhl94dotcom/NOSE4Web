@@ -308,7 +308,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     expect(readSong(back, 0x78)!.events).toEqual(readSong(project.bytes, 0x78)!.events)
   })
 
-  it('ends a hit still sounding where the next begins, as the driver starts the sample again only once it is off', () => {
+  it('lets a hit ring until the next begins (at most half a second), as the driver starts the sample again only once it is off', () => {
     // Hits 6 frames apart, and one 20 frames after.
     const hits = [0, 0.1, 0.2, 0.3, 0.6333].map((start) => ({ start, length: 0.1, note: 38, velocity: 100, channel: 9 }))
     const made = gameMusicFromMidi([{ start: 0, length: 1, note: 60, velocity: 80, channel: 0 }, ...hits], new Map<number, PartChoice>([[0, 14], [9, 'drums']]))
@@ -321,9 +321,10 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
       [12, 0x90],
       [18, 0x80],
       [18, 0x90],
-      [24, 0x80],
+      // Each rings until the next, however short in the file: the 20-frame gap too; the last for half a second.
+      [38, 0x80],
       [38, 0x90],
-      [44, 0x80],
+      [68, 0x80],
     ])
   })
 

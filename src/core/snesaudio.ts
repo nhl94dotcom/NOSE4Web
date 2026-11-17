@@ -56,6 +56,9 @@ const offsetOf = (long: number) => loRomOffset((long >>> 16) & 0xff, long & 0xff
 const byteAt = (rom: Uint8Array, at: number) => (at >= 0 && at < rom.length ? rom[at] : 0)
 const wordAt = (rom: Uint8Array, at: number) => byteAt(rom, at) | (byteAt(rom, at + 1) << 8)
 const signed8 = (value: number) => ((value & 0xff) ^ 0x80) - 0x80
+// The SNES's frames a second (NTSC: 21.477 MHz / 4 / 1364 / 262), at which the game's sequencer ticks; 60 made the
+// player fall behind the console by 0.165% (Match Viewer).
+const SNES_FRAMES_PER_SECOND = 60.0988
 const clamp16 = (value: number) => (value > 32767 ? 32767 : value < -32768 ? -32768 : value)
 
 // ------------------------------------------------------------- BRR samples
@@ -357,7 +360,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
   // The instrument pointer the game keeps (InstPtr): a bend takes the tuning of the last one set.
   let instPtr: SnesInstrument | null = null
   let frame = 0
-  const now = () => frame / FRAMES_PER_SECOND
+  const now = () => frame / SNES_FRAMES_PER_SECOND
 
   const pitchOf = (note: number) => snesNotePitch(rom, sound, note)
   const stopVoice = (v: number) => {
@@ -565,7 +568,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
   let counter = 0
   let owed = 0
   const renderFrame = () => {
-    owed += SNES_SAMPLE_RATE / FRAMES_PER_SECOND
+    owed += SNES_SAMPLE_RATE / SNES_FRAMES_PER_SECOND
     const n = Math.floor(owed)
     owed -= n
     for (let v = 0; v < 8; v++) {
@@ -598,8 +601,10 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
         }
         const s = interpolate(brr, index, (p.pos >> 4) & 0xff)
         const out = (s * p.env) >> 11
-        mixL += (out * signed8(d.left)) >> 7
-        mixR += (out * signed8(d.right)) >> 7
+        // The sound chip keeps the voices' sum to 16 bits as it adds each, before the main volume: so the console
+        // never goes past 32767 x 80/128 (Match Viewer measured its peaks at 20,480).
+        mixL = clamp16(mixL + ((out * signed8(d.left)) >> 7))
+        mixR = clamp16(mixR + ((out * signed8(d.right)) >> 7))
         p.pos += d.pitch & 0x3fff
         // Round the loop again, so the place stays a small number.
         if (brr.loopStart >= 0 && p.pos >= (brr.pcm.length + brr.loop.length) * 0x1000) p.pos -= brr.loop.length * 0x1000
@@ -657,7 +662,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     if (ended < 0 && frame - stepped >= IDLE_FRAMES) ended = frame
     if (ended >= 0 && (frame - ended >= TAIL_FRAMES || silent)) break
   }
-  const seconds = (frame + 1) / FRAMES_PER_SECOND
+  const seconds = (frame + 1) / SNES_FRAMES_PER_SECOND
   for (const n of notes) {
     n.end = Math.min(n.end, seconds)
     n.release = Math.min(n.release, n.end)

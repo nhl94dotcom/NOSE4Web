@@ -229,24 +229,29 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
     expect(readNhl95Music(open(RETAIL).bytes, 1)).toBeNull()
   })
 
-  it("plays NHL '95's patches as its own, not NHL 94's: channel 9 a tune, patch $15 a drum, no octave moved", () => {
+  it("plays NHL '95's patches as its own, not NHL 94's: channel 9 a tune, its drums by their notes, each octave as heard", () => {
     const rom = open(RETAIL).bytes
     const scouting = readNhl95Music(rom, 3)!
     const ons = (events: SongEvent[], channel: number) => events.filter((e) => (e.status & 0xf0) === 0x90 && (e.status & 0x0f) === channel)
-    // The scouting report's channel 9 is a tune on patch $14 (363 notes, 52 to 67 as written, 40 to 55 as NHL 94's).
+    const range = (events: SongEvent[]) => [Math.min(...events.map((e) => e.data[0])), Math.max(...events.map((e) => e.data[0]))]
+    // The scouting report's channel 9 is a tune on patch $14 (363 notes), which sounds at the note written: 52 to 67.
     const tune = gameMusicTune(scouting, 95)
     const nine = ons(tune, 9)
     expect(nine.length).toBe(363)
-    expect([Math.min(...nine.map((e) => e.data[0])), Math.max(...nine.map((e) => e.data[0]))]).toEqual([40, 55])
-    // Patch $0D (NHL 94's bass, an octave down there) as written: channel 5, 52 to 65 as written.
-    const five = ons(tune, 5)
-    expect([Math.min(...five.map((e) => e.data[0])), Math.max(...five.map((e) => e.data[0]))]).toEqual([40, 53])
-    // Patch $15 a drum, so not in the tune, and its notes kept as written (0 to 19 in the title music, not all 0).
+    expect(range(nine)).toEqual([52, 67])
+    // Patch $0D sounds at the written note too (not NHL 94's bass an octave down): channel 5, 52 to 65.
+    expect(range(ons(tune, 5))).toEqual([52, 65])
+    // The drums are not in the tune, and keep their notes as written (patch $15 at 0 to 19 in the title music).
     expect(ons(tune, 7)).toEqual([])
     const title = readNhl95Music(rom, 0)!
     expect(Math.max(...ons(title.events, 6).map((e) => e.data[0]))).toBe(19)
+    // In the MIDI file each drum by the note it is played at: $15 at note 0 a kick, at 17 to 19 a tom; $0E a snare at
+    // 55 to 57; the noise the hi-hats.
+    const drums = (song: typeof scouting) => new Set(readMidi(gameMusicToMidi(song, '', 95)).notes.filter((n) => n.channel === 9).map((n) => n.note))
+    expect([...drums(scouting)].every((note) => [35, 36, 38, 42, 45].includes(note))).toBe(true)
+    expect(drums(scouting).has(36)).toBe(true)
+    expect(drums(title).has(45)).toBe(true)
     const midi = readMidi(gameMusicToMidi(scouting, '', 95)).notes
-    expect(midi.filter((n) => n.channel === 9 && n.note === 45).length).toBe(221 + 152)
     expect(midi.filter((n) => n.channel !== 9).length).toBe(tune.filter((e) => (e.status & 0xf0) === 0x90).length)
     // As NHL 94's, channel 9 would be the drums.
     expect(ons(gameMusicTune(scouting), 9)).toEqual([])

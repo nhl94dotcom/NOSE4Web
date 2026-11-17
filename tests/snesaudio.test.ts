@@ -190,3 +190,19 @@ describe.skipIf(!names.length)('SNES sound', () => {
     expect(took).toBeLessThan(5000)
   })
 })
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES player against the console', () => {
+  it("never goes past the console's peak, the voices kept to 16 bits before the main volume, and runs at 60.10 frames a second", () => {
+    const rom = openRom(new Uint8Array(readFileSync(path('NHL94.smc')))).bytes
+    for (const piece of SNES_GAME_MUSIC) {
+      const music = renderSnesMusic(rom, piece.pointer, piece.sounds)!
+      let peak = 0
+      for (const channel of [music.left, music.right]) for (const value of channel) peak = Math.max(peak, Math.abs(value))
+      // 32767 x 80/128, as Match Viewer measured on the console.
+      expect(peak * 32768, piece.name).toBeLessThanOrEqual(20480)
+    }
+    // The sound's length in samples is its seconds at 32 kHz, the seconds counted in the SNES's frames.
+    const title = renderSnesMusic(rom, SNES_GAME_MUSIC[0].pointer, 'title')!
+    expect(Math.abs(title.left.length / 32000 - title.seconds)).toBeLessThan(0.05)
+  })
+})

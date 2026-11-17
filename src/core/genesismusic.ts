@@ -476,15 +476,24 @@ export const GAME_MUSIC: { number: number; name: string; where: string }[] = [
 
 // What each channel of a piece is, for listening: a drum (the note MIDI's drum channel plays for it), or a tune
 // on a patch, by how low it plays.
-type ChannelPart = { drum: number } | { program: number; shift: number }
+// A drum: the MIDI drum note for each note it plays (one, or by the note, for NHL '95's drums tuned by their note).
+type ChannelPart = { drum: (note: number) => number } | { program: number; shift: number }
 const KICK = 36
 const SNARE = 38
 const CLOSED_HAT = 42
 const LOW_TOM = 45
 // NHL '95's noise voice (nhl95music.ts), the hi-hats, as a patch number of its own past the sampled ones'.
 export const NOISE_HAT = 0x7f
-// NHL '95's patch $15, a drum played at many pitches (notes 0 to 19), as a tom.
+// NHL '95's drum patches, each sounding by the note it is played at (Match Viewer played each alone): $15 like a kick
+// at note 0 and a tom at 17 to 19; $0E a thump at 51 and a snare-like crack at 55 to 57.
 export const NHL95_DRUM_PATCH = 0x15
+const NHL95_DRUMS: Record<number, (note: number) => number> = {
+  [NHL95_DRUM_PATCH]: (note) => (note < 10 ? KICK : LOW_TOM),
+  0x0e: (note) => (note < 54 ? 35 : SNARE),
+}
+// NHL '95's tuned patches that sound an octave above the written note ($18, $1B); the others sound at it ($0D, $11, $1D,
+// and $14, a square wave that never goes below about 48). Match Viewer, each played alone.
+const NHL95_OCTAVE_ABOVE = new Set([0x18, 0x1b])
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
 // Whose piece it is: NHL '95's patches are numbered otherwise than NHL 94's, and its channel 9 may be a tune, so its
@@ -502,13 +511,13 @@ function channelParts(events: SongEvent[], edition: MusicEdition = 94): Map<numb
   for (const [channel, played] of notes) {
     const patch = patches.get(channel) ?? 0
     const nhl94 = edition === 94
-    if (patch === NOISE_HAT) parts.set(channel, { drum: CLOSED_HAT })
-    else if (!nhl94 && patch === NHL95_DRUM_PATCH) parts.set(channel, { drum: LOW_TOM })
-    else if (isSampled(patch) || (nhl94 && channel === DRUMS)) parts.set(channel, { drum: SNARE })
-    else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
+    if (patch === NOISE_HAT) parts.set(channel, { drum: () => CLOSED_HAT })
+    else if (!nhl94 && NHL95_DRUMS[patch]) parts.set(channel, { drum: NHL95_DRUMS[patch] })
+    else if (isSampled(patch) || (nhl94 && channel === DRUMS)) parts.set(channel, { drum: () => SNARE })
+    else if (new Set(played).size === 1) parts.set(channel, { drum: () => KICK })
     else {
       const byRange = played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS
-      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 } : { program: byRange, shift: 0 })
+      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 } : { program: byRange, shift: NHL95_OCTAVE_ABOVE.has(patch) ? 12 : 0 })
     }
   }
   return parts
@@ -563,6 +572,8 @@ const HIT_PATCH = 0x6a
 const HIT_NOTE = 76
 const KICK_CHANNEL = 6
 const HIT_CHANNEL = 7
+// The most frames a hit rings: half a second.
+const HIT_RING = 30
 // MIDI's bass drums, played as the kick; MIDI's other drums are the hit.
 const MIDI_KICKS = [35, 36]
 // The tunes' game channels (0 to 5), and the FM notes the music may have at once: the console's five, which the
@@ -680,10 +691,12 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
     const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
     const off = Math.max(on + 2, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
     if (choice === 'drums' && !MIDI_KICKS.includes(midi.note)) {
-      // The hit is a sample, on the console's one sample voice. The driver does not start the sample again while it is
-      // on (sound94.asm's handle_command_10 .pcm), so a hit still sounding is ended where the next begins.
+      // The hit is a sample, on the console's one sample voice. A key-off stops it, and the driver does not start it
+      // again while it is on (sound94.asm's handle_command_10 .pcm): so whatever its length in the file, a hit rings
+      // until the next begins, for at most HIT_RING (a MIDI file's drum notes are often only a few frames long, which
+      // cut the sample short: Match Viewer).
       if (lastHit && lastHit.off > on) lastHit.off = on
-      lastHit = { on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 }
+      lastHit = { on, off: on + HIT_RING, note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 }
       played.push(lastHit)
       continue
     }
@@ -796,8 +809,8 @@ export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number },
     const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
     let bytes: number[] | null = null
     // The pieces' velocities are MIDI's already (the organ songs' are a third of it).
-    if (command === 0x90) bytes = [0x90 | channel, drum ?? (event.data[0] + shift) & 0x7f, event.data[1] & 0x7f]
-    else if (command === 0x80) bytes = [0x80 | channel, drum ?? (event.data[0] + shift) & 0x7f, 0x40]
+    if (command === 0x90) bytes = [0x90 | channel, drum ? drum(event.data[0]) : (event.data[0] + shift) & 0x7f, event.data[1] & 0x7f]
+    else if (command === 0x80) bytes = [0x80 | channel, drum ? drum(event.data[0]) : (event.data[0] + shift) & 0x7f, 0x40]
     else if (command === 0xb0 && event.data[0] === 7 && drum === null) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
     if (!bytes) continue
     vlq(event.frame - frame)
