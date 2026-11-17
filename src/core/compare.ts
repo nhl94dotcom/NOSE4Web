@@ -3,6 +3,8 @@ import { readMenuPicture } from './menupicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { GAME_MUSIC, readSong } from './genesismusic'
+import { snesCustomMusicBytes, snesCustomMusicName } from './snesgamemusic'
+import { SNES_GAME_MUSIC } from './snesmusic'
 import { genesisSongs, songName, songNumber, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
@@ -205,6 +207,15 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
       const [was, now] = [readSong(before.bytes, number), readSong(after.bytes, number)]
       if (!was || !now || JSON.stringify(was.events) === JSON.stringify(now.events)) return []
       return [`${name}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
+    })
+    add('Game music', musicLines)
+  }
+  if (before.game.platform === 'snes' && after.game.platform === 'snes') {
+    // A piece NOSE4Web put in is the same wherever it is: its bytes hold no place of their own.
+    const musicLines = SNES_GAME_MUSIC.flatMap(({ name }, index) => {
+      const [was, now] = [snesCustomMusicBytes(before.bytes, index), snesCustomMusicBytes(after.bytes, index)]
+      if (was === now || (was && now && was.length === now.length && was.every((byte, i) => byte === now[i]))) return []
+      return [`${name}: ${now ? `"${snesCustomMusicName(after.bytes, index)}", from a MIDI file` : "the game's own again"}.`]
     })
     add('Game music', musicLines)
   }

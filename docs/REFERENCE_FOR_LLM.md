@@ -1349,8 +1349,17 @@ not built.
 
 `SnesGameMusicSection` (`OrganSongsSection.tsx`): "Play plays a piece on the game's own instruments. Export MIDI saves
 it as a MIDI file, each of its parts on a track of its own named as the game names it, and the drums on the drum
-channel. Replacing them is still to come." The SNES organ songs' Play uses the same real-sample player with the game
-set (`snesMusicSound(project.bytes, pointer, 'game')`).
+channel. **Replace** puts a MIDI file of your own in its place: you choose one of the game's instruments for each of its
+parts, its drums play on the game's drums, and the piece plays again from the start when it ends. The console has eight
+voices for the music and its drums, and each instrument only some of them: where an instrument's voices are all taken,
+the drums, then the bass, then the higher notes are kept. Not yet tested in the game." Its flow mirrors the Genesis's
+(section 12): Replace… reads the file, a table of its parts with an instrument select each ("Bass, one note at a time",
+"Brass, up to 3 notes at once", ...; the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
+in**, a notice ("The playoff music is now "...", m:ss long, playing again from the start when it ends." with "Not as in
+the file: ..." for notes left out, past the voices, or moved by octaves), **Put back the original**. Replace is offered
+only where `snesMusicReplaceable` (the places below found, and the instruments). Play plays the piece now in place
+(`snesMusicPointer`). The SNES organ songs' Play uses the same real-sample player with the game set
+(`snesMusicSound(project.bytes, pointer, 'game')`).
 
 ### Origin and credit
 
@@ -1389,7 +1398,7 @@ A track named `drums` plays a drum for each note.
 MIDI **format 1**, division 60, tempo 1,000,000 microseconds a beat (a tick a frame); track 0 has the name and tempo;
 then one track per part with notes, named with EA's track name (`FF 03`). Tunes get channels in order (9 skipped, at most
 16) and a General MIDI program guessed from the name (`PROGRAMS`, counted from 0): `bass` 38, `horn|bsec|brass` 61,
-`orgn|organ` 16, `apower|dist|chug` 30, `orch` 55, `timp` 47, else 62. The `drums` part goes on channel 9 as it is; a
+`orgn|organ` 16, `apower|dist|chug` 30, `orch` 55, `timp` 47, else 62. The `drums` part goes on channel 9 as General MIDI drums (`SNES_DRUM_GM`, below); a
 part of one percussion sound goes there as that drum (`SINGLE_DRUMS`: `crash|crsh` 49, `cow` 56, `hat` 46).
 `snesMusicTune` gives NHL 94 Genesis-style events without drum parts (velocity / 3) for the rough preview.
 
@@ -1455,10 +1464,71 @@ release, end, voice, track, note, sample, rate, volumes, ADSR), `seconds`, and s
 **`src/snesplayer.ts`**: `snesMusicSound(rom, pointer, set)` renders (null on error or no sound) and keeps the last
 renders up to about 20 million samples in all (the newest always); `playSnesSound` plays it as one stereo Web Audio buffer at 32000 Hz, gain 0.8 x volume.
 
-### Applying and removing
+### Applying and removing (`src/core/snesgamemusic.ts`)
 
-Read only; replacement of the game music is not built. (The SNES organ songs can be replaced: `withSnesSong`,
-`snesmusic.ts`; not documented here.)
+**Where the pieces are started** (`snesMusicPlaces`, found by code, so no fixed addresses): `lda #bank / sta p0+2 / lda
+#address / sta p0 / jsl MusicStart` (`START`: `a9 bb 00 85 zz a9 lo hi 85 zz-2 22 ...`), a match counting where its
+pointer is the piece's own or a piece NOSE4Web put in for it (its mark), and all of them calling one routine. The title
+music has 1 (TitleScreen), the menu music 4 (Opening, PeriodOver, ReplayMode, SaveRegsStartHL2) and the playoff music 4
+(PeriodOver, PlayoffScreen, ReplayMode, SaveRegsStartHL2). "Already playing?" questions: `lda SongPtr / cmp #low /
+beq` (`ad .. .. c9 lo hi f0`, SongPtr from MusicStart's `rep #$20 / lda p0 / sta SongPtr / ldx #0 / ldy #8`): Opening
+asks about the menu music (`$C20C`), PlayoffScreen about the playoff music (`$ED31`), so that it carries on rather than
+restarting. A piece whose places are not exactly 1/4/4 starts and 0/1/1 questions gets null, and is not offered.
+
+| ROM | Title start | Menu starts | Menu question | Playoff starts | Playoff question |
+|---|---|---|---|---|---|
+| NHL94.smc, Classic, SDL16 (header-less offsets) | `$EB2AD` | `$DB0B6 $F82FB $F8CFD $F9125` | `$F82EE` | `$DB0A5 $E8C04 $F8CEC $F9115` | `$E8BF3` |
+| nhl94_2026.sfc | `$EB443` | `$DB03C $F82FB $F8D3B $F9163` | `$F82EE` | `$DB02B $E8BEC $F8D2A $F9153` | `$E8BDB` |
+| nhl94snes_2026.sfc | `$EB443` | `$DB0CF $F82FB $F8D01 $F9129` | `$F82EE` | `$DB0BE $E8BEC $F8CF0 $F9119` | `$E8BDB` |
+| nhl94snes_SA1.sfc | `$EB43F` | `$DB03C $F82FB $F8D3B $F9163` | `$F82EE` | `$DB02B $E8BEC $F8D2A $F9153` | `$E8BDB` |
+
+(SongPtr is `$07ED`; `$67ED` in nhl94_2026 and SA-1.) **Writing** (`withSnesMusicBytes`): the old NOSE4Web piece, if
+any, is filled with `$FF` (its room given back), the new one goes in `freeSpace` within one bank (`keptBanks` kept out),
+each start gets its bank byte (`+1`) and address (`+6`, `+7`), each question the new low word. **Put back**
+(`withOriginalSnesMusic`): the room filled with `$FF` again and the original pointer and low word written back, so the
+ROM is the same byte for byte (test). Too little room: "The new music takes N bytes, and the most free room this ROM has
+in one place is M. ..." (the 1 MB ROMs have 6,028 bytes in bank `$80`: the playoff music's round trip, 3,007 bytes,
+fits; the title's 7,222 and the menu's 6,808 do not; the 2 MB builds put them in bank `$B5`, SA-1 in `$A4`).
+
+**The piece** (`snesMusicBytes`): header `01 9D 01 00 00 00 count 00` (tempo 157: a tick a frame), a word offset a
+track, 0. Each track: `$E7` name (e.g. `Brass (MIDI 5)`; track 9 `drums`), in track 0 a second `$E7` with the mark
+`N4W1`, the original piece's pointer in hex and the name; `$DC` entry, `$DF 07` volume; `$E2 7F` (loop start, tick 0);
+notes (wait, code = MIDI note, velocity, length); the wait to the piece's end, `$DB`, `$D9`. Every track is the same
+length. Track 9 is always the drums (StepTrack treats it so); empty tracks fill up to it where needed; at most 16.
+
+**Voices** (StartSoundVoice, FindFreeVoice): a note takes a free voice of its entry's mask, else steals one of them (the
+entries' priorities are all 0, so a note is never left out by the game). So the import uses only **entries of one
+voice**, and plans each voice to hold one note at a time: the game then plays exactly the plan (test: the render's note
+count equals the plan's). A note's voice: a free voice of its instrument no other part used in the last 2 s
+(`RESERVED`); else the part's own earlier note cut short (a line's notes on one voice); else any free voice; else a
+weaker note cut short (drums 3 plus kick .5, snare .4, cymbals .3, cowbell .25, toms .2, hats .1; the bass 2; others 1,
+the higher note winning); else it is left out (`dropped`). The kit (`snesMusicKit`, MenuSfxTable entries 0-51): per
+sample the most central entry for each voice. Menu set: Bass voice 5 (entry 2); Brass 4/3/2 (20/17/25); Chugging guitar
+0/1/3/2 (18/39/50/51); Orchestra hit 4 (19); Cowbell 4/0 (21/35); Timpani 1 (22); Distorted guitar 3/2/0 (33/34/38);
+Organ 0 (47, right side only: the centred organ entry 31 has three voices); Power guitar 3/2 (42/43); Crash 0 (15);
+Crash played backwards 0 (4). The title set the same without the organ and power guitar. Range: the game's own notes
+for the sample, an octave more each way, within the pitch table; loudness: each part's median velocity made the game's
+median for its sample (Bass 84, Brass 34, ...; drums 53), its track volume the game's median (`$DF 07`).
+
+**Drums** (General MIDI note to drum-track code; code - `$2F` is the entry, checked against its sample): 35/36 -> 48
+kick; 37-40 -> 50 snare; 42 (and shakers, tambourine, wood blocks) -> 54 closed hat (voice 6); 44 -> 52 closed hat
+(voice 7); 46 -> 56 open hat; 51/53/59 -> 58 open hat; toms 41 -> 53, 43 -> 55, 45 -> 57, 47 -> 59, 48/50 -> 60;
+crashes 49/52/55/57 -> 62 (voice 0; 61 has two voices); 56 -> 68 cowbell. Export (`snesMusicToMidi`) now writes the
+drum track's codes as General MIDI drums (`SNES_DRUM_GM`) and ends the first track at the piece's end (its rest kept).
+
+**Defaults** (`defaultSnesPartChoices`): the drum channel drums; a part's track name as EA names it (`midiPartNames`:
+bass, horn/bsec/brass, orgn, apower, dist, chug, orch, timp, cow, crshbkwd, crash) on that sample, so a piece's own
+MIDI file goes back on its instruments; else its General MIDI program by family (basses -> Bass, 47 -> Timpani, 55 ->
+Orchestra hit, 24-28 -> Chug, 29-31 and leads -> Dist, brass/strings/reeds -> Brass, organs/pianos/pads -> Organ where
+the set has it, else Brass); else the lowest (average below 55) on the Bass, the rest Brass, Dist, Organ, Chug by turns.
+
+**Project files**: `songs.snesMusic` (`{ pointer: the original piece's, bytes }`), put back with `withSnesMusicBytes`
+(skipped where the same bytes are in place). **Changes**: "Game music" / "Playoff music: "...", from a MIDI file." or
+"... the game's own again." (`compare.ts`).
+
+Note: TitleScreen calls SPCTitleToMenu (which sends the menu set's last four samples) just before it starts the title
+music, so in the game the title music may play on the menu set; `SNES_GAME_MUSIC` gives it the title set (Play and the
+kit's names follow that). For Match Viewer to hear.
 
 ### Gotchas
 
@@ -1469,7 +1539,10 @@ Read only; replacement of the game music is not built. (The SNES organ songs can
 ### Files and tests
 
 `src/core/snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicTune`, `snesMusicToMidi`, `PROGRAMS`,
-`SINGLE_DRUMS`); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
+`SINGLE_DRUMS`, `SNES_DRUM_GM`); `src/core/snesgamemusic.ts` (`snesMusicPlaces`, `snesMusicKit`,
+`defaultSnesPartChoices`, `snesMusicFromMidi`, `snesMusicBytes`, `withSnesMusic`, `withOriginalSnesMusic`,
+`snesCustomMusicBytes`); `tests/snesgamemusic.test.ts` (places and kit in every ROM, round trips, a hand-made file with
+drums, eight voices, byte-for-byte put back, project file, no room, places not found); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
 `snesNotePitch`, `snesPitchRate`, `renderSnesMusic`); `src/snesplayer.ts`; `src/OrganSongsSection.tsx`
 (`SnesGameMusicSection`); `tests/snesmusic.test.ts` ("reads the title, menu and playoff music in %s, and exports each as
 MIDI, a track a part"); `tests/snesaudio.test.ts` (BRR filters, sample sets and tables, a ROM whose sound code differs,
@@ -1477,8 +1550,9 @@ a real sample, game music as voice notes, drums and a horn at pitch, an organ so
 
 ### Status
 
-Play and export only. The real-sample player is a **browser preview, not game-tested**: it imitates the console from
-the disassembly (and is "close but not to the bit"); the page text has no "Tested" line. Replacement not built.
+The real-sample player is a **browser preview, not game-tested**: it imitates the console from the disassembly (and is
+"close but not to the bit"); the page text has no "Tested" line. Replacement built (`snesgamemusic.ts`), not yet tested
+in the game ("Not yet tested in the game.").
 
 ## 15. Feature status
 

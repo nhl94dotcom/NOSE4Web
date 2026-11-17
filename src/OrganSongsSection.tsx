@@ -22,6 +22,19 @@ import {
 import type { RomProject } from './core/rom'
 import { readSnesMusic, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
+import {
+  defaultSnesPartChoices,
+  midiPartNames,
+  snesCustomMusicName,
+  SnesMusicError,
+  snesMusicFromMidi,
+  snesMusicKit,
+  snesMusicPointer,
+  snesMusicReplaceable,
+  withOriginalSnesMusic,
+  withSnesMusic,
+  type SnesPartChoice,
+} from './core/snesgamemusic'
 import { NHL95_GAME_MUSIC, nhl95SongsSupported, readNhl95Music } from './core/nhl95music'
 import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
 import { download } from './download'
@@ -491,20 +504,127 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
   )
 }
 
-// The SNES game's other music: the title, menu and playoff pieces. Listen to them and export them as MIDI.
-export function SnesGameMusicSection({ project }: { project: RomProject }) {
+// The SNES game's other music: the title, menu and playoff pieces. Listen to them, export them as MIDI, or replace
+// one with a MIDI file, each of its parts on one of the game's instruments chosen for it.
+export function SnesGameMusicSection({ project, onChange }: Props) {
   const player = useSongPlayer<number>()
+  const [notice, setNotice] = useState('')
+  const [failed, setFailed] = useState(false)
+  // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
+  const [pending, setPending] = useState<{ index: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, SnesPartChoice> } | null>(null)
   if (project.game.platform !== 'snes') return null
-  const pieces = SNES_GAME_MUSIC.map((piece) => ({ ...piece, music: readSnesMusic(project.bytes, piece.pointer) })).filter((piece) => piece.music)
+  const pieces = SNES_GAME_MUSIC.map((piece, index) => {
+    const pointer = snesMusicPointer(project.bytes, index)
+    return { ...piece, index, pointer, music: readSnesMusic(project.bytes, pointer), custom: snesCustomMusicName(project.bytes, index), replaceable: snesMusicReplaceable(project.bytes, index) }
+  }).filter((piece) => piece.music)
   if (!pieces.length) return null
+  const kit = pending ? snesMusicKit(project.bytes, SNES_GAME_MUSIC[pending.index].sounds) : null
+
+  async function read(index: number, file: File) {
+    player.stop()
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const { notes, name, end, programs } = readMidi(bytes)
+      const parts = musicParts(notes)
+      const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
+      if (!parts.length) throw new MidiError('This MIDI file has no notes.')
+      if (!found) throw new MidiError("The editor cannot find this ROM's instruments.")
+      setPending({ index, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)) })
+      setNotice('')
+      setFailed(false)
+    } catch (e) {
+      setNotice(e instanceof MidiError ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setFailed(true)
+    }
+  }
+
+  function putIn() {
+    if (!pending || !kit) return
+    const name = SNES_GAME_MUSIC[pending.index].name.toLowerCase()
+    try {
+      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end)
+      onChange(withSnesMusic(project, pending.index, made, pending.title))
+      const said = [
+        made.leftOut && `${made.leftOut} ${made.leftOut === 1 ? 'note' : 'notes'} of the parts left out or of drums the game has not`,
+        made.dropped && `${made.dropped} ${made.dropped === 1 ? 'note' : 'notes'} left out or cut short where their instrument's voices were all taken`,
+        made.moved && `${made.moved} ${made.moved === 1 ? 'note' : 'notes'} moved by octaves into the instruments' range`,
+      ].filter(Boolean)
+      setNotice(
+        `The ${name} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
+          (said.length ? ` Not as in the file: ${said.join('; ')}.` : '') +
+          ' Undo takes it back.',
+      )
+      setFailed(false)
+      setPending(null)
+    } catch (e) {
+      setNotice(e instanceof MidiError || e instanceof SnesMusicError ? e.message : String(e))
+      setFailed(true)
+    }
+  }
+
+  const choose = (channel: number, value: string) => {
+    if (!pending) return
+    const choices = new Map(pending.choices)
+    choices.set(channel, value === 'out' || value === 'drums' ? value : Number(value))
+    setPending({ ...pending, choices })
+  }
+  const noteName = (note: number) => `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][note % 12]}${Math.floor(note / 12) - 1}`
+  const voices = (count: number) => (count === 1 ? 'one note at a time' : `up to ${count} notes at once`)
+
   return (
     <section>
       <h2>Game music</h2>
       <p className="note">
         The game's own music besides the organ. Play plays a piece on the game's own instruments. Export MIDI saves it
         as a MIDI file, each of its parts on a track of its own named as the game names it, and the drums on the drum
-        channel. Replacing them is still to come.
+        channel. <b>Replace</b> puts a MIDI file of your own in its place: you choose one of the game's instruments for
+        each of its parts, its drums play on the game's drums, and the piece plays again from the start when it ends.
+        The console has eight voices for the music and its drums, and each instrument only some of them: where an
+        instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Not yet tested in
+        the game.
       </p>
+      {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {pending && kit && (
+        <div className="notice">
+          <p>
+            Replacing the <b>{SNES_GAME_MUSIC[pending.index].name.toLowerCase()}</b> with "{pending.title}". Choose what each part plays on:
+          </p>
+          <table className="left">
+            <thead>
+              <tr>
+                <th>MIDI channel</th>
+                <th>Notes</th>
+                <th>Range</th>
+                <th>Played on</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.parts.map((part) => (
+                <tr key={part.channel}>
+                  <td>{part.channel === 9 ? '10 (drums)' : part.channel + 1}</td>
+                  <td>{part.notes}</td>
+                  <td>{part.channel === 9 ? '' : `${noteName(part.lowest)} to ${noteName(part.highest)}`}</td>
+                  <td>
+                    <select aria-label={`Part on MIDI channel ${part.channel + 1}`} value={String(pending.choices.get(part.channel) ?? 'out')} onChange={(e) => choose(part.channel, e.target.value)}>
+                      {part.channel === 9 ? (
+                        <option value="drums">The game's drums: kick, snare, hi-hats, toms, crash</option>
+                      ) : (
+                        kit.instruments.map((instrument) => (
+                          <option key={instrument.sample} value={instrument.sample}>
+                            {`${instrument.name}, ${voices(instrument.entries.size)}`}
+                          </option>
+                        ))
+                      )}
+                      <option value="out">Left out</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button onClick={putIn}>Put it in</button> <button onClick={() => setPending(null)}>Cancel</button>
+        </div>
+      )}
       <table className="left">
         <thead>
           <tr>
@@ -515,19 +635,57 @@ export function SnesGameMusicSection({ project }: { project: RomProject }) {
           </tr>
         </thead>
         <tbody>
-          {pieces.map(({ pointer, name, where, music, sounds }) => (
-            <tr key={pointer}>
-              <td>{name}</td>
-              <td>{where}</td>
-              <td>{seconds(music!.seconds)}</td>
-              <td>
-                <button onClick={() => player.toggle(pointer, snesMusicTune(music!), name, () => snesMusicSound(project.bytes, pointer, sounds))}>
-                  {player.playing === pointer ? 'Stop' : 'Play'}
-                </button>{' '}
-                <button onClick={() => download(snesMusicToMidi(music!, name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>
-              </td>
-            </tr>
-          ))}
+          {pieces.map(({ index, pointer, name, where, music, sounds, custom, replaceable }) => {
+            const shown = custom ? `${custom} (in place of the ${name.toLowerCase()})` : name
+            const key = SNES_GAME_MUSIC[index].pointer
+            return (
+              <tr key={key}>
+                <td>{shown}</td>
+                <td>{where}</td>
+                <td>{seconds(music!.seconds)}</td>
+                <td>
+                  <button onClick={() => player.toggle(key, snesMusicTune(music!), shown, () => snesMusicSound(project.bytes, pointer, sounds))}>
+                    {player.playing === key ? 'Stop' : 'Play'}
+                  </button>{' '}
+                  <button onClick={() => download(snesMusicToMidi(music!, custom ?? name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>
+                  {replaceable && (
+                    <>
+                      {' '}
+                      <label className="button">
+                        Replace…
+                        <input
+                          type="file"
+                          accept=".mid,.midi,audio/midi"
+                          hidden
+                          aria-label={`Replace the ${name.toLowerCase()}`}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ''
+                            if (file) void read(index, file)
+                          }}
+                        />
+                      </label>
+                    </>
+                  )}
+                  {custom !== null && (
+                    <>
+                      {' '}
+                      <button
+                        onClick={() => {
+                          player.stop()
+                          onChange(withOriginalSnesMusic(project, index))
+                          setNotice(`The ${name.toLowerCase()} is the game's own again. Undo takes it back.`)
+                          setFailed(false)
+                        }}
+                      >
+                        Put back the original
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
       <SongControls player={player} />

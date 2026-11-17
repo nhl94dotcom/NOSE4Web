@@ -13,7 +13,8 @@ import {
   withOriginalSnesAnnouncer,
   withSnesAnnouncerBytes,
 } from './announcer'
-import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
+import { SNES_GAME_MUSIC, snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
+import { snesCustomMusicBytes, withSnesMusicBytes } from './snesgamemusic'
 import { snesSongChoices } from './snessongs'
 import { GAME_MUSIC, isGameMusic, songBytesWithoutLoop } from './genesismusic'
 import { genesisSongs } from './teamsongs'
@@ -91,7 +92,7 @@ interface ProjectFile {
   }
   baseline?: (Omit<Baseline, 'teams'> & { teams: StoredTeam[] }) | null
   // Songs put in from MIDI files: the Genesis's by number, the SNES's by where they were.
-  songs?: { genesis?: { number: number; bytes: string }[]; snes?: { pointer: number; bytes: string }[] }
+  songs?: { genesis?: { number: number; bytes: string }[]; snes?: { pointer: number; bytes: string }[]; snesMusic?: { pointer: number; bytes: string }[] }
   // The Genesis's splash screen and main menu background, where the project changed them: the original's
   // again, or a picture of the league's own as its bytes.
   screens?: {
@@ -706,7 +707,12 @@ function savedSongs(project: RomProject): ProjectFile['songs'] {
     const bytes = snesCustomSongBytes(project.bytes, pointer)
     return bytes ? [{ pointer, bytes: pack(bytes) }] : []
   })
-  return snes.length ? { snes } : undefined
+  // The title, menu and playoff music, where a piece has been replaced, by the game's own piece's pointer.
+  const snesMusic = SNES_GAME_MUSIC.flatMap(({ pointer }, index) => {
+    const bytes = snesCustomMusicBytes(project.bytes, index)
+    return bytes ? [{ pointer, bytes: pack(bytes) }] : []
+  })
+  return snes.length || snesMusic.length ? { ...(snes.length ? { snes } : {}), ...(snesMusic.length ? { snesMusic } : {}) } : undefined
 }
 
 // The project's songs put back in, each where this ROM has room for it.
@@ -738,6 +744,17 @@ function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes:
         project = withSnesSongBytes(project, song.pointer >>> 0, bytes)
       } catch {
         left++
+      }
+    }
+    for (const piece of songs?.snesMusic ?? []) {
+      const index = SNES_GAME_MUSIC.findIndex(({ pointer }) => pointer === piece.pointer >>> 0)
+      try {
+        const bytes = unpack(piece.bytes)
+        const there = snesCustomMusicBytes(project.bytes, index)
+        if (there && sameBytes(there, bytes)) continue
+        project = withSnesMusicBytes(project, index, bytes)
+      } catch {
+        leftMusic++
       }
     }
   }

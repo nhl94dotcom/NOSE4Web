@@ -410,7 +410,7 @@ export default function App() {
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             <GameMusicSection project={current} onChange={change} />
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
-            <SnesGameMusicSection project={current} />
+            <SnesGameMusicSection project={current} onChange={change} />
             {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>
         )

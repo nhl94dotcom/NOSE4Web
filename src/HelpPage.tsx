@@ -990,7 +990,18 @@ export function HelpPage() {
           <b>Game music</b> (SNES): the title music, the menu music (the main menu, and between periods early in the
           playoffs) and the playoff music. <b>Play</b> plays one on the game's own instruments; <b>Export MIDI</b>
           saves it as a MIDI file, each part on a track of its own named as the game names it (such as "BASS" or
-          "HORN (L)"), and the drums on the drum channel. Replacing them is still to come.
+          "HORN (L)"), and the drums on the drum channel. <b>Replace</b> puts a MIDI file of your own in its place.
+          Before it goes in you choose what each of the file's parts plays on: one of the game's own instruments (the
+          bass, brass, chugging, distorted and power guitars, organ, orchestra hit, timpani and others), with how many
+          notes each can play at once, and the drum channel on the game's drums (kick, snare, hi-hats, toms, crash and
+          cowbell), or any part left out. The console has eight voices for the music, its drums included, and each
+          instrument may use only some of them: where an instrument's voices are all taken, the drums are kept first,
+          then the bass, then the higher notes. Notes are moved by octaves into each instrument's range, each part is
+          played as loud as the game's own parts on its instrument, the file's timing is kept with its rests at the
+          start and end, and the new piece plays again from its start when it ends. It needs free room in the ROM:
+          the original game has about 6 KB in one place, enough for a piece of about 1,200 notes (the playoff music
+          has 700, the title music 1,700); the 2 MB builds have plenty. <b>Put back the original</b> restores the game's piece and frees the
+          room. Not yet tested in the game.
         </li>
         <li>
           <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. <b>Play</b> plays
