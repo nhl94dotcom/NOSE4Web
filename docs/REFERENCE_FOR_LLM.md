@@ -1197,6 +1197,10 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
    - each part moved by whole octaves (+12 first for 5/13/14), down while its highest is above 95 and its lowest stays
      at least 12, up while its lowest is below 12 and its highest stays at most 95; only a part too wide has single
      notes folded into 12-95 (`LOWEST`, `HIGHEST`); `moved` counts notes not where written;
+     why 95: NHL 94's driver (`UpdateChannelFrequencyAndVolume` in the Genesis disassembly's `sound94.asm`) takes the
+     octave as note / 12 and shifts it into bits 13-11 of the frequency word, so from note 96 (octave 8) it spills
+     out and the YM2612 block is 0: the original scouting music's 96-98 play at about 25-28 Hz, a rumble (measured in
+     the game by the NHL94 Match Viewer project);
    - a note is at least 2 frames; the same note on the same channel ends the one sounding;
    - at most 5 FM notes at once (`FM_VOICES`; the hit, a sample, is not counted): rank kick 3 > bass 2 > others 1; when
      full, the weakest held (lowest rank, then lowest note) is cut for a stronger note, and a note no stronger is left out
