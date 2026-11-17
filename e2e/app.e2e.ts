@@ -2487,7 +2487,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     await entry(page, 'Game settings').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
-    await expect(music.getByText('Not yet tested in the game.')).toBeVisible()
+    await expect(music.getByText(/Tested in the game by the NHL94 Match Viewer project\./).first()).toBeVisible()
     const playoff = music.locator('tbody tr').filter({ hasText: 'Playoff music' })
     const midi = await downloadFrom(page, playoff.getByRole('button', { name: 'Export MIDI' }))
     // Its own MIDI file: each part first on the instrument its name says, the drums on the game's drums.
@@ -3215,7 +3215,7 @@ test.describe("with the NHL '95 ROM", () => {
     await romPicker(page).setInputFiles(nhl95Path)
     await entry(page, 'Game settings').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
-    await expect(music.getByText('Not yet tested in the game.')).toBeVisible()
+    await expect(music.getByText(/Tested in the game by the NHL94 Match Viewer project\./).first()).toBeVisible()
     const midi = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Scouting report music' }).getByRole('button', { name: 'Export MIDI' }))
     await music.getByLabel('Replace the title music').setInputFiles(await midi.path())
     await expect(music.getByText(/^Replacing the title music with/)).toBeVisible()

@@ -317,8 +317,8 @@ export function GameMusicSection({ project, onChange }: Props) {
             {' '}
             <b>Replace</b> puts a MIDI file of your own in its place: you choose a game instrument for each of its parts
             (up to seven, each instrument once; each plays one note at a time, but the square wave plays three), and its
-            drums play as the game's kick, snare and hi-hats. The piece plays again from the start when it ends. Not yet
-            tested in the game.
+            drums play as the game's kick, snare and hi-hats. The piece plays again from the start when it ends. Tested
+            in the game by the NHL94 Match Viewer project.
           </>
         ) : (
           <>
@@ -627,8 +627,8 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
         each of its parts, its drums play on the game's drums, and the piece plays again from the start when it ends
         (or from the file's loop marker, as the pieces' own MIDI files have). A part on the organ is played twice, a
         moment apart, as the playoff music plays its organ. The console has eight voices for the music and its drums, and each instrument only some of them: where an
-        instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Not yet tested in
-        the game.
+        instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Tested in the game
+        by the NHL94 Match Viewer project.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       {pending && kit && (

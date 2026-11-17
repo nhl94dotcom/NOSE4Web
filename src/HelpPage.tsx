@@ -980,7 +980,7 @@ export function HelpPage() {
           square wave, which plays three, so each instrument takes one part, and of a chord on the others the highest
           note is kept (the lowest on the bass). The drum channel plays on the game's kick, toms, snare and hi-hats. At
           most six of the FM instruments sound at once (the kick and the snare among them), the drums and the bass kept
-          first. Not yet tested in the game.
+          first. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Game music</b> (NHL 94 Genesis): the game's three other pieces: the title music (the title screen
@@ -1015,7 +1015,7 @@ export function HelpPage() {
           the original game has about 6 KB in one place, enough for a piece of about 1,200 notes (the playoff music
           has 700, the title music 1,700). Where a 1 MB ROM has too little, it grows to 2 MB, as it does for the
           fighting, and the piece goes in the new half; the 2 MB builds have plenty. A piece can be up to 32 KB. <b>Put back the original</b> restores the game's piece and frees the
-          room; a ROM grown for the music stays 2 MB. Not yet tested in the game.
+          room; a ROM grown for the music stays 2 MB. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. <b>Play</b> plays

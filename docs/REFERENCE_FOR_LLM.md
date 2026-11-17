@@ -1287,7 +1287,7 @@ NHL94 Match Viewer project."; commit a54165e "NHL 94's game music replaced from 
 
 The same Game music section (`GameMusicSection`) shows NHL '95's three pieces with **Play**, **Export MIDI**,
 **Replace…** (a MIDI file, each of its parts on one of NHL '95's instruments, chosen in a parts table) and **Put back the
-original**. The page says "Not yet tested in the game."
+original**. Tested in the game by the NHL94 Match Viewer project (loops on the original's frames, every drum hit back, within the driver's limits).
 
 ### Origin and credit
 
@@ -1422,7 +1422,7 @@ scouting report's MIDI file, each instrument once").
 
 ### Status
 
-Play, export and replace built; replacement not yet tested in the game (page text "Not yet tested in the game.").
+Play, export and replace built; replacement tested in the game by the NHL94 Match Viewer project.
 
 ## 14. NHL '94 SNES: game music and the real-sample player
 
@@ -1434,7 +1434,7 @@ channel. **Replace** puts a MIDI file of your own in its place: you choose one o
 parts, its drums play on the game's drums, and the piece plays again from the start when it ends (or from the file's loop
 marker, as the pieces' own MIDI files have). A part on the organ is played twice, a moment apart, as the playoff music
 plays its organ. The console has eight voices for the music and its drums, and each instrument only some of them: where an instrument's voices are all taken,
-the drums, then the bass, then the higher notes are kept. Not yet tested in the game." Its flow mirrors the Genesis's
+the drums, then the bass, then the higher notes are kept. Tested in the game by the NHL94 Match Viewer project." Its flow mirrors the Genesis's
 (section 12): Replace… reads the file, a table of its parts with an instrument select each ("Bass, one note at a time",
 "Brass, up to 3 notes at once", ...; the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
 in**, a notice ("The playoff music is now "...", m:ss long, playing again from the start when it ends." or "... from
@@ -1681,8 +1681,8 @@ a real sample, game music as voice notes, drums and a horn at pitch, an organ so
 ### Status
 
 The real-sample player is a **browser preview, not game-tested**: it imitates the console from the disassembly (and is
-"close but not to the bit"); the page text has no "Tested" line. Replacement built (`snesgamemusic.ts`), not yet tested
-in the game ("Not yet tested in the game.").
+"close but not to the bit"); the page text has no "Tested" line. Replacement built (`snesgamemusic.ts`), tested
+in the game by the NHL94 Match Viewer project (loops on the original's frames, grown ROMs, put-back, fighting).
 
 ## 15. Feature status
 
