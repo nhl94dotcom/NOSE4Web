@@ -72,7 +72,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
         . The power play and penalty kill songs play at the faceoff after a penalty puts the home
         team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
         your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
-        {nhl95 && ' Not yet tested in the game.'}
+        {nhl95 && ' Tested in the game by the NHL94 Match Viewer project.'}
         {outside &&
           ` In this ROM the song table has room for only ${room} teams, so this team plays songs from whatever follows it. Choosing a song moves the table to free space in the ROM, so that every team has six of its own.`}
       </p>

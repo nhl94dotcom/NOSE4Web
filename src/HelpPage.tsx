@@ -2430,7 +2430,7 @@ export function HelpPage() {
           as a MIDI file, replaced with a MIDI file of your own (at most seven notes at once, as NHL '95's own songs have, on the organ) and put back;{' '}
           <b>Used by</b> shows the teams that have it. Any of the songs can be replaced. Each team page chooses its six
           songs, and the songs file in Files numbers them 1 to 36. NHL '95's songs are NHL 94's tunes, and are named as
-          NHL 94's are. Not yet tested in the game.
+          NHL 94's are. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, player photos, score logos,

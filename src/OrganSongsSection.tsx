@@ -86,7 +86,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
           sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's range;
           the new song goes into free room in the ROM, and every team with that song in a slot plays it. Short tunes of
           10 to 30 seconds suit the game, as its own are; Help, in the list on the left, has tips on preparing a MIDI
-          file. Any of the songs can be replaced. Not yet tested in the game.
+          file. Any of the songs can be replaced. Tested in the game by the NHL94 Match Viewer project.
         </p>
       ) : (
         <p className="note">
