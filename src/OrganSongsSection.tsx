@@ -208,10 +208,10 @@ export function GameMusicSection({ project, onChange }: Props) {
   async function read(number: number, file: File) {
     player.stop()
     try {
-      const { notes, name, end } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const { notes, name, end, programs } = readMidi(new Uint8Array(await file.arrayBuffer()))
       const parts = musicParts(notes)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
-      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultPartChoices(parts) })
+      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultPartChoices(parts, programs) })
       setNotice('')
       setFailed(false)
     } catch (e) {

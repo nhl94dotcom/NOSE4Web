@@ -129,7 +129,7 @@ export class MidiError extends Error {}
 // The notes of a standard MIDI file (format 0 or 1), with its tempo changes
 // followed, the first track name it has, and where it ends in seconds (its
 // last event, the end of a track included, so that a rest at its end counts).
-export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; end: number } {
+export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; end: number; programs: Map<number, number> } {
   const text = (at: number, length: number) => String.fromCharCode(...bytes.subarray(at, at + length))
   if (bytes.length < 14 || text(0, 4) !== 'MThd') throw new MidiError('This is not a MIDI file.')
   const format = u16(bytes, 8)
@@ -144,6 +144,8 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; 
   let at = 8 + u32(bytes, 4)
   let order = 0
   let lastEventTick = 0
+  // Each channel's first General MIDI instrument.
+  const programs = new Map<number, number>()
   for (let track = 0; track < trackCount && at + 8 <= bytes.length; track++) {
     if (text(at, 4) !== 'MTrk') throw new MidiError('This MIDI file is damaged: a track is not where it should be.')
     const end = Math.min(bytes.length, at + 8 + u32(bytes, at + 4))
@@ -186,6 +188,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; 
       const one = command === 0xc0 || command === 0xd0
       const a = bytes[p++]
       const b = one ? 0 : bytes[p++]
+      if (command === 0xc0 && !programs.has(channel)) programs.set(channel, a)
       if (command === 0x90 && b > 0) raw.push({ tick, order: order++, kind: 'on', channel, note: a, velocity: b, tempo: 0 })
       else if (command === 0x80 || (command === 0x90 && b === 0)) raw.push({ tick, order: order++, kind: 'off', channel, note: a, velocity: 0, tempo: 0 })
     }
@@ -216,7 +219,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; 
   if (notes.length === 0) throw new MidiError('This MIDI file has no notes.')
   notes.sort((a, b) => a.start - b.start || a.note - b.note)
   const end = seconds + (Math.max(0, lastEventTick - lastTick) * tempo) / division / 1e6
-  return { notes, name: name || comment, end }
+  return { notes, name: name || comment, end, programs }
 }
 
 export interface MadeSong {
@@ -438,7 +441,7 @@ function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
     if (patch === NOISE_HAT) parts.set(channel, { drum: CLOSED_HAT })
     else if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
     else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
-    else parts.set(channel, { program: played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 })
+    else parts.set(channel, { program: EXPORT_PROGRAM[patch] ?? (played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS), shift: OCTAVE_BELOW.has(patch) ? -12 : 0 })
   }
   return parts
 }
@@ -458,6 +461,24 @@ export const GAME_INSTRUMENTS: { patch: number; name: string }[] = [
   { patch: 5, name: 'Buzzy sawtooth lead' },
   { patch: ORGAN, name: 'Organ (the organ songs)' },
 ]
+// The General MIDI instrument a game patch is exported as (the nearest sound), so that a piece put back in from its own
+// MIDI file goes on the same patches; and for any MIDI file, the patch its instruments are first put on, by family.
+const EXPORT_PROGRAM: Record<number, number> = { 13: 38, 14: 79, 10: 62, 4: 89, 9: 19, 1: 7, 3: 73, 5: 81, [ORGAN]: 16 }
+function patchForProgram(program: number): number | undefined {
+  const exported = Object.entries(EXPORT_PROGRAM).find(([, value]) => value === program)
+  if (exported) return Number(exported[0])
+  if (program >= 32 && program <= 39) return 13 // basses
+  if (program >= 56 && program <= 63) return 10 // brass
+  if (program === 78 || program === 79 || program === 80 || (program >= 82 && program <= 87)) return 14 // whistles, leads
+  if (program === 81) return 5 // sawtooth lead
+  if (program >= 72 && program <= 77) return 3 // flutes and pipes
+  if (program >= 64 && program <= 71) return 3 // reeds
+  if ((program >= 40 && program <= 55) || (program >= 88 && program <= 95)) return 4 // strings, ensembles, pads
+  if (program >= 16 && program <= 23) return program === 16 ? ORGAN : 9 // organs
+  if (program <= 15 || (program >= 24 && program <= 31)) return 1 // pianos, mallets, guitars: plucked
+  return undefined
+}
+
 // Patches that sound an octave below the note written for them (Match Viewer measured each alone): a piece's notes
 // on them are an octave lower in a MIDI file than in the game's stream, and the other way round.
 const OCTAVE_BELOW = new Set([5, 13, 14])
@@ -506,16 +527,24 @@ export function musicParts(notes: MidiNote[]): MusicPart[] {
 // What a part is played on: a game instrument's patch, the drums (MIDI's drum channel only), or left out.
 export type PartChoice = number | 'drums' | 'out'
 
-// The first choice for each part: the drum channel as drums; the lowest tune on the bass where it is low and not the
-// only one; the others
-// from the highest down on the leads and synths; past six tunes, left out.
-export function defaultPartChoices(parts: MusicPart[]): Map<number, PartChoice> {
+// The first choice for each part: the drum channel as drums; a part with a General MIDI instrument (`programs`, as
+// readMidi gives them) on the patch nearest it (a piece's own MIDI file, exported here, gets back its own); of the
+// others, the lowest on the bass where it is low and not the only one, the rest from the highest down on the leads
+// and synths not taken; past six tunes, left out.
+export function defaultPartChoices(parts: MusicPart[], programs = new Map<number, number>()): Map<number, PartChoice> {
   const choices = new Map<number, PartChoice>()
-  const tunes = parts.filter((part) => part.channel !== DRUMS).sort((a, b) => a.average - b.average)
   for (const part of parts) if (part.channel === DRUMS) choices.set(part.channel, 'drums')
-  const rest = GAME_INSTRUMENTS.map((instrument) => instrument.patch).filter((patch) => patch !== BASS_PATCH && patch !== ORGAN)
   let given = 0
-  if (tunes.length > 1 && tunes[0].average < 55) {
+  for (const part of parts) {
+    const patch = part.channel === DRUMS || !programs.has(part.channel) ? undefined : patchForProgram(programs.get(part.channel)!)
+    if (patch === undefined) continue
+    choices.set(part.channel, given < GAME_MUSIC_PARTS ? patch : 'out')
+    given++
+  }
+  const taken = new Set([...choices.values()])
+  const tunes = parts.filter((part) => part.channel !== DRUMS && !choices.has(part.channel)).sort((a, b) => a.average - b.average)
+  const rest = GAME_INSTRUMENTS.map((instrument) => instrument.patch).filter((patch) => patch !== BASS_PATCH && patch !== ORGAN && !taken.has(patch))
+  if (tunes.length > 1 && tunes[0].average < 55 && !taken.has(BASS_PATCH)) {
     choices.set(tunes.shift()!.channel, BASS_PATCH)
     given++
   }
@@ -552,6 +581,19 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
   if (tuneChannels.length === 0) throw new MidiError('Choose an instrument for at least one part that is not drums.')
   const gameChannel = new Map(tuneChannels.map((channel, i) => [channel, i]))
   const bass = tuneChannels.find((channel) => choices.get(channel) === BASS_PATCH)
+  // Each part moved by the same octaves, so that its line keeps its shape: an octave up on the patches that sound an
+  // octave down, then as many octaves as bring it into the game's range (as far as a part fits); only notes of a part
+  // too wide for the range are moved one by one.
+  const shifts = new Map<number, number>()
+  for (const channel of tuneChannels) {
+    const pitches = notes.filter((n) => n.channel === channel).map((n) => n.note)
+    const patch = choices.get(channel) as number
+    let shift = OCTAVE_BELOW.has(patch) ? 12 : 0
+    const [low, high] = [Math.min(...pitches), Math.max(...pitches)]
+    while (high + shift > HIGHEST && low + shift - 12 >= LOWEST) shift -= 12
+    while (low + shift < LOWEST && high + shift + 12 <= HIGHEST) shift += 12
+    shifts.set(channel, shift)
+  }
   type Planned = { on: number; off: number; note: number; velocity: number; channel: number; rank: number }
   const played: Planned[] = []
   let active: Planned[] = []
@@ -571,11 +613,12 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
       played.push({ on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 })
       continue
     }
-    // Written an octave up on the patches that sound an octave down.
-    let note = choice === 'drums' ? KICK_NOTE : midi.note + (OCTAVE_BELOW.has(choice) ? 12 : 0)
+    const written = choice === 'drums' ? KICK_NOTE : midi.note + shifts.get(midi.channel)!
+    let note = written
     if (choice !== 'drums') {
       while (note < LOWEST) note += 12
       while (note > HIGHEST) note -= 12
+      // Moved from where it sounds as written: by its part's octaves, or on its own.
       if (note !== midi.note + (OCTAVE_BELOW.has(choice) ? 12 : 0)) moved++
     }
     const channel = choice === 'drums' ? KICK_CHANNEL : gameChannel.get(midi.channel)!

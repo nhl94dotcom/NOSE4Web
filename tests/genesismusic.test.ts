@@ -262,11 +262,24 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     expect(made.seconds).toBe(4)
   })
 
+  it('moves a part by whole octaves into range, keeping its line', () => {
+    // A high line, 82 to 89, put on the lead (which is written an octave up): the whole part comes down together.
+    const line = [82, 84, 87, 89, 82].map((note, i) => ({ start: i * 0.25, length: 0.2, note, velocity: 50, channel: 0 }))
+    const made = gameMusicFromMidi(line, new Map([[0, 14]]))
+    expect(made.events.filter((e) => (e.status & 0xf0) === 0x90).map((e) => e.data[0])).toEqual([82, 84, 87, 89, 82])
+    expect(made.moved).toBe(5)
+    // A General MIDI flute goes on the flute, a bass on the bass.
+    expect([...defaultPartChoices(musicParts([...line, { ...line[0], channel: 1, note: 40 }]), new Map([[0, 73], [1, 33]]))]).toEqual([[0, 3], [1, 13]])
+  })
+
   it("puts the game's own title music back in from its exported MIDI file, much as it was", () => {
     const rom = open().bytes
     const song = readSong(rom, 0x78)!
-    const { notes, end } = readMidi(gameMusicToMidi(song))
-    const made = gameMusicFromMidi(notes, defaultPartChoices(musicParts(notes)), end)
+    const { notes, end, programs } = readMidi(gameMusicToMidi(song))
+    const choices = defaultPartChoices(musicParts(notes), programs)
+    // Each part back on its own patch, from the instrument the export gave it: bass 13, lead 14, pad 4, organ pad 9.
+    expect([...choices].filter(([channel]) => channel !== 9).sort((a, b) => a[0] - b[0]).map(([, patch]) => patch)).toEqual([13, 14, 4, 9])
+    const made = gameMusicFromMidi(notes, choices, end)
     const count = (events: typeof song.events) => events.filter((e) => (e.status & 0xf0) === 0x90 && e.data[1] > 0).length
     // Its rest after the last notes (120 frames) is kept, so it loops in time: the same length to the frame.
     expect(Math.round(made.seconds * 60)).toBe(Math.round(song.seconds * 60))
@@ -276,7 +289,13 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     // The notes as written: the bass and the lead (patches 13 and 14, which sound an octave down) are written an
     // octave up in the stream, as the game has them, after an octave down in the MIDI file.
     const written = (events: typeof song.events, channel: number) => events.filter((e) => e.status === (0x90 | channel) && e.data[1] > 0).map((e) => e.data[0])
-    expect(written(made.events, 0).slice(0, 20)).toEqual(written(song.events, 0).slice(0, 20))
+    // Every part's notes come back as the game has them written, at their times, on their own channels (a few
+    // dropped by the five voices).
+    const at = (events: typeof song.events) => new Set(events.filter((e) => (e.status & 0xf0) === 0x90 && e.data[1] > 0 && (e.status & 15) < 4).map((e) => `${e.status & 15}:${e.frame}:${e.data[0]}`))
+    const original = at(song.events)
+    const back = [...at(made.events)]
+    expect(back.filter((note) => !original.has(note))).toEqual([])
+    expect(back.length).toBeGreaterThan(original.size * 0.9)
     // The original sounds up to nine notes at once, which the console's five voices cut; the new one keeps five.
     expect(count(made.events)).toBeGreaterThan(count(song.events) * 0.7)
   })
