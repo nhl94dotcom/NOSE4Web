@@ -590,14 +590,16 @@ export function menuLogoFromImage(
   }
   const chosen = [...counts].sort((a, b) => b[1] - a[1]).slice(0, LOGO_COLORS).map(([word]) => word)
   const next = palette.slice()
-  // Places the image has no colour for keep whatever they held.
+  // Places the image has no colour for keep whatever they held. NHL 94's second set of 16 (for a team listed
+  // second) takes the same; NHL '95 has the one set.
+  const second = palette.length > 16
   chosen.forEach((word, i) => {
     next[LOGO_FIRST_COLOR + i] = word
-    next[16 + LOGO_FIRST_COLOR + i] = word
+    if (second) next[16 + LOGO_FIRST_COLOR + i] = word
   })
   for (const { slot, word } of LOGO_FIXED_COLORS) {
     next[slot] = word
-    next[16 + slot] = word
+    if (second) next[16 + slot] = word
   }
   const allowed = [...LOGO_FIXED_COLORS.map((fixed) => fixed.slot), ...chosen.map((_, i) => LOGO_FIRST_COLOR + i)]
   const picture = pictureFromImage(rgba, width, height, next, allowed)

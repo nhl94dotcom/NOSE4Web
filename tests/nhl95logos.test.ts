@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { canAddGenesisScoreLogos } from '../src/core/genesisscorelogos'
-import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, rinkLogo, rinkLogosSupported, withMenuLogo, withRinkLogo, writeGraphics, type Picture } from '../src/core/graphics'
+import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, pictureToImage, rinkLogo, rinkLogosSupported, withMenuLogo, withRinkLogo, writeGraphics, type Picture } from '../src/core/graphics'
 import { importTeam, ALL_PARTS } from '../src/core/importteam'
-import { pictureKinds } from '../src/core/pictureset'
+import { pictureKinds, withPictureFromImage } from '../src/core/pictureset'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 
@@ -76,6 +76,20 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
     const again = openProjectFile(opened, text).project
     expect(menuLogo(again, BOSTON)).toEqual(pattern())
     expect(menuLogoPalette(again, BOSTON)).toEqual(palette)
+  })
+
+  it.each(names)('imports a logo image into %s with its 16 colours, the next team’s colours left as they were', (name) => {
+    const project = expandPictureSpace(open(name))
+    // The pattern as an image, in colours the editor can match exactly.
+    const colours = [0, 0x0eee, 0, 0x000e, 0x00e0, 0x0e00, 0x00ee, 0x0e0e, 0x0ee0, 0x0222, 0x0444, 0x0666]
+    const picture = pattern()
+    const rgba = pictureToImage(picture, Array.from({ length: 16 }, (_, i) => colours[[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].indexOf(i)] ?? 0))
+    const { graphics } = withPictureFromImage(project, BOSTON, 'menuLogo', { rgba, width: 48, height: 48 })
+    expect(graphics.menuPalettes[BOSTON].length).toBe(16)
+    const reopened = openRom(buildRom({ ...project, graphics }))
+    project.teams.forEach((_, team) => {
+      if (team !== BOSTON) expect(menuLogoPalette(reopened, team)).toEqual(menuLogoPalette(project, team))
+    })
   })
 
   it('is left alone where the code that finds it is not the original game’s', () => {

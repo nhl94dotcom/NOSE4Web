@@ -284,7 +284,7 @@ function sites(rom: Uint8Array): Sites | null {
 }
 
 export function canAddGenesisScoreLogos(project: RomProject): boolean {
-  // NHL '95 draws its score box its own way, and has no centre-ice logos the editor reads.
+  // NHL '95 draws its score box its own way.
   return isGenesis94(project.game) && project.graphicsSupported && sites(project.bytes) !== null
 }
 
