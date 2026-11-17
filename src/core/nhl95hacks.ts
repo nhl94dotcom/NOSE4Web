@@ -1999,7 +1999,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, N.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${N.goalieLine}).`,
   goalieDelay: (c) =>
-    `B is held ${more(c.goalieDelay, N.goalieDelay, 'longer', 'for less time')} before a player takes the goalie (${c.goalieDelay}, where the original has ${N.goalieDelay}, about half a second).`,
+    `B is held ${more(c.goalieDelay, N.goalieDelay, 'longer', 'for less time')} before a player takes the goalie (${c.goalieDelay}, where the original has ${N.goalieDelay}, about a quarter of a second).`,
   speedBurst: (c) => `The C-button speed burst gives every player the same push, ${c.speedBurst}, tired or not; the original gives a fresh player 32 and a tired one less.`,
   turnRate: (c) => `Skaters ${more(c.turnRate, N.turnRate, 'stop and turn more sharply', 'take a longer, sliding stop')} when they reverse (${c.turnRate}, where the original has ${N.turnRate}).`,
   puckFriction: (c) => `The puck slows ${c.puckFriction < N.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game; skaters glide as before.`,

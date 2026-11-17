@@ -473,7 +473,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       the puck to. {stock}
     </>
   ),
-  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie; 17 is about half a second. The same for all four controllers. {stock}</>,
+  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie; in sixtieths of a second: the original 17 is about a quarter of a second. The same for all four controllers. {stock}</>,
   speedBurst: () => (
     <>
       The push the C button gives. 0 for the original game's, which is 32 for a fresh player and less for a tired one. Any
