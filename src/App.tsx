@@ -188,6 +188,8 @@ export default function App() {
   // The SNES game's own players, drawn in a team's colours on its page.
   const ppPkFixed = useMemo(() => (hackedGame && hackedBytes ? hasPpPkFix({ game: hackedGame, bytes: hackedBytes }) : false), [hackedGame, hackedBytes])
   const snesPlayers = useMemo(() => (hackedGame?.platform === 'snes' && hackedBytes ? snesPreviewSprites(hackedBytes) : []), [hackedGame, hackedBytes])
+  // Whether any skater may play any position: read from the hacks once for these bytes, not at every render.
+  const anyAnywhere = useMemo(() => (hackedGame && hackedBytes ? anyPosition({ game: hackedGame, bytes: hackedBytes }) : false), [hackedGame, hackedBytes])
   const original = useMemo(
     () => (asOpened && hackedBytes && hackedGame ? withHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
     [asOpened, hackedBytes, hackedGame],
@@ -461,7 +463,7 @@ export default function App() {
           <TeamEditor
             key={selected}
             game={current.game}
-            anyPosition={anyPosition(current)}
+            anyPosition={anyAnywhere}
             players={snesPlayers}
             teamRatingList={teamRatingsFor(ppPkFixed)}
             team={current.teams[selected]}

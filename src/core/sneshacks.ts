@@ -4145,7 +4145,7 @@ const SNES_PAGE_ORDER: SnesHack[] = [
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
-export function snesAnyPosition(project: RomProject): boolean {
+export function snesAnyPosition(project: Pick<RomProject, 'game' | 'bytes'>): boolean {
   return project.game.platform === 'snes' && detectSnesHacks(project.bytes).choices.forwardsAndDefence
 }
 

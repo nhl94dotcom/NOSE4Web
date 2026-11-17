@@ -32,7 +32,8 @@ export interface Finding {
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
-function checkTeam(project: RomProject, team: Team, index: number, where: string, emptySlots: boolean[][], findings: Finding[]): void {
+// `anyAnywhere`: whether the ROM lets any skater play any position (anyPosition, read once for all the teams).
+function checkTeam(project: RomProject, team: Team, index: number, where: string, emptySlots: boolean[][], anyAnywhere: boolean, findings: Finding[]): void {
   const { game } = project
   const add = (level: Finding['level'], message: string) => findings.push({ level, where, team: index, message })
   const goalies = goalieCount(team)
@@ -84,7 +85,7 @@ function checkTeam(project: RomProject, team: Team, index: number, where: string
         `${name} has ${team.players[slots[slot] - 1].name} at both ${at(first)} and ${at(slot)}. The game plays such a line a skater short, with no penalty, until a line change: one copy of him leaves the ice and no one takes his place.`,
       )
     }
-    for (const slot of outOfRoleSlots(team, slots, anyPosition(project))) {
+    for (const slot of outOfRoleSlots(team, slots, anyAnywhere)) {
       const role = playerRole(team, slots[slot]) === 'forward' ? 'a forward' : 'a defenceman'
       add('note', `${name} has ${team.players[slots[slot] - 1].name}, ${role}, at ${at(slot)}.`)
     }
@@ -190,7 +191,8 @@ export function checkProject(project: RomProject): Finding[] {
   }
 
   const emptySlots = emptyLineSlots(teams)
-  teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, findings))
+  const anyAnywhere = anyPosition(project)
+  teams.forEach((team, i) => checkTeam(project, team, i, labels[i], emptySlots, anyAnywhere, findings))
   checkStrips(project, labels, findings)
   checkPhotos(project, labels, findings)
   if (project.game.platform === 'snes' && teams.every((team) => team.placeName !== undefined)) {
