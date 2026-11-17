@@ -129,6 +129,12 @@ th {
   font-weight: 500;
 }
 
+/* The row under the mouse, in every table, so a wide one is easy to follow across. */
+tbody tr:hover > td,
+tbody tr:hover > th {
+  background: color-mix(in srgb, var(--accent) 14%, var(--page));
+}
+
 input,
 select {
   padding: 2px 4px;
