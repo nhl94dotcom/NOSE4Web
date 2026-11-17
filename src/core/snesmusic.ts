@@ -323,8 +323,10 @@ export interface SnesMusicPart {
   // Its track volume at its first note ($DF 07 or $DE after its instrument, $DC, which sets its instrument's own), or
   // null where it has none (its instrument's own).
   volume: number | null
-  // In frames (at 60 a second, for the browser's preview) and in the piece's own ticks.
-  notes: { frame: number; length: number; note: number; velocity: number; tick: number; ticks: number }[]
+  // In frames (at 60 a second, for the browser's preview) and in the piece's own ticks; with the instrument entry each
+  // plays on (the track's last $DC; on the drums' track, its own: note - $2F; -1 where there is none, so that it is
+  // never heard) and the track volume then (null for its instrument's own, which $DC sets).
+  notes: { frame: number; length: number; note: number; velocity: number; tick: number; ticks: number; entry: number; volume: number | null }[]
 }
 
 export interface SnesMusic {
@@ -364,6 +366,11 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
     let tick = 0
     let name = ''
     let volume: number | null = null
+    // The track's instrument and volume as it goes, and where it goes back to at its end.
+    let entry = -1
+    let now: number | null = null
+    let loopStart = 0
+    let loops = false
     const notes: SnesMusicPart['notes'] = []
     for (let i = 0; i < 8000 && p.at < rom.length; i++) {
       tick += readVarLen(rom, p)
@@ -371,27 +378,47 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
       if (code < 0xd9) {
         const velocity = rom[p.at++]
         const length = readVarLen(rom, p)
-        if (code <= 127) notes.push({ frame: frames(tick), length: Math.max(1, frames(tick + Math.max(1, length)) - frames(tick)), note: code, velocity: Math.max(1, Math.min(127, velocity)), tick, ticks: Math.max(1, length) })
+        if (code <= 127) notes.push({ frame: frames(tick), length: Math.max(1, frames(tick + Math.max(1, length)) - frames(tick)), note: code, velocity: Math.max(1, Math.min(127, velocity)), tick, ticks: Math.max(1, length), entry: track === 9 ? (code - 0x2f) & 0xff : entry, volume: now })
         continue
       }
       // The loop's end ($DB) then the stop ($D9): the piece plays again from its loop's start.
       if (code === 0xd9 || code === 0xda || code === 0xdb) {
         last = Math.max(last, tick / perSecond)
         ticks = Math.max(ticks, tick)
+        loops = code === 0xdb
         break
       }
-      if (code === 0xe2 && loop < 0) loop = tick
+      if (code === 0xe2) {
+        if (loop < 0) loop = tick
+        loopStart = tick
+      }
       if (code === 0xe7) {
         const length = rom[p.at]
         if (!name) name = String.fromCharCode(...rom.subarray(p.at + 1, p.at + 1 + length)).replace(/\0+$/, '').trim()
         p.at += length + 1
       } else if (code === 0xdf || code === 0xe5) {
-        if (code === 0xdf && rom[p.at] === 7 && !notes.length) volume = rom[p.at + 1]
+        if (code === 0xdf && rom[p.at] === 7) {
+          if (!notes.length) volume = rom[p.at + 1]
+          now = rom[p.at + 1]
+        }
         p.at += 2
       } else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) {
         if ((code === 0xde || code === 0xdc) && !notes.length) volume = code === 0xde ? rom[p.at] : null
+        if (code === 0xde) now = rom[p.at]
+        if (code === 0xdc) {
+          entry = rom[p.at] === 0x6a ? 0x14 : rom[p.at]
+          now = null
+        }
         p.at += 1
       }
+    }
+    // A note before the track's first instrument is not heard the first time through (StartSoundVoice starts none
+    // with no instrument, and MusicStart's MusicStop clears them), but the track keeps its last instrument and volume
+    // when it goes back to its loop's start ($DB): so a note from there on is heard on them each time round after (as
+    // in the menu music's tracks named 'bsec ... apower', whose first $DC is at tick 480 and whose last is the brass's).
+    for (const n of notes) {
+      if (n.entry >= 0) break
+      if (loops && entry >= 0 && n.tick >= loopStart) Object.assign(n, { entry, volume: now })
     }
     parts.push({ name, drums: name.toLowerCase() === 'drums', volume, notes })
   }
@@ -418,8 +445,10 @@ const SINGLE_DRUMS: [RegExp, number][] = [
 const drumFor = (part: SnesMusicPart) => (part.drums ? null : (SINGLE_DRUMS.find(([pattern]) => pattern.test(part.name))?.[1] ?? null))
 // The drum track's notes as General MIDI's drums. Each note picks the instrument table's entry (note - $2F): 48 the
 // kick, 50 the snare, 51 the crash played backwards, 52 and 54 closed hi-hats, 56 and 58 open ones, 53 to 60 the
-// toms (55, 57 and 59 among them), 61 and 62 crashes, 68 the cowbell (MenuSfxTable's samples).
-export const SNES_DRUM_GM: Record<number, number> = { 48: 36, 50: 38, 51: 52, 52: 44, 53: 41, 54: 42, 55: 43, 56: 46, 57: 45, 58: 51, 59: 47, 60: 48, 61: 49, 62: 57, 68: 56 }
+// toms (55, 57 and 59 among them), 61 and 62 crashes (in the middle and on the right), 68 the cowbell; and 82 the
+// cowbell on the right, which only a part of one percussion sound plays (the menu music's 'crshbkwd/cow #4, #35'), as
+// the high agogo (MenuSfxTable's samples). Each drum is its own, so that a piece's own file goes back on them.
+export const SNES_DRUM_GM: Record<number, number> = { 48: 36, 50: 38, 51: 52, 52: 44, 53: 41, 54: 42, 55: 43, 56: 46, 57: 45, 58: 51, 59: 47, 60: 48, 61: 49, 62: 57, 68: 56, 82: 67 }
 
 // The piece as NHL 94's Genesis events (genesismusic.ts), without its drums, for the browser's rough preview.
 export function snesMusicTune(music: SnesMusic): SongEvent[] {
@@ -449,10 +478,19 @@ const doubles = (part: SnesMusicPart, other: SnesMusicPart) => {
 // The marker a MIDI file gives the place it plays again from when it ends (as many games' MIDI files mark it).
 export const MIDI_LOOP_MARKER = 'loopStart'
 
+// The entry a track's name gives: ' on #NN' at its end (snesMusicToMidi's), else the first '#NN' (EA's, as
+// 'chug  (L) #50'; or '*NN', as the menu music's 'dist *38').
+export function snesTrackEntry(name: string): number | undefined {
+  const found = / on #(\d+)$/.exec(name) ?? /[#*]\s*(\d+)/.exec(name)
+  return found ? Number(found[1]) : undefined
+}
+
 // The piece as a MIDI file (format 1, a MIDI tick a tick of the piece, at the console's speed): a track for each
 // part, named as the game names it, on its own channel with a General MIDI instrument guessed from that name and its
-// track volume (controller 7; 127 where it has none, its instrument's own); the
-// drums on the drum channel as General MIDI's drums (SNES_DRUM_GM; another note as it is), and a part of one
+// track volume (controller 7; 127 where it has none, its instrument's own); a part whose instrument changes on the
+// way a track for each entry it plays on, and one whose name does not give its entry, its name with ' on #NN'
+// (snesTrackEntry), so that each goes back on its entry; the notes the game never plays (with no instrument) left
+// out. The drums on the drum channel as General MIDI's drums (SNES_DRUM_GM; another note as it is), and a part of one
 // percussion sound (a crash, a cowbell) there as that drum. The first track has the place the piece plays again from
 // (MIDI_LOOP_MARKER) and its end; a part that only doubles another is left out.
 export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
@@ -468,21 +506,33 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
   tracks.push([...(name ? [0, 0xff, 0x03, text(name).length, ...text(name)] : []), ...tempo, ...loop, ...varLen(music.ticks - (loop.length ? music.loop : 0)), 0xff, 0x2f, 0])
   let next = 0
   const kept: SnesMusicPart[] = []
-  for (const part of music.parts) {
-    if (!part.notes.length || kept.some((other) => doubles(part, other))) continue
-    kept.push(part)
+  // Each part's notes that are heard, and on a track of its own for each entry it plays on (a track's instrument may
+  // change, $DC, as the menu music's 'crshbkwd/cow #4, #35' does), named with that entry where the game's name does
+  // not give it (snesTrackEntry).
+  const tracksOf = (part: SnesMusicPart) => {
+    if (part.drums || drumFor(part) !== null) return [{ name: part.name, notes: part.notes.filter((n) => n.entry >= 0) }]
+    const entries = [...new Set(part.notes.filter((n) => n.entry >= 0).map((n) => n.entry))]
+    const named = snesTrackEntry(part.name)
+    const plain = (entry: number) => (named === undefined ? entries.length === 1 : named === entry)
+    return entries.map((entry) => ({ name: plain(entry) ? part.name : `${part.name} on #${entry}`, notes: part.notes.filter((n) => n.entry === entry) }))
+  }
+  // A part's track: on the drum channel for the drums and a part of one percussion sound, each note as the drum of
+  // the entry it plays on where the drums' track has that entry (the crash in the middle, 61, as 49; the one on the
+  // right, 62, as 57; the crash played backwards, 51, as 52), else as the part's drum; any other on a channel of its
+  // own with the track volume at its first note (127 for its instrument's own).
+  const partTrack = (part: SnesMusicPart, name: string, notes: SnesMusicPart['notes']): number[] | null => {
     const single = drumFor(part)
     let channel = DRUMS
     if (!part.drums && single === null) {
       if (next === DRUMS) next++
-      if (next > 15) continue
+      if (next > 15) return null
       channel = next++
     }
-    const body: number[] = [0, 0xff, 0x03, text(part.name).length, ...text(part.name)]
-    if (channel !== DRUMS) body.push(0, 0xc0 | channel, programFor(part.name), 0, 0xb0 | channel, 7, Math.min(127, part.volume ?? 127))
+    const body: number[] = [0, 0xff, 0x03, text(name).length, ...text(name)]
+    if (channel !== DRUMS) body.push(0, 0xc0 | channel, programFor(part.name), 0, 0xb0 | channel, 7, Math.min(127, notes[0].volume ?? 127))
     const timed: { frame: number; bytes: number[]; off: boolean }[] = []
-    for (const n of part.notes) {
-      const note = single ?? (part.drums ? (SNES_DRUM_GM[n.note] ?? n.note) : n.note)
+    for (const n of notes) {
+      const note = part.drums ? (SNES_DRUM_GM[n.note] ?? n.note) : single !== null ? (SNES_DRUM_GM[n.entry + 0x2f] ?? single) : n.note
       timed.push({ frame: n.tick, bytes: [0x90 | channel, note, n.velocity], off: false })
       timed.push({ frame: n.tick + n.ticks, bytes: [0x80 | channel, note, 0x40], off: true })
     }
@@ -493,7 +543,16 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
       frame = t.frame
     }
     body.push(0, 0xff, 0x2f, 0)
-    tracks.push(body)
+    return body
+  }
+  for (const part of music.parts) {
+    if (!part.notes.length || kept.some((other) => doubles(part, other))) continue
+    kept.push(part)
+    for (const own of tracksOf(part)) {
+      if (!own.notes.length) continue
+      const body = partTrack(part, own.name, own.notes)
+      if (body) tracks.push(body)
+    }
   }
   return Uint8Array.from([...chunk('MThd', [0, 1, (tracks.length >> 8) & 0xff, tracks.length & 0xff, 0, 60]), ...tracks.flatMap((body) => chunk('MTrk', body))])
 }

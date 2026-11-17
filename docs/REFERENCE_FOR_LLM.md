@@ -1627,8 +1627,9 @@ each organ note goes on entry 47 a tick late and on entry 31 at its time, on a f
 a note, the first given up; kept only where the 47 note is), on tracks `Organ (MIDI n)` and `Organ (MIDI n) doubled`.
 FindFreeVoice may still put 31's note on voice 0 when voice 0 is free that tick (the game rotates its search start),
 and the 47 note then cuts it a tick later, as in the original (the simulator: original 29 of 102 lost so; a round trip 14
-of 101). Round trips (notes the game plays, of the original's): title 1,635 of 1,695, menu 1,541 of 1,554, playoff
-696 of 704 (before entries were kept: 1,628, 1,539, 695; before the organ's doubling: 1,628, 1,535, 590).
+of 101). Round trips (notes the game plays, of the original's): title 1,636 of 1,695, menu 1,548 of 1,554, playoff
+703 of 704 (before own files were played as the game plays them, below: 1,635, 1,541, 696; before entries were kept:
+1,628, 1,539, 695; before the organ's doubling: 1,628, 1,535, 590).
 
 **Entries kept** (a piece's own MIDI file put back): a part's choice may be one entry (`{ sample, entry }`, one of the
 instrument's `sides`: every single-voice entry of its sample, with voice and L/R volumes; `snesEntrySide`: centre where
@@ -1642,9 +1643,51 @@ energy, L - R against L + R, `renderSnesMusic`), original / round trip before / 
 alike: title 0.069 / 0.084 / 0.076, menu 0.101 / 0.075 / 0.112, playoff 0.236 / 0.087 / 0.225; L and R RMS within
 5% of the original's (before, the playoff's L/R pairs were scaled to the kit's volumes 97 and velocities, against no
 `$DF 07` and velocities 89-108 in the game's). Non-drum notes on their original entry: title 451 of 999 (was 407),
-menu 689 of 1,027 (401), playoff 485 of 505 (338; its pairs 50/51, 48/49, 45/46 all kept). The title's chug #18
-loses voice 0 to the distorted guitars about half the time and goes to centre entry 39 (same pan); the menu's
-"bsec (R) #17 apower #43 (M)" tracks go on the first entry named (brass), as their names lead.
+menu 689 of 1,027 (401), playoff 485 of 505 (338; its pairs 50/51, 48/49, 45/46 all kept).
+
+**Own files as the game plays them** (`ownVolumes` given, a piece's own MIDI file). The game never moves a note to
+another entry: FindFreeVoice looks for a free voice (VoiceState 0) of the entry's mask from VoiceRotor + 1, else takes
+the one of the highest state, then age, of no higher priority (every music entry has priority 0), so a note on a
+one-voice entry always takes that voice, cutting what sounds there. The planner used to send such a note to another
+entry of the instrument where the voice was busy (the playoff's brass at frame 1183 onto centre entry 20 while the
+power guitars' long notes held voices 3 and 2, the other brass note left out), which the console then played in the
+middle: Match Viewer's 48 frames of brass in the middle. Now in an own file a part on one entry takes its voice for
+every note, cutting the note there (of two at one tick the lower track's keeps it: SequencerTick steps the tracks from
+the last, so the lower is started last); `otherEntry` is 0 for all three pieces. Its drums go back on the very codes
+they were (`kit.ownDrums`, the inverse of `SNES_DRUM_GM`; `ownDrumVoices`: the crash in the middle, 61, entry 14, may
+take voice 2 or 3, which the game chooses) and as long as they were (no 3-30 frame clamp). A track volume of 127 is
+written as none (`$DC` alone sets the instrument's own; `$DF 07 127` is 127/128 of it).
+
+**Instrument changes** (`readSnesMusic`: each note's `entry`, the track's last `$DC`, and `volume`, the `$DF 07`/`$DE`
+then, null after a `$DC`). The game's pieces change instrument inside a track: the menu's "crshbkwd/cow #4, #35"
+(4, 35 at 2113, 4 at 4056), its three "bsec ... apower" tracks (no `$DC` until 480, then power guitar 43/42/41 and
+brass 17/16/40 by turns, ending on the brass), the title's "HORN (M) #25" (30 at 1632). A note before a track's first
+`$DC` is never started the first time through (TrackInst is 0: MusicStart's MusicStop clears it, StartSoundVoice
+starts nothing), but `$DB` goes back to the loop start with the last instrument kept, so from the loop start on it is
+heard on that one each time round after: readSnesMusic gives it that entry (the bsec tracks' notes 96-480 on the
+brass), and -1 to one never heard. Export (`snesMusicToMidi`) writes a MIDI track for each entry a part plays on,
+named as the game's where its name gives that entry ('#NN' or '*NN', the first; `snesTrackEntry`), else with
+' on #NN' added ("HORN (M) #25 on #30", "bsec (R) #17 apower #43 (M) on #43"), with the volume at its first note;
+notes of entry -1 left out. `namedEntry` reads ' on #NN' first; an entry that is no instrument's side (of more voices,
+as 30, 31, 41) puts the part on the entry's sample (`kit.entrySamples`). A part of one percussion sound on the drum
+channel plays each note as the drum of its entry where the drum track has it (`SNES_DRUM_GM[entry + $2F]`: 14 -> 49,
+15 -> 57, 4 -> 52, 21 -> 56, 35 -> 67, new: the right cowbell, 82), else as the part's drum (the hat #32 as 46).
+
+Width, original / before / now (NHL94.smc and nhl94_2026.sfc alike): title 0.069 / 0.076 / 0.078, menu 0.101 / 0.112
+/ 0.101, playoff 0.236 / 0.225 / 0.236 (L/R RMS 3,574/3,749 original, 3,573/3,750 now). Frames each sample sounds on
+each side (`renderSnesMusic` notes, keyed on to let go, by `snesEntrySide`), playoff original / now: brass left 418 /
+418, right 410 / 418, middle 0 / 0 (before 87); crash middle 84 / 83, right 71 / 71 (before right 151); crash played
+backwards 11 / 11 (before 0); the rest within 2. Menu: right cowbell 182 / 182 (before 0), crash right 629 / 629,
+crash played backwards 71 / 71 frames in all (its sides differ: on the drum track a note takes its entry's own
+volume, StepTrack, not the track's 79). Left as they are: entries of more voices are not pinned (the menu's power
+guitar #41, left, 283 frames, plays on 42/43; the title's dist #27/#28/#29 and HORN #26/#30 on the instrument's
+single-voice entries, so its distorted guitar leans right), and a percussion part's notes play at the drum track's
+fixed pitch ($3F + transpose).
+
+Match Viewer's round-6 ROMs (mv_review_2026-11-17/round6) were not this round trip: their playoff tracks have
+`$DF 07` 97/99/121/89 (the kit's medians) and velocities scaled, as without `snesOwnVolumes`; the renderer gives them
+width 0.138, L/R 3,405/3,476 (Snes9x: 0.143, 3,455/3,515), and per-sample frames in step with Match Viewer's (each
+about twice its count, a fixed factor between the two ways of counting), so the renderer and the console agree.
 
 The kit (`snesMusicKit`, MenuSfxTable entries 0-51): per
 sample the most central entry for each voice. Menu set: Bass voice 5 (entry 2); Brass 4/3/2 (20/17/25); Chugging guitar
@@ -1657,11 +1700,12 @@ median for its sample (Bass 84, Brass 34, ...; drums 53), its track volume the g
 **Drums** (General MIDI note to drum-track code; code - `$2F` is the entry, checked against its sample): 35/36 -> 48
 kick; 37-40 -> 50 snare; 42 (and shakers, tambourine, wood blocks) -> 54 closed hat (voice 6); 44 -> 52 closed hat
 (voice 7); 46 -> 56 open hat; 51/53/59 -> 58 open hat; toms 41 -> 53, 43 -> 55, 45 -> 57, 47 -> 59, 48/50 -> 60;
-crashes 49/52/55/57 -> 62 (voice 0; 61 has two voices); 56 -> 68 cowbell. Export (`snesMusicToMidi`) now writes the
+crashes 49/52/55/57 -> 62 (voice 0; 61 has two voices); 56/67/68 -> 68 cowbell (a piece's own file: the very codes,
+above). Export (`snesMusicToMidi`) now writes the
 drum track's codes as General MIDI drums (`SNES_DRUM_GM`) and ends the first track at the piece's end (its rest kept).
 
-**Defaults** (`defaultSnesPartChoices`): the drum channel drums; a track name giving an entry ('#NN', the first) that
-is one of an instrument's `sides` (an instrument of more than one) on that entry; else a part's track name as EA names it (`midiPartNames`:
+**Defaults** (`defaultSnesPartChoices`): the drum channel drums; a track name giving an entry (`snesTrackEntry`) that
+is one of an instrument's `sides` (an instrument of more than one) on that entry, another entry on its sample; else a part's track name as EA names it (`midiPartNames`:
 bass, horn/bsec/brass, orgn, apower, dist, chug, orch, timp, cow, crshbkwd, crash) on that sample, so a piece's own
 MIDI file goes back on its instruments; else its General MIDI program by family (basses -> Bass, 47 -> Timpani, 55 ->
 Orchestra hit, 24-28 -> Chug, 29-31 and leads -> Dist, brass/strings/reeds -> Brass, organs/pianos/pads -> Organ where

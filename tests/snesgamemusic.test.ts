@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+﻿import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { musicParts, readMidi, type MidiNote } from '../src/core/genesismusic'
@@ -26,7 +26,7 @@ import {
   withSnesMusicBytes,
   type SnesPartChoice,
 } from '../src/core/snesgamemusic'
-import { readSnesMusic, SNES_GAME_MUSIC, snesMusicToMidi } from '../src/core/snesmusic'
+import { readSnesMusic, SNES_FRAMES_PER_SECOND, SNES_GAME_MUSIC, snesMusicToMidi, snesTrackEntry } from '../src/core/snesmusic'
 import { compareProjects } from '../src/core/compare'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 import { expectSameBytes } from './samebytes'
@@ -66,13 +66,15 @@ function frameOfTick(tempo: number, tick: number) {
 }
 
 // The voices a piece's notes were planned on never hold two at once, and are eight at most; each is a voice its
-// entry may take.
+// entry may take. (A piece's own drum of more voices, as the crash in the middle, takes the one the game finds.)
 function voicesHeldOnce(rom: Uint8Array, made: ReturnType<typeof snesMusicFromMidi>, set: 'title' | 'menu') {
   const kit = snesMusicKit(rom, set)!
   const spans: { voice: number; on: number; off: number }[] = []
   made.tracks.forEach((track, t) => {
     for (const n of track.notes) {
-      const voice = t === 9 ? kit.drumVoice.get(n.code)! : track.voice
+      const drumVoices = kit.ownDrumVoices.get(n.code) ?? [kit.drumVoice.get(n.code)!]
+      if (t === 9 && drumVoices.length > 1) continue
+      const voice = t === 9 ? drumVoices[0] : track.voice
       if (t !== 9) {
         const instrument = kit.instruments.find((i) => i.sides.some((e) => e.entry === track.entry) || i.doubled?.entry === track.entry)!
         const side = instrument.sides.find((e) => e.entry === track.entry)
@@ -206,37 +208,93 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     const { made, choices, bytes, next } = roundTrip(project, index)
     const kit = snesMusicKit(project.bytes, piece.sounds)!
     const names = midiPartNames(bytes)
-    // Each track named with an entry of one voice (as 'chug  (L) #50') goes back on that entry, or where its voice is
-    // taken (as by the title music's distorted guitars) on another of the instrument's on the same side.
+    // Each track named with an entry of one voice (as 'chug  (L) #50', or as the export names a track of a part
+    // whose instrument changes, '... on #43') goes back on that entry, every note, as the game plays it: a note takes
+    // its entry's voice, cutting the one there, rather than moving to another entry.
     let pinned = 0
     for (const [channel, name] of names) {
       // (The crashes and cowbell go on the drum channel.)
       if (channel === 9) continue
-      const entry = Number(/#\s*(\d+)/.exec(name)?.[1] ?? -1)
+      const entry = snesTrackEntry(name) ?? -1
       const instrument = kit.instruments.find((i) => i.sides.length > 1 && i.sides.some((e) => e.entry === entry))
       if (!instrument) continue
       pinned++
       expect(choices.get(channel), name).toEqual({ sample: instrument.sample, entry })
       const own = made.tracks.filter((t) => t.name.endsWith(`(MIDI ${channel + 1})`))
-      const on = own.filter((t) => t.entry === entry).reduce((sum, t) => sum + t.notes.length, 0)
-      const all = own.reduce((sum, t) => sum + t.notes.length, 0)
-      const sideOf = (e: number) => snesEntrySide(instrument.sides.find((s) => s.entry === e)!)
-      const sameSide = own.filter((t) => sideOf(t.entry) === sideOf(entry)).reduce((sum, t) => sum + t.notes.length, 0)
-      expect(on / all, name).toBeGreaterThan(index === 0 ? 0.4 : 0.8)
-      expect(sameSide / all, name).toBeGreaterThan(0.8)
+      expect(own.map((t) => t.entry), name).toEqual([entry])
     }
-    expect(pinned).toBe([3, 6, 6][index])
-    // The playoff music's tracks all on their own entries, a note or so moved where a voice was taken.
-    if (index === 2) {
-      expect(made.otherEntry).toBeLessThan(15)
-      for (const entry of [45, 46, 48, 49, 50, 51]) expect(made.tracks.filter((t) => t.entry === entry)).toHaveLength(1)
-    }
+    expect(pinned).toBe([4, 10, 6][index])
+    expect(made.otherEntry).toBe(0)
+    // The playoff music's tracks all on their own entries.
+    if (index === 2) for (const entry of [45, 46, 48, 49, 50, 51]) expect(made.tracks.filter((t) => t.entry === entry)).toHaveLength(1)
     // As wide as the game's, and as loud on each side.
     const was = width(project.bytes, piece.pointer)
     const now = width(next.bytes, snesMusicPointer(next.bytes, index))
     expect(Math.abs(now.width - was.width) / was.width).toBeLessThan(0.15)
     expect(Math.abs(now.left - was.left) / was.left).toBeLessThan(0.1)
     expect(Math.abs(now.right - was.right) / was.right).toBeLessThan(0.1)
+  })
+
+  // How many frames each sample sounds on each side (by its voice's left and right volumes), keyed on to let go, as
+  // Match Viewer counts them from the DSP.
+  const framesBySide = (rom: Uint8Array, pointer: number) => {
+    const frames = new Map<string, number>()
+    for (const n of renderSnesMusic(rom, pointer, 'menu', false)!.notes) {
+      const key = `${n.sample} ${snesEntrySide(n)}`
+      frames.set(key, (frames.get(key) ?? 0) + Math.round((n.release - n.start) * SNES_FRAMES_PER_SECOND))
+    }
+    return frames
+  }
+
+  it("plays each sample of the playoff music put back from its own MIDI file on each side as long as the game's", () => {
+    const project = open(roomy)
+    const { next } = roundTrip(project, 2)
+    const was = framesBySide(project.bytes, SNES_GAME_MUSIC[2].pointer)
+    const now = framesBySide(next.bytes, snesMusicPointer(next.bytes, 2))
+    // The brass a left and right pair (45 and 46) all through, never on a voice in the middle; the crash in the
+    // middle (the drums' 61, which may take voice 2 or 3) and on the right ('xtra crsh #15'); the crash played
+    // backwards ('crshbkwd #4'); every other sample as long within a few frames.
+    expect(now.get('8 centre')).toBeUndefined()
+    for (const key of ['8 left', '8 right', '7 centre', '7 right', '3 centre']) expect(now.get(key), key).toBeGreaterThan(0)
+    for (const key of new Set([...was.keys(), ...now.keys()])) {
+      const [a, b] = [was.get(key) ?? 0, now.get(key) ?? 0]
+      expect(Math.abs(b - a), `sample ${key}: ${a} then ${b}`).toBeLessThanOrEqual(Math.max(3, 0.03 * a))
+    }
+  })
+
+  it('puts back a track whose instrument changes on the way, each entry on a track of its own', () => {
+    const project = open(roomy)
+    const menu = readSnesMusic(project.bytes, SNES_GAME_MUSIC[1].pointer)!
+    // The menu music's 'bsec' tracks have no instrument until $DC at tick 480 (the power guitar: 43, 42 and 41), and
+    // change between it and the brass (17, 16 and 40) on the way, ending on the brass: so the game plays their notes
+    // from the loop's start (tick 96) to 480 on the brass, each time round after the first; and its 'crshbkwd/cow #4,
+    // #35' plays the crash played backwards (4), the cowbell on the right (35), then 4 again.
+    const bsec = menu.parts.find((part) => part.name.startsWith('bsec (R)'))!
+    expect(new Set(bsec.notes.map((n) => n.entry))).toEqual(new Set([17, 43]))
+    expect(bsec.notes.filter((n) => n.tick < 480).every((n) => n.entry === 17)).toBe(true)
+    const crashes = menu.parts.find((part) => part.name.startsWith('crshbkwd/cow'))!
+    expect([...new Set(crashes.notes.map((n) => n.entry))]).toEqual([4, 35])
+    // The title music's 'HORN (M) #25' goes on to entry 30 at tick 1632: a MIDI track for each.
+    const { bytes } = roundTrip(open(roomy), 0)
+    expect([...midiPartNames(bytes).values()].filter((name) => name.startsWith('HORN (M)'))).toEqual(['HORN (M) #25', 'HORN (M) #25 on #30'])
+    const horns = readSnesMusic(project.bytes, SNES_GAME_MUSIC[0].pointer)!.parts.find((part) => part.name.startsWith('HORN (M)'))!
+    const file = readMidi(bytes).notes
+    const channels = [...midiPartNames(bytes)].filter(([, name]) => name.startsWith('HORN (M)')).map(([channel]) => channel)
+    expect(channels.map((channel) => file.filter((n) => n.channel === channel).length)).toEqual([25, 30].map((entry) => horns.notes.filter((n) => n.entry === entry).length))
+    // Put back, each goes on its own entry: the brass's and power guitar's tracks on 17, 16, 40, 43 and 42 (41, of two
+    // voices, on the power guitar), the crash played backwards and the cowbell on the right on the drums' 51 and 82.
+    const { made, next } = roundTrip(project, 1)
+    const entries = made.tracks.map((t) => t.entry)
+    for (const entry of [16, 17, 40, 42, 43]) expect(entries).toContain(entry)
+    expect(made.tracks.some((t) => t.name.startsWith('Power guitar') && t.entry !== 42 && t.entry !== 43)).toBe(false)
+    const drums = new Set(made.tracks[9].notes.map((n) => n.code))
+    for (const code of [51, 82]) expect(drums).toContain(code)
+    // The game plays them so: the cowbell on the right, and the crash played backwards, as long as in the game's.
+    const was = framesBySide(project.bytes, SNES_GAME_MUSIC[1].pointer)
+    const now = framesBySide(next.bytes, snesMusicPointer(next.bytes, 1))
+    expect(Math.abs(now.get('11 right')! - was.get('11 right')!)).toBeLessThanOrEqual(3)
+    const crashBackwards = (frames: Map<string, number>) => (frames.get('3 centre') ?? 0) + (frames.get('3 right') ?? 0)
+    expect(Math.abs(crashBackwards(now) - crashBackwards(was))).toBeLessThanOrEqual(3)
   })
 
   it('doubles the organ as the playoff music does: its line on entry 31, and a tick later on entry 47', () => {
