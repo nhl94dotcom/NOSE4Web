@@ -973,7 +973,7 @@ export function HelpPage() {
           on), with a <b>Play</b> button beside each, so you can hear a song before you settle on it.
         </li>
         <li>
-          <b>Game music</b> (NHL 94 on the Genesis): the game's three other pieces: the title music (the title screen
+          <b>Game music</b> (Genesis; NHL '95's can be played and exported, not yet replaced): the game's three other pieces: the title music (the title screen
           and the main menu), the end of period music (between periods, the pause menu and the playoff screens) and the
           scouting report music. <b>Play</b> gives a rough idea of one, without its drums; the console's synthesizer
           sounds quite different. <b>Export MIDI</b> saves it as a MIDI file, each part on its own channel and the drums

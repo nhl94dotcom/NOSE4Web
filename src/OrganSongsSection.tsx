@@ -22,6 +22,7 @@ import {
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
+import { NHL95_GAME_MUSIC, nhl95SongsSupported, readNhl95Music } from './core/nhl95music'
 import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
 import { download } from './download'
 import { SongControls, useSongPlayer } from './SongPlayer'
@@ -196,10 +197,13 @@ export function GameMusicSection({ project, onChange }: Props) {
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
   const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
-  if (project.game.platform !== 'genesis' || project.game.edition === 95 || !genesisSongsSupported(project.bytes)) return null
-  const pieces = GAME_MUSIC.map((piece) => ({ ...piece, song: readSong(project.bytes, piece.number) })).filter((piece) => piece.song)
+  // NHL '95's can be listened to and exported; NHL 94's replaced too.
+  const nhl95 = project.game.edition === 95
+  if (project.game.platform !== 'genesis' || !(nhl95 ? nhl95SongsSupported : genesisSongsSupported)(project.bytes)) return null
+  const list = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
+  const pieces = list.map((piece) => ({ ...piece, song: (nhl95 ? readNhl95Music : readSong)(project.bytes, piece.number) })).filter((piece) => piece.song)
   if (!pieces.length) return null
-  const pieceName = (number: number) => GAME_MUSIC.find((piece) => piece.number === number)!.name
+  const pieceName = (number: number) => list.find((piece) => piece.number === number)!.name
 
   async function read(number: number, file: File) {
     player.stop()
@@ -253,10 +257,18 @@ export function GameMusicSection({ project, onChange }: Props) {
       <p className="note">
         The game's own music besides the organ. Play gives a rough idea of a piece in the browser, without its drums:
         the console's synthesizer sounds quite different. Export MIDI saves it as a MIDI file, each part on its own
-        channel and the drums on the drum channel. <b>Replace</b> puts a MIDI file of your own in its place: you choose a
-        game instrument for each of its parts (up to six), its drums play as the game's kick and hit, at most five notes
-        sound at once, and the piece plays again from the start when it ends, as the game's own do. Try it in the game
-        before your league does: the instruments' names only say where the game uses them.
+        channel and the drums on the drum channel.
+        {nhl95 ? (
+          " Replacing these is still to come for NHL '95."
+        ) : (
+          <>
+            {' '}
+            <b>Replace</b> puts a MIDI file of your own in its place: you choose a game instrument for each of its parts
+            (up to six), its drums play as the game's kick and hit, at most five notes sound at once, and the piece plays
+            again from the start when it ends, as the game's own do. Try it in the game before your league does: the
+            instruments' names only say where the game uses them.
+          </>
+        )}
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       {pending && (
@@ -317,6 +329,7 @@ export function GameMusicSection({ project, onChange }: Props) {
                 <td>
                   <button onClick={() => player.toggle(number, gameMusicTune(song!), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  {!nhl95 && (
                   <label className="button">
                     Replace…
                     <input
@@ -331,6 +344,7 @@ export function GameMusicSection({ project, onChange }: Props) {
                       }}
                     />
                   </label>
+                  )}
                   {song!.custom && (
                     <>
                       {' '}

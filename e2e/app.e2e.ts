@@ -3098,6 +3098,12 @@ test.describe("with the NHL '95 ROM", () => {
     await entry(page, 'Game settings').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     await expect(songs.locator('tbody tr')).toHaveCount(36)
+    // Its other music: listened to and exported, not yet replaced.
+    const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
+    await expect(music.locator('tbody tr')).toHaveCount(3)
+    await expect(music.getByText('Replace…')).toHaveCount(0)
+    const title = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Title music' }).getByRole('button', { name: 'Export MIDI' }))
+    expect(title.suggestedFilename()).toBe('title_music.mid')
     const brass = songs.locator('tbody tr').filter({ hasText: 'Brass Bonanza' })
     await expect(brass).toContainText('12.')
     const midi = await downloadFrom(page, brass.getByRole('button', { name: 'Export MIDI' }))

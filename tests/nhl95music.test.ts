@@ -2,14 +2,16 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { readMidi, readSong, songToMidi, type MidiNote, type SongEvent } from '../src/core/genesismusic'
+import { gameMusicToMidi, gameMusicTune, readMidi, readSong, songToMidi, type MidiNote, type SongEvent } from '../src/core/genesismusic'
 import {
   findBankItem,
+  NHL95_GAME_MUSIC,
   NHL95_SONG_NUMBERS,
   NHL95_SONG_VOICES,
   nhl95CustomSongBytes,
   nhl95SongFromMidi,
   nhl95StreamBytes,
+  readNhl95Music,
   readNhl95Song,
   readNhl95Stream,
   soundBankItems,
@@ -201,5 +203,29 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's organ songs", () => {
     // Again in the same place, and back as it was.
     expect(u32(withNhl95Song(next, 0x3a, readNhl95Song(opened.bytes, 0x3e)!.events, 'Tell'), OPERAND)).toBe(block)
     expectSameBytes(withOriginalNhl95Song(next, 0x3a), opened.bytes)
+  })
+})
+
+describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
+  it('reads the title, end of period and scouting report music, and exports each as MIDI, the hi-hats as drums', () => {
+    for (const name of [RETAIL, W18].filter((n) => existsSync(path(n)))) {
+      const rom = open(name).bytes
+      const lengths = NHL95_GAME_MUSIC.map(({ number }) => {
+        const song = readNhl95Music(rom, number)!
+        // The organ songs' reader does not take them.
+        expect(readNhl95Song(rom, number)).toBeNull()
+        const notes = readMidi(gameMusicToMidi(song)).notes
+        const hats = notes.filter((note) => note.channel === 9 && note.note === 42).length
+        expect(hats).toBeGreaterThan(0)
+        // Every tune note is in the MIDI file, at its time; the drums on the drum channel.
+        const tune = gameMusicTune(song).filter((e) => (e.status & 0xf0) === 0x90)
+        expect(notes.filter((note) => note.channel !== 9).length).toBe(tune.length)
+        expect(tune.length).toBeGreaterThan(300)
+        return Math.round(song.seconds)
+      })
+      expect(lengths, name).toEqual([71, 65, 70])
+    }
+    // Only songs 0, 2 and 3.
+    expect(readNhl95Music(open(RETAIL).bytes, 1)).toBeNull()
   })
 })

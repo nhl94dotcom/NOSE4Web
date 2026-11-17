@@ -415,6 +415,9 @@ export const GAME_MUSIC: { number: number; name: string; where: string }[] = [
 type ChannelPart = { drum: number } | { program: number }
 const KICK = 36
 const SNARE = 38
+const CLOSED_HAT = 42
+// NHL '95's noise voice (nhl95music.ts), the hi-hats, as a patch number of its own past the sampled ones'.
+export const NOISE_HAT = 0x7f
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
 function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
@@ -428,7 +431,8 @@ function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
   const parts = new Map<number, ChannelPart>()
   for (const [channel, played] of notes) {
     const patch = patches.get(channel) ?? 0
-    if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
+    if (patch === NOISE_HAT) parts.set(channel, { drum: CLOSED_HAT })
+    else if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
     else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
     else parts.set(channel, { program: played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS })
   }
