@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { SongEvent } from './core/genesismusic'
+import type { SnesMusicRender } from './core/snesaudio'
 import { readSnesSong } from './core/snesmusic'
 import { SongControls, useSongPlayer } from './SongPlayer'
 import type { RomProject } from './core/rom'
@@ -9,6 +10,7 @@ import { SNES_RANDOM_SONG, SNES_SONG_SLOTS, snesSongChoices, snesSongName } from
 import { genesisSongs, RANDOM_SONG, SONG_SLOTS, songName, teamSongsRoom, withRoomForTeamSongs } from './core/teamsongs'
 import type { Team } from './core/team'
 import { ResetButton } from './ResetButton'
+import { snesMusicSound } from './snesplayer'
 
 interface Props {
   project: RomProject
@@ -24,7 +26,7 @@ interface Props {
 // The team page's song player: a slot's song, or stopped if it is the one playing.
 function usePlayer() {
   const player = useSongPlayer<number>()
-  return { ...player, play: (slot: number, events: SongEvent[] | null, title: string) => player.toggle(slot, events, title) }
+  return { ...player, play: (slot: number, events: SongEvent[] | null, title: string, sound?: () => SnesMusicRender | null) => player.toggle(slot, events, title, sound) }
 }
 
 export function TeamSongsSection({ project, team, original, onChange }: Props) {
@@ -118,6 +120,11 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
   if (!songs) return null
   const opened = splitSnesFile(project.source)?.rom
   const choices = snesSongChoices(project.bytes, ...(opened ? [opened] : []))
+  // A song in the ROM as it is, or as it was opened: its notes, and its sound on the game's organ.
+  const play = (slot: number) => {
+    const rom = readSnesSong(project.bytes, songs![slot]) || !opened ? project.bytes : opened
+    player.play(slot, readSnesSong(rom, songs![slot])?.events ?? null, snesSongName(project.bytes, songs![slot]), () => snesMusicSound(rom, songs![slot], 'game'))
+  }
 
   function setSong(slot: number, value: number) {
     const teams = project.teams.map((t, i) => (i === team ? { ...t, snesSongs: songs!.map((v, s) => (s === slot ? value : v)) } : t))
@@ -136,8 +143,8 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
       </p>
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
-        song names are the community's. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To add a song of
-        your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
+        song names are the community's. <b>Play</b> plays the song chosen on the game's own organ. To add a song of your
+        own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
       </p>
       <table className="left">
         <tbody>
@@ -159,7 +166,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
                 <button
                   disabled={songs[slot] === SNES_RANDOM_SONG}
                   aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
-                  onClick={() => player.play(slot, readSnesSong(project.bytes, songs[slot])?.events ?? (opened ? (readSnesSong(opened, songs[slot])?.events ?? null) : null), snesSongName(project.bytes, songs[slot]))}
+                  onClick={() => play(slot)}
                 >
                   {player.playing === slot ? 'Stop' : 'Play'}
                 </button>

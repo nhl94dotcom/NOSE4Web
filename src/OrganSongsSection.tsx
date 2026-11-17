@@ -26,6 +26,7 @@ import { NHL95_GAME_MUSIC, nhl95SongsSupported, readNhl95Music } from './core/nh
 import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
 import { download } from './download'
 import { SongControls, useSongPlayer } from './SongPlayer'
+import { snesMusicSound } from './snesplayer'
 
 interface Props {
   project: RomProject
@@ -414,13 +415,12 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
     <section>
       <h2>Organ songs</h2>
       <p className="note">
-        The songs the teams' organ songs and the random songs use. Play gives a rough idea of one in the browser (the
-        console's organ sounds different). Export MIDI saves it as a MIDI file. <b>Replace</b> puts a MIDI file of your
-        own in its place, played on the game's two organ sounds, left and right, at most {SNES_SONG_VOICES} notes at
-        once (where more sound at once the highest are kept); drums are left out, and notes are moved by octaves into
-        the organ's range. Every team with that song in a slot plays the new one. Help, in the list on the left, has
-        tips on preparing a MIDI file. Tested in the game by the NHL94 Match Viewer project, on the original game and
-        McMarkis's 32-team builds.
+        The songs the teams' organ songs and the random songs use. Play plays one on the game's own organ. Export MIDI
+        saves it as a MIDI file. <b>Replace</b> puts a MIDI file of your own in its place, played on the game's two
+        organ sounds, left and right, at most {SNES_SONG_VOICES} notes at once (where more sound at once the highest
+        are kept); drums are left out, and notes are moved by octaves into the organ's range. Every team with that
+        song in a slot plays the new one. Help, in the list on the left, has tips on preparing a MIDI file. Tested in
+        the game by the NHL94 Match Viewer project, on the original game and McMarkis's 32-team builds.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <p className="note">
@@ -448,7 +448,9 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
                 <td>{seconds(song.seconds)}</td>
                 <UsedBy text={usedBy(pointer)} />
                 <td>
-                  <button onClick={() => player.toggle(pointer, song.events, song.custom?.name ?? name)}>{player.playing === pointer ? 'Stop' : 'Play'}</button>{' '}
+                  <button onClick={() => player.toggle(pointer, song.events, song.custom?.name ?? name, () => snesMusicSound(project.bytes, pointer, 'game'))}>
+                    {player.playing === pointer ? 'Stop' : 'Play'}
+                  </button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? name), `${(song.custom?.name ?? name).replace(/[^A-Za-z0-9]+/g, '_')}.mid`, 'audio/midi')}>
                     Export MIDI
                   </button>{' '}
@@ -499,9 +501,9 @@ export function SnesGameMusicSection({ project }: { project: RomProject }) {
     <section>
       <h2>Game music</h2>
       <p className="note">
-        The game's own music besides the organ. Play gives a rough idea of a piece in the browser, without its drums:
-        the console's instruments sound quite different. Export MIDI saves it as a MIDI file, each of its parts on a track
-        of its own named as the game names it, and the drums on the drum channel. Replacing them is still to come.
+        The game's own music besides the organ. Play plays a piece on the game's own instruments. Export MIDI saves it
+        as a MIDI file, each of its parts on a track of its own named as the game names it, and the drums on the drum
+        channel. Replacing them is still to come.
       </p>
       <table className="left">
         <thead>
@@ -513,13 +515,15 @@ export function SnesGameMusicSection({ project }: { project: RomProject }) {
           </tr>
         </thead>
         <tbody>
-          {pieces.map(({ pointer, name, where, music }) => (
+          {pieces.map(({ pointer, name, where, music, sounds }) => (
             <tr key={pointer}>
               <td>{name}</td>
               <td>{where}</td>
               <td>{seconds(music!.seconds)}</td>
               <td>
-                <button onClick={() => player.toggle(pointer, snesMusicTune(music!), name)}>{player.playing === pointer ? 'Stop' : 'Play'}</button>{' '}
+                <button onClick={() => player.toggle(pointer, snesMusicTune(music!), name, () => snesMusicSound(project.bytes, pointer, sounds))}>
+                  {player.playing === pointer ? 'Stop' : 'Play'}
+                </button>{' '}
                 <button onClick={() => download(snesMusicToMidi(music!, name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>
               </td>
             </tr>

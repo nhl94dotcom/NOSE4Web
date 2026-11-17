@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { SongEvent } from './core/genesismusic'
+import type { SnesMusicRender } from './core/snesaudio'
+import { playSnesSound } from './snesplayer'
 import { playSong, type SongPlayback } from './songpreview'
 
 // Playing organ songs in the browser, wherever the editor offers it: one song
 // at a time, with where it is in the song (which can be moved) and a volume,
-// which this browser remembers.
+// which this browser remembers. A SNES song can come with its sound made from
+// the game's own instruments (snesplayer.ts), played in place of the rough
+// preview of its notes.
 
 const VOLUME_KEY = 'nose4web.songVolume'
 
@@ -20,11 +24,13 @@ function storedVolume(): number {
 export interface SongPlayer<Key> {
   playing: Key | null
   title: string
+  // Whether it plays the song's real sound (not the rough preview).
+  real: boolean
   position: number
   duration: number
   volume: number
-  // Plays the song, or stops it if it is the one playing.
-  toggle(key: Key, events: SongEvent[] | null, title: string): void
+  // Plays the song (its real sound where `sound` gives one), or stops it if it is the one playing.
+  toggle(key: Key, events: SongEvent[] | null, title: string, sound?: () => SnesMusicRender | null): void
   stop(): void
   seek(seconds: number): void
   setVolume(volume: number): void
@@ -33,11 +39,13 @@ export interface SongPlayer<Key> {
 export function useSongPlayer<Key>(): SongPlayer<Key> {
   const [playing, setPlaying] = useState<Key | null>(null)
   const [title, setTitle] = useState('')
+  const [isReal, setReal] = useState(false)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(storedVolume)
   const playback = useRef<SongPlayback | null>(null)
   const events = useRef<SongEvent[] | null>(null)
+  const real = useRef<SnesMusicRender | null>(null)
   // Which start of a song is current: a stop from an earlier one (as when moving in the song) is not an end.
   const run = useRef(0)
 
@@ -53,17 +61,15 @@ export function useSongPlayer<Key>(): SongPlayer<Key> {
       halt()
       const mine = ++run.current
       events.current = song
-      const p = playSong(
-        song,
-        () => {
-          if (run.current !== mine) return
-          playback.current = null
-          setPlaying(null)
-          setPosition(0)
-        },
-        { from, volume },
-      )
+      const ended = () => {
+        if (run.current !== mine) return
+        playback.current = null
+        setPlaying(null)
+        setPosition(0)
+      }
+      const p = real.current ? playSnesSound(real.current, ended, { from, volume }) : playSong(song, ended, { from, volume })
       playback.current = p
+      setReal(real.current !== null)
       setPlaying(key)
       setDuration(p.duration)
       setPosition(from)
@@ -81,16 +87,18 @@ export function useSongPlayer<Key>(): SongPlayer<Key> {
   return {
     playing,
     title,
+    real: isReal,
     position,
     duration,
     volume,
-    toggle(key, song, name) {
+    toggle(key, song, name, sound) {
       if (playing === key || !song) {
         halt()
         setPlaying(null)
         return
       }
       setTitle(name)
+      real.current = sound?.() ?? null
       start(key, song, 0)
     },
     stop() {
@@ -119,7 +127,7 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 export function SongControls<Key>({ player }: { player: SongPlayer<Key> }) {
   if (player.playing === null) return null
   return (
-    <p className="song-controls">
+    <p className="song-controls" data-sound={player.real ? 'real' : 'rough'}>
       Playing <b>{player.title}</b>{' '}
       <input
         type="range"

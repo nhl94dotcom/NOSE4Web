@@ -308,11 +308,12 @@ export function withSnesSongBytes(project: RomProject, saved: number, bytes: Uin
 // playoffs: PeriodOver) and PlayoffSong (the playoff screen, and the breaks from the second playoff round on). Their
 // notes' codes are MIDI's numbers (the organ songs' are 104 more), each track begins with a text naming its part
 // (EA's names, such as 'BASS #2' or 'HORN (L) #16'), and the track named 'drums' plays a drum for each note. They
-// are at the same places in every SNES ROM the editor knows.
-export const SNES_GAME_MUSIC: { pointer: number; name: string; where: string }[] = [
-  { pointer: 0x8fdd32, name: 'Title music', where: 'The title screen' },
-  { pointer: 0x90c20c, name: 'Menu music', where: 'The main menu, and between periods early in the playoffs' },
-  { pointer: 0x93ed31, name: 'Playoff music', where: 'The playoff screen, and between periods from the second round on' },
+// are at the same places in every SNES ROM the editor knows. The title music plays on the title screen's sample set
+// (SPCTitleUpload), the others on the menus' (SPCMenuUpload): snesaudio.ts.
+export const SNES_GAME_MUSIC: { pointer: number; name: string; where: string; sounds: 'title' | 'menu' }[] = [
+  { pointer: 0x8fdd32, name: 'Title music', where: 'The title screen', sounds: 'title' },
+  { pointer: 0x90c20c, name: 'Menu music', where: 'The main menu, and between periods early in the playoffs', sounds: 'menu' },
+  { pointer: 0x93ed31, name: 'Playoff music', where: 'The playoff screen, and between periods from the second round on', sounds: 'menu' },
 ]
 
 export interface SnesMusicPart {

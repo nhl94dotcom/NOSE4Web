@@ -988,12 +988,13 @@ export function HelpPage() {
         </li>
         <li>
           <b>Game music</b> (SNES): the title music, the menu music (the main menu, and between periods early in the
-          playoffs) and the playoff music. <b>Play</b> gives a rough idea of one, without its drums; <b>Export MIDI</b>
+          playoffs) and the playoff music. <b>Play</b> plays one on the game's own instruments; <b>Export MIDI</b>
           saves it as a MIDI file, each part on a track of its own named as the game names it (such as "BASS" or
           "HORN (L)"), and the drums on the drum channel. Replacing them is still to come.
         </li>
         <li>
-          <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. A new song plays
+          <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. <b>Play</b> plays
+          one on the game's own organ. A new song plays
           on the game's two organ sounds, one on each side, at most four notes at once, as the game's own songs do.
           Every team that had the old song gets the new one. Tested in the game by the NHL94 Match Viewer project, on
           the original game and McMarkis's 32-team builds.
