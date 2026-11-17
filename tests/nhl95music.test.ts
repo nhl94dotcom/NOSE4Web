@@ -329,10 +329,15 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music from MIDI file
         expect(back.custom, label).toEqual({ name: 'Again', replaced: number })
         expect(Math.abs(back.seconds - song.seconds), label).toBeLessThanOrEqual(1 / 60 + 1e-9)
         const stream = pieceStream(next, number)
-        // It comes round again in the time of its MIDI file: its $75 two frames before, as Match Viewer heard the game
-        // take two frames over the jump back.
-        expect(nhl95LoopFrames(stream.events, true), label).toBe(Math.round(end * 60))
-        expect(stream.events.at(-1)!.frame, label).toBe(Math.round(end * 60) - 1)
+        // Its $75 where the file ends, as the game's own pieces have theirs (a round trip of the scouting report's music
+        // then repeats every 4,226 frames on the console, as the original: Match Viewer).
+        // The title music's own loops after its intro (from frame 384) and has notes ringing past its $75; a new piece
+        // loops from its start and ends no sooner than its last note, so a frame or two later.
+        const loopFrames = nhl95LoopFrames(stream.events, true)!
+        if (number === 0) expect(loopFrames - Math.round(end * 60), label).toBeLessThanOrEqual(2)
+        else expect(loopFrames, label).toBe(Math.round(end * 60))
+        // The $75 and $FF at the file's end (a frame on, the notes from frame 1).
+        expect(stream.events.at(-1)!.frame - (Math.round(end * 60) + 1), label).toBe(number === 0 ? loopFrames - Math.round(end * 60) : 0)
         // Every drum moment of the game's own piece, each drum (patch and note) as it has it, a frame later (the
         // programs taking frame 0); of two hits at once on one patch (16 times in the title music, its kick and a tom or
         // two toms, and 3 in the scouting report's) one sounds, in the game as here.
@@ -435,9 +440,9 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music from MIDI file
     ])
     expect(ons(0x0e)).toEqual([[31, 56, 6]])
     expect(ons(0x13)).toEqual([[16, 120, 1]])
-    // The end: the file's rest kept, then back to the start (the $75 two frames before, the jump taking two).
+    // The end: the file's rest kept, then back to the start.
     expect(made.seconds).toBe(2)
-    expect(made.stream.at(-2)).toEqual({ frame: 119, status: 0xb0, data: [0x75, 0] })
+    expect(made.stream.at(-2)).toEqual({ frame: 121, status: 0xb0, data: [0x75, 0] })
     expect(nhl95LoopFrames(made.stream, true)).toBe(120)
     expectWithinLimits(made.stream)
     // The defaults: the chords on the square wave, the low part on the bass, the drums the drums.

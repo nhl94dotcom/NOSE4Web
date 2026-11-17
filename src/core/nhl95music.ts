@@ -333,6 +333,26 @@ const musicCache = new WeakMap<Uint8Array, Map<number, Song | null>>()
 // One of those pieces as NHL 94's events (as readNhl95Song gives the organ songs), its velocities as they are, its
 // noise patch as the hi-hats (NOISE_HAT) and its drum patch's notes as written (NHL95_DRUM_PATCH). Played and exported
 // as NHL '95's (gameMusicTune and gameMusicToMidi with 95), not on NHL 94's patches. One NOSE4Web put in has its name.
+// Of two hits at once on one drum patch the game sounds only the one sent last (Match Viewer), so only that one is
+// kept (soundingDrums): a MIDI file made from it then puts back the hit heard, the kick included where a tom shares
+// its moment.
+function soundingDrums(events: Nhl95Event[]): Nhl95Event[] {
+  const patches = new Map<number, number>()
+  const last = new Map<string, number>()
+  events.forEach((event, i) => {
+    if ((event.status & 0xf0) === 0xc0) patches.set(event.status & 0x0f, event.data[0])
+    const patch = patches.get(event.status & 0x0f)
+    if ((event.status & 0xf0) === 0x90 && (patch === KICK_PATCH || patch === SNARE_PATCH || patch === NOISE_PATCH)) last.set(`${patch}:${event.frame}`, i)
+  })
+  patches.clear()
+  return events.filter((event, i) => {
+    if ((event.status & 0xf0) === 0xc0) patches.set(event.status & 0x0f, event.data[0])
+    const patch = patches.get(event.status & 0x0f)
+    if ((event.status & 0xf0) !== 0x90 || !(patch === KICK_PATCH || patch === SNARE_PATCH || patch === NOISE_PATCH)) return true
+    return last.get(`${patch}:${event.frame}`) === i
+  })
+}
+
 export function readNhl95Music(rom: Uint8Array, number: number): Song | null {
   if (!isNhl95GameMusic(number)) return null
   let cache = musicCache.get(rom)
@@ -343,7 +363,7 @@ export function readNhl95Music(rom: Uint8Array, number: number): Song | null {
   const data = item ? rom.subarray(item.at, item.at + item.size) : null
   const stream = data ? readNhl95Stream(data) : null
   if (item && data && stream && stream.used >= 0) {
-    const events = songEvents(stream, 1, (value) => (value === NOISE_PATCH ? NOISE_HAT : value), true)
+    const events = songEvents({ ...stream, events: soundingDrums(stream.events) }, 1, (value) => (value === NOISE_PATCH ? NOISE_HAT : value), true)
     const name = customName(rom, number, item, data, stream)
     // Its length: to where its loop point plays again (the title music's events after its $75 never play).
     const loop = stream.events.find((e) => e.status === 0xb0 && e.data[0] === LOOP_START)
@@ -501,10 +521,10 @@ export function withNhl95SongBytes(rom: Uint8Array, number: number, bytes: Uint8
 //   piece's notes ends before the next on its voice begins, so it never has more waiting than its ten voices.
 // - Controller $75 jumps to a loop point (the 68000's; the other controllers go to the Z80). The game's pieces have
 //   their programs, then $74 at their loop point, and end with $75 0: a new piece is laid out the same.
-// - A new piece's second pass came 2 frames after its $75 (1 on the WN95HL's ROM), where the game's own play their loop
-//   point again in the frame of their $75. SndUpdate's code reads as the jump taking no time (it skips the loop point's
-//   wait, as it does the first event's at the start, and goes on in the same frame), so the 2 frames are not in it; a
-//   new piece's $75 comes LOOP_LATE frames before its end, so that it loops in the time of its file.
+// - A new piece is laid out as the game's own, its $75 at its end: the game's pieces come round a frame or two after
+//   their $75 (the title music repeats every 4,225 frames, the scouting report's 4,226: Match Viewer, on the console),
+//   and a new one laid out the same repeats as they do (a round trip of the scouting report's repeated every 4,226).
+//   An earlier build moved the $75 2 frames earlier, which made new pieces 2 to 3 frames short.
 const FM_VOICES = 6
 const SQUARE_VOICES = 3
 const MOST_COMMANDS = 14
@@ -515,7 +535,7 @@ const SNARE_PATCH = 0x0e
 const MALLET_PATCH = 0x0d
 const LOOP_START = 0x74
 const LOOP = 0x75
-const LOOP_LATE = 2
+const LOOP_LATE = 0
 // The game's tuned patches a part may be played on, each once (load list 0, which all three pieces use), named by
 // as Match Viewer heard them. $0B and $16 are left out: none of the three pieces plays them, so how they sound is not
 // known.
@@ -756,8 +776,7 @@ export function nhl95MusicFromMidi(notes: MidiNote[], choices: Map<number, PartC
   }
   // A note cut where it began sounds nothing.
   let sounding = played.filter((p) => p.off > p.on)
-  // The end: where the file ends or its last note does, its rest kept; the piece plays again from frame 1 there, its
-  // $75 LOOP_LATE frames before (so not before its last note begins).
+  // The end: where the file ends or its last note does, its rest kept; the piece plays again from frame 1 there.
   const lastOff = sounding.reduce((most, p) => Math.max(most, p.off), 1)
   const lastOn = sounding.reduce((most, p) => Math.max(most, p.on), 1)
   let finish = Math.max(lastOff, lastOn + LOOP_LATE, 1 + Math.round((end - first) * FRAMES_PER_SECOND))
