@@ -473,7 +473,8 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(hex(faceoff, 2, 4)).toBe('327cbfce') // PenBuf
     expect(hex(faceoff, 0x34, 4)).toBe('327cac62') // SortCords
     expect(hex(faceoff, 0x86, 8)).toBe('31c0bb9a31c1bb9c') // fox, foy
-    expect(Array.from(faceoff.subarray(0x64, 0x6a))).toEqual([0x70, 0x46, 0x60, 0x02, 0x70, 0xba]) // neutral-zone x +-70
+    expect(Array.from(faceoff.subarray(0x64, 0x6a))).toEqual([0x70, 0x53, 0x60, 0x02, 0x70, 0xad]) // neutral-zone x +-83, as drawn
+    expect(hex(on.bytes, 0x88f5c, 4)).toBe('303c0053') // limitfo's too
     // Where NHL '95's code is NHL 94's, it is the same bytes.
     expect(hex(faceoff, 0x0a, 10)).toBe(hex(FACEOFF_CODE, 0x0a, 10))
     // Stick shots: a call and two NOPs, to NHL 94's code with NHL '95's addresses at their places.

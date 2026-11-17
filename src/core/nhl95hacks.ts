@@ -227,8 +227,10 @@ const setAware = (rom: Uint8Array, on: boolean) => AWARE_PLACES.forEach((place) 
 // NHL 94's (hacks.ts, faceoffFix). Stop4Pen ($8901C) puts a faceoff on a dot only when play stopped past the hash
 // marks (y beyond +-$AF), else where the puck was. Its 86 bytes from movem.w d0-d1,-(sp) at $8907A to addq.w #4,sp
 // become a call to NHL 94's code with NHL '95's rink and addresses: PenBuf $BFCE, SortCords $AC62, fox/foy
-// $BB9A/$BB9C, end dots at x +-$4D, y +-$D7, blue lines at y +-$56; and the neutral-zone dots at x +-$46 (70), y +-$41,
-// where NHL '95's own limitfo puts its faceoffs there (NHL 94 uses one x for both).
+// $BB9A/$BB9C, end dots at x +-$4D, y +-$D7, blue lines at y +-$56; and the neutral-zone dots at x +-$53 (83), y +-$41,
+// where NHL '95 draws them (Match Viewer measured them; NHL 94 uses one x for both). The original drops a neutral-zone
+// faceoff at x +-70, about 13 pixels inside the drawn dot, as its limitfo ($88F06) does for one moved out of an end:
+// with the fix limitfo's x ($88F5C, move.w #$46,d0) is 83 too.
 const FACEOFF_HOOK = {
   at: 0x8907a,
   original: hex(
@@ -236,13 +238,15 @@ const FACEOFF_HOOK = {
   ),
 }
 const FACEOFF_CODE = hex(
-  '2F09 327CBFCE 4A51 6740 4A59 66FC 5949 0C11000E 676C 0C110012 652E 0C11002B 6428 0C110014 6722 4241 12290001 0241007F EF41 327CAC62 083100071062 6606 323C00D7 6004 323CFF29 4A40 6B04 704D 6002 70B3 B27C0056 6E1C B27CFFAA 6D1C 4A40 6B04 7046 6002 70BA 4A41 6B04 7241 6014 72BF 6010 323C00D7 600A 323CFF29 6004 7000 7200 31C0BB9A 31C1BB9C 225F 4E75',
+  '2F09 327CBFCE 4A51 6740 4A59 66FC 5949 0C11000E 676C 0C110012 652E 0C11002B 6428 0C110014 6722 4241 12290001 0241007F EF41 327CAC62 083100071062 6606 323C00D7 6004 323CFF29 4A40 6B04 704D 6002 70B3 B27C0056 6E1C B27CFFAA 6D1C 4A40 6B04 7053 6002 70AD 4A41 6B04 7241 6014 72BF 6010 323C00D7 600A 323CFF29 6004 7000 7200 31C0BB9A 31C1BB9C 225F 4E75',
 )
 const FACEOFF_AROUND = [
   { at: 0x8901c, bytes: hex('08F8 0000 BEF0 6600 00B2') }, // Stop4Pen
   { at: 0x890d0, bytes: hex('4EB9 0008 8F06') }, // jsr limitfo
+  { at: 0x88f56, bytes: hex('31FC 0041 BB9C') }, // limitfo's move.w #$41,(foy).w, before its x
 ]
-const faceoff = once(() => hookedFix(FACEOFF_HOOK, FACEOFF_CODE, [], placeCode))
+const FACEOFF_EDITS = [{ at: 0x88f5c, original: hex('303C 0046'), hacked: hex('303C 0053') }]
+const faceoff = once(() => hookedFix(FACEOFF_HOOK, FACEOFF_CODE, FACEOFF_EDITS, placeCode))
 const faceoffState = (rom: Uint8Array) => (FACEOFF_AROUND.every((around) => matches(rom, around.at, around.bytes)) ? faceoff().detect(rom) : undefined)
 
 // ------------------------------------------------- stick deflections as shots

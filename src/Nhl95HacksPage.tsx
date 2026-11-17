@@ -83,7 +83,9 @@ const MORE: Record<Nhl95Hack, ReactNode> = {
       The game puts a faceoff on a dot only when play stops past the hash marks, and anywhere else holds it where the
       puck was, often between the dots. With this on, every faceoff is on a dot, as in today's NHL: after a goal at
       centre; after a penalty in the offending team's end, on the puck's side; otherwise at that end's dot past a blue
-      line, or the nearest neutral-zone dot. Leave it off to keep the game's own older-style faceoffs. {FROM_94}
+      line, or the nearest neutral-zone dot, on the dot as drawn (the original drops those a little inside it). Leave it
+      off to keep the game's own older-style faceoffs. NHL 94's fix, at NHL '95's places (also in the WN95HL's ROMs).
+      Not yet tested in the game with the neutral-zone dots as drawn.
     </p>
   ),
   awarenessFix: (
