@@ -1503,8 +1503,10 @@ $2F), and plays at note $3F + its transpose".
 **`renderSnesMusic(rom, pointer, set, render = true)`**: runs the sequencer as SoundUpdate does once a frame
 (UpdateSfxVoices, SequencerTick, UpdateVoices, StepTrack, FindFreeVoice, VolumeCurve[velocity], pitch bend `$E5`), then
 the DSP per voice: BRR at the pitch rate, ADSR or GAIN after release (GAIN `$9F/$99/$8C/$81` by the release word's high
-byte), left/right volume, main volume `$50`. Echo off. "The DSP's own interpolation is Gaussian; here it is a 4-point
-kernel shaped like it, so the sound is close but not to the bit"; vibrato, music ducking and PAL timing left out. Plays
+byte), left/right volume, main volume `$50`. Echo off. The Gaussian interpolation is the hardware's (`SNES_GAUSS`, the
+512-entry table from fullsnes, and `snesInterpolate`'s integer sums: three products wrapped to 16 bits, the fourth
+clamped, `>> 1`; 2026-11-17, replacing a bell-shaped kernel); key-on delays and the envelope counter's phase are not, so
+"close but not to the bit"; vibrato, music ducking and PAL timing left out. Plays
 once through (to the loop's end or the stop), voices ring up to 2 s after, at most 10 minutes; music that goes 5 s with
 no track stepping and no voice sounding is over too. A tick (`$2760 / tempo`, or `$DD`) of 0 or past `$C0`, which the
 sequencer's byte cannot count, makes it null (the rough preview plays instead). The two organ instruments skip a note

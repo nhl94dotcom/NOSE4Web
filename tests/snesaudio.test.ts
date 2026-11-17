@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { openRom } from '../src/core/rom'
-import { decodeBrr, findSnesSound, readSnesInstrument, readSnesSample, renderSnesMusic, snesNotePitch, snesPitchRate } from '../src/core/snesaudio'
+import { decodeBrr, findSnesSound, readSnesInstrument, readSnesSample, renderSnesMusic, SNES_GAUSS, snesInterpolate, snesNotePitch, snesPitchRate } from '../src/core/snesaudio'
 import { SNES_GAME_MUSIC } from '../src/core/snesmusic'
 import { loRomAddress, loRomOffset } from '../src/core/snes'
 import { snesSongChoices } from '../src/core/snessongs'
@@ -30,6 +30,34 @@ describe('BRR decoding', () => {
     expect(looping.pcm.length).toBe(32)
     expect(looping.loopStart).toBe(16)
     expect(looping.loop[0]).toBe(8192)
+  })
+})
+
+describe("the DSP's Gaussian interpolation", () => {
+  it('has the hardware table: 512 entries, the four taps of each 256th summing to $7FF-$801', () => {
+    expect(SNES_GAUSS).toHaveLength(512)
+    // fullsnes: the table starts at 0 and ends at $519; $172 and $176 either side of the middle.
+    expect([SNES_GAUSS[0], SNES_GAUSS[15], SNES_GAUSS[16], SNES_GAUSS[255], SNES_GAUSS[256], SNES_GAUSS[511]]).toEqual([0, 0, 1, 0x172, 0x176, 0x519])
+    const sums = Array.from({ length: 256 }, (_, i) => SNES_GAUSS[255 - i] + SNES_GAUSS[511 - i] + SNES_GAUSS[256 + i] + SNES_GAUSS[i])
+    expect(Math.min(...sums)).toBe(0x7ff)
+    expect(Math.max(...sums)).toBe(0x801)
+    // On a sample: $172 + $519 + $176 + 0; half way between two: $38 + $3C5 + $3C9 + $3A, $800 exactly.
+    expect([sums[0], sums[128]]).toEqual([0x801, 0x800])
+    // Rising all the way (the table is half a bell).
+    for (let i = 1; i < 512; i++) expect(SNES_GAUSS[i]).toBeGreaterThanOrEqual(SNES_GAUSS[i - 1])
+  })
+
+  it('interpolates as the hardware sums: the first three wrapping at 16 bits, the fourth clamped', () => {
+    // A sample of 4096 (2048 in the DSP's 15 bits) alone, on it and half a sample on: $519 and $3C5 of $800 of it.
+    expect(snesInterpolate(0, 4096, 0, 0, 0)).toBe(2 * ((0x519 * 2048) >> 11))
+    expect(snesInterpolate(0, 4096, 0, 0, 128)).toBe(2 * ((0x3c5 * 2048) >> 11))
+    // A steady 4096: half way it is the same, on a sample a little over ($801 of $800).
+    expect(snesInterpolate(4096, 4096, 4096, 4096, 128)).toBe(4096)
+    expect(snesInterpolate(4096, 4096, 4096, 4096, 0)).toBe(4098)
+    // fullsnes: three or more "-8 SHL 12" samples give +$3FF8 where -$4000 is meant (the second sum wraps).
+    expect(snesInterpolate(-32768, -32768, -32768, -32768, 0)).toBe(0x3ff8 * 2)
+    // The fourth tap's sum clamps: 5983 + 20878 + 5919 = 32780 is held at 32767, so 16383 in 15 bits.
+    expect(snesInterpolate(0, 32766, 32766, 32766, 255)).toBe(16383 * 2)
   })
 })
 
