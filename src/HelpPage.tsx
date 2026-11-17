@@ -616,7 +616,7 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        Every colour is matched to the nearest of the 512 the console can display, so a picked colour may shift
+        Every colour is matched to the nearest one the console can display, so a picked colour may shift
         slightly. The pictures beside the swatches redraw as you work. <b>Copy from away</b> and{' '}
         <b>Copy from home</b> copy one set over the other.
       </p>
@@ -1569,8 +1569,7 @@ export function HelpPage() {
         <li>
           <b>Rocket pass fix</b> (in with the fixes, Genesis only): because of a rounding error, many passes go
           nearly twice as fast as the passer's rating allows, and a pass to a teammate skating away close by can
-          go faster still. With the fix, passes go at the speed the Passing rating sets. In 29 recorded games, 69
-          passes reached rocket speed without it and none with it. The SNES game never had the bug.
+          go faster still. With the fix, passes go at the speed the Passing rating sets. The SNES game never had the bug.
         </li>
         <li>
           <b>One-timer open net fix</b> (Genesis only, among the recommended fixes): the game aims one-timers
