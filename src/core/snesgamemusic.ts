@@ -62,7 +62,7 @@ import { findCodeAll, grownSnesRom, loRomAddress, loRomBank, loRomOffset, SNES_G
 import { findSnesSound, readSnesInstrument, snesNotePitch, type SnesInstrument, type SnesSoundSetName } from './snesaudio'
 import { MIDI_LOOP_MARKER, SNES_DRUM_GM, SNES_GAME_MUSIC, snesTicksPerSecond, snesTrackEntry } from './snesmusic'
 import { freeSpace, keptBanks } from './snespictures'
-import { DRUMS, FRAMES_PER_SECOND, MidiError, type MidiNote, type MusicPart } from './genesismusic'
+import { DRUMS, FRAMES_PER_SECOND, MidiError, musicParts, readMidi, type MidiNote, type MusicPart } from './genesismusic'
 
 const MARK = 'N4W1'
 // A tick a frame: TempoTick = $2760 / 157 = $40, which TempoAcc gains each frame (where no piece's own is to be had).
@@ -1035,4 +1035,16 @@ export function withSnesMusic(project: RomProject, index: number, made: SnesMade
 // The project with piece `index` the game's own again, the room of NOSE4Web's given back.
 export function withOriginalSnesMusic(project: RomProject, index: number): RomProject {
   return snesCustomMusicBytes(project.bytes, index) ? { ...project, bytes: pointedAt(project.bytes, index, SNES_GAME_MUSIC[index].pointer >>> 0) } : project
+}
+
+// A MIDI file put in as the Game music section's Replace does with its first choices: the kit of the piece's sample
+// set, each part's default instrument, the file's loop marker and own volumes, the piece's tempo. For test ROMs and
+// tools, so that they are made as the page makes them.
+export function snesMusicFromFile(project: RomProject, index: number, midi: Uint8Array, name: string): RomProject {
+  const { notes, end, programs } = readMidi(midi)
+  const kit = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
+  if (!kit) throw new SnesMusicError("The editor cannot find this ROM's instruments.")
+  const choices = defaultSnesPartChoices(kit, musicParts(notes), programs, midiPartNames(midi))
+  const made = snesMusicFromMidi(kit, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(midi) }, snesOwnVolumes(kit, midi))
+  return withSnesMusic(project, index, made, name)
 }

@@ -25,6 +25,7 @@ import {
   withSnesMusic,
   withSnesMusicBytes,
   type SnesPartChoice,
+  snesMusicFromFile,
 } from '../src/core/snesgamemusic'
 import { readSnesMusic, SNES_FRAMES_PER_SECOND, SNES_GAME_MUSIC, snesMusicToMidi, snesTrackEntry } from '../src/core/snesmusic'
 import { compareProjects } from '../src/core/compare'
@@ -527,5 +528,26 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     expect(snesMusicPlaces(broken)[1]).toBeNull()
     expect(snesMusicReplaceable(broken, 1)).toBe(false)
     expect(snesMusicReplaceable(broken, 2)).toBe(true)
+  })
+})
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('a MIDI file put in as the page does', () => {
+  it("puts the playoff music's own MIDI file back as the page's Replace does, as wide as the original", () => {
+    const project = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
+    const piece = SNES_GAME_MUSIC[2]
+    const midi = snesMusicToMidi(readSnesMusic(project.bytes, piece.pointer)!, piece.name)
+    const done = snesMusicFromFile(project, 2, midi, 'Again')
+    const width = (bytes: Uint8Array, pointer: number) => {
+      const r = renderSnesMusic(bytes, pointer, piece.sounds)!
+      let side = 0
+      let mid = 0
+      for (let i = 0; i < r.left.length; i++) {
+        side += (r.left[i] - r.right[i]) ** 2
+        mid += (r.left[i] + r.right[i]) ** 2
+      }
+      return Math.sqrt(side / mid)
+    }
+    const original = width(project.bytes, piece.pointer)
+    expect(Math.abs(width(done.bytes, snesMusicPointer(done.bytes, 2)) - original) / original).toBeLessThan(0.05)
   })
 })
