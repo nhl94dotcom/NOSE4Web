@@ -948,8 +948,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           'goalieDelay',
           number('goalieDelay'),
           <>
-            How long a player holds B before he takes control of his goalie: 17, about half a second, in the original
-            game, so 12 is about a third of a second. It is the same for all four pads in 2 on 2, a 4-Way Play adapter
+            How long a player holds B before he takes control of his goalie, in sixtieths of a second: 17, about a
+            quarter of a second, in the original game, so 12 is a fifth of a second. It is the same for all four pads in 2 on 2, a 4-Way Play adapter
             included. From smozoma's forum post. {stock('goalieDelay')} Tested in the game by the NHL94 Match Viewer
             project.
           </>,
