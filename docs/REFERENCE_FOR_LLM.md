@@ -1433,13 +1433,16 @@ it as a MIDI file, each of its parts on a track of its own named as the game nam
 channel. **Replace** puts a MIDI file of your own in its place: you choose one of the game's instruments for each of its
 parts, its drums play on the game's drums, and the piece plays again from the start when it ends (or from the file's loop
 marker, as the pieces' own MIDI files have). A part on the organ is played twice, a moment apart, as the playoff music
-plays its organ. The console has eight voices for the music and its drums, and each instrument only some of them: where an instrument's voices are all taken,
+plays its organ. A piece's own MIDI file keeps each part on its own side and as loud as it was. The console has eight voices for the music and its drums, and each instrument only some of them: where an instrument's voices are all taken,
 the drums, then the bass, then the higher notes are kept. Tested in the game by the NHL94 Match Viewer project." Its flow mirrors the Genesis's
 (section 12): Replace… reads the file, a table of its parts with an instrument select each ("Bass, one note at a time",
-"Brass, up to 3 notes at once", ...; the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
+"Brass, up to 3 notes at once", ...; after each instrument of more than one single-voice entry its sides, "Brass
+(left)", "Brass (centre)", "Brass (right)": value `sample:entry`, the part's own entry for its side where it is on one,
+else the side's first in table order; the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
 in**, a notice ("The playoff music is now "...", m:ss long, playing again from the start when it ends." or "... from
 m:ss (the file's loop marker) when it ends." with "Not as in
-the file: ..." for notes left out, past the voices, or moved by octaves), **Put back the original**. Replace is offered
+the file: ..." for notes left out, past the voices, moved by octaves, or "played on another side of their instrument
+where its own voice was taken"), **Put back the original**. Replace is offered
 only where `snesMusicReplaceable` (the places below found, and the instruments). Play plays the piece now in place
 (`snesMusicPointer`). The SNES organ songs' Play uses the same real-sample player with the game set
 (`snesMusicSound(project.bytes, pointer, 'game')`).
@@ -1624,8 +1627,26 @@ each organ note goes on entry 47 a tick late and on entry 31 at its time, on a f
 a note, the first given up; kept only where the 47 note is), on tracks `Organ (MIDI n)` and `Organ (MIDI n) doubled`.
 FindFreeVoice may still put 31's note on voice 0 when voice 0 is free that tick (the game rotates its search start),
 and the 47 note then cuts it a tick later, as in the original (the simulator: original 29 of 102 lost so; a round trip 14
-of 101). Round trips (notes the game plays, of the original's): title 1,628 of 1,695, menu 1,539 of 1,554, playoff
-695 of 704 (before: 1,628, 1,535, 590; the playoff's missing 102 were the organ's second line). The kit (`snesMusicKit`, MenuSfxTable entries 0-51): per
+of 101). Round trips (notes the game plays, of the original's): title 1,635 of 1,695, menu 1,541 of 1,554, playoff
+696 of 704 (before entries were kept: 1,628, 1,539, 695; before the organ's doubling: 1,628, 1,535, 590).
+
+**Entries kept** (a piece's own MIDI file put back): a part's choice may be one entry (`{ sample, entry }`, one of the
+instrument's `sides`: every single-voice entry of its sample, with voice and L/R volumes; `snesEntrySide`: centre where
+|L - R| < 20% of the louder, else left or right). Such a part takes its entry's voice where free, or cuts its own
+earlier note there; else the instrument's other entries by the rules above (`otherEntry` counts those notes). Its notes
+to come are among the one-voice parts' (`needs`). Export writes each track's volume as controller 7 (the `$DF 07`/`$DE`
+in force at its first note; a `$DC` sets the instrument's own, written 127); `snesOwnVolumes` (the file has a track
+name giving an entry) returns the file's controller 7s (`midiPartVolumes`), and with them `snesMusicFromMidi` keeps
+the file's velocities (no scaling to the kit's medians) and uses those track volumes. Width (sqrt of side over mid
+energy, L - R against L + R, `renderSnesMusic`), original / round trip before / now, NHL94.smc and nhl94_2026.sfc
+alike: title 0.069 / 0.084 / 0.076, menu 0.101 / 0.075 / 0.112, playoff 0.236 / 0.087 / 0.225; L and R RMS within
+5% of the original's (before, the playoff's L/R pairs were scaled to the kit's volumes 97 and velocities, against no
+`$DF 07` and velocities 89-108 in the game's). Non-drum notes on their original entry: title 451 of 999 (was 407),
+menu 689 of 1,027 (401), playoff 485 of 505 (338; its pairs 50/51, 48/49, 45/46 all kept). The title's chug #18
+loses voice 0 to the distorted guitars about half the time and goes to centre entry 39 (same pan); the menu's
+"bsec (R) #17 apower #43 (M)" tracks go on the first entry named (brass), as their names lead.
+
+The kit (`snesMusicKit`, MenuSfxTable entries 0-51): per
 sample the most central entry for each voice. Menu set: Bass voice 5 (entry 2); Brass 4/3/2 (20/17/25); Chugging guitar
 0/1/3/2 (18/39/50/51); Orchestra hit 4 (19); Cowbell 4/0 (21/35); Timpani 1 (22); Distorted guitar 3/2/0 (33/34/38);
 Organ 0 (47, right side only), doubled on 31 (voices 1, 2); Power guitar 3/2 (42/43); Crash 0 (15);
@@ -1639,7 +1660,8 @@ kick; 37-40 -> 50 snare; 42 (and shakers, tambourine, wood blocks) -> 54 closed 
 crashes 49/52/55/57 -> 62 (voice 0; 61 has two voices); 56 -> 68 cowbell. Export (`snesMusicToMidi`) now writes the
 drum track's codes as General MIDI drums (`SNES_DRUM_GM`) and ends the first track at the piece's end (its rest kept).
 
-**Defaults** (`defaultSnesPartChoices`): the drum channel drums; a part's track name as EA names it (`midiPartNames`:
+**Defaults** (`defaultSnesPartChoices`): the drum channel drums; a track name giving an entry ('#NN', the first) that
+is one of an instrument's `sides` (an instrument of more than one) on that entry; else a part's track name as EA names it (`midiPartNames`:
 bass, horn/bsec/brass, orgn, apower, dist, chug, orch, timp, cow, crshbkwd, crash) on that sample, so a piece's own
 MIDI file goes back on its instruments; else its General MIDI program by family (basses -> Bass, 47 -> Timpani, 55 ->
 Orchestra hit, 24-28 -> Chug, 29-31 and leads -> Dist, brass/strings/reeds -> Brass, organs/pianos/pads -> Organ where

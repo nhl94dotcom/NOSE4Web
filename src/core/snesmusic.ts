@@ -320,6 +320,9 @@ export const SNES_GAME_MUSIC: { pointer: number; name: string; where: string; so
 export interface SnesMusicPart {
   name: string
   drums: boolean
+  // Its track volume at its first note ($DF 07 or $DE after its instrument, $DC, which sets its instrument's own), or
+  // null where it has none (its instrument's own).
+  volume: number | null
   // In frames (at 60 a second, for the browser's preview) and in the piece's own ticks.
   notes: { frame: number; length: number; note: number; velocity: number; tick: number; ticks: number }[]
 }
@@ -360,6 +363,7 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
     const p = { at: at + offset }
     let tick = 0
     let name = ''
+    let volume: number | null = null
     const notes: SnesMusicPart['notes'] = []
     for (let i = 0; i < 8000 && p.at < rom.length; i++) {
       tick += readVarLen(rom, p)
@@ -381,10 +385,15 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
         const length = rom[p.at]
         if (!name) name = String.fromCharCode(...rom.subarray(p.at + 1, p.at + 1 + length)).replace(/\0+$/, '').trim()
         p.at += length + 1
-      } else if (code === 0xdf || code === 0xe5) p.at += 2
-      else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) p.at += 1
+      } else if (code === 0xdf || code === 0xe5) {
+        if (code === 0xdf && rom[p.at] === 7 && !notes.length) volume = rom[p.at + 1]
+        p.at += 2
+      } else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) {
+        if ((code === 0xde || code === 0xdc) && !notes.length) volume = code === 0xde ? rom[p.at] : null
+        p.at += 1
+      }
     }
-    parts.push({ name, drums: name.toLowerCase() === 'drums', notes })
+    parts.push({ name, drums: name.toLowerCase() === 'drums', volume, notes })
   }
   if (!parts.some((part) => part.notes.length)) return null
   return { pointer, parts, seconds: last, tempo, ticks, loop: Math.max(0, loop) }
@@ -441,7 +450,8 @@ const doubles = (part: SnesMusicPart, other: SnesMusicPart) => {
 export const MIDI_LOOP_MARKER = 'loopStart'
 
 // The piece as a MIDI file (format 1, a MIDI tick a tick of the piece, at the console's speed): a track for each
-// part, named as the game names it, on its own channel with a General MIDI instrument guessed from that name; the
+// part, named as the game names it, on its own channel with a General MIDI instrument guessed from that name and its
+// track volume (controller 7; 127 where it has none, its instrument's own); the
 // drums on the drum channel as General MIDI's drums (SNES_DRUM_GM; another note as it is), and a part of one
 // percussion sound (a crash, a cowbell) there as that drum. The first track has the place the piece plays again from
 // (MIDI_LOOP_MARKER) and its end; a part that only doubles another is left out.
@@ -469,7 +479,7 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
       channel = next++
     }
     const body: number[] = [0, 0xff, 0x03, text(part.name).length, ...text(part.name)]
-    if (channel !== DRUMS) body.push(0, 0xc0 | channel, programFor(part.name))
+    if (channel !== DRUMS) body.push(0, 0xc0 | channel, programFor(part.name), 0, 0xb0 | channel, 7, Math.min(127, part.volume ?? 127))
     const timed: { frame: number; bytes: number[]; off: boolean }[] = []
     for (const n of part.notes) {
       const note = single ?? (part.drums ? (SNES_DRUM_GM[n.note] ?? n.note) : n.note)

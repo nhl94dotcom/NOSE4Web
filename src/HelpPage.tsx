@@ -1010,7 +1010,10 @@ export function HelpPage() {
           played as loud as the game's own parts on its instrument, the file's timing is kept with its rests at the
           start and end, and the new piece plays again from its start when it ends (or from the file's loop marker,
           which the pieces' own MIDI files have: the menu and playoff music start again a moment after their start).
-          A part on the organ is played twice, a moment apart, as the playoff music plays its organ. All three pieces
+          A part on the organ is played twice, a moment apart, as the playoff music plays its organ. A piece's own
+          MIDI file put back keeps each part on its own side (such as "Chugging guitar (left)") and as loud as it was,
+          so it sounds as wide as the game's; a part can be put on an instrument's left, centre or right where it has
+          more than one. All three pieces
           play on the menus' sounds, the title music too. It needs free room in the ROM:
           the original game has about 6 KB in one place, enough for a piece of about 1,200 notes (the playoff music
           has 700, the title music 1,700). Where a 1 MB ROM has too little, it grows to 2 MB, as it does for the

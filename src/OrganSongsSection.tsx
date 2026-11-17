@@ -27,14 +27,17 @@ import {
   midiLoopStart,
   midiPartNames,
   snesCustomMusicName,
+  snesEntrySide,
   SnesMusicError,
   snesMusicFromMidi,
   snesMusicKit,
   snesMusicPointer,
   snesMusicReplaceable,
   snesMusicTempo,
+  snesOwnVolumes,
   withOriginalSnesMusic,
   withSnesMusic,
+  type SnesMusicInstrument,
   type SnesPartChoice,
 } from './core/snesgamemusic'
 import {
@@ -555,7 +558,16 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
-  const [pending, setPending] = useState<{ index: number; title: string; notes: MidiNote[]; end: number; loop: number; parts: MusicPart[]; choices: Map<number, SnesPartChoice> } | null>(null)
+  const [pending, setPending] = useState<{
+    index: number
+    title: string
+    notes: MidiNote[]
+    end: number
+    loop: number
+    parts: MusicPart[]
+    choices: Map<number, SnesPartChoice>
+    volumes: Map<number, number> | null
+  } | null>(null)
   if (project.game.platform !== 'snes') return null
   const pieces = SNES_GAME_MUSIC.map((piece, index) => {
     const pointer = snesMusicPointer(project.bytes, index)
@@ -573,7 +585,16 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
       const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
       if (!found) throw new MidiError("The editor cannot find this ROM's instruments.")
-      setPending({ index, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, loop: midiLoopStart(bytes), parts, choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)) })
+      setPending({
+        index,
+        title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40),
+        notes,
+        end,
+        loop: midiLoopStart(bytes),
+        parts,
+        choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)),
+        volumes: snesOwnVolumes(found, bytes),
+      })
       setNotice('')
       setFailed(false)
     } catch (e) {
@@ -586,13 +607,14 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     if (!pending || !kit) return
     const name = SNES_GAME_MUSIC[pending.index].name.toLowerCase()
     try {
-      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end, { tempo: snesMusicTempo(project.bytes, pending.index), loop: pending.loop })
+      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end, { tempo: snesMusicTempo(project.bytes, pending.index), loop: pending.loop }, pending.volumes)
       const next = withSnesMusic(project, pending.index, made, pending.title)
       onChange(next)
       const said = [
         made.leftOut && `${made.leftOut} ${made.leftOut === 1 ? 'note' : 'notes'} of the parts left out or of drums the game has not`,
         made.dropped && `${made.dropped} ${made.dropped === 1 ? 'note' : 'notes'} left out or cut short where their instrument's voices were all taken`,
         made.moved && `${made.moved} ${made.moved === 1 ? 'note' : 'notes'} moved by octaves into the instruments' range`,
+        made.otherEntry && `${made.otherEntry} ${made.otherEntry === 1 ? 'note' : 'notes'} played on another side of their instrument where its own voice was taken`,
       ].filter(Boolean)
       setNotice(
         `The ${name} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from ${made.loop ? `${seconds((made.loop / made.ticks) * made.seconds)} (the file's loop marker)` : 'the start'} when it ends.` +
@@ -611,11 +633,23 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
   const choose = (channel: number, value: string) => {
     if (!pending) return
     const choices = new Map(pending.choices)
-    choices.set(channel, value === 'out' || value === 'drums' ? value : Number(value))
+    const [sample, entry] = value.split(':').map(Number)
+    choices.set(channel, value === 'out' || value === 'drums' ? value : entry >= 0 ? { sample, entry } : sample)
     setPending({ ...pending, choices })
   }
   const noteName = (note: number) => `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][note % 12]}${Math.floor(note / 12) - 1}`
   const voices = (count: number) => (count === 1 ? 'one note at a time' : `up to ${count} notes at once`)
+  // An instrument's sides a part may be put on (where it has more than one entry of one voice): for each side, the
+  // part's own entry where it is on one, else the first.
+  const sidesOf = (instrument: SnesMusicInstrument, choice: SnesPartChoice | undefined) =>
+    instrument.sides.length < 2
+      ? []
+      : (['left', 'centre', 'right'] as const).flatMap((side) => {
+          const own = instrument.sides.filter((e) => snesEntrySide(e) === side)
+          const entry = own.find((e) => typeof choice === 'object' && choice.entry === e.entry) ?? own[0]
+          return entry ? [{ side, entry: entry.entry }] : []
+        })
+  const valueOf = (choice: SnesPartChoice | undefined) => (typeof choice === 'object' ? `${choice.sample}:${choice.entry}` : String(choice ?? 'out'))
 
   return (
     <section>
@@ -626,7 +660,8 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
         channel. <b>Replace</b> puts a MIDI file of your own in its place: you choose one of the game's instruments for
         each of its parts, its drums play on the game's drums, and the piece plays again from the start when it ends
         (or from the file's loop marker, as the pieces' own MIDI files have). A part on the organ is played twice, a
-        moment apart, as the playoff music plays its organ. The console has eight voices for the music and its drums, and each instrument only some of them: where an
+        moment apart, as the playoff music plays its organ. A piece's own MIDI file keeps each part on its own side and
+        as loud as it was. The console has eight voices for the music and its drums, and each instrument only some of them: where an
         instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Tested in the game
         by the NHL94 Match Viewer project.
       </p>
@@ -652,15 +687,20 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
                   <td>{part.notes}</td>
                   <td>{part.channel === 9 ? '' : `${noteName(part.lowest)} to ${noteName(part.highest)}`}</td>
                   <td>
-                    <select aria-label={`Part on MIDI channel ${part.channel + 1}`} value={String(pending.choices.get(part.channel) ?? 'out')} onChange={(e) => choose(part.channel, e.target.value)}>
+                    <select aria-label={`Part on MIDI channel ${part.channel + 1}`} value={valueOf(pending.choices.get(part.channel))} onChange={(e) => choose(part.channel, e.target.value)}>
                       {part.channel === 9 ? (
                         <option value="drums">The game's drums: kick, snare, hi-hats, toms, crash</option>
                       ) : (
-                        kit.instruments.map((instrument) => (
+                        kit.instruments.flatMap((instrument) => [
                           <option key={instrument.sample} value={instrument.sample}>
                             {`${instrument.name}, ${voices(instrument.entries.size)}`}
-                          </option>
-                        ))
+                          </option>,
+                          ...sidesOf(instrument, pending.choices.get(part.channel)).map(({ side, entry }) => (
+                            <option key={`${instrument.sample}:${side}`} value={`${instrument.sample}:${entry}`}>
+                              {`${instrument.name} (${side})`}
+                            </option>
+                          )),
+                        ])
                       )}
                       <option value="out">Left out</option>
                     </select>
