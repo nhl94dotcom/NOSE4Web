@@ -477,7 +477,7 @@ export const GAME_MUSIC: { number: number; name: string; where: string }[] = [
 // What each channel of a piece is, for listening: a drum (the note MIDI's drum channel plays for it), or a tune
 // on a patch, by how low it plays.
 // A drum: the MIDI drum note for each note it plays (one, or by the note, for NHL '95's drums tuned by their note).
-type ChannelPart = { drum: (note: number) => number } | { program: number; shift: number }
+type ChannelPart = { drum: (note: number) => number } | { program: number; shift: (note: number) => number }
 const KICK = 36
 const SNARE = 38
 const CLOSED_HAT = 42
@@ -491,9 +491,15 @@ const NHL95_DRUMS: Record<number, (note: number) => number> = {
   [NHL95_DRUM_PATCH]: (note) => (note < 10 ? KICK : LOW_TOM),
   0x0e: (note) => (note < 54 ? 35 : SNARE),
 }
-// NHL '95's tuned patches that sound an octave above the written note ($18, $1B); the others sound at it ($0D, $11, $1D,
-// and $14, a square wave that never goes below about 48). Match Viewer, each played alone.
-const NHL95_OCTAVE_ABOVE = new Set([0x18, 0x1b])
+// Where NHL '95's tuned patches sound against the written note (Match Viewer, each played alone): $18 and $1B an octave
+// above, $1C two octaves above, $14 (a square wave that goes no lower than about 110 Hz) at the note from 46 up and an
+// octave above below that; the others ($0D, $11, $1D) at the note.
+const NHL95_SHIFTS: Record<number, (note: number) => number> = {
+  0x18: () => 12,
+  0x1b: () => 12,
+  0x1c: () => 24,
+  0x14: (note) => (note < 46 ? 12 : 0),
+}
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
 // Whose piece it is: NHL '95's patches are numbered otherwise than NHL 94's, and its channel 9 may be a tune, so its
@@ -517,7 +523,8 @@ function channelParts(events: SongEvent[], edition: MusicEdition = 94): Map<numb
     else if (new Set(played).size === 1) parts.set(channel, { drum: () => KICK })
     else {
       const byRange = played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS
-      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 } : { program: byRange, shift: NHL95_OCTAVE_ABOVE.has(patch) ? 12 : 0 })
+      const below = OCTAVE_BELOW.has(patch) ? -12 : 0
+      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: () => below } : { program: byRange, shift: NHL95_SHIFTS[patch] ?? (() => 0) })
     }
   }
   return parts
@@ -754,7 +761,7 @@ export const gameMusicTune = (song: { events: SongEvent[] }, edition: MusicEditi
     if (part && 'drum' in part) return []
     const command = event.status & 0xf0
     // As it sounds: an octave down on the patches that play one.
-    if (part && part.shift && (command === 0x90 || command === 0x80)) return [{ ...event, data: [event.data[0] + part.shift, event.data[1]] }]
+    if (part && (command === 0x90 || command === 0x80)) return [{ ...event, data: [event.data[0] + part.shift(event.data[0]), event.data[1]] }]
     return [event]
   })
 }
@@ -805,7 +812,7 @@ export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number },
     const part = parts.get(event.status & 0x0f)
     if (!part) continue
     const drum = 'drum' in part ? part.drum : null
-    const shift = 'shift' in part ? part.shift : 0
+    const shift = 'shift' in part ? part.shift(event.data[0]) : 0
     const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
     let bytes: number[] | null = null
     // The pieces' velocities are MIDI's already (the organ songs' are a third of it).

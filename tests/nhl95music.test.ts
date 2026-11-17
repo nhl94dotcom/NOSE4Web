@@ -255,5 +255,19 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
     expect(midi.filter((n) => n.channel !== 9).length).toBe(tune.filter((e) => (e.status & 0xf0) === 0x90).length)
     // As NHL 94's, channel 9 would be the drums.
     expect(ons(gameMusicTune(scouting), 9)).toEqual([])
+    // $14 sounds an octave up below note 46: the end of period music's 16 notes at 43 sound at 55; and $1C two octaves
+    // above the written note.
+    const eop = readNhl95Music(rom, 2)!
+    const on = (song: typeof eop, patch: number) => {
+      const channels = new Set(song.events.filter((e) => (e.status & 0xf0) === 0xc0 && e.data[0] === patch).map((e) => e.status & 0x0f))
+      return [song.events, gameMusicTune(song, 95)].map((events) => events.filter((e) => (e.status & 0xf0) === 0x90 && channels.has(e.status & 0x0f)).map((e) => e.data[0]))
+    }
+    const [written, heard] = on(eop, 0x14)
+    expect(written.filter((note) => note === 43).length).toBe(16)
+    expect(heard.filter((note) => note === 55).length - written.filter((note) => note === 55).length).toBe(16)
+    for (const song of [title, scouting, eop]) {
+      const [w, h] = on(song, 0x1c)
+      expect(h, 'patch $1C').toEqual(w.map((note) => note + 24))
+    }
   })
 })
