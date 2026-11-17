@@ -406,7 +406,7 @@ export default function App() {
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
-            <GameMusicSection project={current} />
+            <GameMusicSection project={current} onChange={change} />
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>

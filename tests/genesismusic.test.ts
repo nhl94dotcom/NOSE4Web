@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { GAME_MUSIC, gameMusicToMidi, gameMusicTune, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
+import { defaultPartChoices, GAME_MUSIC, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 
@@ -197,5 +197,69 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
       return Math.round(song.seconds)
     })
     expect(lengths).toEqual([73, 78, 88])
+  })
+
+  it('replaces the title music with a MIDI file: each part on its game instrument, the drums, five notes at most, looping', () => {
+    const project = open()
+    // Bass on channel 1, a melody on channel 2 over a four-note chord on channel 3, and drums: kicks and a snare.
+    const notes = [
+      ...[0, 1, 2, 3].map((beat) => ({ start: beat, length: 0.9, note: 36, velocity: 110, channel: 0 })),
+      ...[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((t, i) => ({ start: t, length: 0.45, note: 72 + (i % 5), velocity: 100, channel: 1 })),
+      ...[60, 64, 67, 71].map((note) => ({ start: 0, length: 4, note, velocity: 80, channel: 2 })),
+      ...[0, 2].map((t) => ({ start: t, length: 0.1, note: 36, velocity: 120, channel: 9 })),
+      { start: 1, length: 0.1, note: 38, velocity: 120, channel: 9 },
+    ]
+    const parts = musicParts(notes)
+    expect(parts.map((part) => part.channel)).toEqual([0, 1, 2, 9])
+    const choices = defaultPartChoices(parts)
+    // The bass on the bass, the melody on the title's lead, the chord on the next, the drums as drums.
+    expect([...choices].sort((a, b) => a[0] - b[0])).toEqual([[0, 13], [1, 14], [2, 10], [9, 'drums']])
+    const made = gameMusicFromMidi(notes, choices)
+    // Programs: the three parts on game channels 0 to 2, the kick and the hit on 6 and 7.
+    expect(made.events.filter((e) => (e.status & 0xf0) === 0xc0).map((e) => [e.status & 15, e.data[0]])).toEqual([[0, 13], [1, 14], [2, 10], [6, 20], [7, 0x6a]])
+    // At most five FM notes at once (channels 0 to 6; 7 is the sample): bass, kick, melody and two of the chord.
+    let most = 0
+    const on = new Set<string>()
+    for (const e of made.events) {
+      const key = `${e.status & 15}:${e.data[0]}`
+      if ((e.status & 0xf0) === 0x90) on.add(key)
+      if ((e.status & 0xf0) === 0x80) on.delete(key)
+      most = Math.max(most, [...on].filter((k) => !k.startsWith('7:')).length)
+    }
+    expect(most).toBe(5)
+    expect(made.dropped).toBeGreaterThan(0)
+    expect(made.events.filter((e) => e.status === 0x96).every((e) => e.data[0] === 21)).toBe(true)
+    expect(made.events.filter((e) => e.status === 0x97).length).toBe(1)
+    const edited = { ...project, bytes: withSong(project.bytes, 0x78, made.events, 'New title') }
+    const song = readSong(edited.bytes, 0x78)!
+    expect(song.custom?.name).toBe('New title')
+    expect(song.loops).toBe(true)
+    // It plays again from just after its first wait: the end's pointer is its own start + 4.
+    const table = [...Array(edited.bytes.length - 8).keys()].find((o) => o % 2 === 0 && edited.bytes[o] === 0xe5 && edited.bytes[o + 1] === 0x40 && edited.bytes[o + 2] === 0x41 && edited.bytes[o + 3] === 0xf9)!
+    const tableAt = new DataView(edited.bytes.buffer, edited.bytes.byteOffset).getUint32(table + 4)
+    const start = new DataView(edited.bytes.buffer, edited.bytes.byteOffset).getUint32(tableAt + 0x78 * 4)
+    let p = start
+    while (edited.bytes[p + 1] !== 0) p += 4
+    expect(new DataView(edited.bytes.buffer, edited.bytes.byteOffset).getUint32(p + 2)).toBe(start + 4)
+    // Into a project file and a fresh ROM, its loop pointed at its new place; and back to the game's own.
+    const reopened = openProjectFile(open(), saveProjectFile(edited, project, 'test')).project
+    expect(readSong(reopened.bytes, 0x78)!.events).toEqual(song.events)
+    expect(readSong(reopened.bytes, 0x78)!.custom?.name).toBe('New title')
+    const back = withOriginalSong(edited.bytes, 0x78)
+    expect(readSong(back, 0x78)!.custom).toBeNull()
+    expect(readSong(back, 0x78)!.events).toEqual(readSong(project.bytes, 0x78)!.events)
+  })
+
+  it("puts the game's own title music back in from its exported MIDI file, much as it was", () => {
+    const rom = open().bytes
+    const song = readSong(rom, 0x78)!
+    const { notes } = readMidi(gameMusicToMidi(song))
+    const made = gameMusicFromMidi(notes, defaultPartChoices(musicParts(notes)))
+    const count = (events: typeof song.events) => events.filter((e) => (e.status & 0xf0) === 0x90 && e.data[1] > 0).length
+    // The game's piece ends with a pause after its last note; the new one ends with the note.
+    expect(song.seconds - made.seconds).toBeGreaterThanOrEqual(0)
+    expect(song.seconds - made.seconds).toBeLessThan(3)
+    // The original sounds up to nine notes at once, which the console's five voices cut; the new one keeps five.
+    expect(count(made.events)).toBeGreaterThan(count(song.events) * 0.7)
   })
 })

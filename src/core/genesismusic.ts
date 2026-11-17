@@ -96,10 +96,12 @@ export function readSong(rom: Uint8Array, number: number): Song | null {
       if (status & 0x80) events.push({ frame, status, data: [rom[p + 2], rom[p + 3]] })
     }
     let custom: Song['custom'] = null
-    if (!loops && MARK.every((byte, i) => rom[p + 4 + i] === byte)) {
+    // NOSE4Web's mark follows the end, or for a piece that loops, the loop pointer's second word.
+    const mark = p + (loops ? 6 : 4)
+    if (MARK.every((byte, i) => rom[mark + i] === byte)) {
       let name = ''
-      for (let at = p + 12; at < rom.length && rom[at] !== 0 && name.length < 64; at++) name += String.fromCharCode(rom[at])
-      custom = { name, replaced: u32(rom, p + 8) }
+      for (let at = mark + 8; at < rom.length && rom[at] !== 0 && name.length < 64; at++) name += String.fromCharCode(rom[at])
+      custom = { name, replaced: u32(rom, mark + 4) }
     }
     song = { number, events, seconds: frame / FRAMES_PER_SECOND, loops, custom }
   }
@@ -295,7 +297,9 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
 
 // The bytes of a song: a short wait (as the game's songs start), the events,
 // the end, and NOSE4Web's mark with the song it replaces and its name.
-export function songBytes(events: SongEvent[], replaced: number, name: string): Uint8Array {
+// With `loopAt`, the piece plays again from there when it ends (as the game's own pieces do, from just after their
+// first wait): the end's data and the next word are the address, and the mark follows.
+export function songBytes(events: SongEvent[], replaced: number, name: string, loopAt?: number): Uint8Array {
   const out: number[] = [0x14, 0xff, 0xff, 0xff]
   let frame = 0
   for (const event of events) {
@@ -307,7 +311,8 @@ export function songBytes(events: SongEvent[], replaced: number, name: string): 
     out.push(wait, event.status, event.data[0], event.data[1])
     frame = event.frame
   }
-  out.push(0, 0, 0xff, 0xff)
+  if (loopAt === undefined) out.push(0, 0, 0xff, 0xff)
+  else out.push(0, 0, (loopAt >>> 24) & 0xff, (loopAt >>> 16) & 0xff, (loopAt >>> 8) & 0xff, loopAt & 0xff)
   out.push(...MARK, (replaced >>> 24) & 0xff, (replaced >>> 16) & 0xff, (replaced >>> 8) & 0xff, replaced & 0xff)
   for (const c of name.slice(0, 40)) out.push(c.charCodeAt(0) < 0x7f ? c.charCodeAt(0) : 0x3f)
   out.push(0)
@@ -321,15 +326,17 @@ export class SongError extends Error {}
 export function withSong(rom: Uint8Array, number: number, events: SongEvent[], name: string): Uint8Array {
   const table = soundTable(rom)
   if (table < 0) throw new SongError("This ROM's sound table is not where the original game has it, so its songs cannot be changed.")
-  if (number <= FIRST_SONG || number > LAST_TEAM_SONG) throw new SongError('Song 1 cannot be replaced: the game finds which song is playing by it.')
+  const music = isGameMusic(number)
+  if (!music && (number <= FIRST_SONG || number > LAST_TEAM_SONG)) throw new SongError('Song 1 cannot be replaced: the game finds which song is playing by it.')
   const current = readSong(rom, number)
   const replaced = current?.custom ? current.custom.replaced : u32(rom, table + number * 4)
-  const bytes = songBytes(events, replaced, name)
-  const claimed = claimSpace(rom, bytes.length + 1)
+  const size = songBytes(events, replaced, name, music ? 0 : undefined).length
+  const claimed = claimSpace(rom, size + 1)
   if (!claimed) throw new SongError('There is no room left in this ROM for the song.')
   const at = claimed.at + (claimed.at % 2)
   const next = claimed.rom
-  next.set(bytes, at)
+  // The game's pieces loop; a new one plays again from just after its first wait.
+  next.set(songBytes(events, replaced, name, music ? at + 4 : undefined), at)
   put32(next, table + number * 4, at)
   return next
 }
@@ -428,6 +435,160 @@ function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
   return parts
 }
 
+export const isGameMusic = (number: number) => GAME_MUSIC.some((piece) => piece.number === number)
+
+// The game's sounds a new piece's tunes may be played on: the FM patches its own music uses, named by where it uses
+// them (their sounds have no names), and the organ.
+export const GAME_INSTRUMENTS: { patch: number; name: string }[] = [
+  { patch: 13, name: 'Bass (all three pieces)' },
+  { patch: 14, name: "Lead (the title music's)" },
+  { patch: 10, name: "Lead (the scouting report's)" },
+  { patch: 4, name: 'Synth (the title and end of period music)' },
+  { patch: 9, name: "Chords (the title music's)" },
+  { patch: 1, name: "Synth (the end of period music's main part)" },
+  { patch: 3, name: 'Synth (the end of period and scouting music)' },
+  { patch: 5, name: "High synth (the scouting report's)" },
+  { patch: ORGAN, name: 'Organ (the organ songs)' },
+]
+const BASS_PATCH = 13
+// Drums: the kick (an FM patch played on one note) and the hit (a sampled sound), as the pieces have them, on the
+// channels they have them on.
+const KICK_PATCH = 20
+const KICK_NOTE = 21
+const HIT_PATCH = 0x6a
+const HIT_NOTE = 76
+const KICK_CHANNEL = 6
+const HIT_CHANNEL = 7
+// MIDI's bass drums, played as the kick; MIDI's other drums are the hit.
+const MIDI_KICKS = [35, 36]
+// The tunes' game channels (0 to 5), and the FM notes the music may have at once: the console's five, which the
+// game's own pieces share with the sound effects (on the menus there are few).
+export const GAME_MUSIC_PARTS = 6
+const FM_VOICES = 5
+
+// A MIDI file's parts: its channels, with their notes.
+export interface MusicPart {
+  channel: number
+  notes: number
+  lowest: number
+  highest: number
+  average: number
+}
+export function musicParts(notes: MidiNote[]): MusicPart[] {
+  const by = new Map<number, number[]>()
+  for (const note of notes) by.set(note.channel, [...(by.get(note.channel) ?? []), note.note])
+  return [...by]
+    .map(([channel, played]) => ({
+      channel,
+      notes: played.length,
+      lowest: Math.min(...played),
+      highest: Math.max(...played),
+      average: played.reduce((a, b) => a + b, 0) / played.length,
+    }))
+    .sort((a, b) => a.channel - b.channel)
+}
+
+// What a part is played on: a game instrument's patch, the drums (MIDI's drum channel only), or left out.
+export type PartChoice = number | 'drums' | 'out'
+
+// The first choice for each part: the drum channel as drums; the lowest tune on the bass where it is low; the others
+// from the highest down on the leads and synths; past six tunes, left out.
+export function defaultPartChoices(parts: MusicPart[]): Map<number, PartChoice> {
+  const choices = new Map<number, PartChoice>()
+  const tunes = parts.filter((part) => part.channel !== DRUMS).sort((a, b) => a.average - b.average)
+  for (const part of parts) if (part.channel === DRUMS) choices.set(part.channel, 'drums')
+  const rest = GAME_INSTRUMENTS.map((instrument) => instrument.patch).filter((patch) => patch !== BASS_PATCH && patch !== ORGAN)
+  let given = 0
+  if (tunes.length && tunes[0].average < 55) {
+    choices.set(tunes.shift()!.channel, BASS_PATCH)
+    given++
+  }
+  for (const part of tunes.reverse()) {
+    choices.set(part.channel, given < GAME_MUSIC_PARTS && rest.length ? rest.shift()! : 'out')
+    given++
+  }
+  return choices
+}
+
+export interface MadeMusic {
+  events: SongEvent[]
+  seconds: number
+  // Notes left out with their part, notes past the voices at once, and notes moved by octaves into the game's range.
+  leftOut: number
+  dropped: number
+  moved: number
+}
+
+// A piece of game music from MIDI notes: each part on the game instrument chosen for it, on a game channel of its
+// own; MIDI's drums as the kick (bass drums) and the hit (the others); notes moved by octaves into the game's range;
+// at most five FM notes at once, the kick kept first, then the bass, then the highest notes; velocities as they are.
+export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartChoice>): MadeMusic {
+  const first = notes.reduce((least, n) => Math.min(least, n.start), Infinity)
+  const tuneChannels = [...choices].filter(([, choice]) => typeof choice === 'number').map(([channel]) => channel)
+  if (tuneChannels.length > GAME_MUSIC_PARTS) throw new MidiError(`At most ${GAME_MUSIC_PARTS} parts can be played on the game's instruments; leave the others out.`)
+  if (tuneChannels.length === 0) throw new MidiError('Choose an instrument for at least one part that is not drums.')
+  const gameChannel = new Map(tuneChannels.map((channel, i) => [channel, i]))
+  const bass = tuneChannels.find((channel) => choices.get(channel) === BASS_PATCH)
+  type Planned = { on: number; off: number; note: number; velocity: number; channel: number; rank: number }
+  const played: Planned[] = []
+  let active: Planned[] = []
+  let leftOut = 0
+  let dropped = 0
+  let moved = 0
+  for (const midi of [...notes].sort((a, b) => a.start - b.start)) {
+    const choice = choices.get(midi.channel) ?? 'out'
+    if (choice === 'out' || (choice === 'drums' && midi.channel !== DRUMS)) {
+      leftOut++
+      continue
+    }
+    const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
+    const off = Math.max(on + 2, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
+    if (choice === 'drums' && !MIDI_KICKS.includes(midi.note)) {
+      // The hit is a sample, on the console's one sample voice.
+      played.push({ on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 })
+      continue
+    }
+    let note = choice === 'drums' ? KICK_NOTE : midi.note
+    if (choice !== 'drums') {
+      while (note < LOWEST) note += 12
+      while (note > HIGHEST) note -= 12
+      if (note !== midi.note) moved++
+    }
+    const channel = choice === 'drums' ? KICK_CHANNEL : gameChannel.get(midi.channel)!
+    const rank = choice === 'drums' ? 3 : midi.channel === bass ? 2 : 1
+    const planned = { on, off: choice === 'drums' ? Math.min(off, on + 12) : off, note, velocity: midi.velocity, channel, rank }
+    // The same note on the same channel ends the one still sounding, as the game keys notes off by number.
+    active = active.filter((other) => other.off > on)
+    for (const other of active) if (other.channel === channel && other.note === note) other.off = on
+    active = active.filter((other) => other.off > on)
+    // Past the voices: the kick, then the bass, then the higher notes are kept; the weakest held is cut short for a
+    // stronger one, and a note no stronger than every one held is left out.
+    if (active.length >= FM_VOICES) {
+      dropped++
+      const weakest = active.reduce((w, o) => (o.rank < w.rank || (o.rank === w.rank && o.note < w.note) ? o : w))
+      if (rank < weakest.rank || (rank === weakest.rank && note <= weakest.note)) continue
+      weakest.off = on
+      active = active.filter((o) => o !== weakest)
+    }
+    played.push(planned)
+    active.push(planned)
+  }
+  const sounding = played.filter((p) => p.off > p.on)
+  const drums = sounding.some((p) => p.channel === KICK_CHANNEL || p.channel === HIT_CHANNEL)
+  const events: SongEvent[] = tuneChannels.map((channel) => ({ frame: 0, status: 0xc0 | gameChannel.get(channel)!, data: [choices.get(channel) as number, 0] }))
+  if (drums) events.push({ frame: 0, status: 0xc0 | KICK_CHANNEL, data: [KICK_PATCH, 0] }, { frame: 0, status: 0xc0 | HIT_CHANNEL, data: [HIT_PATCH, 0] })
+  const timed: SongEvent[] = []
+  for (const p of sounding) {
+    timed.push({ frame: p.on, status: 0x90 | p.channel, data: [p.note, Math.max(1, Math.min(127, p.velocity))] })
+    timed.push({ frame: p.off, status: 0x80 | p.channel, data: [p.note, 0x40] })
+  }
+  // Offs before ons at the same moment, so a repeated note sounds again.
+  timed.sort((a, b) => a.frame - b.frame || ((a.status & 0xf0) === 0x80 ? -1 : 1) - ((b.status & 0xf0) === 0x80 ? -1 : 1))
+  events.push(...timed)
+  const end = timed.length ? timed[timed.length - 1].frame : 0
+  return { events, seconds: end / FRAMES_PER_SECOND, leftOut, dropped, moved }
+}
+
 // The piece without its drums, for the browser's rough preview, which plays every note as a tone.
 export const gameMusicTune = (song: { events: SongEvent[] }): SongEvent[] => {
   const parts = channelParts(song.events)
@@ -482,7 +643,8 @@ export function gameMusicToMidi(song: { events: SongEvent[] }, name = ''): Uint8
     const drum = 'drum' in part ? part.drum : null
     const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
     let bytes: number[] | null = null
-    if (command === 0x90) bytes = [0x90 | channel, drum ?? event.data[0] & 0x7f, Math.min(127, event.data[1] * 3)]
+    // The pieces' velocities are MIDI's already (the organ songs' are a third of it).
+    if (command === 0x90) bytes = [0x90 | channel, drum ?? event.data[0] & 0x7f, event.data[1] & 0x7f]
     else if (command === 0x80) bytes = [0x80 | channel, drum ?? event.data[0] & 0x7f, 0x40]
     else if (command === 0xb0 && event.data[0] === 7 && drum === null) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
     if (!bytes) continue
@@ -507,7 +669,7 @@ export function customSongBytes(rom: Uint8Array, number: number): Uint8Array | n
   const start = u32(rom, table + number * 4)
   let p = start
   while (p + 4 <= rom.length && rom[p + 1] !== 0) p += 4
-  let end = p + 12
+  let end = p + (song.loops ? 14 : 12)
   while (end < rom.length && rom[end] !== 0) end++
   end++
   if ((end - start) % 2) end++
@@ -517,17 +679,21 @@ export function customSongBytes(rom: Uint8Array, number: number): Uint8Array | n
 // The ROM with song `number` replaced by a song's bytes from a project file, its mark naming this ROM's own.
 export function withSongBytes(rom: Uint8Array, number: number, bytes: Uint8Array): Uint8Array {
   const table = soundTable(rom)
-  if (table < 0 || number <= FIRST_SONG || number > LAST_TEAM_SONG) throw new SongError('This ROM has no place for the song.')
+  if (table < 0 || (!isGameMusic(number) && (number <= FIRST_SONG || number > LAST_TEAM_SONG))) throw new SongError('This ROM has no place for the song.')
   let p = 0
   while (p + 4 <= bytes.length && bytes[p + 1] !== 0) p += 4
-  if (!MARK.every((byte, i) => bytes[p + 4 + i] === byte)) throw new SongError('The song is not one NOSE4Web made.')
+  const loops = ((bytes[p + 2] << 8) | bytes[p + 3]) < 0x8000
+  const mark = p + (loops ? 6 : 4)
+  if (!MARK.every((byte, i) => bytes[mark + i] === byte)) throw new SongError('The song is not one NOSE4Web made.')
   const current = readSong(rom, number)
   const own = current?.custom ? current.custom.replaced : u32(rom, table + number * 4)
   const song = bytes.slice()
-  put32(song, p + 8, own)
+  put32(song, mark + 4, own)
   const claimed = claimSpace(rom, song.length + 1)
   if (!claimed) throw new SongError('There is no room left in this ROM for the song.')
   const at = claimed.at + (claimed.at % 2)
+  // A piece that loops plays again from just after its first wait, where it now is.
+  if (loops) put32(song, p + 2, at + 4)
   claimed.rom.set(song, at)
   put32(claimed.rom, table + number * 4, at)
   return claimed.rom

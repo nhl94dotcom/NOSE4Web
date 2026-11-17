@@ -977,7 +977,12 @@ export function HelpPage() {
           and the main menu), the end of period music (between periods, the pause menu and the playoff screens) and the
           scouting report music. <b>Play</b> gives a rough idea of one, without its drums; the console's synthesizer
           sounds quite different. <b>Export MIDI</b> saves it as a MIDI file, each part on its own channel and the drums
-          on the drum channel. Replacing them is still to come.
+          on the drum channel. <b>Replace</b> puts a MIDI file of your own in its place. Before it goes in you choose
+          what each of the file's parts plays on: up to six on the game's instruments, which are named by where the game
+          uses them (the bass, the title music's lead and so on; the organ too), and the drum channel on the game's kick
+          (for bass drums) and hit (for the rest), or any part left out. At most five notes sound at once, the kick and
+          the bass kept first; the new piece plays again from its start when it ends, as the game's own do. <b>Put back
+          the original</b> restores the game's piece. Try a new piece in the game before your league does.
         </li>
         <li>
           <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. A new song plays

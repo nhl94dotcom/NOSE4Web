@@ -983,6 +983,19 @@ test.describe('with the NHL 94 ROM', () => {
     await title.getByRole('button', { name: 'Stop' }).click()
     const midi = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Scouting report music' }).getByRole('button', { name: 'Export MIDI' }))
     expect(midi.suggestedFilename()).toBe('scouting_report_music.mid')
+    // The scouting report's music in place of the title music: its parts on the game's instruments, chosen first by
+    // the editor, one changed by hand.
+    await music.getByLabel('Replace the title music').setInputFiles(await midi.path())
+    await expect(music.getByText(/^Replacing the title music with/)).toBeVisible()
+    await expect(music.getByLabel('Part on MIDI channel 10')).toHaveValue('drums')
+    await music.getByLabel('Part on MIDI channel 1', { exact: true }).selectOption({ label: 'Organ (the organ songs)' })
+    await music.getByRole('button', { name: 'Put it in' }).click()
+    await expect(music.getByText(/^The title music is now "Scouting report music", \d:\d\d long, playing again from the start when it ends\./)).toBeVisible()
+    const replaced = music.locator('tbody tr').first()
+    await expect(replaced).toContainText('Scouting report music (in place of the title music)')
+    await replaced.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(replaced).toContainText('Title music')
+    await expect(replaced.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)
   })
 
   test("sets a team's organ songs, and downloads them", async ({ page }) => {

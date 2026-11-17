@@ -15,6 +15,7 @@ import {
 } from './announcer'
 import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
 import { snesSongChoices } from './snessongs'
+import { GAME_MUSIC } from './genesismusic'
 import { genesisSongs } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
@@ -683,7 +684,9 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
 function savedSongs(project: RomProject): ProjectFile['songs'] {
   const songs = genesisSongs(project.game)
   if (songs) {
-    const genesis = songs.numbers.flatMap((number) => {
+    // NHL 94's other music too, where a piece has been replaced.
+    const numbers = [...songs.numbers, ...(project.game.edition === 95 ? [] : GAME_MUSIC.map((piece) => piece.number))]
+    const genesis = numbers.flatMap((number) => {
       const bytes = songs.customBytes(project.bytes, number)
       return bytes ? [{ number, bytes: pack(bytes) }] : []
     })

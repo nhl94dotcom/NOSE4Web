@@ -2,6 +2,7 @@ import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
+import { GAME_MUSIC, readSong } from './genesismusic'
 import { genesisSongs, songName, songNumber, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
@@ -200,6 +201,12 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
       return [`Song ${songNumber(number, songs!)}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
     })
     add('Organ songs', songLines)
+    const musicLines = (after.game.platform === 'genesis' && after.game.edition !== 95 && before.game.edition === after.game.edition ? GAME_MUSIC : []).flatMap(({ number, name }) => {
+      const [was, now] = [readSong(before.bytes, number), readSong(after.bytes, number)]
+      if (!was || !now || JSON.stringify(was.events) === JSON.stringify(now.events)) return []
+      return [`${name}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
+    })
+    add('Game music', musicLines)
   }
 
   const choice = (project: RomProject, i: number) => {

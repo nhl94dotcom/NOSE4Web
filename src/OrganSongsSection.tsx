@@ -1,5 +1,24 @@
 import { useState } from 'react'
-import { GAME_MUSIC, gameMusicToMidi, gameMusicTune, genesisSongsSupported, MidiError, readMidi, readSong, songToMidi, SongError } from './core/genesismusic'
+import {
+  defaultPartChoices,
+  GAME_INSTRUMENTS,
+  GAME_MUSIC,
+  gameMusicFromMidi,
+  gameMusicToMidi,
+  gameMusicTune,
+  genesisSongsSupported,
+  MidiError,
+  musicParts,
+  readMidi,
+  readSong,
+  songToMidi,
+  SongError,
+  withOriginalSong,
+  withSong,
+  type MidiNote,
+  type MusicPart,
+  type PartChoice,
+} from './core/genesismusic'
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
@@ -169,21 +188,115 @@ export function OrganSongsSection({ project, onChange }: Props) {
   )
 }
 
-// NHL 94's other music on the Genesis: the title, end of period and scouting report pieces. Listen to them and
-// export them as MIDI.
-export function GameMusicSection({ project }: { project: RomProject }) {
+// NHL 94's other music on the Genesis: the title, end of period and scouting report pieces. Listen to them, export
+// them as MIDI, or replace one with a MIDI file, each of its parts on a game instrument chosen for it.
+export function GameMusicSection({ project, onChange }: Props) {
   const player = useSongPlayer<number>()
+  const [notice, setNotice] = useState('')
+  const [failed, setFailed] = useState(false)
+  // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
+  const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
   if (project.game.platform !== 'genesis' || project.game.edition === 95 || !genesisSongsSupported(project.bytes)) return null
   const pieces = GAME_MUSIC.map((piece) => ({ ...piece, song: readSong(project.bytes, piece.number) })).filter((piece) => piece.song)
   if (!pieces.length) return null
+  const pieceName = (number: number) => GAME_MUSIC.find((piece) => piece.number === number)!.name
+
+  async function read(number: number, file: File) {
+    player.stop()
+    try {
+      const { notes, name } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const parts = musicParts(notes)
+      if (!parts.length) throw new MidiError('This MIDI file has no notes.')
+      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, parts, choices: defaultPartChoices(parts) })
+      setNotice('')
+      setFailed(false)
+    } catch (e) {
+      setNotice(e instanceof MidiError ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setFailed(true)
+    }
+  }
+
+  function putIn() {
+    if (!pending) return
+    try {
+      const made = gameMusicFromMidi(pending.notes, pending.choices)
+      onChange({ ...project, bytes: withSong(project.bytes, pending.number, made.events, pending.title) })
+      const said = [
+        made.leftOut && `${made.leftOut} ${made.leftOut === 1 ? 'note' : 'notes'} of the parts left out`,
+        made.dropped && `${made.dropped} ${made.dropped === 1 ? 'note' : 'notes'} past the five the console plays at once`,
+        made.moved && `${made.moved} ${made.moved === 1 ? 'note' : 'notes'} moved by octaves into the game's range`,
+      ].filter(Boolean)
+      setNotice(
+        `The ${pieceName(pending.number).toLowerCase()} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
+          (said.length ? ` Not as in the file: ${said.join('; ')}.` : '') +
+          ' Undo takes it back.',
+      )
+      setFailed(false)
+      setPending(null)
+    } catch (e) {
+      setNotice(e instanceof MidiError || e instanceof SongError ? e.message : String(e))
+      setFailed(true)
+    }
+  }
+
+  const choose = (channel: number, value: string) => {
+    if (!pending) return
+    const choices = new Map(pending.choices)
+    choices.set(channel, value === 'out' || value === 'drums' ? value : Number(value))
+    setPending({ ...pending, choices })
+  }
+  const noteName = (note: number) => `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][note % 12]}${Math.floor(note / 12) - 1}`
+
   return (
     <section>
       <h2>Game music</h2>
       <p className="note">
         The game's own music besides the organ. Play gives a rough idea of a piece in the browser, without its drums:
         the console's synthesizer sounds quite different. Export MIDI saves it as a MIDI file, each part on its own
-        channel and the drums on the drum channel.
+        channel and the drums on the drum channel. <b>Replace</b> puts a MIDI file of your own in its place: you choose a
+        game instrument for each of its parts (up to six), its drums play as the game's kick and hit, at most five notes
+        sound at once, and the piece plays again from the start when it ends, as the game's own do. Try it in the game
+        before your league does: the instruments' names only say where the game uses them.
       </p>
+      {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {pending && (
+        <div className="notice">
+          <p>
+            Replacing the <b>{pieceName(pending.number).toLowerCase()}</b> with "{pending.title}". Choose what each part plays on:
+          </p>
+          <table className="left">
+            <thead>
+              <tr>
+                <th>MIDI channel</th>
+                <th>Notes</th>
+                <th>Range</th>
+                <th>Played on</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.parts.map((part) => (
+                <tr key={part.channel}>
+                  <td>{part.channel === 9 ? '10 (drums)' : part.channel + 1}</td>
+                  <td>{part.notes}</td>
+                  <td>{part.channel === 9 ? '' : `${noteName(part.lowest)} to ${noteName(part.highest)}`}</td>
+                  <td>
+                    <select aria-label={`Part on MIDI channel ${part.channel + 1}`} value={String(pending.choices.get(part.channel) ?? 'out')} onChange={(e) => choose(part.channel, e.target.value)}>
+                      {part.channel === 9 && <option value="drums">The game's drums: kick and hit</option>}
+                      {GAME_INSTRUMENTS.map((instrument) => (
+                        <option key={instrument.patch} value={instrument.patch}>
+                          {instrument.name}
+                        </option>
+                      ))}
+                      <option value="out">Left out</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button onClick={putIn}>Put it in</button> <button onClick={() => setPending(null)}>Cancel</button>
+        </div>
+      )}
       <table className="left">
         <thead>
           <tr>
@@ -194,17 +307,49 @@ export function GameMusicSection({ project }: { project: RomProject }) {
           </tr>
         </thead>
         <tbody>
-          {pieces.map(({ number, name, where, song }) => (
-            <tr key={number}>
-              <td>{name}</td>
-              <td>{where}</td>
-              <td>{seconds(song!.seconds)}</td>
-              <td>
-                <button onClick={() => player.toggle(number, gameMusicTune(song!), name)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
-                <button onClick={() => download(gameMusicToMidi(song!, name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>
-              </td>
-            </tr>
-          ))}
+          {pieces.map(({ number, name, where, song }) => {
+            const shown = song!.custom ? `${song!.custom.name} (in place of the ${name.toLowerCase()})` : name
+            return (
+              <tr key={number}>
+                <td>{shown}</td>
+                <td>{where}</td>
+                <td>{seconds(song!.seconds)}</td>
+                <td>
+                  <button onClick={() => player.toggle(number, gameMusicTune(song!), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
+                  <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  <label className="button">
+                    Replace…
+                    <input
+                      type="file"
+                      accept=".mid,.midi,audio/midi"
+                      hidden
+                      aria-label={`Replace the ${name.toLowerCase()}`}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        if (file) void read(number, file)
+                      }}
+                    />
+                  </label>
+                  {song!.custom && (
+                    <>
+                      {' '}
+                      <button
+                        onClick={() => {
+                          player.stop()
+                          onChange({ ...project, bytes: withOriginalSong(project.bytes, number) })
+                          setNotice(`The ${name.toLowerCase()} is the game's own again. Undo takes it back.`)
+                          setFailed(false)
+                        }}
+                      >
+                        Put back the original
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
       <SongControls player={player} />
