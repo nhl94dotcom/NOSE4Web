@@ -50,7 +50,7 @@ import { MenuPictureSection } from './MenuPictureSection'
 import { MoveTeamsSection } from './MoveTeamsSection'
 import { AnnouncerSection } from './AnnouncerSection'
 import { ScoutingSection } from './ScoutingSection'
-import { OrganSongsSection, SnesOrganSongsSection } from './OrganSongsSection'
+import { GameMusicSection, OrganSongsSection, SnesOrganSongsSection } from './OrganSongsSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
@@ -406,6 +406,7 @@ export default function App() {
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
+            <GameMusicSection project={current} />
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>

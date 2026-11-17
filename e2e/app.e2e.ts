@@ -970,6 +970,21 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(second.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)
   })
 
+  test("lists the game's other music, plays a piece and exports it as MIDI", async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
+    await expect(music.locator('tbody tr')).toHaveCount(3)
+    const title = music.locator('tr').filter({ hasText: 'Title music' })
+    await expect(title).toContainText('The title screen and the main menu')
+    await expect(title).toContainText('1:13')
+    await title.getByRole('button', { name: 'Play' }).click()
+    await expect(music.locator('.song-controls')).toContainText('Playing Title music')
+    await title.getByRole('button', { name: 'Stop' }).click()
+    const midi = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Scouting report music' }).getByRole('button', { name: 'Export MIDI' }))
+    expect(midi.suggestedFilename()).toBe('scouting_report_music.mid')
+  })
+
   test("sets a team's organ songs, and downloads them", async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()

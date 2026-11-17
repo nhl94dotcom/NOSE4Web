@@ -391,6 +391,112 @@ export function songToMidi(song: { events: SongEvent[] }, name = ''): Uint8Array
   return Uint8Array.from([...header, 0x4d, 0x54, 0x72, 0x6b, (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff, ...track])
 }
 
+// ------------------------------------------------- the game's other music
+// Besides the organ songs, NHL 94 plays three pieces of its own, in the same stream form (ram94.asm's SngTitle,
+// SngEOP, SngScouting): the title song (title94.asm, and setup94.asm's ExitToOpening back to the main menu), the
+// end of period song (setup94.asm and penalty94.asm: between periods, the playoff screens, the pause menu) and the
+// scouting report's (scout94.asm). Each plays on several FM patches at once; a channel that plays one note
+// throughout on an FM patch is a drum (patch 20 on note 21, the kick), and a sampled patch is a hit ($6A).
+export const GAME_MUSIC: { number: number; name: string; where: string }[] = [
+  { number: 0x78, name: 'Title music', where: 'The title screen and the main menu' },
+  { number: 0x79, name: 'End of period music', where: 'Between periods, the pause menu and the playoff screens' },
+  { number: 0x7a, name: 'Scouting report music', where: 'The scouting report' },
+]
+
+// What each channel of a piece is, for listening: a drum (the note MIDI's drum channel plays for it), or a tune
+// on a patch, by how low it plays.
+type ChannelPart = { drum: number } | { program: number }
+const KICK = 36
+const SNARE = 38
+const SYNTH_BASS = 38
+const SYNTH_BRASS = 62
+function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
+  const patches = new Map<number, number>()
+  const notes = new Map<number, number[]>()
+  for (const event of events) {
+    const channel = event.status & 0x0f
+    if ((event.status & 0xf0) === 0xc0 && !patches.has(channel)) patches.set(channel, event.data[0])
+    if ((event.status & 0xf0) === 0x90 && event.data[1] > 0) notes.set(channel, [...(notes.get(channel) ?? []), event.data[0]])
+  }
+  const parts = new Map<number, ChannelPart>()
+  for (const [channel, played] of notes) {
+    const patch = patches.get(channel) ?? 0
+    if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
+    else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
+    else parts.set(channel, { program: played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS })
+  }
+  return parts
+}
+
+// The piece without its drums, for the browser's rough preview, which plays every note as a tone.
+export const gameMusicTune = (song: { events: SongEvent[] }): SongEvent[] => {
+  const parts = channelParts(song.events)
+  return song.events.filter((event) => !('drum' in (parts.get(event.status & 0x0f) ?? { program: 0 })))
+}
+
+// A piece as a MIDI file (format 0, a tick a frame, as songToMidi): each channel on its own MIDI channel, the bass
+// on a synth bass and the other tunes on synth brass (the game's own FM sounds have no General MIDI match), and the
+// drums on MIDI's drum channel, the kick as a bass drum and the hits as a snare.
+export function gameMusicToMidi(song: { events: SongEvent[] }, name = ''): Uint8Array {
+  const parts = channelParts(song.events)
+  const track: number[] = []
+  const vlq = (value: number) => {
+    const bytes = [value & 0x7f]
+    for (value >>= 7; value > 0; value >>= 7) bytes.unshift((value & 0x7f) | 0x80)
+    track.push(...bytes)
+  }
+  const title = [...name.slice(0, 60)].map((c) => (c.charCodeAt(0) < 0x7f ? c.charCodeAt(0) : 0x3f))
+  if (title.length) {
+    vlq(0)
+    track.push(0xff, 0x03, title.length, ...title)
+  }
+  vlq(0)
+  track.push(0xff, 0x51, 3, 0x0f, 0x42, 0x40)
+  // MIDI channels for the tunes, the drum channel kept for the drums.
+  const tunes = [...parts].filter(([, part]) => 'program' in part).map(([channel]) => channel)
+  const midiChannel = new Map(tunes.map((channel, i) => [channel, i >= DRUMS ? i + 1 : i]))
+  for (const channel of tunes) {
+    vlq(0)
+    track.push(0xc0 | midiChannel.get(channel)!, (parts.get(channel) as { program: number }).program)
+  }
+  // A note that ends in the frame it starts sounds nothing, and a MIDI file would read the two the other way round,
+  // as a note left sounding: both are left out.
+  const silent = new Set<number>()
+  const ends = (event: SongEvent) => (event.status & 0xf0) === 0x80 || ((event.status & 0xf0) === 0x90 && event.data[1] === 0)
+  song.events.forEach((event, i) => {
+    if ((event.status & 0xf0) !== 0x90 || event.data[1] === 0) return
+    for (let j = i + 1; j < song.events.length && song.events[j].frame === event.frame; j++) {
+      const later = song.events[j]
+      if ((later.status & 0x0f) === (event.status & 0x0f) && later.data[0] === event.data[0] && ends(later) && !silent.has(j)) {
+        silent.add(i).add(j)
+        break
+      }
+    }
+  })
+  let frame = 0
+  for (const [i, event] of song.events.entries()) {
+    if (silent.has(i)) continue
+    const command = event.status & 0xf0
+    const part = parts.get(event.status & 0x0f)
+    if (!part) continue
+    const drum = 'drum' in part ? part.drum : null
+    const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
+    let bytes: number[] | null = null
+    if (command === 0x90) bytes = [0x90 | channel, drum ?? event.data[0] & 0x7f, Math.min(127, event.data[1] * 3)]
+    else if (command === 0x80) bytes = [0x80 | channel, drum ?? event.data[0] & 0x7f, 0x40]
+    else if (command === 0xb0 && event.data[0] === 7 && drum === null) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
+    if (!bytes) continue
+    vlq(event.frame - frame)
+    frame = event.frame
+    track.push(...bytes)
+  }
+  vlq(0)
+  track.push(0xff, 0x2f, 0)
+  const header = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 60]
+  const length = track.length
+  return Uint8Array.from([...header, 0x4d, 0x54, 0x72, 0x6b, (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff, ...track])
+}
+
 // ------------------------------------------------- songs in project files
 
 // A song NOSE4Web made, as its bytes (stream, end and mark), for a project file; null for the game's own.

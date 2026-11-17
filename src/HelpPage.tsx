@@ -973,6 +973,13 @@ export function HelpPage() {
           on), with a <b>Play</b> button beside each, so you can hear a song before you settle on it.
         </li>
         <li>
+          <b>Game music</b> (NHL 94 on the Genesis): the game's three other pieces: the title music (the title screen
+          and the main menu), the end of period music (between periods, the pause menu and the playoff screens) and the
+          scouting report music. <b>Play</b> gives a rough idea of one, without its drums; the console's synthesizer
+          sounds quite different. <b>Export MIDI</b> saves it as a MIDI file, each part on its own channel and the drums
+          on the drum channel. Replacing them is still to come.
+        </li>
+        <li>
           <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. A new song plays
           on the game's two organ sounds, one on each side, at most four notes at once, as the game's own songs do.
           Every team that had the old song gets the new one. Tested in the game by the NHL94 Match Viewer project, on

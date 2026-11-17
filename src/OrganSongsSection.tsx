@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MidiError, readMidi, songToMidi, SongError } from './core/genesismusic'
+import { GAME_MUSIC, gameMusicToMidi, gameMusicTune, genesisSongsSupported, MidiError, readMidi, readSong, songToMidi, SongError } from './core/genesismusic'
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
@@ -162,6 +162,49 @@ export function OrganSongsSection({ project, onChange }: Props) {
               </tr>
             )
           })}
+        </tbody>
+      </table>
+      <SongControls player={player} />
+    </section>
+  )
+}
+
+// NHL 94's other music on the Genesis: the title, end of period and scouting report pieces. Listen to them and
+// export them as MIDI.
+export function GameMusicSection({ project }: { project: RomProject }) {
+  const player = useSongPlayer<number>()
+  if (project.game.platform !== 'genesis' || project.game.edition === 95 || !genesisSongsSupported(project.bytes)) return null
+  const pieces = GAME_MUSIC.map((piece) => ({ ...piece, song: readSong(project.bytes, piece.number) })).filter((piece) => piece.song)
+  if (!pieces.length) return null
+  return (
+    <section>
+      <h2>Game music</h2>
+      <p className="note">
+        The game's own music besides the organ. Play gives a rough idea of a piece in the browser, without its drums:
+        the console's synthesizer sounds quite different. Export MIDI saves it as a MIDI file, each part on its own
+        channel and the drums on the drum channel.
+      </p>
+      <table className="left">
+        <thead>
+          <tr>
+            <th>Music</th>
+            <th>Where it plays</th>
+            <th>Length</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {pieces.map(({ number, name, where, song }) => (
+            <tr key={number}>
+              <td>{name}</td>
+              <td>{where}</td>
+              <td>{seconds(song!.seconds)}</td>
+              <td>
+                <button onClick={() => player.toggle(number, gameMusicTune(song!), name)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
+                <button onClick={() => download(gameMusicToMidi(song!, name), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <SongControls player={player} />

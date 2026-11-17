@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
+import { GAME_MUSIC, gameMusicToMidi, gameMusicTune, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 
@@ -165,5 +165,37 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
       if (!project.game.settingsSupported) continue
       expect(readSong(project.bytes, 0x40), name).not.toBeNull()
     }
+  })
+})
+
+describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
+  it('reads the title, end of period and scouting report music, and exports each as MIDI with its drums apart', () => {
+    const rom = open().bytes
+    const lengths = GAME_MUSIC.map(({ number }) => {
+      const song = readSong(rom, number)!
+      expect(song.loops).toBe(true)
+      // Every note but the drums': the kick (one pitch on an FM patch, channel 6) and the hits (a sample, channel 7).
+      // The notes that sound: two in the end of period music end in the frame they start, which a MIDI file has no
+      // note for (nor does the game play one).
+      const sounding = (events: typeof song.events) =>
+        events.filter((event, i) => {
+          if ((event.status & 0xf0) !== 0x90 || event.data[1] === 0) return false
+          const end = events.slice(i + 1).find((later) => later.status % 16 === event.status % 16 && later.data[0] === event.data[0] && ((later.status & 0xf0) === 0x80 || (later.status & 0xf0) === 0x90))
+          return !end || end.frame > event.frame
+        })
+      const tune = sounding(gameMusicTune(song))
+      const all = sounding(song.events)
+      const drums = all.filter((event) => [6, 7].includes(event.status & 0x0f))
+      expect(tune.length).toBe(all.length - drums.length)
+      const { notes } = readMidi(gameMusicToMidi(song, 'test'))
+      expect(notes.length).toBe(all.length)
+      expect(notes.filter((note) => note.channel === 9).length).toBe(drums.length)
+      expect(new Set(notes.filter((note) => note.channel === 9).map((note) => note.note))).toEqual(new Set([36, 38]))
+      // The tunes keep their pitches and start times.
+      const tunes = notes.filter((note) => note.channel !== 9).map((note) => `${Math.round(note.start * 60)}:${note.note}`).sort()
+      expect(tunes).toEqual(tune.map((event) => `${event.frame}:${event.data[0]}`).sort())
+      return Math.round(song.seconds)
+    })
+    expect(lengths).toEqual([73, 78, 88])
   })
 })
