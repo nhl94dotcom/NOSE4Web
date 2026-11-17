@@ -157,6 +157,11 @@ every known option, then apply every wanted one**, in a fixed step order, on a c
 re-applying the same choices gives the same bytes; the tests check that turning everything off gives back the
 original ROM byte for byte (`expectSameBytes`).
 
+Project files (`projectfile.ts`) keep `nhl95Hacks` (`detectNhl95Hacks(...).choices`) and `nhl95Unknown` (its
+`unknown`: hacks whose choices are only the defaults). Opened over another ROM, the hacks in `nhl95Unknown` are left
+out (older files without it: all are put in, as before), and a value out of its range or not one of its choices
+(`nhl95BadValue`) is left out with a note; the rest go in through `applyNhl95Hacks`.
+
 ## 5. NHL '95: fighting
 
 ### What it does (for the player)
@@ -1064,7 +1069,8 @@ writes nothing (`value && ...`, `value > 0 && ...`).
 
 - `hitEnergy` / `injuryBonus` / `injuryCap`: the knockdown hook must count exactly when the injury risk is in
   (`hit.counting === risk.bonus > 0`), else both injury numbers read unknown. With all three risk hooks original:
-  bonus 0, cap 10.
+  bonus 0, cap 10. So with a bonus of 0 no cap is written: the Hacks page turns the cap's box off while the bonus is 0
+  ("Set the risk above first.") and sets the cap back to 10 when the bonus goes to 0.
 - `goalieHold`: frames 0 at `$7BB46` reads unknown; `$830FA` hacked reads 0.
 - `giveaways`: the counting code with both scroll limits hacked = on; the pages without the counting code = unknown
   (and then `timeOnIce` too).
@@ -1174,7 +1180,8 @@ alone)" (`OCTAVE_BELOW`): export and preview give their notes 12 lower; import w
 
 `channelParts` classifies each channel: patch `NOISE_HAT` (`$7F`, NHL '95's noise, section 13) -> closed hi-hat 42;
 sampled or channel 9 -> snare 38; one pitch only -> kick 36; else a tune on `EXPORT_PROGRAM[patch]` (or synth bass 38 /
-synth brass 62 by average pitch below 50) with -12 for `OCTAVE_BELOW`. The MIDI file: format 0, division 60, tempo
+synth brass 62 by average pitch below 50) with -12 for `OCTAVE_BELOW`. NHL '95's pieces (`edition` 95) are classified
+otherwise: see section 13. The MIDI file: format 0, division 60, tempo
 1,000,000 microseconds a beat (a tick a frame), tunes on their own channels (channel 9 skipped), drums on channel 9,
 velocities as they are ("The pieces' velocities are MIDI's already (the organ songs' are a third of it)"), volume
 controllers kept for tunes, a note starting and ending in one frame left out, the track ending at `song.seconds` so
@@ -1183,7 +1190,9 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
 ### Replacing from MIDI
 
 1. `readMidi` (format 0 or 1) gives the notes, the track name, `end` (the file's last event, so a final rest counts) and
-   each channel's program (`programs`).
+   each channel's program (`programs`). Events are taken in time order as the file has them; a new note on a key
+   already sounding ends the one before (whose own off then ends nothing), and a note whose on and off are at one tick
+   is a note of length 0 of its own (a tune's is left out later; a drum's is a hit).
 2. `musicParts` lists channels with note count, lowest, highest and average. `defaultPartChoices(parts, programs)`:
    channel 9 = `'drums'`; a channel with a program goes on `patchForProgram`; of the rest, the lowest goes on the bass
    (13) if its average is below 55, there is more than one and the bass is free; the others from the highest down get
@@ -1193,7 +1202,9 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
    - at most 6 tune parts (else `MidiError`), at least one; each on game channel 0-5 in order, a program change at
      frame 0;
    - drums: MIDI notes 35 and 36 -> the kick, note 21 on channel 6 (patch 20); other drums -> the hit, note 76 on channel
-     7 (patch `$6A`), both at most 12 frames; the two program changes added only if a drum sounds;
+     7 (patch `$6A`), both at most 12 frames; the two program changes added only if a drum sounds; a hit still sounding
+     is ended at the next hit's frame, as the driver ignores a key-on while the PCM channel is on with the same patch
+     (`sound94.asm` `handle_command_10` `.pcm`: `ble rtscmd10`), so hits closer than 12 frames all play;
    - each part moved by whole octaves (+12 first for 5/13/14), down while its highest is above 95 and its lowest stays
      at least 12, up while its lowest is below 12 and its highest stays at most 95; only a part too wide has single
      notes folded into 12-95 (`LOWEST`, `HIGHEST`); `moved` counts notes not where written;
@@ -1209,8 +1220,10 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
      44 / median (`TYPICAL_VELOCITY`; "Match Viewer heard Brass Bonanza at 96 to 111 do so [clip]"); `quieter` says so;
    - offs before ons at the same frame; a rest at the file's end becomes a final event with **status `$FF`** (data `FF FF`,
      which the driver skips) at the end frame.
-4. `withSong(rom, number, events, name)`: `songBytes` with a loop, `claimSpace(rom, size + 1)` (NHL 94's free room,
-   4.5), even address, table entry repointed.
+4. `withSong(rom, number, events, name)`: `songBytes` with a loop; a piece NOSE4Web made that it replaces gives its
+   room back first (`releaseSpace`); then `claimSpace(rom, size + 1)` (NHL 94's free room, 4.5), even address (room
+   at an odd address starts on NOSE's end mark: its first byte, which the song does not cover, is set to `$FF`), table
+   entry repointed.
 
 **Stream written** (`songBytes`, the looping custom form):
 
@@ -1226,14 +1239,19 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
 
 ### Applying and removing
 
-`withOriginalSong(rom, number)` points the table entry back at `custom.replaced` (the new stream's bytes stay in the
-ROM; inferred from the code, which only rewrites the pointer). Replacing a replaced piece keeps the first `replaced`
-address. Song `$30` cannot be replaced ("the game finds which song is playing by it"); game music is allowed by
+`withOriginalSong(rom, number)` points the table entry back at `custom.replaced` and gives the new stream's room back
+(`releaseSpace`: filled with `$FF`, NOSE's end mark moved back; room between other things is tagged `NOSEFREE`), with
+the unused byte or two between it and a NOSE4Web song that follows it, so that replacing and putting back leaves the
+ROM as it was (test "gives back the room of a song it replaces"). A stream another table entry also points at is left.
+Replacing a replaced piece keeps the first `replaced` address, and goes where the old one was. The same holds for the
+organ songs (same functions) and for `withSongBytes`. Song `$30` cannot be replaced ("the game finds which song is playing by it"); game music is allowed by
 `isGameMusic`.
 
 **Project files**: `savedSongs` (`projectfile.ts`) saves `customSongBytes` for the organ songs and, for NHL 94 (not
 NHL '95), the three `GAME_MUSIC` numbers; `withSongBytes` accepts only bytes with the `N4W1` mark, writes this ROM's
-own `replaced`, and repoints the loop to the new start + 4. **Compare** (`compare.ts`): a "Game music" group lists each
+own `replaced`, and repoints the loop to the new start + 4. `withSavedSongs` skips a song the ROM already has,
+comparing with the loop address set to 0 (`songBytesWithoutLoop`), so the same piece at another address is not put in
+again; a piece that cannot go in has a note of its own ("pieces of game music"). **Compare** (`compare.ts`): a "Game music" group lists each
 piece whose events changed (`"<name>", from a MIDI file` or "the game's own again"), NHL 94 Genesis only.
 
 ### Detecting
@@ -1290,10 +1308,17 @@ songs' (`readNhl95Stream`, section 6).
 They "play on the front end's FM patches and two of the sound chip's square-wave voices: patch `$13` is its noise, the
 hi-hats".
 
-`readNhl95Music(rom, number)` returns NHL 94-style events (`songEvents`): notes 12 lower (`PITCH`, section 6), each note
-given an off at its length (at least 1 frame), velocities as they are (divisor 1; the organ songs' are divided by 3),
-and patch `$13` turned into `NOISE_HAT` (`$7F`), which `gameMusicToMidi` exports as closed hi-hat 42 on channel 9;
-`loops: true`, `custom: null`. `readNhl95Song` (organ songs only) returns null for these ids (test).
+`readNhl95Music(rom, number)` returns NHL 94-style events (`songEvents`): notes 12 lower (`PITCH`, section 6), except
+on patch `$15` (`NHL95_DRUM_PATCH`, a drum played at notes 0 to 19, kept as written), each note given an off at its
+length (at least 1 frame), velocities as they are (divisor 1; the organ songs' are divided by 3), and patch `$13`
+turned into `NOISE_HAT` (`$7F`), which `gameMusicToMidi` exports as closed hi-hat 42 on channel 9; `loops: true`,
+`custom: null`. `readNhl95Song` (organ songs only) returns null for these ids (test).
+
+`gameMusicTune(song, 95)` and `gameMusicToMidi(song, name, 95)` (the page passes 95 for NHL '95) classify NHL '95's
+channels with none of NHL 94's patch tables: its patch numbers are not NHL 94's. The noise is the hi-hat, patch `$15`
+low tom 45, a sampled patch the snare, one pitch only the kick; every other channel is a tune by its average pitch
+(synth bass 38 below 50, else synth brass 62), with no octave shift; channel 9 is not taken as the drums (the scouting
+report music plays a tune on it, patch `$14`, 363 notes).
 
 ### Applying and removing
 
@@ -1382,6 +1407,8 @@ in games. Test: the menu set's first 12 samples are the title set's.
 | `UPLOAD` | the upload routines: `lda #table>>16 / sta SoundTable+2 / lda #table / sta SoundTable / jsl SoundInit / ldx #0 / lda.l list,x / ... / jsl SPCUploadBlock / ... / cpx #(4 x count)` | table, sample list, count; count / 4 = 15 title, 16 menu, 20 game (`COUNTS`) |
 | `PITCH` | StartSoundVoice: `asl / tax / rep #$20 / lda.l PitchTable,x / ...` | PitchTable |
 | `VOLUME` | StartSoundVoice: `ldx EventData1 / lda.l VolumeCurve,x / and #$FF / cmp #$40` | VolumeCurve |
+| `NEED_LENGTH` | StartSoundVoice: `beq / sta InstPtr / cmp #a / beq / cmp #b / bne / lda EventData2 / bmi` | the two organ instruments that play no note of length 0 or with bit 15 set (`needLength`; retail `$DF80`, `$DFB0`; WCOH and SA-1 `$E141`, `$E171`; 2026 `$E1A1`, `$E1D1`) |
+| `CLAP` | StartSoundVoice: `lda InstPtr / cmp #clap / bne / lda #$2D` | the clap, which plays 45 ticks whatever its length (`clap`; retail `$E130`, WCOH and SA-1 `$E2F1`, 2026 `$E351`) |
 
 The sample list has a 3-byte long pointer every 4 bytes. Checks: every sample header valid; PitchTable note 69 about
 twice note 57 and note 1 above note 0. Any failure returns null, and Play "keeps to the rough preview" (test).
@@ -1419,11 +1446,14 @@ $2F), and plays at note $3F + its transpose".
 the DSP per voice: BRR at the pitch rate, ADSR or GAIN after release (GAIN `$9F/$99/$8C/$81` by the release word's high
 byte), left/right volume, main volume `$50`. Echo off. "The DSP's own interpolation is Gaussian; here it is a 4-point
 kernel shaped like it, so the sound is close but not to the bit"; vibrato, music ducking and PAL timing left out. Plays
-once through (to the loop's end or the stop), voices ring up to 2 s after, at most 10 minutes. Returns `notes` (start,
+once through (to the loop's end or the stop), voices ring up to 2 s after, at most 10 minutes; music that goes 5 s with
+no track stepping and no voice sounding is over too. A tick (`$2760 / tempo`, or `$DD`) of 0 or past `$C0`, which the
+sequencer's byte cannot count, makes it null (the rough preview plays instead). The two organ instruments skip a note
+of length 0 (or with bit 15 set) before a voice is looked for, and the clap plays 45 ticks, as StartSoundVoice does. Returns `notes` (start,
 release, end, voice, track, note, sample, rate, volumes, ADSR), `seconds`, and stereo `Float32Array`s at 32000 Hz.
 
-**`src/snesplayer.ts`**: `snesMusicSound(rom, pointer, set)` renders (null on error or no sound) and keeps the last 4
-renders; `playSnesSound` plays it as one stereo Web Audio buffer at 32000 Hz, gain 0.8 x volume.
+**`src/snesplayer.ts`**: `snesMusicSound(rom, pointer, set)` renders (null on error or no sound) and keeps the last
+renders up to about 20 million samples in all (the newest always); `playSnesSound` plays it as one stereo Web Audio buffer at 32000 Hz, gain 0.8 x volume.
 
 ### Applying and removing
 
