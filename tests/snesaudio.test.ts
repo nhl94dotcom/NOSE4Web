@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { openRom } from '../src/core/rom'
 import { decodeBrr, findSnesSound, readSnesInstrument, readSnesSample, renderSnesMusic, snesNotePitch, snesPitchRate } from '../src/core/snesaudio'
 import { SNES_GAME_MUSIC } from '../src/core/snesmusic'
+import { loRomAddress, loRomOffset } from '../src/core/snes'
 import { snesSongChoices } from '../src/core/snessongs'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -128,6 +129,55 @@ describe.skipIf(!names.length)('SNES sound', () => {
     const loudest = played.left.reduce((most, s) => Math.max(most, Math.abs(s)), 0)
     expect(loudest).toBeGreaterThan(0.05)
     expect(loudest).toBeLessThanOrEqual(1)
+  })
+
+  it('skips the organ notes of no length, as StartSoundVoice does, and plays the clap 45 ticks', () => {
+    for (const name of names) {
+      const rom = open(name)
+      const sound = findSnesSound(rom)!
+      // The two organ instruments and the clap, found by StartSoundVoice's code: each an entry of the game table.
+      expect(sound.needLength.length, name).toBe(2)
+      const entries = Array.from({ length: 32 }, (_, i) => loRomAddress(readSnesInstrument(rom, sound.sets.game.table, i).at))
+      for (const address of [...sound.needLength, sound.clap]) expect(entries, name).toContain(address)
+      const jaws = snesSongChoices(rom).find((c) => c.name === 'Jaws Theme')
+      if (!jaws) continue
+      const played = renderSnesMusic(rom, jaws.pointer, 'game', false)!
+      // Jaws holds a note of no length on two voices from about 6 seconds to its end: the game never plays them.
+      const held = played.notes.filter((n) => n.release - n.start > 10)
+      expect(held, name).toEqual([])
+    }
+    const rom = open()
+    const sound = findSnesSound(rom)!
+    expect([sound.needLength, sound.clap]).toEqual([[0xdf80, 0xdfb0], 0xe130])
+  })
+
+  it('leaves out a song whose tempo the sequencer cannot count', () => {
+    const rom = open()
+    const brass = snesSongChoices(rom).find((c) => c.name === 'Brass Bonanza')!
+    const at = loRomOffset(brass.pointer >>> 16, brass.pointer & 0xffff)
+    // A tempo byte of 50 makes a tick of $C9.
+    const slow = rom.slice()
+    slow[at + 1] = 50
+    expect(renderSnesMusic(slow, brass.pointer, 'game', false)).toBeNull()
+    // A tempo byte past $2760 makes a tick of 0.
+    const none = rom.slice()
+    none[at + 1] = 0xff
+    expect(Math.floor(0x2760 / 0xff) & 0xff).toBe(39)
+    expect(renderSnesMusic(none, brass.pointer, 'game', false)).not.toBeNull()
+  })
+
+  it('stops a song that goes on with nothing playing', () => {
+    const rom = open()
+    const brass = snesSongChoices(rom).find((c) => c.name === 'Brass Bonanza')!
+    const at = loRomOffset(brass.pointer >>> 16, brass.pointer & 0xffff)
+    // One track: an instrument, a note, and then a wait of $0FFFFFFF ticks before its loop's end.
+    const waits = rom.slice()
+    waits[at + 6] = 1
+    waits.set([10, 0], at + 8)
+    waits.set([0x00, 0xdc, 0x00, 0x00, 0x40, 0x60, 0x08, 0xff, 0xff, 0xff, 0x7f, 0xdb], at + 10)
+    const played = renderSnesMusic(waits, brass.pointer, 'game', false)!
+    expect(played.notes.length).toBe(1)
+    expect(played.seconds).toBeLessThan(10)
   })
 
   it('makes the title music quickly enough to start at a click', () => {

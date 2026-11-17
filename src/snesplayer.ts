@@ -7,9 +7,10 @@ import type { SongPlayback } from './songpreview'
 
 const LOUDEST = 0.8
 
-// The last few pieces made, by ROM, pointer and sample set: making one again
-// takes a moment, and each holds a few megabytes a minute.
-const KEPT = 4
+// The last pieces made, by ROM, pointer and sample set: making one again takes
+// a moment, and each holds a few megabytes a minute. They are kept up to about
+// 20 million samples in all (80 MB), the newest always.
+const MOST_SAMPLES = 20_000_000
 const made: { rom: Uint8Array; key: string; sound: SnesMusicRender | null }[] = []
 
 // The song at `pointer` made with its real instruments, or null where the ROM's sound is not found.
@@ -29,7 +30,15 @@ export function snesMusicSound(rom: Uint8Array, pointer: number, set: SnesSoundS
   }
   if (sound && !sound.left.length) sound = null
   made.unshift({ rom, key, sound })
-  made.length = Math.min(made.length, KEPT)
+  let total = 0
+  for (let i = 0; i < made.length; i++) {
+    const piece = made[i].sound
+    total += piece ? piece.left.length + piece.right.length : 0
+    if (i > 0 && total > MOST_SAMPLES) {
+      made.length = i
+      break
+    }
+  }
   return sound
 }
 

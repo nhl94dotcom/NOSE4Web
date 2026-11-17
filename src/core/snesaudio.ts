@@ -26,6 +26,8 @@
 // PitchTable[note + transpose] plus the tuning (the pitch bend, $E5, moves it
 // toward the note the bend range away). Track 9 is the drums: each note picks
 // the instrument entry (note - $2F), and plays at note $3F + its transpose.
+// Two organ instruments play no note of length 0 (or with bit 15 set), and the
+// clap plays 45 ticks whatever its length.
 //
 // The sound CPU's DSP then plays each voice: the sample decoded from BRR, at
 // 32000 Hz x pitch / $1000, its envelope (ADSR, or GAIN once released: a
@@ -37,7 +39,7 @@
 // bytes $18-$21 are 0), so UpdateSfxVoices's vibrato is left out, as are the
 // music ducking and PAL timing.
 
-import { findCode, findCodeAll, loRomOffset } from './snes'
+import { findCode, findCodeAll, loRomAddress, loRomOffset } from './snes'
 import { FRAMES_PER_SECOND } from './genesismusic'
 
 export const SNES_SAMPLE_RATE = 32000
@@ -45,6 +47,10 @@ export const SNES_SAMPLE_RATE = 32000
 const TAIL_FRAMES = 2 * FRAMES_PER_SECOND
 // The most music made at once, in frames (ten minutes).
 const MOST_FRAMES = 600 * FRAMES_PER_SECOND
+// How long the music may go with no track stepping and no voice sounding before it is taken as over, in frames.
+const IDLE_FRAMES = 5 * FRAMES_PER_SECOND
+// The longest tick the sequencer counts right: TempoAcc gains $40 a frame in a byte.
+const MOST_TEMPO_TICK = 0xc0
 
 const offsetOf = (long: number) => loRomOffset((long >>> 16) & 0xff, long & 0xffff)
 const byteAt = (rom: Uint8Array, at: number) => (at >= 0 && at < rom.length ? rom[at] : 0)
@@ -120,6 +126,10 @@ export interface SnesSound {
   sets: Record<SnesSoundSetName, SnesSoundSet>
   pitchTable: number
   volumeCurve: number
+  // The instruments (their addresses in the table's bank) whose notes play only with a length, and the one that plays
+  // 45 ticks (-1 where not found).
+  needLength: number[]
+  clap: number
 }
 
 // The upload routines (SPCTitleUpload, SPCMenuUpload, SPCGameUpload): lda #table>>16 / sta SoundTable+2 / lda #table /
@@ -130,6 +140,11 @@ const UPLOAD = 'a9 (..) 00 85 36 a9 (....) 85 34 22 .. .. .. a2 00 00 bf (....) 
 const PITCH = '0a aa c2 20 bf (....) (..) ae .. .. 9d .. .. 85 5a'
 // StartSoundVoice: ldx EventData1 / lda.l VolumeCurve,x / and #$FF / cmp #$40.
 const VOLUME = 'a6 5a bf (....) (..) 29 ff c9 40'
+// StartSoundVoice: beq / sta InstPtr / cmp #organ / beq / cmp #organ2 / bne / lda EventData2 / bmi: the two organ
+// instruments' notes play only with a length (retail $DF80 and $DFB0; they move with the table).
+const NEED_LENGTH = 'f0 1c 85 4e c9 (....) f0 05 c9 (....) d0 06 a5 5e 30 0c'
+// StartSoundVoice: lda InstPtr / cmp #clap / bne / lda #45: the clap (retail $E130) plays 45 ticks whatever its length.
+const CLAP = 'a5 4e c9 (....) d0 05 a9 2d 00'
 const COUNTS: Record<number, SnesSoundSetName> = { 15: 'title', 16: 'menu', 20: 'game' }
 
 const cache = new WeakMap<Uint8Array, SnesSound | null>()
@@ -160,7 +175,9 @@ function locate(rom: Uint8Array): SnesSound | null {
   const pitch = findCode(rom, PITCH)
   const volume = findCode(rom, VOLUME)
   if (!sets.title || !sets.menu || !sets.game || !pitch || !volume) return null
-  const sound: SnesSound = { sets: sets as SnesSound['sets'], pitchTable: offsetOf((pitch.groups[1] << 16) | pitch.groups[0]), volumeCurve: offsetOf((volume.groups[1] << 16) | volume.groups[0]) }
+  const needLength = findCode(rom, NEED_LENGTH)?.groups ?? []
+  const clap = findCode(rom, CLAP)?.groups[0] ?? -1
+  const sound: SnesSound = { sets: sets as SnesSound['sets'], pitchTable: offsetOf((pitch.groups[1] << 16) | pitch.groups[0]), volumeCurve: offsetOf((volume.groups[1] << 16) | volume.groups[0]), needLength, clap }
   // Each sample's header must hold whole BRR blocks within the ROM, ending on an end block.
   for (const set of Object.values(sound.sets)) {
     if (set.table < 0 || set.table + 2 > rom.length) return null
@@ -330,6 +347,9 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
   const dsp: DspVoice[] = Array.from({ length: 8 }, () => ({ left: 0, right: 0, sample: 0, adsr1: 0, adsr2: 0, gain: 0, pitch: 0, keyOn: false }))
   const notes: SnesVoiceNote[] = []
   let tempoTick = Math.floor(0x2760 / tempo) & 0xff
+  // A tick of 0 never comes, and one past $C0 is missed as the byte turns over: such a song is not played here.
+  const badTempo = () => tempoTick === 0 || tempoTick > MOST_TEMPO_TICK
+  if (badTempo()) return null
   let tempoAcc = 0
   let musicOn = true
   let rotor = 0
@@ -397,6 +417,9 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     const inst = track.inst
     if (!inst) return
     instPtr = inst
+    // The two organ instruments skip a note of no length (or a negative one), before a voice is looked for.
+    const address = loRomAddress(inst.at)
+    if (sound.needLength.includes(address) && ((length & 0xffff) === 0 || length & 0x8000)) return
     const v = findFreeVoice(inst)
     if (v < 0) return
     const voice = voices[v]
@@ -404,7 +427,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     voice.track = t
     voice.priority = inst.priority
     voice.state = inst.adsr1 & 0x80 ? 2 : 1
-    voice.length = (length - 1) & 0xffff
+    voice.length = ((address === sound.clap ? 0x2d : length) - 1) & 0xffff
     voice.age = 0
     voice.gain = inst.gain
     voice.inst = inst
@@ -468,6 +491,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
       return
     }
     const p = { at: track.ptr }
+    stepped = frame
     for (let guard = 0; guard < 4000; guard++) {
       readVarLen(p)
       const code = byteAt(rom, p.at++)
@@ -488,7 +512,10 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
       } else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) {
         const data = byteAt(rom, p.at++)
         if (code === 0xdc) setInstrument(track, instrumentAt(rom, entryAt(rom, table, data === 0x6a ? 0x14 : data)))
-        else if (code === 0xdd) tempoTick = data
+        else if (code === 0xdd) {
+          tempoTick = data
+          if (badTempo()) musicOn = false
+        }
         else if (code === 0xde) trackVolume(t, data)
       } else if (code === 0xdf) {
         const controller = byteAt(rom, p.at++)
@@ -584,8 +611,10 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     chunks[1].push(r)
   }
 
-  // Once every track is through (or the music stops), the notes still sounding run on to their ends.
+  // Once every track is through (or the music stops), the notes still sounding run on to their ends; music that goes
+  // a while with no track stepping and no voice sounding is over too.
   let ended = -1
+  let stepped = 0
   for (; frame < MOST_FRAMES; frame++) {
     // UpdateSfxVoices: each voice's age and pitch, and a released voice's fade, stopped when it runs out.
     for (let v = 0; v < 8; v++) {
@@ -609,7 +638,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     // SequencerTick: UpdateVoices, then each track from the last.
     if (musicOn) {
       tempoAcc = (tempoAcc + 0x40) & 0xff
-      while (musicOn && tempoTick > 0 && tempoAcc >= tempoTick) {
+      while (musicOn && tempoAcc >= tempoTick) {
         for (let v = 0; v < 8; v++) {
           const voice = voices[v]
           if (!voice.state || voice.track >= 0x10 || voice.length & 0x8000) continue
@@ -619,10 +648,13 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
         for (let t = tracks.length - 1; t >= 0 && musicOn; t--) stepTrack(t)
         tempoAcc = (tempoAcc - tempoTick) & 0xff
       }
+      if (badTempo()) return null
       if (ended < 0 && (!musicOn || tracks.every((track) => track.done))) ended = frame
     }
     if (render) renderFrame()
     const silent = voices.every((voice) => !voice.state) && play.every((p) => !p.on || p.env === 0)
+    if (!silent) stepped = frame
+    if (ended < 0 && frame - stepped >= IDLE_FRAMES) ended = frame
     if (ended >= 0 && (frame - ended >= TAIL_FRAMES || silent)) break
   }
   const seconds = (frame + 1) / FRAMES_PER_SECOND
