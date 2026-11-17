@@ -10,12 +10,14 @@ editor). It points you at the right files and gives the facts you need to write 
 How to use it:
 
 1. Read sections 1 to 4 (purpose, licence, repo map, conventions). They apply to every game.
-2. Find your feature in the status table (section 11). If "Documented here" says yes, read that feature section.
+2. Find your feature in the status table (section 15). If "Documented here" says yes, read that feature section.
 3. Then read the files and tests the section cites. The code is the authority; this document is a guide to it.
 
-Detailed feature sections are added one feature and one game at a time. Today there are six, all NHL '95:
-fighting (5), organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and
-organ after a pause (9), and a room and RAM map (10). Everything else is listed in section 11 with its files only.
+Detailed feature sections are added one feature and one game at a time. Today there are ten. NHL '95: fighting (5),
+organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
+pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
+NHL 94 Genesis: game music (12). NHL '94 SNES: game music and the real-sample player (14). Everything else is listed
+in section 15 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
 these 2 MB-or-smaller cartridges); `$FFxxxx` is 68000 RAM. "(inferred)" marks a statement that is my reading,
@@ -279,7 +281,8 @@ period length's count in the fighting patch's copy").
 ### Status
 
 Tested in the game by the NHL94 Match Viewer project (`Nhl95HacksPage.tsx`: `fighting` and `fightingOff` end
-with `TESTED`). `fightSeconds` is marked "Not yet tested in the game."
+with `TESTED`). `fightSeconds` is now tested too (it ends with `SETTING_TESTED`; `NOT_YET` is empty); see section 11.
+(Corrected: this line used to say `fightSeconds` was not yet tested.)
 
 ## 6. NHL '95: organ songs and team songs
 
@@ -687,8 +690,9 @@ his). Left as it is.
 
 - `nhlShootout` works with Shootout mode and the season shootouts together (test "With a regular-season shootout too").
 - 3 on 3 is tested together with `seasonShootout`, `nhlShootout`, `fighting`, `fightingOff` (test).
-- Not yet game-tested settings that touch the same things: `shootoutInjuries` reads the shootout's kept team structs
-  (`$FFF002`, tmpdst `+$68`; NextShooter `$9DD82`), `fourthPeriodOvertime` changes ResetClock's overtime.
+- Settings that touch the same things (section 11; corrected: this line used to call them not yet game-tested):
+  `shootoutInjuries` reads the shootout's kept team structs (`$FFF002`, tmpdst `+$68`; NextShooter `$9DD82`),
+  `fourthPeriodOvertime` changes ResetClock's overtime.
 
 ### Gotchas
 
@@ -811,7 +815,7 @@ So another editor can avoid clashing with NOSE4Web's NHL '95 features.
 | After the last used byte, no tail fallback (`claimSpace95(rom, size, false, false)`); retail: at or above `$1A72C0` (the self-check's freed room) | moved logo and banner blocks | `graphics.ts` `claimPictureSpace`; `tests/nhl95banners.test.ts` |
 | ROM size | a 512 KB / 1 MB ROM may double; never past 2 MB (save RAM at `$200001`) | `space.ts` `LARGEST_ROM` |
 | Header `$18E` checksum, `$1A4` ROM end; `$692` self-check call NOPed | `buildRom`, `openRom` | section 4.2 |
-| Hook and in-place sites | sections 5, 8, 9 tables; pointers in section 7 | |
+| Hook and in-place sites | sections 5, 8, 9, 11 tables; pointers in section 7 | |
 
 Freed room in the middle is tagged `NOSEFREE` + start address (`releaseSpace`).
 
@@ -821,10 +825,10 @@ Freed room in the middle is tagged `NOSEFREE` + start address (`releaseSpace`).
 |---|---|---|---|
 | `$FFCC62` word / `$FFCC63` | Fighting row setting (0 Off, 1 On, 2 Arcade) | tested | `nhl95hacks.ts` fighting comment |
 | `$FFE800`-`$FFE879` | fighting patch engine | tested | comment above `SHOOTOUT_MARK` |
-| `$FFEA00`-`$FFEA8F` | giveaways/takeaways: `$FFEA00`-`$FFEA05` carrier's and forcer's spots and places, counts at `$FFEA10` and `$FFEA50` (the code clears 32 longs from `$FFEA10`) | **not yet game-tested** | giveaways comment, `GT_BODY95` |
-| `$FFEB00`-`$FFEB03`, `$FFEE66`-`$FFEE69` | giveaways' team totals ("team struct +$2878 / +$287A"; the code uses `lea ($EB00).w` and `lea ($EE66).w` and clears a long at each) (inferred from the code bytes) | **not yet game-tested** | `GT_BODY95` |
+| `$FFEA00`-`$FFEA8F` | giveaways/takeaways: `$FFEA00`-`$FFEA05` carrier's and forcer's spots and places, counts at `$FFEA10` and `$FFEA50` (the code clears 32 longs from `$FFEA10`) | tested | giveaways comment, `GT_BODY95`; section 11 |
+| `$FFEB00`-`$FFEB03`, `$FFEE66`-`$FFEE69` | giveaways' team totals ("team struct +$2878 / +$287A"; the code uses `lea ($EB00).w` and `lea ($EE66).w` and clears a long at each) (inferred from the code bytes) | tested | `GT_BODY95` |
 | `$FFF000`-`$FFF6CF` | season shootout: mark `$FFF000`, team structs `$FFF002`-`$FFF6CD`, ScoreSumbytes `$FFF6CE` | tested | section 8 |
-| `$FFF700`-`$FFF73F` | knockdown counts for the injury risk: a byte a player, 32 a team (cleared each game: 64 bytes) | **not yet game-tested** | comment above `COUNT_OF_A2_95`, `GAME_CODE95` |
+| `$FFF700`-`$FFF73F` | knockdown counts for the injury risk: a byte a player, 32 a team (cleared each game: 64 bytes) | tested | comment above `COUNT_OF_A2_95`, `GAME_CODE95`; section 11 |
 | `$FFF800`-`$FFF815` | organ after a pause: kept song slot (22 bytes) | tested | comment above `ORGAN_SAVE_HOOK` |
 | `$FFDC84`-`$FFFC03` | the whole range Match Viewer found unused (retail and W18) that these sit in | | same comments |
 
@@ -832,14 +836,617 @@ NOSE4Web's NHL '95 code also reads (does not own) game RAM such as gmode `$BEF0`
 GameFlags `$BF08`, gsp `$C020`, team structs `$C288` / `$C5EE`, OptPlayMode `$CC4C`, and the sound driver's
 slot arrays from SndSeqPtr `$FFFDFE` to SndSeqState `$FFFE7E` (section 9, organ).
 
-### Not yet game-tested (not documented in detail)
+### All of it now tested
 
-NHL 94's settings on NHL '95 (statistics: three stars, bodychecks, time on ice, giveaways; rules: real-time clock,
-penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks with penalties off, injuries,
-shootout injuries, extra period length; energy and injury risk; goalies; skating and the puck) and Any skater at any
-position: `Nhl95HacksPage.tsx` `UNTESTED` ("Not yet tested in the game.").
+Every RAM range above is used by an option that is now tested in the game by the NHL94 Match Viewer project:
+NHL 94's settings and Any skater at any position are documented in section 11 (`Nhl95HacksPage.tsx`: `NOT_YET` is
+empty, so every setting ends with `SETTING_TESTED`). Any skater at any position uses no RAM.
 
-## 11. Feature status
+## 11. NHL '95: NHL 94's settings, and Any skater at any position
+
+### What it does (for the player)
+
+NHL 94's statistics, rules, energy, goalie and skating settings, in NHL '95. Each option's plain-words text is in
+`NHL95_HACK_TEXTS` (`nhl95hacks.ts`; a function of the choices for a setting) and the longer note in
+`SETTING_MORE` / `MORE` (`Nhl95HacksPage.tsx`). Page sections (`NHL95_HACK_SECTIONS`): Statistics (`bodychecks`,
+`timeOnIce`, `giveaways`, `threeStars`, with the assist fixes of section 9), the rules list (`shootoutInjuries`,
+`fourthPeriodOvertime`, `penaltySeconds`, `realTime`, `noIcing`, `hybridIcing`, `delayedCalls`,
+`bCheckPenaltiesOff`, `injuries`, with section 8's options), Fighting (`fightSeconds`, with section 5's), Energy and
+injury risk, Goalies, Skating and the puck, and Edit Lines (`anyPosition`: "Edit Lines lists every skater for every
+position, so a defenceman can play forward or a forward defence.").
+
+### Origin and credit
+
+- NHL 94's numbers, switches and hooks (`hacks.ts`) "where NHL '95 has the same instructions at other places: a
+  research reading of the NHL95Genesis disassembly, each place's bytes the same in the original game and the WN95HL's
+  ROMs (but the injuries, below)" (`nhl95hacks.ts`, comment heading "NHL 94's settings"). NHL 94's credits
+  (`hacks.ts` comment above `NumberSite`): goalie hold time clockwise and smozoma; energy, the speed burst, stopping
+  and turning wboy, with Tony H; the clocks Brodeur30, smozoma, kingraph and AverageRangersFan.
+- The code put in is NHL 94's with NHL '95's addresses: gmode `$BEF0`, sflags7 `$BF02`, OptLine `$CC5C`, OptPlayMode
+  `$CC4C`, gsp `$C020`, gameclock `$C022`, PerTimeTotal `$C026`, getpde `$7CAD0`, setpde `$7DBCA`, SetSPA `$8BC9A`,
+  tmpde (a player's energy) `$34` (NHL 94's is `$32`) (same comment).
+- The test's expected bytes are "the research's (port95: play95_sites, codes95, rules95_hex, nhl95_stats_hex), written
+  out here, not taken from the source" (`tests/nhl95settings.test.ts` header).
+- The NHL94 Match Viewer project found that the first build of `delayedCalls` changed only one of NHL '95's two tests,
+  "changing only the first left the other team never called" (comment above `DELAYED_SITES95`); both are changed now.
+
+### Values, ranges and defaults
+
+`NO_NHL95_HACKS` holds NHL '95's own values, "read from its code"; `NHL95_HACK_RANGES` is NHL 94's `HACK_RANGES`
+(`hacks.ts`) for every number. `badValue` rejects a number outside its range or not whole, and a choice not in
+`NHL95_HACK_CHOICES`.
+
+| Option | Kind | Range | NHL '95's own (`NO_NHL95_HACKS`) |
+|---|---|---|---|
+| `threeStars` | `'original' \| 'linesOff' \| 'linesOn'` | | `'original'` |
+| `bodychecks` | `'off' \| 'on'` ("NHL '95 has no earlier bodycheck counts to keep") | | `'off'` |
+| `timeOnIce`, `giveaways`, `realTime`, `noIcing`, `hybridIcing`, `delayedCalls`, `shootoutInjuries`, `stamina`, `noSkatingDrain`, `choppyIce`, `anyPosition` | on/off | | off |
+| `penaltySeconds` | seconds in the box for a minor | 1-255 | 60 |
+| `fightSeconds` | seconds; 0 = off | 0-2047 | 0 |
+| `bCheckPenaltiesOff` | `'original' \| 'asPenaltiesOn' \| 'forum'` (`BCHECK_TEXTS`) | | `'original'` |
+| `injuries` | `'original' \| 'never' \| 'penaltyOnly' \| 'period' \| 'game' \| 'longFall'` (`INJURY_TEXTS`) | | `'original'` (the WN95HL's ROMs: `'game'`, below) |
+| `fourthPeriodOvertime` | seconds of overtime; 0 = off | 0-5999 | 0 |
+| `energyDrain` | | 16-999 | 33 |
+| `energyRecovery` | | 0-999 | 9 |
+| `burstEnergy` | | 0-4096 | 204 |
+| `hitEnergy`, `holdEnergy` | energy units (full = `$1000`, `energyText`) | 0-4096 | 0 |
+| `injuryBonus` | NHL 94's units | 0-10 | 0 |
+| `injuryCap` | NHL 94's units | 1-60 | 10 |
+| `goalieHold` | frames (`holdSeconds` = frames / 60); 0 = no whistle | 0-3600 | 140 |
+| `goalieWidth` | | 0-124 | 36 |
+| `goalieOut` | | 0-255 | 231 |
+| `goalieLine` | | 0-255 | 170 |
+| `goalieDelay` | | 1-128 | 17 |
+| `speedBurst` | 0 = the original game's | 0-95 | 0 |
+| `turnRate` | | 1-999 | 150 |
+| `puckFriction` | | 1-12 | 7 |
+
+The `energyDrain` minimum: "Below 16, a player's endurance bonus ... can outweigh the loss: his energy climbs past full
+until a fast skater's speed wraps round to the slowest (Match Viewer, in the game ...)" (`HACK_RANGES` comment).
+
+**The WN95HL's ROMs ship with injuries for the game**: the test "reads %s as the original game but its injuries,
+which the WN95HL sets for the game" expects every W18 / W18p choice to equal `NO_NHL95_HACKS` except
+`injuries: 'game'` (retail: `'original'`).
+
+### Where it lives: how a number is kept
+
+- `site(at, lead, negative)` (`hacks.ts`): the 16-bit word at `at`, valid only if the bytes just before it equal
+  `lead` (the instruction's opcode words). A `negative` site holds minus the value (the other end of the ice).
+  `numberPart(sites, original)`: every site must read the same value, else unknown.
+- `switchPart(at, original, hacked)`: bytes are the original (off), the hack's (on), else unknown.
+- Hooks: `hookTo` places the code (`placeCode`, section 10) then `writeHook` (`jsr` + NOPs, 4.4); `hookTarget` reads
+  where a hook calls. A number inside hooked code is read from the code at a fixed offset (`valueAt`, e.g.
+  `HIT_VALUE95`), and the code must then equal the code rebuilt with that number.
+- `within(part, around)`: the part reads as unknown unless the listed surrounding bytes are NHL '95's.
+
+### Where it lives: statistics
+
+| Option | Place | Original | Hacked |
+|---|---|---|---|
+| `threeStars` | CalcTeamStarScores `$95C8A` (whole routine rewritten in place) | `STARS95.original` | `starsCode95(assist, shotFor, goal, check, shutout, shotsAgainst)`: `linesOff` (7000, 500, 11000, 500, 16000, 4000), `linesOn` (9100, 650, 14300, 650, 20800, 4500); ends `FFFF FFFF FFFF` |
+| `bodychecks` | FallDown's `.AddChktoPlayerStats` `$7B164` (16 bytes) | `5268 0010 4240 102B 0066 D0C0 5228 011E` | hook to `CHECK_CODE95`: the same 8 words, then `0839 0000 00FF BEF0 6604 5228 0104 4E75` (adds 1 to the checker's `+$104`, his penalty minutes, "while the clock runs") |
+| | the penalty's add to PIM `$8941E` | `D532 0000` | `4E71 4E71` (around: `$8941A` `0640 0104`, `$89422` `0440 0104`) |
+| | Player Stats texts `$92B01`, `$92B76` | `PIM`, `Penalty Minutes` | `Chk`, `   Checks For  ` |
+| `timeOnIce` | five hooks (`TOI_HOOKS95`): col `$926F2` (12 bytes), title `$92826` (16), head `$927F4` (6), get `$92A32` (6), row `$92980` (8) | `B07C FFFF 6DF0 B07C 0004 6EEA`; `43FA 02DC 7001 D078 D276 4EB9 0007 CB38`; `4EB9 0007 C6E6`; `3400 301F B042`; `7204 4EB9 0007 D154` | each `hookedFix` to its `TOI_CODES95` code; time on ice read from player `+$138`, capped at `$176F`; the page's sort/print variables `$D276`, `$AC40`, `$AC44` |
+| `giveaways` | ten hooks (`GT_HOOKS95`, entry offset into the code): puckglue `$7BAB6` (+0), the steals `$7B9E6` and `$7C220` (+4), FallDown's `st (puckc).w` `$7B446` (+8), doshot `$84BE8` (+`$C`), StartGame's `.noso` `$9CA0` (+`$10`), DisplayStats' rows/tables `$922C2` (+`$14`) and `$922D0` (+`$18`), dopass `$84502` (+`$1C`), FallDown's stumble `bsr.w DropPuck / bra.w .hitter` `$7B142` (+`$190`) | as in `GT_HOOKS95` | one code block: `GT_BODY95` (a jump table, then the code), then a copy of the ROM's stats table at `$9240E` (15 rows) and of `$924FC` (11 rows), each followed by the row `0010` "Give/Takeaways" `2878 287A`; the two `lea (pc)` words at code +`$182` / +`$18C` point at the copies |
+| | scroll limits `$92120`, `$9212E` | `$0070`, `$0030` | `$0080`, `$0040` |
+
+A stats table row is a length word (even, 2-40), that many bytes of label, then two offset words (`gtTable95`).
+NHL '95 values the giveaway code uses: puckc `$B3C2`, lastplayer `$BAD8`, gmode `$BEF0`, gmode2 `$BF00`, sflags2
+`$BEF4`, sflags3 `$BEF6`, SortCords `$AC62`, team structs `$C288` / `$C5EE`; RAM in section 10. The stumble hook is
+"One more than NHL 94: NHL '95's FallDown drops the puck of a carrier who stumbles from a hit ... without the st
+(puckc).w the others pass through" (comment above `GT_BODY95`).
+
+**Giveaways with time on ice**: with `giveaways` on, the Player Stats pages are one code block (`GP_CODES95`, with or
+without the Time On Ice page) at the five time-on-ice hooks, entries +0 col, +4 title, +8 head, +`$C` get, +`$10`
+row (`applyPages95`, `gpPages95`). Giveaways and Takeaways pages come after Penalty Minutes (or Checks For).
+
+### Where it lives: rules
+
+| Option | Place | Original | Hacked |
+|---|---|---|---|
+| `realTime` | game clock `subi.w` `$7A384` (lead `0478`), penalty clock `addi.w` `$89568` (lead `0678`), shootout clock `subi.w` `$7A3CC` (lead `0478`) | `$0AAA`, `$0018`, `$0AAA` | `$0444`, `$003C`, `$0444` (all three or unknown) |
+| `penaltySeconds` | penalty95's `ext.w d2 / mulu.w #60,d2 / bset #13,d2`: the word at `$8942C` (checks `$89428` `4882 C4FC`, `$8942E` `08C2 000D`) | `$003C` (60) | the seconds |
+| `fightSeconds` | `.3`'s `move.w d2,tmpdst(a2,d0.w) / andi.w #$EFFF,d2` `$89448` (8 bytes; tmpdst `$68`) | `3582 0068 0242 EFFF` | hook to `0C10 0026 6706 0C10 0028 6608 0242 3000 0042 ssss 3582 0068 0242 EFFF 4E75` (30 bytes; seconds `& $FFF` at code +`$12`; penalties `$26` and `$28` only, section 5) |
+| `noIcing` | a2touchpuck's `bset #ifok,(iflags).w` `$81538` (around: `$8153E` `4E75`) | `08F8 0002 BB86` | `6004 0002 BB86` (bra.s to the rts); the forum's `6002 0002 BB86` also reads as on |
+| `hybridIcing` | PuckIChk's `bset #ifcgl,(iflags).w` `$89B32` (around: `$89B38` `4E75`) | `08F8 0000 BB86` | `hookedFix` to `HYBRID_CODE95` (end-zone dots y +-`$D7`, SortCords `$AC62`, iflags `$BB86`, AddPenalty `$89140`) |
+| `delayedCalls` | checkagr's two tests of the checker's team's delayed-penalty flag: sflags9 bit 2 at `$89A10`, bit 1 at `$89A1E` | `0838 0002`; `0838 0001` | `6000 001A`; `6000 000C` (each a `bra.w` to the rts at `$89A2C`). Around: `$89A14` `BF06 6600 0010`, `$89A22` `BF06 6700 0006`, `$89A28` `303C 007F 4E75`. Both or unknown |
+| `bCheckPenaltiesOff` | Bcheck's `bne.w` / `beq.w .checkdir` at `$7AF3C`, `$7AF46` | `original`: `6600 0030`, `6700 0026` | `asPenaltiesOn`: `6000 0030`, `6700 0026`; `forum`: `6700 0030`, `6600 0026` |
+| `shootoutInjuries` | NextShooter's `move.w 0(a0,d0.w),(BA_Skater_Offset).w` `$9DD82` | `31F0 0000 D00E` | `hookedFix` to `SHOOTOUT_INJURY_CODE95`: only with the season shootout's mark `$FFF000` set and gsp `$C020` = 3; skips a shooter whose kept team struct (`$FFF002`, tmpdst `+$68`, the visitors' `+$366` on) marks him injured for the game |
+| `fourthPeriodOvertime` | ResetClock's `tst.w (OptPlayMode).w / bne.w .set` `$7D4AE` (8 bytes; around: `$7D4B6` `303C`, the `move.w #600,d0`) | `4A78 CC4C 6600 0006` | hook to `4A78 CC4C 661C 0838 0003 BF08 6708 0838 0005 D1A7 6610 0C78 0003 CC54 6608 303C ssss 5C97 4E75 4E75 4E34 bbbb` (`$2C` bytes; seconds at +`$20`; after the code `'N4'` and the row's count before, at +`$2A`) |
+| | the Per. Length row's choice count: Game Setup `$85EAD`, Season Setup `$8F786`, and with fighting in, the fighting patch's copy `$1E0E73` (`OT4_FIGHT_COUNT95` = `FIGHT95_CHOICES_AT` + (`$85EAD` - `$85EAA`)) | 3 | 4 (`setPeriodChoices95`; remove writes back the count kept after the code) |
+
+`fourthPeriodOvertime`'s code: in a regular-season game (OptPlayMode `$CC4C` = 0, not a season playoff game:
+GameFlags `$BF08` bit 3 with `$D1A7` bit 5) whose `$CC54` is 3 it sets the overtime to the seconds; other lengths and
+the playoffs keep theirs (comment above `OT4_HOOK95`). That `$CC54` is the Per. Length choice, the fourth being 3, is
+inferred from the code and the page text.
+
+**Injuries** (`INJURY_SITES95`, `INJURY_BYTES95`): six places, FallDown's `btst #gmclock / bne.w` `$7B48A`,
+setInjuryType's three tests (`$9F078` sflags13, `$9F088` `.not0`, `$9F0A0` the game's), FallDown's
+`jsr setInjuryType` `$7B49C` and `move.w #4,(InjCntDown).w` `$7B4C8`:
+
+| Choice | `$7B48A` | `$9F078` | `$9F088` | `$9F0A0` | `$7B49C` | `$7B4C8` |
+|---|---|---|---|---|---|---|
+| `original` | `6600 006E` | `6600 0022` | `6600 0012` | `6700 0018` | `4EB9 0009 F012` | `31FC 0004 C016` |
+| `never` | `6000 006E` | `6600 0022` | `6600 0012` | `6700 0018` | `4EB9 0009 F012` | `31FC 0004 C016` |
+| `penaltyOnly` | `6600 006E` | `6600 0022` | `6600 0012` | `6700 0018` | `4E71 4E71 4E71` | `4E71 4E71 4E71` |
+| `period` | `6600 006E` | `4E71 4E71` | `4E71 4E71` | `6700 0018` | `4EB9 0009 F012` | `31FC 0004 C016` |
+| `game` | `6600 006E` | `6600 0022` | `6000 0012` | `6000 0018` | `4EB9 0009 F012` | `31FC 0004 C016` |
+| `longFall` | `6600 006E` | `6600 0022` | `6600 0012` | `6700 0018` | `6000 005C 4E71` (bra.w .snd `$7B4FA`) | `31FC 0004 C016` |
+
+`longFall` also rewrites SPAinjuryfall (`$7E88`) from its flags word at **`$7E98`** (50 bytes: the flags word, then
+two lists of 12 words at `$7E9A` and `$7EB2`) into "a back fall that gets up after 300 ticks" (`FALL95`):
+
+- original: `0303 00E3 0006 00E4 0006 00E5 0008 037A 0006 037B 0006 037C FFFA 00F7 0006 00F8 0006 00F9 0008 037E 0006 037F 0006 0380 FFFA`
+- longFall: `0000 00E3 0006 00E4 0006 00E5 0008 00E6 012C 00E7 0008 0041 FFF8 00F7 0006 00F8 0006 00F9 0008 00FA 012C 00FB 0008 0045 FFF8`
+
+Applying `longFall` throws if `$7E98` is not the original ("something else has already changed this ROM's injury
+fall"); the six places at `longFall` with the block not changed read as unknown (test "sets the injuries six ways").
+
+### Where it lives: energy and injury risk
+
+| Option | Place | Original | Hacked |
+|---|---|---|---|
+| `stamina` | setpde's store `$7DBD2` | `3580` | `6002` |
+| `energyDrain` | `.sube`'s drain each 128 frames on the ice: word at `$8C1C2` (lead `0440`, subi.w) | 33 | the number |
+| `energyRecovery` | the bench's `addi.w`: word at `$7DB62` (lead `0672`) | 9 | the number |
+| `noSkatingDrain` | `.sube`'s `tst.w OptLine / bne.w` at `$8C1A8` | `6600` | `6000` |
+| `burstEnergy` | burst's `subi.w`: word at `$AA96` (lead `0440`) | 204 | the number |
+| `hitEnergy` | FallDown's `.cont2` `tst.w position(a3) / beq.w .chkpos` `$7B14A` (8 bytes) | `4A6B 0034 6700 0034` | hook to `hitCode95(amount)`, or `countingHitCode95(amount)` when `injuryBonus` > 0 (it then also counts the knockdown); the code calls getpde `$7CAD0`, `subi.w #amount`, setpde `$7DBCA`, and returns to `.chkpos` `$7B184` for a goalie hitter |
+| `holdEnergy` | holdcheck's `move.w #SPAflail,d1 / jsr SetSPA` `$7B02C` (10 bytes) | `323C 1F68 4EB9 0008 BC9A` | hook to `holdCode95(amount)`, ending `323C 1F68 4EF9 0008 BC9A` |
+| `injuryBonus` / `injuryCap` | the roll: FallDown's `cmp.w impact(a2),d0 / bgt.w .snd` `$7B47C` (8 bytes) | `B06A 0032 6E00 0078` | hook to `rollCode95(bonus, cap)` |
+| | each game: StartGame's `jsr clearTeamStats` `$9C34` | `4EB9 0000 AE48` | hook to `48E7 8080 41F8 F700 703F 4218 51C8 FFFC 4CDF 0101 4EF9 0000 AE48` (clears 64 bytes at `$FFF700`) |
+| | each intermission: PeriodOver's `addq.w #1,(gsp).w / bchg #1,(gmode).w` `$8CB64` (10 bytes) | `5278 C020 0878 0001 BEF0` | hook to `PERIOD_CODE95` (halves each of the 64 counts, then the original two instructions) |
+
+The hit and hold codes take no energy when gmode `$BEF0` bit 0 is set (the clock stopped, inferred from the
+bodychecks comment "while the clock runs" on the same test), when OptLine `$CC5C` is non-zero, or when sflags7 bit 4
+is set (`CLOCK95`, `ENERGY_TESTS95`).
+
+**Injury risk, scaled x 2.5**: the count of a player's knockdowns is a byte at `$FFF700` + his number (`+$66`), +32
+for the team whose player has bit 6 of `+$62` set (`COUNT_OF_A2_95`); the knockdown hook adds 1 (held at 255). The
+roll code computes `min(count x bonus, cap)`, then `mulu.w #5,d2 / addq.w #1,d2 / lsr.w #1,d2` (x 2.5, rounded), adds
+it to the hit's impact and compares as the original. "NHL '95 rolls 0 to 399 against the impact where NHL 94 rolls 0 to
+159, so a bonus and a cap mean what they do in NHL 94: the code adds them x 2.5 ... the same extra chance (bonus /
+160) a knockdown" (comment above `COUNT_OF_A2_95`). So the numbers you store are NHL 94's; the test "scales the
+injury risk to NHL 95's roll of 0 to 399, and reads NHL 94's numbers back" checks bonus/cap pairs (1,1), (5,25),
+(7,33), (10,60) and that `(min(count x bonus, cap) x 5 + 1) >> 1` over 400 is within half an impact of NHL 94's
+`min(...)` over 160. The page's chance is `impact / 160 x 100` in 100 (`chance`).
+
+### Where it lives: goalies
+
+| Option | Place | Notes |
+|---|---|---|
+| `goalieHold` | the hold count's start: word at `$7BB46` (lead `357C`); 0 = no whistle: assgoaliectrl's count down at `$830FA` `9F6B` -> `6002` | stored as frames; 0 is never written to `$7BB46` (`frames === 0` reads unknown). The computer goalie's count (`$7FF5C`) is left as in NHL 94 |
+| `goalieWidth` | `$8B8EA` (lead `0C53`) and `$8B908` (lead `0C53`, negative) | the box a goalie a person controls keeps to without the puck |
+| `goalieOut` | `$8B922` (lead `0C6B`) and `$8B92C` (lead `0C6B`, negative) | |
+| `goalieLine` | `$8301E` (lead `B27C`) and `$83026` (lead `B27C`, negative) | the line he is whistled past |
+| `goalieDelay` | the B-hold count's start (bholdtimer `$FFBB04`, pads 3 and 4 `$FFBB06`): both bytes of the words at `$A1E4`, `$A1EA` (after `31FC`, move.w #$1111) and the bytes at `$83F07`, `$83F11`, `$84115`, `$8411F`, `$84143`, `$8416B` (after `11FC 00`, move.b #$11) | all ten bytes equal, 1-`$80`; original `$11` (17) |
+
+### Where it lives: skating and the puck
+
+| Option | Place | Original | Hacked |
+|---|---|---|---|
+| `speedBurst` | burst's `lsr.w #7,d0` `$AAAC` | `EE48` | `70nn` (`moveq #n,d0`); 0 = original |
+| `turnRate` | words at `$8BB28` (lead `066B`), `$8BB36` (`046B`), `$8BB50` (`066B`), `$8BB5E` (`046B`) | 150 | the number at all four |
+| `puckFriction` | `move.w #7,d2` at `$8BBC6`: word at `$8BBC8` (lead `343C`) | 7 | 1-12 |
+| `choppyIce` | updateplayers' 76 bytes from the X slowing `$8BBCA` | `CHOPPY_HOOK95.original` | `hookedFix` to `CHOPPY_CODE95`, which returns past them to `$8BC16` |
+
+`puckFriction`: "NHL '95 gives the puck its own ... (1/128 of its speed a frame), where NHL 94's moveq #9,d2 is shared
+with every gliding skater; NHL '95's gliders keep their own moveq #9 (`$8BBBA`). So this changes the puck alone"
+(comment above `FRICTION_SITE95`; the test checks `$8BBBA` stays `7409`).
+
+### Where it lives: Any skater at any position (`anyPosition`)
+
+| Place | Original | Hacked | Around |
+|---|---|---|---|
+| SelectLinePlayer (`$952F8`), Edit Lines' list for a slot: `bgt.w .n / add.w d0,d1` at `$95312` | `6E00 000C D240` | `4E71 4E71 4E71` | `$9530A` `0242 0007 B47C 0002` (andi.w #7,d2 / cmp.w #2,d2); `$95318` `4EB9 0008 38F2` (jsr GetPlayerCount) |
+
+The original lists only forwards for a forward slot and only defencemen for a defence one, as NHL 94's (`$83A4`).
+"NHL '95 saves a line's raw player bytes (SaveTeamLines $95A90), so unlike NHL 94 nothing else is needed: a defenceman
+saved at forward loads as himself" (comment above `SWITCHES.anyPosition`): **no save hooks**. The test changes exactly
+6 bytes. `anyPosition(project)` (`src/core/anyposition.ts`) tells the team page's lines that any skater may go
+anywhere.
+
+### Applying and removing
+
+`applyNhl95Hacks` (4.7): every setting has a step after section 9's (`settingStep`: the part's `remove`, then its
+`apply` with the wanted value), in the order of `NHL95_HACKS`: `threeStars`, `bodychecks`, `realTime`,
+`penaltySeconds`, `fightSeconds`, `noIcing`, `hybridIcing`, `delayedCalls`, `bCheckPenaltiesOff`, `injuries`,
+`shootoutInjuries`, `fourthPeriodOvertime` (after fighting, "whose copy of the Game Setup choices it sets too"), the
+energy numbers, `hitEnergy` with `injuryBonus` (one hook does both; `injuryCap` has no step of its own), `holdEnergy`,
+the goalie and skating numbers, `choppyIce`, `giveaways`, then `timeOnIce` (with giveaways on, `applyPages95` puts in
+the shared pages). `anyPosition` is in the in-place switch loop with section 9's. An apply with the original value
+writes nothing (`value && ...`, `value > 0 && ...`).
+
+### Detecting
+
+`detectNhl95Hacks`: each setting's `detect`; `undefined` means unknown. Special cases:
+
+- `hitEnergy` / `injuryBonus` / `injuryCap`: the knockdown hook must count exactly when the injury risk is in
+  (`hit.counting === risk.bonus > 0`), else both injury numbers read unknown. With all three risk hooks original:
+  bonus 0, cap 10.
+- `goalieHold`: frames 0 at `$7BB46` reads unknown; `$830FA` hacked reads 0.
+- `giveaways`: the counting code with both scroll limits hacked = on; the pages without the counting code = unknown
+  (and then `timeOnIce` too).
+- `injuries`: the six places must all match one choice's row; `longFall` also needs its block at `$7E98`.
+
+### Interactions
+
+- Fighting: `fourthPeriodOvertime` sets the patch's copy `$1E0E73`; `fightSeconds` hooks penalty code the patch's
+  fights pass through (section 5).
+- `shootoutInjuries` reads the season shootout's kept structs (`$FFF000`-`$FFF6CF`, section 8); it does nothing
+  without a season shootout.
+- `threeStars` scores checks from player `+$11E`, "which NHL '95 counts itself (the bodycheck counts below keep them
+  so)"; `bodychecks` puts them in Player Stats in place of PIM.
+- `giveaways` and `timeOnIce` share the five Player Stats hooks when both are on.
+- RAM: giveaways `$FFEA00`-`$FFEA8F` (and the team totals), injury counts `$FFF700`-`$FFF73F` (section 10).
+
+### Gotchas
+
+- `delayedCalls` needs **both** `$89A10` and `$89A1E`; NHL 94 has one test. One changed reads as unknown.
+- A WN95HL ROM reads `injuries: 'game'`; "off" for injuries is `'original'`, which differs from that ROM's bytes.
+- Store NHL 94's injury numbers; the code does the x 2.5. Don't pre-scale them.
+- Goalie width, out and line each have a negative site; write both or the value reads unknown.
+- `puckFriction` in NHL '95 is the puck's alone; NHL 94's moves gliders too.
+- `goalieDelay` is ten bytes in eight places; write all of them.
+
+### Files and tests
+
+`src/core/nhl95hacks.ts` (section "NHL 94's settings" to `timeOnIce95`, `SETTINGS95`, `detectNhl95Hacks`,
+`applyNhl95Hacks`, `NHL95_HACK_TEXTS`, `NO_NHL95_HACKS`, `NHL95_HACK_RANGES`, `SWITCHES.anyPosition`);
+`src/core/hacks.ts` (`HACK_RANGES`, `site`, `readSite`, `writeSite`, `numberPart`, `switchPart`, `BCHECK_TEXTS`,
+`INJURY_TEXTS`, `holdSeconds`); `src/core/anyposition.ts`; `src/Nhl95HacksPage.tsx` (`SETTING_MORE`, `MORE`,
+`NOT_YET`); `tests/nhl95settings.test.ts` (in-place settings, injuries six ways, hooked rules, energy for hits and
+holds, injury risk scaling, bodychecks and time on ice, giveaways with and without time on ice, the extra period
+length with fighting, every setting at once, the page shows each as tested); `tests/nhl95hacks.test.ts` ("lets Edit
+Lines in %s put any skater at any position, a change in place").
+
+### Status
+
+All tested in the game by the NHL94 Match Viewer project: `NOT_YET` in `Nhl95HacksPage.tsx` is empty, so every setting
+ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
+NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The test "shows every option ... each
+setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
+aebaeb9).
+
+## 12. NHL 94 Genesis: game music (title, end of period, scouting report)
+
+### What it does (for the player)
+
+The Organ songs page's Game music section (`GameMusicSection`, `OrganSongsSection.tsx`) lists NHL 94's three pieces
+besides the organ. **Play** is "a rough idea of a piece in the browser, without its drums"; **Export MIDI** saves each
+part on its own channel and the drums on the drum channel; **Replace** puts in a MIDI file: "you choose a game
+instrument for each of its parts (up to six), its drums play as the game's kick and hit, at most five notes sound at
+once, and the piece plays again from the start when it ends ...; a file much louder than the game's music is played
+more quietly"; **Put back the original**.
+
+### Origin and credit
+
+The sound driver is `src/sound/sound94.asm` of the Genesis disassembly (`genesismusic.ts` header); the three pieces
+are ram94.asm's SngTitle, SngEOP, SngScouting. Match Viewer's play of the first test ROMs gave the end's rest, the
+loudness limit, the octave patches and the instrument names (commits a9d8bc6, 553371b; comments on `OCTAVE_BELOW`,
+`TYPICAL_VELOCITY`, `GAME_INSTRUMENTS`).
+
+### Where it lives
+
+**SoundStreamTable**: found by `soundTable`: the instruction pair `E540 41F9 aaaaaaaa` (`asl.w #2,d0 / lea
+(SoundStreamTable).l,a0`) whose table of `$7B` longs (sounds 0 to `$7A`) are all non-zero, even and inside the ROM.
+Songs are `$30`-`$7A`; the organ songs end at `$77` (`LAST_TEAM_SONG`).
+
+| Number | `GAME_MUSIC` name | Where it plays | Length (test) |
+|---|---|---|---|
+| `$78` | Title music | The title screen and the main menu | 73 s |
+| `$79` | End of period music | Between periods, the pause menu and the playoff screens | 78 s |
+| `$7A` | Scouting report music | The scouting report | 88 s |
+
+**Stream** (`genesismusic.ts` header, `readSong`): 4-byte events: wait in frames (60/s), status (MIDI-like: `$8x` note
+off, `$9x` note on (note, volume; 0 = off), `$Bx` controller (only 7, volume, is read), `$Cx` program, `$Ex` pitch bend;
+`$Ax`, `$Dx`, `$Fx` skipped), two data bytes. Status 0 ends the stream; its data word, if below `$8000`, starts a long
+loop pointer (`loops`). The three pieces loop (test). Notes are MIDI numbers (60 = middle C, up to 95). The pieces play
+on five FM voices shared with the sound effects (header).
+
+In the original pieces (comment above `GAME_MUSIC`; test "reads the title, end of period and scouting report music"):
+a channel playing one note throughout on an FM patch is a drum, the kick (patch 20, note 21, channel 6); a sampled
+patch (`>= $60`, `isSampled`) is the hit (`$6A`, channel 7).
+
+**Game instruments** (`GAME_INSTRUMENTS`, named as Match Viewer heard them) and their MIDI export programs
+(`EXPORT_PROGRAM`, General MIDI program numbers counted from 0):
+
+| Patch | Name | Exported as |
+|---|---|---|
+| 13 | Bass (plucked) | 38 |
+| 14 | Round synth lead, like a whistle (the loudest) | 79 |
+| 10 | Synth brass | 62 |
+| 4 | Soft pad, like strings | 89 |
+| 9 | Warm organ pad | 19 |
+| 1 | Clavinet, like an electric piano | 7 |
+| 3 | Mellow flute lead | 73 |
+| 5 | Buzzy sawtooth lead | 81 |
+| 11 (`ORGAN`) | Organ (the organ songs) | 16 |
+
+`patchForProgram(program)`: an exact `EXPORT_PROGRAM` match first, else by family: 32-39 -> 13; 56-63 -> 10; 78-80,
+82-87 -> 14; 81 -> 5; 64-77 -> 3; 40-55, 88-95 -> 4; 16 -> organ, 17-23 -> 9; 0-15, 24-31 -> 1; else none.
+
+**Octaves**: patches 5, 13 and 14 "sound an octave below the note written for them (Match Viewer measured each
+alone)" (`OCTAVE_BELOW`): export and preview give their notes 12 lower; import writes them 12 higher.
+
+### Export (`gameMusicToMidi`) and preview (`gameMusicTune`)
+
+`channelParts` classifies each channel: patch `NOISE_HAT` (`$7F`, NHL '95's noise, section 13) -> closed hi-hat 42;
+sampled or channel 9 -> snare 38; one pitch only -> kick 36; else a tune on `EXPORT_PROGRAM[patch]` (or synth bass 38 /
+synth brass 62 by average pitch below 50) with -12 for `OCTAVE_BELOW`. The MIDI file: format 0, division 60, tempo
+1,000,000 microseconds a beat (a tick a frame), tunes on their own channels (channel 9 skipped), drums on channel 9,
+velocities as they are ("The pieces' velocities are MIDI's already (the organ songs' are a third of it)"), volume
+controllers kept for tunes, a note starting and ending in one frame left out, the track ending at `song.seconds` so
+the last rest is kept. `gameMusicTune` drops drum channels and applies the octave shift.
+
+### Replacing from MIDI
+
+1. `readMidi` (format 0 or 1) gives the notes, the track name, `end` (the file's last event, so a final rest counts) and
+   each channel's program (`programs`).
+2. `musicParts` lists channels with note count, lowest, highest and average. `defaultPartChoices(parts, programs)`:
+   channel 9 = `'drums'`; a channel with a program goes on `patchForProgram`; of the rest, the lowest goes on the bass
+   (13) if its average is below 55, there is more than one and the bass is free; the others from the highest down get
+   the unused patches in `GAME_INSTRUMENTS` order (not bass or organ); past six tunes (`GAME_MUSIC_PARTS`) `'out'`.
+   The page lets the user change each choice.
+3. `gameMusicFromMidi(notes, choices, end)`:
+   - at most 6 tune parts (else `MidiError`), at least one; each on game channel 0-5 in order, a program change at
+     frame 0;
+   - drums: MIDI notes 35 and 36 -> the kick, note 21 on channel 6 (patch 20); other drums -> the hit, note 76 on channel
+     7 (patch `$6A`), both at most 12 frames; the two program changes added only if a drum sounds;
+   - each part moved by whole octaves (+12 first for 5/13/14), down while its highest is above 95 and its lowest stays
+     at least 12, up while its lowest is below 12 and its highest stays at most 95; only a part too wide has single
+     notes folded into 12-95 (`LOWEST`, `HIGHEST`); `moved` counts notes not where written;
+   - a note is at least 2 frames; the same note on the same channel ends the one sounding;
+   - at most 5 FM notes at once (`FM_VOICES`; the hit, a sample, is not counted): rank kick 3 > bass 2 > others 1; when
+     full, the weakest held (lowest rank, then lowest note) is cut for a stronger note, and a note no stronger is left out
+     (`dropped`);
+   - loudness: if the median velocity of the kept notes is over 60 (`LOUD_VELOCITY`), every velocity is scaled by
+     44 / median (`TYPICAL_VELOCITY`; "Match Viewer heard Brass Bonanza at 96 to 111 do so [clip]"); `quieter` says so;
+   - offs before ons at the same frame; a rest at the file's end becomes a final event with **status `$FF`** (data `FF FF`,
+     which the driver skips) at the end frame.
+4. `withSong(rom, number, events, name)`: `songBytes` with a loop, `claimSpace(rom, size + 1)` (NHL 94's free room,
+   4.5), even address, table entry repointed.
+
+**Stream written** (`songBytes`, the looping custom form):
+
+| Part | Bytes |
+|---|---|
+| first event | `14 FF FF FF` (a 20-frame wait, status `$FF`, as the game's songs start) |
+| events | `wait status d0 d1`; a wait over 255 is split with `FF FF FF FF` events |
+| end (game music) | `00 00` then the 4-byte loop address = **its own start + 4** (just after the first event): "the end's data and the next word are the address" |
+| end (organ song) | `00 00 FF FF` (no loop) |
+| mark | `N4W1` (`4E 34 57 31`), the 4-byte address of the song it replaced, the name (at most 40 characters, non-ASCII as `?`), `00`, a pad byte to even |
+
+`readSong` finds the mark at end + 6 for a looping piece (end + 4 otherwise) and returns `custom: {name, replaced}`.
+
+### Applying and removing
+
+`withOriginalSong(rom, number)` points the table entry back at `custom.replaced` (the new stream's bytes stay in the
+ROM; inferred from the code, which only rewrites the pointer). Replacing a replaced piece keeps the first `replaced`
+address. Song `$30` cannot be replaced ("the game finds which song is playing by it"); game music is allowed by
+`isGameMusic`.
+
+**Project files**: `savedSongs` (`projectfile.ts`) saves `customSongBytes` for the organ songs and, for NHL 94 (not
+NHL '95), the three `GAME_MUSIC` numbers; `withSongBytes` accepts only bytes with the `N4W1` mark, writes this ROM's
+own `replaced`, and repoints the loop to the new start + 4. **Compare** (`compare.ts`): a "Game music" group lists each
+piece whose events changed (`"<name>", from a MIDI file` or "the game's own again"), NHL 94 Genesis only.
+
+### Detecting
+
+`genesisSongsSupported` = the table is found. A piece is NOSE4Web's when the mark follows its end.
+
+### Gotchas
+
+- The table pattern must match exactly; otherwise songs cannot be read or changed.
+- Keep the loop pointer at start + 4; a piece without it stops instead of looping like the game's own.
+- Five FM voices are shared with sound effects; the game's own pieces sound up to nine notes at once (test comment),
+  which the console cuts.
+- Write 5/13/14 notes an octave above how they should sound.
+
+### Files and tests
+
+`src/core/genesismusic.ts` (`soundTable`, `readSong`, `songBytes`, `withSong`, `withOriginalSong`, `GAME_MUSIC`,
+`channelParts`, `GAME_INSTRUMENTS`, `EXPORT_PROGRAM`, `patchForProgram`, `OCTAVE_BELOW`, `musicParts`,
+`defaultPartChoices`, `gameMusicFromMidi`, `gameMusicTune`, `gameMusicToMidi`, `customSongBytes`, `withSongBytes`);
+`src/OrganSongsSection.tsx` (`GameMusicSection`); `src/core/projectfile.ts` (`savedSongs`); `src/core/compare.ts`;
+`tests/genesismusic.test.ts` ("reads the title, end of period and scouting report music ...", "replaces the title
+music with a MIDI file ...", "brings a loud MIDI file down ...", "moves a part by whole octaves into range ...", "puts
+the game's own title music back in from its exported MIDI file ...").
+
+### Status
+
+Tested in the game by the NHL94 Match Viewer project (`GameMusicSection`'s NHL 94 text ends "Tested in the game by the
+NHL94 Match Viewer project."; commit a54165e "NHL 94's game music replaced from MIDI files: tested in the game").
+
+## 13. NHL '95: game music (title, end of period, scouting report)
+
+### What it does (for the player)
+
+The same Game music section (`GameMusicSection`) shows NHL '95's three pieces with **Play** and **Export MIDI** only:
+"Replacing these is still to come for NHL '95." (no Replace button when `nhl95`).
+
+### Origin and credit
+
+sound95.asm's `song` sends songs 0 to 3 to StartSong; where each plays is read from title95.asm, hockey95.asm,
+PeriodOver_sp and scout95.asm (comment above `NHL95_GAME_MUSIC`, `nhl95music.ts`).
+
+### Where it lives
+
+Type-3 items in SoundBanks (`findBankItem(rom, SONG, number)`; bank format in section 6), stream format as the organ
+songs' (`readNhl95Stream`, section 6).
+
+| Id | `NHL95_GAME_MUSIC` name | Where it plays | Length (test, retail and W18) |
+|---|---|---|---|
+| 0 | Title music | The title screen, the credits and the main menu | 71 s |
+| 1 | (not listed) | "played by nothing"; `readNhl95Music(rom, 1)` is null | |
+| 2 | End of period music | Between periods | 65 s |
+| 3 | Scouting report music | The scouting report, the playoff screen and the Stanley Cup screen | 70 s |
+
+They "play on the front end's FM patches and two of the sound chip's square-wave voices: patch `$13` is its noise, the
+hi-hats".
+
+`readNhl95Music(rom, number)` returns NHL 94-style events (`songEvents`): notes 12 lower (`PITCH`, section 6), each note
+given an off at its length (at least 1 frame), velocities as they are (divisor 1; the organ songs' are divided by 3),
+and patch `$13` turned into `NOISE_HAT` (`$7F`), which `gameMusicToMidi` exports as closed hi-hat 42 on channel 9;
+`loops: true`, `custom: null`. `readNhl95Song` (organ songs only) returns null for these ids (test).
+
+### Applying and removing
+
+Nothing is written; replacement is not built. Project files and Compare skip NHL '95's game music (`edition === 95`
+checks in `projectfile.ts` and `compare.ts`). Commit b5baf6b: "Replacing them waits on Match Viewer's tests of NHL
+'95's voices."
+
+### Gotchas
+
+- Ids 0-3 are not organ songs (`$32`-`$55`); don't read them with the organ reader.
+- The hi-hats are on a PSG noise voice, not FM.
+
+### Files and tests
+
+`src/core/nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`, `songEvents`, `NOISE_PATCH`); `src/core/genesismusic.ts`
+(`NOISE_HAT`, `gameMusicToMidi`, `gameMusicTune`); `src/OrganSongsSection.tsx` (`GameMusicSection`);
+`tests/nhl95music.test.ts` ("reads the title, end of period and scouting report music, and exports each as MIDI, the
+hi-hats as drums").
+
+### Status
+
+Play and export only; not marked as tested in the game (the page text has no "Tested" line for NHL '95). Replacement
+not built.
+
+## 14. NHL '94 SNES: game music and the real-sample player
+
+### What it does (for the player)
+
+`SnesGameMusicSection` (`OrganSongsSection.tsx`): "Play plays a piece on the game's own instruments. Export MIDI saves
+it as a MIDI file, each of its parts on a track of its own named as the game names it, and the drums on the drum
+channel. Replacing them is still to come." The SNES organ songs' Play uses the same real-sample player with the game
+set (`snesMusicSound(project.bytes, pointer, 'game')`).
+
+### Origin and credit
+
+The SNES disassembly's routines/sound (MusicStart, StepTrack, ReadTrackEvent, StartSoundVoice) and the sound CPU
+program `data/tables/SoundDriver.asm` (headers of `snesmusic.ts`, `snesaudio.ts`).
+
+### Where it lives: the pieces
+
+`SNES_GAME_MUSIC` (long pointers, LoROM: `loRomOffset(bank, address)`), "at the same places in every SNES ROM the editor
+knows":
+
+| Pointer | Name | Where it plays | Sample set | Parts, length (test) |
+|---|---|---|---|---|
+| `$8FDD32` | Title music (TitleSong) | The title screen | `title` | 13, 88 s |
+| `$90C20C` | Menu music (MenuSong) | The main menu, and between periods early in the playoffs | `menu` | 14, 70 s |
+| `$93ED31` | Playoff music (PlayoffSong) | The playoff screen, and between periods from the second round on | `menu` | 14, 28 s |
+
+**Song format** (`snesmusic.ts` header, `readSnesMusic`): byte 0 must be 1 (checked; its meaning is not stated), byte 1
+the tempo, byte 6 the track count (2-17 accepted), from byte 8 a little-endian word per track (offset from the song).
+Ticks: `TempoTick = $2760 / tempo`; TempoAcc gains `$40` a frame, so ticks a second = `60 x $40 / floor($2760 /
+tempo)` (157 = a tick a frame). A track: variable-length wait (7 bits a byte, high bit = more), then a code:
+
+| Code | Meaning | Data after it |
+|---|---|---|
+| below `$D9` | note (game music: the MIDI number, kept if <= 127; organ songs: MIDI + 104) | velocity byte, variable-length length in ticks (no note off) |
+| `$D9`, `$DA` | end of the song (the first track there stops the music) | |
+| `$DB` | the loop's end ("then the stop ($D9): the piece plays again from its loop's start") | |
+| `$E7` | text: length byte, that many bytes; the first names the part (EA's names, e.g. `BASS #2`, `HORN (L) #16`) | |
+| `$DF`, `$E5` | (skipped) | 2 bytes |
+| `$DC` (instrument), `$DD`, `$DE`, `$E2`, `$EA` | (skipped) | 1 byte |
+
+A track named `drums` plays a drum for each note.
+
+### Export (`snesMusicToMidi`) and preview (`snesMusicTune`)
+
+MIDI **format 1**, division 60, tempo 1,000,000 microseconds a beat (a tick a frame); track 0 has the name and tempo;
+then one track per part with notes, named with EA's track name (`FF 03`). Tunes get channels in order (9 skipped, at most
+16) and a General MIDI program guessed from the name (`PROGRAMS`, counted from 0): `bass` 38, `horn|bsec|brass` 61,
+`orgn|organ` 16, `apower|dist|chug` 30, `orch` 55, `timp` 47, else 62. The `drums` part goes on channel 9 as it is; a
+part of one percussion sound goes there as that drum (`SINGLE_DRUMS`: `crash|crsh` 49, `cow` 56, `hat` 46).
+`snesMusicTune` gives NHL 94 Genesis-style events without drum parts (velocity / 3) for the rough preview.
+
+### Where it lives: the sound (`snesaudio.ts`)
+
+**Sample sets** uploaded to the sound CPU before music plays: SPCTitleUpload (TitleSampleList, 15 samples) for the title
+music; SPCMenuUpload (MenuSampleList, 16) for the menus and the playoff screen; SPCGameUpload (GameSampleList, 20) for
+games, where the organ songs play. Each hands SoundInit an instrument table: MenuSfxTable for the first two, GameSfxTable
+in games. Test: the menu set's first 12 samples are the title set's.
+
+**Found by code** (`findSnesSound`, `locate`), so no fixed addresses:
+
+| Pattern | Code | Gives |
+|---|---|---|
+| `UPLOAD` | the upload routines: `lda #table>>16 / sta SoundTable+2 / lda #table / sta SoundTable / jsl SoundInit / ldx #0 / lda.l list,x / ... / jsl SPCUploadBlock / ... / cpx #(4 x count)` | table, sample list, count; count / 4 = 15 title, 16 menu, 20 game (`COUNTS`) |
+| `PITCH` | StartSoundVoice: `asl / tax / rep #$20 / lda.l PitchTable,x / ...` | PitchTable |
+| `VOLUME` | StartSoundVoice: `ldx EventData1 / lda.l VolumeCurve,x / and #$FF / cmp #$40` | VolumeCurve |
+
+The sample list has a 3-byte long pointer every 4 bytes. Checks: every sample header valid; PitchTable note 69 about
+twice note 57 and note 1 above note 0. Any failure returns null, and Play "keeps to the rough preview" (test).
+
+**Instrument table**: a word offset from the table for each entry (`entryAt`: `table + word[table + (2 x index & $FF)]`),
+entries 48 bytes:
+
+| Byte | Meaning |
+|---|---|
+| 0 | the voices it may use (a bit each) |
+| 2-3 | tuning (added to the pitch) |
+| 4 | transpose (added to the note) |
+| `$0A`-`$0B` | gain word |
+| `$10`-`$11` | release word |
+| `$12`, `$13` | left, right volume |
+| `$14` | sample |
+| `$15`, `$16` | ADSR |
+| `$2A` | priority |
+| `$2F` | pitch bend range in notes |
+
+Bytes `$18`-`$21` (vibrato) are 0 in the instruments the music uses. Test values: menu instrument 2 (the bass) = sample
+1, transpose 21, tuning 0, voices `$20`; game instruments 11 and 12 (the organ, left and right) = sample 10.
+
+**Sample**: a 4-byte header, loop point then length in bytes, both high byte first (length a multiple of 9), then BRR
+blocks (`decodeBrr`: 9 bytes, header bits 4-7 shift, 2-3 filter, 1 loop, 0 end; 16 4-bit samples, high nibble first).
+Test: the menu bass is 2160 bytes looping from byte 1818; the kick 1350 bytes, no loop.
+
+**Pitch**: `snesNotePitch` = PitchTable word at `(note x 2) & $FF` ("the index's top bit lost as the game's 8-bit index
+loses it"); a note's pitch is PitchTable[note + transpose] plus the tuning; rate = `32000 x (pitch & $3FFF) / $1000`
+(`snesPitchRate`). Test: note 69's pitch is `$6BA`. Track 9 is the drums: "each note picks the instrument entry (note -
+$2F), and plays at note $3F + its transpose".
+
+**`renderSnesMusic(rom, pointer, set, render = true)`**: runs the sequencer as SoundUpdate does once a frame
+(UpdateSfxVoices, SequencerTick, UpdateVoices, StepTrack, FindFreeVoice, VolumeCurve[velocity], pitch bend `$E5`), then
+the DSP per voice: BRR at the pitch rate, ADSR or GAIN after release (GAIN `$9F/$99/$8C/$81` by the release word's high
+byte), left/right volume, main volume `$50`. Echo off. "The DSP's own interpolation is Gaussian; here it is a 4-point
+kernel shaped like it, so the sound is close but not to the bit"; vibrato, music ducking and PAL timing left out. Plays
+once through (to the loop's end or the stop), voices ring up to 2 s after, at most 10 minutes. Returns `notes` (start,
+release, end, voice, track, note, sample, rate, volumes, ADSR), `seconds`, and stereo `Float32Array`s at 32000 Hz.
+
+**`src/snesplayer.ts`**: `snesMusicSound(rom, pointer, set)` renders (null on error or no sound) and keeps the last 4
+renders; `playSnesSound` plays it as one stereo Web Audio buffer at 32000 Hz, gain 0.8 x volume.
+
+### Applying and removing
+
+Read only; replacement of the game music is not built. (The SNES organ songs can be replaced: `withSnesSong`,
+`snesmusic.ts`; not documented here.)
+
+### Gotchas
+
+- Game music note codes are MIDI numbers; organ songs' are MIDI + 104.
+- Use the right sample set: title music on `title`, menu and playoff on `menu`, organ songs on `game`.
+- The PitchTable index wraps at `$FF` bytes, as the game's does.
+
+### Files and tests
+
+`src/core/snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicTune`, `snesMusicToMidi`, `PROGRAMS`,
+`SINGLE_DRUMS`); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
+`snesNotePitch`, `snesPitchRate`, `renderSnesMusic`); `src/snesplayer.ts`; `src/OrganSongsSection.tsx`
+(`SnesGameMusicSection`); `tests/snesmusic.test.ts` ("reads the title, menu and playoff music in %s, and exports each as
+MIDI, a track a part"); `tests/snesaudio.test.ts` (BRR filters, sample sets and tables, a ROM whose sound code differs,
+a real sample, game music as voice notes, drums and a horn at pitch, an organ song on the game set, render time).
+
+### Status
+
+Play and export only. The real-sample player is a **browser preview, not game-tested**: it imitates the console from
+the disassembly (and is "close but not to the bit"); the page text has no "Tested" line. Replacement not built.
+
+## 15. Feature status
 
 "Game-tested" follows the page texts ("Tested in the game by the NHL94 Match Viewer project" vs. "Not yet tested
 in the game"). For NHL 94 Genesis and SNES, each option on `HacksPage.tsx` / `SnesHacksPage.tsx` carries its own
@@ -859,8 +1466,9 @@ line; check there.
 | 3 on 3 overtime | `nhl95hacks.ts` (`OT3_*`) | Yes | **Yes (8)** |
 | Fixes: assists x3, aggression, comeback, rocket pass, open net, blind ring, runaway, goalie pull, sniping, penalty shot x2, pass direction, ppPk, faceoff, awareness, stick shots | `nhl95hacks.ts`, `hacks.ts` | Yes | **Yes (9)** |
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
-| Any skater at any position | `nhl95hacks.ts` | **Not yet** | No (pending; RAM in 10) |
-| NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy (7), goalie (5), skating/puck (4) | `nhl95hacks.ts` | **Not yet** | No (pending; RAM in 10) |
+| Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
+| NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
+| Game music (title, end of period, scouting report): play and export | `nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`), `genesismusic.ts` | No (not marked) | **Yes (13)** |
 
 ### NHL 94 Genesis
 
@@ -869,6 +1477,7 @@ line; check there.
 | Rosters, ratings, lines, team colours, settings | `team.ts`, `attributes.ts`, `settings.ts` | No |
 | Logos, banners, lettering, photos, score logos, splash, menu picture, announcer, credits | `graphics.ts`, `pictureset.ts`, `lettering.ts`, `photos.ts`, `genesisscorelogos.ts`, `splash.ts`, `menupicture.ts`, `announcer.ts`, `credits.ts` | No |
 | Organ songs and team songs | `genesismusic.ts`, `teamsongs.ts` | No |
+| Game music (title, end of period, scouting report): play, export, replace from MIDI (tested in the game) | `genesismusic.ts` (`GAME_MUSIC`, `gameMusicFromMidi`, `gameMusicToMidi`), `OrganSongsSection.tsx` (`GameMusicSection`) | **Yes (12)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
@@ -879,16 +1488,20 @@ line; check there.
 | Rosters, lines, team names, ratings, colours, settings, menu, rink | `snesteam.ts`, `snessettings.ts`, `snesmenu.ts`, `snesrink.ts`, `snesplacenames.ts` | No |
 | Logos, centre ice logos, name blocks, photos, score logos | `snespictures.ts`, `huffman.ts`, `lz.ts`, `snesblock*.ts`, `snesphotos.ts`, `snesscore*.ts` | No |
 | Songs and team songs | `snesmusic.ts`, `snessongs.ts` | No |
+| Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
 
 ### Planned / not built
 
-- NHL '95 title, menu and end-of-period music: research done, not built (from the project owner; nothing in the
-  code yet).
+- NHL '95 game music **replacement**: not built ("Replacing these is still to come for NHL '95.",
+  `GameMusicSection`). Playing and exporting it is built (section 13). (Corrected: this line used to say NHL '95's
+  title, menu and end-of-period music had nothing in the code.)
+- SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
+  exporting it is built (section 14).
 
-## 12. How to extend this document
+## 16. How to extend this document
 
-Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 11.
+Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 15.
 Copy this template; cite file and function names for every fact and mark inferences.
 
 ```markdown
