@@ -3465,7 +3465,7 @@ export function hacksCopiedFrom(current: HackState, other: HackState): { choices
     if (value === current.choices[key]) continue
     const part = HACK_PARTS[key]
     if (other.unknown.includes(part) || current.unknown.includes(part)) {
-      notCopied.push(`${HACK_TITLES[key]}: one of the two ROMs has code here the editor does not know.`)
+      notCopied.push(`${HACK_TITLES[key]}: one of the two ROMs has its own changes here, which the editor does not recognise.`)
     } else if (earlier(key, value)) {
       notCopied.push(`${HACK_TITLES[key]}: the other ROM has ${hackValueText(key, other.choices)}, which can be kept but not put into another ROM.`)
     } else {
