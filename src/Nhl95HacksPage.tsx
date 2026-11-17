@@ -49,6 +49,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
+  anyPosition: 'Edit Lines lists every skater for every position.',
 }
 
 const FIGHT_START = 'Fighting setting at power-on'
@@ -69,6 +70,14 @@ const OT3_MORE = (
 )
 
 const MORE: Record<Nhl95Hack, ReactNode> = {
+  anyPosition: (
+    <p className="note">
+      The game's Edit Lines lists only forwards for the forward positions and only defencemen for the defence. With
+      this on it lists every skater for every position. A player plays the position the line gives him, with his own
+      ratings. Saved lines keep him there, even on a ROM without this. The team page's lines can then take anyone too.
+      NHL 94's option, at NHL '95's place (also in the WN95HL's ROMs). Not yet tested in the game.
+    </p>
+  ),
   ppPkFix: (
     <p className="note">
       The game adds a team's power play rating to some of each player's ratings on the power play and takes its

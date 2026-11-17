@@ -5,6 +5,7 @@ import { compareProjects } from '../src/core/compare'
 import { FACEOFF_CODE, NHL_SHOOTOUT_CODE, PASS_CODE, RING_CODE, STICK_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
 import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
+import { anyPosition } from '../src/core/anyposition'
 import { hasPpPkFix } from '../src/core/ppfix'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
@@ -500,5 +501,16 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const on = applyNhl95Hacks(rom, all)
     expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS, ...all }, unknown: [] })
     expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+  })
+
+  it.each(names)('lets Edit Lines in %s put any skater at any position, a change in place', (name) => {
+    const rom = open(name)
+    expect(anyPosition(rom)).toBe(false)
+    const on = applyNhl95Hacks(rom, { anyPosition: true })
+    expect(Buffer.from(on.bytes.subarray(0x95312, 0x95318)).toString('hex')).toBe('4e714e714e71')
+    expect(on.bytes.reduce((n, b, i) => n + (b !== rom.bytes[i] ? 1 : 0), 0)).toBe(6)
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, anyPosition: true })
+    expect(anyPosition(on)).toBe(true)
+    expectSameBytes(applyNhl95Hacks(on, { anyPosition: false }).bytes, rom.bytes)
   })
 })

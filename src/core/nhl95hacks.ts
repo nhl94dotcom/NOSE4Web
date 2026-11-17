@@ -39,10 +39,11 @@ export type Nhl95Hack =
   | 'faceoffFix'
   | 'awarenessFix'
   | 'stickShots'
+  | 'anyPosition'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'stickShots']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'stickShots', 'anyPosition']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -73,6 +74,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   faceoffFix: false,
   awarenessFix: false,
   stickShots: false,
+  anyPosition: false,
 }
 
 export interface Nhl95HackState {
@@ -111,6 +113,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   faceoffFix: 'Faceoff spot fix',
   awarenessFix: "Computer forwards' awareness fix",
   stickShots: 'Count stick deflections as shots',
+  anyPosition: 'Any skater at any position',
 }
 
 const hex = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
@@ -183,6 +186,11 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
     original: hex('11E8 0001 CAF0 0238 000F CAF0 6000 000E 1028 0001 E808 4400 11C0 CAF1'),
     hacked: hex('1028 0001 E808 11C0 CAF0 4E71 6000 000E 700F C028 0001 4400 11C0 CAF1'),
   },
+  // - SelectLinePlayer ($952F8), Edit Lines' list for a slot: bgt.w .n / add.w d0,d1 at $95312 lists only forwards for
+  //   a forward slot and only defencemen for a defence one, as NHL 94's ($83A4). NOPs list every skater for each.
+  //   NHL '95 saves a line's raw player bytes (SaveTeamLines $95A90), so unlike NHL 94 nothing else is needed: a
+  //   defenceman saved at forward loads as himself.
+  anyPosition: { at: 0x95312, original: hex('6E00 000C D240'), hacked: hex('4E71 4E71 4E71') },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -201,6 +209,10 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
     { at: 0x84cd0, bytes: hex('0838 0000 BF00') },
   ],
   penaltyShotTableFix: [{ at: 0x9ef02, bytes: hex('207C 0008 9FFC') }], // PenShotChk's movea.l #PenShotPenalties,a0
+  anyPosition: [
+    { at: 0x9530a, bytes: hex('0242 0007 B47C 0002') }, // andi.w #7,d2 / cmp.w #2,d2
+    { at: 0x95318, bytes: hex('4EB9 0008 38F2') }, // jsr GetPlayerCount
+  ],
   ppPkFix: [
     { at: 0x839ce, bytes: hex('4EB9 0007 D894 6700 0012') }, // jsr chkpk2 / beq.w .pk
     { at: 0x839f4, bytes: hex('1028 0002 0200 000F') }, // d0 loaded afresh after either
@@ -864,6 +876,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     faceoffFix: faceoffState(rom),
     awarenessFix: awareState(rom),
     stickShots: stickState(rom),
+    anyPosition: switchState(rom, 'anyPosition'),
   }
   return {
     choices: Object.fromEntries(NHL95_HACKS.map((hack) => [hack, found[hack] ?? false])) as Nhl95HackChoices,
@@ -900,7 +913,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -952,6 +965,7 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  anyPosition: "Edit Lines lists every skater for every position, so a defenceman can play forward or a forward defence.",
   ppPkFix:
     "A team's power play and penalty kill ratings work as written: the game read them from the wrong halves of their byte, so teams meant to be weak at both had the best power play.",
   faceoffFix:
@@ -1007,6 +1021,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
   { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'faceoffFix', 'penaltyShotTableFix', 'penaltyShotFixes'] },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade'] },
+  { id: 'lines', title: 'Edit Lines', hacks: ['anyPosition'] },
   { id: 'sound', title: 'Sound', hacks: ['organResume'] },
 ]
 
