@@ -1,7 +1,7 @@
 import { readU16, readU32, reorderEntries, writeU16, writeU32 } from './bytes'
 import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
 import type { GameConfig } from './games'
-import { claimSpace } from './space'
+import { claimSpace, claimSpace95 } from './space'
 
 // Team pictures: the logo at centre ice, the logo on the main menu, and the
 // name banners shown on the menus and during play.
@@ -818,17 +818,22 @@ function planSpace(rom: Uint8Array, game: GameConfig): SpacePlan | null {
   return { banners, logos, size }
 }
 
+// Room for the pictures' new place: in NHL '95, clear of the fighting patch's place (and, as before, not before
+// the data the WN95HL's ROMs keep at the end).
+const claimPictureSpace = (rom: Uint8Array, game: GameConfig, size: number) =>
+  game.edition === 95 ? claimSpace95(rom, size, false, false) : claimSpace(rom, size)
+
 // What giving the pictures more room would do, or null if they have it already.
 export function pictureSpace(project: Source): { romSize: number; grows: boolean } | null {
   const plan = planSpace(project.bytes, project.game)
-  const claimed = plan && claimSpace(project.bytes, plan.size)
+  const claimed = plan && claimPictureSpace(project.bytes, project.game, plan.size)
   return claimed ? { romSize: claimed.rom.length, grows: claimed.rom.length > project.bytes.length } : null
 }
 
 export function expandPictureSpace<P extends Source>(project: P): P {
   const { game } = project
   const plan = planSpace(project.bytes, game)
-  const claimed = plan && claimSpace(project.bytes, plan.size)
+  const claimed = plan && claimPictureSpace(project.bytes, game, plan.size)
   if (!plan || !claimed) return project
   const where = layout(project.bytes, game)
   const rom = claimed.rom

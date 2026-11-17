@@ -2,7 +2,7 @@ import { isGenesis94 } from './games'
 import { creditsAt, parseCredits } from './credits'
 import { readU32, writeU32 } from './bytes'
 import type { RomProject } from './rom'
-import { claimSpace } from './space'
+import { claimSpace, claimSpace95 } from './space'
 
 // Ports NOSE's two "Apply Hack > Free Bytes" operations. In the original ROM
 // the team data is followed directly by the playoff draw tables and then the
@@ -30,7 +30,7 @@ export function nextExpansion(project: RomProject): Expansion | null {
   if (game.edition === 95) {
     // Once, from the first megabyte; a league ROM that has moved them already has its own room.
     if (layout.slots || layout.start >= 0x100000) return null
-    const claimed = claimSpace(bytes, layout.end - layout.start + NHL95_TEAM_ROOM, true)
+    const claimed = claimSpace95(bytes, layout.end - layout.start + NHL95_TEAM_ROOM, true, false)
     return claimed ? { step: 'moveTeams', gain: NHL95_TEAM_ROOM, romSize: claimed.rom.length } : null
   }
   // Other games' opening text is not where the editor can move it.
@@ -61,7 +61,7 @@ export function expandTeamSpace(project: RomProject): RomProject {
 
   if (expansion.step === 'moveTeams') {
     const size = layout.end - layout.start
-    const moved = claimSpace(project.bytes, size + gain, true)
+    const moved = game.edition === 95 ? claimSpace95(project.bytes, size + gain, true, false) : claimSpace(project.bytes, size + gain, true)
     if (!moved) return project
     moved.rom.copyWithin(moved.at, layout.start, layout.end)
     return { ...project, bytes: moved.rom, layout: { ...layout, start: moved.at, end: moved.at + size + gain } }

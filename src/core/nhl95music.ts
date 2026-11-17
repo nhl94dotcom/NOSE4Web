@@ -32,7 +32,7 @@
 // is put back as it was, as an empty bank would have the search go through
 // 65,536 items of whatever follows it.
 
-import { claimBeforeTail, claimSpace, fullRomReason, releaseSpace } from './space'
+import { claimSpace95, fullRomReason, releaseSpace } from './space'
 import { DRUMS, FRAMES_PER_SECOND, isSampled, MidiError, ORGAN, planOrganNotes, SongError, type MadeSong, type MidiNote, type Song, type SongEvent } from './genesismusic'
 
 export const NHL95_FIRST_SONG = 0x32
@@ -362,7 +362,7 @@ function withOwnSongs(rom: Uint8Array, songs: Map<number, Uint8Array>): Uint8Arr
   }
   for (const number of numbers) block.push(...songs.get(number)!)
   // As the NHL '95 hacks' code: after the end mark, or in the WN95HL's ROMs before the data they keep at the end.
-  const claimed = claimSpace(next, block.length, true) ?? claimBeforeTail(next, block.length)
+  const claimed = claimSpace95(next, block.length)
   if (!claimed) throw new SongError(`There is no room left in this ROM for the song.${fullRomReason(next)}`)
   next = claimed.rom
   block.splice(0, 4, ...long(claimed.at + 16))

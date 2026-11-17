@@ -69,6 +69,28 @@ function claimBelow(rom: Uint8Array, size: number, limit: number): { rom: Uint8A
   return { rom: rom.slice(), at }
 }
 
+// Where the NHL '95 fighting patch's code has to go (nhl95fightdata.ts: its jumps and pointers are to there).
+// While it is unused, room for anything else is found clear of it, so that the patch can always be put in.
+export const NHL95_FIGHT_ROOM = { start: 0x1e0000, end: 0x1e0f4c }
+
+// Room for `size` bytes in an NHL '95 ROM: as claimSpace, or in the WN95HL's ROMs before the data they keep at the
+// end (claimBeforeTail; not with `beforeTail` false), but never over the fighting patch's place while that is
+// unused. Where the room found would reach into it, it is found again as if the place were taken, so after it; where
+// the room ends before it, it is where it would have been.
+export function claimSpace95(rom: Uint8Array, size: number, keepMark = true, beforeTail = true): { rom: Uint8Array; at: number } | null {
+  const claim = (bytes: Uint8Array) => claimSpace(bytes, size, keepMark) ?? (beforeTail ? claimBeforeTail(bytes, size) : null)
+  const { start, end } = NHL95_FIGHT_ROOM
+  const first = claim(rom)
+  const clear = rom.length >= end && rom.subarray(start, end).every((byte) => byte === UNUSED)
+  if (!first || !clear || first.at >= end || first.at + size <= start) return first
+  const masked = rom.slice()
+  masked.fill(0, start, end)
+  const second = claim(masked)
+  if (!second) return null
+  second.rom.fill(UNUSED, start, end)
+  return second
+}
+
 // Room for `size` bytes in a ROM whose last part is another tool's data, as the WN95HL's NHL '95 ROMs keep
 // theirs (tiles and text) at the very end: at the start of the run of unused bytes just before that part, where
 // the run is long enough (BLOCK at least) that it is surely unused and not part of a picture. Null where there

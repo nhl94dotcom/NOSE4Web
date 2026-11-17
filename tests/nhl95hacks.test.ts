@@ -8,6 +8,8 @@ import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl9
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { changesSince, startSeason } from '../src/core/season'
+import { FIGHT95_AT, FIGHT95_BLOCK } from '../src/core/nhl95fightdata'
+import { claimSpace95, NHL95_FIGHT_ROOM } from '../src/core/space'
 import { expectSameBytes } from './samebytes'
 
 // NHL '95 (USA) at ../NHL95/NHL_95.bin, and any NHL '95 league ROMs named in local.json's nhl95Roms.
@@ -421,5 +423,31 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(hex(on.bytes, restore + 0x14a, 8)).toBe('31f8ac56ac584e75')
     expect(hex(on.bytes, restore + 0x15e, 6)).toBe('4eb90000b4dc')
     expectSameBytes(applyNhl95Hacks(on, { organResume: false }).bytes, rom.bytes)
+  })
+
+  it.each(names)('keeps the fighting patch’s place free in %s: room that would reach it is found after it', (name) => {
+    const rom = open(name)
+    // The place is the patch's own, as long as its code.
+    expect(NHL95_FIGHT_ROOM.start).toBe(FIGHT95_AT)
+    expect(NHL95_FIGHT_ROOM.end).toBe(FIGHT95_AT + FIGHT95_BLOCK.length / 2)
+    const { start, end } = NHL95_FIGHT_ROOM
+    // Small room is where it always was, before the place.
+    const small = claimSpace95(rom.bytes, 0x100)!
+    expect(small.at + 0x100).toBeLessThanOrEqual(start)
+    // A ROM used up to just before the place: small room there would reach into it, so it goes after it.
+    const full = rom.bytes.slice()
+    full.fill(0x11, small.at, start - 0x40)
+    const big = claimSpace95(full, 0x100)!
+    expect(big.at).toBeGreaterThanOrEqual(end)
+    expect(big.rom.subarray(start, end).every((byte) => byte === 0xff)).toBe(true)
+    // Room that ends before the place stays there.
+    expect(claimSpace95(full, 0x20)!.at + 0x20).toBeLessThanOrEqual(start)
+    // So with data after it, fighting still goes in.
+    const filled = big.rom.slice()
+    filled.fill(0x11, big.at, big.at + 0x100)
+    const fight = applyNhl95Hacks({ ...rom, bytes: filled }, { fighting: true })
+    expect(detectNhl95Hacks(fight.bytes).choices.fighting).toBe(true)
+    // Once the patch is in, the place is the patch's, and room is found as usual.
+    expect(claimSpace95(fight.bytes, 0x100)!.at + 0x100 <= start || claimSpace95(fight.bytes, 0x100)!.at >= end).toBe(true)
   })
 })

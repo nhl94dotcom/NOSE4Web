@@ -4,7 +4,7 @@ import { assistFixes, hookedFix, NHL_SHOOTOUT_CODE, PASS_CODE } from './hacks'
 import type { HackSheet } from './hacksheet'
 import { FIGHT95_AT, FIGHT95_BLOCK, FIGHT95_CHOICES_AT, FIGHT95_HOOKS, FIGHT95_LABELS_AT } from './nhl95fightdata'
 import type { RomProject } from './rom'
-import { claimBeforeTail, claimSpace, fullRomReason } from './space'
+import { claimSpace95, fullRomReason } from './space'
 
 // Hacks to NHL '95 for the Genesis. NHL 94's hacks are made for NHL 94's code;
 // these are NHL '95's own, or NHL 94's where NHL '95 has the same code at
@@ -117,7 +117,7 @@ const hex = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../
 // at the very end, as the WN95HL's ROMs keep tiles and text there, at the start
 // of the long run of unused bytes before it (claimBeforeTail).
 function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
-  const claimed = claimSpace(work.rom, code.length, true) ?? claimBeforeTail(work.rom, code.length)
+  const claimed = claimSpace95(work.rom, code.length)
   if (!claimed) throw new Nhl95HackError(`There is no room left in this ROM for the code this needs.${fullRomReason(work.rom)}`)
   work.rom = claimed.rom
   work.rom.set(code, claimed.at)
