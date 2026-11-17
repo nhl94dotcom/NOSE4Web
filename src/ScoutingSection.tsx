@@ -42,27 +42,27 @@ export function ScoutingSection({ settings, original, onChange }: Props) {
         </span>
       </p>
       <p className="note">
-        What the announcer says in the text box before each game, typed out a word at a time. The game picks its lines by number, so the lines stay as
-        many as they are: change what each says, or leave one empty. Words in braces are stand-ins the game fills in, as{' '}
-        <code>{'{home city}'}</code>; type them as listed below. The box is {SCOUTING_WIDTH[platform]} letters wide and wraps between words.
+        What the announcer says in the text box before each game, typed out a word at a time. You can change what each line says, or leave one
+        empty, but not add or remove lines. Words in braces, such as <code>{'{home city}'}</code>, are stand-ins the game fills in; type them as
+        listed below. The box is {SCOUTING_WIDTH[platform]} letters wide and wraps between words.
         {snes ? ' The game has no "&".' : ' The game has no "&", and shows ( and ) as small angle brackets.'}
         {snes
-          ? ' The room counts the team places stored before the script, which the game never shows: they are emptied if the lines need their room.'
-          : ' The line the original game never shows is room too: empty it to make others longer.'}
+          ? ' If the lines need more room, some hidden place names the game never shows are emptied to make it.'
+          : ' The line the original game never shows can be emptied to make room for longer lines.'}
       </p>
       {scouting.missing ? (
         <p className="error">
-          This ROM's script has {scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand: the
-          lines after show in the wrong places, the home team's hot and cold line between every paragraph, and when one team is much hotter the game
-          reads its last line from past the script and freezes (found by the NHL94 Match Viewer project).{' '}
+          This ROM's text is missing {scouting.missing === 1 ? 'a line' : `${scouting.missing} lines`}, as if taken out by hand, so the lines after it
+          show at the wrong times (the home team's hot and cold line between every paragraph), and the game can freeze when one team is much hotter
+          than the other (found by the NHL94 Match Viewer project).{' '}
           <button type="button" onClick={() => onChange({ ...settings, scouting: scoutingWithMissingLines(scouting) })}>
             Put the missing {scouting.missing === 1 ? 'line' : 'lines'} back
           </button>{' '}
-          adds {scouting.missing === 1 ? 'it' : 'them'}, empty, as the empty line between paragraphs, so every line is where the game reads it. Where the text fills the room, each line put back takes a space from the longest run of spaces.
+          adds {scouting.missing === 1 ? 'it' : 'them'} back, empty, so every line shows at the right time. If the text fills the room, each line put back takes one space out of the longest run of spaces.
         </p>
       ) : null}
       {scouting.lines.some((line) => line.role === null) && (
-        <p className="note">This ROM chooses its lines with code of its own, so which line shows when is not known here: they are listed in order.</p>
+        <p className="note">This ROM chooses its lines its own way, so when each line shows is not known here: they are listed in order.</p>
       )}
       <ol className="scouting">
         {scoutingOrder(scouting).map((i) => {

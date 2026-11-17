@@ -121,9 +121,9 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
               <NumberField className="seconds" min={FEWEST_MENU_TEAMS} max={teamNames.length} value={settings.menuTeams.offered} onValue={setTeamsInMenu} />
             </label>{' '}
             <span className="note">
-              of {teamNames.length}. The menu offers only the first so many teams in the team list, for a league smaller
-              than the ROM: put the league's teams first. The teams after them stay in the ROM. The demo and new playoffs
-              keep to these teams too, and with 18 or more so do the other scores of the day.
+              of {teamNames.length}. For a league smaller than the ROM: the menu offers only this many teams, from the
+              top of the team list, so put the league's teams first. The teams after them stay in the ROM. The demo and
+              new playoffs stick to these teams too, and with 18 or more so do the other scores of the day.
             </span>
           </p>
         )}
@@ -249,10 +249,9 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
                 seconds or less left.
               </p>
               <p className="note">
-                A team the computer controls pulls its goalie for an extra attacker then, while it carries the puck in its
-                attacking half. The original
-                game does it behind by 1 or 2 goals with 60 seconds or less left. 0 goals means never. These are the two numbers
-                NHL94SNESVault's CPU pull goalie setting changes.
+                A team the computer controls then pulls its goalie for an extra attacker while it has the puck in the
+                other team's half. The original game does it when behind by 1 or 2 goals with 60 seconds or less left.
+                0 goals means never. These are the same two numbers as NHL94SNESVault's CPU pull goalie setting.
               </p>
             </>
           )}
@@ -420,8 +419,8 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
           The credits roll one title at a time on the title screen: the title with its first name, then each of its other names in turn. A box is one
           title: its first line is the title and the lines after it are its names, at least one. The original game has up to {SNES_CREDITS_PAGE_LINES - 1}{' '}
           names under a title and lines of up to {SNES_CREDITS_LINE_LENGTH} letters, centred by the game. The game has capital letters, digits, spaces,{' '}
-          <b>.</b> and <b>@</b>, which shows as the copyright sign. The same line twice takes its bytes once. The two copyright lines under the title are
-          not changed. The title screen lasts the same time however long the credits are (4,740 frames from their start), and the original's
+          <b>.</b> and <b>@</b>, which shows as the copyright sign. A line used twice only takes its room once. The two copyright lines under the title
+          cannot be changed. The title screen lasts the same time however long the credits are, and the original's
           titles fill nearly all of it: with fewer, the title screen waits with no credits before it goes to the menus (with 5 titles, about a
           minute).
         </p>

@@ -67,14 +67,14 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
         song names are the community's
         {nhl95
-          ? ", as NHL 94's disassembly lists them: NHL '95's songs are NHL 94's tunes"
-          : ", as the game's disassembly lists them, with the teams that have each in the original game"}
+          ? ": NHL '95's songs are NHL 94's tunes"
+          : ", with the teams that have each in the original game"}
         . The power play and penalty kill songs play at the faceoff after a penalty puts the home
-        team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
+        team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To add a song of
         your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
         {nhl95 && ' Tested in the game by the NHL94 Match Viewer project.'}
         {outside &&
-          ` In this ROM the song table has room for only ${room} teams, so this team plays songs from whatever follows it. Choosing a song moves the table to free space in the ROM, so that every team has six of its own.`}
+          ` In this ROM only the first ${room} teams have songs of their own, so this team's songs are left to chance. Choosing a song here makes room so that every team has six of its own.`}
       </p>
       <table className="left">
         <tbody>
@@ -136,7 +136,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
       </p>
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
-        song names are the community's, as the game's disassembly lists them. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
+        song names are the community's. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To add a song of
         your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
       </p>
       <table className="left">

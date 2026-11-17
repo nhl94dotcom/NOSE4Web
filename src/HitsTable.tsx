@@ -34,9 +34,9 @@ export function HitsTable({ knockdown, hold, disabled, onUse }: { knockdown: num
         </tbody>
       </table>
       <p className="note">
-        Full energy is 4096. Each row splits it between that many knockdowns, a hold costing half of one; 3 is what
-        Energy from hits only sets. For energy lost to hits alone, press Energy from hits only first, then pick a row.
-        The game stops a skater's energy at 0, so a cost a little higher empties him just the same. He gets it back on
+        Full energy is 4096. Each row shares that out between so many knockdowns (a hold costs half a knockdown); 3 is
+        what Energy from hits only sets. For energy lost to hits alone, press Energy from hits only first, then pick a
+        row. Energy never goes below 0, so a slightly higher cost empties a skater just the same. He gets it back on
         the bench as usual.
       </p>
     </div>

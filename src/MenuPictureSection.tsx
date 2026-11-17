@@ -60,14 +60,11 @@ export function MenuPictureSection({ project, opened, onChange }: Props) {
       <p className="note">
         The picture behind the Game Setup screen, the game's main menu. The menu, the team banners and logos and the
         player cards are drawn over it, and about half of it shows. A picture of your own is fitted inside the screen,
-        320 by 224 pixels. The screen has room for {MENU_PICTURE_TILES} different 8 by 8 squares of it (the original
-        has 240), so a detailed picture has its most alike squares merged: logos and simple designs come out clean,
-        photos blocky. It has up to {MENU_PICTURE_COLOURS} colours of its own, each square in one of two sets, plus the
-        menu's own white, greys and black, which it keeps so the menu's lettering and frames look as they do. The parts
-        the screen always covers, under the top strip, the team banners and the logo box frame, are left blank, so the
-        room goes to the parts that show. It goes into free room at the end of the ROM. Tested in the game by the NHL94
-        Match Viewer project: the menu, banners, logos and player cards stay exactly as they were, and every colour
-        shows as it should.
+        320 by 224 pixels. Room for detail is limited, so a detailed picture is simplified to fit: logos and simple
+        designs come out clean, photos blocky. It has up to {MENU_PICTURE_COLOURS} colours of its own, plus the menu's
+        own white, greys and black, which stay so the menu's lettering and frames look as they do. The parts the menu
+        always covers are left blank, so the room goes to the parts that show. Tested in the game by the NHL94 Match
+        Viewer project: the menu, banners, logos and player cards stay exactly as they were.
       </p>
       <PictureView picture={menu.picture} palette={menu.palette} scale={2} />
       <p>
@@ -105,9 +102,9 @@ export function MenuPictureSection({ project, opened, onChange }: Props) {
       </p>
       {menu.tiles > MENU_PICTURE_TILES && (
         <p className="error">
-          This ROM's background loads {menu.tiles} squares, more than the {MENU_PICTURE_TILES} the screen has room for, as
-          pictures made with Drezz's forum guide do: the rest are written over the screen's own pictures, which can show
-          marks on the player cards and logos. Export it as a PNG and import it again to fit it in the room.
+          This ROM's background is too big for the room the screen has, as pictures made with Drezz's forum guide are,
+          so it draws over the screen's other graphics and can leave marks on the player cards and logos. Export it as
+          a PNG and import it again to make it fit.
         </p>
       )}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}

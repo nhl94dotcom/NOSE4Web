@@ -166,11 +166,11 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
       scale: 3,
       note:
         `Shown on the matchup, setup and player card screens, in 15 colours of its own taken from the image you ` +
-        `import. It can be at most 36 tiles of 8 by 8 pixels` +
+        `import. It can use at most 36 different squares of 8 by 8 pixels` +
         (snesLogoTable(project.bytes, teams) !== null
-          ? '; one bigger than the one it replaces goes into free space in the ROM.'
-          : ', and all the logos together must fit the room the game unpacks them into, which the original logos ' +
-            'fill: a bigger logo fits where others give up room.') +
+          ? '; one more detailed than the one it replaces goes into free space in the ROM.'
+          : ', and all the logos share one space, which the original logos fill: a more detailed logo only fits ' +
+            'if others take less.') +
         (sharedColours.length > 0 ? ` Its colours are shared with ${names(sharedColours)}.` : ''),
     },
     {
@@ -302,7 +302,7 @@ export function SnesPicturesEditor({ project, team, onChange }: Props) {
           <p className="note">
             {ice.ownColours ? 'In the team’s own centre ice colours.' : 'In the rink’s centre ice colours, which are changed on the Rink colours page.'}{' '}
             {ice.rows.length > 1 &&
-              'The game draws each square of 8 by 8 in one row of colours or the other. Where a stroke mixes the two in a square, the square takes whichever row shows it best, and its pixels the nearest colours in that row: paint with the row the logo already uses for exact colours.'}
+              'Each 8 by 8 square can use colours from only one of the two rows. If a stroke mixes the two in a square, the whole square switches to the row that suits it best, and its pixels to the nearest colours in that row. For exact colours, paint with the row the square already uses.'}
             {sharedIce.length > 0 && ` The same logo as ${names(sharedIce)}'s, so it changes for them too.`}
           </p>
           <PixelEditor

@@ -86,8 +86,8 @@ export function SnesRinkEditor({ project, original, onChange }: Props) {
         <h2>Rink colours</h2>
         <p className="note">
           The rink is the same for every game; the home team's centre ice logo is put in its middle, and the players on
-          the benches are drawn in the two teams' uniform colours. The game also uses some of these colours for its
-          moving pictures, so a change can show there too.
+          the benches are drawn in the two teams' uniform colours. The game also uses some of these colours for other
+          graphics, so a change can show there too.
         </p>
         <p>
           {teamSelect('Home', home, setHome)} {teamSelect('Visitors', visitor, setVisitor)}

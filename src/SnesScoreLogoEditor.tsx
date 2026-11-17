@@ -72,7 +72,7 @@ export function SnesScoreLogoEditor({ project, team, onChange }: Props) {
         {SCORE_LOGO.width} by {SCORE_LOGO.height} pixels, the logo in the top {SCORE_LOGO_ROWS} rows, on the box's black with a ring, in {OWN.length} colours of
         its own. A team without one shows its letters.
         {hasAddedScoreLogos(project) &&
-          " NOSE4Web added them to this ROM, with McMarkis's code from his 32-team build; they can be taken out again, which puts the ROM back as it was."}
+          " NOSE4Web added them to this ROM, using McMarkis's score logos from his 32-team build; they can be taken out again, which puts the ROM back as it was."}
       </p>
       {hasAddedScoreLogos(project) && (
         <p>
@@ -188,7 +188,7 @@ export function AddScoreLogos({ project, onChange }: { project: RomProject; onCh
       <h2>Score logo</h2>
       <p className="note">
         The original game prints each team's three letters in the score box during play. McMarkis's 32-team build shows a small logo instead, and
-        NOSE4Web can add that to this ROM, with his code: every team gets a score logo made from its team logo, which you can then import or draw
+        NOSE4Web can add them to this ROM, with his permission: every team gets a score logo made from its team logo, which you can then import or draw
         anew, or take away to show the team's letters. It can be taken out again, which puts the ROM back as it was.
       </p>
       <p>

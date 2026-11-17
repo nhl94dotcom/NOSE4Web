@@ -31,8 +31,8 @@ export function SplashScreenSection({ project, opened, onChange }: Props) {
       }
       const made = splashFromImage(image.rgba, image.width, image.height)
       onChange(withSplashImage(project, made))
-      const merged = made.colours > made.kept ? ` Its ${made.colours} colours were brought down to ${made.kept}, in four sets of up to 15.` : ''
-      setNotice(`${file.name} is now the splash screen, ${made.tiles.length} tiles.${merged} Undo takes it back.`)
+      const merged = made.colours > made.kept ? ` Its ${made.colours} colours were brought down to ${made.kept}.` : ''
+      setNotice(`${file.name} is now the splash screen.${merged} Undo takes it back.`)
       setFailed(false)
     } catch (e) {
       setNotice(e instanceof Error ? e.message : String(e))
@@ -57,10 +57,10 @@ export function SplashScreenSection({ project, opened, onChange }: Props) {
       <p className="note">
         The second screen the game shows when it starts, after EA Sports: High Score Productions and Mark Lesser
         Presents in the original game. A picture of your own takes the whole screen, 320 by 224 pixels: a picture of
-        another size is fitted inside it, centred on black. The console shows up to 60 colours on it, in four sets of
-        15, each 8 by 8 square in one set, so a picture with more is matched to the nearest. It goes into free room at
-        the end of the ROM, as wboy's 30-team ROMs have theirs. How long the screen stays is the intro screen wait on the
-        Hacks page.
+        another size is fitted inside it, centred on black. The screen can show up to 60 colours, and only a few in
+        any small area, so a very colourful picture is simplified to fit. wboy's 30-team ROMs already have a splash
+        screen of their own, which shows here. How long the screen stays is the intro screen wait on the Hacks
+        page.
       </p>
       <PictureView picture={splash.picture} palette={splash.palette} scale={2} />
       <p>

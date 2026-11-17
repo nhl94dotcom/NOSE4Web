@@ -618,9 +618,8 @@ export function TeamEditor(props: Props) {
           {goalies === 1 ? 'is the goalie' : 'are goalies'}, the next {team.forwards} {team.forwards === 1 ? 'is a forward' : 'are forwards'}, and the other{' '}
           {Math.max(0, team.players.length - goalies - team.forwards)} defencemen. <b>Goalie bytes</b> set how many
           goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies). The
-          original rosters have other numbers there, such as 13 6 0 0: EA meant them as how often each goalie would
-          start (13 to 6, the first about two games in three), but neither the Genesis nor the SNES game ever uses
-          them, so 13 6 0 0 plays exactly as 1 1 0 0. Only whether a box is 0 matters. <b>Forwards</b> sets how many of the skaters
+          original rosters have other numbers there, such as 13 6 0 0, but the game only checks whether a box is 0,
+          so 13 6 0 0 plays exactly like 1 1 0 0. <b>Forwards</b> sets how many of the skaters
           after them are forwards. The <b>Pos</b> column in the tables below shows where each player ends up. To make a
           player a forward or a defenceman, move him into that part of the roster.
         </p>
@@ -639,7 +638,7 @@ export function TeamEditor(props: Props) {
           ))}
           {team.shownOverall !== undefined && (
             <>
-              <label title="The team's rating as the game shows it on the matchup screens and the player cards. The game keeps this number and does not work it out, so it does not change when the players do.">
+              <label title="The team's rating as the game shows it on the matchup screens and the player cards. It is a stored number, so it does not change when the players do.">
                 Overall shown
                 <NumberField min={0} max={shownRatingMost(game)} value={team.shownOverall} onValue={(n) => onChange({ ...team, shownOverall: n })} />
               </label>
@@ -657,13 +656,14 @@ export function TeamEditor(props: Props) {
         <p className="note">
           The six team ratings: a high number is good for Offence, Power play and Home, and a <b>low</b> number is
           good for Defence, Penalty kill and Away. Offence and Defence are the team's, not its players' Offensive and
-          Defensive Awareness: they score the other playoff games the game plays out during yours. Home, Away, Power play and Penalty kill nudge a few of each player's
-          ratings in those situations, by less than half a point; see Help.
+          Defensive Awareness: they only decide the other playoff games the game plays out on its own. Home, Away, Power
+          play and Penalty kill nudge a few of each player's ratings in those situations, by less than half a point; see
+          Help.
         </p>
         <p className="note">
           {team.players.length} players: {goalies} goalies, {team.forwards} forwards, {team.defense} defence. The
-          first skaters on the roster are the forwards. The roster's first players are goalies, one for each goalie
-          byte up to the last that is not zero.
+          first skaters after the goalies are the forwards. The roster's first players are the goalies, one for each
+          goalie box up to the last that is not zero.
         </p>
       </section>
 
@@ -807,9 +807,9 @@ export function TeamEditor(props: Props) {
         </p>
         {!fewerSkaters && game.lineLabels.some((label) => PENALTY_KILL_LINES.includes(label)) && (
           <p className="note">
-            On the {PENALTY_KILL_LINES.join(' and ')} lines the game's Edit Lines shows four rows. Their RW, shown with a dashed
-            border here, is hidden there, but it is the skater who comes on when the team pulls its goalie while
-            short-handed; the extra attacker comes on only at full strength.
+            On the {PENALTY_KILL_LINES.join(' and ')} lines the game's Edit Lines shows only four positions. Their RW, shown
+            with a dashed border here, is hidden there, but he is the skater who comes on when the team pulls its goalie
+            while short-handed; the extra attacker only comes on at full strength.
           </p>
         )}
         {fewerSkaters && (

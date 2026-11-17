@@ -152,7 +152,7 @@ function checkPhotos(project: RomProject, labels: string[], findings: Finding[])
         level: 'note',
         where: labels[team],
         team,
-        message: `The team setup screen cycles through ${shown} player cards, but the team's photo list ends after ${list.entries.length}. The setup screen does not stop there: card ${list.entries.length + 1} shows a garbage picture, and any cards after it come from what follows in the ROM, which the matchup screens and player cards never show. Add players under Player photos.`,
+        message: `The team setup screen cycles through ${shown} player cards, but the team's photo list ends after ${list.entries.length}. Card ${list.entries.length + 1} then shows a scrambled picture, and any cards after it show junk too (the matchup screens and player cards are not affected). Add players under Player photos.`,
       })
     }
     const past = list.entries.slice(0, shown).flatMap((entry, i) => (entry.slot >= count ? [i + 1] : []))
@@ -162,7 +162,7 @@ function checkPhotos(project: RomProject, labels: string[], findings: Finding[])
       level: 'note',
       where: labels[team],
       team,
-      message: `${one ? 'Player photo' : 'Player photos'} ${past.join(', ')}, shown on the team setup screen, ${one ? 'is' : 'are'} for a place past the end of the roster, which has ${count} players. Choose who ${one ? 'it is' : 'they are'} for under Player photos.`,
+      message: `${one ? 'Player photo' : 'Player photos'} ${past.join(', ')}, shown on the team setup screen, ${one ? 'is' : 'are'} for a player the roster does not have (it has ${count} players). Choose who ${one ? 'it is' : 'they are'} for under Player photos.`,
     })
   })
 }
@@ -262,9 +262,9 @@ export function checkProject(project: RomProject): Finding[] {
         level: 'note',
         where: labels[t],
         team: t,
-        message: `The ROM's organ song table has room for only ${songRoom} teams, so this team's home games use what follows it in the ROM: ${
+        message: `The ROM's organ song table has room for only ${songRoom} teams, so this team's home games play whatever the ROM has next: ${
           silent === 0 ? "the game's random songs, not songs of its own" : `${plural(silent, 'song slot')} with no song at all`
-        }. Choosing a song under Organ songs on the team page moves the table, so that every team has its own.`,
+        }. Choosing a song under Organ songs on the team page makes room, so that every team has its own.`,
       })
     })
   }
@@ -296,7 +296,7 @@ export function checkProject(project: RomProject): Finding[] {
       findings.push({
         level: 'note',
         where,
-        message: `The script has ${scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game reads, as if taken out by hand, so the lines after it show in the wrong places, and when one team is much hotter the game reads its last line from past the script and freezes. "Put the missing line back" in Ron Barr's matchup screen text, on the Game settings page, fixes it.`,
+        message: `The script has ${scouting.missing === 1 ? 'one line' : `${scouting.missing} lines`} fewer than the game expects, as if taken out by hand, so the lines after it show at the wrong times, and the game freezes when one team is much hotter than the other. "Put the missing line back" in Ron Barr's matchup screen text, on the Game settings page, fixes it.`,
       })
     }
     const blank = scouting.lines.findIndex((line) => line.blank && line.text.trim())
@@ -304,7 +304,7 @@ export function checkProject(project: RomProject): Finding[] {
       findings.push({
         level: 'note',
         where,
-        message: `Line ${blank + 1} is the one the game shows as the empty line between paragraphs, several times over, and it has text, so that text shows each time. Lines that come after an added or removed line move up or down, so this is usually a line in the wrong place.`,
+        message: `Line ${blank + 1} is the empty line the game shows between paragraphs, several times over, but it has text, so that text shows each time. This usually means a line was added or removed by hand, moving the lines after it.`,
       })
     }
   }
@@ -378,7 +378,7 @@ export function checkProject(project: RomProject): Finding[] {
       findings.push({
         level: 'problem',
         where: 'Playoff draws',
-        message: `${plural(invalid.length, 'draw')} ${invalid.length === 1 ? 'has' : 'have'} a team this ROM does not have (shown as Invalid): draw ${invalid.join(', ')}. Playoffs drawn so would read team data that is not there; choose a team in its place.`,
+        message: `${plural(invalid.length, 'draw')} ${invalid.length === 1 ? 'has' : 'have'} a team this ROM does not have (shown as Invalid): draw ${invalid.join(', ')}. Playoffs with that draw would go wrong; choose a team in its place.`,
       })
     }
     const twice = settings.playoffDraws.flatMap((draw, d) => (new Set(draw).size < draw.length ? [d + 1] : []))

@@ -84,32 +84,28 @@ export function AnnouncerSection({ project, onChange }: Props) {
       {snes ? (
         <p className="note">
           Ron Barr at the EA SPORTS desk, in the bottom right of the scouting screen before each game. Shown here is
-          that corner of the screen; where it is empty, the screen's own frame shows. The scouting report's
-          see-through box is drawn over him on a layer of its own, so a picture of yours can go in one of two places:{' '}
+          that corner of the screen; where it is empty, the screen's own frame shows. A picture of yours can go in
+          one of two places:{' '}
           <b>beside the box</b>, the {SNES_ANNOUNCER_AREAS.beside.width} by {SNES_ANNOUNCER_AREAS.beside.height} pixels at
-          the right that nothing covers, where it is scaled to fill and cropped to fit, so a tall picture (a person
-          from the waist up) works best; or <b>Ron Barr's whole place</b>, {SNES_ANNOUNCER_AREAS.whole.width} by{' '}
-          {SNES_ANNOUNCER_AREAS.whole.height} pixels, behind the box too, where it is fitted in whole and set in the
-          bottom right as he is, and the box and its text show over it as they do over him. The screen has room for
-          only 152 different 8 by 8 squares, and Ron Barr is a cut-out: to fill his whole place a picture has to be
-          one too, a figure on a see-through background (a PNG with transparency), since see-through squares cost
-          nothing; a photo that is all picture is too much for it. Either way it has up to 15 colours of its own,
-          which nothing else on the screen uses, and the desk and the rest of the original go. It goes into free room
-          in the ROM, and <b>Put back the original</b> brings back the picture the ROM was opened with. Tested in the
-          game by the NHL94 Match Viewer project, in both places, on the original and the SA-1 build: the rest of
-          the screen, its text included, stays exactly as it was. Text in the box is drawn over the picture, as over
-          Ron Barr, and the box's longer lines reach into the left of his place: keep a face or a name to the right,
-          where he has his.
+          the right that the scouting report's box does not cover, where it is filled and cropped to fit, so a tall
+          picture (a person from the waist up) works best; or <b>Ron Barr's whole place</b>,{' '}
+          {SNES_ANNOUNCER_AREAS.whole.width} by {SNES_ANNOUNCER_AREAS.whole.height} pixels, where it is fitted in whole
+          in the bottom right, and the box and its text show over it as they do over him. Room there is limited, so
+          like Ron Barr it has to be a cut-out: a figure on a see-through background (a PNG with transparency). A
+          photo that fills the whole space is too detailed. Either way it has up to 15 colours of its own, and the
+          desk goes. Text in the box is drawn over the picture, and the longer lines reach into the left of it, so
+          keep a face or a name to the right, as Ron Barr's is. <b>Put back the original</b> brings back the picture
+          the ROM was opened with. Tested in the game by the NHL94 Match Viewer project: the rest of the screen stays
+          exactly as it was.
         </p>
       ) : (
         <p className="note">
           The picture of Ron Barr on the pregame matchup screen, where he gives the scouting report:{' '}
           {ANNOUNCER_WIDTH} by {ANNOUNCER_HEIGHT} pixels with a grey frame. A picture of your own keeps the frame and is
-          scaled to fill the {ANNOUNCER_INSIDE.width} by {ANNOUNCER_INSIDE.height} pixels inside it, cropped at the sides
-          or the top and bottom to fit, so a head-and-shoulders photo works best. It has up to {ANNOUNCER_OWN_COLOURS}{' '}
-          colours of its own, and can use the seven the frame and the screen's boxes and background have, which stay as
-          they are. It goes into free room at the end of the ROM, and <b>Put back the original</b> brings back the
-          picture the ROM was opened with. Tested in the game by the NHL94 Match Viewer project: the rest of the screen
+          scaled to fill the {ANNOUNCER_INSIDE.width} by {ANNOUNCER_INSIDE.height} pixels inside it, cropped to fit, so a
+          head-and-shoulders photo works best. It has up to {ANNOUNCER_OWN_COLOURS} colours of its own, plus the seven
+          the rest of the screen uses, which stay as they are. <b>Put back the original</b> brings back the picture
+          the ROM was opened with. Tested in the game by the NHL94 Match Viewer project: the rest of the screen
           stays exactly as it was.
         </p>
       )}

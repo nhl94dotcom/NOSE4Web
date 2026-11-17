@@ -616,10 +616,10 @@ export default function App() {
             className="extra"
             title={
               expansion.step === 'moveTeams'
-                ? "Moves the team data to the unused second half of the ROM, as the WN95HL's ROMs have it, with room to spare for rosters."
+                ? "Makes room for longer rosters by moving the teams to unused space in the ROM, as the WN95HL's ROMs have them."
                 : expansion.step === 'introText'
-                ? 'Moves the opening screen text to the end of the ROM to make room for rosters.'
-                : 'Moves the playoff draw tables to the end of the ROM to make room for rosters.'
+                ? 'Makes room for longer rosters by moving some opening screen text elsewhere in the ROM.'
+                : 'Makes more room for longer rosters by moving the playoff tables to the end of the ROM.'
             }
             onClick={() => change(expandTeamSpace(project))}
           >

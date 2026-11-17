@@ -20,7 +20,7 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
     key: 'strength',
     label: 'Strength',
     title:
-      "Match Viewer's team strength, from the league value: 71% the average of the team's top four forwards, 15% its top three defencemen and 14% its best goalie. It explains about half of how strong the leagues' teams have played, where the game's Overall explains almost none. Genesis only; see Help",
+      "Match Viewer's team strength, from the league value: 71% the average of the team's top four forwards, 15% its top three defencemen and 14% its best goalie. It explains about half of how strong the leagues' teams have played; the game's Overall explains almost none. Genesis only; see Help",
     decimals: 1,
   },
   { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },
@@ -439,7 +439,7 @@ function HomeAway({ project, names, onChange }: { project: RomProject; names: st
       <p className="note">
         As each player comes on the ice, the home team adds its <b>Home</b> rating to his Offensive and Defensive
         Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes its <b>Away</b> rating off the
-        same five (on the game's scale, where a rating point is 5). In the original game they differ by team. Give
+        same five, by a small amount (less than half a rating point). In the original game they differ by team. Give
         every team the same pair to make the advantage the same in every game, or 0 and 0 to have none.
       </p>
       <p>

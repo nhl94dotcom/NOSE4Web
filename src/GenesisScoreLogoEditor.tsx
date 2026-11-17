@@ -75,11 +75,10 @@ export function GenesisScoreLogoEditor({ project, team, onChange }: Props) {
       {!added ? (
         <>
           <p className="note">
-            The game prints each team's three letters in the score box during play. NOSE4Web can show a small logo there instead, an idea from
-            McMarkis's 32-team SNES build: the score box grows two rows taller so that each team has a logo, 24 by 16 pixels, beside its score. Each
-            logo is drawn in its team's uniform colours, the home colours at home and the away colours on the road, as the game colours the teams in
-            play, so a team has two. Every team gets logos made from its centre-ice logo, to touch up or replace; taking them out again puts the game
-            back as it was.
+            During play the game shows each team's three letters in the score box. NOSE4Web can show a small logo there instead (an idea from
+            McMarkis's 32-team SNES build): the score box grows a little taller to fit a 24 by 16 pixel logo beside each score. A team plays in its
+            home colours at home and its away colours on the road, so it has two logos, one in each. Every team gets logos made from its centre-ice
+            logo, to touch up or replace; taking them out again puts the game back as it was.
           </p>
           <p>
             <button onClick={() => act(() => withGenesisScoreLogosAdded(project), 'Score logos added for every team.')}>Add score logos for every team</button>
