@@ -823,6 +823,16 @@ export function customSongBytes(rom: Uint8Array, number: number): Uint8Array | n
   return rom.slice(range.start, range.end)
 }
 
+// A song's bytes (as customSongBytes gives them) with the loop address of a piece that loops set to 0: it is where
+// the piece is, so the same piece elsewhere differs only there.
+export function songBytesWithoutLoop(bytes: Uint8Array): Uint8Array {
+  let p = 0
+  while (p + 4 <= bytes.length && bytes[p + 1] !== 0) p += 4
+  const copy = bytes.slice()
+  if (p + 6 <= bytes.length && ((bytes[p + 2] << 8) | bytes[p + 3]) < 0x8000) copy.fill(0, p + 2, p + 6)
+  return copy
+}
+
 // The ROM with song `number` replaced by a song's bytes from a project file, its mark naming this ROM's own.
 export function withSongBytes(rom: Uint8Array, number: number, bytes: Uint8Array): Uint8Array {
   const table = soundTable(rom)

@@ -15,7 +15,7 @@ import {
 } from './announcer'
 import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
 import { snesSongChoices } from './snessongs'
-import { GAME_MUSIC } from './genesismusic'
+import { GAME_MUSIC, isGameMusic, songBytesWithoutLoop } from './genesismusic'
 import { genesisSongs } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
@@ -712,16 +712,21 @@ function savedSongs(project: RomProject): ProjectFile['songs'] {
 // The project's songs put back in, each where this ROM has room for it.
 function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes: string[]): RomProject {
   let left = 0
+  let leftMusic = 0
   const list = genesisSongs(project.game)
   if (list) {
+    // A piece of NHL 94's game music holds where it loops back to, which is where it is: the same piece elsewhere is
+    // the same.
+    const comparable = (bytes: Uint8Array) => (project.game.edition === 95 ? bytes : songBytesWithoutLoop(bytes))
     for (const song of songs?.genesis ?? []) {
       try {
         const bytes = unpack(song.bytes)
         const there = list.customBytes(project.bytes, song.number)
-        if (there && there.length === bytes.length && there.every((byte, i) => byte === bytes[i])) continue
+        if (there && sameBytes(comparable(there), comparable(bytes))) continue
         project = { ...project, bytes: list.withBytes(project.bytes, song.number, bytes) }
       } catch {
-        left++
+        if (project.game.edition !== 95 && isGameMusic(song.number)) leftMusic++
+        else left++
       }
     }
   } else {
@@ -729,14 +734,15 @@ function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes:
       try {
         const bytes = unpack(song.bytes)
         const there = snesCustomSongBytes(project.bytes, song.pointer >>> 0)
-        if (there && there.length === bytes.length && there.every((byte, i) => byte === bytes[i])) continue
+        if (there && sameBytes(there, bytes)) continue
         project = withSnesSongBytes(project, song.pointer >>> 0, bytes)
       } catch {
         left++
       }
     }
   }
-  if (left > 0) notes.push(`${left} of the project's organ songs could not be put into this ROM, and were left out.`)
+  if (left > 0) notes.push(`${left} of the project's organ songs could not be put into this ROM, and ${left === 1 ? 'was' : 'were'} left out.`)
+  if (leftMusic > 0) notes.push(`${leftMusic} of the project's pieces of game music could not be put into this ROM, and ${leftMusic === 1 ? 'was' : 'were'} left out.`)
   return project
 }
 

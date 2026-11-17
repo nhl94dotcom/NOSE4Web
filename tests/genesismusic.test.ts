@@ -327,6 +327,23 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     ])
   })
 
+  it('takes a project\'s piece of game music as there already where the ROM has it elsewhere, and names what is left out', () => {
+    const project = open()
+    const title = gameMusicFromMidi(readMidi(testMidi()).notes, new Map([[0, 14]]))
+    const edited = { ...project, bytes: withSong(project.bytes, 0x78, title.events, 'New title') }
+    const text = JSON.stringify({ ...JSON.parse(saveProjectFile(edited, project, 'test')), rom: undefined })
+    // The same piece in another ROM, after an organ song: at another address, so its loop address differs.
+    const other = { ...project, bytes: withSong(withSong(project.bytes, 0x41, songFromMidi(readMidi(testMidi()).notes).events, 'Song'), 0x78, title.events, 'New title') }
+    expect(readSong(other.bytes, 0x78)!.custom?.name).toBe('New title')
+    const reopened = openProjectFile(other, text).project
+    expect(reopened.bytes.length).toBe(other.bytes.length)
+    expect(Buffer.compare(reopened.bytes, other.bytes)).toBe(0)
+    // A piece that cannot go in is called game music, not an organ song.
+    const file = JSON.parse(text)
+    const broken = JSON.stringify({ ...file, songs: { genesis: [{ number: 0x78, bytes: file.songs.genesis[0].bytes.slice(0, 8) }] } })
+    expect(openProjectFile(project, broken).notes.join(' ')).toContain("1 of the project's pieces of game music could not be put into this ROM, and was left out.")
+  })
+
   it("brings a loud MIDI file down to the game's loudness", () => {
     const notes = [0, 0.5, 1, 1.5].map((start, i) => ({ start, length: 0.4, note: 60 + i, velocity: 105, channel: 0 }))
     const made = gameMusicFromMidi(notes, new Map([[0, 14]]), 4)
