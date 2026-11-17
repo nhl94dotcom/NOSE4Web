@@ -66,6 +66,8 @@ That licence does not cover:
 - chaos's fighting patch, whose code and data (in `src/core/fightdata.ts`)
   stay under its MIT licence, Copyright (c) 2025 Chaos81, given in full in that
   file;
+- Vancecookcobxin's NHL '95 fighting patch (in `src/core/nhl95fightdata.ts`),
+  included with credit, on terms that are his;
 - any ROM. None is included, and you need your own.
 
 ## What it edits

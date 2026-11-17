@@ -28,6 +28,7 @@ dist-ssr
 *.smd
 *.md
 !README.md
+!docs/*.md
 *.gen
 *.smc
 *.sfc

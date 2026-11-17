@@ -29,8 +29,9 @@ not something the code or its comments state outright.
 - Third-party parts keep their own terms:
   - chaos's NHL 94 Genesis fighting patch (`src/core/fightdata.ts`) is under the **MIT** licence,
     Copyright (c) 2025 Chaos81 (README.md).
-  - The NHL '95 fighting patch is **Vancecookcobxin's** (`src/core/nhl95fightdata.ts`: "included with
-    credit"). The README's licence list does not mention it; its terms are whatever Vancecookcobxin set.
+  - The NHL '95 fighting patch is **Vancecookcobxin's** (`src/core/nhl95fightdata.ts`), supplied to NOSE4Web by
+    the WN95HL commissioner and included with credit to him. Its terms are his (README.md's licence list); anyone
+    reusing the patch should have his OK.
   - Many NHL 94 Genesis hacks are ported from smozoma's smozROM (GPL v3 or later); SNES hacks are McMarkis's
     (README.md).
 - No ROM is included or may be distributed. You need your own.
@@ -247,13 +248,16 @@ routine use `d2`, which neither caller has live (`FIGHT_FIX`, `nhl95hacks.ts`):
   and `$8F786`, and, when fighting is in, the patch's copy at `$1E0E73` (`OT4_FIGHT_COUNT95`,
   `setPeriodChoices95`), which the patch's menu reads. It is applied after fighting for that reason.
 - **Fighting penalty time** (`fightSeconds`): hooks `$89448` (`3582 0068 0242 EFFF`); its code tests the penalty
-  byte for `$26` and `$28` (`fightTimeCode95`). That these are the fighting penalties is inferred from the
-  option's purpose.
+  byte for `$26` and `$28` (`fightTimeCode95`): NHL '95's penalty list has `$26` "Fighting" and `$28`
+  "Fighting *" (5 minutes), the two the patch logs (read from the NHL '95 disassembly); `$2A`, the instigator's
+  2 minutes, is left alone.
 - **Ratings**: Fighting shares a nibble with the shooting hand (`handedFighting93`, player attribute 8 of 14 in
   `NHL95.playerAttributeKinds`; an **odd** value is a left-handed shot, the reverse of NHL 94). Shown fighting
   is `[0,14,28,42,57,71,85,100][value >> 1]` (`attributes.ts`). In the ROM each player record is the name text,
   a jersey byte, then 7 bytes of 14 nibbles (`team.ts`, `parseTeams`), so this is the low nibble of the 4th
-  attribute byte (inferred from that loop). A `+$74` RAM player offset was not found in the code.
+  attribute byte (inferred from that loop). In RAM during play the NHL94 Match Viewer project found the player's
+  Fighting rating at player struct `+$74` (the Handed/Fighting nibble) and aggressiveness at `+$73`; NOSE4Web's
+  code does not use those offsets.
 - The WN95HL's Season 18 ROM rates no one for fighting, so nobody fights until ratings are raised
   (`Nhl95HacksPage.tsx`, HelpPage).
 
@@ -409,9 +413,6 @@ line; check there.
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | No |
 | Any skater at any position | `nhl95hacks.ts` | **Not yet** | No |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy (7), goalie (5), skating/puck (4) | `nhl95hacks.ts` | **Not yet** | No |
-
-Note: `HelpPage.tsx` says every NHL '95 Hacks option is tested; the page itself marks the rows above as not yet
-tested. The page text is newer (inferred).
 
 ### NHL 94 Genesis
 
