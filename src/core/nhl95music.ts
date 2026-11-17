@@ -39,6 +39,7 @@ import {
   FRAMES_PER_SECOND,
   isSampled,
   MidiError,
+  NHL95_DRUM_NOTES,
   NHL95_EXPORT_PROGRAM,
   nhl95Shift,
   NOISE_HAT,
@@ -342,9 +343,12 @@ export function readNhl95Music(rom: Uint8Array, number: number): Song | null {
   const data = item ? rom.subarray(item.at, item.at + item.size) : null
   const stream = data ? readNhl95Stream(data) : null
   if (item && data && stream && stream.used >= 0) {
-    const end = stream.events.length ? stream.events[stream.events.length - 1].frame : 0
     const events = songEvents(stream, 1, (value) => (value === NOISE_PATCH ? NOISE_HAT : value), true)
     const name = customName(rom, number, item, data, stream)
+    // Its length: to where its loop point plays again (the title music's events after its $75 never play).
+    const loop = stream.events.find((e) => e.status === 0xb0 && e.data[0] === LOOP_START)
+    const period = nhl95LoopFrames(stream.events, name !== null)
+    const end = loop && period !== null ? loop.frame + period : stream.events.length ? stream.events[stream.events.length - 1].frame : 0
     song = { number, events, seconds: end / FRAMES_PER_SECOND, loops: true, custom: name === null ? null : { name, replaced: number } }
   }
   cache.set(number, song)
@@ -497,6 +501,10 @@ export function withNhl95SongBytes(rom: Uint8Array, number: number, bytes: Uint8
 //   piece's notes ends before the next on its voice begins, so it never has more waiting than its ten voices.
 // - Controller $75 jumps to a loop point (the 68000's; the other controllers go to the Z80). The game's pieces have
 //   their programs, then $74 at their loop point, and end with $75 0: a new piece is laid out the same.
+// - A new piece's second pass came 2 frames after its $75 (1 on the WN95HL's ROM), where the game's own play their loop
+//   point again in the frame of their $75. SndUpdate's code reads as the jump taking no time (it skips the loop point's
+//   wait, as it does the first event's at the start, and goes on in the same frame), so the 2 frames are not in it; a
+//   new piece's $75 comes LOOP_LATE frames before its end, so that it loops in the time of its file.
 const FM_VOICES = 6
 const SQUARE_VOICES = 3
 const MOST_COMMANDS = 14
@@ -504,38 +512,45 @@ const SQUARE_PATCH = 0x14
 const BASS_PATCH = 0x11
 const KICK_PATCH = 0x15
 const SNARE_PATCH = 0x0e
+const MALLET_PATCH = 0x0d
 const LOOP_START = 0x74
 const LOOP = 0x75
+const LOOP_LATE = 2
 // The game's tuned patches a part may be played on, each once (load list 0, which all three pieces use), named by
-// where its pieces use them. $0B and $16 are left out: none of the three pieces plays them, so how they sound is not
+// as Match Viewer heard them. $0B and $16 are left out: none of the three pieces plays them, so how they sound is not
 // known.
 export const NHL95_INSTRUMENTS: { patch: number; name: string }[] = [
-  { patch: BASS_PATCH, name: 'Bass (the bass lines)' },
-  { patch: 0x18, name: 'Synth brass (the tunes and their harmony)' },
-  { patch: 0x1b, name: "Second synth brass (the scouting report's tune)" },
-  { patch: 0x0d, name: 'Short bright notes (the quick runs)' },
-  { patch: 0x1d, name: "Lead for long notes (the scouting report's)" },
-  { patch: 0x1c, name: 'Steady high tone, like a whistle' },
-  { patch: SQUARE_PATCH, name: 'Square wave, the one that plays chords (three notes)' },
+  { patch: BASS_PATCH, name: 'Plucked bass' },
+  { patch: 0x18, name: 'Brass swell' },
+  { patch: 0x1b, name: 'Mellow horn' },
+  { patch: MALLET_PATCH, name: 'Mallet (short notes only)' },
+  { patch: 0x1d, name: 'Sustained lead' },
+  { patch: 0x1c, name: 'Whistle' },
+  { patch: SQUARE_PATCH, name: 'Square (plays chords, three notes)' },
 ]
-// The game's drums: the kick and the toms on $15, the snare on $0E, the hi-hats and cymbals on the noise; each at the
-// note it sounds so at (Match Viewer played each alone), and about as long as the game's own pieces hold them.
+// $0D fades fast (18 dB in a second, 27 in two: Match Viewer): a part whose median note is longer than this (seconds)
+// is not put on it unless chosen.
+const MALLET_LONGEST = 0.3
+// The game's drums: the kick and the toms on $15, the snare and the thump on $0E, the hi-hats and cymbals on the noise;
+// each about as long as the game's own pieces hold them.
 type Drum = { patch: number; note: number; shortest: number; longest: number }
-const KICK: Drum = { patch: KICK_PATCH, note: 0, shortest: 6, longest: 24 }
-const SNARE: Drum = { patch: SNARE_PATCH, note: 56, shortest: 6, longest: 24 }
-const THUMP: Drum = { patch: SNARE_PATCH, note: 51, shortest: 6, longest: 24 }
-const tom = (note: number): Drum => ({ patch: KICK_PATCH, note, shortest: 6, longest: 24 })
-const hat = (note: number): Drum => ({ patch: NOISE_PATCH, note, shortest: 1, longest: 4 })
-// MIDI's two bass drums are the kick, or where a file has both, 35 the thump (as a piece's own MIDI file has it).
+const drum = (patch: number, note: number): Drum => (patch === NOISE_PATCH ? { patch, note, shortest: 1, longest: 4 } : { patch, note, shortest: 6, longest: 24 })
+const KICK = drum(KICK_PATCH, 0)
+const SNARE = drum(SNARE_PATCH, 56)
+// The MIDI drum notes NHL '95's pieces are exported as (NHL95_DRUM_NOTES) come back as the same drums, so that a piece
+// put back from its own MIDI file plays each as it did; but 35 (the second kick, $15 9) is the kick where a file has no
+// 36. Any other file's: the kicks the kick, the snares and the clap the snare, the toms by pitch on $15 17 to 19, the
+// closed and pedal hats and the rides the closed hat, the open hat and the crashes the open one; others left out.
+const OWN_DRUMS = new Map(NHL95_DRUM_NOTES.map((d) => [d.midi, drum(d.patch === NOISE_HAT ? NOISE_PATCH : d.patch, d.note)]))
 function drumFor(midi: number, bothKicks: boolean): Drum | null {
-  if (midi === 35 && bothKicks) return THUMP
-  if (midi === 35 || midi === 36) return KICK
-  if (midi >= 37 && midi <= 40) return SNARE
-  if (midi === 41 || midi === 43) return tom(17)
-  if (midi === 45 || midi === 47) return tom(18)
-  if (midi === 48 || midi === 50) return tom(19)
-  if (midi === 42 || midi === 44 || midi === 51 || midi === 53 || midi === 59) return hat(120)
-  if (midi === 46 || midi === 49 || midi === 52 || midi === 55 || midi === 57) return hat(108)
+  if (midi === 35 && !bothKicks) return KICK
+  const own = OWN_DRUMS.get(midi)
+  if (own) return own
+  if (midi === 39) return SNARE
+  if (midi === 41 || midi === 43) return drum(KICK_PATCH, 17)
+  if (midi === 50) return drum(KICK_PATCH, 19)
+  if (midi === 44 || midi === 51 || midi === 53 || midi === 59) return drum(NOISE_PATCH, 120)
+  if (midi === 49 || midi === 52 || midi === 55 || midi === 57) return drum(NOISE_PATCH, 108)
   return null
 }
 // The notes a patch may sound, as heard: its written notes 12 to 95 (the sound chip's octaves), the square wave from
@@ -589,17 +604,27 @@ export function nhl95PartChoices(parts: MusicPart[], notes: MidiNote[], programs
     choices.set(channel, patch)
     free.splice(free.indexOf(patch), 1)
   }
+  // A free patch for the part: $0D only for one of short notes.
+  const fits = (channel: number) => {
+    const lengths = notes
+      .filter((n) => n.channel === channel)
+      .map((n) => n.length)
+      .sort((a, b) => a - b)
+    const long = lengths.length > 0 && lengths[Math.floor(lengths.length / 2)] > MALLET_LONGEST
+    return (patch: number) => free.includes(patch) && !(long && patch === MALLET_PATCH)
+  }
   for (const part of parts) if (part.channel === DRUMS) choices.set(part.channel, 'drums')
   for (const part of parts) {
     if (choices.has(part.channel) || !programs.has(part.channel)) continue
-    const patch = patchesForProgram(programs.get(part.channel)!).find((p) => free.includes(p))
+    const patch = patchesForProgram(programs.get(part.channel)!).find(fits(part.channel))
     if (patch !== undefined) take(part.channel, patch)
   }
   const tunes = parts.filter((part) => !choices.has(part.channel)).sort((a, b) => a.average - b.average)
   if (tunes.length > 1 && tunes[0].average < 55 && free.includes(BASS_PATCH)) take(tunes.shift()!.channel, BASS_PATCH)
   for (const part of tunes.reverse()) {
     const chords = free.includes(SQUARE_PATCH) && part.highest >= 46 && chordShare(notes, part.channel) >= 0.25
-    const patch = chords ? SQUARE_PATCH : (free.find((p) => p !== BASS_PATCH && p !== SQUARE_PATCH) ?? free[0])
+    const fit = fits(part.channel)
+    const patch = chords ? SQUARE_PATCH : (free.find((p) => p !== BASS_PATCH && p !== SQUARE_PATCH && fit(p)) ?? free.find(fit))
     if (patch === undefined) choices.set(part.channel, 'out')
     else take(part.channel, patch)
   }
@@ -703,8 +728,9 @@ export function nhl95MusicFromMidi(notes: MidiNote[], choices: Map<number, PartC
   for (const note of wanted) {
     active = active.filter((other) => other.off > note.on)
     // One note at a time on an FM patch and on the noise: the line moving on cuts the note before it; of notes that
-    // overlap the stronger is kept; a drum's new hit always sounds. On the square wave the same note again ends the
-    // one before.
+    // overlap the stronger is kept; a drum's new hit always sounds, but of two at once on one patch the higher (the
+    // tom over the kick, as the game's own title music has them). On the square wave the same note again ends the one
+    // before.
     const square = note.patch === SQUARE_PATCH
     const before = active.find((other) => other.patch === note.patch && (!square || other.note === note.note))
     if (before) {
@@ -713,6 +739,7 @@ export function nhl95MusicFromMidi(notes: MidiNote[], choices: Map<number, PartC
         chords++
         if (before.on === note.on || weaker(note, before)) continue
       }
+      if (note.rank === 3 && before.on === note.on) continue
       cut(before, note.on)
     }
     // At most three square notes, and six FM patches sounding: the weakest gives way.
@@ -729,9 +756,11 @@ export function nhl95MusicFromMidi(notes: MidiNote[], choices: Map<number, PartC
   }
   // A note cut where it began sounds nothing.
   let sounding = played.filter((p) => p.off > p.on)
-  // The end: where the file ends or its last note does, its rest kept; the piece plays again from frame 1 there.
+  // The end: where the file ends or its last note does, its rest kept; the piece plays again from frame 1 there, its
+  // $75 LOOP_LATE frames before (so not before its last note begins).
   const lastOff = sounding.reduce((most, p) => Math.max(most, p.off), 1)
-  let finish = Math.max(lastOff, 1 + Math.round((end - first) * FRAMES_PER_SECOND))
+  const lastOn = sounding.reduce((most, p) => Math.max(most, p.on), 1)
+  let finish = Math.max(lastOff, lastOn + LOOP_LATE, 1 + Math.round((end - first) * FRAMES_PER_SECOND))
   // The commands each frame: the notes ending there and those beginning, and at frame 1 the loop point's $74 (and, as
   // the piece plays again, the notes ending at its end). Past MOST_COMMANDS the weakest new notes are left out,
   // forward through the piece; frame 1 is looked at again last, with what ends at the end then known.
@@ -764,8 +793,16 @@ export function nhl95MusicFromMidi(notes: MidiNote[], choices: Map<number, PartC
   for (const p of sounding) stream.push({ frame: p.on, status: 0x90 | p.channel, data: [p.note, p.velocity, p.off - p.on] })
   // In time order (a stable sort: the programs, then the loop point, then the notes as kept).
   stream.sort((a, b) => a.frame - b.frame)
-  stream.push({ frame: finish, status: 0xb0, data: [LOOP, 0] }, { frame: finish, status: 0xff, data: [] })
+  stream.push({ frame: finish - LOOP_LATE, status: 0xb0, data: [LOOP, 0] }, { frame: finish - LOOP_LATE, status: 0xff, data: [] })
   return { stream, loopAt, seconds: (finish - 1) / FRAMES_PER_SECOND, quieter: loudness < 1, leftOut, chords, dropped, moved }
+}
+
+// How many frames a piece takes to come round to its loop point ($74) again: to its $75, and in one NOSE4Web made
+// (`made`) the LOOP_LATE frames after it. Null where it has no loop point and $75.
+export function nhl95LoopFrames(stream: Nhl95Event[], made: boolean): number | null {
+  const loop = stream.find((e) => e.status === 0xb0 && e.data[0] === LOOP_START)
+  const jump = stream.find((e) => e.status === 0xb0 && e.data[0] === LOOP)
+  return loop && jump ? jump.frame - loop.frame + (made ? LOOP_LATE : 0) : null
 }
 
 // The bytes of a piece made by nhl95MusicFromMidi: its stream, then NOSE4Web's mark with its name.
@@ -788,6 +825,7 @@ export function withNhl95Music(rom: Uint8Array, number: number, made: Pick<MadeN
 
 // The most a stream reaches of each of the driver's limits above, as it plays (and plays again): FM patches sounding
 // at once, square notes, noise notes, notes waiting to end, and commands in a frame (after the first, the programs').
+// A piece NOSE4Web made plays its loop point again LOOP_LATE frames after its $75.
 export function nhl95MusicLimits(stream: Nhl95Event[]): { fm: number; square: number; noise: number; pending: number; commands: number } {
   const patch = new Map<number, number>()
   const notes: { on: number; off: number; patch: number }[] = []
@@ -800,7 +838,7 @@ export function nhl95MusicLimits(stream: Nhl95Event[]): { fm: number; square: nu
     if (command === 0xc0) patch.set(status & 0x0f, data[0])
     if (command === 0x90) notes.push({ on: frame, off: frame + data[2], patch: patch.get(status & 0x0f) ?? -1 })
     if (command === 0xb0 && data[0] === LOOP_START && loopFrame < 0) loopFrame = frame
-    if (command === 0xb0 && data[0] === LOOP) finish = frame
+    if (command === 0xb0 && data[0] === LOOP) finish = frame + LOOP_LATE
     if (command === 0x90 || command === 0xc0 || command === 0xe0 || (command === 0xb0 && data[0] !== LOOP)) add(frame)
   }
   for (const n of notes) add(n.off)

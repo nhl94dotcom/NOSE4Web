@@ -2,11 +2,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { gameMusicToMidi, gameMusicTune, musicParts, NHL95_EXPORT_PROGRAM, nhl95Shift, readMidi, readSong, songToMidi, type MidiNote, type PartChoice, type SongEvent } from '../src/core/genesismusic'
+import { gameMusicToMidi, gameMusicTune, musicParts, NHL95_DRUM_NOTES, NHL95_EXPORT_PROGRAM, nhl95Shift, NOISE_HAT, readMidi, readSong, songToMidi, type MidiNote, type PartChoice, type SongEvent } from '../src/core/genesismusic'
 import {
   findBankItem,
   NHL95_GAME_MUSIC,
   NHL95_INSTRUMENTS,
+  nhl95LoopFrames,
   nhl95MusicFromMidi,
   nhl95MusicLimits,
   nhl95PartChoices,
@@ -230,7 +231,8 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
         expect(tune.length).toBeGreaterThan(300)
         return Math.round(song.seconds)
       })
-      expect(lengths, name).toEqual([71, 65, 70])
+      // Each to where it plays again: the title music to its $75 (its last 6 frames, after it, never play).
+      expect(lengths, name).toEqual([70, 65, 70])
     }
     // Only songs 0, 2 and 3.
     expect(readNhl95Music(open(RETAIL).bytes, 1)).toBeNull()
@@ -252,12 +254,13 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music", () => {
     expect(ons(tune, 7)).toEqual([])
     const title = readNhl95Music(rom, 0)!
     expect(Math.max(...ons(title.events, 6).map((e) => e.data[0]))).toBe(19)
-    // In the MIDI file each drum by the note it is played at: $15 at note 0 a kick, at 17 to 19 a tom; $0E a snare at
-    // 55 to 57; the noise the hi-hats.
-    const drums = (song: typeof scouting) => new Set(readMidi(gameMusicToMidi(song, '', 95)).notes.filter((n) => n.channel === 9).map((n) => n.note))
-    expect([...drums(scouting)].every((note) => [35, 36, 38, 42, 45].includes(note))).toBe(true)
-    expect(drums(scouting).has(36)).toBe(true)
-    expect(drums(title).has(45)).toBe(true)
+    // In the MIDI file each drum by the note it is played at, one each: $15 at 0 the kick 36, at 9 the kick 35, at 17
+    // and 19 the toms 45 and 48; $0E at 51 the low conga 64, at 55 and 57 the side stick 37 and the snare 40; the noise
+    // at 108 the open hat 46, at 120 the closed hat 42.
+    const drums = (song: typeof scouting) => [...new Set(readMidi(gameMusicToMidi(song, '', 95)).notes.filter((n) => n.channel === 9).map((n) => n.note))].sort()
+    expect(drums(scouting)).toEqual([35, 36, 37, 42, 46])
+    expect(drums(title)).toEqual([36, 40, 42, 45, 46, 48])
+    expect(drums(readNhl95Music(rom, 2)!)).toEqual([36, 42, 48, 64])
     const midi = readMidi(gameMusicToMidi(scouting, '', 95)).notes
     expect(midi.filter((n) => n.channel !== 9).length).toBe(tune.filter((e) => (e.status & 0xf0) === 0x90).length)
     // As NHL 94's, channel 9 would be the drums.
@@ -326,6 +329,33 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music from MIDI file
         expect(back.custom, label).toEqual({ name: 'Again', replaced: number })
         expect(Math.abs(back.seconds - song.seconds), label).toBeLessThanOrEqual(1 / 60 + 1e-9)
         const stream = pieceStream(next, number)
+        // It comes round again in the time of its MIDI file: its $75 two frames before, as Match Viewer heard the game
+        // take two frames over the jump back.
+        expect(nhl95LoopFrames(stream.events, true), label).toBe(Math.round(end * 60))
+        expect(stream.events.at(-1)!.frame, label).toBe(Math.round(end * 60) - 1)
+        // Every drum moment of the game's own piece, each drum (patch and note) as it has it, a frame later (the
+        // programs taking frame 0); of two hits at once on one patch (16 times in the title music, its kick and a tom or
+        // two toms, and 3 in the scouting report's) one sounds, in the game as here.
+        const drumHits = (events: Events, later: number) => {
+          const patchOf = new Map<number, number>()
+          const hits = new Map<string, number[]>()
+          for (const e of events) {
+            if ((e.status & 0xf0) === 0xc0) patchOf.set(e.status & 0x0f, e.data[0])
+            const patch = patchOf.get(e.status & 0x0f)!
+            const moment = `${e.frame + later}:${patch}`
+            if ((e.status & 0xf0) === 0x90 && DRUM_PATCHES.includes(patch) && e.frame < song.seconds * 60) hits.set(moment, [...(hits.get(moment) ?? []), e.data[0]])
+          }
+          return hits
+        }
+        const mine = drumHits(stream.events, 0)
+        const theirs = drumHits(pieceStream(rom, number).events, 1)
+        expect([...mine.keys()].sort(), label).toEqual([...theirs.keys()].sort())
+        for (const [moment, notes] of mine) {
+          expect(notes, `${label} ${moment}`).toHaveLength(1)
+          expect(theirs.get(moment), `${label} ${moment}`).toContain(notes[0])
+        }
+        const doubles = [...theirs.values()].filter((notes) => new Set(notes).size > 1).length
+        expect(doubles, label).toBe({ 0: 16, 2: 0, 3: 3 }[number])
         expectWithinLimits(stream.events, label)
         // The programs first, then the loop point ($74), which controller $75 at the end goes back to.
         expect(stream.loops, label).toHaveLength(1)
@@ -401,13 +431,14 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music from MIDI file
     // The drums at the notes Match Viewer heard them at: the kick and the tom on $15, the snare $0E, the hats the noise.
     expect(ons(0x15)).toEqual([
       [1, 0, 6],
-      [46, 18, 6],
+      [46, 17, 6],
     ])
     expect(ons(0x0e)).toEqual([[31, 56, 6]])
     expect(ons(0x13)).toEqual([[16, 120, 1]])
-    // The end: the file's rest kept, then back to the start.
+    // The end: the file's rest kept, then back to the start (the $75 two frames before, the jump taking two).
     expect(made.seconds).toBe(2)
-    expect(made.stream.at(-2)).toEqual({ frame: 121, status: 0xb0, data: [0x75, 0] })
+    expect(made.stream.at(-2)).toEqual({ frame: 119, status: 0xb0, data: [0x75, 0] })
+    expect(nhl95LoopFrames(made.stream, true)).toBe(120)
     expectWithinLimits(made.stream)
     // The defaults: the chords on the square wave, the low part on the bass, the drums the drums.
     const defaults = nhl95PartChoices(musicParts(notes), notes)
@@ -488,5 +519,47 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's other music from MIDI file
     const music = (before: typeof project, after: typeof project) => compareProjects(before, after).flatMap((d) => (d.heading === 'Game music' ? d.changes : []))
     expect(music(opened, project)).toEqual(['End of period music: "Scouting", from a MIDI file.'])
     expect(music(project, { ...project, bytes: withOriginalNhl95Song(project.bytes, 2) })).toEqual(["End of period music: the game's own again."])
+  })
+})
+
+describe("NHL '95's other music from any MIDI file", () => {
+  it("puts each drum it exports back as the same drum, and any other file's drums on the nearest", () => {
+    const drums = (midiNotes: number[]) => {
+      const notes = [at(0, 1, 60, 0), ...midiNotes.map((note, i) => at(i / 2, 0.05, note, 9))]
+      const made = nhl95MusicFromMidi(notes, new Map<number, PartChoice>([[0, 0x18], [9, 'drums']]), midiNotes.length / 2)
+      const patches = channelPatches(made.stream)
+      return made.stream.filter((e) => (e.status & 0xf0) === 0x90 && DRUM_PATCHES.includes(patches.get(e.status & 0x0f)!)).map((e) => [patches.get(e.status & 0x0f), e.data[0]])
+    }
+    // The export's own, one each (with 36 in the file, 35 is the second kick).
+    expect(drums(NHL95_DRUM_NOTES.map((d) => d.midi))).toEqual(NHL95_DRUM_NOTES.map((d) => [d.patch === NOISE_HAT ? 0x13 : d.patch, d.note]))
+    // Any other file's: 35 alone the kick, the clap the snare, the toms by pitch, the pedal hat and the ride closed,
+    // the crashes open; a cowbell left out.
+    expect(drums([35, 39, 41, 43, 50, 44, 51, 49, 57, 56])).toEqual([
+      [0x15, 0],
+      [0x0e, 56],
+      [0x15, 17],
+      [0x15, 17],
+      [0x15, 19],
+      [0x13, 120],
+      [0x13, 120],
+      [0x13, 108],
+      [0x13, 108],
+    ])
+  })
+
+  it('puts a part of long notes on the mallet only when chosen', () => {
+    expect(NHL95_INSTRUMENTS.find((i) => i.patch === 0x0d)?.name).toBe('Mallet (short notes only)')
+    const part = (length: number) => Array.from({ length: 8 }, (_, i) => at(i * length, length, 60 + (i % 3), 0))
+    // A part exported from $0D (General MIDI 12) comes back on it with short notes; with long ones on the next nearest.
+    for (const [length, patch] of [
+      [0.1, 0x0d],
+      [0.5, 0x14],
+    ]) {
+      const notes = part(length)
+      expect(nhl95PartChoices(musicParts(notes), notes, new Map([[0, 12]])).get(0), `${length}`).toBe(patch)
+    }
+    // With no instrument named, the third part from the top (the next free patch after both brass) is not put on it.
+    const notes = [...[72, 67].map((note, channel) => at(0, 2, note, channel)), ...Array.from({ length: 4 }, (_, i) => at(i * 0.5, 0.5, 64, 2))]
+    expect(nhl95PartChoices(musicParts(notes), notes).get(2)).toBe(0x1d)
   })
 })

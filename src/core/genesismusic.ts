@@ -481,15 +481,32 @@ type ChannelPart = { drum: (note: number) => number } | { program: number; shift
 const KICK = 36
 const SNARE = 38
 const CLOSED_HAT = 42
-const LOW_TOM = 45
 // NHL '95's noise voice (nhl95music.ts), the hi-hats, as a patch number of its own past the sampled ones'.
 export const NOISE_HAT = 0x7f
-// NHL '95's drum patches, each sounding by the note it is played at (Match Viewer played each alone): $15 like a kick
-// at note 0 and a tom at 17 to 19; $0E a thump at 51 and a snare-like crack at 55 to 57.
+// NHL '95's drums and the General MIDI drum note each is exported as, one each, so that a piece put back in from its own
+// MIDI file gets back every drum as it was (nhl95music.ts reads them back by this table). Match Viewer played each alone:
+// $15 like a kick at notes 0 and 9 and a tom at 17 to 19; $0E a thump at 51 (as a low conga, MIDI having no thump) and
+// a snare-like crack at 55 to 57; the noise (NOISE_HAT) an open hi-hat at 108 and a closed one at 120. The game's own
+// pieces play $15 0, 9, 17 and 19, $0E 51, 55 and 57, and the noise at 108 and 120.
 export const NHL95_DRUM_PATCH = 0x15
-const NHL95_DRUMS: Record<number, (note: number) => number> = {
-  [NHL95_DRUM_PATCH]: (note) => (note < 10 ? KICK : LOW_TOM),
-  0x0e: (note) => (note < 54 ? 35 : SNARE),
+export const NHL95_DRUM_NOTES: { patch: number; note: number; midi: number }[] = [
+  { patch: NHL95_DRUM_PATCH, note: 0, midi: 36 },
+  { patch: NHL95_DRUM_PATCH, note: 9, midi: 35 },
+  { patch: NHL95_DRUM_PATCH, note: 17, midi: 45 },
+  { patch: NHL95_DRUM_PATCH, note: 18, midi: 47 },
+  { patch: NHL95_DRUM_PATCH, note: 19, midi: 48 },
+  { patch: 0x0e, note: 51, midi: 64 },
+  { patch: 0x0e, note: 55, midi: 37 },
+  { patch: 0x0e, note: 56, midi: 38 },
+  { patch: 0x0e, note: 57, midi: 40 },
+  { patch: NOISE_HAT, note: 108, midi: 46 },
+  { patch: NOISE_HAT, note: 120, midi: 42 },
+]
+// A drum patch's MIDI drum note for each note it plays: its own in the table, or the nearest one's.
+function nhl95Drum(patch: number): ((note: number) => number) | null {
+  const own = NHL95_DRUM_NOTES.filter((drum) => drum.patch === patch)
+  if (own.length === 0) return null
+  return (note) => own.reduce((near, drum) => (Math.abs(drum.note - note) < Math.abs(near.note - note) ? drum : near)).midi
 }
 // Where NHL '95's tuned patches sound against the written note (Match Viewer, each played alone): $18 and $1B an octave
 // above, $1C two octaves above, $14 (a square wave that goes no lower than about 110 Hz) at the note from 46 up and an
@@ -503,8 +520,9 @@ const NHL95_SHIFTS: Record<number, (note: number) => number> = {
 // How far above the note written for it NHL '95's patch sounds.
 export const nhl95Shift = (patch: number, note: number) => NHL95_SHIFTS[patch]?.(note) ?? 0
 // The General MIDI instrument each of NHL '95's tuned patches is exported as, one each, so that a piece put back in from
-// its own MIDI file goes on the same patches (nhl95music.ts); others by their range.
-export const NHL95_EXPORT_PROGRAM: Record<number, number> = { 0x11: 38, 0x18: 62, 0x1b: 63, 0x0d: 6, 0x1d: 81, 0x1c: 78, 0x14: 80 }
+// its own MIDI file goes on the same patches (nhl95music.ts), the nearest sound to Match Viewer's ears ($1B a French
+// horn, $0D a marimba); others by their range.
+export const NHL95_EXPORT_PROGRAM: Record<number, number> = { 0x11: 38, 0x18: 62, 0x1b: 60, 0x0d: 12, 0x1d: 81, 0x1c: 78, 0x14: 80 }
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
 // Whose piece it is: NHL '95's patches are numbered otherwise than NHL 94's, and its channel 9 may be a tune, so its
@@ -522,8 +540,9 @@ function channelParts(events: SongEvent[], edition: MusicEdition = 94): Map<numb
   for (const [channel, played] of notes) {
     const patch = patches.get(channel) ?? 0
     const nhl94 = edition === 94
-    if (patch === NOISE_HAT) parts.set(channel, { drum: () => CLOSED_HAT })
-    else if (!nhl94 && NHL95_DRUMS[patch]) parts.set(channel, { drum: NHL95_DRUMS[patch] })
+    const drum95 = nhl94 ? null : nhl95Drum(patch)
+    if (drum95) parts.set(channel, { drum: drum95 })
+    else if (patch === NOISE_HAT) parts.set(channel, { drum: () => CLOSED_HAT })
     else if (isSampled(patch) || (nhl94 && channel === DRUMS)) parts.set(channel, { drum: () => SNARE })
     // NHL 94's one-note channels are its kick; NHL '95's drums are its drum patches, and a tune may hold one note.
     else if (nhl94 && new Set(played).size === 1) parts.set(channel, { drum: () => KICK })
@@ -812,11 +831,14 @@ export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number },
     }
   })
   let frame = 0
+  // NHL '95's pieces end where they play again, the notes still sounding there cut at it (in the game they ring on
+  // into the next time round), so that the file is as long as the piece's loop.
+  const last = edition === 95 && song.seconds ? Math.round(song.seconds * FRAMES_PER_SECOND) : Infinity
   for (const [i, event] of song.events.entries()) {
     if (silent.has(i)) continue
     const command = event.status & 0xf0
     const part = parts.get(event.status & 0x0f)
-    if (!part) continue
+    if (!part || (command === 0x90 && event.frame >= last)) continue
     const drum = 'drum' in part ? part.drum : null
     const shift = 'shift' in part ? part.shift(event.data[0]) : 0
     const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
@@ -826,8 +848,8 @@ export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number },
     else if (command === 0x80) bytes = [0x80 | channel, drum ? drum(event.data[0]) : (event.data[0] + shift) & 0x7f, 0x40]
     else if (command === 0xb0 && event.data[0] === 7 && drum === null) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
     if (!bytes) continue
-    vlq(event.frame - frame)
-    frame = event.frame
+    vlq(Math.min(event.frame, last) - frame)
+    frame = Math.min(event.frame, last)
     track.push(...bytes)
   }
   // The end where the piece ends, its last rest kept, so that it loops in time when put back in.

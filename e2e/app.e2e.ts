@@ -3226,10 +3226,10 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(bass.locator('option', { hasText: 'Organ' })).toHaveCount(0)
     // An instrument another part plays is not offered again; freed, it is.
     const second = music.getByLabel('Part on MIDI channel 2', { exact: true })
-    await expect(second.locator('option', { hasText: 'Bass (the bass lines)' })).toBeDisabled()
+    await expect(second.locator('option', { hasText: 'Plucked bass' })).toBeDisabled()
     await bass.selectOption('out')
-    await expect(second.locator('option', { hasText: 'Bass (the bass lines)' })).toBeEnabled()
-    await bass.selectOption({ label: 'Bass (the bass lines)' })
+    await expect(second.locator('option', { hasText: 'Plucked bass' })).toBeEnabled()
+    await bass.selectOption({ label: 'Plucked bass' })
     await music.getByRole('button', { name: 'Put it in' }).click()
     await expect(music.getByText(/^The title music is now "Scouting report music", 1:10 long, playing again from the start when it ends\./)).toBeVisible()
     const replaced = music.locator('tbody tr').first()

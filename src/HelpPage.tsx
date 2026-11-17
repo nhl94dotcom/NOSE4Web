@@ -975,8 +975,8 @@ export function HelpPage() {
         <li>
           <b>Game music</b> (NHL '95): its title music (the title screen, the credits and the main menu), end of period
           music and scouting report music (also the playoff and Stanley Cup screens) are played, exported and replaced
-          as NHL 94's below, on NHL '95's own instruments: a bass, two synth brass, short bright notes, a lead for long
-          notes, a steady high tone and the square wave. The console plays one note at a time on each of them but the
+          as NHL 94's below, on NHL '95's own instruments: a plucked bass, a brass swell, a mellow horn, a mallet (short
+          notes only: it fades fast), a sustained lead, a whistle and the square wave. The console plays one note at a time on each of them but the
           square wave, which plays three, so each instrument takes one part, and of a chord on the others the highest
           note is kept (the lowest on the bass). The drum channel plays on the game's kick, toms, snare and hi-hats. At
           most six of the FM instruments sound at once (the kick and the snare among them), the drums and the bass kept

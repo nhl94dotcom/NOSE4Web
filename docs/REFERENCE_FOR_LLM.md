@@ -1301,7 +1301,7 @@ songs' (`readNhl95Stream`, section 6).
 
 | Id | `NHL95_GAME_MUSIC` name | Where it plays | Length (test, retail and W18) |
 |---|---|---|---|
-| 0 | Title music | The title screen, the credits and the main menu | 71 s |
+| 0 | Title music | The title screen, the credits and the main menu | 70 s (to its `$75`; 6 frames after it never play) |
 | 1 | (not listed) | "played by nothing"; `readNhl95Music(rom, 1)` is null | |
 | 2 | End of period music | Between periods | 65 s |
 | 3 | Scouting report music | The scouting report, the playoff screen and the Stanley Cup screen | 70 s |
@@ -1309,17 +1309,34 @@ songs' (`readNhl95Stream`, section 6).
 They "play on the front end's FM patches and two of the sound chip's square-wave voices: patch `$13` is its noise, the
 hi-hats".
 
-`readNhl95Music(rom, number)` returns NHL 94-style events (`songEvents`): notes 12 lower (`PITCH`, section 6), except
-on patch `$15` (`NHL95_DRUM_PATCH`, a drum played at notes 0 to 19, kept as written), each note given an off at its
-length (at least 1 frame), velocities as they are (divisor 1; the organ songs' are divided by 3), and patch `$13`
-turned into `NOISE_HAT` (`$7F`), which `gameMusicToMidi` exports as closed hi-hat 42 on channel 9; `loops: true`,
-`custom: null`. `readNhl95Song` (organ songs only) returns null for these ids (test).
+`readNhl95Music(rom, number)` returns NHL 94-style events (`songEvents`), every note as written (`asWritten`), each
+given an off at its length (at least 1 frame), velocities as they are (divisor 1; the organ songs' are divided by 3),
+and patch `$13` turned into `NOISE_HAT` (`$7F`); `loops: true`, `custom` for one NOSE4Web made. Its `seconds` run to
+where the loop point plays again: loop point frame + `nhl95LoopFrames(events, made)` (to the `$75`, plus `LOOP_LATE`
+= 2 for one NOSE4Web made, below); without a loop point, the last event's frame. `readNhl95Song` (organ songs only)
+returns null for these ids (test).
 
 `gameMusicTune(song, 95)` and `gameMusicToMidi(song, name, 95)` (the page passes 95 for NHL '95) classify NHL '95's
-channels with none of NHL 94's patch tables: its patch numbers are not NHL 94's. The noise is the hi-hat, patch `$15`
-low tom 45, a sampled patch the snare, one pitch only the kick; every other channel is a tune by its average pitch
-(synth bass 38 below 50, else synth brass 62), with no octave shift; channel 9 is not taken as the drums (the scouting
-report music plays a tune on it, patch `$14`, 363 notes).
+channels with none of NHL 94's patch tables: its patch numbers are not NHL 94's. The drums are `$15`, `$0E` and the
+noise, each (patch, note) its own General MIDI drum note (`NHL95_DRUM_NOTES`, `genesismusic.ts`; a note not in it takes
+the nearest one's of its patch):
+
+| Patch | Note | Sounds like (Match Viewer) | GM drum note |
+|---|---|---|---|
+| `$15` | 0 | kick | 36 bass drum 1 |
+| `$15` | 9 | second kick | 35 acoustic bass drum |
+| `$15` | 17 / 18 / 19 | low / mid / high tom | 45 / 47 / 48 |
+| `$0E` | 51 | thump | 64 low conga (GM has no thump) |
+| `$0E` | 55 / 56 / 57 | snare-like crack | 37 side stick / 38 snare / 40 electric snare |
+| `$13` (noise) | 108 | open hat | 46 |
+| `$13` (noise) | 120 | closed hat | 42 |
+
+The game's own pieces play `$15` 0, 9, 17, 19; `$0E` 51, 55, 57; the noise 108, 120. Every other channel is a tune on
+its patch's GM program (`NHL95_EXPORT_PROGRAM`, `$11` 38, `$18` 62, `$1B` 60, `$0D` 12, `$1D` 81, `$1C` 78, `$14` 80;
+others synth bass 38 below an average of 50, else synth brass 62), shifted to the octave it sounds at (`nhl95Shift`);
+channel 9 is not taken as the drums (the scouting report music plays a tune on it, patch `$14`, 363 notes). Notes still
+sounding where the piece loops are cut there in the file and notes after it left out, so that the file is as long as
+the loop.
 
 ### The driver's limits (Match Viewer's measurements; the comment above `FM_VOICES` in `nhl95music.ts`)
 
@@ -1338,28 +1355,42 @@ report music plays a tune on it, patch `$14`, 363 notes).
 
 ### How a piece is made (`nhl95MusicFromMidi`)
 
-- Instruments (`NHL95_INSTRUMENTS`, each usable once): `$11` bass, `$18` synth brass, `$1B` second synth brass,
-  `$0D` short bright notes, `$1D` lead for long notes, `$1C` steady high tone, `$14` square wave (the only one with
-  chords, 3 notes). `$0B` and `$16` are left out: none of songs 0, 2, 3 plays them (only the unused song 1 has `$16`),
+- Instruments (`NHL95_INSTRUMENTS`, each usable once, named from Match Viewer's listening): `$11` Plucked bass, `$18`
+  Brass swell, `$1B` Mellow horn, `$0D` Mallet (short notes only: it falls 18 dB in 1 s, 27 dB in 2 s), `$1D`
+  Sustained lead, `$1C` Whistle, `$14` Square (plays chords, three notes). `$0B` and `$16` are left out: none of songs 0, 2, 3 plays them (only the unused song 1 has `$16`),
   so how they sound is not known.
 - Notes are written as the note heard less the patch's shift (`nhl95Shift`: `$18`/`$1B` +12, `$1C` +24, `$14` +12
   below 46). Each part moves by whole octaves into its patch's range as heard (`soundingRange`: written 12-95, at most
   108 heard; `$14` 46-96); only notes of a part too wide move one by one.
 - Monophony per FM patch: of a chord (same frame) the highest is kept, the lowest on the bass; a note that overlaps the
   previous by more than `LEGATO` (3 frames) is dropped where weaker, else it cuts the held note; a legato overlap cuts.
-- Drums (MIDI channel 10, `drumFor`): 35/36 kick `$15` note 0 (35 is the `$0E` thump at 51 when a file has both);
-  37-40 snare `$0E` 56; toms 41/43, 45/47, 48/50 on `$15` 17, 18, 19; hats and rides `$13` 120, open hat and crashes
-  `$13` 108; others left out. FM drums 6-24 frames long, the noise 1-4.
+- Drums (MIDI channel 10, `drumFor`): the table above read back, so a piece's own export comes back drum for drum
+  (test: every drum moment of each original, with its patch and note); but 35 is the kick (`$15` 0) where a file has no
+  36. Other notes: 39 the snare `$0E` 56, toms 41/43 `$15` 17 and 50 `$15` 19, pedal hat 44 and rides 51/53/59 `$13`
+  120, crashes and splash 49/52/55/57 `$13` 108; others left out. FM drums 6-24 frames long, the noise 1-4. Of two hits
+  at once on one patch the higher is kept (the game itself sounds only one: the title music has 16 such moments, the
+  scouting report's 3).
 - Past the voices or the commands a frame, the weakest gives way: drums kept first, then the bass, then the higher notes.
-- Velocities as in the file, unless its tune median is past 95: then scaled to 78 (the three pieces' tune median).
+- Velocities as in the file, unless its tune median is past 95: then scaled to 78 (the three pieces' tune median;
+  each piece's own: title 79, end of period 81, scouting report 75, so matching the target to the piece replaced
+  would change little). Match Viewer measured the end of period piece made from the title's export 18% louder (RMS
+  3,611 vs 3,071): its velocities are under the original's, so that is the title's busier arrangement, left as is.
 - Layout as the game's own pieces: programs at frame 0, `$B0 $74 0` at frame 1 (the loop point: header loop count 1,
   its offset the `$74` event's wait byte, after the 4-byte header), the notes from frame 1, the file's end rest, then
   `$B0 $75 0` (back to the loop point) and `$FF`. `nhl95StreamBytes(events, firstWait, loopAt)` writes the loop table
   and the loop event's status.
+- Loop timing: Match Viewer heard the second pass of a piece laid out so 2 frames after its `$75` (1 on W18), where the
+  game's own (loop point at frame 0, programs after it) play again in the `$75`'s frame. SndUpdate (sound95.asm) reads
+  as taking no time over the jump (it skips the loop point's wait, as it skips the first event's at the start, and goes
+  on in the same frame), so the cause is not in that code. The `$75` (and `$FF`) is written `LOOP_LATE` (2) frames
+  before the end, and never before the last note begins: the loop period (`nhl95LoopFrames`) equals the MIDI file's
+  length (test, each original's export put back). `nhl95MusicLimits` counts the loop point's commands in the frame
+  `LOOP_LATE` after the `$75`.
 - Defaults (`nhl95PartChoices`): the drum channel the drums; a part with a GM program on the nearest free patch (the
   export gives each patch its own program, `NHL95_EXPORT_PROGRAM`, so a piece's own MIDI file comes back on its
   patches); then the lowest part on the bass, a part of chords (a quarter of its notes overlapping) on the square wave,
-  the rest from the highest down.
+  the rest from the highest down. `$0D` is never a default for a part whose median note is longer than 0.3 s
+  (`MALLET_LONGEST`); it can still be chosen.
 
 ### Applying and removing
 
