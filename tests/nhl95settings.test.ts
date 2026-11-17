@@ -97,7 +97,7 @@ const IN_PLACE: { name: string; set: Partial<Nhl95HackChoices>; bytes: [number, 
   { name: 'real-time clock', set: { realTime: true }, bytes: [[0x7a384, '0444'], [0x89568, '003c'], [0x7a3cc, '0444']] },
   { name: 'penalty time', set: { penaltySeconds: 30 }, bytes: [[0x8942c, '001e']] },
   { name: 'no icing', set: { noIcing: true }, bytes: [[0x81538, '60040002bb86']] },
-  { name: 'calls during a delayed penalty', set: { delayedCalls: true }, bytes: [[0x89a10, '6000001a']] },
+  { name: 'calls during a delayed penalty', set: { delayedCalls: true }, bytes: [[0x89a10, '6000001a'], [0x89a1e, '6000000c']] },
   { name: 'B-checks as with penalties on', set: { bCheckPenaltiesOff: 'asPenaltiesOn' }, bytes: [[0x7af3c, '60000030'], [0x7af46, '67000026']] },
   { name: "the forum's B-checks", set: { bCheckPenaltiesOff: 'forum' }, bytes: [[0x7af3c, '67000030'], [0x7af46, '66000026']] },
   { name: 'three stars, line changes off', set: { threeStars: 'linesOff' }, bytes: [[0x95c8a, clean(STARS_OFF)]] },
@@ -341,20 +341,21 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expectSameBytes(applyNhl95Hacks(on, base).bytes, rom.bytes)
   })
 
-  it.each(names)("shows every option of %s once on the Hacks page, in its section, each setting's note ending as NHL 94's untested", (name) => {
+  it.each(names)("shows every option of %s once on the Hacks page, in its section, each setting's note ending as tested or, for calls during a delayed penalty, not yet", (name) => {
     const rom = open(name)
     expect(NHL95_HACK_SECTIONS.flatMap((section) => section.hacks).sort()).toEqual([...NHL95_HACKS].sort())
     const html = renderToStaticMarkup(createElement(Nhl95HacksPage, { project: rom, name: 'L', onChange: () => {} }))
     const sections = [...html.matchAll(/<section id="hacks-([a-z]+)"[^>]*>(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
     const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
+    const TESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Tested in the game by the NHL94 Match Viewer project.'
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
       for (const hack of section.hacks.filter((hack) => hack !== 'fightingArcade' && hack !== 'fightingOff')) {
         const at = shown.indexOf(`<b>${NHL95_HACK_TITLES[hack].replace(/'/g, '&#x27;')}</b>`)
         expect(at, hack).toBeGreaterThanOrEqual(0)
         // NHL 94's settings: their note ends with the line for them.
-        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(UNTESTED)
+        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(hack === 'delayedCalls' ? UNTESTED : TESTED)
       }
     }
     expect(html).not.toContain('undefined')

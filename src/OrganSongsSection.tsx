@@ -268,7 +268,7 @@ export function GameMusicSection({ project, onChange }: Props) {
             <b>Replace</b> puts a MIDI file of your own in its place: you choose a game instrument for each of its parts
             (up to six), its drums play as the game's kick and hit, at most five notes sound at once, and the piece plays
             again from the start when it ends, as the game's own do; a file much louder than the game's music is played
-            more quietly. Try it in the game before your league does.
+            more quietly. Tested in the game by the NHL94 Match Viewer project.
           </>
         )}
       </p>

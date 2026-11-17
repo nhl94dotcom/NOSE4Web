@@ -98,8 +98,11 @@ const FIGHT_START = 'Fighting setting at power-on'
 const TESTED = 'Tested in the game by the NHL94 Match Viewer project.'
 // NHL 94's fixes, where NHL '95 has the same code.
 const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
-// The line each of NHL 94's settings ends with: none has been played in NHL '95 yet.
+// The line each of NHL 94's settings ends with, tested or (UNTESTED) not yet.
+const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
+// Those not played yet.
+const NOT_YET: Nhl95Hack[] = ['delayedCalls']
 
 const OT3_MORE = (
   <p className="note">
@@ -117,7 +120,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       The game's Edit Lines lists only forwards for the forward positions and only defencemen for the defence. With
       this on it lists every skater for every position. A player plays the position the line gives him, with his own
       ratings. Saved lines keep him there, even on a ROM without this. The team page's lines can then take anyone too.{' '}
-      {UNTESTED}
+      {SETTING_TESTED}
     </p>
   ),
   ppPkFix: (
@@ -651,7 +654,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
                 <summary>More about it</summary>
                 {MORE[hack] ?? (
                   <p className="note">
-                    {SETTING_MORE[hack]!(wanted, stock(hack))} {UNTESTED}
+                    {SETTING_MORE[hack]!(wanted, stock(hack))} {NOT_YET.includes(hack) ? UNTESTED : SETTING_TESTED}
                   </p>
                 )}
               </details>

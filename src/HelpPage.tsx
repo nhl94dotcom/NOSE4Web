@@ -984,7 +984,7 @@ export function HelpPage() {
           sound at once, the kick and the bass kept first; a file much louder than the game's own music is played more
           quietly, so that it does not distort; a rest at the file's end is kept; and the new piece plays again from its
           start when it ends, as the game's own do. <b>Put back
-          the original</b> restores the game's piece. Try a new piece in the game before your league does.
+          the original</b> restores the game's piece. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Game music</b> (SNES): the title music, the menu music (the main menu, and between periods early in the
@@ -2367,7 +2367,7 @@ export function HelpPage() {
         </li>
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own. Each option says whether it has been tested in the game by
-          the NHL94 Match Viewer project; the newest, NHL 94's settings and Any skater at any position, are not yet.
+          the NHL94 Match Viewer project; one, calls during a delayed penalty, is not yet.
           NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
           fixes, the faceoff spot fix, counting stick deflections as shots, the one-timer open net fix, the five-hole blind ring fix,

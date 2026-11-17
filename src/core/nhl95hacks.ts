@@ -1347,11 +1347,28 @@ const HYBRID_CODE95 = hex(
   '48E7 F880 08F8 0000 BB86 363C 00D7 0838 0001 BB86 6602 4443 307C AC62 0C38 0006 BB87 6D04 D0FC 0300 6146 3202 307C AC62 0C38 0006 BB87 6C04 D0FC 0300 6132 B441 6E22 4CDF 011F 2F0B 4240 1038 BB87 EF40 367C AC62 D6C0 303C 000C 4EB9 0008 9140 265F 4E75 08B8 0002 BB86 4CDF 011F 4E75 343C 7FFF 7805 4A68 0034 6F20 0828 0002 0063 6618 3028 0014 9043 4A43 6B02 4440 4A40 6A02 7000 B042 6C02 3400 D0FC 0080 51CC FFD4 4E75',
 )
 const hybridIcing95 = once(() => within(hookedFix(HYBRID_HOOK95, HYBRID_CODE95, [], placeCode), [{ at: 0x89b38, bytes: hex('4E75') }]))
-// Calls during a delayed penalty: checkagr's btst #2,(sflags9).w ($89A10) becomes bra.w to its rts ($89A2C).
-const delayedCalls95 = within(switchPart(0x89a10, hex('0838 0002'), hex('6000 001A')), [
-  { at: 0x89a14, bytes: hex('BF06 6600 0010') },
-  { at: 0x89a28, bytes: hex('303C 007F 4E75') },
-])
+// Calls during a delayed penalty: checkagr tests the delayed-penalty flag of the checker's team, sflags9 bit 2 for one
+// team ($89A10) and bit 1 for the other ($89A1E, after btst #6,pflags / bne); each btst becomes bra.w to the rts
+// ($89A2C). NHL 94 has one test; changing only the first left the other team never called (Match Viewer).
+const DELAYED_SITES95 = [
+  { at: 0x89a10, original: hex('0838 0002'), hacked: hex('6000 001A') },
+  { at: 0x89a1e, original: hex('0838 0001'), hacked: hex('6000 000C') },
+]
+const delayedCalls95 = within<boolean>(
+  {
+    detect(rom) {
+      const [first, second] = DELAYED_SITES95.map((site) => (matches(rom, site.at, site.hacked) ? true : matches(rom, site.at, site.original) ? false : undefined))
+      return first === undefined || first !== second ? undefined : first
+    },
+    remove: (rom) => DELAYED_SITES95.forEach((site) => rom.set(site.original, site.at)),
+    apply: (work, value) => void (value && DELAYED_SITES95.forEach((site) => work.rom.set(site.hacked, site.at))),
+  },
+  [
+    { at: 0x89a14, bytes: hex('BF06 6600 0010') },
+    { at: 0x89a22, bytes: hex('BF06 6700 0006') },
+    { at: 0x89a28, bytes: hex('303C 007F 4E75') },
+  ],
+)
 // B-checks with penalties off: Bcheck's bne.w and beq.w .checkdir.
 const BCHECK_SITES95 = [0x7af3c, 0x7af46]
 const BCHECK_BYTES95: Record<BCheckPenaltiesOff, string[]> = {
