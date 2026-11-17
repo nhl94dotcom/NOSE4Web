@@ -135,7 +135,7 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's organ songs", () => {
     expectSameBytes(withOriginalNhl95Song(one, 0x3a), rom)
   })
 
-  it('exports a song as MIDI and takes it back in with the same notes, at most four at once', () => {
+  it('exports a song as MIDI and takes it back in with the same notes, as many at once as the game’s own songs', () => {
     const rom = open(RETAIL).bytes
     for (const number of [0x52, 0x3d]) {
       const song = readNhl95Song(rom, number)!
@@ -144,32 +144,32 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95's organ songs", () => {
       expect(mostAtOnce(made.events)).toBeLessThanOrEqual(NHL95_SONG_VOICES)
       const next = withNhl95Song(rom, number, made.events, 'x')
       const back = readNhl95Song(next, number)!
-      if (number === 0x52) {
-        // Two notes at most: every note comes back, within a frame.
-        expect(made.dropped).toBe(0)
-        const [was, now] = [ons(song.events), ons(back.events)]
-        expect(now.length).toBe(was.length)
-        now.forEach((event, i) => {
-          expect(event.data[0]).toBe(was[i].data[0])
-          expect(Math.abs(event.frame - was[i].frame)).toBeLessThanOrEqual(1)
-        })
-      } else expect(made.dropped).toBeGreaterThan(0)
+      // Two notes at once at most, and five (Brass Bonanza): every note comes back, within a frame.
+      expect(made.dropped).toBe(0)
+      // Notes that start together may come back in another order: compared by frame, then pitch.
+      const sorted = (events: SongEvent[]) => ons(events).sort((a, b) => a.frame - b.frame || a.data[0] - b.data[0])
+      const [was, now] = [sorted(song.events), sorted(back.events)]
+      expect(now.length).toBe(was.length)
+      now.forEach((event, i) => {
+        expect(event.data[0]).toBe(was[i].data[0])
+        expect(Math.abs(event.frame - was[i].frame)).toBeLessThanOrEqual(1)
+      })
     }
   })
 
-  it('holds a crowded MIDI file to four notes at once, the highest kept, and moves notes into range', () => {
-    const notes: MidiNote[] = [40, 48, 52, 55, 60, 64, 100].map((note) => ({ start: 0, length: 1, note, velocity: 64, channel: 0 }))
+  it('holds a crowded MIDI file to seven notes at once, the highest kept, and moves notes into range', () => {
+    const notes: MidiNote[] = [36, 40, 43, 48, 52, 55, 60, 64, 100].map((note) => ({ start: 0, length: 1, note, velocity: 64, channel: 0 }))
     const made = nhl95SongFromMidi([...notes, { start: 0, length: 1, note: 36, velocity: 100, channel: 9 }])
     expect(made.drums).toBe(1)
-    expect(mostAtOnce(made.events)).toBe(4)
-    expect(ons(made.events).map((e) => e.data[0]).sort()).toEqual([55, 60, 64, 76])
+    expect(mostAtOnce(made.events)).toBe(7)
+    expect(ons(made.events).map((e) => e.data[0]).sort()).toEqual([43, 48, 52, 55, 60, 64, 76])
     expect(made.moved).toBe(1)
     const rom = withNhl95Song(open(RETAIL).bytes, 0x40, made.events, 'Chord')
     const item = findBankItem(rom, 3, 0x40)!
     const stream = readNhl95Stream(rom.subarray(item.at, item.at + item.size))
     // As NHL '95 keeps them: 12 higher, the organ on channel 0, the game's velocities.
     expect(stream.events[0]).toEqual({ frame: 0, status: 0xc0, data: [0x19] })
-    expect(stream.events.filter((e) => e.status === 0x90).map((e) => e.data[0]).sort()).toEqual([67, 72, 76, 88])
+    expect(stream.events.filter((e) => e.status === 0x90).map((e) => e.data[0]).sort()).toEqual([55, 60, 64, 67, 72, 76, 88])
     expect(stream.events.filter((e) => e.status === 0x90).every((e) => e.data[1] === 90 && e.data[2] === 60)).toBe(true)
   })
 

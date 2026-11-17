@@ -38,9 +38,10 @@ import { DRUMS, FRAMES_PER_SECOND, isSampled, MidiError, ORGAN, planOrganNotes, 
 export const NHL95_FIRST_SONG = 0x32
 export const NHL95_LAST_SONG = 0x55
 export const NHL95_SONG_NUMBERS = Array.from({ length: NHL95_LAST_SONG - NHL95_FIRST_SONG + 1 }, (_, i) => NHL95_FIRST_SONG + i)
-// Notes at once a new song may have, as NHL 94's: the driver's list of notes waiting to end holds 32, shared with the
-// sound effects, and does not check that it is full.
-export const NHL95_SONG_VOICES = 4
+// Notes at once a new song may have: as many as NHL '95's own organ songs hold (7; most hold 6 or 7, where NHL 94's
+// hold 4), well within the driver's list of notes waiting to end, which holds 32, shared with the sound effects, and
+// does not check that it is full.
+export const NHL95_SONG_VOICES = 7
 const BANK = 0xd8ec
 const SONG = 3
 // SndFindBankItem's movem.l d1-d4/a1-a2,-(sp) / lea (SndBanks).l,a1 / move.w #3,d2: the address at 6.

@@ -1050,7 +1050,7 @@ export function HelpPage() {
           end of a period starts another song and stops the one playing. A longer song plays until then.
         </li>
         <li>
-          <b>Notes at once:</b> the organ plays at most four. Where more sound at once, the highest are kept and the
+          <b>Notes at once:</b> the organ plays at most four in NHL 94 and on the SNES, seven in NHL '95. Where more sound at once, the highest are kept and the
           lowest cut short or left out, so keep the tune on top and the chords under it, and leave out pads, strings
           and other held notes that would crowd it. The message after importing says how many notes were affected.
         </li>
@@ -2427,7 +2427,7 @@ export function HelpPage() {
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved
-          as a MIDI file, replaced with a MIDI file of your own (at most four notes at once, on the organ) and put back;{' '}
+          as a MIDI file, replaced with a MIDI file of your own (at most seven notes at once, as NHL '95's own songs have, on the organ) and put back;{' '}
           <b>Used by</b> shows the teams that have it. Any of the songs can be replaced. Each team page chooses its six
           songs, and the songs file in Files numbers them 1 to 36. NHL '95's songs are NHL 94's tunes, and are named as
           NHL 94's are. Not yet tested in the game.
