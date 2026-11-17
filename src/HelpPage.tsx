@@ -978,10 +978,12 @@ export function HelpPage() {
           scouting report music. <b>Play</b> gives a rough idea of one, without its drums; the console's synthesizer
           sounds quite different. <b>Export MIDI</b> saves it as a MIDI file, each part on its own channel and the drums
           on the drum channel. <b>Replace</b> puts a MIDI file of your own in its place. Before it goes in you choose
-          what each of the file's parts plays on: up to six on the game's instruments, which are named by where the game
-          uses them (the bass, the title music's lead and so on; the organ too), and the drum channel on the game's kick
-          (for bass drums) and hit (for the rest), or any part left out. At most five notes sound at once, the kick and
-          the bass kept first; the new piece plays again from its start when it ends, as the game's own do. <b>Put back
+          what each of the file's parts plays on: up to six on the game's instruments (a plucked bass, a whistle-like lead,
+          synth brass, a soft pad, an organ and others, named as the NHL94 Match Viewer project heard them), and the drum
+          channel on the game's kick (for bass drums) and hit (for the rest), or any part left out. At most five notes
+          sound at once, the kick and the bass kept first; a file much louder than the game's own music is played more
+          quietly, so that it does not distort; a rest at the file's end is kept; and the new piece plays again from its
+          start when it ends, as the game's own do. <b>Put back
           the original</b> restores the game's piece. Try a new piece in the game before your league does.
         </li>
         <li>

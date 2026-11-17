@@ -196,7 +196,7 @@ export function GameMusicSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
-  const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
+  const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
   // NHL '95's can be listened to and exported; NHL 94's replaced too.
   const nhl95 = project.game.edition === 95
   if (project.game.platform !== 'genesis' || !(nhl95 ? nhl95SongsSupported : genesisSongsSupported)(project.bytes)) return null
@@ -208,10 +208,10 @@ export function GameMusicSection({ project, onChange }: Props) {
   async function read(number: number, file: File) {
     player.stop()
     try {
-      const { notes, name } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const { notes, name, end } = readMidi(new Uint8Array(await file.arrayBuffer()))
       const parts = musicParts(notes)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
-      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, parts, choices: defaultPartChoices(parts) })
+      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultPartChoices(parts) })
       setNotice('')
       setFailed(false)
     } catch (e) {
@@ -223,12 +223,13 @@ export function GameMusicSection({ project, onChange }: Props) {
   function putIn() {
     if (!pending) return
     try {
-      const made = gameMusicFromMidi(pending.notes, pending.choices)
+      const made = gameMusicFromMidi(pending.notes, pending.choices, pending.end)
       onChange({ ...project, bytes: withSong(project.bytes, pending.number, made.events, pending.title) })
       const said = [
         made.leftOut && `${made.leftOut} ${made.leftOut === 1 ? 'note' : 'notes'} of the parts left out`,
         made.dropped && `${made.dropped} ${made.dropped === 1 ? 'note' : 'notes'} past the five the console plays at once`,
         made.moved && `${made.moved} ${made.moved === 1 ? 'note' : 'notes'} moved by octaves into the game's range`,
+        made.quieter && "played more quietly, as the game's own music is, so that it does not distort"
       ].filter(Boolean)
       setNotice(
         `The ${pieceName(pending.number).toLowerCase()} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
@@ -265,8 +266,8 @@ export function GameMusicSection({ project, onChange }: Props) {
             {' '}
             <b>Replace</b> puts a MIDI file of your own in its place: you choose a game instrument for each of its parts
             (up to six), its drums play as the game's kick and hit, at most five notes sound at once, and the piece plays
-            again from the start when it ends, as the game's own do. Try it in the game before your league does: the
-            instruments' names only say where the game uses them.
+            again from the start when it ends, as the game's own do; a file much louder than the game's music is played
+            more quietly. Try it in the game before your league does.
           </>
         )}
       </p>

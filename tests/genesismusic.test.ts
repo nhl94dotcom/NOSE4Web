@@ -252,15 +252,31 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     expect(readSong(back, 0x78)!.events).toEqual(readSong(project.bytes, 0x78)!.events)
   })
 
+  it("brings a loud MIDI file down to the game's loudness", () => {
+    const notes = [0, 0.5, 1, 1.5].map((start, i) => ({ start, length: 0.4, note: 60 + i, velocity: 105, channel: 0 }))
+    const made = gameMusicFromMidi(notes, new Map([[0, 14]]), 4)
+    expect(made.quieter).toBe(true)
+    expect(made.events.filter((e) => (e.status & 0xf0) === 0x90).map((e) => e.data[1])).toEqual([44, 44, 44, 44])
+    // An octave up for the lead, and the file's rest to 4 s kept.
+    expect(made.events.filter((e) => (e.status & 0xf0) === 0x90).map((e) => e.data[0])).toEqual([72, 73, 74, 75])
+    expect(made.seconds).toBe(4)
+  })
+
   it("puts the game's own title music back in from its exported MIDI file, much as it was", () => {
     const rom = open().bytes
     const song = readSong(rom, 0x78)!
-    const { notes } = readMidi(gameMusicToMidi(song))
-    const made = gameMusicFromMidi(notes, defaultPartChoices(musicParts(notes)))
+    const { notes, end } = readMidi(gameMusicToMidi(song))
+    const made = gameMusicFromMidi(notes, defaultPartChoices(musicParts(notes)), end)
     const count = (events: typeof song.events) => events.filter((e) => (e.status & 0xf0) === 0x90 && e.data[1] > 0).length
-    // The game's piece ends with a pause after its last note; the new one ends with the note.
-    expect(song.seconds - made.seconds).toBeGreaterThanOrEqual(0)
-    expect(song.seconds - made.seconds).toBeLessThan(3)
+    // Its rest after the last notes (120 frames) is kept, so it loops in time: the same length to the frame.
+    expect(Math.round(made.seconds * 60)).toBe(Math.round(song.seconds * 60))
+    expect(made.events[made.events.length - 1].status).toBe(0xff)
+    // As loud as it was: the game's own velocities are left alone.
+    expect(made.quieter).toBe(false)
+    // The notes as written: the bass and the lead (patches 13 and 14, which sound an octave down) are written an
+    // octave up in the stream, as the game has them, after an octave down in the MIDI file.
+    const written = (events: typeof song.events, channel: number) => events.filter((e) => e.status === (0x90 | channel) && e.data[1] > 0).map((e) => e.data[0])
+    expect(written(made.events, 0).slice(0, 20)).toEqual(written(song.events, 0).slice(0, 20))
     // The original sounds up to nine notes at once, which the console's five voices cut; the new one keeps five.
     expect(count(made.events)).toBeGreaterThan(count(song.events) * 0.7)
   })

@@ -127,8 +127,9 @@ export interface MidiNote {
 export class MidiError extends Error {}
 
 // The notes of a standard MIDI file (format 0 or 1), with its tempo changes
-// followed, and the first track name it has.
-export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string } {
+// followed, the first track name it has, and where it ends in seconds (its
+// last event, the end of a track included, so that a rest at its end counts).
+export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string; end: number } {
   const text = (at: number, length: number) => String.fromCharCode(...bytes.subarray(at, at + length))
   if (bytes.length < 14 || text(0, 4) !== 'MThd') throw new MidiError('This is not a MIDI file.')
   const format = u16(bytes, 8)
@@ -142,6 +143,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
   let comment = ''
   let at = 8 + u32(bytes, 4)
   let order = 0
+  let lastEventTick = 0
   for (let track = 0; track < trackCount && at + 8 <= bytes.length; track++) {
     if (text(at, 4) !== 'MTrk') throw new MidiError('This MIDI file is damaged: a track is not where it should be.')
     const end = Math.min(bytes.length, at + 8 + u32(bytes, at + 4))
@@ -159,6 +161,7 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
     }
     while (p < end) {
       tick += vlq()
+      lastEventTick = Math.max(lastEventTick, tick)
       let status = bytes[p]
       if (status & 0x80) p++
       else status = running
@@ -212,7 +215,8 @@ export function readMidi(bytes: Uint8Array): { notes: MidiNote[]; name: string }
   }
   if (notes.length === 0) throw new MidiError('This MIDI file has no notes.')
   notes.sort((a, b) => a.start - b.start || a.note - b.note)
-  return { notes, name: name || comment }
+  const end = seconds + (Math.max(0, lastEventTick - lastTick) * tempo) / division / 1e6
+  return { notes, name: name || comment, end }
 }
 
 export interface MadeSong {
@@ -412,7 +416,7 @@ export const GAME_MUSIC: { number: number; name: string; where: string }[] = [
 
 // What each channel of a piece is, for listening: a drum (the note MIDI's drum channel plays for it), or a tune
 // on a patch, by how low it plays.
-type ChannelPart = { drum: number } | { program: number }
+type ChannelPart = { drum: number } | { program: number; shift: number }
 const KICK = 36
 const SNARE = 38
 const CLOSED_HAT = 42
@@ -434,7 +438,7 @@ function channelParts(events: SongEvent[]): Map<number, ChannelPart> {
     if (patch === NOISE_HAT) parts.set(channel, { drum: CLOSED_HAT })
     else if (isSampled(patch) || channel === DRUMS) parts.set(channel, { drum: SNARE })
     else if (new Set(played).size === 1) parts.set(channel, { drum: KICK })
-    else parts.set(channel, { program: played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS })
+    else parts.set(channel, { program: played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS, shift: OCTAVE_BELOW.has(patch) ? -12 : 0 })
   }
   return parts
 }
@@ -444,16 +448,23 @@ export const isGameMusic = (number: number) => GAME_MUSIC.some((piece) => piece.
 // The game's sounds a new piece's tunes may be played on: the FM patches its own music uses, named by where it uses
 // them (their sounds have no names), and the organ.
 export const GAME_INSTRUMENTS: { patch: number; name: string }[] = [
-  { patch: 13, name: 'Bass (all three pieces)' },
-  { patch: 14, name: "Lead (the title music's)" },
-  { patch: 10, name: "Lead (the scouting report's)" },
-  { patch: 4, name: 'Synth (the title and end of period music)' },
-  { patch: 9, name: "Chords (the title music's)" },
-  { patch: 1, name: "Synth (the end of period music's main part)" },
-  { patch: 3, name: 'Synth (the end of period and scouting music)' },
-  { patch: 5, name: "High synth (the scouting report's)" },
+  { patch: 13, name: 'Bass (plucked)' },
+  { patch: 14, name: 'Round synth lead, like a whistle (the loudest)' },
+  { patch: 10, name: 'Synth brass' },
+  { patch: 4, name: 'Soft pad, like strings' },
+  { patch: 9, name: 'Warm organ pad' },
+  { patch: 1, name: 'Clavinet, like an electric piano' },
+  { patch: 3, name: 'Mellow flute lead' },
+  { patch: 5, name: 'Buzzy sawtooth lead' },
   { patch: ORGAN, name: 'Organ (the organ songs)' },
 ]
+// Patches that sound an octave below the note written for them (Match Viewer measured each alone): a piece's notes
+// on them are an octave lower in a MIDI file than in the game's stream, and the other way round.
+const OCTAVE_BELOW = new Set([5, 13, 14])
+// The game's own pieces' notes have a median velocity of 40 to 45 (most from 16 to 63); a piece much louder clips
+// (Match Viewer heard Brass Bonanza at 96 to 111 do so). A file whose median is past LOUD is brought down to TYPICAL.
+const TYPICAL_VELOCITY = 44
+const LOUD_VELOCITY = 60
 const BASS_PATCH = 13
 // Drums: the kick (an FM patch played on one note) and the hit (a sampled sound), as the pieces have them, on the
 // channels they have them on.
@@ -518,6 +529,8 @@ export function defaultPartChoices(parts: MusicPart[]): Map<number, PartChoice> 
 export interface MadeMusic {
   events: SongEvent[]
   seconds: number
+  // Whether the velocities were brought down to the game's (the file being much louder).
+  quieter: boolean
   // Notes left out with their part, notes past the voices at once, and notes moved by octaves into the game's range.
   leftOut: number
   dropped: number
@@ -527,8 +540,13 @@ export interface MadeMusic {
 // A piece of game music from MIDI notes: each part on the game instrument chosen for it, on a game channel of its
 // own; MIDI's drums as the kick (bass drums) and the hit (the others); notes moved by octaves into the game's range;
 // at most five FM notes at once, the kick kept first, then the bass, then the highest notes; velocities as they are.
-export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartChoice>): MadeMusic {
+// `end` is where the file ends (readMidi), so that a rest at its end is kept before the piece plays again. A file
+// much louder than the game's own pieces is brought down to them, all its notes alike.
+export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartChoice>, end = 0): MadeMusic {
   const first = notes.reduce((least, n) => Math.min(least, n.start), Infinity)
+  const kept = notes.filter((n) => typeof choices.get(n.channel) === 'number').map((n) => n.velocity).sort((a, b) => a - b)
+  const median = kept.length ? kept[Math.floor(kept.length / 2)] : 0
+  const loudness = median > LOUD_VELOCITY ? TYPICAL_VELOCITY / median : 1
   const tuneChannels = [...choices].filter(([, choice]) => typeof choice === 'number').map(([channel]) => channel)
   if (tuneChannels.length > GAME_MUSIC_PARTS) throw new MidiError(`At most ${GAME_MUSIC_PARTS} parts can be played on the game's instruments; leave the others out.`)
   if (tuneChannels.length === 0) throw new MidiError('Choose an instrument for at least one part that is not drums.')
@@ -553,11 +571,12 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
       played.push({ on, off: Math.min(off, on + 12), note: HIT_NOTE, velocity: midi.velocity, channel: HIT_CHANNEL, rank: 3 })
       continue
     }
-    let note = choice === 'drums' ? KICK_NOTE : midi.note
+    // Written an octave up on the patches that sound an octave down.
+    let note = choice === 'drums' ? KICK_NOTE : midi.note + (OCTAVE_BELOW.has(choice) ? 12 : 0)
     if (choice !== 'drums') {
       while (note < LOWEST) note += 12
       while (note > HIGHEST) note -= 12
-      if (note !== midi.note) moved++
+      if (note !== midi.note + (OCTAVE_BELOW.has(choice) ? 12 : 0)) moved++
     }
     const channel = choice === 'drums' ? KICK_CHANNEL : gameChannel.get(midi.channel)!
     const rank = choice === 'drums' ? 3 : midi.channel === bass ? 2 : 1
@@ -584,26 +603,36 @@ export function gameMusicFromMidi(notes: MidiNote[], choices: Map<number, PartCh
   if (drums) events.push({ frame: 0, status: 0xc0 | KICK_CHANNEL, data: [KICK_PATCH, 0] }, { frame: 0, status: 0xc0 | HIT_CHANNEL, data: [HIT_PATCH, 0] })
   const timed: SongEvent[] = []
   for (const p of sounding) {
-    timed.push({ frame: p.on, status: 0x90 | p.channel, data: [p.note, Math.max(1, Math.min(127, p.velocity))] })
+    timed.push({ frame: p.on, status: 0x90 | p.channel, data: [p.note, Math.max(1, Math.min(127, Math.round(p.velocity * loudness)))] })
     timed.push({ frame: p.off, status: 0x80 | p.channel, data: [p.note, 0x40] })
   }
   // Offs before ons at the same moment, so a repeated note sounds again.
   timed.sort((a, b) => a.frame - b.frame || ((a.status & 0xf0) === 0x80 ? -1 : 1) - ((b.status & 0xf0) === 0x80 ? -1 : 1))
   events.push(...timed)
-  const end = timed.length ? timed[timed.length - 1].frame : 0
-  return { events, seconds: end / FRAMES_PER_SECOND, leftOut, dropped, moved }
+  // A rest at the file's end is a wait before the end (status $FF, which the driver skips, as songBytes' long waits).
+  const last = timed.length ? timed[timed.length - 1].frame : 0
+  const finish = Math.max(last, Math.round((end - first) * FRAMES_PER_SECOND))
+  if (finish > last) events.push({ frame: finish, status: 0xff, data: [0xff, 0xff] })
+  return { events, seconds: finish / FRAMES_PER_SECOND, quieter: loudness < 1, leftOut, dropped, moved }
 }
 
 // The piece without its drums, for the browser's rough preview, which plays every note as a tone.
 export const gameMusicTune = (song: { events: SongEvent[] }): SongEvent[] => {
   const parts = channelParts(song.events)
-  return song.events.filter((event) => !('drum' in (parts.get(event.status & 0x0f) ?? { program: 0 })))
+  return song.events.flatMap((event): SongEvent[] => {
+    const part = parts.get(event.status & 0x0f)
+    if (part && 'drum' in part) return []
+    const command = event.status & 0xf0
+    // As it sounds: an octave down on the patches that play one.
+    if (part && part.shift && (command === 0x90 || command === 0x80)) return [{ ...event, data: [event.data[0] + part.shift, event.data[1]] }]
+    return [event]
+  })
 }
 
 // A piece as a MIDI file (format 0, a tick a frame, as songToMidi): each channel on its own MIDI channel, the bass
 // on a synth bass and the other tunes on synth brass (the game's own FM sounds have no General MIDI match), and the
 // drums on MIDI's drum channel, the kick as a bass drum and the hits as a snare.
-export function gameMusicToMidi(song: { events: SongEvent[] }, name = ''): Uint8Array {
+export function gameMusicToMidi(song: { events: SongEvent[]; seconds?: number }, name = ''): Uint8Array {
   const parts = channelParts(song.events)
   const track: number[] = []
   const vlq = (value: number) => {
@@ -646,18 +675,20 @@ export function gameMusicToMidi(song: { events: SongEvent[] }, name = ''): Uint8
     const part = parts.get(event.status & 0x0f)
     if (!part) continue
     const drum = 'drum' in part ? part.drum : null
+    const shift = 'shift' in part ? part.shift : 0
     const channel = drum === null ? midiChannel.get(event.status & 0x0f)! : DRUMS
     let bytes: number[] | null = null
     // The pieces' velocities are MIDI's already (the organ songs' are a third of it).
-    if (command === 0x90) bytes = [0x90 | channel, drum ?? event.data[0] & 0x7f, event.data[1] & 0x7f]
-    else if (command === 0x80) bytes = [0x80 | channel, drum ?? event.data[0] & 0x7f, 0x40]
+    if (command === 0x90) bytes = [0x90 | channel, drum ?? (event.data[0] + shift) & 0x7f, event.data[1] & 0x7f]
+    else if (command === 0x80) bytes = [0x80 | channel, drum ?? (event.data[0] + shift) & 0x7f, 0x40]
     else if (command === 0xb0 && event.data[0] === 7 && drum === null) bytes = [0xb0 | channel, 7, event.data[1] & 0x7f]
     if (!bytes) continue
     vlq(event.frame - frame)
     frame = event.frame
     track.push(...bytes)
   }
-  vlq(0)
+  // The end where the piece ends, its last rest kept, so that it loops in time when put back in.
+  vlq(Math.max(0, Math.round((song.seconds ?? 0) * FRAMES_PER_SECOND) - frame))
   track.push(0xff, 0x2f, 0)
   const header = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 60]
   const length = track.length
