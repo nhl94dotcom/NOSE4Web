@@ -491,7 +491,8 @@ export function musicParts(notes: MidiNote[]): MusicPart[] {
 // What a part is played on: a game instrument's patch, the drums (MIDI's drum channel only), or left out.
 export type PartChoice = number | 'drums' | 'out'
 
-// The first choice for each part: the drum channel as drums; the lowest tune on the bass where it is low; the others
+// The first choice for each part: the drum channel as drums; the lowest tune on the bass where it is low and not the
+// only one; the others
 // from the highest down on the leads and synths; past six tunes, left out.
 export function defaultPartChoices(parts: MusicPart[]): Map<number, PartChoice> {
   const choices = new Map<number, PartChoice>()
@@ -499,7 +500,7 @@ export function defaultPartChoices(parts: MusicPart[]): Map<number, PartChoice> 
   for (const part of parts) if (part.channel === DRUMS) choices.set(part.channel, 'drums')
   const rest = GAME_INSTRUMENTS.map((instrument) => instrument.patch).filter((patch) => patch !== BASS_PATCH && patch !== ORGAN)
   let given = 0
-  if (tunes.length && tunes[0].average < 55) {
+  if (tunes.length > 1 && tunes[0].average < 55) {
     choices.set(tunes.shift()!.channel, BASS_PATCH)
     given++
   }

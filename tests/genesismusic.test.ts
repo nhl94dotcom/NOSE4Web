@@ -214,6 +214,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("NHL 94's other music", () => {
     const choices = defaultPartChoices(parts)
     // The bass on the bass, the melody on the title's lead, the chord on the next, the drums as drums.
     expect([...choices].sort((a, b) => a[0] - b[0])).toEqual([[0, 13], [1, 14], [2, 10], [9, 'drums']])
+    // A tune on its own is no bass line: it goes on the lead.
+    expect([...defaultPartChoices(musicParts(notes.filter((note) => note.channel === 0)))]).toEqual([[0, 14]])
     const made = gameMusicFromMidi(notes, choices)
     // Programs: the three parts on game channels 0 to 2, the kick and the hit on 6 and 7.
     expect(made.events.filter((e) => (e.status & 0xf0) === 0xc0).map((e) => [e.status & 15, e.data[0]])).toEqual([[0, 13], [1, 14], [2, 10], [6, 20], [7, 0x6a]])
