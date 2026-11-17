@@ -5,6 +5,7 @@ import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { GAME_MUSIC, readSong } from './genesismusic'
 import { snesCustomMusicBytes, snesCustomMusicName } from './snesgamemusic'
 import { SNES_GAME_MUSIC } from './snesmusic'
+import { NHL95_GAME_MUSIC, readNhl95Music } from './nhl95music'
 import { genesisSongs, songName, songNumber, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
@@ -203,8 +204,11 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
       return [`Song ${songNumber(number, songs!)}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
     })
     add('Organ songs', songLines)
-    const musicLines = (after.game.platform === 'genesis' && after.game.edition !== 95 && before.game.edition === after.game.edition ? GAME_MUSIC : []).flatMap(({ number, name }) => {
-      const [was, now] = [readSong(before.bytes, number), readSong(after.bytes, number)]
+    const nhl95 = after.game.edition === 95
+    const music = before.game.edition === after.game.edition ? (nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC) : []
+    const musicLines = music.flatMap(({ number, name }) => {
+      const read = nhl95 ? readNhl95Music : readSong
+      const [was, now] = [read(before.bytes, number), read(after.bytes, number)]
       if (!was || !now || JSON.stringify(was.events) === JSON.stringify(now.events)) return []
       return [`${name}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
     })

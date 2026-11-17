@@ -973,7 +973,17 @@ export function HelpPage() {
           on), with a <b>Play</b> button beside each, so you can hear a song before you settle on it.
         </li>
         <li>
-          <b>Game music</b> (Genesis; NHL '95's can be played and exported, not yet replaced): the game's three other pieces: the title music (the title screen
+          <b>Game music</b> (NHL '95): its title music (the title screen, the credits and the main menu), end of period
+          music and scouting report music (also the playoff and Stanley Cup screens) are played, exported and replaced
+          as NHL 94's below, on NHL '95's own instruments: a bass, two synth brass, short bright notes, a lead for long
+          notes, a steady high tone and the square wave. The console plays one note at a time on each of them but the
+          square wave, which plays three, so each instrument takes one part, and of a chord on the others the highest
+          note is kept (the lowest on the bass). The drum channel plays on the game's kick, toms, snare and hi-hats. At
+          most six of the FM instruments sound at once (the kick and the snare among them), the drums and the bass kept
+          first. Not yet tested in the game.
+        </li>
+        <li>
+          <b>Game music</b> (NHL 94 Genesis): the game's three other pieces: the title music (the title screen
           and the main menu), the end of period music (between periods, the pause menu and the playoff screens) and the
           scouting report music. <b>Play</b> gives a rough idea of one, without its drums; the console's synthesizer
           sounds quite different. <b>Export MIDI</b> saves it as a MIDI file, each part on its own channel and the drums

@@ -1285,8 +1285,9 @@ NHL94 Match Viewer project."; commit a54165e "NHL 94's game music replaced from 
 
 ### What it does (for the player)
 
-The same Game music section (`GameMusicSection`) shows NHL '95's three pieces with **Play** and **Export MIDI** only:
-"Replacing these is still to come for NHL '95." (no Replace button when `nhl95`).
+The same Game music section (`GameMusicSection`) shows NHL '95's three pieces with **Play**, **Export MIDI**,
+**Replace…** (a MIDI file, each of its parts on one of NHL '95's instruments, chosen in a parts table) and **Put back the
+original**. The page says "Not yet tested in the game."
 
 ### Origin and credit
 
@@ -1320,28 +1321,77 @@ low tom 45, a sampled patch the snare, one pitch only the kick; every other chan
 (synth bass 38 below 50, else synth brass 62), with no octave shift; channel 9 is not taken as the drums (the scouting
 report music plays a tune on it, patch `$14`, 363 notes).
 
+### The driver's limits (Match Viewer's measurements; the comment above `FM_VOICES` in `nhl95music.ts`)
+
+- 6 FM voices, 3 square-wave voices (patch `$14`), the noise (`$13`); on the front end and between periods nothing
+  else takes them.
+- **One voice per FM patch**: a note on a patch already sounding cuts the note there, even from another channel. So
+  each part gets its own patch (`nhl95MusicFromMidi` throws on a patch chosen twice) and an FM part is monophonic.
+- No free voice: the new note takes voice 0 and the stolen note never returns. Kept: at most 6 FM patches sounding
+  (drums `$15` and `$0E` count), 3 square notes, 1 noise note (`FM_VOICES`, `SQUARE_VOICES`).
+- SndPutZ80Cmd queues at most 16 commands a frame; note-ons, note-offs (SndUpdateNotes) and programs each count.
+  Kept: at most 14 (`MOST_COMMANDS`), counting the frame where the piece loops (the notes ending at the end plus
+  what the loop point sends).
+- SndNotes (32 entries, shared with SFX, unchecked): every note is cut before the next on its voice, so a new piece
+  never has more waiting than its 10 voices (test: at most 24).
+- Waits and lengths at most `$3FFF` frames; the item under 64 KB (`nhl95MusicBytes` throws).
+
+### How a piece is made (`nhl95MusicFromMidi`)
+
+- Instruments (`NHL95_INSTRUMENTS`, each usable once): `$11` bass, `$18` synth brass, `$1B` second synth brass,
+  `$0D` short bright notes, `$1D` lead for long notes, `$1C` steady high tone, `$14` square wave (the only one with
+  chords, 3 notes). `$0B` and `$16` are left out: none of songs 0, 2, 3 plays them (only the unused song 1 has `$16`),
+  so how they sound is not known.
+- Notes are written as the note heard less the patch's shift (`nhl95Shift`: `$18`/`$1B` +12, `$1C` +24, `$14` +12
+  below 46). Each part moves by whole octaves into its patch's range as heard (`soundingRange`: written 12-95, at most
+  108 heard; `$14` 46-96); only notes of a part too wide move one by one.
+- Monophony per FM patch: of a chord (same frame) the highest is kept, the lowest on the bass; a note that overlaps the
+  previous by more than `LEGATO` (3 frames) is dropped where weaker, else it cuts the held note; a legato overlap cuts.
+- Drums (MIDI channel 10, `drumFor`): 35/36 kick `$15` note 0 (35 is the `$0E` thump at 51 when a file has both);
+  37-40 snare `$0E` 56; toms 41/43, 45/47, 48/50 on `$15` 17, 18, 19; hats and rides `$13` 120, open hat and crashes
+  `$13` 108; others left out. FM drums 6-24 frames long, the noise 1-4.
+- Past the voices or the commands a frame, the weakest gives way: drums kept first, then the bass, then the higher notes.
+- Velocities as in the file, unless its tune median is past 95: then scaled to 78 (the three pieces' tune median).
+- Layout as the game's own pieces: programs at frame 0, `$B0 $74 0` at frame 1 (the loop point: header loop count 1,
+  its offset the `$74` event's wait byte, after the 4-byte header), the notes from frame 1, the file's end rest, then
+  `$B0 $75 0` (back to the loop point) and `$FF`. `nhl95StreamBytes(events, firstWait, loopAt)` writes the loop table
+  and the loop event's status.
+- Defaults (`nhl95PartChoices`): the drum channel the drums; a part with a GM program on the nearest free patch (the
+  export gives each patch its own program, `NHL95_EXPORT_PROGRAM`, so a piece's own MIDI file comes back on its
+  patches); then the lowest part on the bass, a part of chords (a quarter of its notes overlapping) on the square wave,
+  the rest from the highest down.
+
 ### Applying and removing
 
-Nothing is written; replacement is not built. Project files and Compare skip NHL '95's game music (`edition === 95`
-checks in `projectfile.ts` and `compare.ts`). Commit b5baf6b: "Replacing them waits on Match Viewer's tests of NHL
-'95's voices."
+`withNhl95Music(rom, number, made, name)` puts the piece in NOSE4Web's own bank (section 6) as a type 3 item with id 0,
+2 or 3, marked `N4W1` + name; the bank may now hold ids 0, 2, 3 beside `$32`-`$55` (`isOwnId`). Restore with
+`withOriginalNhl95Song` (byte for byte, test). `readNhl95Music` gives `custom` for a marked one. Project files carry
+them (`savedSongs` includes ids 0, 2, 3 for NHL '95; `nhl95CustomSongBytes` / `withNhl95SongBytes`); Compare lists
+"Game music" changes for NHL '95 too.
 
 ### Gotchas
 
-- Ids 0-3 are not organ songs (`$32`-`$55`); don't read them with the organ reader.
+- Ids 0-3 are not organ songs (`$32`-`$55`); don't read them with the organ reader (`readNhl95Music` has its own cache).
+- The game's own pieces put two channels on one patch (title `$18` x2, `$14` x2; scouting `$0D` x2): in the game they
+  play as one line. A re-import puts the second on another patch.
+- The game's own pieces send 15-20 commands in their first frame; a new piece keeps to 14 by putting its programs a
+  frame before its notes.
 - The hi-hats are on a PSG noise voice, not FM.
 
 ### Files and tests
 
-`src/core/nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`, `songEvents`, `NOISE_PATCH`); `src/core/genesismusic.ts`
-(`NOISE_HAT`, `gameMusicToMidi`, `gameMusicTune`); `src/OrganSongsSection.tsx` (`GameMusicSection`);
-`tests/nhl95music.test.ts` ("reads the title, end of period and scouting report music, and exports each as MIDI, the
-hi-hats as drums").
+`src/core/nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`, `songEvents`, `NOISE_PATCH`, `NHL95_INSTRUMENTS`,
+`nhl95PartChoices`, `nhl95MusicFromMidi`, `nhl95MusicBytes`, `withNhl95Music`, `nhl95MusicLimits`);
+`src/core/genesismusic.ts` (`NOISE_HAT`, `nhl95Shift`, `NHL95_EXPORT_PROGRAM`, `gameMusicToMidi`, `gameMusicTune`);
+`src/OrganSongsSection.tsx` (`GameMusicSection`, its `nhl95` branch); `src/core/projectfile.ts`, `src/core/compare.ts`;
+`tests/nhl95music.test.ts` (the "NHL '95's other music" and "NHL '95's other music from MIDI files" blocks: each piece
+back from its own MIDI file on NHL_95, W18 and W18p, the limits counted by `nhl95MusicLimits`, a hand-made file, a
+crowded file, the bank put back byte for byte, a project file); `e2e/app.e2e.ts` ("replaces its title music with the
+scouting report's MIDI file, each instrument once").
 
 ### Status
 
-Play and export only; not marked as tested in the game (the page text has no "Tested" line for NHL '95). Replacement
-not built.
+Play, export and replace built; replacement not yet tested in the game (page text "Not yet tested in the game.").
 
 ## 14. NHL '94 SNES: game music and the real-sample player
 
@@ -1576,7 +1626,7 @@ line; check there.
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
-| Game music (title, end of period, scouting report): play and export | `nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`), `genesismusic.ts` | No (not marked) | **Yes (13)** |
+| Game music (title, end of period, scouting report): play, export, replace from MIDI | `nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`, `nhl95MusicFromMidi`, `withNhl95Music`), `genesismusic.ts` | No (not yet) | **Yes (13)** |
 
 ### NHL 94 Genesis
 
@@ -1601,9 +1651,6 @@ line; check there.
 
 ### Planned / not built
 
-- NHL '95 game music **replacement**: not built ("Replacing these is still to come for NHL '95.",
-  `GameMusicSection`). Playing and exporting it is built (section 13). (Corrected: this line used to say NHL '95's
-  title, menu and end-of-period music had nothing in the code.)
 - SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
   exporting it is built (section 14).
 

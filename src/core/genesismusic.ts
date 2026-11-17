@@ -500,6 +500,11 @@ const NHL95_SHIFTS: Record<number, (note: number) => number> = {
   0x1c: () => 24,
   0x14: (note) => (note < 46 ? 12 : 0),
 }
+// How far above the note written for it NHL '95's patch sounds.
+export const nhl95Shift = (patch: number, note: number) => NHL95_SHIFTS[patch]?.(note) ?? 0
+// The General MIDI instrument each of NHL '95's tuned patches is exported as, one each, so that a piece put back in from
+// its own MIDI file goes on the same patches (nhl95music.ts); others by their range.
+export const NHL95_EXPORT_PROGRAM: Record<number, number> = { 0x11: 38, 0x18: 62, 0x1b: 63, 0x0d: 6, 0x1d: 81, 0x1c: 78, 0x14: 80 }
 const SYNTH_BASS = 38
 const SYNTH_BRASS = 62
 // Whose piece it is: NHL '95's patches are numbered otherwise than NHL 94's, and its channel 9 may be a tune, so its
@@ -520,11 +525,12 @@ function channelParts(events: SongEvent[], edition: MusicEdition = 94): Map<numb
     if (patch === NOISE_HAT) parts.set(channel, { drum: () => CLOSED_HAT })
     else if (!nhl94 && NHL95_DRUMS[patch]) parts.set(channel, { drum: NHL95_DRUMS[patch] })
     else if (isSampled(patch) || (nhl94 && channel === DRUMS)) parts.set(channel, { drum: () => SNARE })
-    else if (new Set(played).size === 1) parts.set(channel, { drum: () => KICK })
+    // NHL 94's one-note channels are its kick; NHL '95's drums are its drum patches, and a tune may hold one note.
+    else if (nhl94 && new Set(played).size === 1) parts.set(channel, { drum: () => KICK })
     else {
       const byRange = played.reduce((a, b) => a + b, 0) / played.length < 50 ? SYNTH_BASS : SYNTH_BRASS
       const below = OCTAVE_BELOW.has(patch) ? -12 : 0
-      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: () => below } : { program: byRange, shift: NHL95_SHIFTS[patch] ?? (() => 0) })
+      parts.set(channel, nhl94 ? { program: EXPORT_PROGRAM[patch] ?? byRange, shift: () => below } : { program: NHL95_EXPORT_PROGRAM[patch] ?? byRange, shift: NHL95_SHIFTS[patch] ?? (() => 0) })
     }
   }
   return parts

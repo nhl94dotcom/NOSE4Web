@@ -17,6 +17,7 @@ import { SNES_GAME_MUSIC, snesCustomSongBytes, withSnesSongBytes } from './snesm
 import { snesCustomMusicBytes, withSnesMusicBytes } from './snesgamemusic'
 import { snesSongChoices } from './snessongs'
 import { GAME_MUSIC, isGameMusic, songBytesWithoutLoop } from './genesismusic'
+import { isNhl95GameMusic, NHL95_GAME_MUSIC } from './nhl95music'
 import { genesisSongs } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
@@ -695,8 +696,8 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
 function savedSongs(project: RomProject): ProjectFile['songs'] {
   const songs = genesisSongs(project.game)
   if (songs) {
-    // NHL 94's other music too, where a piece has been replaced.
-    const numbers = [...songs.numbers, ...(project.game.edition === 95 ? [] : GAME_MUSIC.map((piece) => piece.number))]
+    // The other music too, where a piece has been replaced.
+    const numbers = [...songs.numbers, ...(project.game.edition === 95 ? NHL95_GAME_MUSIC : GAME_MUSIC).map((piece) => piece.number)]
     const genesis = numbers.flatMap((number) => {
       const bytes = songs.customBytes(project.bytes, number)
       return bytes ? [{ number, bytes: pack(bytes) }] : []
@@ -731,7 +732,7 @@ function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes:
         if (there && sameBytes(comparable(there), comparable(bytes))) continue
         project = { ...project, bytes: list.withBytes(project.bytes, song.number, bytes) }
       } catch {
-        if (project.game.edition !== 95 && isGameMusic(song.number)) leftMusic++
+        if (project.game.edition === 95 ? isNhl95GameMusic(song.number) : isGameMusic(song.number)) leftMusic++
         else left++
       }
     }

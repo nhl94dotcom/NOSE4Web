@@ -35,7 +35,16 @@ import {
   withSnesMusic,
   type SnesPartChoice,
 } from './core/snesgamemusic'
-import { NHL95_GAME_MUSIC, nhl95SongsSupported, readNhl95Music } from './core/nhl95music'
+import {
+  NHL95_GAME_MUSIC,
+  NHL95_INSTRUMENTS,
+  nhl95MusicFromMidi,
+  nhl95PartChoices,
+  nhl95SongsSupported,
+  readNhl95Music,
+  withNhl95Music,
+  withOriginalNhl95Song,
+} from './core/nhl95music'
 import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
 import { download } from './download'
 import { SongControls, useSongPlayer } from './SongPlayer'
@@ -203,15 +212,14 @@ export function OrganSongsSection({ project, onChange }: Props) {
   )
 }
 
-// NHL 94's other music on the Genesis: the title, end of period and scouting report pieces. Listen to them, export
-// them as MIDI, or replace one with a MIDI file, each of its parts on a game instrument chosen for it.
+// The Genesis game's other music, NHL 94's or NHL '95's: the title, end of period and scouting report pieces. Listen
+// to them, export them as MIDI, or replace one with a MIDI file, each of its parts on a game instrument chosen for it.
 export function GameMusicSection({ project, onChange }: Props) {
   const player = useSongPlayer<number>()
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
   const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
-  // NHL '95's can be listened to and exported; NHL 94's replaced too.
   const nhl95 = project.game.edition === 95
   if (project.game.platform !== 'genesis' || !(nhl95 ? nhl95SongsSupported : genesisSongsSupported)(project.bytes)) return null
   const list = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
@@ -225,7 +233,8 @@ export function GameMusicSection({ project, onChange }: Props) {
       const { notes, name, end, programs } = readMidi(new Uint8Array(await file.arrayBuffer()))
       const parts = musicParts(notes)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
-      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultPartChoices(parts, programs) })
+      const choices = nhl95 ? nhl95PartChoices(parts, notes, programs) : defaultPartChoices(parts, programs)
+      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices })
       setNotice('')
       setFailed(false)
     } catch (e) {
@@ -234,8 +243,36 @@ export function GameMusicSection({ project, onChange }: Props) {
     }
   }
 
+  // NHL '95's: one patch to a part, one note at a time on each FM patch, and the driver's other limits kept.
+  function putIn95() {
+    if (!pending) return
+    try {
+      const made = nhl95MusicFromMidi(pending.notes, pending.choices, pending.end)
+      onChange({ ...project, bytes: withNhl95Music(project.bytes, pending.number, made, pending.title) })
+      const notes = (count: number) => `${count} ${count === 1 ? 'note' : 'notes'}`
+      const said = [
+        made.leftOut && `${notes(made.leftOut)} of the parts left out (or drums the game has no sound for)`,
+        made.chords && `${notes(made.chords)} of chords left out or cut short (each instrument but the square wave plays one note at a time)`,
+        made.dropped && `${notes(made.dropped)} past what the console plays at once`,
+        made.moved && `${notes(made.moved)} moved by octaves into the instrument's range`,
+        made.quieter && "played more quietly, as the game's own music is",
+      ].filter(Boolean)
+      setNotice(
+        `The ${pieceName(pending.number).toLowerCase()} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
+          (said.length ? ` Not as in the file: ${said.join('; ')}.` : '') +
+          ' Undo takes it back.',
+      )
+      setFailed(false)
+      setPending(null)
+    } catch (e) {
+      setNotice(e instanceof MidiError || e instanceof SongError ? e.message : String(e))
+      setFailed(true)
+    }
+  }
+
   function putIn() {
     if (!pending) return
+    if (nhl95) return putIn95()
     try {
       const made = gameMusicFromMidi(pending.notes, pending.choices, pending.end)
       onChange({ ...project, bytes: withSong(project.bytes, pending.number, made.events, pending.title) })
@@ -274,7 +311,13 @@ export function GameMusicSection({ project, onChange }: Props) {
         the console's synthesizer sounds quite different. Export MIDI saves it as a MIDI file, each part on its own
         channel and the drums on the drum channel.
         {nhl95 ? (
-          " Replacing these is still to come for NHL '95."
+          <>
+            {' '}
+            <b>Replace</b> puts a MIDI file of your own in its place: you choose a game instrument for each of its parts
+            (up to seven, each instrument once; each plays one note at a time, but the square wave plays three), and its
+            drums play as the game's kick, snare and hi-hats. The piece plays again from the start when it ends. Not yet
+            tested in the game.
+          </>
         ) : (
           <>
             {' '}
@@ -308,9 +351,10 @@ export function GameMusicSection({ project, onChange }: Props) {
                   <td>{part.channel === 9 ? '' : `${noteName(part.lowest)} to ${noteName(part.highest)}`}</td>
                   <td>
                     <select aria-label={`Part on MIDI channel ${part.channel + 1}`} value={String(pending.choices.get(part.channel) ?? 'out')} onChange={(e) => choose(part.channel, e.target.value)}>
-                      {part.channel === 9 && <option value="drums">The game's drums: kick and hit</option>}
-                      {GAME_INSTRUMENTS.map((instrument) => (
-                        <option key={instrument.patch} value={instrument.patch}>
+                      {part.channel === 9 && <option value="drums">{nhl95 ? "The game's drums: kick, snare and hi-hats" : "The game's drums: kick and hit"}</option>}
+                      {(nhl95 ? NHL95_INSTRUMENTS : GAME_INSTRUMENTS).map((instrument) => (
+                        // NHL '95 plays each instrument for one part only.
+                        <option key={instrument.patch} value={instrument.patch} disabled={nhl95 && [...pending.choices].some(([channel, choice]) => channel !== part.channel && choice === instrument.patch)}>
                           {instrument.name}
                         </option>
                       ))}
@@ -344,7 +388,6 @@ export function GameMusicSection({ project, onChange }: Props) {
                 <td>
                   <button onClick={() => player.toggle(number, gameMusicTune(song!, nhl95 ? 95 : 94), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name, nhl95 ? 95 : 94), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
-                  {!nhl95 && (
                   <label className="button">
                     Replace…
                     <input
@@ -359,14 +402,13 @@ export function GameMusicSection({ project, onChange }: Props) {
                       }}
                     />
                   </label>
-                  )}
                   {song!.custom && (
                     <>
                       {' '}
                       <button
                         onClick={() => {
                           player.stop()
-                          onChange({ ...project, bytes: withOriginalSong(project.bytes, number) })
+                          onChange({ ...project, bytes: (nhl95 ? withOriginalNhl95Song : withOriginalSong)(project.bytes, number) })
                           setNotice(`The ${name.toLowerCase()} is the game's own again. Undo takes it back.`)
                           setFailed(false)
                         }}
