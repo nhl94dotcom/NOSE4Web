@@ -2,9 +2,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
-import { NHL_SHOOTOUT_CODE, PASS_CODE, RING_CODE } from '../src/core/hacks'
+import { FACEOFF_CODE, NHL_SHOOTOUT_CODE, PASS_CODE, RING_CODE, STICK_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
-import { applyNhl95Hacks, detectNhl95Hacks, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
+import { hasPpPkFix } from '../src/core/ppfix'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { changesSince, startSeason } from '../src/core/season'
@@ -449,5 +450,54 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(fight.bytes).choices.fighting).toBe(true)
     // Once the patch is in, the place is the patch's, and room is found as usual.
     expect(claimSpace95(fight.bytes, 0x100)!.at + 0x100 <= start || claimSpace95(fight.bytes, 0x100)!.at >= end).toBe(true)
+  })
+
+  it.each(names)("puts NHL 94's power play, faceoff, awareness and stick-shot fixes into %s at NHL '95's places", (name) => {
+    const rom = open(name)
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    const read32 = (b: Uint8Array, at: number) => ((b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]) >>> 0
+    const fixes = { ppPkFix: true, faceoffFix: true, awarenessFix: true, stickShots: true }
+    expect(hasPpPkFix(rom)).toBe(false)
+    const on = applyNhl95Hacks(rom, fixes)
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    expect(detectNhl95Hacks(buildRom(on)).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes })
+    expect(hasPpPkFix(on)).toBe(true)
+    // The power play: NHL 94's change, with PPBonus $CAF0 and PKBonus $CAF1.
+    expect(hex(on.bytes, 0x839d8, 28)).toBe('10280001e80811c0caf04e716000000e700fc02800014400' + '11c0caf1')
+    // Awareness: aidef ($6B) becomes aioff ($6A) at the two forwards' reloads.
+    expect([on.bytes[0x80c2f], on.bytes[0x80f37]]).toEqual([0x6a, 0x6a])
+    // The faceoff: a call and 40 NOPs, to NHL 94's code with NHL '95's rink and addresses.
+    expect(hex(on.bytes, 0x8907a, 2)).toBe('4eb9')
+    expect(hex(on.bytes, 0x89080, 80)).toBe('4e71'.repeat(40))
+    const faceoff = on.bytes.subarray(read32(on.bytes, 0x8907c), read32(on.bytes, 0x8907c) + 146)
+    expect(hex(faceoff, 2, 4)).toBe('327cbfce') // PenBuf
+    expect(hex(faceoff, 0x34, 4)).toBe('327cac62') // SortCords
+    expect(hex(faceoff, 0x86, 8)).toBe('31c0bb9a31c1bb9c') // fox, foy
+    expect(Array.from(faceoff.subarray(0x64, 0x6a))).toEqual([0x70, 0x46, 0x60, 0x02, 0x70, 0xba]) // neutral-zone x +-70
+    // Where NHL '95's code is NHL 94's, it is the same bytes.
+    expect(hex(faceoff, 0x0a, 10)).toBe(hex(FACEOFF_CODE, 0x0a, 10))
+    // Stick shots: a call and two NOPs, to NHL 94's code with NHL '95's addresses at their places.
+    expect(hex(on.bytes, 0x7ba02, 2)).toBe('4eb9')
+    expect(hex(on.bytes, 0x7ba08, 4)).toBe('4e714e71')
+    const stick = on.bytes.slice(read32(on.bytes, 0x7ba04), read32(on.bytes, 0x7ba04) + STICK_CODE.length)
+    const as94 = stick.slice()
+    for (const [at, word] of [[10, 0xc2ea], [18, 0xc2ea], [26, 0xc2ee], [40, 0xbed8]] as const) as94.set([word >> 8, word & 0xff], at)
+    for (const [at, long] of [[44, 0x12fd0], [50, 0x1013e], [58, 0x15704]] as const) as94.set([long >>> 24, (long >> 16) & 0xff, (long >> 8) & 0xff, long & 0xff], at)
+    expect(hex(as94, 0, as94.length)).toBe(hex(STICK_CODE, 0, STICK_CODE.length))
+    // Each comes out on its own, and all of them byte for byte.
+    for (const fix of Object.keys(fixes)) {
+      const without = applyNhl95Hacks(on, { [fix]: false })
+      expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...NO_NHL95_HACKS, ...fixes, [fix]: false })
+    }
+    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
+  })
+
+  it.each(names)('puts every NHL 95 option into %s together, each read back, and takes them all out', (name) => {
+    const rom = open(name)
+    const left = ['fightingOff', 'fightingArcade', 'seasonOvertime', 'seasonShootout', 'threeOnThree']
+    const all = Object.fromEntries(NHL95_HACKS.map((hack) => [hack, !left.includes(hack)]))
+    const on = applyNhl95Hacks(rom, all)
+    expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...NO_NHL95_HACKS, ...all }, unknown: [] })
+    expectSameBytes(applyNhl95Hacks(on, { ...NO_NHL95_HACKS }).bytes, rom.bytes)
   })
 })

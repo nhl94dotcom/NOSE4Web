@@ -45,6 +45,10 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   seasonShootoutNow: 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime.',
   rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
   passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
+  ppPkFix: "A team's power play and penalty kill ratings work as written, where the original reads them the wrong way round.",
+  faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
+  awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
+  stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
 }
 
 const FIGHT_START = 'Fighting setting at power-on'
@@ -53,6 +57,8 @@ const FIGHT_START = 'Fighting setting at power-on'
 const TESTED = 'Tested in the game by the NHL94 Match Viewer project.'
 // NHL 94's fixes, where NHL '95 has the same code.
 const FROM_94 = `NHL 94's fix, at NHL '95's places (also in the WN95HL's ROMs). ${TESTED}`
+// Those not played yet.
+const FROM_94_UNTESTED = "NHL 94's fix, at NHL '95's places (also in the WN95HL's ROMs). Not yet tested in the game."
 
 const OT3_MORE = (
   <p className="note">
@@ -65,6 +71,37 @@ const OT3_MORE = (
 )
 
 const MORE: Record<Nhl95Hack, ReactNode> = {
+  ppPkFix: (
+    <p className="note">
+      The game adds a team's power play rating to some of each player's ratings on the power play and takes its
+      penalty kill rating off them on the penalty kill, but reads the two from the wrong halves of their byte. So
+      Ottawa, Hartford, Quebec and San Jose, written as weak at both, get the best power play. This reads them as
+      written; the team page then shows them that way round too. Leagues that have set these ratings as the editor
+      showed them before should check them after. {FROM_94_UNTESTED}
+    </p>
+  ),
+  faceoffFix: (
+    <p className="note">
+      The game puts a faceoff on a dot only when play stops past the hash marks, and anywhere else holds it where the
+      puck was, often between the dots. With this on, every faceoff is on a dot, as in today's NHL: after a goal at
+      centre; after a penalty in the offending team's end, on the puck's side; otherwise at that end's dot past a blue
+      line, or the nearest neutral-zone dot. Leave it off to keep the game's own older-style faceoffs. {FROM_94_UNTESTED}
+    </p>
+  ),
+  awarenessFix: (
+    <p className="note">
+      A computer skater decides what to do next at intervals set by his awareness: Offensive when his team has the
+      puck, Defensive when it does not. But computer wingers and centres on offence use Defensive, a slip in the
+      game's code. With this on they use Offensive. A small change. {FROM_94_UNTESTED}
+    </p>
+  ),
+  stickShots: (
+    <p className="note">
+      A hard low shot that comes off the goalie's stick is a save, but the game does not count it as a shot on goal:
+      only a catch or a save with his body counts. With this on it counts, once, for the shooter, his team and against
+      the goalie. Only the statistics change. {FROM_94_UNTESTED}
+    </p>
+  ),
   threeOnThree: OT3_MORE,
   threeOnThreeAll: OT3_MORE,
   fightingOff: (

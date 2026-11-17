@@ -35,10 +35,14 @@ export type Nhl95Hack =
   | 'penaltyShotFixes'
   | 'organResume'
   | 'passFix'
+  | 'ppPkFix'
+  | 'faceoffFix'
+  | 'awarenessFix'
+  | 'stickShots'
 // In the order they are taken out and put in: the one-timer fix takes over a
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space.
-export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix']
+export const NHL95_HACKS: Nhl95Hack[] = ['fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'stickShots']
 export type Nhl95HackChoices = Record<Nhl95Hack, boolean>
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -65,6 +69,10 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   penaltyShotFixes: false,
   organResume: false,
   passFix: false,
+  ppPkFix: false,
+  faceoffFix: false,
+  awarenessFix: false,
+  stickShots: false,
 }
 
 export interface Nhl95HackState {
@@ -99,6 +107,10 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   penaltyShotFixes: 'Penalty shot fixes',
   organResume: 'Organ music after a pause',
   passFix: 'Pass direction fix',
+  ppPkFix: 'Power play and penalty kill fix',
+  faceoffFix: 'Faceoff spot fix',
+  awarenessFix: "Computer forwards' awareness fix",
+  stickShots: 'Count stick deflections as shots',
 }
 
 const hex = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
@@ -164,6 +176,13 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   //   PenShotChk with (a0,d0.w) one place too far along: words 10 to 17 move
   //   along one, as in NHL 94, so each foul gives its own.
   penaltyShotTableFix: { at: 0x8a010, original: hex('0038 003C 0036 003A 002E 0030 0034 FFFF'), hacked: hex('FFFF 0038 003C 0036 003A 002E 0030 0034') },
+  // - setplayer ($839D8): a team's power play and penalty kill bonuses (PPBonus $CAF0, PKBonus $CAF1) are read from
+  //   the wrong halves of its byte 1, as in NHL 94; NHL 94's change in the same room, with NHL '95's addresses.
+  ppPkFix: {
+    at: 0x839d8,
+    original: hex('11E8 0001 CAF0 0238 000F CAF0 6000 000E 1028 0001 E808 4400 11C0 CAF1'),
+    hacked: hex('1028 0001 E808 11C0 CAF0 4E71 6000 000E 700F C028 0001 4400 11C0 CAF1'),
+  },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -182,7 +201,64 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
     { at: 0x84cd0, bytes: hex('0838 0000 BF00') },
   ],
   penaltyShotTableFix: [{ at: 0x9ef02, bytes: hex('207C 0008 9FFC') }], // PenShotChk's movea.l #PenShotPenalties,a0
+  ppPkFix: [
+    { at: 0x839ce, bytes: hex('4EB9 0007 D894 6700 0012') }, // jsr chkpk2 / beq.w .pk
+    { at: 0x839f4, bytes: hex('1028 0002 0200 000F') }, // d0 loaded afresh after either
+  ],
 }
+
+// ------------------------------------------------- computer forwards' awareness
+// NHL 94's (hacks.ts, awarenessFix): asswingo ($80C2C) and asscentero ($80F34), what computer wingers and centres do
+// on offence, reload at intervals from aidef ($6B), Defensive Awareness, where the others on offence use aioff ($6A).
+// The operand's low byte becomes $6A at each.
+const AWARE_PLACES = [
+  { at: 0x80c2f, around: [{ at: 0x80c24, bytes: hex('9F2B 0040 6A00 010E 176B 00') }, { at: 0x80c30, bytes: hex('0040 0838 0006 BF02') }] },
+  { at: 0x80f37, around: [{ at: 0x80f2c, bytes: hex('9F2B 0040 6A00 00D6 176B 00') }, { at: 0x80f38, bytes: hex('0040 0838 0006 BF02') }] },
+]
+function awareState(rom: Uint8Array): boolean | undefined {
+  if (!AWARE_PLACES.every((place) => place.around.every((around) => matches(rom, around.at, around.bytes)))) return undefined
+  const bytes = AWARE_PLACES.map((place) => rom[place.at])
+  if (bytes.every((byte) => byte === 0x6b)) return false
+  return bytes.every((byte) => byte === 0x6a) ? true : undefined
+}
+const setAware = (rom: Uint8Array, on: boolean) => AWARE_PLACES.forEach((place) => (rom[place.at] = on ? 0x6a : 0x6b))
+
+// ------------------------------------------------------------ faceoff spot
+// NHL 94's (hacks.ts, faceoffFix). Stop4Pen ($8901C) puts a faceoff on a dot only when play stopped past the hash
+// marks (y beyond +-$AF), else where the puck was. Its 86 bytes from movem.w d0-d1,-(sp) at $8907A to addq.w #4,sp
+// become a call to NHL 94's code with NHL '95's rink and addresses: PenBuf $BFCE, SortCords $AC62, fox/foy
+// $BB9A/$BB9C, end dots at x +-$4D, y +-$D7, blue lines at y +-$56; and the neutral-zone dots at x +-$46 (70), y +-$41,
+// where NHL '95's own limitfo puts its faceoffs there (NHL 94 uses one x for both).
+const FACEOFF_HOOK = {
+  at: 0x8907a,
+  original: hex(
+    '48A7 C000 B07C 004D 6D00 0006 303C 004D B07C FFB3 6E00 0006 303C FFB3 B27C 00AF 6D00 0012 323C 00D7 303C 004D 4A57 6A00 0004 4440 B27C FF51 6E00 0012 323C FF29 303C 004D 4A57 6A00 0004 4440 31C0 BB9A 31C1 BB9C 584F',
+  ),
+}
+const FACEOFF_CODE = hex(
+  '2F09 327CBFCE 4A51 6740 4A59 66FC 5949 0C11000E 676C 0C110012 652E 0C11002B 6428 0C110014 6722 4241 12290001 0241007F EF41 327CAC62 083100071062 6606 323C00D7 6004 323CFF29 4A40 6B04 704D 6002 70B3 B27C0056 6E1C B27CFFAA 6D1C 4A40 6B04 7046 6002 70BA 4A41 6B04 7241 6014 72BF 6010 323C00D7 600A 323CFF29 6004 7000 7200 31C0BB9A 31C1BB9C 225F 4E75',
+)
+const FACEOFF_AROUND = [
+  { at: 0x8901c, bytes: hex('08F8 0000 BEF0 6600 00B2') }, // Stop4Pen
+  { at: 0x890d0, bytes: hex('4EB9 0008 8F06') }, // jsr limitfo
+]
+const faceoff = once(() => hookedFix(FACEOFF_HOOK, FACEOFF_CODE, [], placeCode))
+const faceoffState = (rom: Uint8Array) => (FACEOFF_AROUND.every((around) => matches(rom, around.at, around.bytes)) ? faceoff().detect(rom) : undefined)
+
+// ------------------------------------------------- stick deflections as shots
+// NHL 94's (hacks.ts, stickShots). puckstick's .stdef ($7BA02: jsr a2touchpuck / bra.w deflect) counts no shot when
+// a shot comes off the goalie's stick. NHL 94's code, with NHL '95's gmode $BEF0, sflags2 $BEF4, shotplayer $BAD6,
+// ChkShotStat's .addShot $8AC7A, a2touchpuck $8142C and deflect $7BD4C.
+const STICK_HOOK = { at: 0x7ba02, original: hex('4EB9 0008 142C 6000 0342') }
+const STICK_CODE = hex(
+  '4A6A 0034 662A 0838 0000 BEF0 6622 0838 0004 BEF0 661A 08B8 0004 BEF4 6712 487A 0010 48E7 C070 3038 BAD6 4EF9 0008 AC7A 4EB9 0008 142C 588F 4EF9 0007 BD4C',
+)
+const STICK_AROUND = [
+  { at: 0x7b9f8, bytes: hex('3F3C 0006 4EB9 0006 77AC') }, // move.w #SFXstdef,-(sp) / jsr sfx
+  { at: 0x8ac66, bytes: hex('48E7 C070 0678 0064 B4B4 0678 000A B4BA 3038 BAD6') }, // ChkShotStat, before .addShot
+]
+const stick = once(() => hookedFix(STICK_HOOK, STICK_CODE, [], placeCode))
+const stickState = (rom: Uint8Array) => (STICK_AROUND.every((around) => matches(rom, around.at, around.bytes)) ? stick().detect(rom) : undefined)
 
 function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
   const place = SWITCHES[hack]!
@@ -780,6 +856,10 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     penaltyShotFixes: psFixes().detect(rom),
     organResume: organState(rom),
     passFix: passFixState(rom),
+    ppPkFix: switchState(rom, 'ppPkFix'),
+    faceoffFix: faceoffState(rom),
+    awarenessFix: awareState(rom),
+    stickShots: stickState(rom),
   }
   return {
     choices: Object.fromEntries(NHL95_HACKS.map((hack) => [hack, found[hack] ?? false])) as Nhl95HackChoices,
@@ -816,7 +896,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -840,6 +920,9 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
       () => [organSave(), organRestore()].forEach((part) => part.apply(work, want.organResume)),
     ],
     ['passFix', () => work.rom.set(ORIGINAL, PASS_AT), () => want.passFix && work.rom.set(FIXED, PASS_AT)],
+    ['awarenessFix', () => setAware(work.rom, false), () => want.awarenessFix && setAware(work.rom, true)],
+    ['faceoffFix', () => faceoff().remove(work.rom), () => faceoff().apply(work, want.faceoffFix)],
+    ['stickShots', () => stick().remove(work.rom), () => stick().apply(work, want.stickShots)],
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
   try {
@@ -865,6 +948,12 @@ export function nhl95HackDifferences(before: Uint8Array, after: Uint8Array): str
 
 // What each hack means for how the game plays, in plain words, for a league's owners.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
+  ppPkFix:
+    "A team's power play and penalty kill ratings work as written: the game read them from the wrong halves of their byte, so teams meant to be weak at both had the best power play.",
+  faceoffFix:
+    "Every faceoff is on a dot, as today's NHL rules have it, where the original often holds one where play stopped, between the dots.",
+  awarenessFix: 'Computer wingers and centres on offence use their Offensive Awareness, where the original uses their Defensive.',
+  stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
     'A skater no longer glides on, barely slowing, after getting up from a fall into the boards or after you take him over with a pass coming.',
@@ -909,10 +998,10 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string> = {
 
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
-  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist'] },
-  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'comebackFix'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots'] },
+  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
-  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'penaltyShotTableFix', 'penaltyShotFixes'] },
+  { id: 'rules', title: 'Rules', hacks: ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'faceoffFix', 'penaltyShotTableFix', 'penaltyShotFixes'] },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade'] },
   { id: 'sound', title: 'Sound', hacks: ['organResume'] },
 ]
