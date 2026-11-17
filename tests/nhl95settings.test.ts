@@ -341,13 +341,12 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expectSameBytes(applyNhl95Hacks(on, base).bytes, rom.bytes)
   })
 
-  it.each(names)("shows every option of %s once on the Hacks page, in its section, each setting's note ending as tested or, for calls during a delayed penalty, not yet", (name) => {
+  it.each(names)("shows every option of %s once on the Hacks page, in its section, each setting's note ending as tested", (name) => {
     const rom = open(name)
     expect(NHL95_HACK_SECTIONS.flatMap((section) => section.hacks).sort()).toEqual([...NHL95_HACKS].sort())
     const html = renderToStaticMarkup(createElement(Nhl95HacksPage, { project: rom, name: 'L', onChange: () => {} }))
     const sections = [...html.matchAll(/<section id="hacks-([a-z]+)"[^>]*>(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
-    const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
     const TESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Tested in the game by the NHL94 Match Viewer project.'
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
@@ -355,7 +354,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
         const at = shown.indexOf(`<b>${NHL95_HACK_TITLES[hack].replace(/'/g, '&#x27;')}</b>`)
         expect(at, hack).toBeGreaterThanOrEqual(0)
         // NHL 94's settings: their note ends with the line for them.
-        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(hack === 'delayedCalls' ? UNTESTED : TESTED)
+        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(TESTED)
       }
     }
     expect(html).not.toContain('undefined')
