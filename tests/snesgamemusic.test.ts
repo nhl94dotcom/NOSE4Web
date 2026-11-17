@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { musicParts, readMidi, type MidiNote } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
+import { grownSnesRom } from '../src/core/snes'
 import { renderSnesMusic } from '../src/core/snesaudio'
+import { snesFightState } from '../src/core/snesfight'
 import {
   defaultSnesPartChoices,
   midiPartNames,
@@ -17,10 +19,12 @@ import {
   snesMusicReplaceable,
   withOriginalSnesMusic,
   withSnesMusic,
+  withSnesMusicBytes,
   type SnesPartChoice,
 } from '../src/core/snesgamemusic'
 import { readSnesMusic, SNES_GAME_MUSIC, snesMusicToMidi } from '../src/core/snesmusic'
 import { compareProjects } from '../src/core/compare'
+import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -140,23 +144,91 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     expect(Math.abs(music.seconds - was.seconds)).toBeLessThan(0.2)
   })
 
-  it.each(names)('puts each piece back in %s where it has room, and plays it there as planned', (name) => {
+  it.each(names)('puts all three pieces in %s together, growing a ROM under 2 MB once, and plays and puts back each', (name) => {
     const project = open(name)
-    const fitted = SNES_GAME_MUSIC.flatMap((piece, index) => {
-      let trip: ReturnType<typeof roundTrip>
-      try {
-        trip = roundTrip(project, index)
-      } catch (e) {
-        expect(String(e)).toMatch(/the most free room this ROM has in one place is/)
-        return []
-      }
-      const played = renderSnesMusic(trip.next.bytes, snesMusicPointer(trip.next.bytes, index), piece.sounds, false)!
-      expect(played.notes.length).toBe(trip.made.tracks.reduce((sum, track) => sum + track.notes.length, 0))
-      expectSameBytes(withOriginalSnesMusic(trip.next, index).bytes, project.bytes)
-      return [piece.name]
+    let next = project
+    const grew: number[] = []
+    const made = SNES_GAME_MUSIC.map((_, index) => {
+      const trip = roundTrip(next, index)
+      if (trip.next.bytes.length !== next.bytes.length) grew.push(index)
+      next = trip.next
+      return trip.made
     })
-    // The playoff music, the shortest, fits in all of them.
-    expect(fitted).toContain('Playoff music')
+    // A 1 MB ROM (6,028 bytes free in one place) grows to 2 MB for the title music, once: the others fit after.
+    if (project.bytes.length < 0x200000) {
+      expect(grew).toEqual([0])
+      expect(next.bytes.length).toBe(0x200000)
+      expect(next.bytes[0x7fd7]).toBe(0x0b)
+      // Only the header's ROM size changes in what the ROM had, but for the places that start the pieces and their room.
+      expectSameBytes(SNES_GAME_MUSIC.reduce((rom, _, index) => withOriginalSnesMusic(rom, index), next).bytes, grownSnesRom(project.bytes))
+    } else expect(grew).toEqual([])
+    SNES_GAME_MUSIC.forEach((piece, index) => {
+      const pointer = snesMusicPointer(next.bytes, index)
+      expect(snesCustomMusicName(next.bytes, index)).toBe(`${piece.name} again`)
+      // Within one bank.
+      expect((pointer & 0xffff) + snesCustomMusicBytes(next.bytes, index)!.length).toBeLessThanOrEqual(0x10000)
+      // The game plays every note planned, each at its planned pitch, track by track.
+      const played = renderSnesMusic(next.bytes, pointer, piece.sounds, false)!
+      made[index].tracks.forEach((track, t) => {
+        const codes = played.notes.filter((n) => n.track === t).map((n) => n.note).sort((a, b) => a - b)
+        expect(codes, `${piece.name} track ${t}`).toEqual(track.notes.map((n) => n.code).sort((a, b) => a - b))
+      })
+    })
+    // Each put back on its own: the game's piece again, the others still the new ones.
+    SNES_GAME_MUSIC.forEach((piece, index) => {
+      const back = withOriginalSnesMusic(next, index)
+      expect(snesMusicPointer(back.bytes, index)).toBe(piece.pointer)
+      expect(snesCustomMusicName(back.bytes, index)).toBeNull()
+      expect(back.bytes.length).toBe(next.bytes.length)
+      SNES_GAME_MUSIC.forEach((other, i) => i !== index && expect(snesCustomMusicName(back.bytes, i)).toBe(`${other.name} again`))
+    })
+    const all = SNES_GAME_MUSIC.reduce((rom, _, index) => withOriginalSnesMusic(rom, index), next)
+    if (project.bytes.length >= 0x200000) expectSameBytes(all.bytes, project.bytes)
+    // A project file over the ROM as opened: all three back in, grown the same.
+    const fresh = openProjectFile(open(name), saveProjectFile(next, project, 'test')).project
+    expect(fresh.bytes.length).toBe(next.bytes.length)
+    SNES_GAME_MUSIC.forEach((piece, index) => {
+      expect(snesCustomMusicName(fresh.bytes, index)).toBe(`${piece.name} again`)
+      expectSameBytes(snesCustomMusicBytes(fresh.bytes, index)!, snesCustomMusicBytes(next.bytes, index)!)
+    })
+    // Downloaded and opened again they are still there.
+    const built = openRom(buildRom(next))
+    SNES_GAME_MUSIC.forEach((piece, index) => expect(snesCustomMusicName(built.bytes, index)).toBe(`${piece.name} again`))
+  })
+
+  it.each(names.filter((name) => open(name).bytes.length < 0x200000))('keeps the fighting working in %s grown for the music, in either order', (name) => {
+    const project = open(name)
+    const music = (from: RomProject) => SNES_GAME_MUSIC.reduce((p, _, index) => roundTrip(p, index).next, from)
+    const playsAll = (rom: Uint8Array) =>
+      SNES_GAME_MUSIC.forEach((piece, index) => {
+        expect(snesCustomMusicName(rom, index)).toBe(`${piece.name} again`)
+        expect(renderSnesMusic(rom, snesMusicPointer(rom, index), piece.sounds, false)!.notes.length).toBeGreaterThan(100)
+      })
+    // The music first, then the fights: they go in the grown banks too, and the ROM does not grow again.
+    const withMusic = music(project)
+    const fights = applySnesHacks(withMusic, { fighting: true })
+    expect(fights.bytes.length).toBe(0x200000)
+    expect(snesFightState(fights.bytes)).toMatchObject({ kind: 'in', bonus: 2 })
+    expect(detectSnesHacks(fights.bytes).unknown).toEqual([])
+    playsAll(fights.bytes)
+    // Out again: the music's ROM as it was, still 2 MB.
+    const out = applySnesHacks(fights, { fighting: false })
+    expect(snesFightState(out.bytes)).toEqual({ kind: 'none' })
+    expectSameBytes(out.bytes, withMusic.bytes)
+    // The fights first (the ROM grown by them), then the music: no growing again.
+    const fightsFirst = applySnesHacks(project, { fighting: true })
+    const both = music(fightsFirst)
+    expect(both.bytes.length).toBe(0x200000)
+    expect(snesFightState(both.bytes)).toMatchObject({ kind: 'in', bonus: 2 })
+    playsAll(both.bytes)
+    // The fights out: the music past the first megabyte keeps the ROM 2 MB, and its header says so.
+    const kept = applySnesHacks(both, { fighting: false })
+    expect(kept.bytes.length).toBe(0x200000)
+    expect(kept.bytes[0x7fd7]).toBe(0x0b)
+    expect(snesFightState(kept.bytes)).toEqual({ kind: 'none' })
+    playsAll(kept.bytes)
+    // And the fights in again on top.
+    expect(snesFightState(applySnesHacks(kept, { fighting: true }).bytes)).toMatchObject({ kind: 'in' })
   })
 
   it('plays a MIDI file of a bass, brass chords and drums on the game kit, at most eight notes at once', () => {
@@ -249,8 +321,9 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
   it('says where the room is too small, and does not offer a piece whose places are not all found', () => {
     const project = open()
     const rom = project.bytes
-    // The original game has about 6 KB free in one place: the title music's 7 KB does not fit.
-    if (rom.length === 0x100000) expect(() => roundTrip(project, 0)).toThrow(/takes \d+ bytes, and the most free room this ROM has in one place is \d+/)
+    // More than a bank does not fit anywhere, even with the ROM grown to 2 MB.
+    const huge = new Uint8Array(0x8000).fill(1)
+    expect(() => withSnesMusicBytes(project, 0, huge)).toThrow(/takes 32768 bytes, and the most free room this ROM has in one place, even grown to 2 MB, is 32767/)
     const broken = rom.slice()
     broken[snesMusicPlaces(rom)[1]!.starts[2] + 10] = 0x5c
     expect(snesMusicPlaces(broken)[1]).toBeNull()

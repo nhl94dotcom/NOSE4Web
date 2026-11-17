@@ -17,7 +17,7 @@
 // After the block a mark, 'N4WF', the ROM's length before and its header's
 // ROM size, so that taking the fights out gives the ROM back as it was.
 
-import { snesCodeInPlace } from './snes'
+import { grownSnesRom, SNES_GROWN_SIZE, snesCodeInPlace } from './snes'
 import { SNES_FIGHT, SNES_FIGHT_EARLIER, SNES_FIGHT_UNPAIRED } from './snesfightdata'
 
 export const SNES_FIGHT_BONUS_DEFAULT = 2
@@ -54,7 +54,7 @@ const BONUS = CURRENT.bonus
 const BASE_BANK = 0xa0
 const LAST_BANK = 0xbf
 const SECOND_MB = 0x100000
-const FULL_SIZE = 0x200000
+const FULL_SIZE = SNES_GROWN_SIZE
 const SIZE_BYTE = 0x7fd7
 const MARK = [0x4e, 0x34, 0x57, 0x46] // 'N4WF'
 const MARK_SIZE = 4 + 4 + 1
@@ -162,8 +162,8 @@ export function withSnesFight(rom0: Uint8Array, bonus = SNES_FIGHT_BONUS_DEFAULT
     return rom
   }
   const bank = freeBank(rom0)
-  const rom = new Uint8Array(Math.max(rom0.length, FULL_SIZE)).fill(0xff)
-  rom.set(rom0)
+  // Grown to 2 MB as the game music grows it too; a copy either way.
+  const rom = grownSnesRom(rom0).slice()
   const at = bankAt(bank)
   rom.set(blockFor(bank, bonus), at)
   const mark = at + BLOCK.length

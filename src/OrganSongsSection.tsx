@@ -585,7 +585,8 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     const name = SNES_GAME_MUSIC[pending.index].name.toLowerCase()
     try {
       const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end)
-      onChange(withSnesMusic(project, pending.index, made, pending.title))
+      const next = withSnesMusic(project, pending.index, made, pending.title)
+      onChange(next)
       const said = [
         made.leftOut && `${made.leftOut} ${made.leftOut === 1 ? 'note' : 'notes'} of the parts left out or of drums the game has not`,
         made.dropped && `${made.dropped} ${made.dropped === 1 ? 'note' : 'notes'} left out or cut short where their instrument's voices were all taken`,
@@ -594,6 +595,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
       setNotice(
         `The ${name} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
           (said.length ? ` Not as in the file: ${said.join('; ')}.` : '') +
+          (next.bytes.length > project.bytes.length ? ` The ROM grew to ${next.bytes.length / 0x100000} MB to make room for it.` : '') +
           ' Undo takes it back.',
       )
       setFailed(false)

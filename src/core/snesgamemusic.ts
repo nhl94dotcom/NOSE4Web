@@ -35,7 +35,7 @@
 // as the others, so they stay together each time round.
 
 import type { RomProject } from './rom'
-import { findCodeAll, loRomAddress, loRomBank, loRomOffset } from './snes'
+import { findCodeAll, grownSnesRom, loRomAddress, loRomBank, loRomOffset, SNES_GROWN_SIZE } from './snes'
 import { findSnesSound, readSnesInstrument, snesNotePitch, type SnesInstrument, type SnesSoundSetName } from './snesaudio'
 import { SNES_GAME_MUSIC } from './snesmusic'
 import { freeSpace, keptBanks } from './snespictures'
@@ -698,12 +698,20 @@ function pointedAt(rom: Uint8Array, index: number, to: number): Uint8Array {
 }
 
 // The project with a piece's bytes (snesMusicBytes, or from a project file) in place of piece `index`, in free room
-// within one bank; the piece NOSE4Web put there before, if any, given back to free room.
+// within one bank; the piece NOSE4Web put there before, if any, given back to free room. Where no bank has the
+// room, a ROM under 2 MB is grown to 2 MB, as the fighting patch grows it (grownSnesRom), and the piece goes in
+// the new banks ($A0 to $BF), which MusicStart's long pointer reads as well as any other. Putting the game's own
+// piece back leaves the ROM 2 MB, as the Genesis game music does.
 export function withSnesMusicBytes(project: RomProject, index: number, bytes: Uint8Array): RomProject {
   const own = SNES_GAME_MUSIC[index].pointer >>> 0
-  const rom = pointedAt(project.bytes, index, own)
+  let rom = pointedAt(project.bytes, index, own)
   const kept = keptBanks(rom)
-  const at = freeSpace(rom, bytes.length, kept)
+  let at = freeSpace(rom, bytes.length, kept)
+  const grows = at < 0 && rom.length < SNES_GROWN_SIZE
+  if (grows) {
+    rom = grownSnesRom(rom)
+    at = freeSpace(rom, bytes.length, kept)
+  }
   if (at < 0) {
     // The most room there is, found by halves.
     let [low, high] = [0, bytes.length]
@@ -712,7 +720,7 @@ export function withSnesMusicBytes(project: RomProject, index: number, bytes: Ui
       if (freeSpace(rom, middle, kept) >= 0) low = middle
       else high = middle
     }
-    throw new SnesMusicError(`The new music takes ${bytes.length} bytes, and the most free room this ROM has in one place is ${low}. A shorter piece, or one with fewer notes, would fit.`)
+    throw new SnesMusicError(`The new music takes ${bytes.length} bytes, and the most free room this ROM has in one place${grows ? ', even grown to 2 MB,' : ''} is ${low}. A shorter piece, or one with fewer notes, would fit.`)
   }
   rom.set(bytes, at)
   const to = ((loRomBank(at, 0x80) << 16) | loRomAddress(at)) >>> 0

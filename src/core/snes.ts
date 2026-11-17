@@ -64,6 +64,21 @@ export function fixSnesChecksum(rom: Uint8Array): void {
   writeU16LE(rom, INVERSE_CHECKSUM_AT, ~sum & 0xffff)
 }
 
+// The ROM grown to 2 MB, as the fighting patch (snesfight.ts) and the game
+// music (snesgamemusic.ts) grow it for room: the new part unused ($FF), seen
+// by the game as banks $A0 to $BF of its second megabyte, and the header's
+// ROM size ($0B, 2^11 KB) saying 2 MB. A ROM of 2 MB or more is given back as
+// it is. The checksum is put right when the ROM is built (fixSnesChecksum).
+export const SNES_GROWN_SIZE = 0x200000
+const ROM_SIZE_AT = HEADER_AT + 0x17
+export function grownSnesRom(rom0: Uint8Array): Uint8Array {
+  if (rom0.length >= SNES_GROWN_SIZE) return rom0
+  const rom = new Uint8Array(SNES_GROWN_SIZE).fill(0xff)
+  rom.set(rom0)
+  rom[ROM_SIZE_AT] = 0x0b
+  return rom
+}
+
 export function snesChecksum(rom: Uint8Array): number {
   return readU16LE(rom, CHECKSUM_AT)
 }

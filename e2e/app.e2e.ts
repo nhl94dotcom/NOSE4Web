@@ -2482,7 +2482,7 @@ const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
 test.describe('with the SNES game', () => {
   test.skip(!existsSync(snesPath), 'needs ../NHL94.smc')
 
-  test('replaces the SNES playoff music with a MIDI file, and puts it back', async ({ page }) => {
+  test('replaces the SNES playoff and title music with MIDI files, growing the ROM for the title, and puts them back', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
     await entry(page, 'Game settings').click()
@@ -2506,17 +2506,18 @@ test.describe('with the SNES game', () => {
     await replaced.getByRole('button', { name: 'Play' }).click()
     await expect(music.locator('.song-controls')).toHaveAttribute('data-sound', 'real')
     await replaced.getByRole('button', { name: 'Stop' }).click()
-    // The title music is too long for the original game's free room: it says so.
+    // The title music is too long for the original game's free room: the ROM grows to 2 MB for it, and it says so.
     const title = await downloadFrom(page, music.locator('tbody tr').filter({ hasText: 'Title music' }).getByRole('button', { name: 'Export MIDI' }))
     await music.getByLabel('Replace the title music').setInputFiles(await title.path())
     await music.getByRole('button', { name: 'Put it in' }).click()
-    await expect(music.getByText(/^The new music takes \d+ bytes, and the most free room this ROM has in one place is \d+\./)).toBeVisible()
-    await music.getByRole('button', { name: 'Cancel' }).click()
+    await expect(music.getByText(/^The title music is now "[^"]+", \d:\d\d long, playing again from the start when it ends\..* The ROM grew to 2 MB to make room for it\. Undo takes it back\.$/)).toBeVisible()
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Playoff music: "Playoff music", from a MIDI file.')).toBeVisible()
     await entry(page, 'Game settings').click()
     await replaced.getByRole('button', { name: 'Put back the original' }).click()
     await expect(music.getByText("The playoff music is the game's own again. Undo takes it back.")).toBeVisible()
+    await music.locator('tbody tr').filter({ hasText: '(in place of the title music)' }).getByRole('button', { name: 'Put back the original' }).click()
+    await expect(music.getByText("The title music is the game's own again. Undo takes it back.")).toBeVisible()
     await expect(music.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)
   })
 

@@ -1534,11 +1534,24 @@ restarting. A piece whose places are not exactly 1/4/4 starts and 0/1/1 question
 
 (SongPtr is `$07ED`; `$67ED` in nhl94_2026 and SA-1.) **Writing** (`withSnesMusicBytes`): the old NOSE4Web piece, if
 any, is filled with `$FF` (its room given back), the new one goes in `freeSpace` within one bank (`keptBanks` kept out),
-each start gets its bank byte (`+1`) and address (`+6`, `+7`), each question the new low word. **Put back**
-(`withOriginalSnesMusic`): the room filled with `$FF` again and the original pointer and low word written back, so the
-ROM is the same byte for byte (test). Too little room: "The new music takes N bytes, and the most free room this ROM has
-in one place is M. ..." (the 1 MB ROMs have 6,028 bytes in bank `$80`: the playoff music's round trip, 3,007 bytes,
-fits; the title's 7,222 and the menu's 6,808 do not; the 2 MB builds put them in bank `$B5`, SA-1 in `$A4`).
+each start gets its bank byte (`+1`) and address (`+6`, `+7`), each question the new low word. **Growing**: where no
+bank has the room and the ROM is under 2 MB, it is grown with `grownSnesRom` (`src/core/snes.ts`), the same growth the
+fighting patch uses (`withSnesFight`): a 2 MB copy, the new part `$FF`, the header's ROM size (`$7FD7`) `$0B`; the
+checksum is put right by `fixSnesChecksum` when the ROM is built (a power-of-two size now, so SDL16's is fixed too). The
+new banks are `$A0` to `$BF` at `$8000`-`$FFFF`; MusicStart's long pointer (`p0`, bank in `p0+2`) and the tracks' word
+offsets reach them as any bank, and a piece is still kept within one bank. The 1 MB ROMs have 6,028 bytes free in one
+place (bank `$80`): the playoff music's round trip, 3,019 bytes, fits there alone; the title's 7,232 and the menu's
+6,817 grow the ROM, once (the title first: `$A0:E3C0`, menu `$A1:E55F`, playoff `$A2:F435`; SDL16, whose data runs into
+bank `$A2`, `$A3` to `$A5`), as `freeSpace` takes the end of the largest free run. The fights (`freeBank`, the start of
+the first bank with 19,599 bytes unused) then go in bank `$A0` (SDL16 `$A3`) beside the music; with the fights in first
+the music goes in the next banks and nothing grows again; the fights out leave the ROM 2 MB when the music is past 1 MB
+(their mark's length is used only where all past it is `$FF`). **Put back** (`withOriginalSnesMusic`): the room filled
+with `$FF` again and the original pointer and low word written back, so the ROM is the same byte for byte (test); a ROM
+grown for the music stays 2 MB, as the Genesis game music leaves it (all three put back = `grownSnesRom` of the ROM as
+opened, test). Too little room even so (a piece over 32,767 bytes): "The new music takes N bytes, and the most free room
+this ROM has in one place, even grown to 2 MB, is M. ..." (without ", even grown to 2 MB," on a 2 MB ROM; the 2 MB
+builds put the pieces in bank `$B5`, SA-1 in `$A4`). The notice after Put it in adds "The ROM grew to 2 MB to make room
+for it." where it grew.
 
 **The piece** (`snesMusicBytes`): header `01 9D 01 00 00 00 count 00` (tempo 157: a tick a frame), a word offset a
 track, 0. Each track: `$E7` name (e.g. `Brass (MIDI 5)`; track 9 `drums`), in track 0 a second `$E7` with the mark
@@ -1592,7 +1605,7 @@ kit's names follow that). For Match Viewer to hear.
 `SINGLE_DRUMS`, `SNES_DRUM_GM`); `src/core/snesgamemusic.ts` (`snesMusicPlaces`, `snesMusicKit`,
 `defaultSnesPartChoices`, `snesMusicFromMidi`, `snesMusicBytes`, `withSnesMusic`, `withOriginalSnesMusic`,
 `snesCustomMusicBytes`); `tests/snesgamemusic.test.ts` (places and kit in every ROM, round trips, a hand-made file with
-drums, eight voices, byte-for-byte put back, project file, no room, places not found); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
+drums, eight voices, byte-for-byte put back, all three in one ROM grown once, the fights with the music in either order, project file, no room, places not found); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
 `snesNotePitch`, `snesPitchRate`, `renderSnesMusic`); `src/snesplayer.ts`; `src/OrganSongsSection.tsx`
 (`SnesGameMusicSection`); `tests/snesmusic.test.ts` ("reads the title, menu and playoff music in %s, and exports each as
 MIDI, a track a part"); `tests/snesaudio.test.ts` (BRR filters, sample sets and tables, a ROM whose sound code differs,
