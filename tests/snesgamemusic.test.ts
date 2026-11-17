@@ -9,6 +9,7 @@ import { renderSnesMusic } from '../src/core/snesaudio'
 import { snesFightState } from '../src/core/snesfight'
 import {
   defaultSnesPartChoices,
+  midiLoopStart,
   midiPartNames,
   snesCustomMusicBytes,
   snesCustomMusicName,
@@ -17,6 +18,7 @@ import {
   snesMusicPlaces,
   snesMusicPointer,
   snesMusicReplaceable,
+  snesMusicTempo,
   withOriginalSnesMusic,
   withSnesMusic,
   withSnesMusicBytes,
@@ -42,17 +44,37 @@ function roundTrip(project: RomProject, index: number) {
   const { notes, end, programs } = readMidi(bytes)
   const kit = snesMusicKit(project.bytes, piece.sounds)!
   const choices = defaultSnesPartChoices(kit, musicParts(notes), programs, midiPartNames(bytes))
-  const made = snesMusicFromMidi(kit, notes, choices, end)
+  const made = snesMusicFromMidi(kit, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(bytes) })
   return { made, choices, next: withSnesMusic(project, index, made, `${piece.name} again`) }
 }
 
-// The voices a piece's notes were planned on never hold two at once, and are eight at most.
+// The frame (from the piece's start) at which the sequencer steps the piece's tick `tick`: TempoAcc gains $40 a
+// frame, and a tick is stepped each time it reaches TempoTick = $2760 / tempo (SequencerTick, MusicStart).
+function frameOfTick(tempo: number, tick: number) {
+  const tempoTick = Math.floor(0x2760 / tempo)
+  let acc = 0
+  let stepped = -1
+  for (let frame = 1; ; frame++) {
+    acc = (acc + 0x40) & 0xff
+    while (acc >= tempoTick) {
+      if (++stepped === tick) return frame
+      acc -= tempoTick
+    }
+  }
+}
+
+// The voices a piece's notes were planned on never hold two at once, and are eight at most; each is a voice its
+// entry may take.
 function voicesHeldOnce(rom: Uint8Array, made: ReturnType<typeof snesMusicFromMidi>, set: 'title' | 'menu') {
   const kit = snesMusicKit(rom, set)!
   const spans: { voice: number; on: number; off: number }[] = []
   made.tracks.forEach((track, t) => {
     for (const n of track.notes) {
-      const voice = t === 9 ? kit.drumVoice.get(n.code)! : [...kit.instruments.flatMap((i) => [...i.entries])].find(([, entry]) => entry === track.entry)![0]
+      const voice = t === 9 ? kit.drumVoice.get(n.code)! : track.voice
+      if (t !== 9) {
+        const instrument = kit.instruments.find((i) => [...i.entries.values()].includes(track.entry) || i.doubled?.entry === track.entry)!
+        expect(instrument.entries.get(voice) === track.entry || (instrument.doubled?.entry === track.entry && instrument.doubled.voices.includes(voice))).toBe(true)
+      }
       spans.push({ voice, on: n.tick, off: n.tick + n.length })
     }
   })
@@ -105,8 +127,14 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     expect(menu.instruments.find((i) => i.name === 'Brass')!.entries.size).toBe(3)
     expect([36, 38, 42, 45].map((note) => menu.drums.get(note))).toEqual([48, 50, 54, 57])
     expect([48, 50, 54, 57].map((code) => menu.drumVoice.get(code))).toEqual([7, 7, 6, 6])
-    // The title set has no organ or power guitar.
+    // The organ: entry 47 on voice 0, and doubled a tick earlier on entry 31, which may take voices 0 to 2.
+    expect([...menu.instruments.find((i) => i.name === 'Organ')!.entries]).toEqual([[0, 47]])
+    expect(menu.instruments.find((i) => i.name === 'Organ')!.doubled).toEqual({ entry: 31, voices: [1, 2] })
+    // The title set has no organ or power guitar; but the title music plays on the menu set (TitleScreen calls
+    // SPCTitleToMenu before it starts it), so a new title music may use them.
     expect(snesMusicKit(rom, 'title')!.instruments.map((i) => i.name)).not.toContain('Organ')
+    expect(SNES_GAME_MUSIC.map((piece) => piece.sounds)).toEqual(['menu', 'menu', 'menu'])
+    expect(SNES_GAME_MUSIC.map((_, i) => snesMusicTempo(rom, i))).toEqual([156, 155, 154])
   })
 
   it('exports the drums as General MIDI drums: the kick, snare and hi-hats', () => {
@@ -142,6 +170,38 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     const music = readSnesMusic(next.bytes, pointer)!
     expect(music.parts[9].drums).toBe(true)
     expect(Math.abs(music.seconds - was.seconds)).toBeLessThan(0.2)
+    // The piece's own tempo, length and loop start, so it plays as long as the game's to the frame, first time
+    // through and each time round after (the menu and playoff music from tick 96).
+    const own = readSnesMusic(project.bytes, piece.pointer)!
+    expect([music.tempo, music.ticks, music.loop]).toEqual([own.tempo, own.ticks, own.loop])
+    expect([made.tempo, made.ticks, made.loop]).toEqual([own.tempo, own.ticks, own.loop])
+    const frames = (m: typeof own) => [frameOfTick(m.tempo, m.ticks), frameOfTick(m.tempo, m.ticks) - frameOfTick(m.tempo, m.loop)]
+    expect(frames(music)).toEqual(frames(own))
+    // The drums' hits (with the crashes' and cowbell's parts, on the drum channel in the file) at the very ticks the
+    // game's are.
+    const ownTicks = new Set(own.parts.flatMap((part) => part.notes.map((n) => n.tick)))
+    expect(music.parts[9].notes.filter((n) => !ownTicks.has(n.tick))).toEqual([])
+  })
+
+  it('doubles the organ as the playoff music does: its line on entry 31, and a tick later on entry 47', () => {
+    const project = open(roomy)
+    const { made, next } = roundTrip(project, 2)
+    const own = made.tracks.find((t) => t.entry === 47)!
+    const doubled = made.tracks.filter((t) => t.entry === 31)
+    // The playoff music's line of 102 notes back on both, as the game has it (a note or so given up for a crash).
+    expect(own.notes.length).toBeGreaterThanOrEqual(100)
+    const copies = doubled.flatMap((t) => t.notes)
+    expect(copies.length).toBeGreaterThanOrEqual(100)
+    for (const n of own.notes) expect(copies.some((c) => c.tick === n.tick - 1 && c.code === n.code)).toBe(true)
+    // Each on a voice of its own (31's of voices 1 and 2), and the game starts every note so.
+    expect(doubled.every((t) => t.voice === 1 || t.voice === 2)).toBe(true)
+    const pointer = snesMusicPointer(next.bytes, 2)
+    const played = renderSnesMusic(next.bytes, pointer, 'menu', false)!
+    for (const t of doubled) expect(played.notes.filter((n) => n.track === made.tracks.indexOf(t)).length).toBe(t.notes.length)
+    // Its own MIDI file again has the line once, on one organ track.
+    const file = snesMusicToMidi(readSnesMusic(next.bytes, pointer)!)
+    expect([...midiPartNames(file).values()].filter((name) => /organ/i.test(name))).toHaveLength(1)
+    expect(readMidi(file).notes.length).toBe(played.notes.length - copies.length)
   })
 
   it.each(names)('puts all three pieces in %s together, growing a ROM under 2 MB once, and plays and puts back each', (name) => {
@@ -246,7 +306,8 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     const { notes: read, end } = readMidi(bytes)
     const choices = new Map<number, SnesPartChoice>([[0, 8], [1, 1], [9, 'drums']])
     const made = snesMusicFromMidi(kit, read, choices, end)
-    expect(made.ticks).toBe(600)
+    // Ten seconds, at the console's 60.0988 frames a second (a tick a frame where no tempo is given).
+    expect(made.ticks).toBe(601)
     voicesHeldOnce(project.bytes, made, 'menu')
     const brass = made.tracks.filter((t) => t.name.startsWith('Brass')).flatMap((t) => t.notes)
     expect(new Set(brass.map((n) => n.code))).toEqual(new Set([67, 72, 76]))
@@ -275,8 +336,9 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     for (let channel = 0; channel < 6; channel++) for (const note of [72, 79]) notes.push({ start: 0, length: 1, note: note - 24 * (channel === 0 ? 1 : 0), velocity: 80, channel })
     const choices = new Map<number, SnesPartChoice>([[0, 1], [1, 8], [2, 9], [3, 13], [4, 14], [5, 15]])
     const made = snesMusicFromMidi(kit, notes, choices, 2)
-    const played = made.tracks.flatMap((t) => t.notes)
-    expect(played.length).toBeLessThanOrEqual(8)
+    // (The organ's copies a tick earlier are extra notes, on voices left free.)
+    expect(made.tracks.flatMap((t) => t.notes).length).toBeLessThanOrEqual(8)
+    const played = made.tracks.filter((t) => !t.name.endsWith('doubled')).flatMap((t) => t.notes)
     expect(played.length + made.dropped).toBe(12)
     // The bass's 48 and 55 are in its range; the rest too.
     for (const track of made.tracks) {
@@ -302,6 +364,26 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     expect(snesMusicPointer(next.bytes, 1)).toBe(SNES_GAME_MUSIC[1].pointer)
     // Downloaded and opened again it is still there.
     expect(snesCustomMusicName(openRom(buildRom(next)).bytes, 2)).toBe('Playoff music again')
+  })
+
+  it('puts back the original byte for byte, in a 1 MB ROM grown for the new music and in a 2 MB ROM', () => {
+    const small = open()
+    expect(small.bytes.length).toBe(0x100000)
+    // The 1 MB ROM grows for the title music; put back, it is the grown ROM with nothing else changed.
+    const grown = roundTrip(small, 0).next
+    expect(grown.bytes.length).toBe(0x200000)
+    expectSameBytes(withOriginalSnesMusic(grown, 0).bytes, grownSnesRom(small.bytes))
+    // A 2 MB ROM (the same game grown) has room: each piece in and put back gives the ROM byte for byte.
+    const big = { ...small, bytes: grownSnesRom(small.bytes) }
+    let all = big
+    SNES_GAME_MUSIC.forEach((_, index) => {
+      const next = roundTrip(big, index).next
+      expect(next.bytes.length).toBe(0x200000)
+      expectSameBytes(withOriginalSnesMusic(next, index).bytes, big.bytes)
+      all = roundTrip(all, index).next
+    })
+    // All three in, then put back one by one.
+    expectSameBytes(SNES_GAME_MUSIC.reduce((rom, _, index) => withOriginalSnesMusic(rom, index), all).bytes, big.bytes)
   })
 
   it('keeps a replaced piece in a project file, and names it in the changes', () => {

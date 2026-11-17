@@ -2499,7 +2499,7 @@ test.describe('with the SNES game', () => {
     await expect(music.getByLabel('Part on MIDI channel 1', { exact: true }).locator('option:checked')).toHaveText('Chugging guitar, up to 4 notes at once')
     await music.getByLabel('Part on MIDI channel 2', { exact: true }).selectOption({ label: 'Left out' })
     await music.getByRole('button', { name: 'Put it in' }).click()
-    await expect(music.getByText(/^The playoff music is now "Playoff music", 0:28 long, playing again from the start when it ends\. Not as in the file: \d+ notes of the parts left out/)).toBeVisible()
+    await expect(music.getByText(/^The playoff music is now "Playoff music", 0:28 long, playing again from 0:02 \(the file's loop marker\) when it ends\. Not as in the file: \d+ notes of the parts left out/)).toBeVisible()
     const replaced = music.locator('tbody tr').filter({ hasText: 'Playoff music (in place of the playoff music)' })
     await expect(replaced).toHaveCount(1)
     // Play plays the new piece on the game's own instruments.

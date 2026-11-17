@@ -24,6 +24,7 @@ import { readSnesMusic, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMus
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
 import {
   defaultSnesPartChoices,
+  midiLoopStart,
   midiPartNames,
   snesCustomMusicName,
   SnesMusicError,
@@ -31,6 +32,7 @@ import {
   snesMusicKit,
   snesMusicPointer,
   snesMusicReplaceable,
+  snesMusicTempo,
   withOriginalSnesMusic,
   withSnesMusic,
   type SnesPartChoice,
@@ -553,7 +555,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
-  const [pending, setPending] = useState<{ index: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, SnesPartChoice> } | null>(null)
+  const [pending, setPending] = useState<{ index: number; title: string; notes: MidiNote[]; end: number; loop: number; parts: MusicPart[]; choices: Map<number, SnesPartChoice> } | null>(null)
   if (project.game.platform !== 'snes') return null
   const pieces = SNES_GAME_MUSIC.map((piece, index) => {
     const pointer = snesMusicPointer(project.bytes, index)
@@ -571,7 +573,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
       const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
       if (!found) throw new MidiError("The editor cannot find this ROM's instruments.")
-      setPending({ index, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)) })
+      setPending({ index, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, loop: midiLoopStart(bytes), parts, choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)) })
       setNotice('')
       setFailed(false)
     } catch (e) {
@@ -584,7 +586,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     if (!pending || !kit) return
     const name = SNES_GAME_MUSIC[pending.index].name.toLowerCase()
     try {
-      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end)
+      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end, { tempo: snesMusicTempo(project.bytes, pending.index), loop: pending.loop })
       const next = withSnesMusic(project, pending.index, made, pending.title)
       onChange(next)
       const said = [
@@ -593,7 +595,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
         made.moved && `${made.moved} ${made.moved === 1 ? 'note' : 'notes'} moved by octaves into the instruments' range`,
       ].filter(Boolean)
       setNotice(
-        `The ${name} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from the start when it ends.` +
+        `The ${name} is now "${pending.title}", ${seconds(made.seconds)} long, playing again from ${made.loop ? `${seconds((made.loop / made.ticks) * made.seconds)} (the file's loop marker)` : 'the start'} when it ends.` +
           (said.length ? ` Not as in the file: ${said.join('; ')}.` : '') +
           (next.bytes.length > project.bytes.length ? ` The ROM grew to ${next.bytes.length / 0x100000} MB to make room for it.` : '') +
           ' Undo takes it back.',
@@ -622,8 +624,9 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
         The game's own music besides the organ. Play plays a piece on the game's own instruments. Export MIDI saves it
         as a MIDI file, each of its parts on a track of its own named as the game names it, and the drums on the drum
         channel. <b>Replace</b> puts a MIDI file of your own in its place: you choose one of the game's instruments for
-        each of its parts, its drums play on the game's drums, and the piece plays again from the start when it ends.
-        The console has eight voices for the music and its drums, and each instrument only some of them: where an
+        each of its parts, its drums play on the game's drums, and the piece plays again from the start when it ends
+        (or from the file's loop marker, as the pieces' own MIDI files have). A part on the organ is played twice, a
+        moment apart, as the playoff music plays its organ. The console has eight voices for the music and its drums, and each instrument only some of them: where an
         instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Not yet tested in
         the game.
       </p>

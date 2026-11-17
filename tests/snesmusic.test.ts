@@ -87,13 +87,15 @@ describe.skipIf(names.length === 0)("the SNES game's other music", () => {
       const music = readSnesMusic(rom, pointer)
       expect(music, piece).not.toBeNull()
       const notes = readMidi(snesMusicToMidi(music!, piece)).notes
-      // Every note is in the file: the tunes at their pitches, the drums and the percussion parts on the drum channel.
+      // Every note is in the file: the tunes at their pitches, the drums and the percussion parts on the drum channel;
+      // but the playoff music's organ line once, not on both its organ entries (put back, it is doubled again).
       const all = music!.parts.reduce((sum, part) => sum + part.notes.length, 0)
-      expect(notes.length).toBe(all)
+      const doubled = pointer === SNES_GAME_MUSIC[2].pointer ? 102 : 0
+      expect(notes.length).toBe(all - doubled)
       const drums = music!.parts.find((part) => part.drums)!
       expect(notes.filter((note) => note.channel === 9).length).toBeGreaterThanOrEqual(drums.notes.length)
-      // The preview leaves the drums out.
-      expect(snesMusicTune(music!).filter((e) => (e.status & 0xf0) === 0x90).length).toBe(notes.filter((note) => note.channel !== 9).length)
+      // The preview leaves the drums out (and plays both organ lines).
+      expect(snesMusicTune(music!).filter((e) => (e.status & 0xf0) === 0x90).length).toBe(notes.filter((note) => note.channel !== 9).length + doubled)
       return [music!.parts.length, Math.round(music!.seconds)]
     })
     expect(found).toEqual([[13, 88], [14, 70], [14, 28]])
