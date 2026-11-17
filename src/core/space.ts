@@ -40,8 +40,10 @@ export function fullRomReason(rom: Uint8Array): string {
 // if it has to be, and where in it the room starts. Null if there is no room
 // and the file cannot grow. Code a hack adds goes after the end mark, which
 // stays where it is, as the hack program smozROM leaves it: `keepMark`.
-export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { rom: Uint8Array; at: number } | null {
-  if (rom.length === FIGHT_ROM) return claimBelow(rom, size, SWITCHED_BELOW)
+// With `inPlace`, a ROM that does not have to grow is changed and given back
+// itself, for a caller working on a copy of its own; otherwise a new copy.
+export function claimSpace(rom: Uint8Array, size: number, keepMark = false, inPlace = false): { rom: Uint8Array; at: number } | null {
+  if (rom.length === FIGHT_ROM) return claimBelow(rom, size, SWITCHED_BELOW, inPlace)
   let last = rom.length - 1
   while (last >= 0 && rom[last] === UNUSED) last--
   // NOSE marks the end of the used part of a ROM it has edited. Where that
@@ -54,6 +56,10 @@ export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { r
   let length = rom.length
   if (needed > length) length = (length === 0x80000 || length === 0x100000) && length * 2 <= LARGEST_ROM ? length * 2 : 0
   if (needed > length) return null
+  if (inPlace && length === rom.length) {
+    if (marked) rom.set([0x60, 0xfe], at + size)
+    return { rom, at }
+  }
   const grown = new Uint8Array(length).fill(UNUSED)
   grown.set(rom)
   if (marked) grown.set([0x60, 0xfe], at + size)
@@ -61,12 +67,12 @@ export function claimSpace(rom: Uint8Array, size: number, keepMark = false): { r
 }
 
 // Room for `size` bytes after the last used byte below `limit`, in a ROM that is not to grow.
-function claimBelow(rom: Uint8Array, size: number, limit: number): { rom: Uint8Array; at: number } | null {
+function claimBelow(rom: Uint8Array, size: number, limit: number, inPlace = false): { rom: Uint8Array; at: number } | null {
   let last = limit - 1
   while (last >= 0 && rom[last] === UNUSED) last--
   const at = last + 1 + ((last + 1) % 2) + GAP
   if (at + size > limit) return null
-  return { rom: rom.slice(), at }
+  return { rom: inPlace ? rom : rom.slice(), at }
 }
 
 // Where the NHL '95 fighting patch's code has to go (nhl95fightdata.ts: its jumps and pointers are to there).
@@ -77,15 +83,17 @@ export const NHL95_FIGHT_ROOM = { start: 0x1e0000, end: 0x1e0f4c }
 // end (claimBeforeTail; not with `beforeTail` false), but never over the fighting patch's place while that is
 // unused. Where the room found would reach into it, it is found again as if the place were taken, so after it; where
 // the room ends before it, it is where it would have been.
-export function claimSpace95(rom: Uint8Array, size: number, keepMark = true, beforeTail = true): { rom: Uint8Array; at: number } | null {
-  const claim = (bytes: Uint8Array) => claimSpace(bytes, size, keepMark) ?? (beforeTail ? claimBeforeTail(bytes, size) : null)
+export function claimSpace95(rom: Uint8Array, size: number, keepMark = true, beforeTail = true, inPlace = false): { rom: Uint8Array; at: number } | null {
+  const claim = (bytes: Uint8Array, mine: boolean) =>
+    claimSpace(bytes, size, keepMark, mine) ?? (beforeTail ? claimBeforeTail(bytes, size, mine) : null)
   const { start, end } = NHL95_FIGHT_ROOM
-  const first = claim(rom)
+  const first = claim(rom, inPlace)
   const clear = rom.length >= end && rom.subarray(start, end).every((byte) => byte === UNUSED)
   if (!first || !clear || first.at >= end || first.at + size <= start) return first
   const masked = rom.slice()
   masked.fill(0, start, end)
-  const second = claim(masked)
+  // The masked copy is this function's own.
+  const second = claim(masked, true)
   if (!second) return null
   second.rom.fill(UNUSED, start, end)
   return second
@@ -95,7 +103,7 @@ export function claimSpace95(rom: Uint8Array, size: number, keepMark = true, bef
 // theirs (tiles and text) at the very end: at the start of the run of unused bytes just before that part, where
 // the run is long enough (BLOCK at least) that it is surely unused and not part of a picture. Null where there
 // is no such run, or it is too short.
-export function claimBeforeTail(rom: Uint8Array, size: number): { rom: Uint8Array; at: number } | null {
+export function claimBeforeTail(rom: Uint8Array, size: number, inPlace = false): { rom: Uint8Array; at: number } | null {
   const BLOCK = 0x4000
   let end = rom.length
   while (end > 0 && rom[end - 1] === UNUSED) end--
@@ -108,7 +116,7 @@ export function claimBeforeTail(rom: Uint8Array, size: number): { rom: Uint8Arra
     }
     let start = i
     while (start > 0 && rom[start - 1] === UNUSED) start--
-    if (i - start >= BLOCK) return i - start >= size + 4 * GAP ? claimBelow(rom, size, i - GAP) : null
+    if (i - start >= BLOCK) return i - start >= size + 4 * GAP ? claimBelow(rom, size, i - GAP, inPlace) : null
     i = start
   }
   return null

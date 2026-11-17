@@ -308,7 +308,12 @@ export function bannersSupported(project: Source): boolean {
 
 // Whether this ROM has one set of banners the editor can show.
 export function bannerKindSupported(project: Source, kind: BannerKind): boolean {
-  return bannerKindsOf(layout(project.bytes, project.game)).includes(kind)
+  return bannerKindsSupported(project).includes(kind)
+}
+
+// Every set of banners this ROM has that the editor can show, from one reading of where its pictures are.
+export function bannerKindsSupported(project: Source): BannerKind[] {
+  return bannerKindsOf(layout(project.bytes, project.game))
 }
 
 // The places that hold the address of one set of banners. Where the visitors

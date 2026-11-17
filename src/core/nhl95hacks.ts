@@ -117,15 +117,22 @@ const hex = (text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../
 // at the very end, as the WN95HL's ROMs keep tiles and text there, at the start
 // of the long run of unused bytes before it (claimBeforeTail).
 function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
-  const claimed = claimSpace95(work.rom, code.length)
+  // work.rom is the hacks' own copy of the ROM, so room is claimed in it rather than in another copy.
+  const claimed = claimSpace95(work.rom, code.length, true, true, true)
   if (!claimed) throw new Nhl95HackError(`There is no room left in this ROM for the code this needs.${fullRomReason(work.rom)}`)
   work.rom = claimed.rom
   work.rom.set(code, claimed.at)
   return claimed.at
 }
+// A part made the first time it is wanted (the constants it uses come later in the file), then kept: the parts
+// hold nothing of a ROM, so one does for every ROM.
+const once = <T>(make: () => T): (() => T) => {
+  let made: T | undefined
+  return () => (made ??= make())
+}
 const assist = assistFixes({ assist: [0x81476, 0x82f28], regain: 0x81464, regainSame: 0x81492 }, placeCode)
-const rocket = () => hookedFix(ROCKET_HOOK, ROCKET_CODE, ROCKET_EDITS, placeCode)
-const ring = () => hookedFix(RING_HOOK, RING_CODE_95, RING_EDITS, placeCode)
+const rocket = once(() => hookedFix(ROCKET_HOOK, ROCKET_CODE, ROCKET_EDITS, placeCode))
+const ring = once(() => hookedFix(RING_HOOK, RING_CODE_95, RING_EDITS, placeCode))
 const ringState = (rom: Uint8Array) => (RING_AROUND.every((around) => matches(rom, around.at, around.bytes)) ? ring().detect(rom) : undefined)
 
 // ------------------------------------------ fixes of one or two instructions
@@ -388,7 +395,7 @@ function nhlSoCode(): Uint8Array {
 const NHL_SO_CODE = nhlSoCode()
 // What must follow it: bset #3,(gmode2).w; jsr EndShootout.
 const NHL_SO_AFTER = { at: 0x9ddb8, bytes: hex('08F8 0003 BF00 4EB9') }
-const nhlSo = () => hookedFix(NHL_SO_HOOK, NHL_SO_CODE, NHL_SO_EDITS, placeCode)
+const nhlSo = once(() => hookedFix(NHL_SO_HOOK, NHL_SO_CODE, NHL_SO_EDITS, placeCode))
 const nhlSoState = (rom: Uint8Array) => (matches(rom, NHL_SO_AFTER.at, NHL_SO_AFTER.bytes) ? nhlSo().detect(rom) : undefined)
 
 // ------------------------------------------------------- 3 on 3 overtime
@@ -433,7 +440,7 @@ const OT3_BOX_SEASON = hex('0838 0001 BF02 6738 0838 0000 BF00 6630 4A78 CC4C 66
 const OT3_PERS_SEASON = hex('0838 0001 BF02 675E 0838 0000 BF00 6656 4A78 CC4C 6650 0838 0003 BF08 6708 0838 0005 D1A7 6640 48E7 C040 91C8 7005 224B D2FC 0080 4A29 0061 6A18 7200 1229 0066 6B08 D241 4A72 1068 6E08 2049 4A69 0034 6A0E 51C8 FFDC 2008 6606 4CDF 0203 6006 4CDF 0203 4E75 D6FC 0080 4A2B 0061 5BCB FFF6 6A00 0004 304B 4A6B 0034 5ACB FFE8 4E75')
 
 type Ot3 = 'off' | 'season' | 'all'
-const ot3Parts = (choice: Exclude<Ot3, 'off'>) => {
+const makeOt3Parts = (choice: Exclude<Ot3, 'off'>) => {
   const all = choice === 'all'
   return [
     ...OT3_PRIO_HOOKS.map((hook) => hookedFix(hook, all ? OT3_PRIO_ALL : OT3_PRIO_SEASON, [], placeCode)),
@@ -444,6 +451,9 @@ const ot3Parts = (choice: Exclude<Ot3, 'off'>) => {
     hookedFix(OT3_PERS_HOOK, all ? OT3_PERS_ALL : OT3_PERS_SEASON, [], placeCode),
   ]
 }
+const ot3Season = once(() => makeOt3Parts('season'))
+const ot3All = once(() => makeOt3Parts('all'))
+const ot3Parts = (choice: Exclude<Ot3, 'off'>) => (choice === 'all' ? ot3All() : ot3Season())
 
 function ot3State(rom: Uint8Array): Ot3 | undefined {
   if (ot3Parts('all').every((part) => part.detect(rom) === false)) return 'off'
@@ -482,10 +492,10 @@ const RUNAWAY_AROUND = [
   { at: 0x8196c, bytes: hex('082B 0003 0062 6600') },
   { at: 0x81a3c, bytes: hex('08AB 0000 0062 4EF9 0008 155E') },
 ]
-const runawayParts = () => [
+const runawayParts = once(() => [
   ...RUNAWAY_FALL_HOOKS.map((hook) => hookedFix(hook, RUNAWAY_FALL_CODE, [], placeCode)),
   hookedFix(RUNAWAY_ONETIMER_HOOK, RUNAWAY_ONETIMER_CODE, RUNAWAY_EDITS, placeCode),
-]
+])
 function runawayState(rom: Uint8Array): boolean | undefined {
   if (!RUNAWAY_AROUND.every((around) => matches(rom, around.at, around.bytes))) return undefined
   const states = runawayParts().map((part) => part.detect(rom))
@@ -511,7 +521,7 @@ const PS_EDITS = [
     hacked: hex('0238 0083 BEF8 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71'),
   },
 ]
-const psFixes = () => hookedFix(PS_HOOK, PS_CODE, PS_EDITS, placeCode)
+const psFixes = once(() => hookedFix(PS_HOOK, PS_CODE, PS_EDITS, placeCode))
 
 // --------------------------------------------------- organ after a pause
 // NHL 94's option (hacks.ts, organResume), made for NHL '95's own sound
@@ -560,8 +570,8 @@ const ORGAN_AROUND = [
   { at: 0x7e4c2, bytes: hex('31DF AC16 4E75') },
   { at: 0xb4dc, bytes: hex('48E7 4080') },
 ]
-const organSave = () => hookedFix(ORGAN_SAVE_HOOK, ORGAN_SAVE, [], placeCode)
-const organRestore = () => hookedFix(ORGAN_RESTORE_HOOK, ORGAN_RESTORE, [], placeCode)
+const organSave = once(() => hookedFix(ORGAN_SAVE_HOOK, ORGAN_SAVE, [], placeCode))
+const organRestore = once(() => hookedFix(ORGAN_RESTORE_HOOK, ORGAN_RESTORE, [], placeCode))
 function organState(rom: Uint8Array): boolean | undefined {
   if (!ORGAN_AROUND.every((around) => matches(rom, around.at, around.bytes))) return undefined
   const [save, restore] = [organSave().detect(rom), organRestore().detect(rom)]
@@ -706,17 +716,22 @@ function fightMode(rom: Uint8Array): FightStart | null | undefined {
   if (FIGHT_HOOKS.every((h) => matches(rom, h.at, h.original))) return null
   if (!fightHooked(rom)) return undefined
   if (fightUnfixed(rom)) return 1
-  return FIGHT_STARTS.find((start) => matches(rom, FIGHT95_AT, fightCode(rom, true, start)))
+  // The fixed code, built once: all of it as the ROM's but the start setting's word, which says which it is.
+  const code = fightCode(rom)
+  const word = FIGHT_START_AT - FIGHT95_AT
+  if (!code.every((byte, i) => i === word || i === word + 1 || rom[FIGHT95_AT + i] === byte)) return undefined
+  const start = (rom[FIGHT_START_AT] << 8) | rom[FIGHT_START_AT + 1]
+  return FIGHT_STARTS.find((s) => s === start)
 }
 
-function fightState(rom: Uint8Array, start?: FightStart): boolean | undefined {
-  const mode = fightMode(rom)
+// The choices from fightMode: fighting in, or (with `start`) in with that start setting.
+function fightIs(mode: FightStart | null | undefined, start?: FightStart): boolean | undefined {
   if (mode === undefined) return undefined
   return start === undefined ? mode !== null : mode === start
 }
 
 function removeFight(rom: Uint8Array) {
-  if (fightState(rom) !== true) return
+  if (fightIs(fightMode(rom)) !== true) return
   for (const h of FIGHT_HOOKS) rom.set(h.original, h.at)
   rom.fill(0xff, FIGHT95_AT, FIGHT_END)
 }
@@ -739,10 +754,11 @@ export function nhl95HacksSupported(game: GameConfig): boolean {
 export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
   const ties = tiesState(rom)
   const ot3 = ot3State(rom)
+  const fight = fightMode(rom)
   const found: Record<Nhl95Hack, boolean | undefined> = {
-    fighting: fightState(rom),
-    fightingOff: fightState(rom, 0),
-    fightingArcade: fightState(rom, 2),
+    fighting: fightIs(fight),
+    fightingOff: fightIs(fight, 0),
+    fightingArcade: fightIs(fight, 2),
     secondAssist: assist.secondAssist.detect(rom),
     oneTimerAssist: assist.oneTimerAssist.detect(rom),
     regainAssist: assist.regainAssist.detect(rom),

@@ -5,7 +5,7 @@ import {
   banner,
   bannerColors,
   bannerSharedWith,
-  bannerKindSupported,
+  bannerKindsSupported,
   bannersEditable,
   bannersSupported,
   menuLogo,
@@ -285,11 +285,12 @@ function importPictures(project: RomProject, other: RomProject, from: number, to
     ['menu', 'menu', visitorBannersApart(project) ? 'Menu banner (home)' : 'Menu banner'],
     ['game', 'game', 'In-game banner'],
   ]
-  if (bannerKindSupported(project, 'pause') || bannerKindSupported(other, 'pause')) banners.push(['pause', 'pause', 'Pause screen banner'])
+  const [ourKinds, theirKinds] = [bannerKindsSupported(project), bannerKindsSupported(other)]
+  if (ourKinds.includes('pause') || theirKinds.includes('pause')) banners.push(['pause', 'pause', 'Pause screen banner'])
   // A ROM without visitor banners of its own shows its menu banner for both sides.
   if (visitorBannersApart(project)) banners.push([visitorBannersApart(other) ? 'visitor' : 'menu', 'visitor', 'Menu banner (visitor)'])
   for (const [theirs, ours, name] of banners) {
-    if (!bannerKindSupported(project, ours) || !bannerKindSupported(other, theirs)) {
+    if (!ourKinds.includes(ours) || !theirKinds.includes(theirs)) {
       notes.push(`${name} left alone: one of the two ROMs has none the editor can follow.`)
     } else if (project.game.edition !== other.game.edition) {
       // NHL 94's and NHL '95's banners are drawn in colours that mean different things.
