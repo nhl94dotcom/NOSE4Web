@@ -76,6 +76,29 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(compared.find((s) => s.heading === 'Hacks')?.changes).toEqual(['Pass direction fix: off to on.'])
   })
 
+  it("does not turn off a hack the project's ROM did not know, and drops a value out of range", () => {
+    const opened = open(RETAIL)
+    // The project's ROM has code of its own where the pass fix goes, and the stick shots on.
+    const odd = opened.bytes.slice()
+    odd[PASS_AT] = 0x4e
+    odd[PASS_AT + 1] = 0x71
+    const project = applyNhl95Hacks({ ...opened, bytes: odd }, { stickShots: true })
+    const file = JSON.parse(saveProjectFile(project, opened, 'P'))
+    expect(file.nhl95Unknown).toEqual(['passFix'])
+    // Opened over a ROM that has the pass fix on: it stays on, and the stick shots go in.
+    const target = applyNhl95Hacks(opened, { passFix: true })
+    const result = openProjectFile(target, JSON.stringify({ ...file, rom: undefined }))
+    expect(detectNhl95Hacks(result.project.bytes).choices).toMatchObject({ passFix: true, stickShots: true })
+    // A file from before the list was kept turns it off, as it always did.
+    const older = openProjectFile(target, JSON.stringify({ ...file, rom: undefined, nhl95Unknown: undefined }))
+    expect(detectNhl95Hacks(older.project.bytes).choices.passFix).toBe(false)
+    // A number out of its range is left out with a note; the rest still goes in.
+    const number = NHL95_HACKS.find((hack) => typeof NO_NHL95_HACKS[hack] === 'number')!
+    const bad = openProjectFile(target, JSON.stringify({ ...file, rom: undefined, nhl95Hacks: { ...file.nhl95Hacks, [number]: 1e9 } }))
+    expect(bad.notes.join(' ')).toContain('could not be read, so it was left as this ROM has it.')
+    expect(detectNhl95Hacks(bad.project.bytes).choices).toMatchObject({ passFix: true, stickShots: true, [number]: detectNhl95Hacks(target.bytes).choices[number] })
+  })
+
   it('names the fix in a Discord post and explains it in the hack sheet', () => {
     const rom = open(RETAIL)
     expect(nhl95HacksForDiscord(rom.bytes, 'W18')).toBe(['**Hacks in W18**', 'None: it plays as the original game.'].join('\n'))

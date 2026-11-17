@@ -22,7 +22,7 @@ import { creditsFit, type Credits } from './credits'
 import { type Scouting, scoutingWithMissingLines } from './scouting'
 import { expandTeamSpace, nextExpansion } from './expand'
 import { applyHacks, hackState, sameHacks, type HackChoices } from './hacks'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, nhl95HacksSupported, type Nhl95HackChoices } from './nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_TITLES, NHL95_HACKS, nhl95BadValue, NO_NHL95_HACKS, nhl95HacksSupported, type Nhl95HackChoices } from './nhl95hacks'
 import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_RANGES, SNES_AMOUNTS, SNES_HACKS, type SnesAmount, type SnesHackChoices } from './sneshacks'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported, writeSnesPictures, LOGO_SIZE, type SnesPictureEdits } from './snespictures'
 import { cleanLeagueRules, type LeagueRules } from './leaguerules'
@@ -81,6 +81,9 @@ interface ProjectFile {
   snesHacks?: SnesHackChoices
   snesHackAmounts?: Partial<Record<SnesAmount, number>>
   nhl95Hacks?: Nhl95HackChoices
+  // The NHL '95 hacks whose code the ROM had neither as the game's nor as the hack's: their choices above are only the
+  // defaults, and are not put in. Absent in files from before it was kept.
+  nhl95Unknown?: string[]
   // An SNES ROM's replaced logos.
   snesPictures?: {
     logos: Record<string, { pixels: string; palette: number[] }>
@@ -204,6 +207,7 @@ export function saveProjectFile(project: RomProject, opened: RomProject, name: s
     snesHacks: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).choices : undefined,
     snesHackAmounts: project.game.platform === 'snes' ? detectSnesHacks(project.bytes).amounts : undefined,
     nhl95Hacks: nhl95HacksSupported(project.game) ? detectNhl95Hacks(project.bytes).choices : undefined,
+    nhl95Unknown: nhl95HacksSupported(project.game) ? detectNhl95Hacks(project.bytes).unknown : undefined,
     snesPictures: project.snesPictures && {
       logos: Object.fromEntries(
         Object.entries(project.snesPictures.logos).map(([team, logo]) => [team, { pixels: pack(logo.picture.pixels), palette: logo.palette }]),
@@ -464,8 +468,14 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   }
   if (!exact && file.nhl95Hacks && nhl95HacksSupported(opened.game)) {
     const { choices: now } = detectNhl95Hacks(opened.bytes)
-    // Each as the kind of value it is (a project file from before a setting was offered has none for it).
-    const wanted = Object.fromEntries(NHL95_HACKS.flatMap((hack) => (typeof file.nhl95Hacks![hack] === typeof NO_NHL95_HACKS[hack] ? [[hack, file.nhl95Hacks![hack]]] : []))) as Partial<Nhl95HackChoices>
+    // Each as the kind of value it is (a project file from before a setting was offered has none for it), and not
+    // those the project's ROM had code of its own for, whose choices are only the defaults.
+    const unknownThere = Array.isArray(file.nhl95Unknown) ? file.nhl95Unknown : []
+    const given = NHL95_HACKS.filter((hack) => typeof file.nhl95Hacks![hack] === typeof NO_NHL95_HACKS[hack] && !unknownThere.includes(hack))
+    // A value out of its range or not one of its choices is left out, and the rest put in.
+    const bad = given.filter((hack) => nhl95BadValue(hack, file.nhl95Hacks![hack]))
+    if (bad.length) notes.push(`The project file's ${bad.map((hack) => NHL95_HACK_TITLES[hack]).join(', ')} could not be read, so ${bad.length === 1 ? 'it was' : 'they were'} left as this ROM has ${bad.length === 1 ? 'it' : 'them'}.`)
+    const wanted = Object.fromEntries(given.filter((hack) => !bad.includes(hack)).map((hack) => [hack, file.nhl95Hacks![hack]])) as Partial<Nhl95HackChoices>
     if (NHL95_HACKS.some((hack) => wanted[hack] !== undefined && wanted[hack] !== now[hack])) {
       try {
         opened = applyNhl95Hacks(opened, wanted)

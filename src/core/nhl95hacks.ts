@@ -1809,7 +1809,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
 export class Nhl95HackError extends Error {}
 
 // Why a value cannot be set, if it cannot: a number out of its range, or not one of a setting's choices.
-function badValue(hack: Nhl95Hack, value: unknown): string | null {
+export function nhl95BadValue(hack: Nhl95Hack, value: unknown): string | null {
   if (hack in NHL95_HACK_RANGES) {
     const [least, most] = NHL95_HACK_RANGES[hack as Nhl95NumberHack]
     return typeof value === 'number' && Number.isInteger(value) && value >= least && value <= most ? null : `${NHL95_HACK_TITLES[hack]} has to be a whole number from ${least} to ${most}.`
@@ -1826,7 +1826,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
   for (const hack of change) {
     if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: something else has already changed this part of the ROM, so it is left as it is.`)
-    const bad = badValue(hack, wanted[hack])
+    const bad = nhl95BadValue(hack, wanted[hack])
     if (bad) throw new Nhl95HackError(bad)
   }
   if (change.length === 0) return project
