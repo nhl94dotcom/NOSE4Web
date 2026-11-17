@@ -520,6 +520,8 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
   const [error, setError] = useState('')
   const changes = nhl95HackStateChanges(state, { choices: wanted, unknown: state.unknown })
   const unknown = (hack: Nhl95Hack) => state.unknown.includes(hack)
+  // The most knockdowns add is kept only with a risk from them (with none, nothing of it is written).
+  const noCap = (hack: Nhl95Hack) => hack === 'injuryCap' && wanted.injuryBonus === 0
 
   const set = (change: Partial<Nhl95HackChoices>) => {
     setNotice('')
@@ -533,6 +535,8 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
     if (change.threeOnThreeAll) others.threeOnThree = false
     // Without fighting, its setting at power-on goes back to On.
     if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false })
+    // Without the injury risk from knockdowns its most is not kept: it goes back to what the ROM then reads.
+    if (change.injuryBonus === 0) others.injuryCap = N.injuryCap
     setDraft({ rom: project.bytes, choices: { ...wanted, ...others, ...change } })
   }
   // "NHL '95 has 150", with what this ROM has if that is different.
@@ -568,10 +572,11 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
             range={NHL95_HACK_RANGES[hack]}
             perUnit={hack === 'goalieHold' ? 60 : 1}
             fresh={project.bytes}
-            disabled={unknown(hack)}
+            disabled={unknown(hack) || noCap(hack)}
             onChange={(value) => set({ [hack]: value })}
           />
           {UNITS[hack] && ` ${UNITS[hack](wanted)}`}
+          {noCap(hack) && ' Set the risk above first.'}
         </>
       )
     }

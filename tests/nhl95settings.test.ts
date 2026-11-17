@@ -365,6 +365,17 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(html).toContain('aria-label="Goalie hold time" aria-invalid="false" value="2.33"')
   })
 
+  it('offers the most knockdowns can add only with a risk from them, as nothing of it is written without one', () => {
+    const rom = open(RETAIL)
+    const page = (project: typeof rom) => renderToStaticMarkup(createElement(Nhl95HacksPage, { project, name: 'L', onChange: () => {} }))
+    const box = (html: string) => html.match(/<input[^>]*aria-label="Most injury risk knockdowns can add"[^>]*>/)![0]
+    expect(box(page(rom))).toContain('disabled=""')
+    expect(page(rom)).toContain('Set the risk above first.')
+    const risk = page(applyNhl95Hacks(rom, { injuryBonus: 5, injuryCap: 25 }))
+    expect(box(risk)).not.toContain('disabled')
+    expect(risk).not.toContain('Set the risk above first.')
+  })
+
   it('lists the settings as they change, in a Discord post and in the hack sheet', () => {
     const rom = open(RETAIL)
     const on = applyNhl95Hacks(rom, { penaltySeconds: 30, injuries: 'never', puckFriction: 8, bodychecks: 'on', speedBurst: 16, injuryBonus: 5, injuryCap: 25 })

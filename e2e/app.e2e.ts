@@ -3114,6 +3114,26 @@ test.describe("with the NHL '95 ROM", () => {
     expect(errors).toEqual([])
   })
 
+  test('offers the most knockdowns can add only with a risk from them', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await entry(page, 'Hacks').click()
+    const cap = page.getByLabel('Most injury risk knockdowns can add')
+    // With no risk from knockdowns its most is never written: the box waits for the risk.
+    await expect(cap).toBeDisabled()
+    await expect(page.getByText('Set the risk above first.')).toBeVisible()
+    await page.getByRole('button', { name: 'Use the recommended 5 and 25' }).click()
+    await expect(cap).toBeEnabled()
+    await cap.fill('30')
+    await expect(page.getByText('Most injury risk knockdowns can add: 10 to 30.')).toBeVisible()
+    // The risk back to 0: the most goes back too, and nothing is left to apply.
+    await page.getByLabel('Injury risk added by each knockdown').fill('0')
+    await expect(cap).toBeDisabled()
+    await expect(cap).toHaveValue('10')
+    await expect(page.getByText('Most injury risk knockdowns can add:')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled()
+  })
+
   test("lists its 36 organ songs, replaces one with another's MIDI file, and a team page chooses six", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(nhl95Path)
