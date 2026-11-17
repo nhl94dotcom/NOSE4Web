@@ -97,16 +97,17 @@ export function HelpPage() {
         the most recent ROM is kept, the undo history is not, and none of it leaves your computer.
       </p>
       <p>
-        A page with several sections shows one at a time: pick it from the tabs along the top of the page, or with the left and right arrow keys once a tab has the focus (a team's
-        page opens on <b>Team</b>, its names, counts and ratings, with its players on <b>Roster</b>). <b>All</b> shows every section one under another, as one long page. Each
-        page remembers its tab in this browser, and the teams share theirs, so going from team to team stays on, say,
-        Lines. On the Hacks pages, <b>Apply</b> is under every tab.
+        A page with several sections shows one at a time: pick one from the tabs along the top, or use the left and
+        right arrow keys once a tab is selected. A team's page opens on <b>Team</b> (names, counts and ratings), with
+        the players on <b>Roster</b>. <b>All</b> shows every section on one long page. Each page remembers its tab,
+        and all the teams share one, so going from team to team stays on, say, Lines. On the Hacks pages,{' '}
+        <b>Apply</b> is under every tab.
       </p>
       <p>
-        Where a page shows all its sections (under <b>All</b>, or on a page without tabs), each section folds: click its heading (or Tab to it and press Enter) to hide the rest of it, and
-        again to show it. Folded sections stay folded, on every team and the next time you come back, in this
-        browser. On the Hacks pages each option has a one-line summary under it; <b>More about it</b> opens the full
-        description, with how it works and how it was tested.
+        When a page shows all its sections (under <b>All</b>, or on a page without tabs), click a section's heading
+        (or Tab to it and press Enter) to fold it away, and again to open it. Folded sections stay folded on every
+        team and next time you come back. On the Hacks pages each option has a one-line summary; <b>More about it</b>{' '}
+        opens the full description.
       </p>
 
       <h3 id="help-narrow">On a phone or tablet</h3>
@@ -141,15 +142,15 @@ export function HelpPage() {
 
       <h3 id="help-space">Space in the ROM</h3>
       <p>
-        All the teams share one fixed block of the ROM. The figure at the top of the page, such as{' '}
-        <i>120 bytes free</i>, is how much of that block is unused. If it reads <i>bytes over the limit</i>, the
-        download buttons are switched off until you free some room.
+        All the teams' names and players share one fixed amount of room in the ROM. The figure at the top of the
+        page, such as <i>120 bytes free</i>, is how much of it is left. If it reads <i>bytes over the limit</i>, you
+        cannot download until you free some room.
       </p>
       <ul>
-        <li>Each character in a player or team name uses one byte, rounded up to an even number per name.</li>
-        <li>Each player uses 10 bytes plus their name. A newly added player uses 14.</li>
-        <li>Attributes, jersey numbers, lines and colours use no extra space, however you change them.</li>
-        <li>Free space is shared: shortening a name on one team makes room on any other.</li>
+        <li>Each letter of a player or team name takes one byte (a name with an odd number of letters takes one extra).</li>
+        <li>Each player takes 10 bytes plus his name. A newly added player takes 14.</li>
+        <li>Ratings, jersey numbers, lines and colours take no extra room, however you change them.</li>
+        <li>The room is shared: shortening a name on one team makes room on any other.</li>
       </ul>
       <p>
         The original NHL 94 ROM has no free space at all, so a name can only grow if another shrinks. For that ROM a
@@ -157,33 +158,29 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Add 934 bytes of roster space</b> moves the opening screen text to an unused part of the ROM. The ROM
-          stays the same size.
+          <b>Add 934 bytes of roster space</b> frees room by moving some text from the opening screens elsewhere in
+          the ROM. The ROM stays the same size.
         </li>
         <li>
-          After that, <b>Add 512 bytes of roster space</b> moves the playoff draw tables too. This doubles the ROM
-          file to 2 MB, which emulators and flash cartridges handle normally.
+          After that, <b>Add 512 bytes of roster space</b> frees more by moving the playoff tables too. This doubles
+          the ROM file to 2 MB, which emulators and flash cartridges handle normally.
         </li>
       </ul>
       <p>
-        Neither can be undone except by opening the ROM again. ROMs that already keep their teams elsewhere, such as
-        the 30-team hack, do not offer the button and usually have plenty of room already.
+        Neither can be undone except by opening the ROM again. ROMs that already have more room, such as the 30-team
+        hack, do not show the button and usually have plenty of room already.
       </p>
       <p>
-        A Genesis ROM never grows past 2 MB in the editor, with one exception. The game keeps its saved records just
-        past 2 MB, and in a larger ROM the console finds the ROM there instead, so saving would stop working. A ROM
-        that is full at 2 MB says so when something needs more room (more roster space, room for logos, a hack's code
-        or a new player photo), and nothing is changed. The exception is chaos's fighting patch (on the Hacks page):
-        its code goes past 2 MB, so it makes the ROM 3 MB, and it switches the saved records in only while the game
-        uses them.
+        A Genesis ROM never grows past 2 MB in the editor, because in a bigger ROM the game can no longer save its
+        records. If a 2 MB ROM is full when something needs more room (more roster space, logos, a hack or a new
+        player photo), the editor says so and changes nothing. The one exception is chaos's fighting patch (on the
+        Hacks page): it makes the ROM 3 MB and still keeps saving working.
       </p>
       <p>
-        On the SNES the teams' room is in two places in one part of the ROM: where the game keeps the teams, and the
-        unused room at the end of that part. Teams that no longer fit in the first go into the second, whole, as a
-        team cannot be split between them. So the rosters can fit in total and still not fit as whole teams; then
-        the figure at the top says how many bytes over, as the download would, and shortening a few names or taking
-        out a player makes it fit. The original game has room for every team at 26 players, the most it holds, with
-        names averaging about 11 letters.
+        On the SNES, teams are stored whole in two separate areas, and a team cannot be split between them. So the
+        rosters can fit in total and still not fit as whole teams. Then the figure at the top says how many bytes
+        over you are, and shortening a few names or removing a player makes it fit. The original game has room for
+        every team at 26 players (the most it allows) with names of about 11 letters on average.
       </p>
 
       <h3 id="help-teams">Teams</h3>
@@ -201,11 +198,9 @@ export function HelpPage() {
           <ul>
             <li>
               <b>Goalie bytes</b> set how many goalies: four boxes, one for each goalie. Put 1 in a box for each
-              goalie, from the left, and 0 in the rest: 1 1 0 0 is two goalies, 1 1 1 0 three. (The game counts a
-              goalie for each box up to the last that is not 0. The original rosters have other numbers there, such
-              as 13 6 0 0: they were meant as weights for picking a team's starting goalie, 13 to 6, but neither game
-              ever uses them (the Genesis has the code, never called; the SNES has none), so 13 6 0 0 plays exactly as
-              1 1 0 0 and only whether each is 0 matters.)
+              goalie, from the left, and 0 in the rest: 1 1 0 0 is two goalies, 1 1 1 0 three. The original rosters
+              have other numbers there, such as 13 6 0 0, but the game only checks whether each box is 0, so 13 6 0
+              0 plays exactly like 1 1 0 0.
             </li>
             <li>
               <b>Forwards</b> sets how many of the skaters after the goalies are forwards, counted from the top of the
@@ -217,15 +212,13 @@ export function HelpPage() {
           <b>Offence, Defence, Penalty kill, Power play, Home, Away</b>: the six team ratings, which both games read
           the same way. For Offence (0 to 7), Power play and Home (0 to 2) a high number is good. For Defence (0 to
           7), Penalty kill (0 to 2) and Away (0 to 2, with 3 for the original game's weakest teams) a <b>low</b>{' '}
-          number is good. wboy and smozoma first worked out their meaning, and the game's disassembly shows how
-          each is used:
+          number is good. wboy and smozoma first worked out what they mean:
           <ul>
             <li>
-              <b>Offence and Defence</b> are the team's, not its players' Offensive and Defensive Awareness. They
-              score the other playoff games, the ones the game plays out while you play
-              yours and shows on its score ticker. In each period a team's goals are drawn at random, more likely
-              the higher its Offence and the higher the other team's Defence. Only 0 to 7 count. They do nothing in
-              the game you play.
+              <b>Offence and Defence</b> (the team's, not its players' awareness ratings) only decide the other
+              playoff games, the ones the game plays out on its own and shows on the score ticker. The higher a
+              team's Offence and the higher the other team's Defence, the more goals it is likely to score. Only 0 to
+              7 count. They do nothing in the game you play.
             </li>
             <li>
               <b>Home and Away</b>: when a player comes on the ice, the home team adds its Home rating to his
@@ -235,23 +228,23 @@ export function HelpPage() {
             <li>
               <b>Power play and Penalty kill</b>: a team on the power play adds its Power play rating to Offensive
               Awareness, Stickhandling, Shot Accuracy and Passing, and a team killing a penalty takes its Penalty kill
-              rating off the first three. The original game's data and the forums have these two the other way round,
-              but the game reads them as they are named here (the disassembly calls it a bug), so Anaheim, meant to
-              be weakest at both, plays with the best of both. Earlier versions of this editor followed the forums.
-              The <b>power play and penalty kill fix</b> on the Hacks page (both games) makes the game read them as
-              intended instead; with it, the team page and the Teams spreadsheet show the two that way round.
+              rating off the first three. Because of a bug in the game, the two are used the other way round from
+              how the original data and the forums describe them, so Anaheim, meant to be weakest at both, plays with
+              the best of both. Earlier versions of this editor followed the forums. The{' '}
+              <b>power play and penalty kill fix</b> on the Hacks page (both games) makes the game use them as
+              intended; with it on, the team page and the Teams spreadsheet show the two that way round.
             </li>
           </ul>
-          These are on the game's own scale, where a rating point is worth 5, so 2 is less than half a point. In the
-          Teams spreadsheet they are the six rating columns; files made before the change name the power play and
-          penalty kill columns the old way round, and still go to the same values.
+          These are small changes: on the game's own scale a rating point is worth 5, so 2 is less than half a
+          point. In the Teams spreadsheet they are the six rating columns; older files name the power play and
+          penalty kill columns the old way round, and still load into the same values.
         </li>
         <li>
           <b>Overall shown</b>: the team rating the game shows on the matchup screens and the player cards (on the
-          Genesis the cards' "Team Rating"). The game keeps this number for each team and does not work it out, so it
-          stays as it is when the roster changes (on the Genesis it is only shown, never used in play). <b>Use roster average</b> sets it to the
-          average overall rating of everyone on the roster, goalies included, and <b>Bulk changes</b> does that for
-          every team at once. The Genesis prints two digits, so it goes up to 99. It is in the Teams spreadsheet too.
+          Genesis the cards' "Team Rating"). It is just a stored number, so it does not change when the roster does
+          (on the Genesis it is only shown, never used in play). <b>Use roster average</b> sets it to the average
+          overall rating of everyone on the roster, goalies included, and <b>Bulk changes</b> does that for every
+          team at once. The Genesis shows two digits, so it goes up to 99. It is in the Teams spreadsheet too.
         </li>
       </ul>
       <p>
@@ -277,70 +270,65 @@ export function HelpPage() {
           cannot be typed in.
         </li>
         <li>
-          <b>LV</b>: the <b>league value</b>, Match Viewer's 0–99 rating built from what each rating step was worth
-          in the leagues' own results. The two systems play differently, so each has its own formula, and the same
-          player can be worth very different things on the two; the editor shows the one for the ROM's system. Like Ovr
-          it is worked out as you edit, and <b>Show in order of</b> can put a roster in its order. Each scale is fixed,
-          its ends that system's original game's weakest and strongest players, so a value means the same in every ROM
-          of that system. ROMs with 0–15 ratings are on another scale and do not show it.
+          <b>LV</b>: the <b>league value</b>, a 0–99 rating from the NHL94 Match Viewer project, based on what each
+          rating was actually worth in the leagues' own games. The Genesis and SNES games play differently, so each
+          has its own formula and the same player can be worth quite different amounts on the two; the editor shows
+          the one for your ROM. Like Ovr it updates as you edit, and <b>Show in order of</b> can sort a roster by it.
+          The scale runs from the original game's weakest player to its strongest, so a value means the same in every
+          ROM of that system. ROMs with 0–15 ratings use a different scale and do not show it.
           <p>
-            <b>Genesis</b>, from the Classic leagues' games since 2013. It predicts a team's strength far better than
-            the game's Overall, which leaves Weight out entirely.
+            <b>Genesis</b>, from the Classic leagues' games since 2013. It predicts how strong a team is far better
+            than the game's Overall, which ignores Weight.
           </p>
           <ul>
             <li>
-              <b>Forwards</b>: Shot Power most, then Speed, Shot Accuracy, Stickhandling and Agility; each Weight step
-              counts against, more than any one rating counts for. Light shooters come out high and heavy stars lower
-              than the game's Overall has them.
+              <b>Forwards</b>: Shot Power most, then Speed, Shot Accuracy, Stickhandling and Agility. Weight counts
+              against, more than any one rating counts for, so light shooters come out high and heavy stars lower
+              than their Overall.
             </li>
             <li>
               <b>Defencemen</b>: Pass Accuracy, Checking, Agility and Speed most, then a little Shot Power and Shot
-              Accuracy, with Weight, Off. Awareness and Stickhandling a little against. A middleweight (Weight stored
-              as 7 to 9) also loses about 10 points of league value, since he suits neither kind of check well.
+              Accuracy, with Weight, Off. Awareness and Stickhandling a little against. A middleweight (Weight 7 to 9 in
+              the 0–15 view) loses about 10 more points, since he is not really suited to either kind of check.
             </li>
             <li>
-              <b>Goalies</b>: Agility alone, about a quarter of a goal a game a step.
+              <b>Goalies</b>: Agility only, worth about a quarter of a goal a game for each step.
             </li>
             <li>
-              The size of Weight's effect is uncertain: tested over resampled teams it runs from about a sixth of a
-              point to 1.3 points a step, around half a point. Heavy stars fall much less at the low end, but fall at
-              any value in that range.
-            </li>
-            <li>The scoring weights say who scores on a team, not how much more the team scores; the team test is what supports them.</li>
-            <li>
-              Defencemen are valued on offence, plus the Weight bands, which Match Viewer measured by comparing the
-              defencemen each coach chose from the same roster; their other effects on goals against are not measured
-              yet. Fitting every rating that way too was tried, and failed the fair test.
+              How much Weight costs is not certain (somewhere between a sixth of a point and 1.3 points a step, about
+              half a point most likely), but heavy stars come out lower anywhere in that range.
             </li>
             <li>
-              Off. and Def. Awareness count for next to nothing, and rightly: in Match Viewer's test of 80 computer
-              games, the best awareness against the worst moved goals by less than a tenth of a goal a game a step,
-              too little to measure. Awareness also acts only on the skaters a person is not controlling.
+              Defencemen are valued mainly on offence; how much they stop goals against is not measured yet.
             </li>
-            <li>A goalie's Agility counts only while the computer plays him. A person in net always has the longest reach.</li>
+            <li>
+              Off. and Def. Awareness count for almost nothing. Tests showed they make too little difference to
+              measure, and they only affect the skaters a person is not controlling.
+            </li>
+            <li>A goalie's Agility only counts while the computer plays him. A person in net always has the longest reach.</li>
           </ul>
           <p>
-            <b>SNES</b>. Here Weight counts <i>for</i> a player: the SNES game has no weight bug, checks everyone
-            with one formula, in which a heavier checker does a little better, and makes weight cost less
-            acceleration. The leagues' results agree: heavier forwards score a little more and go with stronger teams.
+            <b>SNES</b>. Here Weight counts <i>for</i> a player: the SNES game has no weight bug, heavier players
+            check a little better, and weight slows them down less. The leagues' results agree: heavier forwards score
+            a little more and are found on stronger teams.
           </p>
           <ul>
             <li>
-              <b>Forwards</b>: Speed, Shot Power, Shot Accuracy, Agility and Stickhandling, nearly evenly, and a little
+              <b>Forwards</b>: Speed, Shot Power, Shot Accuracy, Agility and Stickhandling, almost equally, and a little
               for Weight.
             </li>
             <li>
               <b>Defencemen</b>: Stickhandling and Speed most, then Off. Awareness, Weight and Checking, with Pass
-              Accuracy and a little Agility, Shot Power and Shot Accuracy against. Being light costs too: a defenceman
-              with Weight stored as 7 or more is worth about 15 points more than a lighter one.
+              Accuracy and a little Agility, Shot Power and Shot Accuracy against. A defenceman with Weight 7 or more
+              in the 0–15 view is worth about 15 points more than a lighter one.
             </li>
             <li>
-              <b>Goalies</b>: Agility alone, but it is worth little on the SNES, so goalies' values give an order, not a
-              size.
+              <b>Goalies</b>: Agility only, but it matters little on the SNES, so goalies' values show who is better,
+              not by how much.
             </li>
             <li>
-              The SNES teams' strengths repeat poorly from season to season, so the team test confirms neither the league
-              value nor the game's Overall. The SNES value rests on the players' own results.
+              SNES team strength varies a lot from season to season, so team results cannot confirm the league value
+              (or the game's Overall). The SNES value is based on the players' own results.
             </li>
           </ul>
         </li>
@@ -352,8 +340,8 @@ export function HelpPage() {
           up to 99.
         </li>
         <li>
-          <b>H/F</b> (skaters): shooting hand and fighting together, such as R/57. There are no
-          fights in the game: fighting decides whether a player he injures is out for the period or the game.
+          <b>H/F</b> (skaters): shooting hand and fighting together, such as R/57. The original game has no
+          fights; there, fighting decides whether a player he injures is out for the period or the game.
         </li>
         <li>
           <b>GlH</b> (goalies): glove hand, L or R.
@@ -400,9 +388,9 @@ export function HelpPage() {
 
       <h3 id="help-ratinguse">What the ratings do in play</h3>
       <p>
-        The NHL94 Match Viewer project read every place the game's code uses each rating, and checked much of it
-        against recorded games. In play each rating counts five times its value, give or take a little for being hot
-        or cold, and some are nudged by the team ratings. What each one does:
+        The NHL94 Match Viewer project worked out what each rating does in the game, and checked much of it against
+        recorded games. Being hot or cold moves a rating up or down a little, and the team ratings nudge some of
+        them. What each one does:
       </p>
       <ul>
         {Object.entries(SKATER_RATING_USES).map(([label, use]) => (
@@ -421,15 +409,15 @@ export function HelpPage() {
           ))}
       </ul>
       <p>
-        So for a league: the goalie save ratings StR, StL and GvR change nothing; Endurance does nothing with line
-        changes off; and with the original game's code, Aggression and GvL do not rise with the rating. The
-        Aggression bug fix under Hacks puts the last right.
+        So for a league: the goalie ratings StR, StL and GvR change nothing; Endurance does nothing with line changes
+        off; and in the original game a higher Aggression or GvL does not help. The Aggression bug fix on the Hacks
+        page puts Aggression right.
       </p>
       <p>
-        On the SNES the ratings play the same parts, with these differences, which the team page's column headings
-        also give for an SNES ROM. There a rating counts two and a half times its value, and the game's hot and cold
-        bug puts about half of every player's ratings at the maximum each game, whatever they are in the ROM, unless
-        the ROM has the hot and cold bug fix from the Hacks page.
+        On the SNES the ratings do much the same, with the differences below (the column headings on an SNES team
+        page show them too). Also, because of the game's hot and cold bug, about half of every player's ratings are
+        at the maximum each game, whatever they are in the ROM, unless the ROM has the hot and cold bug fix from the
+        Hacks page.
       </p>
       <ul>
         {Object.entries(SNES_SKATER_RATING_USES).map(([label, use]) => (
@@ -537,36 +525,39 @@ export function HelpPage() {
       <h3 id="help-lines">Lines</h3>
       <p>
         Each row is one of the game's line combinations, and each column a position on the ice. Choose a player for
-        every position. The first line on the list, NLC, is the one used when line changes are off. The game puts
-        it in place of Sc1, so with line changes on Auto it is also the first of the lines that rotate; with them On,
-        Sc1 is used instead and NLC not at all.
+        every position. The first line on the list, NLC, is the one used when line changes are off. With line
+        changes on Auto it also takes Sc1's place as the first line in the rotation; with them On, Sc1 is used and
+        NLC not at all.
       </p>
       <p>
-        Each line's <b>Rating</b> is the average overall of its five skaters; point at it to see its forwards and its
-        defence pair apart. The team's <b>Overall</b>, above the lines, is the average of every skater on the Sc1, Sc2
-        and Chk lines, each counted once however many of them he is on, and of the NLC goalie: the team as it plays
-        with line changes. They change as you change the lines or the players.
+        Each line's <b>Rating</b> is the average overall of its five skaters; point at it to see the forwards and the
+        defence pair separately. The team's <b>Overall</b>, above the lines, is the average of every skater on the
+        Sc1, Sc2 and Chk lines (each counted once) and the NLC goalie: the team as it plays with line changes on.
+        Both update as you change the lines or the players.
       </p>
       <p>
         <b>Build ticked</b>, <b>Build all lines</b> and <b>Fix broken lines</b> fill lines from the players' ratings,
-        by what each line is for: the best defence pair and forwards on NLC, the best scorers on Sc1 and Sc2 and the
-        power plays, checking forwards and defencemen the scoring lines do not need on Chk, and defensive players on
-        the penalty kill, with the power play's forwards resting there where the roster has enough. The playmaker of
-        three forwards plays centre. Where a line's two wingers, or its defence pair, shoot with different hands,
-        <b>Wingers</b> and <b>Defence</b> choose their sides: each on his shooting side (a left shot on the left), each on
-        his off side (a left shot on the right, as many players like their wingers), or either. They only swap the two
-        players chosen, never change who is chosen, and the choice is kept in this browser. For the defence the hand
-        also decides which way a skater turns when he turns right around: a left shot turns to his right, a right shot
-        to his left. So defencemen on their shooting side turn toward the middle, and on their off side toward the
-        boards, whichever way the team attacks. It is only on a straight reversal: a turn that is not quite one goes
-        the shorter way, and a defenceman going straight back toward his own net with the puck ahead of him often
-        skates backwards instead (found by the NHL94 Match Viewer project in the code of both systems, and tested in
-        play on both). The extra attacker is
-        the best scorer not on the line, and the goalie stays the team's current starter. Fix broken lines builds only
-        the lines with a mistake: an empty position the ROM does not leave empty, a player past the end of the roster,
-        a goalie out of goal or a skater in goal, or a skater twice. Positions a 3 on 3 or smaller ROM leaves empty stay
-        empty. The ratings are only a guide to how a player plays, so take the result as a starting point and change
-        what you like; Undo takes it back. The League page does the same for every team at once.
+        by what each line is for: the best defence pair and forwards on NLC, the best scorers on Sc1, Sc2 and the
+        power plays, checkers on Chk, and defensive players on the penalty kill (resting the power play's forwards
+        when the roster is deep enough). The best playmaker of the three forwards plays centre. The extra attacker
+        is the best scorer not on the line, and the goalie stays the team's current starter.
+      </p>
+      <p>
+        When a line's two wingers, or its defence pair, shoot with different hands, <b>Wingers</b> and{' '}
+        <b>Defence</b> choose their sides: each on his shooting side (a left shot on the left), each on his off side
+        (a left shot on the right, as many players like their wingers), or either. They only swap the two players
+        chosen, never change who is chosen, and the choice is remembered in this browser. For defencemen the hand also
+        decides which way he turns when he turns right around: a left shot turns to his right, a right shot to his
+        left. So defencemen on their shooting side turn toward the middle, and on their off side toward the boards.
+        This is only on a full about-turn; a defenceman skating back to his own net with the puck ahead of him often
+        skates backwards instead. (Found by the NHL94 Match Viewer project and tested in the game on both systems.)
+      </p>
+      <p>
+        <b>Fix broken lines</b> rebuilds only the lines with a mistake: an empty position (other than those a 3 on
+        3 or smaller ROM leaves empty), a player past the end of the roster, a goalie out of goal or a skater in
+        goal, or a skater on a line twice. The ratings are only a guide to how a player plays, so take the result as
+        a starting point and change what you like; Undo takes it back. The League page does the same for every team
+        at once.
       </p>
       <p>
         Each position offers only the players it is for, as the game's own Edit Lines does: goalies in the G column,
@@ -575,28 +566,27 @@ export function HelpPage() {
         in another position on the line swaps the two, so no one is on a line twice.
       </p>
       <p>
-        A player twice on a line is something to fix. The game dresses the line as written, with two of him on the
-        ice, but the next time it works out who should be out there, one of them finds no position, leaves the ice,
-        and the team plays a skater short with no penalty until a line change. With line changes off, that can be
-        the rest of the period. Check ROM reports it as a problem, and the editor shows the line's two positions in
-        red. The extra attacker is not counted: the original game often repeats a player there. Deleting a player,
-        or a roster from the spreadsheet files, never leaves one twice on a line: his positions go to another
+        A player twice on a line needs fixing. The game puts both of him on the ice, but soon one of them leaves,
+        and the team plays a skater short, with no penalty, until the next line change. With line changes off, that
+        can be the rest of the period. Check ROM reports it as a problem, and the editor shows the two positions in
+        red. The extra attacker does not count: the original game often repeats a player there. Deleting a player,
+        or loading a roster from the spreadsheet files, never leaves one twice on a line: his places go to another
         skater.
       </p>
       <p>
         Some ROMs put a skater out of his role on purpose, such as forwards on the points of a power play, or a
         forward on defence in the original SNES game. The editor keeps such a choice, labels it with his role, and
-        Check ROM notes it. Choose someone else and it cannot be chosen again, short of the spreadsheet files. An SNES
-        ROM with the hack <b>Any skater at any position in Edit Lines</b> (on the Hacks page) lets players do it in the
-        game, so there every skater's position offers every skater, and Check ROM says nothing of it.
+        Check ROM notes it. If you choose someone else, you cannot pick him there again except through the
+        spreadsheet files. An SNES ROM with the hack <b>Any skater at any position in Edit Lines</b> (on the Hacks
+        page) lets players do this in the game, so there every position offers every skater, and Check ROM does not
+        mention it.
       </p>
       <p>
-        On both systems the game's Edit Lines gives the penalty-kill lines (PK1 and PK2) only four rows, LD, RD, LW
-        and C, but their RW is still played: a short-handed team that pulls its goalie puts that skater on, not the
-        extra attacker, who comes on only at full strength (the game fills the ice from G, LD, RD, C, LW and RW, then
-        the extra attacker; found by the NHL94 Match Viewer project, in play on the SNES and in the Genesis code). The
-        editor shows that RW with a dashed border, and it can be changed here as any other position. The game's own
-        Edit Lines never edits the extra attacker's place either, on any line, on either system.
+        On both systems the game's Edit Lines shows only four positions for the penalty-kill lines (PK1 and PK2):
+        LD, RD, LW and C. Their RW is still used, though: a short-handed team that pulls its goalie sends that skater
+        on, not the extra attacker, who only comes on at full strength (found by the NHL94 Match Viewer project). The
+        editor shows that RW with a dashed border, and you can change it like any other position. The game's own Edit
+        Lines never lets you change the extra attacker either, on any line.
       </p>
       <p>
         ROMs hacked to put fewer skaters on the ice, such as 3 on 3, 2 on 2 and 1 on 1, leave the unused positions
@@ -612,7 +602,7 @@ export function HelpPage() {
         <i>Pants (dark)</i>, is shown beside the controls. Change it with:
       </p>
       <ul>
-        <li>the <b>Red, Green, Blue</b> sliders, each with the eight levels the console can show;</li>
+        <li>the <b>Red, Green, Blue</b> sliders, each with the levels the console can show;</li>
         <li>
           <b>Pick</b>, your browser's colour chooser;
         </li>
@@ -723,28 +713,25 @@ export function HelpPage() {
       </p>
       <h3 id="help-genesis-score-logos">Score logos (Genesis)</h3>
       <p>
-        The game prints each team's three letters in the score box during play. <b>Add score logos for every team</b>,
-        under Score logo on any team's page, shows a small logo there instead, an idea from McMarkis's 32-team SNES
-        build, with NOSE4Web's own code for the Genesis. The score box grows two rows taller, so that each team has a
-        logo, 24 by 16 pixels, beside its score. The game colours each team in its uniform colours during play, the
-        home team in its home colours and the visitors in their away colours, so each team has two logos: one in its
-        home colours and one in its away colours, both on black (the uniform's third colour, black in the original
-        game). Every team starts with logos made from its centre-ice logo. Import or draw the home one and the away one
-        is made from it, each colour matched to the nearest away colour; changing the uniform colours changes the
-        logos with them. <b>Show Boston's letters instead</b> and <b>Give Boston a score logo</b> act on that team
-        alone, and <b>Take score logos out of this ROM</b> puts the game back as it was. In the original game, adding
-        them makes the ROM 2 MB. ROMs whose score box is laid out differently, such as EVO, do not offer them.
+        During play the game shows each team's three letters in the score box. <b>Add score logos for every team</b>,
+        under Score logo on any team's page, shows a small logo there instead (an idea from McMarkis's 32-team SNES
+        build). The score box grows a little taller to make room for a 24 by 16 pixel logo beside each score. The
+        home team plays in its home colours and the visitors in their away colours, so each team has two logos, one
+        in each set of colours, both on black (the uniform's third colour, black in the original game). Every team
+        starts with logos made from its centre-ice logo. Import or draw the home one and the away one is made from
+        it; changing the uniform colours changes the logos with them. <b>Show Boston's letters instead</b> and{' '}
+        <b>Give Boston a score logo</b> act on that team alone, and <b>Take score logos out of this ROM</b> puts the
+        game back as it was. In the original game, adding them makes the ROM 2 MB. ROMs with a different score box,
+        such as EVO, do not offer them.
       </p>
       <h3 id="help-genesis-blood">Head bleeding (Genesis)</h3>
       <p>
         In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took the blood
-        out. <b>Head bleeding</b>, under Looks and screens on the Hacks page, brings it back for a player hurt for the game: he
-        falls and lies still as before, now with a little blood as he lands and more half a second later. A player out
-        for the period writhes as before, without blood. Only the look changes. The blood is NOSE4Web's own drawing,
-        after '93's, in colours 13 and 14 of the arena palette (dark reds in the original game). To make room the
-        game's sprite frame table is copied to the end of the ROM, which makes the original game 2 MB. Like every hack it goes in when
-        you press Apply, and turned off it puts the game back as it was. ROMs whose sprites are laid out differently, such as EVO, do not
-        offer it.
+        out. <b>Head bleeding</b>, under Looks and screens on the Hacks page, brings it back for a player hurt for the
+        game: he falls and lies still as before, now with a little blood that spreads. A player out for the period
+        writhes as before, without blood. Only the look changes. The blood uses two of the arena's colours (dark reds in the original game). In the
+        original game it makes the ROM 2 MB. Like every hack it goes in when you press Apply, and turning it off puts
+        the game back as it was. ROMs with different player graphics, such as EVO, do not offer it.
       </p>
       <h3 id="help-photos">Player photos</h3>
       <p>
@@ -764,12 +751,11 @@ export function HelpPage() {
           import or draw one, added at the end of the ROM; the others keep theirs.
         </li>
         <li>
-          The game ties each photo to a place on the roster, not to a player by name, but in the editor photos
-          follow their players: when you move, trade, let go or reorder players, each takes his photo along (on
-          the Genesis his place among the featured players; one who leaves a team is replaced there only while it
-          needs six). <b>Import a team</b> brings a team's photos with its roster, under <b>Player photos</b>.
-          ROMs edited elsewhere may have photos on the wrong players: choose who each is for in its list. Check
-          ROM notes a setup screen card for a place past the end of the roster.
+          In the editor, photos follow their players: when you move, trade, release or reorder players, each takes
+          his photo along (and on the Genesis his place among the featured players; one who leaves is replaced there
+          only if the team would have fewer than six). <b>Import a team</b> brings a team's photos with its roster,
+          under <b>Player photos</b>. ROMs edited elsewhere may have photos on the wrong players: choose who each is
+          for in its list. Check ROM warns about a setup screen card for a player the roster does not have.
         </li>
         <li>
           The arrows change the order, which matters for the setup screen's first six. <b>Add a photo for…</b>
@@ -781,11 +767,11 @@ export function HelpPage() {
         on the roster. Those without one of their own share generic goalie and skater pictures, coloured in the
         team's colours. A team's photos all share its 15 photo colours, so an imported image is shaded to them;
         see-through parts show the card behind. Photos follow their players here as on the Genesis; one traded
-        to another team is drawn in that team's photo colours. Of those, 1 to 12 are the skin and hair shades every
-        team has, and 13 to 15 the uniform as the photos show it, separate from the home and away colours: change them
-        under <b>Uniform colours in the photos</b> when you change a team's colours, and its photos follow. <b>Swap with…</b> swaps two players' photos, to put
-        right a ROM whose photos are on the wrong players. Importing a team with its photos brings its photo
-        colours too. A new photo goes where the old one was if it fits, or else into free space in the ROM.
+        to another team is drawn in that team's photo colours. Colours 1 to 12 are the skin and hair shades every
+        team has, and 13 to 15 the uniform as the photos show it. These are separate from the home and away colours,
+        so when you change a team's colours, change them too under <b>Uniform colours in the photos</b>, and its
+        photos follow. <b>Swap with…</b> swaps two players' photos, to fix a ROM whose photos are on the wrong
+        players. Importing a team with its photos brings its photo colours too.
       </p>
 
       <p>
@@ -800,9 +786,9 @@ export function HelpPage() {
       <p>
         <b>Another team's banners</b> gives this team a copy of another team's banners, and their stripe colours
         unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own. On the SNES,
-        where a banner is its colours and the name lettered on it, <b>Use the banner of</b> under the name banner
-        colours copies both; the names share a table with little room, so a longer one may wait until others are
-        shortened, and it says so.
+        where a banner is just its colours and the name lettered on it, <b>Use the banner of</b> under the name
+        banner colours copies both. The banner names share very little room, so a longer name may not fit until
+        others are shortened; the page says so.
       </p>
       <p>
         <b>Copy to another team</b>, at the foot of a team's page, copies its colours, its logos and banners, or
@@ -877,9 +863,9 @@ export function HelpPage() {
         </li>
         <li>
           <b>Teams in the menu</b>: for a league smaller than the ROM. The menu offers only the first so many teams
-          in the team list, so put the league's teams first; the rest stay in the ROM. The game also keeps to them
-          when it picks two teams after the demo and for new playoffs, and, with 18 teams or more, for the other
-          scores of the day. A team line that starts on a team past them moves to the last one offered.
+          in the team list, so put the league's teams first; the rest stay in the ROM. The game also sticks to them
+          when it picks two teams for the demo and for new playoffs, and, with 18 teams or more, for the other scores
+          of the day. If a starting team is past them, it becomes the last team offered.
         </li>
         <li>
           <b>Clock</b>: the period lengths in seconds, with the text the menu shows for each, and the overtime and
@@ -888,59 +874,58 @@ export function HelpPage() {
         </li>
         <li>
           <b>Announcer picture</b>: Ron Barr's picture before each game, on the Genesis's matchup screen and the
-          SNES's scouting screen. <b>Import a picture</b> puts one of your own in its place: on the Genesis inside the
-          original grey frame, 58 by 67 pixels, with 8 colours of its own besides those it shares with the screen; on
-          the SNES in 15 colours, either beside the scouting report's box (72 by 128 pixels at the right, where it is
-          scaled to fill and cropped to fit, so a tall picture works best) or in Ron Barr's whole place (208 by 128,
-          behind the see-through box too, fitted in whole in the bottom right, the box and its text drawing over it as
-          over him). The SNES screen has room for only 152 different squares, so a picture in the whole place has to be
-          a cut-out, as Ron Barr is: a figure on a see-through background. The desk goes, and the screen's frame shows
-          where a picture leaves it. On the Genesis a head-and-shoulders photo works best. <b>Export as PNG</b> saves the picture, and{' '}
-          <b>Put back the original</b> brings back the one the ROM was opened with. Measured and tested in the game by the
-          NHL94 Match Viewer project on the Genesis and on the SNES (the original game and the 2026 build).
+          SNES's scouting screen. <b>Import a picture</b> puts one of your own in its place.
+          <ul>
+            <li>
+              Genesis: inside the grey frame, 58 by 67 pixels, in a few colours. A head-and-shoulders photo works best.
+            </li>
+            <li>
+              SNES, in 15 colours, either beside the scouting report's box (72 by 128 pixels at the right, filled and
+              cropped to fit, so a tall picture works best) or in Ron Barr's whole place (208 by 128, with the box and
+              its text drawn over it as over him). The whole-place picture has limited room, so it has to be a
+              cut-out like Ron Barr: a figure on a see-through background. The desk goes, and the screen's frame shows
+              wherever the picture leaves space.
+            </li>
+          </ul>
+          <b>Export as PNG</b> saves the picture, and <b>Put back the original</b> brings back the one the ROM was
+          opened with. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Ron Barr's matchup screen text</b>: what the announcer says in the box before each game, line by line,
-          with what the game shows each line for and in which order. The game picks its lines by number, so you change
-          what each line says, not how many there are. Stand-ins in braces, as <code>{'{home goalie}'}</code> or{' '}
-          <code>{'{crowd record}'}</code>, are filled in by the game; the list of them is under the lines, and the
-          preview shows the box with example names. The text is rewritten in the room the original takes: on the
-          Genesis the line the game never shows (the goalies) is room if you empty it; on the SNES the team places
-          stored before the script, which nothing shows, are emptied when a longer text needs their room. Some league
-          ROMs (CDL, the CDL dynasty ROM, DPWM3, IDL5, RGDL) have a line taken out by hand, so their later lines show
-          in the wrong places and, when one team is much hotter, the game freezes reading its last line from past the
-          script; Put the missing line back, in the section, fixes it (taking one space from the longest run of spaces,
-          as those scripts fill their room). The game has no &amp;, and the Genesis shows ( and ) as small angle
-          brackets. Not offered on EVO, which has a matchup screen of its own. Tested in the game by the NHL94 Match
-          Viewer project on both systems, the missing line put back included.
+          with when the game shows each line. You can change what each line says, but not how many lines there are.
+          Words in braces, such as <code>{'{home goalie}'}</code> or <code>{'{crowd record}'}</code>, are filled in by
+          the game; the full list is under the lines, and the preview shows the box with example names. The new text
+          has to fit in the room the original takes (on the Genesis, emptying the goalies line, which the game never
+          shows, gives more room). Some league ROMs (CDL, the CDL dynasty ROM, DPWM3, IDL5, RGDL) had a line taken
+          out by hand, so their later lines show at the wrong times and the game can freeze when one team is much
+          hotter than the other; <b>Put the missing line back</b>, in the section, fixes it. The game has no &amp;,
+          and the Genesis shows ( and ) as small angle brackets. Not offered on EVO, which has its own matchup screen.
+          Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Title screen credits</b> (Genesis): the credits the title screen rolls, a box for each page, one line of
-          text to a line of the box. The original game's pages have up to 4 lines of up to 25 letters, and the game
-          centres each line; a $ sign shows as the copyright sign. They must fit the room the ROM has for them, 934
-          bytes in the original game (a line takes its letters rounded up to an even number, plus 2), and the count
-          above the boxes says how much is used. A league can put its own name in them. The first page, EA's copyright notice, is
-          shown on its own and the game finds the rest with a second pointer, which NOSE4Web moves when the first
-          page changes length (since 15 November 2026: before then, a first page of a new length crashed the title
-          screen, the trouble smozoma's guide warned of; played by the NHL94 Match Viewer project with first pages of one
-          and four lines, every page shown in order, and a ROM with the old crash put right by downloading it again).
-          A fourth line on the first page shows right at the bottom edge of the picture. The game needs at least one
-          page after the first. The game rolls the credits once after power-on or reset, then goes to the menus. From smozoma's forum
-          guide; checked in the game by the NHL94 Match Viewer project.
+          text to a line of the box. A league can put its own name in them. The original game's pages have up to 4
+          lines of up to 25 letters, and the game centres each line; a $ sign shows as the copyright sign. They must
+          fit the room the ROM has for them, and the count above the boxes says how much is used. The first page is
+          EA's copyright notice; a fourth line on it shows right at the bottom edge of the screen. There must be at
+          least one page after the first. The game rolls the credits once after power-on or reset, then goes to the
+          menus. Changing the first page's length used to crash the title screen; since 15 November 2026 NOSE4Web
+          handles it, and downloading an older ROM again fixes one made before then. From smozoma's forum guide;
+          tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Title screen credits</b> (SNES): a box for each credit title. Its first line is the title, and each line
           after it is a name under that title, shown one at a time; every title needs at least one name. The game has
           capital letters (lower case is shown as capitals), digits, spaces, "." and "@", which shows as the copyright
-          sign. They must fit the room the ROM has, 949 bytes in the original game: each line takes its letters plus
-          1, each title 4 bytes more and each name 2, and the list 2 at its end; the same line twice takes its letters
-          once. The two copyright lines are left as they are. The title screen lasts the same time whatever the credits
-          hold, and the original's 17 titles fill nearly all of it, so with fewer titles it waits with no credits
-          before going to the menus (about a minute with 5). Checked in the game by the NHL94 Match Viewer project.
+          sign. They must fit the room the ROM has, and the count above the boxes says how much is used (a line used
+          twice only counts once). The two copyright lines cannot be changed. The title screen lasts the same time
+          however many credits there are, and the original's 17 titles fill nearly all of it, so with fewer titles
+          the screen waits with no credits before going to the menus (about a minute with 5). Tested in the game by
+          the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Rule messages</b>: the text shown for icing, penalties and so on, how long each stays on screen, and
-          the penalty minutes. A message cannot be longer than the space the game gives it. Several appear more than
+          the penalty minutes. A message cannot be longer than the space the game gives it. Some appear more than
           once because the game keeps separate copies for different situations.
         </li>
         <li>
@@ -953,22 +938,20 @@ export function HelpPage() {
         <li>
           <b>Splash screen</b> (Genesis): the second screen at start-up, High Score Productions and Mark Lesser
           Presents in the original game. Import a picture of your own, such as the league's logo, and it takes the
-          whole screen, 320 by 224 pixels; a picture of another shape is fitted inside it, on black. The screen shows
-          up to 60 colours, in four sets of 15, each 8 by 8 square in one set, so a picture with more is matched to
-          the nearest. It goes into free room at the end of the ROM, as wboy's 30-team ROMs have theirs, and those
-          ROMs' pictures show here too. <b>Export as PNG</b> saves the screen as it is; <b>Put back the original</b>{' '}
-          restores the original game's. From kingraph's forum reference; checked in the game by the NHL94 Match Viewer
-          project.
+          whole screen, 320 by 224 pixels; a picture of another shape is fitted inside it, on black. The screen can
+          show up to 60 colours, and only a few in any small area, so a very colourful picture is simplified to fit.
+          wboy's 30-team ROMs already have their own splash screen, which shows here too. <b>Export as PNG</b> saves
+          the screen as it is; <b>Put back the original</b> restores the original game's. From kingraph's forum
+          reference; tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Main menu background</b> (Genesis): the picture behind the Game Setup screen. Import a picture of your
-          own and it is fitted inside the screen, 320 by 224 pixels. The screen has room for 323 different 8 by 8
-          squares and 25 colours of its own, besides the menu's white, greys and black. A detailed picture has its
-          most alike squares merged to fit, so logos and simple designs come out clean and photos blocky. The parts
-          the menu always covers are left blank, so the room goes to the parts that show. ROMs with a picture made
-          with Drezz's forum guide show it here with a warning: the guide loads more squares than there is room for,
-          which draws over the team banners. Importing such a picture again fits it. Based on Drezz's guide; measured
-          and checked in the game by the NHL94 Match Viewer project.
+          own and it is fitted inside the screen, 320 by 224 pixels, in up to 25 colours plus the menu's white, greys
+          and black. Room is limited, so a detailed picture is simplified to fit: logos and simple designs come out
+          clean, photos blocky. The parts the menu always covers are left blank, so the room goes to the parts that
+          show. A picture added with Drezz's forum guide shows here with a warning, because it is too big and draws
+          over the team banners; importing it again here makes it fit. Based on Drezz's guide; tested in the game by
+          the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Organ songs</b> (Genesis; for NHL '95 see its own section): the songs the organ plays, which each team's page chooses from.{' '}
@@ -977,40 +960,35 @@ export function HelpPage() {
           which this browser remembers. The same bar is on each team's page, under its songs.{' '}
           <b>Export MIDI</b> saves it as a MIDI file, and <b>Replace</b> puts a MIDI file of your own in its place:
           <ul>
-            <li>every note is played on the game's organ, at most four at once (the console has five voices,
-            shared with the sound effects); where more sound at once, the highest are kept, as the tune is usually on top;</li>
+            <li>every note is played on the game's organ, at most four at once (the rest of the console's sound is
+            kept for the sound effects); where more sound at once, the highest are kept, as the tune is usually on top;</li>
             <li>drums are left out, and notes too low or too high are moved by octaves into the game's range;</li>
             <li>every team with that song in one of its slots plays the new one, which the team pages name;</li>
             <li><b>Put back the original</b> restores the game's song.</li>
           </ul>
-          Song 1 cannot be replaced, as the game uses it to tell which song is playing. <b>Used by</b> shows which
-          teams have each song in a slot, and whether Random picks from it; the list above it names the songs no team
-          uses, the best ones to replace, since nothing else changes. Short tunes of 10 to 30 seconds suit the game,
-          as its own are. Played in the game by the NHL94 Match Viewer project. A team's
-          page chooses its six songs (for the start of a period, a home goal and so on), with a <b>Play</b> button
-          beside each, so you can hear a song before you settle on it.
+          Song 1 cannot be replaced, as the game needs it. <b>Used by</b> shows which teams have each song in a slot,
+          and whether Random picks from it; the list above it names the songs no team uses, which are the best ones
+          to replace. Short tunes of 10 to 30 seconds suit the game, as its own are. Tested in the game by the NHL94
+          Match Viewer project. A team's page chooses its six songs (for the start of a period, a home goal and so
+          on), with a <b>Play</b> button beside each, so you can hear a song before you settle on it.
         </li>
         <li>
-          <b>Organ songs</b> (SNES): the same, for the songs the teams' slots and the random songs use. The game plays
-          its organ on two instruments, one to each side; a new song does the same, a note on its own on both and, in
-          a chord, the highest note on one and the rest on the other, at most four at once. Every team that had the
-          old song gets the new one. Played in the game by the NHL94 Match Viewer project, on the original game and
-          McMarkis's 32-team builds.
+          <b>Organ songs</b> (SNES): the same, for the songs the teams and the random picks use. A new song plays
+          on the game's two organ sounds, one on each side, at most four notes at once, as the game's own songs do.
+          Every team that had the old song gets the new one. Tested in the game by the NHL94 Match Viewer project, on
+          the original game and McMarkis's 32-team builds.
         </li>
         <li>
-          <b>Move teams</b>: gives teams new team numbers, so the Game Setup menu offers them in a new
-          order, the team list shows them so, and the spreadsheet files list them so. Use the arrows or{' '}
-          <b>Move to</b> beside a team, or <b>Put the first teams in alphabetical order</b> to sort the league's own
-          teams (those the menu offers, up to the last playoff team) by name, leaving the All-Star teams and any
-          others after them. Everything the game keeps by team number goes with each team: its players, lines,
-          names and colours (the two New York teams' full names too), logos, banners and menu colours, player
-          photos, organ songs and score logos, and on the
-          Genesis the team rating on its player cards; on the SNES its centre ice logo, banner name and colours,
-          and photo colours too. The playoff draws, the main menu's starting teams, the start of the
-          season and the league rules' exempt teams follow their teams too, and a project file saved afterwards
-          remembers the move. The Reset buttons and Changes compare each team with itself as opened, and Changes
-          lists the moves; Compare ROMs matches teams by name where two ROMs list them in different orders, as
-          last season's and this season's may.
+          <b>Move teams</b>: changes the order of the teams, in the Game Setup menu, the team list and the
+          spreadsheet files. Use the arrows or <b>Move to</b> beside a team, or{' '}
+          <b>Put the first teams in alphabetical order</b> to sort the league's own teams (those the menu offers, up
+          to the last playoff team) by name, leaving the All-Star teams and any others after them. Everything about a
+          team moves with it: players, lines, names and colours, logos, banners, player photos, organ songs and score
+          logos, and the rest. The playoff draws, the main menu's starting teams, the start of the season and the
+          league rules' exempt teams follow their teams too, and a project file saved afterwards remembers the move.
+          The Reset buttons and Changes still compare each team with itself as opened, and Changes lists the moves;
+          Compare ROMs matches teams by name when two ROMs list them in different orders, as last season's and this
+          season's may.
           <ul>
             <li>
               Spreadsheet, picture and project files made before the move name teams by their old numbers: import
@@ -1021,14 +999,13 @@ export function HelpPage() {
               with it start as the last one instead. Check ROM says if the draws need changing.
             </li>
             <li>
-              An emulator's battery save keeps what it saves for a team (saved lines, and on the Genesis crowd
-              records) by team number, so start a new save file after downloading.
+              An emulator's battery save remembers things by team position (saved lines, and on the Genesis crowd
+              records), so start a new save file after downloading.
             </li>
             <li>
-              Not offered for NHL 94: EVO, whose own code rebuilds the menus and playoffs, nor for ROMs whose
-              logos, banners, photos or songs the editor cannot follow; the page says why. On the original SNES
-              game the logos are packed together and are packed again in the new order; where replaced logos have
-              already filled their room, the move may not fit, and the page says so.
+              Not offered for NHL 94: EVO, which builds its own menus and playoffs, nor for ROMs whose logos,
+              banners, photos or songs the editor cannot follow; the page says why. On the original SNES game, if
+              replaced logos have already used up their room, the move may not fit, and the page says so.
             </li>
           </ul>
         </li>
@@ -1392,17 +1369,18 @@ export function HelpPage() {
 
       <h3 id="help-hacks">Hacks</h3>
       <p>
-        The <b>Hacks</b> page changes the game itself, where every other page changes its data. Each hack is
-        explained beside its setting, with where it came from: smozoma's program smozROM (built in with his
-        permission), guides posted on the NHL94 forums, and the NHL94 Match Viewer project's reading of the game's
-        code, which found most of the fixes and tested every hack marked as played in the game. The page shows what
-        the ROM has now, which for a league ROM is often several hacks already. Set what you want and press{' '}
-        <b>Apply</b>. Nothing changes until you do, the box above the button lists exactly what will, and one Undo
-        takes it all back. The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for
-        the game's bugs, <b>Statistics</b>, <b>Ratings</b>, <b>Rules</b>, <b>Energy and injury risk</b>,{' '}
-        <b>Goalies</b>, <b>Skating and the puck</b>, <b>Edit Lines and controls</b>, <b>Looks and screens</b>, and on
-        the Genesis <b>Legacy hacks</b> kept for league ROMs that have them; the links at the top of the page jump to
-        each.
+        The <b>Hacks</b> page changes how the game itself plays, where every other page changes its teams and
+        settings. Each hack is explained beside its setting, with where it came from: smozoma's program smozROM
+        (built in with his permission), guides posted on the NHL94 forums, and the NHL94 Match Viewer project, which
+        found most of the fixes and tested every hack marked as tested in the game. The page shows what the ROM has
+        now, which for a league ROM is often several hacks already. Set what you want and press <b>Apply</b>. Nothing
+        changes until you do, the box above the button lists exactly what will, and one Undo takes it all back.
+      </p>
+      <p>
+        The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for the game's bugs,{' '}
+        <b>Statistics</b>, <b>Ratings</b>, <b>Rules</b>, <b>Energy and injury risk</b>, <b>Goalies</b>,{' '}
+        <b>Skating and the puck</b>, <b>Edit Lines and controls</b>, <b>Looks and screens</b>, and on the Genesis{' '}
+        <b>Legacy hacks</b> kept for league ROMs that have them. The links at the top of the page jump to each.
       </p>
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets the bug fixes
@@ -1426,75 +1404,68 @@ export function HelpPage() {
         </li>
         <li>
           Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and three
-          fixes leagues may not want as they are: the Genesis pulled-goalie sniping fix (a quirk some leagues
-          like), the SNES hot and cold bug fix (which makes every player play lower than players are used to) and the
-          SNES Y button fix (a habit people expect).
+          fixes leagues may not want: the Genesis pulled-goalie sniping fix (a quirk some leagues like), the SNES hot
+          and cold bug fix (players play lower than people are used to) and the SNES Y button fix (a habit people
+          expect).
         </li>
       </ul>
       <p>
-        <b>Copy this ROM's hacks for Discord</b> puts what this
-        ROM has, everything that differs from the original game, on the clipboard as a Discord post for a
-        league's owners, each hack explained in plain words, and shows it below the button. Discord takes at most
-        2,000 characters a message, so a long list comes as several messages, each with its own copy button, to
-        paste one after another. Untick <b>explain each hack</b> for a short list of the names only. <b>Download hack sheet</b> saves a page of its own
-        explaining, in plain words for the owners, what each of those hacks means for how the game plays, to open,
-        print or share. Where the ROM has score box logos, the post and the sheet say so too, under Pictures.
+        <b>Copy this ROM's hacks for Discord</b> copies a Discord post for the league's owners listing every hack
+        this ROM has (everything that differs from the original game), each explained in plain words, and shows it
+        below the button. Discord allows 2,000 characters a message, so a long list comes as several messages, each
+        with its own copy button. Untick <b>explain each hack</b> for just the names.{' '}
+        <b>Download hack sheet</b> saves a page explaining, in plain words for the owners, what each of those hacks
+        means for how the game plays, to open, print or share. If the ROM has score box logos, the post and the sheet
+        say so too, under Pictures.
       </p>
       <p>
-        <b>Copy hacks from another ROM…</b>, beside Apply, sets every choice on the page to what another ROM has, for
+        <b>Copy hacks from another ROM…</b>, beside Apply, sets every choice on the page to match another ROM, for
         a league that wants the same hacks in all its ROMs (Genesis to Genesis, SNES to SNES). The other ROM is only
-        read. The list above Apply then shows what would change; press Apply to make it so. A hack either ROM has code
-        of its own in place of, or an earlier version of a hack that cannot be put in afresh, is left as this ROM has
+        read. The list above Apply then shows what would change; press Apply to make it so. A hack that either ROM
+        has replaced with other code, or has in an old version that cannot be added again, is left as this ROM has
         it, and listed below the buttons.
       </p>
       <p>
-        Where a ROM has an earlier version of a hack (NOSE4Web's own from before a fix, or NHL94SNESVault's), the hack
-        shows as on, with <b>This ROM has an earlier version of it</b> and what changed. Its button puts NOSE4Web's
-        current version in its place, leaving every other hack as it is; Undo puts the earlier one back. A hack shown
-        greyed out is different: the ROM has other code where it goes, so NOSE4Web leaves it alone. If you think it is
-        a version NOSE4Web should know, send the ROM to whoever looks after NOSE4Web.
+        If a ROM has an earlier version of a hack (NOSE4Web's own from before a fix, or NHL94SNESVault's), the hack
+        shows as on, with <b>This ROM has an earlier version of it</b> and what changed. Its button puts in NOSE4Web's
+        current version, leaving every other hack as it is; Undo puts the earlier one back. A hack shown greyed out
+        is different: the ROM has other changes in that spot, so NOSE4Web leaves it alone. If you think it is a
+        version NOSE4Web should know, send the ROM to whoever looks after NOSE4Web.
       </p>
       <ul>
         <li>
-          <b>Weight bug and C-then-B fix</b>, the fix for the weight bug: the game judges a check one way when a
-          person controls the checker at the moment of contact and another when the computer does, and works the
-          person's way out in a single byte that overflows. That overflow is the weight bug: a light skater you
-          control knocks down anyone two or more weight steps heavier. Pressing C and then B hands the checker to the
-          computer just before contact, the C-then-B check. The fix, found by the NHL94 Match Viewer project, judges
-          every check the computer's way, which never overflows, so it fixes both: the heavier checker does better,
-          and switching away gains nothing. A person's checks against players his own weight or lighter get easier
-          than they were. Leave smozoma's legacy weight bug fix off with it. An earlier version of this fix, still
-          recognised in ROMs that have it, judged every check the person's way, which gave the computer's checkers
-          the weight bug too.
+          <b>Weight bug and C-then-B fix</b>: fixes the weight bug, where a light skater you control knocks down
+          anyone two or more weight steps heavier, and the C-then-B check, where pressing C then B just before
+          contact lets the computer judge the hit for you. With the fix every check is judged the same fair way: the
+          heavier checker does better, and switching away gains nothing. Your checks against players your own weight
+          or lighter get easier than they were. Leave smozoma's legacy weight bug fix off with it. An earlier version
+          of this fix, still recognised in ROMs that have it, gave the computer's checkers the weight bug too. Found
+          by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Second-assist bug fix</b> (Genesis and SNES): gives the assist the original game leaves out when two
           players pass back and forth before a goal.
         </li>
         <li>
-          <b>Count stick deflections as shots</b> (with the statistics, Genesis and SNES): a hard low shot the goalie
-          deflects with his stick is not counted as a shot on goal in the original game, only a catch or a body save
-          is, so shots along the ice go missing from the totals, more of them for the team attacking down the screen.
-          With this on a hard low shot his stick knocks away counts once, for the shooter and his team and against
-          the goalie, as one his stick catches already does: about 2 more shots on goal a game in recorded league
-          games. Only the statistics change. On the SNES the goalie's stick and glove knock away hard high shots
-          too, and those count as well: up to about 4 more shots on goal a game there (Match Viewer, from recorded
-          games).
+          <b>Count stick deflections as shots</b> (with the statistics, Genesis and SNES): in the original game a
+          hard low shot the goalie knocks away with his stick does not count as a shot on goal, so shots along the
+          ice go missing from the totals. With this on it counts, for the shooter and his team and against the
+          goalie: about 2 more shots on goal a game in recorded league games. On the SNES hard high shots knocked
+          away by the stick or glove count too: up to about 4 more a game. Only the statistics change.
         </li>
         <li>
           <b>Bodycheck statistics:</b> counts each player's checks and shows them in Player Stats as Chk, in place
           of penalty minutes.
         </li>
         <li>
-          <b>Plus-minus statistic:</b> kept for every player but not shown by the game. It is there to be read
-          from a save state.
+          <b>Plus-minus statistic:</b> kept for every player but not shown by the game. It is there for tools that
+          read save states.
         </li>
         <li>
           <b>Time on ice in Player Stats</b> (Genesis): the game counts each player's time on ice but never shows it.
-          This adds a Time On Ice page to Player Stats, right past Penalty Minutes, sorted by it, each row showing G,
-          A, Pts and the time. The other pages are unchanged, a Chk column included. On the SNES,{' '}
-          <b>time on ice for each player</b> counts it in the original game's layout (McMarkis's builds count their
-          own), kept where his builds keep it, for save-state readers.
+          This adds a Time On Ice page to Player Stats, right after Penalty Minutes, showing G, A, Pts and the time.
+          The other pages are unchanged. On the SNES, <b>time on ice for each player</b> counts it for tools that
+          read save states (McMarkis's builds count their own).
         </li>
         <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
@@ -1543,14 +1514,14 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        None of the choices puts right the ratings the announcer gives before a game. If your league is happy with
+        None of the choices fixes the ratings the announcer gives before a game. If your league is happy with
         how its ROM plays now, leave this as the ROM has it.
       </p>
       <p>
-        Changing the <b>rating scale</b> restates every player's ratings so that each plays as he did: 0, 1, 2, 3,
-        4, 5, 6 become 0, 3, 5, 8, 10, 13, 15, and going back turns them round again. Changing the{' '}
+        Changing the <b>rating scale</b> converts every player's ratings so that each plays as he did: 0, 1, 2, 3,
+        4, 5, 6 become 0, 3, 5, 8, 10, 13, 15, and going back converts them again. Changing the{' '}
         <b>base weight</b> moves each player to the step nearest the pounds he weighs, which can be up to 4 pounds
-        out. Free agents and a season's starting point are restated with the teams, and the Reset buttons go back
+        out. Free agents and a season's starting point are converted with the teams, and the Reset buttons go back
         to the opened ROM's players on the new scale. Overall ratings read differently on the two scales.
       </p>
       <ul>
@@ -1560,87 +1531,76 @@ export function HelpPage() {
           so.
         </li>
         <li>
-          Import a team restates ratings and weights when the other ROM is on a different scale or base weight.
+          Import a team converts ratings and weights when the other ROM is on a different scale or base weight.
         </li>
         <li>
-          Where a ROM's code at a hack's place is neither the original game's nor a version of the hack the editor
-          knows, that hack is greyed out and left exactly as it is. The others can still be changed.
+          If a ROM has been changed where a hack goes, in a way the editor does not recognise, that hack is greyed
+          out and left exactly as it is. The others can still be changed.
         </li>
         <li>
           Some league ROMs carry an earlier version of the bodycheck statistics, or an earlier, simpler weight bug
           fix. Each is kept as it is unless you choose On, which replaces it with the current version, or Off.
         </li>
         <li>
-          With 0 to 15 ratings, "Edit Lines matches players" is not offered: smozROM's code for that pairing looks
-          to be mistaken. A ROM that already has it is shown as having it.
+          With 0 to 15 ratings, "Edit Lines matches players" is not offered, as smozROM's version of that
+          combination seems to be wrong. A ROM that already has it is shown as having it.
         </li>
         <li>The page is there for the original game and the 30-team ROM. It is not offered for NHL 94: EVO.</li>
       </ul>
       <p>
-        <b>Play.</b> The last group changes how the game plays. Each is a number or an instruction in the game's
-        code, changed where it stands. The numbers are the game's own, so change them a little at a time and try
-        the result.
+        <b>Play.</b> The last group changes how the game plays. Most are numbers the game uses, so change them a
+        little at a time and try the result.
       </p>
       <ul>
         <li>
-          <b>Power play and penalty kill fix</b> (in with the fixes): the game reads a team's power play and penalty
-          kill ratings from the wrong halves of their byte, the other way round from the rosters, which were written
-          for the intended way. The fix, the editor's own, makes the game read them as intended, so existing rosters
-          play as their makers meant, and the team page shows them that way round. A league that set the two by what
-          the editor showed before should check them once the fix is in.
+          <b>Power play and penalty kill fix</b> (in with the fixes): because of a bug, the game uses each team's
+          power play and penalty kill ratings the wrong way round. The fix makes the game use them as intended, so
+          existing rosters play as their makers meant, and the team page shows them that way round. A league that
+          set the two by what the editor showed before should check them once the fix is in.
         </li>
         <li>
           <b>Aggression bug fix</b> and <b>comeback bonus fix</b> (in with the fixes): two bugs found by the NHL94
-          Match Viewer project in the game's code. In play Aggression wraps round, so a 4 plays like a 1 and a 6 or a
-          3 draws the most penalties; the fix makes it rise with the rating. It also changes goalies, whose glove
-          rating GvL sits in the same place: with the fix it takes about 5 for the reaching glove save. The
-          comeback bonus, for a team tied or behind in the third period, comes in the first half of the period
-          where it is meant for the second; the fix puts it in the second.
+          Match Viewer project. In the original game Aggression wraps round, so a 4 plays like a 1, and a 6 or a 3
+          draws the most penalties; the fix makes it rise with the rating. It also affects goalies, whose glove
+          rating GvL is stored in the same place: with the fix a goalie needs about 5 for the reaching glove save.
+          The comeback bonus, for a team tied or behind in the third period, comes in the first half of the period
+          when it is meant for the second; the fix puts it in the second.
         </li>
         <li>
-          <b>Rocket pass fix</b> (in with the fixes, Genesis only): a pass to a teammate is aimed at where he will
-          be and timed to meet him there. The game counts that time in whole eighths of a second, rounded down, so a
-          meeting due in 1.9 eighths is made in 1 and the pass goes nearly twice as fast as the Passing rating
-          allows; and for a teammate skating away close by it can take the wrong one of two answers and make the
-          pass in an eighth. The NHL94 Match Viewer project measured the first. The fix counts the time in 64ths of
-          a second and takes the right answer. Replaying 2,535 passes from 29 recorded games, none went more than
-          1.23 times its speed with it, where 69 reached rocket speed without. Lift is unchanged. The SNES game sets
-          pass speed another way and never had the bug.
+          <b>Rocket pass fix</b> (in with the fixes, Genesis only): because of a rounding error, many passes go
+          nearly twice as fast as the passer's rating allows, and a pass to a teammate skating away close by can
+          go faster still. With the fix, passes go at the speed the Passing rating sets. In 29 recorded games, 69
+          passes reached rocket speed without it and none with it. The SNES game never had the bug.
         </li>
         <li>
-          <b>One-timer open net fix</b> (Genesis only, among the recommended fixes): the game aims a
-          one-timer itself, whatever the d-pad says, along the line from the puck through the goalie. When the goalie
-          is out of that line, having dived or skated out of position, it aims just under the crossbar, and as the
-          game only scatters a shot upwards, many go over. The fix aims them at the middle, mid-height, as the game
-          does with the goalie pulled. Computer players' shots, aimed the same way, get the same aim. Tested in the
-          game by the NHL94 Match Viewer project: open-net one-timers went in 86% of the time with it, 56% without,
-          and those with the goalie in position came out exactly as before. The SNES game lets one-timers follow the
-          stick.
+          <b>One-timer open net fix</b> (Genesis only, among the recommended fixes): the game aims one-timers
+          itself. When the goalie is out of position, it aims just under the crossbar, so many open-net one-timers
+          sail over. The fix aims them at the middle of the net, as the game does with the goalie pulled; the
+          computer's shots get the same aim. Tested in the game by the NHL94 Match Viewer project: open-net
+          one-timers went in 86% of the time with it, 56% without, and those with the goalie in position were
+          unchanged. On the SNES one-timers already go where the stick aims.
         </li>
         <li>
-          <b>Tied regular-season games</b> (Genesis): the original game ends a regular-season game still tied after its
-          overtime as a tie, where a playoff game plays more overtime until a goal. <b>Overtime until a goal</b> makes
-          the regular season the same, each overtime as long as the regular season's (10:00); a game can run long,
-          but never ends tied. Tested in the game by the NHL94 Match Viewer project. <b>A shootout</b> settles a game
-          still tied after its overtime with the game's own shootout, as its Shootout mode plays one: five shooters a
-          side, then one each until a team is ahead. The winners get one goal more on the scoreboard, and the game then
-          ends as any other, with its stats and Stars of the Game. <b>A shootout after period 3</b> does the same
-          straight after regulation, with no overtime. Both are tested in the game by Match Viewer: the winners'
-          goal is the only change to the score and stats, and the win is saved as a regulation win would be. Either way, playoffs are
-          unchanged. Both rest on two places in the game's end-of-period code that Match Viewer found.
+          <b>Tied regular-season games</b> (Genesis): the original game ends a regular-season game still tied after
+          overtime as a tie, while a playoff game plays more overtime until a goal. <b>Overtime until a goal</b>{' '}
+          makes the regular season the same, each overtime as long as the regular season's (10:00); a game can run
+          long, but never ends tied. <b>A shootout</b> settles a game still tied after overtime with the game's own
+          shootout: five shooters a side, then one each until a team is ahead. The winners get one goal more on the
+          scoreboard, and the game ends as usual, with its stats and Stars of the Game. <b>A shootout after period
+          3</b> does the same straight after regulation, with no overtime. The playoffs are unchanged. All three
+          tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Penalty time</b> (both systems): the seconds a player spends in the box for each penalty minute, 60 in
-          the original game. Each penalty keeps its minutes (set one by one under Rule messages on the Game settings
-          page), so at 30 a 2-minute minor lasts 1:00 and a major 2:30, to suit short periods; the penalty minutes in
+          <b>Penalty time</b> (both systems): how many seconds a player spends in the box for each penalty minute,
+          60 in the original game. Each penalty keeps its minutes (set under Rule messages on the Game settings
+          page), so at 30 a 2-minute minor lasts 1:00 and a major 2:30, to suit short periods. The penalty minutes in
           the statistics stay as they are.
         </li>
         <li>
           <b>Fighting penalty time</b> (both systems): how long a fight keeps each fighter in the box, in seconds of
-          the game clock, whatever the penalty time; Off leaves a fight's 5 minutes at the penalty time. Both fighters
-          get the same, so the teams stay at full strength; on the SNES, McMarkis's pairing of the fighters (in his 2 MB and SA-1
-          builds, and in NOSE4Web's fighting on the 1 MB game) follows it, and the penalty time too, tested in the game
-          on his builds by the NHL94 Match Viewer project.
+          the game clock, whatever the penalty time; Off leaves a fight at its 5 minutes, timed by the penalty time. Both
+          fighters get the same, so the teams stay at full strength. On the SNES it works with McMarkis's fighting
+          builds and NOSE4Web's own fighting. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
@@ -1648,102 +1608,88 @@ export function HelpPage() {
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
           players whose fighting ratings (the second half of the H/F column) are high enough; in the original game
           few are, so a league that wants fights raises some. chaos's forum post "How fighting works in the NHL94
-          fighting patch" explains it. The patch's code goes past 2 MB, so the ROM becomes 3 MB, with the game's
-          saved records switched in only when it uses them; Genesis Plus GX plays it. NOSE4Web leaves out the title
-          screen, credits, ROM name and players' ratings of chaos's own ROM. It goes into league ROMs too: the patch
-          has a main menu of its own, the original game's, so NOSE4Web makes it from the league's, keeping its
-          captions, choices, teams offered and period lengths, with the Fighting line added. Head bleeding goes with
-          it, added before or after; changing fighting takes it out and puts it back. Made by chaos, with McMarkis and
-          AbdulBCRT
-          (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81). Tested in the game by the NHL94
-          Match Viewer project on the original game and a league ROM.
+          fighting patch" explains it. It makes the ROM 3 MB, and saving still works; Genesis Plus GX plays it. It
+          works on league ROMs too, keeping the league's main menu with the Fighting line added (chaos's own title
+          screen, credits and player ratings are not copied). Head bleeding still works with it. Made by chaos, with
+          McMarkis and AbdulBCRT (github.com/Chaos81/nhl94-patches, MIT licence, Copyright (c) 2025 Chaos81). Tested
+          in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
-          NHL rules have them. Only since the 2007–08 season has the NHL required every faceoff to be on one of the
-          nine dots. Before that, in the NHL's words when it made the change, a puck that left the ice could cause
-          "the faceoff to occur on unmarked ice, parallel to the dot nearest the place where the puck departed", and
-          the game follows that older way: it puts a faceoff on a dot only when play stops past the hash marks, and
-          anywhere else moves it across the ice to the line of the nearest dots but holds it where it was along the
-          ice, often in open ice. The NHL94 Match Viewer project found 1 faceoff in 8 off the dots in recorded Genesis games, most
-          after penalties. With the fix every faceoff is on one of the nine dots, as today's rules have it: after a goal at
-          centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise,
-          past a blue line, at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone
-          dot (a goalie whistled for holding the puck out there too). A puck shot out of play is faced off by where
-          the player who last touched it stood. When both teams take penalties the faceoff still moves out to the
-          neutral zone, as before. Leave it off for the game's own faceoffs, closer to the rules of its day.
+          NHL rules have them. Since 2007–08 every NHL faceoff has been on one of the nine dots. The game follows the
+          older rules, so many faceoffs (about 1 in 8 in recorded Genesis games, mostly after penalties) are in open
+          ice, level with the nearest dots. With the fix every faceoff is on a dot: after a goal at centre; after a
+          penalty in the offending team's end, on the side the puck was; otherwise at the nearest dot on the puck's
+          side. A puck shot out of play is faced off where the player who last touched it was. When both teams take
+          penalties the faceoff still moves out to the neutral zone, as before. Leave it off for the game's own
+          faceoffs, closer to the rules of its day.
         </li>
         <li>
           <b>Runaway speed fix</b> (in with the fixes, Genesis only): now and then a skater you control shoots off
-          at up to twice top speed and slides out of control for a second or two. The game nearly turns off how
-          quickly a skater slows down to let a computer skater glide onto a pass and a skater knocked into the boards
-          slide, and three ways leave that on: taking a skater over while a pass is coming to him, getting up from a
-          fall into the boards, and a one-timer that misses the puck (about 8 a game in recorded games). Each speed
-          burst then stacks on the last. The fix turns the gliding off in all three places. Computer skaters still
-          glide onto passes, a one-timer still glides while it is being taken, and a skater you take over with a
-          pass coming is now steered onto it by you. The NHL94 Match Viewer project found the cause and recorded
-          the runaways. The SNES game already clears it.
+          at up to twice top speed and slides out of control for a second or two. It happens when you take over a
+          skater while a pass is coming to him, when a player gets up from a fall into the boards, and when a
+          one-timer misses the puck (about 8 times a game in recorded games). The fix stops it in all three cases.
+          Computer skaters still glide onto passes, and a skater you take over with a pass coming is now steered by
+          you. Found by the NHL94 Match Viewer project. The SNES game does not have this bug.
         </li>
         <li>
           <b>Penalty shot table fix</b> (in with the fixes, Genesis only): a foul on a skater on a breakaway can give
-          a penalty shot, but the game looks each foul up one place too far along its table, so every penalty shot
-          is called and recorded for the wrong foul (charging as slashing, slashing as roughing, and so on). The fix
-          gives each foul its own penalty shot. Which fouls give penalty shots does not change: holding has no
-          penalty shot in the game, and interference is never called on the puck carrier.
+          a penalty shot, but the game mixes up the fouls, so every penalty shot is called and recorded as the wrong
+          one (charging as slashing, slashing as roughing, and so on). The fix gives each foul its own penalty shot.
+          Which fouls give penalty shots does not change: holding has no penalty shot in the game, and interference
+          is never called on the puck carrier.
         </li>
         <li>
-          <b>Penalty shot fixes</b> (in with the fixes, Genesis only): a penalty shot stopped by a whistle that is not
-          one of its own endings (the puck over the glass, the net knocked off) is taken all over again, as the game
-          still has it marked as pending; with the fix the game goes on to a faceoff. And a puck shot over the glass
-          just after the penalty shot is awarded can enter the shot unable to touch anything, floating through the
-          net and the boards; with the fix it plays normally. Shootouts are unaffected.
+          <b>Penalty shot fixes</b> (in with the fixes, Genesis only): a penalty shot stopped by a whistle it does
+          not expect (the puck over the glass, the net knocked off) is taken all over again; with the fix the game
+          goes on to a faceoff. And a puck shot over the glass just as the penalty shot is awarded can float through
+          the net and the boards during the shot; with the fix it plays normally. Shootouts are unaffected.
         </li>
         <li>
           <b>Computer goalie pull fix</b> (in with the fixes, Genesis only): in the last minute of the third period
-          the computer pulls its goalie only when exactly two goals behind, never one, though the game's own note says
-          it should be "more than 2" that stops it. With the fix it pulls him when one or two behind. It changes how
-          the computer plays late in close games; while its goalie is out its shots within range go exactly where they
-          are aimed, as anyone's do with the goalie pulled, unless the pulled-goalie sniping fix is on too.
+          the computer pulls its goalie only when exactly two goals behind, never one. With the fix it pulls him when
+          one or two behind. It changes how the computer plays late in close games. While its goalie is out its
+          shots in range go exactly where they are aimed, as anyone's do with the goalie pulled, unless the
+          pulled-goalie sniping fix is on too.
         </li>
         <li>
-          <b>Pulled-goalie sniping fix</b> (in with the fixes, Genesis only; an option, a matter of taste, since some leagues like the sniping): whenever a team's own goalie is off the
-          ice, on a delayed penalty or pulled late in a game, the original game makes every one of its shots from
-          within range go exactly where it is aimed. With the fix such a shot takes the normal accuracy roll. Shots at
-          an empty net already do. The SNES does not have this bug.
+          <b>Pulled-goalie sniping fix</b> (in with the fixes, Genesis only; an option, a matter of taste, since some
+          leagues like the sniping): whenever a team's own goalie is off the ice, on a delayed penalty or pulled late
+          in a game, the original game makes every one of its shots in range go exactly where it is aimed. With the
+          fix those shots are no more accurate than usual. Shots at an empty net already are. The SNES does not have
+          this bug.
         </li>
         <li>
-          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on both): a computer skater
-          decides what to do next at intervals set by his Offensive Awareness when his team has the puck and his
-          Defensive when it has not, but wingers and centres on offence use their Defensive. With this on they use
-          Offensive. A small change, a frame or so for most players.
+          <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on both): computer
+          forwards on offence react at the pace of their Defensive Awareness when it should be their Offensive
+          Awareness. With this on they use Offensive. A small change for most players.
         </li>
         <li>
-          <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's bonus to skaters (+2 Agility
-          and +2 Speed and more) is meant to come when the crowd meter is past its record, but a switch in the code
-          leaves it on all the time. With this on it follows the meter, which in recorded games is past its record
-          about three quarters of the time.
+          <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
+          +2 Speed and more) is meant to come only when the crowd meter is past its record, but because of a bug it
+          is on all the time. With this on it follows the meter, which in recorded games is past its record about
+          three quarters of the time.
         </li>
         <li>
           <b>Close the five-hole blind ring</b> (with the fixes, Genesis only; an option, a matter of taste): in the
-          butterfly and some kick saves a goalie's stick moves aside, and a flat puck 8 to 14 units from his blade
-          touches neither stick nor body, so it slides through his legs. With this on his body plays it as anywhere
-          else. Small overall (about 0.3% fewer expected goals in Match Viewer's recordings) but it falls on five-hole
-          goals, 3 of 218 recorded.
+          butterfly and some kick saves there is a gap where a flat puck touches neither the goalie's stick nor his
+          body, and slides through his legs. With this on his body stops it as anywhere else. Small overall (about
+          0.3% fewer expected goals in recorded games), but it accounts for some five-hole goals (3 of 218 recorded).
         </li>
         <li>
           <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
           game. 0 means no whistle.
         </li>
         <li>
-          <b>Goalie range to each side</b> and <b>up the ice:</b> the box a goalie you control is kept in without the puck. The
-          original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a little
-          more room each way. For scale, the rink is about 260 wide, the goal line is 268 from centre ice and the
-          blue line about 88, roughly 3 to a foot.
+          <b>Goalie range to each side</b> and <b>up the ice:</b> how far a goalie you control can roam without the
+          puck. The original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a
+          little more room each way. For scale, about 3 units make a foot: the rink is about 260 wide, the goal line
+          is 268 from centre ice and the blue line about 88.
         </li>
         <li>
           <b>Goalie whistle line:</b> how far from centre ice a goalie you control may skate before play is
           whistled, 170 in the original game. A smaller number lets him go farther. Without the puck he is kept in
-          the box above, so in practice it is the line he may carry the puck to.
+          his range, so in practice it is the line he may carry the puck to.
         </li>
         <li>
           <b>Unlimited stamina</b>, <b>energy lost on the ice</b> and <b>energy gained on the bench:</b> for games
@@ -1757,8 +1703,8 @@ export function HelpPage() {
           <b>Stopping and turning:</b> how quickly a skater stops when he reverses, 150 in the original game.
         </li>
         <li>
-          <b>Real-time clock:</b> the game clock, penalty clock and penalty shot clock count true seconds, where
-          the original game's run two and a half times as fast. Periods then last as long as they say, so set
+          <b>Real-time clock:</b> the game clock, penalty clock and penalty shot clock count real seconds; in the
+          original game they run two and a half times as fast. Periods then last as long as they say, so set
           shorter ones in Game settings. People who have played this way report that the penalty clock can skip
           now and then.
         </li>
@@ -1770,20 +1716,21 @@ export function HelpPage() {
           game leaves out, after a one-timer and when a player wins the puck back himself and passes to the scorer.
         </li>
         <li>
-          <b>Injuries</b>: as in the original game; <b>never</b>, a hit only a fall; <b>the penalty, but no
-          injury</b>, the hit still called and the player lying down about ten seconds before he skates on; every
-          injury lasting the period, or the whole game; or <b>a long fall instead</b>, a hit that would injure keeping
-          the player down about 5 seconds before he gets up and plays on, with no injury and no penalty (not with head
-          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>. <b>Hybrid icing</b>: decided as the puck
-          crosses the goal line, by which team's nearest skater is nearer the end-zone faceoff dots, as the NHL plays it
-          (the original game plays touch icing).{' '}
+          <b>Injuries</b>: as in the original game; <b>never</b> (a hit is only a fall); <b>the penalty, but no
+          injury</b> (the hit is still called and the player lies down about ten seconds before he skates on); every
+          injury lasting the period, or the whole game; or <b>a long fall instead</b> (a hit that would injure keeps
+          the player down about 5 seconds, then he plays on, with no injury and no penalty; not with head
+          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          <b>Hybrid icing</b>: decided as the puck crosses the goal line, by which team's nearest skater is closer to
+          the end-zone faceoff dots, as the NHL plays it (the original game plays touch icing).{' '}
           <b>The injured sit out the shootout</b>: with a shootout for tied regular-season games, a skater injured for
           the game takes no attempt; the next on the list shoots (if all five are out, the listed player shoots
           anyway).{' '}
-          <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD in overtime, in the regular season or
-          in every overtime; a penalty gives the other team a skater more (4 on 3, 5 on 3), and when it ends the teams
-          play 4 on 4 until the next whistle, as in the NHL (on the SNES too). <b>Calls during a delayed penalty</b>: while one team has a
-          penalty pending, the other can be called too (known bug 12; the SNES game never had it).{' '}
+          <b>3 on 3 overtime</b>: each team's goalie and its line's LW, C and RD play overtime, in the regular season
+          or in every overtime; a penalty gives the other team an extra skater (4 on 3, 5 on 3), and when it ends the
+          teams play 4 on 4 until the next whistle, as in the NHL (on the SNES too). <b>Calls during a delayed
+          penalty</b>: while one team has a penalty coming, the other can be called too (in the original Genesis game
+          it cannot; the SNES game never had this bug).{' '}
           <b>B-checks with penalties off</b>: they trip as with penalties on. <b>Goalie control delay</b>: how long B
           is held before you take the goalie.
         </li>
@@ -1805,8 +1752,8 @@ export function HelpPage() {
           only</b> button sets them so that only hits tire a player: three knockdowns leave a skater at the slowest
           speed there is, and he gets his energy back on the bench. Beside it, the table <b>Knockdowns to empty a
           skater</b> gives the costs for 2 to 10 knockdowns, each row with a button that sets both; press Energy from
-          hits only first for hits alone. A knockdown counts whoever makes it, a poke check or a goalie included, but
-          not a bump he stays up from, the puck, or a hit after the whistle; the game stops energy at 0.
+          hits only first for hits alone. Any knockdown counts, whoever makes it (a poke check or a goalie included),
+          but not a bump he stays up from, the puck, or a hit after the whistle. Energy never goes below 0.
         </li>
         <li>
           <b>Puck friction</b>: how quickly a loose puck slows down.
@@ -1826,19 +1773,18 @@ export function HelpPage() {
       <ul>
         <li>
           <b>smozoma's weight bug fix (legacy):</b> smozoma's fix, from smozROM. The NHL94 Match Viewer project has
-          since found that it rests on a misreading: the original formula is the physical one, where the heavier
-          checker does better, and the only bug is an overflow for a checker a person controls. The fix swaps the
-          weights round, so the computer's checkers then do better the lighter they are, and counts both players'
-          checking ratings. For the weight bug, use the weight bug and C-then-B fix instead. If a league keeps this
-          one, keep checking ratings about where the original's are: most forwards 2 or 3 out of 6, most defencemen
-          2 to 4, very few players 5 or 6.
+          since found that it gets the cause wrong: in the original game the heavier checker is meant to do better,
+          and the bug only affects checks by a player a person controls. smozoma's fix swaps the weights round, so
+          the computer's checkers then do better the lighter they are, and it counts both players' checking ratings.
+          For the weight bug, use the weight bug and C-then-B fix instead. If a league keeps this one, keep checking
+          ratings near the original game's: most forwards 2 or 3 out of 6, most defencemen 2 to 4, very few players
+          5 or 6.
         </li>
       </ul>
       <p>
-        The editor makes the same ROM smozROM would, byte for byte, for the choices smozROM offers. smozROM always
-        puts in the second-assist fix and the plus-minus statistic, and adds bodycheck statistics with the weight
-        bug fix; here each can be chosen by itself. Whatever you choose, play a game on the hacked ROM before a
-        league does.
+        For the choices smozROM offers, the editor makes exactly the same ROM smozROM would. smozROM always puts in
+        the second-assist fix and the plus-minus statistic, and adds bodycheck statistics with the weight bug fix;
+        here each can be chosen by itself. Whatever you choose, play a game on the hacked ROM before a league does.
       </p>
 
       <h3 id="help-importteam">Importing a team</h3>
@@ -1851,9 +1797,8 @@ export function HelpPage() {
       <ul>
         <li>The roster and lines come together, because lines name players by their place on the roster.</li>
         <li>
-          The team's six ratings come with the roster. Where only one of the two ROMs has the power play and penalty
-          kill fix, which changes how the game reads those two ratings, they are swapped so that the team plays as it
-          did; the notes say so.
+          The team's six ratings come with the roster. If only one of the two ROMs has the power play and penalty
+          kill fix, those two ratings are swapped so that the team plays as it did; the notes say so.
         </li>
         <li>
           The two ROMs can be different kinds, such as the original game and the 30-team ROM. The teams do not have
@@ -1867,9 +1812,9 @@ export function HelpPage() {
         <li>The centre-ice logo is drawn with the home colours, so bring the colours with it.</li>
         <li>
           On the SNES, <b>Logos</b> brings the team logo, the centre ice logo and the score logo. The centre ice logo
-          is matched to the colours this ROM draws it in, or, in a build that gives each team centre ice colours of
-          its own, brings the colours it shows; teams that share it here get it too. A team whose score box shows its
-          letters in the other ROM shows them here as well, and a ROM without score logos leaves this one's alone.
+          is fitted to the colours this ROM uses for it (or brings its own colours, in builds where each team has
+          its own centre ice colours); teams that share it here get it too. If the other ROM shows the team's
+          letters in the score box, so will this one, and a ROM without score logos leaves this one's alone.
         </li>
         <li>A bigger roster needs more room; the bytes free at the top of the page show whether it fits.</li>
       </ul>
@@ -1889,8 +1834,8 @@ export function HelpPage() {
           <b>Unusual, and worth a look</b>: a line without the first goalie in goal, a player twice on one line, two
           players sharing a jersey number, an attribute outside its normal range, a name with no space, a team
           twice in one playoff draw, a team the menu offers that no playoff draw has (starting new playoffs with it
-          freezes the game), playoff draws with teams the menu does not offer, or a menu team line starting on a
-          team the menu does not offer.
+          freezes the game), playoff draws with teams the menu does not offer, or a main menu starting team the menu
+          does not offer.
         </li>
       </ul>
       <p>
@@ -2025,8 +1970,8 @@ export function HelpPage() {
         hack's altered game code exactly as it is, so what a hack does differently keeps working.
       </p>
       <p>
-        ROMs set up with the hack program smozROM open too, in any of its combinations. The editor reads how a ROM
-        was set up from its product code, as NOSE does, and the top bar says so:
+        ROMs set up with the hack program smozROM open too, in any of its combinations. The editor can tell how
+        such a ROM was set up, as NOSE does, and the top bar says so:
       </p>
       <ul>
         <li>
@@ -2040,23 +1985,22 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        Those programs put code of their own in the unused room at the end of a ROM. When the editor needs room
-        there, for longer rosters or for pictures, it takes it from beyond whatever is already in the ROM and moves
-        nothing that is there, so such hacks keep working.
+        Those programs put their own additions in the unused room at the end of a ROM. When the editor needs room
+        there, for longer rosters or for pictures, it uses only the room after them and moves nothing, so such hacks
+        keep working.
       </p>
       <p>
-        Hacks have been tested less widely here than the original game: the editor can read what they changed but
-        cannot know everything they rely on. Keep a copy of the file you opened, and try a download in the game
-        before you hand it to anyone.
+        Hacked ROMs have been tested less widely here than the original game: the editor can see what a hack
+        changed but cannot know everything it relies on. Keep a copy of the file you opened, and try a download in
+        the game before you hand it to anyone.
       </p>
       <p>
         Hacks that put fewer skaters on the ice are played with line changes off, and are known to crash with them
         on. That is how those hacks behave, not something the editor causes or can fix. Only the first line, NLC,
-        is used in them. They get fewer skaters by leaving positions of every line empty, which the game's penalties
-        do not know: in a 3 on 3 ROM a first penalty takes off a position that is already empty, so no one gets a
-        power play, and a second leaves the team two skaters (from the NHL94 Match Viewer project's reading of the
-        code). The Genesis option <b>3 on 3 overtime</b> works another way, and its penalties work as the NHL's. Roster edits to one of these ROMs have been checked in the game. A team's page has a
-        notice at the top when the ROM is one of these.
+        is used in them. Their penalties do not work properly: in a 3 on 3 ROM a first penalty gives no one a power
+        play, and a second leaves the team with two skaters (found by the NHL94 Match Viewer project). The Genesis
+        option <b>3 on 3 overtime</b> works differently, and its penalties work as the NHL's. Roster edits to these
+        ROMs have been checked in the game. A team's page has a notice at the top when the ROM is one of these.
       </p>
       <p>
         Where a ROM is someone's own release, the notice names it and its maker, with a link to its official post on
@@ -2112,8 +2056,8 @@ export function HelpPage() {
           the title screens, cannot.
         </li>
         <li>
-          To let the game run a changed ROM, the editor switches off the game's check of its own contents, as NOSE
-          does.
+          So that the game will run a changed ROM, the editor turns off the game's own check that the ROM is
+          unchanged, as NOSE does.
         </li>
       </ul>
 
@@ -2126,9 +2070,9 @@ export function HelpPage() {
       </p>
       <ul>
         <li>
-          <b>Overall shown:</b> the SNES game keeps each team's overall rating, the number on the matchup screen and the player cards,
-          with the team rather than working it out. It is on the team page and in the Teams spreadsheet, and does
-          not change when the players do; see below for setting it to the roster's average.
+          <b>Overall shown:</b> the team overall on the matchup screen and the player cards is a stored number, so it
+          does not change when the players do. It is on the team page and in the Teams spreadsheet; see below for
+          setting it to the roster's average.
         </li>
         <li>
           <b>Ovr</b> for players is worked out as the SNES game does it on its roster screens. For skaters that is
@@ -2137,13 +2081,12 @@ export function HelpPage() {
         <li>
           <b>Team colours:</b> each team has a white home strip and a dark away strip of 16 colours, shown on the
           game's own players, drawn from the ROM. The SNES has 32 levels of each of red, green and blue where the
-          Genesis has 8. What each colour is for was found by changing one at a time on the game's players; the
-          first is never drawn on them. The Teams spreadsheet has them too. Colours do not come across from a
-          Genesis ROM, as the two games give their colours different jobs.
+          Genesis has 8. The first colour is never used on the players. The Teams spreadsheet has them too. Colours
+          do not come across from a Genesis ROM, as the two games use their colours differently.
         </li>
         <li>
-          <b>Hacks:</b> the SNES Hacks page works as the Genesis one, each hack explained beside its setting. A hack is
-          only changed where the ROM has the original game's code or the hack's in its place. It has:
+          <b>Hacks:</b> the SNES Hacks page works like the Genesis one, each hack explained beside its setting. A hack
+          is only changed if that part of the ROM is as the original game or the hack has it. It has:
           <ul>
             <li>
               From NHL94SNESVault, by McMarkis and its contributors: the <b>hot and cold bug fix</b> (in the original
@@ -2157,10 +2100,10 @@ export function HelpPage() {
               them too, where the Vault's sorts by penalty minutes; the counts stay where nhl94online.com reads them).
             </li>
             <li>
-              On McMarkis's SA-1 and 32-team builds, whose game code is elsewhere, the hacks are found by the code
-              around them, those first made for the original game's layout included (the extra attacker fix, any
-              skater at any position, the maximum boost, the L+R goalie pull and the injury risk, each tested in
-              the game on those builds by the NHL94 Match Viewer project). NOSE4Web's fighting and bodycheck counts are not offered
+              On McMarkis's SA-1 and 32-team builds, which are laid out differently, the editor still finds the
+              hacks, including those first made for the original game (the extra attacker fix, any skater at any
+              position, the maximum boost, the L+R goalie pull and the injury risk, each tested in the game on those
+              builds by the NHL94 Match Viewer project). NOSE4Web's fighting and bodycheck counts are not offered
               there, as those builds have their own.
             </li>
             <li>
@@ -2196,38 +2139,36 @@ export function HelpPage() {
             <li>
               <b>Fighting</b>: McMarkis's port of the NHLPA 93 SNES fights, built in with his permission, with a
               bonus to every player's fighting rating (2 by default, as in his patch; higher makes fights more common).
-              It adds its frames and code in a bank past the first megabyte, growing a 1 MB ROM to 2 MB, and comes out
-              cleanly. It goes with the injury risk, the two sharing the place in the game's code where a check is
-              counted, each counting in turn (tested in the game by Match Viewer); for ROMs built on the
-              original game, not McMarkis's SA-1 and 32-team builds, which have fights of their own. With his later
-              fixes, as in those builds: a player hurt in a fight is out for the rest of the game, and the two
-              fighters' majors offset, so the teams stay at full strength while they sit (since 13 November 2026;
-              apply the hacks again to update an earlier fighting ROM).
+              It makes a 1 MB ROM 2 MB, and comes out cleanly. It works alongside the injury risk option (tested in the
+              game by the NHL94 Match Viewer project). It is for ROMs built on the original game, not McMarkis's SA-1
+              and 32-team builds, which have fights of their own. It includes his later fixes, as in those builds: a
+              player hurt in a fight is out for the rest of the game, and the two fighters' majors offset, so the teams
+              stay at full strength while they sit (since 13 November 2026; apply the hacks again to update an earlier
+              fighting ROM).
             </li>
             <li>
               <b>Overtime until a goal in the regular season</b>: a regular-season game still tied after its 5:00
               overtime plays more overtime until someone scores, as a playoff game does, instead of ending in a tie.
-              The same two changes as the Genesis option, tested in the game by Match Viewer.
+              As on the Genesis; tested in the game by the NHL94 Match Viewer project.
             </li>
             <li>
               <b>A shootout for tied regular-season games</b>: the game's own shootout, after one overtime or straight
-              after period 3, as the Genesis choices. The winners get one goal more on the scoreboard, the stats and
-              scoring summary are the game's, and Exit Shootout is locked while it plays, as leaving would throw away
-              the whole game. Tested in the game by Match Viewer on the original game and Classic, and on the 32-team
-              and SA-1 builds (on the SA-1 builds NOSE4Web keeps the game's state in their BW-RAM while the shootout
-              plays, and on both it keeps their own checks, posts and time on ice), with a pad on a team. With the
-              computer on both sides the 2 MB builds' own shootout hangs at its first round, in their Shootout mode
-              too, with or without NOSE4Web; with a person on a team it plays, as in every league game.
+              after period 3, as on the Genesis. The winners get one goal more on the scoreboard, the stats and scoring
+              summary are the game's, and Exit Shootout is locked while it plays, as leaving would throw away the whole
+              game. Tested in the game by the NHL94 Match Viewer project on the original game, Classic, and the 32-team
+              and SA-1 builds. On McMarkis's 2 MB builds the shootout freezes in its first round when the computer
+              plays both sides (their own Shootout mode does too, with or without NOSE4Web); with a person on a team
+              it plays normally, as in every league game.
             </li>
             <li>
-              <b>Injuries</b>: the Genesis choices, from never to a long fall instead, at the places in the SNES game
-              Match Viewer found, and tested by them on the original and the SA-1 build.
+              <b>Injuries</b>: the Genesis choices, from never to a long fall instead. Tested in the game by the NHL94
+              Match Viewer project on the original game and the SA-1 build.
             </li>
             <li>
-              <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD in overtime, in
-              the regular season or every overtime; a penalty gives the other team a skater more, and a team with three
-              in the box plays two skaters. On the original game, league ROMs built on it, and McMarkis's 32-team and
-              SA-1 builds, found by the code around each place; tested in the game on the original and the SA-1 build.
+              <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD play overtime,
+              in the regular season or every overtime; a penalty gives the other team an extra skater, and a team with
+              three in the box plays two skaters. For the original game, league ROMs built on it, and McMarkis's
+              32-team and SA-1 builds; tested in the game on the original game and the SA-1 build.
             </li>
           </ul>
         </li>
@@ -2237,21 +2178,19 @@ export function HelpPage() {
           <ul>
             <li>
               The <b>team logo</b>, on the matchup, setup and player card screens, has 15 colours of its own, taken
-              from the image you import, and can use at most 36 different squares of 8 by 8 pixels (an empty square,
-              or an exact copy of another, even flipped, costs nothing). In the original game all the logos are
-              unpacked together into room the original logos fill, so a logo bigger than the one it replaces fits
-              only where others take less; the editor lays other logos out more tightly, looking the same, where
-              that helps. ROMs rebuilt with more teams keep each logo apart, so a bigger one simply goes into free
-              space.
+              from the image you import, and can use at most 36 different squares of 8 by 8 pixels (empty squares and
+              repeats, even flipped ones, are free). In the original game all the logos share one space, so a logo
+              more detailed than the one it replaces fits only if others take less; the editor packs the other logos
+              more tightly, without changing how they look, when that helps. ROMs rebuilt with more teams keep each
+              logo apart, so a bigger one simply goes into free space.
             </li>
             <li>
               The <b>centre ice logo</b> is drawn in the rink's colours, two rows of 15 that every team shares, faded
-              as if seen through the ice; each 8 by 8 square of it takes the row that suits it best. It can use as
-              many different squares as the largest original centre ice logo (exact copies cost nothing, flipped ones
-              do). It may also be another size, in whole squares, if it has no more of them than the one it replaces
-              (64 by 32 for 48 by 48, say): the game takes its size from it and centres it. In McMarkis's builds for
-              the SA-1 chip each team's centre ice logo has 15 colours of its own instead, to which an imported one is
-              matched.
+              as if seen through the ice; each 8 by 8 square of it uses whichever row suits it best. It can use as
+              many different squares as the largest original centre ice logo (exact repeats are free, flipped ones are
+              not). It may also be another size, in whole squares, if it has no more of them than the one it replaces
+              (64 by 32 for 48 by 48, say); the game centres it. In McMarkis's SA-1 builds each team's centre ice logo
+              has 15 colours of its own instead, and an imported one is matched to them.
             </li>
             <li>
               While you draw, each logo shows how many different squares it uses against the most it may have, and
@@ -2261,11 +2200,11 @@ export function HelpPage() {
           </ul>
         </li>
         <li>
-          <b>Banners:</b> the SNES game has no picture banners. A team's block is plain colour with its name in
-          letters, its <b>Banner name</b>, which the game keeps apart from the team's names and also shows in the
+          <b>Banners:</b> the SNES game has no picture banners. A team's banner is a block of colour with its name
+          lettered on it, its <b>Banner name</b>, which is separate from the team's other names and also shows in the
           playoff bracket. It follows the place name while the two are the same, and can be shortened on the team
-          page. All the banner names share a little room; in the original game that room is the rosters', so there
-          Check ROM says if they need more, and a 32-team ROM has plenty. The block's 16 colours, its{' '}
+          page. All the banner names share a little room; in the original game they share it with the rosters, so
+          there Check ROM says if they need more, and a 32-team ROM has plenty. The banner's 16 colours, its{' '}
           <b>Name banner colours</b>, are below the logos, with the banner shown as the menus draw it: 2 to 14 fill
           the block in two runs of shades (2 to 7 and 8 to 14), 15 is its frame, and 7 and 8 also colour the stripes
           on the player card's team page. <b>Use the banner of</b> gives a team another team's banner colours, and
@@ -2281,26 +2220,25 @@ export function HelpPage() {
           <b>Score logo</b> section: export it, import one (24 pixels wide and 16 high, or 13, the logo without the
           gap under it), or draw it, in the box's black, its white ring and 10 colours of its own taken from the
           image. Each team's buttons act on that team only: <b>Show Boston's letters instead</b> (with the team's own
-          name) has it print its letters, as the original game does, while every other team keeps its logo; then{' '}
-          <b>Give Boston a score logo</b> makes it one again from its team logo. The original game has no score logos, but the editor can add them to it, and to ROMs laid out like
-          it: <b>Add score logos for every team</b>, on any team's page, puts in McMarkis's code, adapted with his
-          permission, and gives every team a score logo made from its team logo, to touch up or replace. The
-          power play box in the clock shows the logo too. <b>Take score logos out of this ROM</b> puts the ROM back
-          as it was. The horizontal scoreboard keeps its name banners.
+          name) has it show its letters, as the original game does, while every other team keeps its logo; then{' '}
+          <b>Give Boston a score logo</b> makes it one again from its team logo. The original game has no score
+          logos, but the editor can add them to it and to ROMs built on it: <b>Add score logos for every team</b>, on
+          any team's page, adds McMarkis's score logos (adapted with his permission) and gives every team one made
+          from its team logo, to touch up or replace. The power play box by the clock shows the logo too.{' '}
+          <b>Take score logos out of this ROM</b> puts the ROM back as it was. The horizontal scoreboard keeps its
+          name banners.
         </li>
         <li>
           <b>Game settings:</b> as for the Genesis: the clock, the main menu's starting choices, how many teams the
-          menu offers, the penalty and stoppage messages, and the 32 playoff draws, each found by the game code that
-          reads it. The clock's fourth
-          period length, 30 seconds, is offered on the menu by the 30-second periods hack. Overtime in the regular
-          season is 5 minutes; in the playoffs an overtime period is as long as the others. In the playoff modes the
-          menu shows the Home line as Team and hides the Visitor line. Under the clock, <b>Computer pulls its goalie</b>{' '}
-          sets when a team the computer controls pulls its goalie in the third period: behind by 1 to how many goals,
-          with how many seconds or less left (1 to 2 goals and 60 seconds in the original game; 0 goals for never),
-          the two numbers NHL94SNESVault's setting changes. The penalty minutes are the length of each
-          penalty, which the one-minute penalties hack changes. A message's text cannot be longer than the room the
-          game gives it, and a shorter one is filled out with spaces. In a draw the game takes the 16 teams in the
-          order its playoff tree has them.
+          menu offers, the penalty and stoppage messages, and the 32 playoff draws. The clock's fourth period length,
+          30 seconds, is offered on the menu by the 30-second periods hack. Overtime in the regular season is 5
+          minutes; in the playoffs an overtime period is as long as the others. In the playoff modes the menu shows
+          the Home line as Team and hides the Visitor line. Under the clock, <b>Computer pulls its goalie</b> sets
+          when a team the computer controls pulls its goalie in the third period: when behind by 1 up to how many
+          goals, with how many seconds or less left (1 to 2 goals and 60 seconds in the original game; 0 goals for
+          never), the same two numbers as NHL94SNESVault's setting. The penalty minutes are the length of each
+          penalty, which the one-minute penalties hack changes. A message cannot be longer than the room the game
+          gives it. In a draw the 16 teams are in the order of the playoff tree.
         </li>
         <li>
           <b>Rink colours:</b> the SNES rink has 128 colours in eight rows of 16, and the page draws the whole rink
@@ -2308,24 +2246,20 @@ export function HelpPage() {
           the two teams' uniform colours (pick the teams above it). Rows 0 and 1 colour the ice, its lines, the
           boards and the crowd; rows 5 and 6 are the centre ice colours every team's logo is drawn in, unless it has
           its own; rows 4 and 7 are not drawn on the rink. Rows 2 and 3 are not offered, as the game puts the teams'
-          uniform colours there for every game. The game also uses some of these colours for its moving pictures,
-          so a change can show there too.
+          uniform colours there for every game. The game also uses some of these colours for other graphics, so a
+          change can show there too.
         </li>
         <li>
-          <b>Space:</b> the teams must all stay in one 32 KB part of the ROM (a bank), and in the original game they
-          fill the place the game gives them. The editor also uses the unused room at the end of that bank: about
-          1.7 KB in the original game, enough for some 70 more players, and about 9.8 KB in the 32-team ROM. Teams
-          stay where the game has them while they fit, and those at the end move into that room when they no longer
-          do, and back again if they fit once more. The top bar shows how much room there is in all.
+          <b>Space:</b> in the original game the teams fill the room the game gives them, but the editor can also use
+          some spare room next to it: enough for about 70 more players in the original game, and much more in the
+          32-team ROM. Teams that no longer fit in the usual place move into that room, and back again if they fit
+          once more. The top bar shows how much room there is in all.
         </li>
         <li>
-          <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt from the disassembly with another number of teams, such as
-          one with all 32 of today's NHL teams, and keep their teams and colours in new places; its later builds are
-          for the SA-1 chip, which emulators and flash carts run. The editor finds them by following the game's own
-          code. Where the code has been moved too, as it is in that 32-team ROM, the hacks are found by the code
-          around each of their places and made with that ROM's addresses, their new code going into unused room in
-          the same part of the ROM. Where a ROM was opened with an intro already skipped, the skip cannot be taken out, as the call
-          it replaced is not known.
+          <b>Rebuilt ROMs:</b> some SNES ROMs are rebuilt with another number of teams, such as one with all 32 of
+          today's NHL teams, and are laid out differently; its later builds are for the SA-1 chip, which emulators
+          and flash carts run. The editor finds the teams, colours and hacks in them anyway. If a ROM was opened
+          with an intro already skipped, the skip cannot be taken out.
         </li>
         <li>
           <b>Importing</b> a team from a Genesis ROM brings its names, roster and lines, but not its colours.{' '}
@@ -2333,9 +2267,9 @@ export function HelpPage() {
           different orders, as does comparing two SNES ROMs with different sets of teams.
         </li>
         <li>
-          Some copies of the ROM start with a 512-byte header from old copier devices. It is kept, so the file you
-          download is the same kind as the one you opened. The ROM's checksum is put right on the way out, where the
-          ROM is of a standard size. The game does not check it, but emulators report it.
+          Some copies of the ROM have an extra header from old copier devices. It is kept, so the file you download
+          is the same kind as the one you opened. The ROM's checksum, which emulators report on (the game itself
+          does not check it), is corrected when you download, if the ROM is a standard size.
         </li>
       </ul>
       <p>
@@ -2359,17 +2293,17 @@ export function HelpPage() {
         </li>
         <li>
           <b>StH</b>: stick handling has sixteen steps, 0 to 15, where the other ratings have seven. Each is shown as
-          the range the game displays, with its number in brackets; in play the game folds them to seven (0, 1-2, 3-5,
-          6-8, 9-11, 12-14, 15), and Ovr counts it that way.
+          the range the game displays, with its number in brackets; in play the game groups them into seven (0, 1-2,
+          3-5, 6-8, 9-11, 12-14, 15), and Ovr counts it that way.
         </li>
         <li>
-          <b>Ovr</b> is worked out as the game does on its roster screen: every overall in the original game matched.
-          The league value and the notes on what each rating does in play were found in NHL 94, and are not shown.
+          <b>Ovr</b> is worked out as the game does on its roster screen, and matches every overall in the original
+          game. The league value and the notes on what each rating does in play are NHL 94's, so they are not shown.
         </li>
         <li>
-          <b>Team colours</b>: NHL '95 gives a strip's 16 colours different jobs from NHL 94's (the jersey's main colour,
-          the goalie's pads and mask, a stripe at the shoulders and waist...). Each is labelled with its job, as Match
-          Viewer found by changing them one at a time in the game, and the previews are NHL '95's own players and rink.
+          <b>Team colours</b>: NHL '95 uses a strip's 16 colours differently from NHL 94 (the jersey's main colour,
+          the goalie's pads and mask, a stripe at the shoulders and waist...). Each is labelled with what it colours,
+          as Match Viewer found in the game, and the previews are NHL '95's own players and rink.
         </li>
         <li>
           <b>Between NHL 94 and NHL '95</b>: players copied from one and pasted into the other, or a team brought in from
@@ -2381,34 +2315,35 @@ export function HelpPage() {
           penalties and line changes, and the play modes the game can start in.
         </li>
         <li>
-          <b>As in NHL 94</b> (Match Viewer, from NHL '95's code and in the game): the goalie bytes and forward count
-          split the roster the same way, and only whether a goalie box is 0 matters; the six team ratings do the same
-          jobs; and new playoffs freeze with a Team 1 that is in none of the playoff draws, which Check ROM looks for.
-          One difference: a season keeps its own copy of each team's forward and defence counts, made when it starts,
-          so a change to them reaches only seasons started after it.
+          <b>As in NHL 94</b> (checked by Match Viewer): the goalie bytes and forward count split the roster the same
+          way, and only whether a goalie box is 0 matters; the six team ratings do the same jobs; and new playoffs
+          freeze with a Team 1 that is in none of the playoff draws, which Check ROM looks for. One difference: a
+          season remembers each team's forward and defence counts from when it started, so a change to them only
+          affects seasons started afterwards.
         </li>
         <li>
-          <b>Room</b>: the original game's team data fills its place exactly. <b>Add roster space</b> moves it to the
-          unused second half of the ROM with 16,384 bytes to spare, as the WN95HL's ROMs have theirs; the ROM stays 2 MB.
-          League ROMs that have moved their teams already have room of their own.
+          <b>Room</b>: the original game's teams have no spare room. <b>Add roster space</b> moves them to unused
+          space in the ROM with 16,384 bytes to spare, as the WN95HL's ROMs have; the ROM stays 2 MB. League ROMs
+          that have moved their teams already have room of their own.
         </li>
         <li>
-          <b>Logos</b>: each team's menu logo (6 by 6 tiles) and centre-ice logo (6 by 4 tiles, in the home team's strip
-          colours) can be exported, drawn and imported, as in NHL 94, on the team page and in Picture files. A menu logo
+          <b>Logos</b>: each team's menu logo (48 by 48 pixels) and centre-ice logo (48 by 32, in the home team's
+          strip colours) can be exported, drawn and imported, as in NHL 94, on the team page and in Picture files. A menu logo
           has white, black and 9 colours of its own; its other colours are the team's stripe colours and colours every
           team shares. In the original game the menu logos are packed tight, so a detailed one needs{' '}
           <b>Give the logos more room</b> first; the WN95HL's ROMs have the room already. Logos can come from an NHL 94
           ROM with <b>Import a team</b>. Both tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Banners</b>: each team's name banners, 11 by 2 tiles, replaced as in NHL 94. The <b>menu banner</b> is the
-          location on Game Setup, in white, black and the team's two banner colours, which can be changed as in NHL 94. The <b>in-game banner</b> is
-          the location with the stripes drawn in, on the line change, stats, standings and other screens, in colours
-          every team shares. The <b>pause screen banner</b> is the team's nickname on the pause screen, 12 by 2 tiles, in
-          the pause screen's colours. The WN95HL's ROMs have no menu banners of their own, so only the other two are
-          offered there. In the original game the banners are packed tight, so a detailed one needs{' '}
-          <b>Give logos and banners more room</b> first; the in-game banners are held to what the playoff tree has room
-          for. NHL 94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
+          <b>Banners</b>: each team's name banners, 88 by 16 pixels, replaced as in NHL 94. The <b>menu banner</b> is
+          the location on Game Setup, in white, black and the team's two banner colours, which can be changed as in
+          NHL 94. The <b>in-game banner</b> is the location with the stripes drawn in, on the line change, stats,
+          standings and other screens, in colours every team shares. The <b>pause screen banner</b> is the team's
+          nickname on the pause screen, 96 by 16 pixels, in the pause screen's colours. The WN95HL's ROMs have no menu
+          banners of their own, so only the other two are offered there. In the original game the banners are packed
+          tight, so a detailed one needs <b>Give logos and banners more room</b> first; the in-game banners are also
+          limited by how much detail the playoff tree screen can hold. NHL
+          94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
@@ -2442,8 +2377,8 @@ export function HelpPage() {
       <h3 id="help-trouble">If something goes wrong</h3>
       <ul>
         <li>
-          <b>"This game is not supported yet"</b>: the ROM's product code, shown in the message, is not one the
-          editor knows.
+          <b>"This game is not supported yet"</b>: the editor does not recognise the ROM (the message shows the
+          code it found).
         </li>
         <li>
           <b>"The team data is not stored as one continuous run"</b> or <b>"does not have the expected layout"</b>:
