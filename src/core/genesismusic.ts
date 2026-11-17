@@ -27,7 +27,7 @@ export const FIRST_SONG = 0x30
 export const LAST_TEAM_SONG = 0x77
 const LAST_SOUND = 0x7a
 export const FRAMES_PER_SECOND = 60
-const ORGAN = 11
+export const ORGAN = 11
 const ORGAN_VOLUME = 35
 // Notes at once a new song may have, one voice left for the sound effects.
 export const SONG_VOICES = 4
@@ -222,25 +222,32 @@ export interface MadeSong {
   moved: number
 }
 
-// A song for the organ from MIDI notes: every note on the organ, at most
-// SONG_VOICES at once (the later ones left out), drums left out, each note
-// moved by octaves into the game's range, louder notes a little louder.
-export function songFromMidi(notes: MidiNote[]): MadeSong {
+// The notes an organ song keeps of MIDI notes, in frames from the first: drums
+// left out, each note moved by octaves into `lowest` to `highest`, at most
+// `voices` at once (the later ones left out), as NHL 94's and NHL '95's songs
+// are made.
+export interface PlannedNote {
+  on: number
+  off: number
+  note: number
+  velocity: number
+}
+
+export function planOrganNotes(notes: MidiNote[], lowest: number, highest: number, voices: number): Omit<MadeSong, 'events' | 'seconds'> & { played: PlannedNote[] } {
   let drums = 0
   let dropped = 0
   let moved = 0
   const first = notes.reduce((least, n) => Math.min(least, n.start), Infinity)
-  type Played = { on: number; off: number; note: number; volume: number }
-  const played: Played[] = []
-  let active: Played[] = []
+  const played: PlannedNote[] = []
+  let active: PlannedNote[] = []
   for (const midi of notes) {
     if (midi.channel === DRUMS) {
       drums++
       continue
     }
     let note = midi.note
-    while (note < LOWEST) note += 12
-    while (note > HIGHEST) note -= 12
+    while (note < lowest) note += 12
+    while (note > highest) note -= 12
     if (note !== midi.note) moved++
     const on = Math.round((midi.start - first) * FRAMES_PER_SECOND)
     const off = Math.max(on + 1, Math.round((midi.start - first + midi.length) * FRAMES_PER_SECOND))
@@ -251,25 +258,32 @@ export function songFromMidi(notes: MidiNote[]): MadeSong {
     active = active.filter((other) => other.off > on)
     // Past the voices: the tune is usually on top, so the lowest note held is cut short for a higher one,
     // and a note no higher than every one held is left out.
-    if (active.length >= SONG_VOICES) {
+    if (active.length >= voices) {
       dropped++
-      const lowest = active.reduce((low, o) => (o.note < low.note ? o : low))
-      if (note <= lowest.note) continue
-      lowest.off = on
-      active = active.filter((o) => o !== lowest)
+      const low = active.reduce((least, o) => (o.note < least.note ? o : least))
+      if (note <= low.note) continue
+      low.off = on
+      active = active.filter((o) => o !== low)
     }
-    // A third of the MIDI velocity, as songToMidi gives three times the game's volume: 105 is the organ's 35.
-    const volume = Math.max(1, Math.min(127, Math.round(midi.velocity / 3)))
-    const p = { on, off, note, volume }
+    const p = { on, off, note, velocity: midi.velocity }
     played.push(p)
     active.push(p)
   }
   if (played.length === 0) throw new MidiError('This MIDI file has only drums, which the organ does not play.')
+  return { played: played.filter((p) => p.off > p.on), drums, dropped, moved }
+}
+
+// A song for the organ from MIDI notes: every note on the organ, at most
+// SONG_VOICES at once (the later ones left out), drums left out, each note
+// moved by octaves into the game's range, louder notes a little louder.
+export function songFromMidi(notes: MidiNote[]): MadeSong {
+  const { played, drums, dropped, moved } = planOrganNotes(notes, LOWEST, HIGHEST, SONG_VOICES)
   const events: SongEvent[] = [{ frame: 0, status: 0xc0, data: [ORGAN, ORGAN_VOLUME] }]
   const timed: SongEvent[] = []
   for (const p of played) {
-    if (p.off <= p.on) continue
-    timed.push({ frame: p.on, status: 0x90, data: [p.note, p.volume] })
+    // A third of the MIDI velocity, as songToMidi gives three times the game's volume: 105 is the organ's 35.
+    const volume = Math.max(1, Math.min(127, Math.round(p.velocity / 3)))
+    timed.push({ frame: p.on, status: 0x90, data: [p.note, volume] })
     timed.push({ frame: p.off, status: 0x80, data: [p.note, 0x40] })
   }
   // Offs before ons at the same moment, so a repeated note sounds again.

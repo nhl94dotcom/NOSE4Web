@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { FIRST_SONG, genesisSongsSupported, MidiError, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, SongError, withOriginalSong, withSong } from './core/genesismusic'
+import { MidiError, readMidi, songToMidi, SongError } from './core/genesismusic'
 import type { RomProject } from './core/rom'
 import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from './core/snesmusic'
 import { readSnesRandomSongs, snesSongChoices, snesSongName } from './core/snessongs'
-import { readRandomSongs, SONG_NAMES, SONG_NUMBERS } from './core/teamsongs'
+import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
 import { download } from './download'
 import { SongControls, useSongPlayer } from './SongPlayer'
 
@@ -34,15 +34,18 @@ function UsedBy({ text }: { text: string | null }) {
 
 const seconds = (value: number) => `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`
 
-// The Genesis game's organ songs: listen to them, export them as MIDI, or
+// The Genesis game's organ songs, NHL 94's or NHL '95's: listen to them, export them as MIDI, or
 // replace one with a MIDI file of your own.
 export function OrganSongsSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   const player = useSongPlayer<number>()
-  if (!genesisSongsSupported(project.bytes)) return null
+  const songs = genesisSongs(project.game)
+  if (!songs || !songs.supported(project.bytes)) return null
+  const nhl95 = project.game.edition === 95
   const usedBy = usage(project, (team) => team.songs, readRandomSongs(project.bytes, project.teams.length))
-  const unused = SONG_NUMBERS.filter((number) => number > FIRST_SONG && !usedBy(number))
+  const unused = songs.numbers.filter((number) => songs.canReplace(number) && !usedBy(number))
+  const shown = (number: number) => songNumber(number, songs)
 
   const stop = () => player.stop()
 
@@ -51,15 +54,15 @@ export function OrganSongsSection({ project, onChange }: Props) {
     stop()
     try {
       const { notes, name } = readMidi(new Uint8Array(await file.arrayBuffer()))
-      const made = songFromMidi(notes)
+      const made = songs!.fromMidi(notes)
       const title = (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40)
-      onChange({ ...project, bytes: withSong(project.bytes, number, made.events, title) })
+      onChange({ ...project, bytes: songs!.withSong(project.bytes, number, made.events, title) })
       const left = [made.drums && `${made.drums} drum ${made.drums === 1 ? 'note' : 'notes'} (the organ plays no drums)`].filter(Boolean)
       const crowded = made.dropped
-        ? ` Where more than ${SONG_VOICES} notes sounded at once, the highest were kept: ${made.dropped} ${made.dropped === 1 ? 'note was' : 'notes were'} left out or cut short.`
+        ? ` Where more than ${songs!.voices} notes sounded at once, the highest were kept: ${made.dropped} ${made.dropped === 1 ? 'note was' : 'notes were'} left out or cut short.`
         : ''
       setNotice(
-        `Song ${number - FIRST_SONG + 1} is now "${title}", ${seconds(made.seconds)} long, on the organ.` +
+        `Song ${shown(number)} is now "${title}", ${seconds(made.seconds)} long, on the organ.` +
           (left.length ? ` Left out: ${left.join(' and ')}.` : '') +
           crowded +
           (made.moved ? ` ${made.moved} ${made.moved === 1 ? 'note was' : 'notes were'} moved by octaves into the game's range.` : '') +
@@ -75,20 +78,32 @@ export function OrganSongsSection({ project, onChange }: Props) {
   return (
     <section>
       <h2>Organ songs</h2>
-      <p className="note">
-        The songs the organ plays, which each team's page chooses from. Play gives a rough idea of one in the browser
-        (the console's organ sounds different). Export MIDI saves it as a MIDI file. <b>Replace</b> puts a MIDI file of
-        your own in its place: every note is played on the game's organ, at most {SONG_VOICES} at once (the console has
-        five voices, shared with the sound effects; where more sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's
-        range; the new song goes into free room at the end of the ROM, and every team with that song in a slot plays it.
-        Short tunes of 10 to 30 seconds suit the game, as its own are; Help, in the list on the left, has tips on preparing a MIDI
-        file. Song 1 cannot be replaced, as the game uses it
-        to know which song is playing. Played in the game by the NHL94 Match Viewer project.
-      </p>
+      {nhl95 ? (
+        <p className="note">
+          The songs the organ plays, which each team's page chooses from. Play gives a rough idea of one in the browser
+          (the console's organ sounds different). Export MIDI saves it as a MIDI file. <b>Replace</b> puts a MIDI file
+          of your own in its place: every note is played on the game's organ, at most {songs.voices} at once (where more
+          sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's range;
+          the new song goes into free room in the ROM, and every team with that song in a slot plays it. Short tunes of
+          10 to 30 seconds suit the game, as its own are; Help, in the list on the left, has tips on preparing a MIDI
+          file. Any of the songs can be replaced. Not yet tested in the game.
+        </p>
+      ) : (
+        <p className="note">
+          The songs the organ plays, which each team's page chooses from. Play gives a rough idea of one in the browser
+          (the console's organ sounds different). Export MIDI saves it as a MIDI file. <b>Replace</b> puts a MIDI file of
+          your own in its place: every note is played on the game's organ, at most {songs.voices} at once (the console has
+          five voices, shared with the sound effects; where more sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's
+          range; the new song goes into free room at the end of the ROM, and every team with that song in a slot plays it.
+          Short tunes of 10 to 30 seconds suit the game, as its own are; Help, in the list on the left, has tips on preparing a MIDI
+          file. Song 1 cannot be replaced, as the game uses it
+          to know which song is playing. Played in the game by the NHL94 Match Viewer project.
+        </p>
+      )}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <p className="note">
         {unused.length
-          ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else: ${unused.map((n) => n - FIRST_SONG + 1).join(', ')}.`
+          ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else: ${unused.map(shown).join(', ')}.`
           : 'Every song is used by a team or picked by Random, so replacing one changes it for them too.'}{' '}
         <b>Used by</b> lists the teams that have each song in a slot, by their initials, and Random where it picks from it.
       </p>
@@ -103,27 +118,27 @@ export function OrganSongsSection({ project, onChange }: Props) {
           </tr>
         </thead>
         <tbody>
-          {SONG_NUMBERS.map((number) => {
-            const song = readSong(project.bytes, number)
+          {songs.numbers.map((number) => {
+            const song = songs.read(project.bytes, number)
             if (!song) return null
-            const name = song.custom ? `${song.custom.name} (in place of ${SONG_NAMES[number]})` : SONG_NAMES[number]
+            const name = song.custom ? `${song.custom.name} (in place of ${songs.names[number]})` : songs.names[number]
             return (
               <tr key={number}>
-                <td>{number - FIRST_SONG + 1}.</td>
+                <td>{shown(number)}.</td>
                 <td>{name}</td>
                 <td>{seconds(song.seconds)}</td>
                 <UsedBy text={usedBy(number)} />
                 <td>
                   <button onClick={() => player.toggle(number, song.events, name)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
-                  <button onClick={() => download(songToMidi(song, song.custom?.name ?? SONG_NAMES[number]), `song_${number - FIRST_SONG + 1}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
-                  {number > FIRST_SONG && (
+                  <button onClick={() => download(songToMidi(song, song.custom?.name ?? songs.names[number]), `song_${shown(number)}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  {songs.canReplace(number) && (
                     <label className="button">
                       Replace…
                       <input
                         type="file"
                         accept=".mid,.midi,audio/midi"
                         hidden
-                        aria-label={`Replace song ${number - FIRST_SONG + 1}`}
+                        aria-label={`Replace song ${shown(number)}`}
                         onChange={(e) => {
                           const file = e.target.files?.[0]
                           e.target.value = ''
@@ -136,8 +151,8 @@ export function OrganSongsSection({ project, onChange }: Props) {
                     <button
                       onClick={() => {
                         stop()
-                        onChange({ ...project, bytes: withOriginalSong(project.bytes, number) })
-                        setNotice(`Song ${number - FIRST_SONG + 1} is the game's own again. Undo takes it back.`)
+                        onChange({ ...project, bytes: songs.withOriginal(project.bytes, number) })
+                        setNotice(`Song ${shown(number)} is the game's own again. Undo takes it back.`)
                         setFailed(false)
                       }}
                     >

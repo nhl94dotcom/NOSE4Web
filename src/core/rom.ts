@@ -165,9 +165,10 @@ export function openRom(file: Uint8Array): RomProject {
 
   disableSelfCheck(bytes, game)
   const { teams, layout } = parseTeams(bytes, game)
+  // The organ songs' table, NHL 94's and NHL '95's alike (ChooseSong's code is the same).
+  if (game.platform === 'genesis') readTeamSongs(bytes, teams.length)?.forEach((songs, i) => (teams[i].songs = songs))
   // Tables of NHL 94's, and of hacks made for it.
   if (isGenesis94(game)) {
-    readTeamSongs(bytes, teams.length)?.forEach((songs, i) => (teams[i].songs = songs))
     shownTeamRatings(bytes, teams.length)?.forEach((rating, i) => (teams[i].shownOverall = rating))
   }
   const rinkPalette: number[] = []
@@ -240,10 +241,8 @@ export function buildRom(project: RomProject): Uint8Array {
     return file
   }
   updateTeamNameRedirects(rom, project.game)
-  if (isGenesis94(project.game)) {
-    writeTeamSongs(rom, project.teams.map((team) => team.songs))
-    writeShownTeamRatings(rom, project.teams)
-  }
+  if (project.game.platform === 'genesis') writeTeamSongs(rom, project.teams.map((team) => team.songs))
+  if (isGenesis94(project.game)) writeShownTeamRatings(rom, project.teams)
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
   if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)
   // NHL 94's pictures, and NHL '95's menu logos; nothing where none were edited.

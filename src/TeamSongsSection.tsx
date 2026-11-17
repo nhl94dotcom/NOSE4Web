@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { readSong, type SongEvent } from './core/genesismusic'
+import type { SongEvent } from './core/genesismusic'
 import { readSnesSong } from './core/snesmusic'
 import { SongControls, useSongPlayer } from './SongPlayer'
 import type { RomProject } from './core/rom'
 import { resetTeamPart, teamPartChanged } from './core/reset'
 import { splitSnesFile } from './core/snes'
 import { SNES_RANDOM_SONG, SNES_SONG_SLOTS, snesSongChoices, snesSongName } from './core/snessongs'
-import { RANDOM_SONG, SONG_NUMBERS, SONG_SLOTS, isSong, songName, teamSongsRoom, withRoomForTeamSongs } from './core/teamsongs'
+import { genesisSongs, RANDOM_SONG, SONG_SLOTS, songName, teamSongsRoom, withRoomForTeamSongs } from './core/teamsongs'
 import type { Team } from './core/team'
 import { ResetButton } from './ResetButton'
 
@@ -31,7 +31,9 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
   const [error, setError] = useState('')
   const player = usePlayer()
   const songs = project.teams[team].songs
-  if (!songs) return null
+  const list = genesisSongs(project.game)
+  if (!songs || !list) return null
+  const nhl95 = project.game.edition === 95
   const room = teamSongsRoom(project.bytes, project.teams.length)
   const outside = room !== null && team >= room
 
@@ -63,10 +65,14 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
       </p>
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
-        song names are the community's, as the game's disassembly lists them, with the teams that have each in the
-        original game. The power play and penalty kill songs play at the faceoff after a penalty puts the home
+        song names are the community's
+        {nhl95
+          ? ", as NHL 94's disassembly lists them: NHL '95's songs are NHL 94's tunes"
+          : ", as the game's disassembly lists them, with the teams that have each in the original game"}
+        . The power play and penalty kill songs play at the faceoff after a penalty puts the home
         team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To put in a song of
         your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
+        {nhl95 && ' Not yet tested in the game.'}
         {outside &&
           ` In this ROM the song table has room for only ${room} teams, so this team plays songs from whatever follows it. Choosing a song moves the table to free space in the ROM, so that every team has six of its own.`}
       </p>
@@ -77,18 +83,18 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
               <td>{label}</td>
               <td>
                 <select className="wide" aria-label={`Organ song: ${label}`} value={songs[slot]} onChange={(e) => setSong(slot, Number(e.target.value))}>
-                  {!isSong(songs[slot]) && <option value={songs[slot]}>No song (it plays nothing)</option>}
+                  {!list.isSong(songs[slot]) && <option value={songs[slot]}>{nhl95 ? 'Not a song' : 'No song (it plays nothing)'}</option>}
                   <option value={RANDOM_SONG}>Random</option>
-                  {SONG_NUMBERS.map((number) => (
+                  {list.numbers.map((number) => (
                     <option key={number} value={number}>
-                      {songName(number, project.bytes)}
+                      {songName(number, project.bytes, list)}
                     </option>
                   ))}
                 </select>{' '}
                 <button
-                  disabled={songs[slot] === RANDOM_SONG || !isSong(songs[slot])}
+                  disabled={songs[slot] === RANDOM_SONG || !list.isSong(songs[slot])}
                   aria-label={`${player.playing === slot ? 'Stop' : 'Play'} the song: ${label}`}
-                  onClick={() => player.play(slot, readSong(project.bytes, songs[slot])?.events ?? null, songName(songs[slot], project.bytes))}
+                  onClick={() => player.play(slot, list.read(project.bytes, songs[slot])?.events ?? null, songName(songs[slot], project.bytes, list))}
                 >
                   {player.playing === slot ? 'Stop' : 'Play'}
                 </button>

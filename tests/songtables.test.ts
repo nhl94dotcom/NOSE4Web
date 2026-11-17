@@ -94,7 +94,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('organ songs as a spreadsheet fi
 })
 
 describe.skipIf(!existsSync(path('NHL95/NHL_95.bin')))("NHL '95", () => {
-  it('has no songs files, having no organ songs the editor reads', () => {
-    expect(tablesFor(open('NHL95/NHL_95.bin').game).map((t) => t.id)).not.toContain('songs')
+  it('numbers its own 36 songs from 1, and changes a team to one by its number', () => {
+    const project = open('NHL95/NHL_95.bin')
+    expect(tablesFor(project.game).map((t) => t.id)).toContain('songs')
+    const list = songList.rows(project)
+    expect(list).toHaveLength(2 + 36)
+    expect(list[12 + 1]).toEqual([12, 'Brass Bonanza'])
+    const rows = songs.rows(project)
+    expect(rows.slice(1).every((row) => row.slice(2).every((cell) => Number(cell) >= 0 && Number(cell) <= 36))).toBe(true)
+    const result = edit(project, (r) => r.map((row, i) => (i === BOSTON + 1 ? row.map((cell, c) => (c === 5 ? 12 : cell)) : row)))
+    expect(result.project.teams[BOSTON].songs![3]).toBe(0x3d)
+    expect(openRom(buildRom(result.project)).teams[BOSTON].songs![3]).toBe(0x3d)
+    expect(() => edit(project, (r) => r.map((row, i) => (i === BOSTON + 1 ? row.map((cell, c) => (c === 5 ? 37 : cell)) : row)))).toThrow(CsvImportError)
   })
 })

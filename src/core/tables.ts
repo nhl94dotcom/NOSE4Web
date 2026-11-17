@@ -1,5 +1,5 @@
 import { FEWEST_MENU_TEAMS } from './menuteams'
-import { isGenesis94, type GameConfig } from './games'
+import type { GameConfig } from './games'
 import { cssHex, keepIfSameColor, nearestColorWord, colorFormat } from './color'
 import { emptyLineSlots, LINE_SLOTS, withoutRepeats } from './lines'
 import { parseCsv, type Cell } from './csv'
@@ -13,7 +13,7 @@ import { projectTeamRatings } from './ppfix'
 import { setTeamRating, teamRatings } from './teamratings'
 import { splitSnesFile } from './snes'
 import { SNES_RANDOM_SONG, SNES_SONG_SLOTS, snesSongChoices } from './snessongs'
-import { RANDOM_SONG, SONG_NUMBERS, SONG_SLOTS, isSong, songName, teamSongsRoom, withRoomForTeamSongs } from './teamsongs'
+import { genesisSongs, RANDOM_SONG, SONG_SLOTS, songName, songNumber, teamSongsRoom, withRoomForTeamSongs } from './teamsongs'
 
 // Each table is one CSV file: a view of part of the ROM that can be exported,
 // edited in a spreadsheet and imported again. An import changes nothing unless
@@ -697,14 +697,16 @@ function songNumbering(project: RomProject): SongNumbering | null {
       isRandom,
     }
   }
-  if (!isGenesis94(project.game)) return null
+  // NHL 94's songs from $30 and NHL '95's from $32, each numbered from 1.
+  const list = genesisSongs(project.game)
+  if (!list) return null
   return {
     slots: SONG_SLOTS,
-    names: SONG_NUMBERS.map((value) => songName(value, project.bytes).replace(/^\d+\. /, '')),
+    names: list.numbers.map((value) => songName(value, project.bytes, list).replace(/^\d+\. /, '')),
     songs: (team) => team.songs,
     withSongs: (team, songs) => ({ ...team, songs }),
-    number: (value) => (value === RANDOM_SONG ? RANDOM_CELL : isSong(value) ? value - SONG_NUMBERS[0] + 1 : ''),
-    value: (number) => (number === RANDOM_CELL ? RANDOM_SONG : SONG_NUMBERS[number - 1]),
+    number: (value) => (value === RANDOM_SONG ? RANDOM_CELL : list.isSong(value) ? songNumber(value, list) : ''),
+    value: (number) => (number === RANDOM_CELL ? RANDOM_SONG : list.numbers[number - 1]),
     isRandom: (value) => value === RANDOM_SONG,
   }
 }
@@ -815,7 +817,7 @@ export function tableRows(project: RomProject, table: CsvTable, order: TeamOrder
 }
 
 export function tablesFor(game: GameConfig): CsvTable[] {
-  const hasSongs = game.platform === 'snes' || isGenesis94(game)
+  const hasSongs = game.platform === 'snes' || genesisSongs(game) !== null
   return CSV_TABLES.filter((table) => (game.settingsSupported || !SETTINGS_TABLES.includes(table)) && (hasSongs || !SONG_TABLES.includes(table)))
 }
 

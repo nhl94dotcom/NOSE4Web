@@ -3,7 +3,7 @@ import { attributeText } from './attributes'
 import { colorRgb } from './color'
 import { creditsFit } from './credits'
 import { scoutingLineProblem, scoutingUsed } from './scouting'
-import { isSong, teamSongsRoom } from './teamsongs'
+import { genesisSongs, teamSongsRoom } from './teamsongs'
 import { checkLeagueRules } from './leaguerules'
 import { emptyLineSlots, LINE_SLOTS, outOfRoleSlots, playerRole, repeatedLineSlots } from './lines'
 import type { RomProject } from './rom'
@@ -257,7 +257,7 @@ export function checkProject(project: RomProject): Finding[] {
   if (songRoom !== null) {
     teams.forEach((team, t) => {
       if (t < songRoom || !team.songs) return
-      const silent = team.songs.filter((value) => !isSong(value)).length
+      const silent = team.songs.filter((value) => !genesisSongs(project.game)?.isSong(value)).length
       findings.push({
         level: 'note',
         where: labels[t],

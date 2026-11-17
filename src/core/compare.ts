@@ -1,9 +1,8 @@
 import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
-import { readSong } from './genesismusic'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
-import { SONG_NUMBERS, songName, SONG_SLOTS } from './teamsongs'
+import { genesisSongs, songName, songNumber, SONG_SLOTS } from './teamsongs'
 import { photoDifferences, pictureDifferences, picturesMayDiffer } from './comparepictures'
 import { hackDifferences, hacksSupported } from './hacks'
 import { nhl95HackDifferences, nhl95HacksSupported } from './nhl95hacks'
@@ -120,9 +119,10 @@ function compareTeam(project: RomProject, before: Team, after: Team, sameGame: b
     })
   }
   if (before.songs && after.songs) {
+    const songs = genesisSongs(project.game) ?? undefined
     before.songs.forEach((was, slot) => {
       const now = after.songs![slot]
-      if (was !== now) changes.push(`Organ song, ${SONG_SLOTS[slot].toLowerCase()}: ${songName(was)} to ${songName(now)}.`)
+      if (was !== now) changes.push(`Organ song, ${SONG_SLOTS[slot].toLowerCase()}: ${songName(was, undefined, songs)} to ${songName(now, undefined, songs)}.`)
     })
   }
   if (before.placeName !== undefined && after.placeName !== undefined && before.placeName !== after.placeName) {
@@ -193,10 +193,11 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const [menuWas, menuNow] = [readMenuPicture(before.bytes), readMenuPicture(after.bytes)]
     const menuSame = menuWas && menuNow && menuWas.palette.every((c, i) => c === menuNow.palette[i]) && menuWas.picture.pixels.every((p, i) => p === menuNow.picture.pixels[i])
     if (menuWas && menuNow && !menuSame) add('Main menu background', [menuNow.original ? "The original game's background again." : 'A picture of its own.'])
-    const songLines = SONG_NUMBERS.flatMap((number) => {
-      const [was, now] = [readSong(before.bytes, number), readSong(after.bytes, number)]
+    const songs = genesisSongs(after.game)
+    const songLines = (songs && before.game.edition === after.game.edition ? songs.numbers : []).flatMap((number) => {
+      const [was, now] = [songs!.read(before.bytes, number), songs!.read(after.bytes, number)]
       if (!was || !now || JSON.stringify(was.events) === JSON.stringify(now.events)) return []
-      return [`Song ${number - 0x2f}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
+      return [`Song ${songNumber(number, songs!)}: ${now.custom ? `"${now.custom.name}", from a MIDI file` : "the game's own again"}.`]
     })
     add('Organ songs', songLines)
   }

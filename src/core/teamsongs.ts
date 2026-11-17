@@ -8,7 +8,19 @@
 // them songs of their own moves the table to free room and repoints that one
 // movea.l, leaving RandomSongs and its own pointer as they are.
 
-import { readSong } from './genesismusic'
+import type { GameConfig } from './games'
+import { customSongBytes, genesisSongsSupported, readSong, songFromMidi, SONG_VOICES, withOriginalSong, withSong, withSongBytes, type MadeSong, type MidiNote, type Song, type SongEvent } from './genesismusic'
+import {
+  nhl95CustomSongBytes,
+  NHL95_SONG_NUMBERS,
+  NHL95_SONG_VOICES,
+  nhl95SongFromMidi,
+  nhl95SongsSupported,
+  readNhl95Song,
+  withNhl95Song,
+  withNhl95SongBytes,
+  withOriginalNhl95Song,
+} from './nhl95music'
 import { claimSpace } from './space'
 
 // What each of a team's six songs is for. LeadSong plays slot 1 at the next
@@ -110,13 +122,92 @@ const LAST_SONG = 0x77
 export const isSong = (value: number) => value === RANDOM_SONG || (value >= FIRST_SONG && value <= LAST_SONG)
 export const SONG_NUMBERS = Array.from({ length: LAST_SONG - FIRST_SONG + 1 }, (_, i) => FIRST_SONG + i)
 
+// NHL '95's organ songs, $32 to $55, by the NHL 94 songs they are (the NHL94 Match Viewer project, matching their
+// notes: NHL '95's are NHL 94's 12 higher), as NHL 94's names have them without its teams. $3A is a tune NHL 94
+// does not have, and $3C the claps alone.
+const NHL95_AS_NHL94: Record<number, number> = {
+  0x32: 0x33, 0x33: 0x34, 0x34: 0x35, 0x35: 0x37, 0x36: 0x38, 0x37: 0x39, 0x38: 0x52, 0x39: 0x3d, 0x3b: 0x3e, 0x3d: 0x40,
+  0x3e: 0x42, 0x3f: 0x43, 0x40: 0x46, 0x41: 0x49, 0x42: 0x4b, 0x43: 0x4c, 0x44: 0x4d, 0x45: 0x56, 0x46: 0x5a, 0x47: 0x5c,
+  0x48: 0x5d, 0x49: 0x5e, 0x4a: 0x5f, 0x4b: 0x61, 0x4c: 0x63, 0x4d: 0x64, 0x4e: 0x65, 0x4f: 0x66, 0x50: 0x67, 0x51: 0x6a,
+  0x52: 0x6b, 0x53: 0x6d, 0x54: 0x70, 0x55: 0x76,
+}
+export const NHL95_SONG_NAMES: Record<number, string> = Object.fromEntries(
+  NHL95_SONG_NUMBERS.map((number) => {
+    const nhl94 = NHL95_AS_NHL94[number]
+    const name = nhl94 ? SONG_NAMES[nhl94].replace(/ \([A-Z]{2,3}(, [A-Z]{2,3})*\)$/, '').replace(/ \(all but [^)]*\)$/, '') : ''
+    if (number === 0x32) return [number, `${name} {Claps}`]
+    return [number, number === 0x3a ? "A tune new in NHL '95" : number === 0x3c ? 'Claps' : name]
+  }),
+)
+
+// The organ songs of a Genesis game, NHL 94's or NHL '95's: their numbers (the first shown as 1), names, and how
+// they are read and replaced.
+export interface GenesisSongs {
+  numbers: number[]
+  names: Record<number, string>
+  // Notes at once a new song may have.
+  voices: number
+  // Whether a team's slot may hold `value`: Random or a song.
+  isSong: (value: number) => boolean
+  canReplace: (number: number) => boolean
+  supported: (rom: Uint8Array) => boolean
+  read: (rom: Uint8Array, number: number) => Song | null
+  fromMidi: (notes: MidiNote[]) => MadeSong
+  withSong: (rom: Uint8Array, number: number, events: SongEvent[], name: string) => Uint8Array
+  withOriginal: (rom: Uint8Array, number: number) => Uint8Array
+  // A song NOSE4Web made, as its bytes for a project file, and the ROM with one put back from them.
+  customBytes: (rom: Uint8Array, number: number) => Uint8Array | null
+  withBytes: (rom: Uint8Array, number: number, bytes: Uint8Array) => Uint8Array
+}
+
+export const NHL94_SONGS: GenesisSongs = {
+  numbers: SONG_NUMBERS,
+  names: SONG_NAMES,
+  voices: SONG_VOICES,
+  isSong,
+  // Song 1 stays: the game finds which song is playing by it.
+  canReplace: (number) => number > FIRST_SONG && number <= LAST_SONG,
+  supported: genesisSongsSupported,
+  read: readSong,
+  fromMidi: songFromMidi,
+  withSong,
+  withOriginal: withOriginalSong,
+  customBytes: customSongBytes,
+  withBytes: withSongBytes,
+}
+
+export const NHL95_SONGS: GenesisSongs = {
+  numbers: NHL95_SONG_NUMBERS,
+  names: NHL95_SONG_NAMES,
+  voices: NHL95_SONG_VOICES,
+  // Other values play sound effects or the title music (Match Viewer), so only the songs are offered.
+  isSong: (value) => value === RANDOM_SONG || NHL95_SONG_NUMBERS.includes(value),
+  canReplace: (number) => NHL95_SONG_NUMBERS.includes(number),
+  supported: nhl95SongsSupported,
+  read: readNhl95Song,
+  fromMidi: nhl95SongFromMidi,
+  withSong: withNhl95Song,
+  withOriginal: withOriginalNhl95Song,
+  customBytes: nhl95CustomSongBytes,
+  withBytes: withNhl95SongBytes,
+}
+
+// The organ songs of `game`, or null where it has none the editor reads.
+export function genesisSongs(game: GameConfig): GenesisSongs | null {
+  if (game.platform !== 'genesis') return null
+  return game.edition === 95 ? NHL95_SONGS : NHL94_SONGS
+}
+
+// A song's number as the editor shows it, from 1.
+export const songNumber = (number: number, songs: GenesisSongs = NHL94_SONGS) => number - songs.numbers[0] + 1
+
 // A song as the editor names it: its number from 1, as the forum lists them,
 // and its name; with `rom`, a song NOSE4Web put in from a MIDI file by its own.
-export function songName(value: number, rom?: Uint8Array): string {
+export function songName(value: number, rom?: Uint8Array, songs: GenesisSongs = NHL94_SONGS): string {
   if (value === RANDOM_SONG) return 'one of the random songs'
-  if (!isSong(value)) return 'no song'
-  const custom = rom ? readSong(rom, value)?.custom : null
-  return `${value - FIRST_SONG + 1}. ${custom ? `${custom.name} (in place of ${SONG_NAMES[value]})` : SONG_NAMES[value]}`
+  if (!songs.isSong(value)) return 'no song'
+  const custom = rom ? songs.read(rom, value)?.custom : null
+  return `${songNumber(value, songs)}. ${custom ? `${custom.name} (in place of ${songs.names[value]})` : songs.names[value]}`
 }
 
 const CODE = [0x20, 0x7c, -1, -1, -1, -1, 0x22, 0x7c, -1, -1, -1, -1, 0x30, 0x38, -1, -1, 0xc0, 0xfc, 0x00, 0x06]

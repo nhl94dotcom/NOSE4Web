@@ -462,7 +462,7 @@ export const NHL95: GameConfig = {
   playoffLastAt: 0x87a14,
   notice:
     "This ROM is NHL '95. The editor reads it the way NOSE did: rosters, lines, team names, colours and the game " +
-    "settings. The pictures, songs, hacks and other additions made for NHL 94 are not offered for it. NHL '95 editing " +
+    "settings. The pictures, hacks and other additions made for NHL 94 are not offered for it. NHL '95 editing " +
     'is new, so keep a copy of the file you opened.',
   playerAttributeKinds: [
     'weight', 'rating', 'rating', 'rating', 'rating', 'rating', 'rating',

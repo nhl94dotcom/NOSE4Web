@@ -13,10 +13,9 @@ import {
   withOriginalSnesAnnouncer,
   withSnesAnnouncerBytes,
 } from './announcer'
-import { customSongBytes, withSongBytes } from './genesismusic'
 import { snesCustomSongBytes, withSnesSongBytes } from './snesmusic'
 import { snesSongChoices } from './snessongs'
-import { SONG_NUMBERS } from './teamsongs'
+import { genesisSongs } from './teamsongs'
 import { FEWEST_MENU_TEAMS } from './menuteams'
 import { creditsFit, type Credits } from './credits'
 import { type Scouting, scoutingWithMissingLines } from './scouting'
@@ -503,12 +502,15 @@ export function openProjectFile(given: RomProject, text: string, options: Projec
   // A banner name from the file where it has a usable one, else the ROM's (files saved before there were any).
   const placeName = (stored: StoredTeam, i: number) =>
     project.teams[i].placeName === undefined ? undefined : typeof stored.placeName === 'string' ? stored.placeName : project.teams[i].placeName
-  // Songs only where this ROM has them, and only as six song numbers.
+  // Songs only where this ROM has them, and only as six song numbers (in NHL '95 only its songs, as other numbers
+  // play sound effects).
+  const songList = genesisSongs(game)
   const songs = (stored: StoredTeam, i: number) => {
     const own = project.teams[i].songs
     const value = (stored as { songs?: unknown }).songs
     if (!own) return undefined
-    return Array.isArray(value) && value.length === 6 && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 0xff) ? (value as number[]) : own
+    const fits = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 0xff && (game.edition !== 95 || !!songList?.isSong(v as number))
+    return Array.isArray(value) && value.length === 6 && value.every(fits) ? (value as number[]) : own
   }
   const snesSongs = (stored: StoredTeam, i: number) => {
     const own = project.teams[i].snesSongs
@@ -678,9 +680,10 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
 
 // The songs the project has put in from MIDI files, as their bytes.
 function savedSongs(project: RomProject): ProjectFile['songs'] {
-  if (project.game.platform === 'genesis') {
-    const genesis = SONG_NUMBERS.flatMap((number) => {
-      const bytes = customSongBytes(project.bytes, number)
+  const songs = genesisSongs(project.game)
+  if (songs) {
+    const genesis = songs.numbers.flatMap((number) => {
+      const bytes = songs.customBytes(project.bytes, number)
       return bytes ? [{ number, bytes: pack(bytes) }] : []
     })
     return genesis.length ? { genesis } : undefined
@@ -695,13 +698,14 @@ function savedSongs(project: RomProject): ProjectFile['songs'] {
 // The project's songs put back in, each where this ROM has room for it.
 function withSavedSongs(project: RomProject, songs: ProjectFile['songs'], notes: string[]): RomProject {
   let left = 0
-  if (project.game.platform === 'genesis') {
+  const list = genesisSongs(project.game)
+  if (list) {
     for (const song of songs?.genesis ?? []) {
       try {
         const bytes = unpack(song.bytes)
-        const there = customSongBytes(project.bytes, song.number)
+        const there = list.customBytes(project.bytes, song.number)
         if (there && there.length === bytes.length && there.every((byte, i) => byte === bytes[i])) continue
-        project = { ...project, bytes: withSongBytes(project.bytes, song.number, bytes) }
+        project = { ...project, bytes: list.withBytes(project.bytes, song.number, bytes) }
       } catch {
         left++
       }

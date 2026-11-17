@@ -971,7 +971,7 @@ export function HelpPage() {
           and checked in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Organ songs</b> (Genesis): the songs the organ plays, which each team's page chooses from.{' '}
+          <b>Organ songs</b> (Genesis; for NHL '95 see its own section): the songs the organ plays, which each team's page chooses from.{' '}
           <b>Play</b> gives a rough idea of a song in the browser (the console's organ sounds different); while it
           plays, a bar under the list shows where it is, which you can drag to move about the song, and a volume,
           which this browser remembers. The same bar is on each team's page, under its songs.{' '}
@@ -1060,8 +1060,8 @@ export function HelpPage() {
         </li>
         <li>
           <b>Range:</b> notes too low or too high for the organ move up or down by octaves: on the Genesis the range is
-          C0 to B6 (MIDI 12 to 95), on the SNES D1 to G5 (MIDI 26 to 79). A tune near middle C (MIDI 60) is safe on
-          both.
+          C0 to B6 (MIDI 12 to 95), in NHL '95 C1 to C6 (MIDI 24 to 84), on the SNES D1 to G5 (MIDI 26 to 79). A tune
+          near middle C (MIDI 60) is safe on all three.
         </li>
         <li>
           <b>Timing:</b> tempo and its changes are followed. The game times notes in 60ths of a second, so very fast
@@ -1211,7 +1211,7 @@ export function HelpPage() {
         <li>
           In the songs file, each team has a row and each of its six organ songs a column, holding the song's number,
           or 0 for Random. The songlist file says which song each number is: on the Genesis these are the forum
-          list's numbers, 1 to 72; on the SNES they number the songs the ROM's song tables hold, so export the two
+          list's numbers, 1 to 72 (in NHL '95 its own songs, 1 to 36); on the SNES they number the songs the ROM's song tables hold, so export the two
           files together, and again after putting a song in from a MIDI file. An empty cell keeps the song the team
           has. A league ROM whose song table has no room for its last teams gets the table moved to free space when
           one of them is given songs, as on the team page. Importing the songlist file changes nothing.
@@ -2426,7 +2426,14 @@ export function HelpPage() {
           rates no one, so a league there raises some.
         </li>
         <li>
-          <b>Not offered for NHL '95</b>: NHL 94's hacks, player photos, organ and team songs, score logos,
+          <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved
+          as a MIDI file, replaced with a MIDI file of your own (at most four notes at once, on the organ) and put back;{' '}
+          <b>Used by</b> shows the teams that have it. Any of the songs can be replaced. Each team page chooses its six
+          songs, and the songs file in Files numbers them 1 to 36. NHL '95's songs are NHL 94's tunes, and are named as
+          NHL 94's are. Not yet tested in the game.
+        </li>
+        <li>
+          <b>Not offered for NHL '95</b>: NHL 94's hacks, player photos, score logos,
           the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
         </li>
       </ul>

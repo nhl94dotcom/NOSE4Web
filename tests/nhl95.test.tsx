@@ -97,7 +97,9 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
     expect(pictureKinds(project)).toEqual(['rinkLogo', 'menuLogo', 'menuBanner', 'gameBanner', 'pauseBanner'])
     expect(hasLeagueValue(project.game)).toBe(false)
     expect(project.settings.credits ?? null).toBeNull()
-    expect(project.teams.every((team) => team.songs === undefined && team.shownOverall === undefined)).toBe(true)
+    expect(project.teams.every((team) => team.shownOverall === undefined)).toBe(true)
+    // Its organ songs are its own (nhl95music.test.ts).
+    expect(project.teams.every((team) => team.songs?.length === 6)).toBe(true)
   })
 
   names.forEach((name) => {

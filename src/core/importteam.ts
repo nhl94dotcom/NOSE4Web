@@ -88,9 +88,9 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       ...team,
       names: source.names,
       placeName: team.placeName !== undefined && source.placeName !== undefined ? source.placeName : team.placeName,
-      // A team's organ songs come with its names, where both ROMs have them;
-      // on the SNES each as the same song in this ROM, where it has it.
-      songs: team.songs && source.songs ? source.songs.slice() : team.songs,
+      // A team's organ songs come with its names, where both ROMs have them (on the Genesis, both NHL 94 or both
+      // NHL '95, which number their songs differently); on the SNES each as the same song in this ROM, where it has it.
+      songs: team.songs && source.songs && project.game.edition === other.game.edition ? source.songs.slice() : team.songs,
       snesSongs:
         team.snesSongs && source.snesSongs
           ? source.snesSongs.map((pointer, slot) => sameSnesSong(other.bytes, pointer, project.bytes) ?? team.snesSongs![slot])
