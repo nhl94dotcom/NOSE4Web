@@ -2889,7 +2889,7 @@ test.describe('with the SNES game', () => {
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Score logo' }) })
     await section.getByRole('button', { name: 'Add score logos for every team' }).click()
     await expect(section.locator('canvas.preview')).toBeVisible()
-    await expect(section.getByText("NOSE4Web added them to this ROM, with McMarkis's code")).toBeVisible()
+    await expect(section.getByText("NOSE4Web added them to this ROM, using McMarkis's score logos")).toBeVisible()
     await section.screenshot({ path: 'test-results/shots/score-logo-added.png' })
     // Downloaded and opened again, they are there.
     const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
