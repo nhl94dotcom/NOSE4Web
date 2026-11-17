@@ -347,7 +347,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     const html = renderToStaticMarkup(createElement(Nhl95HacksPage, { project: rom, name: 'L', onChange: () => {} }))
     const sections = [...html.matchAll(/<section id="hacks-([a-z]+)"[^>]*>(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
-    const UNTESTED = 'NHL 94&#x27;s option, at NHL &#x27;95&#x27;s places (also in the WN95HL&#x27;s ROMs). Not yet tested in the game.'
+    const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
       for (const hack of section.hacks.filter((hack) => hack !== 'fightingArcade' && hack !== 'fightingOff')) {

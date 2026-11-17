@@ -1396,7 +1396,7 @@ const injuries95: Part<Injuries> = {
   },
   apply(work, value) {
     if (value === 'longFall') {
-      if (!matches(work.rom, FALL_AT95, FALL95.original)) throw new Nhl95HackError('A long fall instead of an injury needs the injury animation as the original game has it.')
+      if (!matches(work.rom, FALL_AT95, FALL95.original)) throw new Nhl95HackError("A long fall instead of an injury can't be set: something else has already changed this ROM's injury fall.")
       work.rom.set(FALL95.longFall, FALL_AT95)
     }
     INJURY_SITES95.forEach((at, i) => work.rom.set(hex(INJURY_BYTES95[value][i]), at))
@@ -1999,7 +1999,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, N.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${N.goalieLine}).`,
   goalieDelay: (c) =>
-    `B is held ${more(c.goalieDelay, N.goalieDelay, 'longer', 'for less time')} before a player takes the goalie: ${c.goalieDelay} counts of the game's timer, where the original game takes ${N.goalieDelay}.`,
+    `B is held ${more(c.goalieDelay, N.goalieDelay, 'longer', 'for less time')} before a player takes the goalie (${c.goalieDelay}, where the original has ${N.goalieDelay}, about half a second).`,
   speedBurst: (c) => `The C-button speed burst gives every player the same push, ${c.speedBurst}, tired or not; the original gives a fresh player 32 and a tired one less.`,
   turnRate: (c) => `Skaters ${more(c.turnRate, N.turnRate, 'stop and turn more sharply', 'take a longer, sliding stop')} when they reverse (${c.turnRate}, where the original has ${N.turnRate}).`,
   puckFriction: (c) => `The puck slows ${c.puckFriction < N.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game; skaters glide as before.`,

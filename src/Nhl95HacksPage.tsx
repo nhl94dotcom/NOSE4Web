@@ -98,6 +98,8 @@ const FIGHT_START = 'Fighting setting at power-on'
 const TESTED = 'Tested in the game by the NHL94 Match Viewer project.'
 // NHL 94's fixes, where NHL '95 has the same code.
 const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
+// The line each of NHL 94's settings ends with: none has been played in NHL '95 yet.
+const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 
 const OT3_MORE = (
   <p className="note">
@@ -114,8 +116,8 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
     <p className="note">
       The game's Edit Lines lists only forwards for the forward positions and only defencemen for the defence. With
       this on it lists every skater for every position. A player plays the position the line gives him, with his own
-      ratings. Saved lines keep him there, even on a ROM without this. The team page's lines can then take anyone too.
-      NHL 94's option, at NHL '95's place (also in the WN95HL's ROMs). Not yet tested in the game.
+      ratings. Saved lines keep him there, even on a ROM without this. The team page's lines can then take anyone too.{' '}
+      {UNTESTED}
     </p>
   ),
   ppPkFix: (
@@ -310,8 +312,6 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
 }
 
-// The line each of NHL 94's settings ends with: none has been played in NHL '95 yet.
-const UNTESTED = "NHL 94's option, at NHL '95's places (also in the WN95HL's ROMs). Not yet tested in the game."
 const N = NO_NHL95_HACKS
 const chance = (impact: number) => Math.round((impact / 160) * 100)
 
@@ -327,9 +327,9 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   bodychecks: () => (
     <>
-      Counts each player's checks, while the clock runs, and shows them in Player Stats as Chk, where penalty minutes were
-      (sorted as Checks For); players' penalty minutes are then not kept. NHL '95 already counts each player's checks for
-      itself, and this leaves that count as it is, so the checks a player takes are not counted, as NHL 94's version does.
+      Counts each player's checks while the clock runs and shows them in Player Stats as Chk, where penalty minutes were
+      (sorted as Checks For); players' penalty minutes are then not kept. It counts the checks a player gives, using
+      NHL '95's own count; unlike NHL 94's version, the checks he takes are not counted.
     </>
   ),
   timeOnIce: () => (
@@ -342,12 +342,11 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   giveaways: () => (
     <>
-      Counts each player's giveaways and takeaways, as the NHL94 Match Viewer project counts them: a change of puck carrier
-      from one team to the other with no whistle between. A takeaway goes to the skater who forced it, with a stick steal
-      or a check that knocked the carrier down or made him lose the puck; any other loss is a giveaway for the player who
-      lost it. Shots, faceoff wins, passes between teammates and dump-ins are not counted, nor anything in highlights or a
-      shootout. Game Stats gets a last row, Give/Takeaways, and Player Stats a page for each, past Penalty Minutes (or
-      Checks For), game stats only.
+      Counts each player's giveaways and takeaways the way the NHL94 Match Viewer project does: the puck going from one
+      team to the other with no whistle between. A takeaway goes to the skater who forced it, with a stick steal or a
+      check; any other loss is a giveaway for the player who lost it. Shots, faceoffs, passes and dump-ins don't count,
+      nor anything in highlights or a shootout. Game Stats gets a Give/Takeaways row, and Player Stats a page for each,
+      past Penalty Minutes (or Checks For), for the game only.
     </>
   ),
   realTime: () => (
@@ -365,18 +364,18 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   fightSeconds: (c) => (
     <>
-      For leagues that play with fighting: how long a fight keeps each fighter in the box, in seconds of the game clock,
-      whatever its five minutes and the penalty time give ({c.fightSeconds === 0 ? 'now off' : `now ${clockTime(c.fightSeconds)}`}). 0
-      is off, as the original. The fight still counts as 5 penalty minutes, and both fighters get the same time.
+      For leagues that play with fighting: how long a fight keeps each fighter in the box, in game-clock seconds, in
+      place of its five minutes and whatever Penalty time makes of them ({c.fightSeconds === 0 ? 'now off' : `now ${clockTime(c.fightSeconds)}`}).
+      0 is off, as in the original. The fight still counts as 5 penalty minutes, and both fighters get the same time.
     </>
   ),
-  noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM with the forum's version (TheTome's) is read as on.</>,
+  noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM that already has the forum's version (TheTome's) shows as On.</>,
   hybridIcing: () => (
     <>
-      The icing rule the NHL has played since 2013. The original game plays touch icing. With this on, icing is decided as
-      the puck crosses the goal line: if the defending team's nearest skater is as near as or nearer to the end-zone faceoff
-      dots than the icing team's, icing is called there and then; if an attacker is nearer, it is waved off. Goalies do not
-      count, and a team short-handed never ices. No effect with No icing on.
+      The icing rule the NHL has played since 2013; the original game plays touch icing. With this on, icing is decided as
+      the puck crosses the goal line: if a defender is as near the end-zone faceoff dots as any attacker, or nearer, icing
+      is called at once; if an attacker is nearer, it is waved off. Goalies do not count, and a short-handed team never
+      ices. No effect with No icing on.
     </>
   ),
   delayedCalls: () => (
@@ -387,9 +386,9 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   bCheckPenaltiesOff: () => (
     <>
-      With penalties off, the original game lets your B-check trip a player only after an extra roll of your Checking
-      against his Agility; with penalties on there is no such roll. <b>As with penalties on</b> drops it, so B-checks trip
-      the same either way. A ROM with the forum's version (CoachMac's) shows it as such, and can be set back.
+      With penalties off, the original game makes your B-check pass an extra test, your Checking against his Agility,
+      before it trips a player; with penalties on there is none. <b>As with penalties on</b> drops the test, so B-checks
+      trip the same either way. A ROM that has the forum's version (CoachMac's) shows it, and can be set back.
     </>
   ),
   injuries: () => (
@@ -446,10 +445,9 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   injuryBonus: () => (
     <>
       Each knockdown a skater takes this game makes a later injury a little likelier, and half of it wears off at each
-      intermission. 0 is the original game. Only hits that can already injure are affected. The numbers mean what they do
-      in NHL 94: NHL '95 rolls 0 to 399 against a hit's impact where NHL 94 rolls 0 to 159, so the code adds two and a half
-      times them, the same extra chance, about the number in 160 a knockdown. Recommended in NHL 94: {RECOMMENDED_INJURY_BONUS} a
-      knockdown, at most {RECOMMENDED_INJURY_CAP}.
+      intermission. 0 is the original game. Only hits that can already injure are affected. The numbers mean the same
+      as in NHL 94, about that many more chances in 160 for each knockdown; NHL '95 is scaled to match. Recommended in
+      NHL 94: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}.
     </>
   ),
   injuryCap: (c) => (
@@ -475,7 +473,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       the puck to. {stock}
     </>
   ),
-  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie, in counts of the game's timer: about half a second at 17. The same for all four pads. {stock}</>,
+  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie; 17 is about half a second. The same for all four controllers. {stock}</>,
   speedBurst: () => (
     <>
       The push the C button gives. 0 for the original game's, which is 32 for a fresh player and less for a tired one. Any
@@ -485,9 +483,9 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   turnRate: (_, stock) => <>How quickly a skater stops and turns when he reverses. A larger number stops him sooner. {stock}</>,
   puckFriction: (_, stock) => (
     <>
-      How fast the puck slows on the ice: each moment it loses 1 / 2<sup>n</sup> of its speed, so a smaller number slows it
-      faster (6 twice as fast as 7, 8 half as fast). The puck alone: NHL '95's puck has a number of its own (NHL 94's 9 is
-      shared with gliding skaters), so skaters glide as before. {stock}
+      How fast the puck slows on the ice. A smaller number slows it faster, and each step is double or half: 6 slows it
+      twice as fast as 7, and 8 half as fast. Only the puck changes: NHL '95 gives the puck a number of its own (NHL 94's
+      is shared with gliding skaters), so skaters glide as before. {stock}
     </>
   ),
   choppyIce: () => (
