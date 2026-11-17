@@ -368,8 +368,24 @@ const NHL_SO_EDITS = [
   { at: 0x9dd9e, original: hex('6700 0028'), hacked: hex('6700 0028') },
   { at: 0x9dda2, original: hex('0C78 0005 D184 6D00 001E 3038 D180 B078 D182 6700 0012'), hacked: hex('4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71 4E71') },
 ]
-const toHex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-const NHL_SO_CODE = hex(toHex(NHL_SHOOTOUT_CODE).replace(/d595/g, 'd1a1').replace(/d578/g, 'd184').replace(/d574/g, 'd180').replace(/d576/g, 'd182'))
+// NHL 94's four addresses in its code, by where each is (the word operand of cmpi.w / move.w / cmp.w / btst), and
+// NHL '95's for each: shootoutround, the two teams' shootout goals and shootoutteam's low byte. Each place must hold
+// NHL 94's, so that a change to NHL 94's code cannot put an address where one is not.
+const NHL_SO_ADDRESSES: [number, number, number][] = [
+  [2, 0xd578, 0xd184],
+  [10, 0xd574, 0xd180],
+  [14, 0xd576, 0xd182],
+  [20, 0xd595, 0xd1a1],
+]
+function nhlSoCode(): Uint8Array {
+  const code = NHL_SHOOTOUT_CODE.slice()
+  for (const [at, was, now] of NHL_SO_ADDRESSES) {
+    if (((code[at] << 8) | code[at + 1]) !== was) throw new Error("NHL 94's shootout code is not as NHL '95's version of it expects.")
+    code.set([now >> 8, now & 0xff], at)
+  }
+  return code
+}
+const NHL_SO_CODE = nhlSoCode()
 // What must follow it: bset #3,(gmode2).w; jsr EndShootout.
 const NHL_SO_AFTER = { at: 0x9ddb8, bytes: hex('08F8 0003 BF00 4EB9') }
 const nhlSo = () => hookedFix(NHL_SO_HOOK, NHL_SO_CODE, NHL_SO_EDITS, placeCode)
