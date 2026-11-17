@@ -79,7 +79,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   ppPkFix: (
     <>
       The game is meant to add a team's power play rating to its players on the power play and take its penalty kill
-      rating off them on the penalty kill, but it reads the two ratings wrongly. The original rosters were made for the
+      rating off them on the penalty kill, but it reads the two the wrong way round. The original rosters were made for the
       intended way, so in play Anaheim, meant to be weak at both, has the best power play and penalty kill. This makes
       the game read them as intended, so rosters play as their makers meant, and the team page shows them that way too.
       A league that set these ratings by what the editor showed before the fix should check them after it.
