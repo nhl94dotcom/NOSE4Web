@@ -284,7 +284,7 @@ const hex =(text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g
 function placeCode(work: { rom: Uint8Array }, code: Uint8Array): number {
   // work.rom is the hacks' own copy of the ROM, so room is claimed in it rather than in another copy.
   const claimed = claimSpace95(work.rom, code.length, true, true, true)
-  if (!claimed) throw new Nhl95HackError(`There is no room left in this ROM for the code this needs.${fullRomReason(work.rom)}`)
+  if (!claimed) throw new Nhl95HackError(`This ROM has no room left for this hack.${fullRomReason(work.rom)}`)
   work.rom = claimed.rom
   work.rom.set(code, claimed.at)
   return claimed.at
@@ -981,7 +981,7 @@ function removeFight(rom: Uint8Array) {
 function applyFight(rom: Uint8Array, on: boolean, start: FightStart) {
   if (!on) return
   for (let at = FIGHT95_AT; at < FIGHT_END; at++) {
-    if (rom[at] !== 0xff) throw new Error(`Fighting: its code goes at $1E0000, and this ROM has other data there ($${at.toString(16).toUpperCase()}).`)
+    if (rom[at] !== 0xff) throw new Error('Fighting needs a part of the ROM that this ROM already uses for something else, so it cannot be added.')
   }
   rom.set(fightCode(rom, true, start), FIGHT95_AT)
   for (const h of FIGHT_HOOKS) rom.set(h.patched, h.at)
@@ -1808,14 +1808,14 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   // The fighting patch without Match Viewer's fix is put in again with it.
   if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
   for (const hack of change) {
-    if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: this ROM's code there is not the original game's, so it is left as it is.`)
+    if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: something else has already changed this part of the ROM, so it is left as it is.`)
     const bad = badValue(hack, wanted[hack])
     if (bad) throw new Nhl95HackError(bad)
   }
   if (change.length === 0) return project
   const want: Nhl95HackChoices = { ...choices, ...Object.fromEntries(change.map((hack) => [hack, wanted[hack]])) }
   if ([want.seasonOvertime, want.seasonShootout, want.seasonShootoutNow].filter(Boolean).length > 1) {
-    throw new Nhl95HackError('Only one of overtime until a goal and the two shootouts can be on: they decide a tied game three different ways.')
+    throw new Nhl95HackError('Only one of overtime until a goal and the two shootouts can be on: each settles a tied game its own way.')
   }
   if (want.threeOnThree && want.threeOnThreeAll) throw new Nhl95HackError('Only one of the two 3 on 3 overtime choices can be on.')
   if ((want.fightingOff || want.fightingArcade) && !want.fighting) throw new Nhl95HackError('The Fighting setting at power-on needs Fighting on.')
@@ -2005,20 +2005,20 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   puckFriction: (c) => `The puck slows ${c.puckFriction < N.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game; skaters glide as before.`,
   choppyIce: 'The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.',
   ppPkFix:
-    "A team's power play and penalty kill ratings work as written: the game read them from the wrong halves of their byte, so teams meant to be weak at both had the best power play.",
+    "A team's power play and penalty kill ratings work as set: the original game mixes the two up, so teams meant to be weak at both had the best power play.",
   faceoffFix:
     "Every faceoff is on a dot, as today's NHL rules have it, where the original often holds one where play stopped, between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use their Offensive Awareness, where the original uses their Defensive.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
-    'A skater no longer glides on, barely slowing, after getting up from a fall into the boards or after you take him over with a pass coming.',
+    'A skater no longer keeps gliding, barely slowing, after getting up from a fall into the boards or when you switch to him as a pass comes.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two behind.',
   snipingFix:
-    "A team whose goalie is off the ice no longer has every shot within range go exactly where aimed: it takes the shooter's accuracy roll as any other shot does.",
-  penaltyShotTableFix: 'Each foul on a breakaway gives its own penalty shot, where the original calls every one as the next foul along.',
+    "While a team's goalie is off the ice, its shots are as accurate as the shooter's rating makes them, where the original sends every one from close enough exactly where aimed.",
+  penaltyShotTableFix: 'Each penalty shot is called for the foul that was committed, where the original names every one after the wrong foul.',
   penaltyShotFixes:
-    'A penalty shot stopped by a stray whistle is no longer taken all over again, and a puck shot out just before a penalty shot no longer floats through everything.',
+    'A penalty shot ended by an odd whistle is no longer taken all over again, and a puck shot over the glass just before a penalty shot no longer floats through the net and boards.',
   threeOnThree:
     'Overtime is played 3 on 3, as in the NHL: each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team a skater more (4 on 3), and when it ends the teams play 4 on 4 to the next stoppage. Playoff games stay 5 on 5.',
   threeOnThreeAll:
@@ -2035,7 +2035,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   comebackFix:
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   blindRingFix:
-    "A loose puck close to the goalie's stick but not on its blade now meets the goalie, where the original game lets it through untouched, the way some five-hole goals go in.",
+    'The goalie can stop a loose puck sliding in near his stick, where the original game lets it through untouched, the way some five-hole goals go in.',
   nhlShootout:
     "Shootouts follow today's NHL rule: three rounds, then sudden death, over as soon as one team can't catch up, instead of the game's five rounds played out. For Shootout mode and the regular-season shootouts alike.",
   seasonShootout:
@@ -2047,7 +2047,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   openNetFix:
     'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   rocketFix:
-    'Passes go at their own speed: the game no longer sends some of them up to twice as fast, or many times faster, when it rounds the time a pass takes to reach its man. Slow flat passes stay four times as slow.',
+    "No more rocket passes: every pass goes at its normal speed, where the original game sends some up to twice as fast, or faster still. NHL '95's slow flat pass stays slow.",
   passFix:
     "Passes go to the teammate you're pointing at, as in NHL 94. In the original NHL '95 a pass now and then goes straight across instead of to a teammate off at an angle on that side, or back to a teammate behind the passer. The soft pass is unchanged.",
 }

@@ -340,7 +340,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     // Not where its place holds something else.
     const taken = rom.bytes.slice()
     taken[0x1e0800] = 0
-    expect(() => applyNhl95Hacks({ ...rom, bytes: taken }, { fighting: true })).toThrow(/1E0800/)
+    expect(() => applyNhl95Hacks({ ...rom, bytes: taken }, { fighting: true })).toThrow(/Fighting needs a part of the ROM/)
   })
 
   it.each(names)('puts 3 on 3 overtime into %s at its eight places, either way, and takes it out again', (name) => {

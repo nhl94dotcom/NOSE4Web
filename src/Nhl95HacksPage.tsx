@@ -64,28 +64,28 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   fighting: 'Players can fight. Adds a Fighting setting to Game Setup: Off, On, or On - Arcade Mode.',
   threeOnThree: 'Overtime is 3 on 3, as in the NHL; a penalty makes it 4 on 3. Playoff games stay 5 on 5.',
   threeOnThreeAll: 'Every overtime is 3 on 3, playoffs included; a penalty makes it 4 on 3.',
-  fightingOff: 'What the Fighting setting on Game Setup starts at when the game is switched on. Players can still change it.',
+  fightingOff: 'What the Fighting setting on Game Setup is set to when the game is switched on. Players can still change it.',
   fightingArcade: '',
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
-  runawayFix: 'A skater no longer glides on, barely slowing, after a fall into the boards or after you take him over.',
+  runawayFix: 'A skater no longer keeps gliding, barely slowing, after a fall into the boards or when you switch to him.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two.',
-  snipingFix: "With its goalie off the ice, a team's shots take the normal accuracy roll instead of always going exactly where aimed.",
-  penaltyShotTableFix: 'Each foul on a breakaway gives its own penalty shot, not the next foul along.',
-  penaltyShotFixes: 'A penalty shot stopped by a stray whistle is not taken again, and no "ghost puck" floats through everything.',
+  snipingFix: "While a team's goalie is off the ice, its shots are only as accurate as the shooter, instead of always going exactly where aimed.",
+  penaltyShotTableFix: 'A penalty shot is called for the foul that was committed, not named after a different one.',
+  penaltyShotFixes: 'A penalty shot ended by an odd whistle is not taken again, and no "ghost puck" floats through the net and boards.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
   oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
-  aggressionFix: 'Aggression works as the rating reads, where the original wraps it round (a 4 plays like a 1).',
-  comebackFix: 'A team tied or behind in the third period gets its boost in the second half of it, not the first.',
+  aggressionFix: 'More Aggression always means more penalties; in the original some ratings play like others (a 4 plays like a 1).',
+  comebackFix: 'A team tied or behind in the third period gets its small comeback boost late in the period, as meant, not early.',
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
-  blindRingFix: "A loose puck near the goalie's stick but off its blade meets the goalie, where the original lets it through.",
+  blindRingFix: 'The goalie can stop a loose puck sliding in near his stick, where the original lets it through untouched.',
   seasonOvertime: 'A tied regular-season game plays overtime after overtime until a goal, as the playoffs do.',
   seasonShootout: 'A regular-season game still tied after overtime is settled by a shootout.',
   nhlShootout: "Shootouts follow today's NHL rule: three rounds, then sudden death, over once a team can't catch up.",
   seasonShootoutNow: 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime.',
-  rocketFix: 'Passes go at their own speed: no more rocket passes, sent much faster because the game rounds their time down.',
+  rocketFix: 'No more rocket passes: every pass goes at its normal speed, where the original sends some far too fast.',
   passFix: "Passes go to the teammate you're pointing at, as in NHL 94, instead of sometimes straight across or back behind the passer.",
-  ppPkFix: "A team's power play and penalty kill ratings work as written, where the original reads them the wrong way round.",
+  ppPkFix: "A team's power play and penalty kill ratings work as set, where the original mixes the two up.",
   faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
@@ -97,15 +97,15 @@ const FIGHT_START = 'Fighting setting at power-on'
 // The line each tested option ends with.
 const TESTED = 'Tested in the game by the NHL94 Match Viewer project.'
 // NHL 94's fixes, where NHL '95 has the same code.
-const FROM_94 = `NHL 94's fix, at NHL '95's places (also in the WN95HL's ROMs). ${TESTED}`
+const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 
 const OT3_MORE = (
   <p className="note">
     Each team plays its goalie, centre, left wing and right defenceman. A penalty gives the other team an extra
-    skater (4 on 3, or 5 on 3 with two). When it ends the teams play 4 on 4 until the next stoppage, then 3 on 3
-    again. With three of a team in the box at once, that team plays two skaters: the game has no room for more. A
-    penalty from the third period carries into overtime, and line changes On or Off make no difference. Only one of the
-    two can be on. {TESTED}
+    skater (4 on 3, or 5 on 3 with two); when it ends the teams play 4 on 4 until the next stoppage, then 3 on 3
+    again. A team with three in the box at once still keeps two skaters: the game can't take any more off. A penalty
+    from the third period carries into overtime, and the Line Changes setting makes no difference. Only one of the two
+    3 on 3 choices can be on. {TESTED}
   </p>
 )
 
@@ -120,34 +120,33 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   ppPkFix: (
     <p className="note">
-      The game adds a team's power play rating to some of each player's ratings on the power play and takes its
-      penalty kill rating off them on the penalty kill, but reads the two from the wrong halves of their byte. So
-      Ottawa, Hartford, Quebec and San Jose, written as weak at both, get the best power play. This reads them as
-      written; the team page then shows them that way round too. Leagues that have set these ratings as the editor
-      showed them before should check them after. {FROM_94}
+      Each team has a power play rating and a penalty kill rating that change its players' ratings when it is on the
+      power play or killing a penalty. The original game mixes the two up, so Ottawa, Hartford, Quebec and San Jose,
+      set as weak at both, get the best power play. With this on the ratings work as set, and the team page shows them
+      to match. If your league set these ratings in the editor before, check them after turning this on. {FROM_94}
     </p>
   ),
   faceoffFix: (
     <p className="note">
-      The game puts a faceoff on a dot only when play stops past the hash marks, and anywhere else holds it where the
-      puck was, often between the dots. With this on, every faceoff is on a dot, as in today's NHL: after a goal at
-      centre; after a penalty in the offending team's end, on the puck's side; otherwise at that end's dot past a blue
-      line, or the nearest neutral-zone dot, on the dot as drawn (the original drops those a little inside it). Leave it
-      off to keep the game's own older-style faceoffs. {FROM_94}
+      The original game takes a faceoff on a dot only when play stops deep in an end; anywhere else it is taken where
+      the puck was, often between the dots. With this on every faceoff is on a dot, as in today's NHL: after a goal at
+      centre ice; after a penalty in the offending team's end, on the puck's side; otherwise at the nearest dot in the
+      zone where play stopped, right on the dot as drawn. Leave it off to keep the game's own older-style faceoffs.{' '}
+      {FROM_94}
     </p>
   ),
   awarenessFix: (
     <p className="note">
-      A computer skater decides what to do next at intervals set by his awareness: Offensive when his team has the
-      puck, Defensive when it does not. But computer wingers and centres on offence use Defensive, a slip in the
-      game's code. With this on they use Offensive. A small change. {FROM_94}
+      How quickly a computer skater rethinks what to do depends on his awareness: Offensive when his team has the puck,
+      Defensive when it does not. By a slip in the original game, computer wingers and centres use Defensive on offence
+      too. With this on they use Offensive. A small change. {FROM_94}
     </p>
   ),
   stickShots: (
     <p className="note">
-      A hard low shot that comes off the goalie's stick is a save, but the game does not count it as a shot on goal:
-      only a catch or a save with his body counts. With this on it counts, once, for the shooter, his team and against
-      the goalie. Only the statistics change. {FROM_94}
+      A hard low shot that comes off the goalie's stick is a save, but the original game does not count it as a shot on
+      goal: only catches and saves with his body count. With this on it counts, once, for the shooter, his team and
+      against the goalie. Only the statistics change. {FROM_94}
     </p>
   ),
   threeOnThree: OT3_MORE,
@@ -162,128 +161,120 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   fightingArcade: null,
   organResume: (
     <p className="note">
-      Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on
-      the organ carries on with its song from where it was. A note that was sounding when the game was paused is heard
-      again at the song's next note. {TESTED}
+      Pausing the game stops the organ, and in the original it stays quiet after the pause until the next song starts.
+      With this on the organ picks its song up where it left off. {TESTED}
     </p>
   ),
   runawayFix: (
     <p className="note">
-      Now and then a skater glides on, barely slowing, when he should be slowing down: most often after getting up from
-      a fall into the boards, when the glide can last a second or two. The game lets a skater glide while a pass comes
-      to him, after he is knocked into the boards and during a one-timer, and can leave it on afterwards. This turns it
-      off in all three places, so he skates normally. In NHL '95 a speed burst already ends the glide, so it never
-      becomes NHL 94's runaway. {FROM_94}
+      Now and then a skater keeps gliding, barely slowing, when he should be slowing down: most often after getting up
+      from a fall into the boards, when it can last a second or two. It can also happen when you switch to him as a pass
+      comes, or after a one-timer. With this on he skates normally. In NHL '95 a speed burst already ends the glide, so
+      it never gets as bad as NHL 94's runaway skater. {FROM_94}
     </p>
   ),
   goaliePullFix: (
     <p className="note">
       In the last minute of the third period the computer pulls its goalie for an extra attacker, but only when exactly
       two goals behind, never when one down. With this on it pulls him when one or two behind, as a real coach would.
-      While he is out, the computer's shots within range go exactly where aimed unless the pulled-goalie sniping fix is
-      on too. {FROM_94}
+      While he is out the computer's shots go exactly where aimed, unless the pulled-goalie sniping fix is on too.{' '}
+      {FROM_94}
     </p>
   ),
   snipingFix: (
     <p className="note">
-      An option, a matter of taste: some leagues like it as it is. Whenever a team's goalie is off the ice (on a
-      delayed penalty, or pulled late in a game) the game makes every one of its shots from within range go exactly
-      where aimed, whatever the shooter's Shot Accuracy. With the fix such a shot takes the normal accuracy roll. Shots
-      at an empty net are not affected. {FROM_94}
+      A matter of taste: some leagues like it as it is. Whenever a team's goalie is off the ice (on a delayed penalty,
+      or pulled late in a game), every shot it takes from close enough goes exactly where aimed, whatever the shooter's
+      Shot Accuracy. With the fix those shots are as accurate as the shooter's rating makes them. Shots at an empty net
+      are not affected. {FROM_94}
     </p>
   ),
   penaltyShotTableFix: (
     <p className="note">
-      A foul on a skater on a breakaway can give a penalty shot. The game looks each foul up one place too far along
-      its table, so every penalty shot is called for the wrong foul: charging as slashing, slashing as roughing, and so
-      on. This gives each foul its own. Which fouls give penalty shots does not change. {FROM_94}
+      A foul on a skater on a breakaway can give a penalty shot. The original game names every penalty shot after the
+      wrong foul: charging is called slashing, slashing is called roughing, and so on. With the fix each is called for
+      the foul committed. Which fouls give penalty shots does not change. {FROM_94}
     </p>
   ),
   penaltyShotFixes: (
     <p className="note">
-      Two penalty shot bugs. A penalty shot stopped by a whistle that is not one of its own endings, such as the puck
-      going over the glass, is taken all over again; with the fix the game goes on to a faceoff. And a puck shot over
-      the glass just before a penalty shot can enter it unable to touch anything, floating through the net and the
-      boards (the "ghost puck"); with the fix it plays normally. {FROM_94}
+      Two penalty shot bugs. A penalty shot ended by an odd whistle, such as the puck going over the glass, is taken all
+      over again; with the fix play goes on to a faceoff. And a puck shot over the glass just before a penalty shot can
+      come back unable to touch anything, floating through the net and the boards (the "ghost puck"); with the fix it
+      plays normally. {FROM_94}
     </p>
   ),
   fighting: (
     <p className="note">
-      Brings back the fight EA drew for NHL '95 and left unused: Vancecookcobxin's fighting patch, with a fix by the
-      NHL94 Match Viewer project. A hard check can start a fight between two players with Fighting ratings (in
-      Handed/Fighting), more often as a game gets rougher; to start one a player needs 71 or more (42 in Arcade Mode),
+      Brings back the fights EA drew for NHL '95 but left out: Vancecookcobxin's fighting patch, with a fix by the NHL94
+      Match Viewer project. A hard check can start a fight between two players with Fighting ratings (in
+      Handed/Fighting), more often as a game gets rougher. To start one a player needs 71 or more (42 in Arcade Mode),
       and his opponent 14 or more. They trade punches (C high, B low, A grab) until one goes down, and both get five
       minutes. Game Setup gets a Fighting setting: Off, On, or On - Arcade Mode, with more fights. The WN95HL's Season 18
-      ROM rates no player for fighting, so it needs ratings before anyone fights. {TESTED}
+      ROM rates no one for fighting, so give players ratings before anyone can fight. {TESTED}
     </p>
   ),
   secondAssist: (
     <>
       <p className="note">
-        The game keeps a list of the last three players of a team to touch the puck: the scorer and his two assists.
-        When two players pass back and forth, the list moves down at each touch, so the earlier passer drops off and
-        the goal has only one assist. The fix moves the list down only when the new toucher is not the first assist
-        already. {FROM_94}
+        When two players pass back and forth before a goal, the original game loses track of the earlier passer, so the
+        goal gets only one assist. With the fix the second assist is credited. {FROM_94}
       </p>
     </>
   ),
   oneTimerAssist: (
     <p className="note">
-      A one-timer puts the shooter on the list by its own three moves, without the checks a touch makes, so where his
-      stick touched the pass before he shot the list reads shooter, shooter, passer, and the goal has no assist. The
-      fix uses a touch's own update there. {FROM_94}
+      When the shooter's stick touched the pass just before his one-timer, the original game counts him as his own
+      passer, and the goal gets no assists. With the fix the players who passed get their assists. {FROM_94}
     </p>
   ),
   regainAssist: (
     <p className="note">
-      When the other team takes the puck, the game marks the list so the next touch replaces the last toucher. A
-      player who wins the puck straight back skips the step that clears the mark, so the teammate he passes to
-      replaces him and his assist is lost. {FROM_94}
+      When a player wins the puck straight back from the other team and passes to a teammate who scores, the original
+      game drops him from the goal, so his assist is lost. With the fix he gets it. {FROM_94}
     </p>
   ),
   aggressionFix: (
     <p className="note">
-      The game cuts Aggression down to size by keeping only part of the number, so it wraps round: a 4 plays like a 1,
-      and a 6 or a 3 is the most penalised. The fix scales it properly, so more Aggression always means more penalties.
-      Goalies play as before. {FROM_94}
+      The original game reads Aggression wrongly, so it wraps round: a 4 plays like a 1, and a 6 or a 3 draws the most
+      penalties. With the fix more Aggression always means more penalties. Goalies play as before. {FROM_94}
     </p>
   ),
   comebackFix: (
     <p className="note">
-      A team tied or behind in the third period is meant to get a small boost late on, but the test of the clock is the
-      wrong way round, so the boost comes while more than half the period is left and goes for the rest. Overtime is not
-      affected: both teams have it throughout. {FROM_94}
+      A team tied or behind in the third period is meant to get a small boost late on, but the original game has it the
+      wrong way round: the boost comes in the first half of the period and goes for the second. With the fix it comes in
+      the second half. Overtime is not affected: both teams have the boost all through it. {FROM_94}
     </p>
   ),
   openNetFix: (
     <p className="note">
-      The game aims one-timers itself. When the goalie has wandered out of position, it aims just under the crossbar,
-      and close in about 4 in 10 go over or hit the bar. The fix aims at the middle of the net instead, as it does with
-      no goalie at all. Penalty shots and shootouts are unchanged. An option, not a recommended fix. {FROM_94}
+      The game aims one-timers itself. When the goalie has wandered out of position it aims just under the crossbar, and
+      from close in many go over or hit the bar. The fix aims at the middle of the net instead, as the game already does
+      with no goalie at all. Penalty shots and shootouts are unchanged. An option, not a recommended fix. {FROM_94}
     </p>
   ),
   blindRingFix: (
     <p className="note">
-      When a low loose puck comes near a goalie's stick, the game leaves it to the stick and skips the goalie's body. But
-      the stick only takes a puck right at its blade, so a puck in between touches nothing and slides on, which is how
-      some five-hole goals go in. NHL '95's gap is bigger than NHL 94's. The fix lets the goalie's body play those pucks,
-      saving or holding them by his ratings; everything else is as before. An option, not a recommended fix. {FROM_94}
+      When a low loose puck comes near the goalie's stick, the original game leaves it to the stick alone, but the stick
+      only stops a puck right at its blade. A puck in between touches nothing and slides on, which is how some five-hole
+      goals go in; NHL '95's gap is bigger than NHL 94's. The fix lets the goalie's body play those pucks, stopping or
+      holding them as his ratings allow. An option, not a recommended fix. {FROM_94}
     </p>
   ),
   nhlShootout: (
     <p className="note">
-      The game plays every shootout to five rounds, even when one team can no longer catch up. With this on it follows
-      today's NHL rule: three rounds, then sudden death, and it ends as soon as the result is settled (for example after
-      the home team's third shot when it trails by two). The home team shoots first. For Shootout mode on the main menu
-      and the regular-season shootouts above. {TESTED}
+      The original game plays every shootout to five rounds, even when one team can no longer catch up. With this on it
+      follows today's NHL rule: three rounds, then sudden death, ending as soon as the result is settled. The home team
+      shoots first. For Shootout mode on the main menu and the regular-season shootouts above. {TESTED}
     </p>
   ),
   seasonShootout: (
     <p className="note">
       A regular-season game still tied after its overtime goes to a shootout, played as in Shootout mode: five shooters a
-      side, then sudden death. The winners get one goal more in the score, so the game never ends in a tie. The shootout
-      itself counts in no statistics. Playoff games are unchanged. Only one of the three ways of settling a tie can be
-      on. {TESTED}
+      side, then sudden death. The winners get one goal more in the score, so no game ends in a tie; the shootout itself
+      counts in no statistics. Playoff games are unchanged. Only one of the three ways of settling a tie can be on.{' '}
+      {TESTED}
     </p>
   ),
   seasonShootoutNow: (
@@ -295,29 +286,26 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   seasonOvertime: (
     <p className="note">
-      In the original game a regular-season game still tied after one overtime ends in a tie, while a playoff game
-      (exhibition playoffs, or a season's playoffs) plays another overtime, and another, until a goal. With this on the
-      regular season plays on the same way, each overtime as long as the ROM's own (10 minutes in the original game, 5
-      in the WN95HL's). {TESTED}
+      In the original game a regular-season game still tied after one overtime ends in a tie, while a playoff game keeps
+      playing overtimes until someone scores. With this on the regular season does the same. Each overtime is as long as
+      the ROM's own (10 minutes in the original game, 5 in the WN95HL's). {TESTED}
     </p>
   ),
   rocketFix: (
     <p className="note">
-      The game aims a pass at where its receiver will be: it works out when the two meet, in whole eighths of a second,
-      and sets the puck's speed to cover the distance in that time. It rounds the time down, so some passes go nearly
-      twice as fast as they should, and a few far faster. The fix works the time out in 64ths of a second, so passes go
-      at their own speed. NHL '95's slow flat pass still takes four times as long, and the receiver waits for it as he
-      does in the original. {FROM_94}
+      The game works out how long a pass will take to reach its man and sets the puck's speed to match, but it rounds
+      that time down, so some passes go nearly twice as fast as they should and a few far faster: the rocket passes.
+      The fix works the time out properly, so passes go at their own speed. NHL '95's slow flat pass stays as slow as
+      before, and the receiver still waits for it. {FROM_94}
     </p>
   ),
   passFix: (
     <p className="note">
-      When you pass, the game looks for a teammate in the direction you're pointing. NHL '95 changed one instruction in
-      how it works that direction out, so now and then a pass goes straight across instead of to a teammate off at an
-      angle, or back to a teammate behind the passer. The fix puts back NHL 94's instruction. Only the regular pass (B)
-      changes, not the soft pass (A). The game uses the same step to turn computer players, so they may move a little
-      differently too. An option, not a recommended fix: some leagues may prefer passing as NHL '95 has always done it.{' '}
-      {TESTED}
+      When you pass, the game looks for a teammate in the direction you're pointing. NHL '95 changed a small part of how
+      it works that direction out, so now and then a pass goes straight across instead of to a teammate off at an angle,
+      or back to a teammate behind the passer. The fix puts back NHL 94's way. Only the regular pass (B) changes, not
+      the soft pass (A). Computer players turn the same way, so they may move a little differently too. An option, not
+      a recommended fix: some leagues may prefer passing as NHL '95 has always done it. {TESTED}
     </p>
   ),
 }
@@ -636,9 +624,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
         Nothing in the ROM changes until you do, and Undo takes it all back.
       </p>
       <p className="note">
-        Changes to NHL '95 itself: NHL 94's fixes and settings where NHL '95 has the same code, and NHL '95's own, from the
-        NHL94 Match Viewer project's reading of the game's code. The rest of NHL 94's hacks were made for NHL 94's code and
-        are not offered here. The page shows what this ROM has now. Test a hacked ROM in a game before a league plays on it.
+        Fixes, settings and new options for NHL '95, most of them from the NHL94 Match Viewer project. Many are NHL
+        94's, brought over where NHL '95 works the same way; NHL 94's other hacks don't fit NHL '95 and are not offered
+        here. Each option shows what this ROM has now. Play a game on a hacked ROM before your league does.
       </p>
       <HackShortcuts
         onRecommended={null}
@@ -659,7 +647,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
               {BESIDE[hack]}
               <p className="summary">
                 {SUMMARIES[hack]}
-                {unknown(hack) && <b> This ROM's code here is neither the original game's nor this hack's, so it is left exactly as it is.</b>}
+                {unknown(hack) && <b> Something else has already changed this part of the ROM, so this option is left exactly as it is.</b>}
               </p>
               <details className="more">
                 <summary>More about it</summary>
