@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { defaultPartChoices, GAME_MUSIC, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name = 'nhl94.bin') => openRom(new Uint8Array(readFileSync(path(name))))
@@ -148,6 +149,31 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
     expect(() => songFromMidi([{ start: 0, length: 1, note: 36, velocity: 100, channel: 9 }])).toThrow('only drums')
     const many = Array.from({ length: 200000 }, (_, i) => ({ start: i * 0.01, length: 0.005, note: 60 + (i % 12), velocity: 90, channel: 0 }))
     expect(songFromMidi(many).events.length).toBeGreaterThan(1000)
+  })
+
+  it('gives back the room of a song it replaces, so that put back the ROM is as it was', () => {
+    for (const name of ['nhl94.bin', local.league30Rom].filter((n): n is string => !!n && existsSync(path(n)))) {
+      const project = open(name)
+      const made = songFromMidi(readMidi(testMidi()).notes)
+      const once = withSong(project.bytes, 0x40, made.events, 'Test')
+      // Replaced again, it goes where the first was; the room of a song made for another number is kept.
+      const twice = withSong(once, 0x40, made.events, 'Again')
+      expect(twice.length).toBe(once.length)
+      const start = (rom: Uint8Array) => {
+        const at = [...Array(rom.length - 8).keys()].find((o) => o % 2 === 0 && rom[o] === 0xe5 && rom[o + 1] === 0x40 && rom[o + 2] === 0x41 && rom[o + 3] === 0xf9)!
+        return new DataView(rom.buffer, rom.byteOffset).getUint32(new DataView(rom.buffer, rom.byteOffset).getUint32(at + 4) + 0x40 * 4)
+      }
+      expect(start(twice), name).toBe(start(once))
+      expectSameBytes(withOriginalSong(twice, 0x40), project.bytes, name)
+      // Two songs put back, in either order.
+      const both = withSong(twice, 0x41, made.events, 'Other')
+      expectSameBytes(withOriginalSong(withOriginalSong(both, 0x41), 0x40), project.bytes, name)
+      expectSameBytes(withOriginalSong(withOriginalSong(both, 0x40), 0x41), project.bytes, name)
+      // The game's title music too, which loops.
+      const title = gameMusicFromMidi(readMidi(testMidi()).notes, new Map([[0, 14]]))
+      const music = withSong(withSong(project.bytes, 0x78, title.events, 'One'), 0x78, title.events, 'Two')
+      expectSameBytes(withOriginalSong(music, 0x78), project.bytes, name)
+    }
   })
 
   it("exports a game song as MIDI that reads back with the same notes", () => {

@@ -21,7 +21,7 @@
 // room at the end of the ROM. NOSE4Web marks a song it made by 'N4W1' after its
 // end, then the address of the song it replaced and its name.
 
-import { claimSpace } from './space'
+import { claimSpace, releaseSpace } from './space'
 
 export const FIRST_SONG = 0x30
 export const LAST_TEAM_SONG = 0x77
@@ -329,7 +329,8 @@ export function songBytes(events: SongEvent[], replaced: number, name: string, l
 
 export class SongError extends Error {}
 
-// The ROM with song `number` replaced by `events`, in free room at the end.
+// The ROM with song `number` replaced by `events`, in free room at the end. A song NOSE4Web made that it replaces
+// gives its room back first.
 export function withSong(rom: Uint8Array, number: number, events: SongEvent[], name: string): Uint8Array {
   const table = soundTable(rom)
   if (table < 0) throw new SongError("This ROM's sound table is not where the original game has it, so its songs cannot be changed.")
@@ -338,9 +339,10 @@ export function withSong(rom: Uint8Array, number: number, events: SongEvent[], n
   const current = readSong(rom, number)
   const replaced = current?.custom ? current.custom.replaced : u32(rom, table + number * 4)
   const size = songBytes(events, replaced, name, music ? 0 : undefined).length
-  const claimed = claimSpace(rom, size + 1)
+  const freed = withoutCustomSong(rom, table, number)
+  const claimed = claimSpace(freed, size + 1, false, freed !== rom)
   if (!claimed) throw new SongError('There is no room left in this ROM for the song.')
-  const at = claimed.at + (claimed.at % 2)
+  const at = songStart(claimed)
   const next = claimed.rom
   // The game's pieces loop; a new one plays again from just after its first wait.
   next.set(songBytes(events, replaced, name, music ? at + 4 : undefined), at)
@@ -348,13 +350,53 @@ export function withSong(rom: Uint8Array, number: number, events: SongEvent[], n
   return next
 }
 
-// The ROM with song `number` back as it was before NOSE4Web replaced it.
+// The ROM with song `number` back as it was before NOSE4Web replaced it, the room NOSE4Web's song took given back.
 export function withOriginalSong(rom: Uint8Array, number: number): Uint8Array {
   const table = soundTable(rom)
   const song = readSong(rom, number)
   if (table < 0 || !song?.custom) return rom
-  const next = rom.slice()
+  const freed = withoutCustomSong(rom, table, number)
+  const next = freed === rom ? rom.slice() : freed
   put32(next, table + number * 4, song.custom.replaced)
+  return next
+}
+
+// Where a song goes in the room claimed: at an even address. Room at an odd one starts at NOSE's end mark, whose
+// first byte the song does not cover: it is cleared, so that once the song's room is given back it is all unused.
+function songStart(claimed: { rom: Uint8Array; at: number }): number {
+  if (claimed.at % 2 === 0) return claimed.at
+  if (claimed.rom[claimed.at] === 0x60) claimed.rom[claimed.at] = 0xff
+  return claimed.at + 1
+}
+
+// Where the stream of song `number` is, from its start to past its mark and name (as customSongBytes keeps it), or
+// null where it is not one NOSE4Web made.
+function customSongRange(rom: Uint8Array, table: number, number: number): { start: number; end: number } | null {
+  const song = readSong(rom, number)
+  if (!song?.custom) return null
+  const start = u32(rom, table + number * 4)
+  let p = start
+  while (p + 4 <= rom.length && rom[p + 1] !== 0) p += 4
+  let end = p + (song.loops ? 14 : 12)
+  while (end < rom.length && rom[end] !== 0) end++
+  end++
+  if ((end - start) % 2) end++
+  return { start, end: Math.min(end, rom.length) }
+}
+
+// A copy of the ROM with the room of song `number` given back, where it is a song NOSE4Web made that no other sound
+// plays; otherwise the ROM itself. The unused byte or two between it and a song that follows it (the byte after
+// each song, and the end mark's first byte cleared) go with it, so that the two rooms join when both are given back.
+function withoutCustomSong(rom: Uint8Array, table: number, number: number): Uint8Array {
+  const range = customSongRange(rom, table, number)
+  if (!range) return rom
+  const starts = Array.from({ length: LAST_SOUND + 1 }, (_, other) => (other === number ? -1 : u32(rom, table + other * 4)))
+  if (starts.includes(range.start)) return rom
+  let unused = 0
+  while (unused < 2 && rom[range.end + unused] === 0xff) unused++
+  if (unused && starts.includes(range.end + unused)) range.end += unused
+  const next = rom.slice()
+  releaseSpace(next, [range])
   return next
 }
 
@@ -756,14 +798,8 @@ export function customSongBytes(rom: Uint8Array, number: number): Uint8Array | n
   const table = soundTable(rom)
   const song = readSong(rom, number)
   if (table < 0 || !song?.custom) return null
-  const start = u32(rom, table + number * 4)
-  let p = start
-  while (p + 4 <= rom.length && rom[p + 1] !== 0) p += 4
-  let end = p + (song.loops ? 14 : 12)
-  while (end < rom.length && rom[end] !== 0) end++
-  end++
-  if ((end - start) % 2) end++
-  return rom.slice(start, end)
+  const range = customSongRange(rom, table, number)!
+  return rom.slice(range.start, range.end)
 }
 
 // The ROM with song `number` replaced by a song's bytes from a project file, its mark naming this ROM's own.
@@ -779,9 +815,10 @@ export function withSongBytes(rom: Uint8Array, number: number, bytes: Uint8Array
   const own = current?.custom ? current.custom.replaced : u32(rom, table + number * 4)
   const song = bytes.slice()
   put32(song, mark + 4, own)
-  const claimed = claimSpace(rom, song.length + 1)
+  const freed = withoutCustomSong(rom, table, number)
+  const claimed = claimSpace(freed, song.length + 1, false, freed !== rom)
   if (!claimed) throw new SongError('There is no room left in this ROM for the song.')
-  const at = claimed.at + (claimed.at % 2)
+  const at = songStart(claimed)
   // A piece that loops plays again from just after its first wait, where it now is.
   if (loops) put32(song, p + 2, at + 4)
   claimed.rom.set(song, at)
