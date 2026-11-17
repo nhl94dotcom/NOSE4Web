@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { readMidi, songToMidi } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
-import { readSnesSong, SNES_SONG_VOICES, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
+import { readSnesMusic, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
 import { snesSongChoices, snesSongName } from '../src/core/snessongs'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -77,5 +77,25 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES organ songs from MIDI file
       expect(choices.length, name).toBeGreaterThan(10)
       expect(choices.every((c) => readSnesSong(rom, c.pointer) !== null), name).toBe(true)
     }
+  })
+})
+
+describe.skipIf(names.length === 0)("the SNES game's other music", () => {
+  it.each(names)('reads the title, menu and playoff music in %s, and exports each as MIDI, a track a part', (name) => {
+    const rom = openRom(new Uint8Array(readFileSync(path(name)))).bytes
+    const found = SNES_GAME_MUSIC.map(({ pointer, name: piece }) => {
+      const music = readSnesMusic(rom, pointer)
+      expect(music, piece).not.toBeNull()
+      const notes = readMidi(snesMusicToMidi(music!, piece)).notes
+      // Every note is in the file: the tunes at their pitches, the drums and the percussion parts on the drum channel.
+      const all = music!.parts.reduce((sum, part) => sum + part.notes.length, 0)
+      expect(notes.length).toBe(all)
+      const drums = music!.parts.find((part) => part.drums)!
+      expect(notes.filter((note) => note.channel === 9).length).toBeGreaterThanOrEqual(drums.notes.length)
+      // The preview leaves the drums out.
+      expect(snesMusicTune(music!).filter((e) => (e.status & 0xf0) === 0x90).length).toBe(notes.filter((note) => note.channel !== 9).length)
+      return [music!.parts.length, Math.round(music!.seconds)]
+    })
+    expect(found).toEqual([[13, 88], [14, 70], [14, 28]])
   })
 })

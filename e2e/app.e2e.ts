@@ -2648,7 +2648,11 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Announcer picture', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Playoff draws', 'Organ songs', 'Move teams'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Announcer picture', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Playoff draws', 'Organ songs', 'Game music', 'Move teams'])
+    const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
+    await expect(music.locator('tbody tr')).toHaveCount(3)
+    const menuMusic = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Menu music' }).getByRole('button', { name: 'Export MIDI' }))
+    expect(menuMusic.suggestedFilename()).toBe('menu_music.mid')
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })

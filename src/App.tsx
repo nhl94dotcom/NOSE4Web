@@ -50,7 +50,7 @@ import { MenuPictureSection } from './MenuPictureSection'
 import { MoveTeamsSection } from './MoveTeamsSection'
 import { AnnouncerSection } from './AnnouncerSection'
 import { ScoutingSection } from './ScoutingSection'
-import { GameMusicSection, OrganSongsSection, SnesOrganSongsSection } from './OrganSongsSection'
+import { GameMusicSection, OrganSongsSection, SnesGameMusicSection, SnesOrganSongsSection } from './OrganSongsSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
@@ -408,6 +408,7 @@ export default function App() {
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             <GameMusicSection project={current} onChange={change} />
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
+            <SnesGameMusicSection project={current} />
             {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>
         )
