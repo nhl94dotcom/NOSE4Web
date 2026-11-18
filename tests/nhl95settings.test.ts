@@ -3,8 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_SECTIONS, NHL95_HACK_TITLES, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95GiveawaysOutdated, nhl95HackSheet, nhl95HacksForDiscord, nhl95HackStateChanges, type Nhl95HackChoices } from '../src/core/nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_SECTIONS, NHL95_HACK_TITLES, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95GiveawaysOutdated, nhl95HackSheet, nhl95HacksForDiscord, nhl95HackStateChanges, nhl95WithHacksOf, type Nhl95HackChoices } from '../src/core/nhl95hacks'
+import { attributeText } from '../src/core/attributes'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
+import { websiteRosterRows, websiteRosterSupported } from '../src/core/websiteroster'
 import { Nhl95HacksPage } from '../src/Nhl95HacksPage'
 import { expectSameBytes } from './samebytes'
 
@@ -127,7 +130,17 @@ const IN_PLACE: { name: string; set: Partial<Nhl95HackChoices>; bytes: [number, 
   { name: "the forum's B-checks", set: { bCheckPenaltiesOff: 'forum' }, bytes: [[0x7af3c, '67000030'], [0x7af46, '66000026']] },
   { name: 'three stars, line changes off', set: { threeStars: 'linesOff' }, bytes: [[0x95c8a, clean(STARS_OFF)]] },
   { name: 'three stars, line changes on', set: { threeStars: 'linesOn' }, bytes: [[0x95c8a, clean(STARS_ON)]] },
+  // Create_HotCold_Table's move.w #9,d0.
+  { name: 'hot and cold range', set: { hotColdRange: 4 }, bytes: [[0x83e90, '303c0004']] },
+  { name: 'no hot and cold', set: { hotColdRange: 0 }, bytes: [[0x83e90, '303c0000']] },
+  // The roster screen's and Create Player's addi.w #140,d0.
+  { name: 'base weight', set: { baseWeight: 144 }, bytes: [[0x8566a, '06400090'], [0x9944e, '06400090']] },
+  { name: 'the lightest base weight', set: { baseWeight: 102 }, bytes: [[0x8566a, '06400066'], [0x9944e, '06400066']] },
 ]
+// Clutch time: AttributeCalc's end becomes jmp / NOPs to its code, and the vblank's clock tick a jsr / NOPs.
+const CLUTCH_CALC = '0243 00FF 0C78 000F BB12 672C 0C78 0002 C020 6624 0C78 0078 C022 621C 3038 C294 9078 C5FA 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75'
+const CLUTCH_TICK =
+  '5378 C022 0C78 0078 C022 664E 0C78 0002 C020 6646 0C78 0078 C022 623E 3038 C294 9078 C5FA 6A02 4440 0C40 0001 622C 41F8 AC62 720B 43FA 002C 7408 3019 1630 0000 5603 0C03 001E 6302 761E 1183 0000 51CA FFEA 41E8 0080 51C9 FFDC 0C78 003D C022 4E75 0068 0069 006C 006D 006E 0070 0071 0072 0075'
 const INJURY_SITES = [0x7b48a, 0x9f078, 0x9f088, 0x9f0a0, 0x7b49c, 0x7b4c8]
 const INJURIES: Record<string, string[]> = {
   original: ['6600006e', '66000022', '66000012', '67000018', '4eb90009f012', '31fc0004c016'],
@@ -209,6 +222,65 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
       expect(detectNhl95Hacks(buildRom(on)).choices).toMatchObject(set)
       expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
     }
+  })
+
+  it.each(names)('puts clutch time into %s, the code as NHL 94 has it with NHL 95’s addresses, and takes it out', (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    expect(hex(rom.bytes, 0x83d34, 10)).toBe(clean('0243 00FF 4CDF 0207 4E75'))
+    expect(hex(rom.bytes, 0x7a392, 10)).toBe(clean('5378 C022 0C78 003D C022'))
+    const on = applyNhl95Hacks(rom, { clutchTime: true })
+    expect(hex(on.bytes, 0x83d34, 2)).toBe('4ef9')
+    expect(hex(on.bytes, 0x83d3a, 4)).toBe('4e714e71')
+    expect(hex(on.bytes, read32(on.bytes, 0x83d36), clean(CLUTCH_CALC).length / 2)).toBe(clean(CLUTCH_CALC))
+    expectCode(on.bytes, 0x7a392, 10, CLUTCH_TICK)
+    expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...base, clutchTime: true }, unknown: [] })
+    expect(detectNhl95Hacks(buildRom(on)).choices.clutchTime).toBe(true)
+    expectSameBytes(applyNhl95Hacks(on, { clutchTime: false }).bytes, rom.bytes)
+    // One part without the other is not clutch time.
+    const half = on.bytes.slice()
+    half.set(rom.bytes.subarray(0x7a392, 0x7a392 + 10), 0x7a392)
+    expect(detectNhl95Hacks(half).unknown).toEqual(['clutchTime'])
+  })
+
+  it.each(names)('sets the base weight in %s: the editor reads weights by it, and every player keeps his pounds', (name) => {
+    const rom = open(name)
+    const pounds = (project: typeof rom) =>
+      project.teams.flatMap((team) => team.players.map((player) => Number(attributeText(project.game.playerAttributeKinds[0], player.attributes[0]))))
+    const on = applyNhl95Hacks(rom, { baseWeight: 144 })
+    expect(on.game.title).toBe(`${rom.game.title}, base weight 144`)
+    expect(on.game.productCode).toBe(rom.game.productCode)
+    expect(on.game.edition).toBe(95)
+    expect([on.game.playerAttributeKinds[0], on.game.goalieAttributeKinds[0]]).toEqual(['weight:144', 'weight:144'])
+    // Each weight moves to the step nearest his pounds: at most 4 pounds out, and the lightest no lighter than 144.
+    const [was, now] = [pounds(rom), pounds(on)]
+    now.forEach((weight, i) => expect(Math.abs(weight - Math.max(144, was[i]))).toBeLessThanOrEqual(4))
+    // Saved and opened again: the same kind of ROM, the same weights; the website file has the steps, as for NHL 94.
+    const reopened = openRom(buildRom(on))
+    expect(reopened.game).toBe(on.game)
+    expect(pounds(reopened)).toEqual(now)
+    expect(websiteRosterSupported(on.game)).toBe(true)
+    expect(websiteRosterRows(reopened).slice(1).map((row) => row[6])).toEqual(on.teams.flatMap((team) => team.players.map((player) => player.attributes[0])))
+    // Back to 140: NHL '95 itself, the bytes as they were.
+    const back = applyNhl95Hacks(on, { baseWeight: 140 })
+    expect(back.game).toBe(rom.game)
+    expectSameBytes(back.bytes, rom.bytes)
+    // The ROM as opened is brought to the work's base weight to compare and reset against.
+    expect(nhl95WithHacksOf(rom, on).game).toBe(on.game)
+    expect(pounds(nhl95WithHacksOf(rom, on))).toEqual(now)
+    expect(nhl95WithHacksOf(rom, applyNhl95Hacks(rom, { clutchTime: true }))).toBe(rom)
+    // A project file carries it.
+    const file = saveProjectFile(on, rom, 'P')
+    const opened = openProjectFile(rom, JSON.stringify({ ...JSON.parse(file), rom: undefined }))
+    expect(opened.project.game).toBe(on.game)
+    expect(pounds(opened.project)).toEqual(now)
+    // Only even weights from 102 to 152.
+    expect(() => applyNhl95Hacks(rom, { baseWeight: 143 })).toThrow(Nhl95HackError)
+    expect(() => applyNhl95Hacks(rom, { baseWeight: 154 })).toThrow(Nhl95HackError)
+    // The two places must agree.
+    const odd = applyNhl95Hacks(rom, { baseWeight: 144 }).bytes.slice()
+    odd.set([0x00, 0x8c], 0x99450)
+    expect(detectNhl95Hacks(odd).unknown).toEqual(['baseWeight'])
   })
 
   it.each(names)('takes energy for hits and holds in %s, and counts knockdowns for the injury risk', (name) => {
@@ -409,6 +481,8 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
       speedBurst: 20,
       turnRate: 170,
       puckFriction: 8,
+      baseWeight: 152,
+      hotColdRange: 4,
     }
     const all: Nhl95HackChoices = { ...base, ...switches, ...settings }
     const on = applyNhl95Hacks(rom, all)
@@ -430,13 +504,15 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     const sections = [...html.matchAll(/<section id="hacks-([a-z]+)"[^>]*>(.*?)<\/section>/gs)].map((m) => ({ id: m[1], html: m[2] }))
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
     const TESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Tested in the game by the NHL94 Match Viewer project.'
+    const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
+    const notYet = ['baseWeight', 'hotColdRange', 'clutchTime']
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
       for (const hack of section.hacks.filter((hack) => hack !== 'fightingArcade' && hack !== 'fightingOff')) {
         const at = shown.indexOf(`<b>${NHL95_HACK_TITLES[hack].replace(/'/g, '&#x27;')}</b>`)
         expect(at, hack).toBeGreaterThanOrEqual(0)
         // NHL 94's settings: their note ends with the line for them.
-        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(TESTED)
+        if (NHL95_HACKS.indexOf(hack) >= NHL95_HACKS.indexOf('threeStars')) expect(shown.slice(at).split('</details>')[0], hack).toContain(notYet.includes(hack) ? UNTESTED : TESTED)
       }
     }
     expect(html).not.toContain('undefined')

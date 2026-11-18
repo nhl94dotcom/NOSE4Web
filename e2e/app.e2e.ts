@@ -3233,6 +3233,13 @@ test.describe("with the NHL '95 ROM", () => {
     const sheet = await downloadFrom(page, page.getByRole('button', { name: 'Download hack sheet' }))
     expect(readFileSync(await sheet.path(), 'utf8')).toContain('<dt>Pass direction fix</dt>')
     await page.screenshot({ path: 'test-results/shots/nhl95-hacks.png', fullPage: true })
+    // A base weight for another era, from a season's year: the editor then reads weights by it.
+    await page.getByLabel('Season year').fill('2000')
+    await page.getByRole('button', { name: 'Use 144 pounds' }).click()
+    await expect(page.getByLabel('Base weight')).toHaveValue('144')
+    await expect(page.getByText("Every player's weight will be moved to the step nearest")).toBeVisible()
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(page.locator('header')).toContainText('base weight 144')
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Pass direction fix: off to on.')).toBeVisible()
     expect(errors).toEqual([])

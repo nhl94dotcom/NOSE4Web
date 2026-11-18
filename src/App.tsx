@@ -34,7 +34,7 @@ import { playerPhoto, playerPhotosSupported, withPlayerPhotos } from './core/pla
 import { anyPhotos } from './core/photoset'
 import { photosSupported } from './core/photos'
 import { hacksSupported, withHacksOf } from './core/hacks'
-import { nhl95HacksSupported } from './core/nhl95hacks'
+import { nhl95HacksSupported, nhl95WithHacksOf } from './core/nhl95hacks'
 import { anyPosition } from './core/anyposition'
 import { ImportTeamPage } from './ImportTeamPage'
 import { LeaguePage } from './LeaguePage'
@@ -103,6 +103,9 @@ const SESSION_SAVE_DELAY_MS = 800
 
 const isTextField = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.matches('input:not([type=checkbox]):not([type=range]), textarea')
+
+// The ROM as opened brought to the hacks the work has, for NHL 94 or NHL '95.
+const withAnyHacksOf = (opened: RomProject, project: RomProject) => (nhl95HacksSupported(project.game) ? nhl95WithHacksOf(opened, project) : withHacksOf(opened, project))
 
 export default function App() {
   const { project, change, reset, undo, redo, newStep, canUndo, canRedo } = useProjectHistory()
@@ -191,7 +194,7 @@ export default function App() {
   // Whether any skater may play any position: read from the hacks once for these bytes, not at every render.
   const anyAnywhere = useMemo(() => (hackedGame && hackedBytes ? anyPosition({ game: hackedGame, bytes: hackedBytes }) : false), [hackedGame, hackedBytes])
   const original = useMemo(
-    () => (asOpened && hackedBytes && hackedGame ? withHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
+    () => (asOpened && hackedBytes && hackedGame ? withAnyHacksOf(asOpened, { ...asOpened, bytes: hackedBytes, game: hackedGame }) : null),
     [asOpened, hackedBytes, hackedGame],
   )
 
@@ -209,7 +212,7 @@ export default function App() {
   }, [asOpened, teamOrder])
   const inOrder = useMemo(() => {
     if (!orderedOpened || orderedOpened === asOpened || !hackedBytes || !hackedGame) return original
-    return withHacksOf(orderedOpened, { ...orderedOpened, bytes: hackedBytes, game: hackedGame })
+    return withAnyHacksOf(orderedOpened, { ...orderedOpened, bytes: hackedBytes, game: hackedGame })
   }, [orderedOpened, asOpened, original, hackedBytes, hackedGame])
   // The team page shown, and the last team, follow their team when teams are
   // moved, or a move is undone or done again.

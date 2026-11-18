@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { HackShortcuts } from './HackShortcuts'
 import { NumberBox } from './NumberBox'
-import { HITS_ONLY, holdSeconds, RECOMMENDED_HIT_ENERGY, RECOMMENDED_HOLD_ENERGY, RECOMMENDED_INJURY_BONUS, RECOMMENDED_INJURY_CAP } from './core/hacks'
+import { WEIGHT_BASES } from './core/attributes'
+import { baseWeightForYear, HITS_ONLY, holdSeconds, RECOMMENDED_HIT_ENERGY, RECOMMENDED_HOLD_ENERGY, RECOMMENDED_INJURY_BONUS, RECOMMENDED_INJURY_CAP } from './core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from './core/hacksheet'
 import {
   applyNhl95Hacks,
@@ -91,6 +92,9 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
+  baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
+  hotColdRange: "How far hot and cold can move a player's ratings.",
+  clutchTime: 'In the last 2:00 of a close third period, everyone on the ice plays half a rating point better.',
 }
 
 const FIGHT_START = 'Fighting setting at power-on'
@@ -103,7 +107,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = []
+const NOT_YET: Nhl95Hack[] = ['baseWeight', 'hotColdRange', 'clutchTime']
 
 const OT3_MORE = (
   <p className="note">
@@ -500,6 +504,31 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       the period's end, and is fresh again after each intermission. Only the puck. It goes with Puck friction above.
     </>
   ),
+  baseWeight: (c) => (
+    <>
+      A player's weight is one of sixteen steps of 8 pounds, counted up from this. Players have grown heavier over the
+      years, so a ROM for another era starts the count elsewhere, to spread its players across the steps: from{' '}
+      {c.baseWeight} to {c.baseWeight + 120} pounds as chosen. Only the roster screen, Create Player and the editor show
+      the pounds; in play a player is as heavy as his step. Give a season's year for the weight smozROM suggests for it.
+      Applying a new one moves every player to the step nearest the pounds he weighs now.
+    </>
+  ),
+  hotColdRange: (_, stock) => (
+    <>
+      Before each game every player is made a little hot or cold: anything from minus this number to one less than it, so
+      the original 9 gives -9 to 8. A smaller number makes the swings smaller. At 2 or less hot and cold no longer
+      change how anyone plays, though the roster screen still shows the small values; 0 makes them all 0, so every player
+      plays to his ratings every game. {stock}
+    </>
+  ),
+  clutchTime: () => (
+    <>
+      An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal,
+      everyone on the ice plays half a rating point better at everything but Aggression. Not in overtime. A goal that
+      opens a two-goal lead ends it at the next faceoff, and one that brings a game back within a goal starts it again
+      there. The 2:00 is the same at any period length.
+    </>
+  ),
 }
 
 // The words a number is shown with.
@@ -521,6 +550,8 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
   const wanted: Nhl95HackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [year, setYear] = useState('')
+  const suggested = /^\d{4}$/.test(year.trim()) ? baseWeightForYear(Number(year)) : null
   const changes = nhl95HackStateChanges(state, { choices: wanted, unknown: state.unknown })
   const unknown = (hack: Nhl95Hack) => state.unknown.includes(hack)
   // The most knockdowns add is kept only with a risk from them (with none, nothing of it is written).
@@ -580,12 +611,32 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
       </p>
     ),
     holdEnergy: <p>{button(`Use the recommended ${RECOMMENDED_HOLD_ENERGY}`, { holdEnergy: RECOMMENDED_HOLD_ENERGY })}</p>,
+    baseWeight: (
+      <span className="by-year">
+        or for the season of{' '}
+        <input className="num" inputMode="numeric" aria-label="Season year" placeholder="year" value={year} onChange={(e) => setYear(e.target.value)} />{' '}
+        <button type="button" disabled={suggested === null || unknown('baseWeight')} onClick={() => suggested !== null && set({ baseWeight: suggested })}>
+          {suggested === null ? 'Use that season' : `Use ${suggested} pounds`}
+        </button>
+      </span>
+    ),
     injuryBonus: <p>{button(`Use the recommended ${RECOMMENDED_INJURY_BONUS} and ${RECOMMENDED_INJURY_CAP}`, { injuryBonus: RECOMMENDED_INJURY_BONUS, injuryCap: RECOMMENDED_INJURY_CAP })}</p>,
   }
 
   // The control for one hack: on or off, a number, or one of a few choices.
   function control(hack: Nhl95Hack): ReactNode {
     const label = hack === 'fightingOff' ? FIGHT_START : NHL95_HACK_TITLES[hack]
+    if (hack === 'baseWeight') {
+      return (
+        <select aria-label={label} disabled={unknown(hack)} value={wanted.baseWeight} onChange={(e) => set({ baseWeight: Number(e.target.value) })}>
+          {WEIGHT_BASES.map((base) => (
+            <option key={base} value={base}>
+              {base} pounds{base === N.baseWeight ? ' (original)' : ''}
+            </option>
+          ))}
+        </select>
+      )
+    }
     if (isNumber(hack)) {
       return (
         <>
@@ -706,6 +757,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
                 <li key={change}>{change}</li>
               ))}
             </ul>
+            {!unknown('baseWeight') && wanted.baseWeight !== state.choices.baseWeight && (
+              <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>
+            )}
           </div>
         )}
         {error && <p className="error">{error}</p>}

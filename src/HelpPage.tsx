@@ -2421,7 +2421,7 @@ export function HelpPage() {
           94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it tested in the game by the NHL94 Match
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it but three below tested in the game by the NHL94 Match
           Viewer project.
           NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
@@ -2435,7 +2435,10 @@ export function HelpPage() {
           <b>Fighting</b>, Vancecookcobxin's fighting patch with a fix by Match Viewer: it adds a Fighting setting to Game
           Setup (Off, On, or On - Arcade Mode), and a league chooses which it starts at. Players fight by their Fighting
           rating (in Handed/Fighting): 71 or more to start a fight, 14 or more to fight back. The WN95HL's Season 18 ROM
-          rates no one, so a league there raises some.
+          rates no one, so a league there raises some. Three of NHL 94's Ratings options, not yet tested in the game:
+          the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
+          <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
+          are not offered: NHL '95 works out and shows ratings differently.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved

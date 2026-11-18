@@ -1,6 +1,7 @@
+import { convertWeight, isWeight, WEIGHT_BASES } from './attributes'
 import { discordPost } from './discord'
-import type { GameConfig } from './games'
-import { readU16, readU32, writeU16 } from './bytes'
+import { findGame, NHL95_WEIGHT_AT, type GameConfig } from './games'
+import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import {
   assemble,
   assistFixes,
@@ -30,6 +31,8 @@ import type { HackSheet } from './hacksheet'
 import { FIGHT95_AT, FIGHT95_BLOCK, FIGHT95_CHOICES_AT, FIGHT95_HOOKS, FIGHT95_LABELS_AT } from './nhl95fightdata'
 import type { RomProject } from './rom'
 import { claimSpace95, fullRomReason } from './space'
+import { goalieCount, type Player, type Team } from './team'
+import type { FreeAgent } from './trade'
 
 // Hacks to NHL '95 for the Genesis. NHL 94's hacks are made for NHL 94's code;
 // these are NHL '95's own, or NHL 94's where NHL '95 has the same code at
@@ -104,6 +107,10 @@ export interface Nhl95HackChoices {
   turnRate: number
   puckFriction: number
   choppyIce: boolean
+  // Ratings.
+  baseWeight: number
+  hotColdRange: number
+  clutchTime: boolean
 }
 export type Nhl95Hack = keyof Nhl95HackChoices
 // In the order they are taken out and put in: the one-timer fix takes over a
@@ -117,6 +124,7 @@ export const NHL95_HACKS: Nhl95Hack[] = [
   'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
+  'baseWeight', 'hotColdRange', 'clutchTime',
 ]
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
   fighting: false,
@@ -181,10 +189,13 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   // The puck's own: NHL '95 takes 1/128 of its speed a frame, where NHL 94 takes 1/512 from the puck and gliding skaters alike.
   puckFriction: 7,
   choppyIce: false,
+  baseWeight: 140,
+  hotColdRange: 9,
+  clutchTime: false,
 }
-// The numbers, each from the least to the most it can be: NHL 94's ranges.
-export type Nhl95NumberHack = { [K in Nhl95Hack]: Nhl95HackChoices[K] extends number ? K : never }[Nhl95Hack]
-const NUMBER_HACKS = NHL95_HACKS.filter((hack): hack is Nhl95NumberHack => typeof NO_NHL95_HACKS[hack] === 'number')
+// The numbers, each from the least to the most it can be: NHL 94's ranges. The base weight is one of WEIGHT_BASES.
+export type Nhl95NumberHack = Exclude<{ [K in Nhl95Hack]: Nhl95HackChoices[K] extends number ? K : never }[Nhl95Hack], 'baseWeight'>
+const NUMBER_HACKS = NHL95_HACKS.filter((hack): hack is Nhl95NumberHack => typeof NO_NHL95_HACKS[hack] === 'number' && hack !== 'baseWeight')
 export const NHL95_HACK_RANGES = Object.fromEntries(NUMBER_HACKS.map((hack) => [hack, HACK_RANGES[hack]])) as Record<Nhl95NumberHack, [number, number]>
 // The choices of a few ways, in the words of their menus (NHL 94's).
 export const NHL95_HACK_CHOICES = {
@@ -264,6 +275,9 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   turnRate: 'Stopping and turning',
   puckFriction: 'Puck friction',
   choppyIce: 'Choppy ice',
+  baseWeight: 'Base weight',
+  hotColdRange: 'Hot and cold range',
+  clutchTime: 'Clutch time',
 }
 
 const hex =(text: string) => Uint8Array.from(text.replace(/\s/g, '').match(/../g)!.map((pair) => parseInt(pair, 16)))
@@ -1782,6 +1796,72 @@ const timeOnIce95: Part<boolean> = {
   },
 }
 
+// ----------------------------------------------------------------- ratings
+// NHL 94's Ratings options where NHL '95 has the same code (the NHL95Genesis disassembly; the same bytes in the
+// original game and the WN95HL's ROMs).
+//
+// The base weight: a weight step is 8 pounds counted up from 140 (weight(a3) = step x 8, which the collisions use;
+// they add their own 140, $7ACE4, left alone), and only the screens show the pounds: the roster screen's AttribWeight
+// (asl.w #3,d0 / addi.w #140,d0, $8566A) and Create Player's FieldWeight ($9944E), as NHL 94's one place ($8E92).
+// So, as in NHL 94, it changes only what the screens show, and the editor's reading of a weight (games.ts reads it
+// from $8566C).
+const WEIGHT_SITES95 = [site(NHL95_WEIGHT_AT, '0640'), site(0x99450, '0640')]
+const weightNumber95 = numberPart(WEIGHT_SITES95, NO_NHL95_HACKS.baseWeight)
+const baseWeight95: Part<number> = {
+  ...weightNumber95,
+  detect(rom) {
+    const base = weightNumber95.detect(rom)
+    return base !== undefined && WEIGHT_BASES.includes(base) ? base : undefined
+  },
+}
+// The hot and cold range: Create_HotCold_Table ($83E88) fills each player's 16 values with randomd0s of move.w #9,d0
+// ($83E90, the word at $83E92), -9 to 8, as NHL 94's ($F70AC). AttributeCalc ($83CDE) adds the first / 3 to the
+// rating x 5, as NHL 94's, so 2 or less leaves play as if there were none.
+const hotColdRange95 = numberPart([site(0x83e92, '303C')], NO_NHL95_HACKS.hotColdRange)
+// Clutch time, NHL 94's (hacks.ts) with NHL '95's addresses: AttributeCalc's end (andi.w #$FF,d3 / movem / rts,
+// $83D34) becomes jmp to code that adds 3 to every working rating but Aggression (attribute $F in TempWord2, $BB12) in
+// the last 2:00 (gameclock $C022 at most 120) of the third period (gsp $C020 = 2) with the score (team structs $C288
+// and $C5EE, tmscore $C) within a goal; and the vblank's clock tick (subq.w #1,(gameclock).w / cmpi.w #61, $7A392,
+// in VBlank, which saves every register) calls code that adds it to the 12 players' stored ratings (SortCords $AC62,
+// $80 each, the same offsets as NHL 94's) when the clock reaches 2:00. NHL '95's setplayer lifts some ratings after
+// AttributeCalc (BoostAttribute: d3 += (30 - d3) / 4), so there the +3 at a rebuild is about 2.
+const CLUTCH_CALC_AT95 = 0x83d34
+const CLUTCH_CALC_ORIGINAL95 = hex('0243 00FF 4CDF 0207 4E75')
+const CLUTCH_CALC_CODE95 = hex('0243 00FF 0C78 000F BB12 672C 0C78 0002 C020 6624 0C78 0078 C022 621C 3038 C294 9078 C5FA 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75')
+const CLUTCH_TICK95: Hook = { at: 0x7a392, original: hex('5378 C022 0C78 003D C022') }
+const CLUTCH_TICK_CODE95 = hex(
+  '5378 C022 0C78 0078 C022 664E 0C78 0002 C020 6646 0C78 0078 C022 623E 3038 C294 9078 C5FA 6A02 4440 0C40 0001 622C 41F8 AC62 720B 43FA 002C 7408 3019 1630 0000 5603 0C03 001E 6302 761E 1183 0000 51CA FFEA 41E8 0080 51C9 FFDC 0C78 003D C022 4E75 0068 0069 006C 006D 006E 0070 0071 0072 0075',
+)
+const OP_JMP = 0x4ef9
+// Where AttributeCalc's jmp goes, if it is there and goes to the clutch code.
+function clutchCalc95(rom: Uint8Array): number | null {
+  if (readU16(rom, CLUTCH_CALC_AT95) !== OP_JMP || readU16(rom, CLUTCH_CALC_AT95 + 6) !== OP_NOP || readU16(rom, CLUTCH_CALC_AT95 + 8) !== OP_NOP) return null
+  const target = readU32(rom, CLUTCH_CALC_AT95 + 2)
+  return matches(rom, target, CLUTCH_CALC_CODE95) ? target : null
+}
+const clutchTime95: Part<boolean> = {
+  detect(rom) {
+    if (matches(rom, CLUTCH_CALC_AT95, CLUTCH_CALC_ORIGINAL95) && matches(rom, CLUTCH_TICK95.at, CLUTCH_TICK95.original)) return false
+    return clutchCalc95(rom) !== null && hooked(rom, CLUTCH_TICK95, CLUTCH_TICK_CODE95) !== null ? true : undefined
+  },
+  remove(rom) {
+    if (clutchTime95.detect(rom) !== true) return
+    erase(rom, clutchCalc95(rom)!, CLUTCH_CALC_CODE95.length)
+    rom.set(CLUTCH_CALC_ORIGINAL95, CLUTCH_CALC_AT95)
+    erase(rom, hooked(rom, CLUTCH_TICK95, CLUTCH_TICK_CODE95)!, CLUTCH_TICK_CODE95.length)
+    rom.set(CLUTCH_TICK95.original, CLUTCH_TICK95.at)
+  },
+  apply(work, value) {
+    if (!value) return
+    const target = placeCode(work, CLUTCH_CALC_CODE95)
+    writeU16(work.rom, CLUTCH_CALC_AT95, OP_JMP)
+    writeU32(work.rom, CLUTCH_CALC_AT95 + 2, target)
+    writeU16(work.rom, CLUTCH_CALC_AT95 + 6, OP_NOP)
+    writeU16(work.rom, CLUTCH_CALC_AT95 + 8, OP_NOP)
+    hookTo(work, CLUTCH_TICK95, CLUTCH_TICK_CODE95)
+  },
+}
+
 // The simple settings, each a part of its own.
 const SETTINGS95: { [K in Nhl95Hack]?: () => Part<Nhl95HackChoices[K]> } = {
   threeStars: () => threeStars95,
@@ -1811,6 +1891,9 @@ const SETTINGS95: { [K in Nhl95Hack]?: () => Part<Nhl95HackChoices[K]> } = {
   turnRate: () => turnRate95,
   puckFriction: () => puckFriction95,
   choppyIce: choppyIce95,
+  baseWeight: () => baseWeight95,
+  hotColdRange: () => hotColdRange95,
+  clutchTime: () => clutchTime95,
 }
 const setting95 = <K extends Nhl95Hack>(hack: K): Part<Nhl95HackChoices[K]> => SETTINGS95[hack]!()
 
@@ -1890,6 +1973,9 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     turnRate: turnRate95.detect(rom),
     puckFriction: puckFriction95.detect(rom),
     choppyIce: choppyIce95().detect(rom),
+    baseWeight: baseWeight95.detect(rom),
+    hotColdRange: hotColdRange95.detect(rom),
+    clutchTime: clutchTime95.detect(rom),
   }
   return {
     choices: Object.fromEntries(NHL95_HACKS.map((hack) => [hack, found[hack] ?? NO_NHL95_HACKS[hack]])) as unknown as Nhl95HackChoices,
@@ -1901,6 +1987,7 @@ export class Nhl95HackError extends Error {}
 
 // Why a value cannot be set, if it cannot: a number out of its range, or not one of a setting's choices.
 export function nhl95BadValue(hack: Nhl95Hack, value: unknown): string | null {
+  if (hack === 'baseWeight') return typeof value === 'number' && WEIGHT_BASES.includes(value) ? null : 'A base weight has to be an even number from 102 to 152.'
   if (hack in NHL95_HACK_RANGES) {
     const [least, most] = NHL95_HACK_RANGES[hack as Nhl95NumberHack]
     return typeof value === 'number' && Number.isInteger(value) && value >= least && value <= most ? null : `${NHL95_HACK_TITLES[hack]} has to be a whole number from ${least} to ${most}.`
@@ -2008,6 +2095,9 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
       () => timeOnIce95.remove(work.rom),
       () => (want.giveaways && !unknown.includes('giveaways') ? applyPages95(work, want.timeOnIce) : timeOnIce95.apply(work, want.timeOnIce)),
     ],
+    settingStep('baseWeight'),
+    settingStep('hotColdRange'),
+    settingStep('clutchTime'),
   ]
   const known = steps.filter(([hack]) => !unknown.includes(hack))
   try {
@@ -2016,7 +2106,37 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   } catch (e) {
     throw new Nhl95HackError(e instanceof Error ? e.message : String(e))
   }
-  return { ...project, bytes: work.rom }
+  // The editor reads a weight by the ROM's base weight (games.ts), so a new one makes it another kind of ROM, and as
+  // in NHL 94 every player's weight moves to the step nearest the pounds he weighed.
+  const game = findGame(project.game.productCode, work.rom) ?? project.game
+  if (want.baseWeight === choices.baseWeight) return { ...project, bytes: work.rom, game }
+  const restate = (player: Player, isGoalie: boolean): Player => {
+    const kinds = isGoalie ? project.game.goalieAttributeKinds : project.game.playerAttributeKinds
+    return { ...player, attributes: player.attributes.map((value, i) => (isWeight(kinds[i]) ? convertWeight(value, choices.baseWeight, want.baseWeight) : value)) }
+  }
+  const restateTeam = (team: Team): Team => ({ ...team, players: team.players.map((player, i) => restate(player, i < goalieCount(team))) })
+  const restateAgent = (agent: FreeAgent): FreeAgent => ({ ...agent, player: restate(agent.player, agent.role === 'G') })
+  return {
+    ...project,
+    bytes: work.rom,
+    game,
+    teams: project.teams.map(restateTeam),
+    freeAgents: project.freeAgents.map(restateAgent),
+    baseline: project.baseline && { ...project.baseline, teams: project.baseline.teams.map(restateTeam), freeAgents: project.baseline.freeAgents.map(restateAgent) },
+  }
+}
+
+// The project a ROM was opened as, brought to the base weight `project` now has, so that the two can be compared and
+// one reset to the other (hacks.ts's withHacksOf for NHL 94). NHL '95's other options change nothing the editor reads.
+export function nhl95WithHacksOf(opened: RomProject, project: RomProject): RomProject {
+  if (!nhl95HacksSupported(opened.game) || !nhl95HacksSupported(project.game) || opened.game.title === project.game.title) return opened
+  const now = detectNhl95Hacks(project.bytes)
+  if (now.unknown.includes('baseWeight')) return opened
+  try {
+    return applyNhl95Hacks(opened, { baseWeight: now.choices.baseWeight })
+  } catch {
+    return opened
+  }
 }
 
 const lower = (text: string) => text[0].toLowerCase() + text.slice(1)
@@ -2030,6 +2150,7 @@ export function nhl95HackValueText<K extends Nhl95Hack>(hack: K, choices: Nhl95H
   if (hack === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (hack === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
   if (hack === 'fightSeconds') return fightTimeText(choices.fightSeconds)
+  if (hack === 'baseWeight') return `${choices.baseWeight} pounds`
   if (typeof value === 'number') return String(value)
   return value === true || value === 'on' ? 'on' : 'off'
 }
@@ -2055,6 +2176,12 @@ const N = NO_NHL95_HACKS
 
 // What each hack means for how the game plays, in plain words, for a league's owners: for a setting, as it is set.
 export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackChoices) => string)> = {
+  baseWeight: (c) => `Player weights are set for another era: the lightest weight stands for ${c.baseWeight} pounds, where the original game has 140.`,
+  hotColdRange: (c) =>
+    c.hotColdRange <= 2
+      ? 'Hot and cold no longer change how anyone plays (the roster screen may still show small differences).'
+      : `Hot and cold swing a player's ratings less than in the original game: values from -${c.hotColdRange} to ${c.hotColdRange - 1}, where the original has -9 to 8.`,
+  clutchTime: 'In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.',
   anyPosition: 'Edit Lines lists every skater for every position, so a defenceman can play forward or a forward defence.',
   threeStars: (c) =>
     `The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and goals against, shots faced and shutouts for goalies, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
@@ -2165,7 +2292,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
-  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix'] },
+  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
   {
     id: 'rules',

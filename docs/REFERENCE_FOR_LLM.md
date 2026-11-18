@@ -286,7 +286,7 @@ period length's count in the fighting patch's copy").
 ### Status
 
 Tested in the game by the NHL94 Match Viewer project (`Nhl95HacksPage.tsx`: `fighting` and `fightingOff` end
-with `TESTED`). `fightSeconds` is now tested too (it ends with `SETTING_TESTED`; `NOT_YET` is empty); see section 11.
+with `TESTED`). `fightSeconds` is now tested too (it ends with `SETTING_TESTED`; it is not in `NOT_YET`); see section 11.
 (Corrected: this line used to say `fightSeconds` was not yet tested.)
 
 ## 6. NHL '95: organ songs and team songs
@@ -844,8 +844,9 @@ slot arrays from SndSeqPtr `$FFFDFE` to SndSeqState `$FFFE7E` (section 9, organ)
 ### All of it now tested
 
 Every RAM range above is used by an option that is now tested in the game by the NHL94 Match Viewer project:
-NHL 94's settings and Any skater at any position are documented in section 11 (`Nhl95HacksPage.tsx`: `NOT_YET` is
-empty, so every setting ends with `SETTING_TESTED`). Any skater at any position uses no RAM.
+NHL 94's settings and Any skater at any position are documented in section 11 (`Nhl95HacksPage.tsx`: every setting
+outside `NOT_YET` ends with `SETTING_TESTED`). Any skater at any position uses no RAM. Clutch time (section 11,
+Ratings; not yet tested in the game) only reads game RAM and writes the players' working ratings.
 
 ## 11. NHL '95: NHL 94's settings, and Any skater at any position
 
@@ -1145,10 +1146,70 @@ holds, injury risk scaling, bodychecks and time on ice, giveaways with and witho
 length with fighting, every setting at once, the page shows each as tested); `tests/nhl95hacks.test.ts` ("lets Edit
 Lines in %s put any skater at any position, a change in place").
 
+### Ratings (added 2026-11-18, not yet tested in the game)
+
+NHL 94 Genesis's Ratings group (`GENESIS_HACK_GROUPS`, `hackgroups.ts`) is `wideRatings`, `baseWeight`, `bonuses`,
+`hotColdRange` and `clutchTime`. Three are ported; they sit in NHL '95's Ratings section after section 9's four
+rating fixes, and are last in `NHL95_HACKS` (applied after `timeOnIce`).
+
+| Option | Kind | Range | NHL '95's own |
+|---|---|---|---|
+| `baseWeight` | pounds a weight of 0 stands for | even, 102-152 (`WEIGHT_BASES`; not in `NHL95_HACK_RANGES`, `Nhl95NumberHack` leaves it out, `nhl95BadValue` checks it) | 140 |
+| `hotColdRange` | | 0-9 (NHL 94's) | 9 |
+| `clutchTime` | on/off | | off |
+
+| Option | Place | Original | Hacked |
+|---|---|---|---|
+| `baseWeight` | the roster screen's AttribWeight `asl.w #3,d0 / addi.w #140,d0`: word at `$8566C` (lead `0640`); Create Player's FieldWeight: word at `$99450` (lead `0640`) | `$008C` both | the base at both (both or unknown; an odd or out-of-range value reads unknown) |
+| `hotColdRange` | Create_HotCold_Table `$83E88`'s `move.w #9,d0` before randomd0s: word at `$83E92` (lead `303C`) | 9 | the number |
+| `clutchTime` | AttributeCalc's end `$83D34` (10 bytes) | `0243 00FF 4CDF 0207 4E75` | `jmp` (`4EF9`) to `CLUTCH_CALC_CODE95` + 2 NOPs: `0243 00FF 0C78 000F BB12 672C 0C78 0002 C020 6624 0C78 0078 C022 621C 3038 C294 9078 C5FA 6A02 4440 0C40 0001 620A 5643 0C43 001E 6302 761E 4CDF 0207 4E75` |
+| | VBlank's clock tick `subq.w #1,(gameclock).w / cmpi.w #61,(gameclock).w` `$7A392` (10 bytes; VBlank saves every register) | `5378 C022 0C78 003D C022` | `jsr` + 2 NOPs to `CLUTCH_TICK_CODE95` (NHL 94's tick code with SortCords `$AC62`, gsp `$C020`, gameclock `$C022`, scores `$C294` / `$C5FA`; the nine rating offsets `$68 $69 $6C $6D $6E $70 $71 $72 $75` are NHL 94's, as `equals.inc` has them) |
+
+- **The base weight is only what the screens show**, as in NHL 94 (`$8E92`): setplayer stores the step x 8 in
+  `weight(a3)`, and the collisions add their own 140 (`$7ACE4`, `0640 008C` / `0641 008C`), left alone. NHL '95 has
+  no product-code marks (smozROM's are NHL 94's), so `findGame` (`games.ts`) reads the base from `NHL95_WEIGHT_AT`
+  (`$8566C`, after `0640`) for both NHL '95 product codes: a base other than 140 gives a variant (`nhl95Variant`,
+  cached by product code + base) titled "NHL '95, base weight 144" (or "NHL '95 (34 teams), base weight 144"), the
+  same product code and edition, every `'weight'` kind `weightKind(base)`. `applyNhl95Hacks` returns the project with
+  `findGame`'s game, and where the base changes restates every weight with `convertWeight` (teams, free agents and the
+  season baseline), as `applyHacks` does for NHL 94: the nearest step, up to 4 pounds out. `nhl95WithHacksOf`
+  (used by `App.tsx`'s `withAnyHacksOf`) brings the ROM as opened to the work's base weight, as `withHacksOf` does
+  for NHL 94, so Reset and comparisons see the same scale. The CSV tables and the website players file write the
+  stored steps, as for NHL 94's variants. The page offers NHL 94's "for the season of" year (`baseWeightForYear`).
+- **Hot and cold** are NHL 94's: 16 values a player at team struct `+$1A4` (NHL 94 `+$1A2`); AttributeCalc
+  (`$83CDE`) adds the first / 3 (signed) to the rating x 5, so 2 or less changes nothing in play. 0 makes every value
+  0, which is NHL 94's "no bonuses" in effect.
+- **Clutch time** is NHL 94's (section on `clutchTime` in `hacks.ts`). Aggression is attribute `$F` in TempWord2
+  `$BB12`. NHL '95's setplayer runs BoostAttribute (`d3 += (30 - d3) / 4`) after AttributeCalc on speed, shot power,
+  checking, stick handling and passing, so on those the +3 at a rebuild comes out about +2, while the 2:00 tick adds
+  +3 to the stored values.
+
+Not ported:
+- `wideRatings` (0 to 15 ratings): smozROM's code replaces NHL 94's overall routine (`$FA9F8`) and formulas whole.
+  NHL '95's CalcAttrib / CalcAttribRating (middle95) is a different routine shared with Create Player (its points and
+  0-99 scale; a single rating is shown as rating x 18 plus a bonus, clamped at 99), and stick handling is already
+  stored 0-15 and folded to 0-6 by StickHandTable in setplayer and CalcAttribRating. Porting would mean new code for
+  those screens, setplayer and Create Player, not NHL 94's.
+- `bonuses` (hot and cold shown and played): NHL 94's choices change instructions inside NHL 94's routine. NHL '95
+  shows the per-attribute values differently (on a single rating through Create Player's path, which also nudges the
+  stored value and CreatePoints when it clamps; on the overall as the average of the attributes' values), so none of
+  NHL 94's edits apply. "No bonuses" in play is `hotColdRange` 0.
+- smozoma's legacy weight fix (`weightFix`) and the weight bug and C-then-B fix (`checkFix`) are not in NHL 94's
+  Ratings group (Fixes, and the legacy list), so they are not part of this port; neither is offered for NHL '95.
+
+Tests (`tests/nhl95settings.test.ts`): `IN_PLACE` has the hot and cold range (4, 0) and base weight (144, 102)
+bytes; "puts clutch time into %s" (the jmp and its code, the tick hook's code, out byte for byte, one part alone
+unknown); "sets the base weight in %s" (the variant's title, kinds, product code, each player within 4 pounds, a
+rebuilt ROM reopened as the same game, the website file's steps, back to 140 gives `NHL95` and the original bytes,
+`nhl95WithHacksOf`, a project file, odd and out-of-range bases rejected, the two places disagreeing unknown); every
+setting at once includes `baseWeight: 152` and `hotColdRange: 4`, and `clutchTime` with the switches; the page test
+expects the three to end with the not-yet-tested line.
+
 ### Status
 
-All tested in the game by the NHL94 Match Viewer project: `NOT_YET` in `Nhl95HacksPage.tsx` is empty, so every setting
-ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
+All tested in the game by the NHL94 Match Viewer project but the three Ratings options above (`NOT_YET` in
+`Nhl95HacksPage.tsx` is `baseWeight`, `hotColdRange`, `clutchTime`, whose notes end "... Not yet tested in the
+game."). Every other setting ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
 NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The test "shows every option ... each
 setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
 aebaeb9).

@@ -1,7 +1,7 @@
 // Per-game settings, ported from NOSE's ini\roms.ini: NHL 94 on the Genesis,
 // with the hacks built on it, and NHL '94 on the SNES.
 
-import { weightKind, type AttributeKind } from './attributes'
+import { WEIGHT_BASES, weightKind, type AttributeKind } from './attributes'
 
 export interface GameConfig {
   // The SNES game keeps its data in its own way: see snes.ts.
@@ -533,12 +533,34 @@ function variant(productCode: string): GameConfig | undefined {
   return config
 }
 
+// NHL '95 keeps no marks in its product code: its base weight is read from its roster screen's addi.w #140,d0
+// (AttribWeight; the Hacks page's Base weight sets it there and in Create Player, nhl95hacks.ts).
+export const NHL95_WEIGHT_AT = 0x8566c
+
+function nhl95Variant(game: GameConfig, rom: Uint8Array): GameConfig {
+  const marked = rom[NHL95_WEIGHT_AT - 2] === 0x06 && rom[NHL95_WEIGHT_AT - 1] === 0x40
+  const baseWeight = marked ? (rom[NHL95_WEIGHT_AT] << 8) | rom[NHL95_WEIGHT_AT + 1] : 140
+  if (baseWeight === 140 || !WEIGHT_BASES.includes(baseWeight)) return game
+  const productCode = `${game.productCode} ${baseWeight}`
+  const known = variants.get(productCode)
+  if (known) return known
+  const kinds = (list: AttributeKind[]) => list.map((kind) => (kind === 'weight' ? weightKind(baseWeight) : kind))
+  const config: GameConfig = {
+    ...game,
+    title: `${game.title}, base weight ${baseWeight}`,
+    playerAttributeKinds: kinds(game.playerAttributeKinds),
+    goalieAttributeKinds: kinds(game.goalieAttributeKinds),
+  }
+  variants.set(productCode, config)
+  return config
+}
+
 // The game a ROM is, going by its product code and, where that is not enough,
 // by its header. Undefined for a ROM the editor does not know.
 export function findGame(productCode: string, rom: Uint8Array): GameConfig | undefined {
   if (productCode === NHL94_SNES.productCode) return NHL94_SNES
-  if (productCode === NHL95.productCode) return NHL95
-  if (productCode === NHL95_34_TEAMS.productCode) return NHL95_34_TEAMS
+  if (productCode === NHL95.productCode) return nhl95Variant(NHL95, rom)
+  if (productCode === NHL95_34_TEAMS.productCode) return nhl95Variant(NHL95_34_TEAMS, rom)
   const named = [NHL94_EVO].find((game) => {
     const name = game.headerName ?? ''
     return game.productCode === productCode && name.split('').every((char, i) => rom[HEADER_NAME_AT + i] === char.charCodeAt(0))
