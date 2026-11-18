@@ -1723,6 +1723,19 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 //   forgets the carrier;
 // - StartGame_scout's jsl Create_HotCold_Table clears the counts (not the season
 //   shootout's StartGame_go).
+// - A pass at the net counts as a shot, as Match Viewer counts it: picked up by
+//   the other team off the goalie or after it goes wide, it is no giveaway.
+//   puckgoalie's .t2 jsl ChkShotStat, on every touch of the goalie (holds too)
+//   before its carried-puck test at .5, forgets the passer of a pass, then goes
+//   to ChkShotStat; and dopass_swing's .2 lda puckvx / sta d0, where dopass and
+//   assdumpin go once the puck's speed is set (X the passer), forgets him when
+//   the pass is one at the net, as on the Genesis: released in the attacking
+//   zone (puck y past the blue line, $58, toward the net the passer shoots at,
+//   pfgoal,x: the top's goal line y $108, the bottom's -$108), 20 or more in
+//   front of the goal line, moving toward it, its line crossing the goal line
+//   within 40 of the middle (x 0). With no divide, the test is x * vy +
+//   vx * (goal line - y) within 40 * vy, the x mirrored to make vx positive
+//   and the speeds halved together to under 256 for an 8-bit multiply.
 // The counts, a word per roster player (the visitors $34 bytes on, as the time
 // on ice), giveaways then takeaways, then each team's totals (home and visitors'
 // giveaways, then takeaways), after the last carrier and the cause ($FFFF none,
@@ -1734,7 +1747,8 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 // kept them at $7E:E68C, which the 2 MB builds use for their fights (fighton,
 // ChkCnt, OptFights... from $E700; Match Viewer): not recognised. Its version of
 // 14 November 2026 (8650b4a) credited whoever held the carrier's or forcer's spot
-// on the ice when the puck was picked up: recognised, and replaced when asked.
+// on the ice when the puck was picked up: recognised, and replaced when asked; as is
+// its version of 15 November 2026 (7ad4a23), without the pass at the net.
 const GT_RAM = [
   { shift: 0, bank: 0x7e, at: 0xfd10 },
   { shift: 0x6000, bank: 0x40, at: 0x5500 },
@@ -1748,12 +1762,15 @@ const GT_SIZE = GT_TOTALS + 8
 // loose). Not cleared: each is set with the spot it goes with.
 const GT_LASTP = GT_SIZE
 const GT_CAUSEP = GT_SIZE + 2
-type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury'
+type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury' | 'goalie' | 'wide'
+// The versions: 8650b4a's (14 November 2026), 7ad4a23's (15 November) and this one.
+const GT_NOW = 2
 
 interface GtEnv {
   ram: (typeof GT_RAM)[number]
   a2: number
   a3: number
+  d0: number
   puckc: number
   lastplayer: number
   sites: Record<GtSite | 'scout', number>
@@ -1778,13 +1795,24 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
   const injury = findCodeAll(rom, 'b9....30..f0..' + '............' + '9c....a4..b9')
   // StartGame_scout: jsl Create_HotCold_Table / jsl ScoutingReport / lda #$FFFF / sta FrameByNumber / jsl forcefade.
   const scout = findCodeAll(rom, '22......22......a9ffff8d....22')
-  if ([glue, steal, pass, shot, dump, fall, injury, scout].some((found) => found.length !== 1)) return null
+  // puckgoalie .t2: jsl ChkShotStat / jsl a2touchpuck / lda #6 / jsl PuckSfx / lda puckvy / cmp #$3000.
+  const goalie = findCodeAll(rom, '22......22......a9060022......ad(....)c90030')
+  // dopass_swing: lda position,x / bne .2 / lda pfgoal,x / beq .t1 / lda puckvy / bmi .1 / bra .2 / .t1: lda puckvy /
+  // bmi .2 / .1: eor #$FFFF / inc / sta puckvy / .2: lda puckvx / sta d0 / lda puckvy / sta d1 / jsl vtoa.
+  const swing = findCodeAll(rom, 'bd(....)d0..bd(....)f0..ad....30..80..ad....30..49ffff1a8d....' + '..........' + 'ad(....)85(..)22')
+  if ([glue, steal, pass, shot, dump, fall, injury, scout, goalie, swing].some((found) => found.length !== 1)) return null
   const [a2, puckc] = glue[0].groups
   if (a2 !== 0x91 || puckc !== 0x0ad9 + moved) return null
+  const [position, pfgoal, puckvy, d1] = swing[0].groups
+  if (position !== 0x0f43 + moved || pfgoal !== 0x14c3 + moved || puckvy !== 0x0eff + moved || goalie[0].groups[0] !== puckvy || d1 !== 0xa9) return null
+  // The swing's lda puckvx / sta d0, or the jsl there.
+  const wide = swing[0].at + 29
+  if (!same(rom, wide, bytesOf('AD', word(0x0edf + moved), '85A5')) && rom[wide] !== 0x22) return null
   return {
     ram,
     a2,
     a3: 0x95,
+    d0: 0xa5,
     puckc,
     lastplayer: 0x0cf3 + moved,
     sites: {
@@ -1796,15 +1824,19 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
       fall: fall[0].at + 10,
       injury: injury[0].at + 7,
       scout: scout[0].at,
+      goalie: goalie[0].at,
+      wide,
     },
   }
 }
 
-type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'scout'
+type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'goalie' | 'wide' | 'scout'
 
-// The block: COUNT give (x the player's object), COUNT take, then the entries; the clear's jml last.
-function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, earlier = false): { code: Uint8Array; entries: Record<GtEntry, number> } {
+// The block: COUNT give (x the player's object), COUNT take, then the entries (the goalie's ending jml ChkShotStat,
+// `check`; a multiply for the pass at the net); the clear's jml last. `version` an earlier one (GT_NOW this one).
+function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, version = GT_NOW, check = new Uint8Array(3)): { code: Uint8Array; entries: Record<GtEntry, number> } {
   const { ram, a2, a3 } = env
+  const earlier = version === 0
   const L = (offset: number) => bytesOf(word(ram.at + offset), ram.bank)
   const W = (address: number) => word(address + ram.shift)
   const [gmode, sflags3, shootoutmode, position, pnum] = [0x15d4, 0x15dc, 0x1d81, 0x0f43, 0x12a3]
@@ -1871,6 +1903,86 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, earlier = false):
   const pass = bytesOf(lastplayer('8A'), 'A9FEFF 8F', L(2), '68 6B')
   const shot = bytesOf(lastplayer('8A'), 'A9FFFF 8F', L(0), '8F', L(2), '68 6B')
   const fall = bytesOf('A9FFFF 8D', word(env.puckc), 'A5', a3, '8F', L(2), forcer(a3), '6B')
+  // The goalie's touch: a pass's passer forgotten, then ChkShotStat.
+  const goalie = asm65([bytesOf('AF', L(2), 'C9FEFF'), { branch: BNE, to: 'x' }, bytesOf('A9FFFF 8F', L(0)), { label: 'x' }, bytesOf('5C', check)])
+  // A = A * Y (both under 256), with d0 and d1 (which the swing sets next) and X.
+  const { d0 } = env
+  const d1 = d0 + 4
+  const mul = asm65([
+    bytesOf('85', d0, '64', d1, '98'),
+    { label: 'm' },
+    bytesOf('46', d0),
+    { branch: BCC, to: 's' },
+    bytesOf('AA 18 65', d1, '85', d1, '8A'),
+    { label: 's' },
+    bytesOf('0A A6', d0),
+    { branch: BNE, to: 'm' },
+    bytesOf('A5', d1, '60'),
+  ])
+  const before = [give, take, glue, steal, pass, shot, fall, goalie].reduce((sum, part) => sum + part.length, 0)
+  const multiply = bytesOf('20', abs(base + before))
+  const [puckx, pucky, puckvx, puckvy, pfgoal] = [0x0d71, 0x0dd3, 0x0edf, 0x0eff, 0x14c3]
+  // The pass at the net (X the passer): y and vy toward his net (pfgoal,x nonzero the top; the bottom's negated),
+  // past the blue line and 20 or more in front of the goal line, moving toward it, pushed: dist = $108 - y, then vy
+  // (b), then the x (t) and |vx| (a, in Y) mirrored so vx is not negative. a and b halved together to under 256; then
+  // p = a * dist, pushed; past +40 if p > (40 - t) * b, past -40 if p < (-40 - t) * b. Then the swing's own lda puckvx /
+  // sta d0. The way out first, in reach of the first tests.
+  const wide = asm65([
+    'DA',
+    { branch: BRA, to: 'start' },
+    { label: 'out1' },
+    '68',
+    { label: 'out' },
+    bytesOf('FA AD', W(puckvx), '85', d0, '6B'),
+    { label: 'start' },
+    bytesOf('BD', W(pfgoal)),
+    { branch: BNE, to: 'top' },
+    bytesOf('A90000 38 ED', W(puckvy), 'A8 A90000 38 ED', W(pucky)),
+    { branch: BRA, to: 'go' },
+    { label: 'top' },
+    bytesOf('AC', W(puckvy), 'AD', W(pucky)),
+    { label: 'go' },
+    bytesOf('C95800'),
+    { branch: BMI, to: 'out' },
+    bytesOf('38 E90801 49FFFF 1A C91400'),
+    { branch: BMI, to: 'out' },
+    bytesOf('48 98'),
+    { branch: BMI, to: 'out1' },
+    { branch: BEQ, to: 'out1' },
+    bytesOf('48 AD', W(puckx), 'AC', W(puckvx)),
+    { branch: BPL, to: 'right' },
+    bytesOf('49FFFF 1A 48 A90000 38 ED', W(puckvx), 'A8 68'),
+    { label: 'right' },
+    bytesOf('48'),
+    { label: 'norm' },
+    bytesOf('C00001'),
+    { branch: BCS, to: 'half' },
+    bytesOf('A303 C90001'),
+    { branch: BCC, to: 'small' },
+    { label: 'half' },
+    bytesOf('98 4A A8 A303 4A 8303'),
+    { branch: BRA, to: 'norm' },
+    { label: 'small' },
+    bytesOf('A303'),
+    { branch: BEQ, to: 'out3' },
+    bytesOf('A305', multiply, '48 A305 A8 A92800 38 E303'),
+    { branch: BMI, to: 'out4' },
+    bytesOf(multiply, 'C301'),
+    { branch: BCC, to: 'out4' },
+    bytesOf('A9D8FF 38 E303'),
+    { branch: BMI, to: 'hit' },
+    { branch: BEQ, to: 'hit' },
+    bytesOf(multiply, 'C301'),
+    { branch: BEQ, to: 'hit' },
+    { branch: BCS, to: 'out4' },
+    { label: 'hit' },
+    bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+    { label: 'out4' },
+    '68',
+    { label: 'out3' },
+    '68 68',
+    { brl: 'out1' },
+  ])
   const scout = asm65([
     bytesOf('A9FFFF 8F', L(0), '8F', L(2), 'A90000 A2', word(GT_SIZE - GT_GIVE - 2)),
     { label: 'loop' },
@@ -1878,11 +1990,21 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, earlier = false):
     { branch: BPL, to: 'loop' },
     bytesOf('5C', hotCold),
   ])
-  const parts: [string, Uint8Array][] = [['give', give], ['take', take], ['glue', glue], ['steal', steal], ['pass', pass], ['shot', shot], ['fall', fall], ['scout', scout]]
+  const parts: [string, Uint8Array][] = [
+    ['give', give],
+    ['take', take],
+    ['glue', glue],
+    ['steal', steal],
+    ['pass', pass],
+    ['shot', shot],
+    ['fall', fall],
+    ...(version >= GT_NOW ? ([['goalie', goalie], ['mul', mul], ['wide', wide]] as [string, Uint8Array][]) : []),
+    ['scout', scout],
+  ]
   const entries = {} as Record<GtEntry, number>
   let at = 0
   for (const [key, bytes] of parts) {
-    if (key !== 'give' && key !== 'take') entries[key as GtEntry] = at
+    if (key !== 'give' && key !== 'take' && key !== 'mul') entries[key as GtEntry] = at
     at += bytes.length
   }
   return { code: bytesOf(...parts.map(([, bytes]) => bytes)), entries }
@@ -1901,43 +2023,52 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     shot: bytesOf('8A 4A 8D', word(env.lastplayer)),
     fall: bytesOf('A9FFFF 8D', word(env.puckc)),
     injury: bytesOf('A9FFFF 8D', word(env.puckc)),
+    goalie: new Uint8Array(4),
+    wide: bytesOf('AD', word(0x0edf + env.ram.shift), '85', env.d0),
   }
-  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2 }
+  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2, goalie: 0, wide: 1 }
   let probe = gtCode(env, 0, new Uint8Array(3))
   let base: number
   let hotCold = rom.slice(sites.scout + 1, sites.scout + 4)
-  let earlier = false
+  // ChkShotStat, from the goalie's jsl (or, with this version in, the block's jml).
+  let check = rom.slice(sites.goalie + 1, sites.goalie + 4)
+  let version = GT_NOW
+  // The jml's address in a block at `at` (the goalie's entry: lda, cmp, bne, lda, sta, then jml).
+  const checkIn = (at: number, block: { entries: Record<GtEntry, number> }) => rom.slice(at + block.entries.goalie + 17, at + block.entries.goalie + 20)
   if (!same(rom, sites.glue, originals.glue)) {
     // In: the block from the glue's call, and Create_HotCold_Table from the clear's jml at its end; this version's
-    // block, or the earlier one's.
+    // block, or an earlier one's.
     if (rom[sites.glue] !== 0x22) return null
     const called = loRomOffset(rom[sites.glue + 3], readU16(rom, sites.glue + 1))
-    const blockAt = (version: { code: Uint8Array; entries: Record<GtEntry, number> }) => called - version.entries.glue
-    const holds = (old: boolean) => {
-      const version = gtCode(env, 0, new Uint8Array(3), old)
-      const at = blockAt(version)
+    const blockAt = (block: { code: Uint8Array; entries: Record<GtEntry, number> }) => called - block.entries.glue
+    const holds = (v: number) => {
+      const block = gtCode(env, 0, new Uint8Array(3), v)
+      const at = blockAt(block)
       if (at < 0) return false
-      const full = gtCode(env, at, rom.slice(at + version.code.length - 3, at + version.code.length), old)
+      const full = gtCode(env, at, rom.slice(at + block.code.length - 3, at + block.code.length), v, v >= GT_NOW ? checkIn(at, block) : check)
       return same(rom, at, full.code)
     }
-    earlier = !holds(false) && holds(true)
-    if (earlier) probe = gtCode(env, 0, new Uint8Array(3), true)
+    version = [GT_NOW, 1, 0].find(holds) ?? GT_NOW
+    probe = gtCode(env, 0, new Uint8Array(3), version)
     base = blockAt(probe)
     if (base < 0) return null
     hotCold = rom.slice(base + probe.code.length - 3, base + probe.code.length)
+    if (version >= GT_NOW) check = checkIn(base, probe)
   } else {
     base = farRoom(rom, sites.glue, originals.glue, probe.code.length)
     if (base < 0) return null
   }
-  const { code, entries } = gtCode(env, base, hotCold, earlier)
+  originals.goalie = bytesOf('22', check)
+  const { code, entries } = gtCode(env, base, hotCold, version, check)
   return [
     ...(Object.keys(originals) as GtSite[]).map((key) => ({
       at: sites[key],
       original: originals[key],
-      hacked: jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
+      // An earlier version has the game's own code at the goalie's touch and the swing.
+      hacked: version < GT_NOW && (key === 'goalie' || key === 'wide') ? originals[key] : jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
     })),
     { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
-    { at: base, original: unused(code.length), hacked: code, ...(earlier ? { earlier } : {}) },
+    { at: base, original: unused(code.length), hacked: code, ...(version < GT_NOW ? { earlier: true } : {}) },
   ]
 }
 

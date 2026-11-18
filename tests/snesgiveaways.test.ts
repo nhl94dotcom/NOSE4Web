@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
+import { findCodeAll } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHack } from '../src/core/sneshacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -12,8 +13,41 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
 const far = (b: Uint8Array, at: number) => ((b[at + 3] & 0x7f) << 15) | ((b[at + 1] | (b[at + 2] << 8)) & 0x7fff)
 const latin = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('latin1')
-// The places in the original game (file offsets): puckglue, puckstick, dopass, assdumpin, doshot, FallDown .25, StartGame_scout.
-const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, injury: 0xf1ddf, scout: 0xf8334 }
+// The places in the original game (file offsets): puckglue, puckstick, dopass, assdumpin, doshot, FallDown .25, StartGame_scout,
+// puckgoalie's .t2 jsl ChkShotStat and dopass_swing's .2 lda puckvx / sta d0.
+const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, injury: 0xf1ddf, scout: 0xf8334, goalie: 0xf70ec, wide: 0xf6ae9 }
+// The clear, the block's last part: lda #$FFFF / sta last carrier / sta cause / lda #0 / ldx #n / loop: sta counts,x /
+// dex / dex / bpl loop / jml Create_HotCold_Table.
+const CLEAR_LENGTH = 29
+// A ROM with NOSE4Web's version of 15 November 2026 (7ad4a23): this one's block without the goalie's touch, the
+// multiply and the pass at the net (between the fall's entry and the clear), the game's own code at their two places.
+// The places found in the ROM as `on` has them hooked.
+function version15(rom: Uint8Array, on: Uint8Array, goalie: number, wide: number, scout: number): Uint8Array {
+  const earlier = on.slice()
+  const from = far(on, goalie)
+  const clear = far(on, scout)
+  expect(on[clear + CLEAR_LENGTH - 4]).toBe(0x5c)
+  earlier.fill(0xff, from, clear + CLEAR_LENGTH)
+  earlier.set(on.subarray(clear, clear + CLEAR_LENGTH), from)
+  earlier[scout + 1] = (0x8000 | (from & 0x7fff)) & 0xff
+  earlier[scout + 2] = (0x8000 | (from & 0x7fff)) >> 8
+  earlier.set(rom.subarray(goalie, goalie + 4), goalie)
+  earlier.set(rom.subarray(wide, wide + 5), wide)
+  return earlier
+}
+// The two new places in a ROM, found as the hack finds them.
+function newSites(rom: Uint8Array): { goalie: number; wide: number; scout: number } {
+  const find = (pattern: string) => {
+    const found = findCodeAll(rom, pattern)
+    expect(found.length).toBe(1)
+    return found[0].at
+  }
+  return {
+    goalie: find('22......22......a9060022......ad....c90030'),
+    wide: find('bd....d0..bd....f0..ad....30..80..ad....30..49ffff1a8d....' + '..........' + 'ad....85..22') + 29,
+    scout: find('22......22......a9ffff8d....22'),
+  }
+}
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways', () => {
   it('hooks the places that set and free the carrier, and clears the counts at each game', () => {
@@ -24,8 +58,39 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(hex(rom.bytes, SITES.fall, 6)).toBe('a9ffff8dd90a')
     expect(hex(rom.bytes, SITES.injury, 6)).toBe('a9ffff8dd90a')
     expect(rom.bytes[SITES.scout]).toBe(0x22)
+    expect(hex(rom.bytes, SITES.goalie, 4)).toBe('2213f29e')
+    expect(hex(rom.bytes, SITES.wide, 5)).toBe('addf0e85a5')
     const on = applySnesHacks(rom, { giveaways: true }).bytes
     for (const at of Object.values(SITES)) expect(on[at]).toBe(0x22)
+    expect(on[SITES.wide + 4]).toBe(0xea)
+    // The goalie's touch: lda cause / cmp #$FFFE / bne / lda #$FFFF / sta last carrier, then jml ChkShotStat.
+    expect(hex(on, far(on, SITES.goalie), 20)).toBe('af12fd7ec9feffd007a9ffff8f10fd7e5c13f29e')
+    // Then the multiply (A = A * Y, with d0 and d1), and the pass at the net.
+    const mul = far(on, SITES.goalie) + 20
+    expect(hex(on, mul, 24)).toBe('85a564a99846a59007aa1865a985a98a0aa6a5d0f0a5a960')
+    const address = 0x8000 | (mul & 0x7fff)
+    const call = '20' + hex(Uint8Array.of(address & 0xff, address >> 8), 0, 2)
+    expect(far(on, SITES.wide)).toBe(mul + 24)
+    expect(hex(on, mul + 24, 0xad)).toBe(
+      [
+        // phx / bra start / out1: pla / out: plx / lda puckvx / sta d0 / rtl
+        'da 8008 68 fa addf0e 85a5 6b',
+        // start: y and vy toward the passer's net (pfgoal,x), the bottom's negated
+        'bdc314 d011 a90000 38 edff0e a8 a90000 38 edd30d 8006 acff0e add30d',
+        // past the blue line; dist = $108 - y, 20 or more; pushed; vy toward the net, pushed
+        'c95800 30d8 38 e90801 49ffff 1a c91400 30cb 48 98 30c6 f0c4 48',
+        // x and |vx|, mirrored so vx is not negative; x pushed
+        'ad710d acdf0e 100e 49ffff 1a 48 a90000 38 eddf0e a8 68 48',
+        // both halved to under 256
+        'c00001 b007 a303 c90001 900a 984aa8 a3034a8303 80ea',
+        // p = a * dist; past +40 if (40 - x) * vy < p, past -40 if (-40 - x) * vy > p
+        'a303 f037 a305 ' + call + ' 48 a305 a8 a92800 38 e303 3025 ' + call + ' c301 901e a9d8ff 38 e303 300b f009 ' + call + ' c301 f002 b00b',
+        // a shot: the carrier and the cause forgotten; then the pulls and out
+        'a9ffff 8f10fd7e 8f12fd7e 68 6868 8256ff',
+      ]
+        .join(' ')
+        .replace(/ /g, ''),
+    )
     // puckglue's call: its own two instructions first.
     expect(hex(on, far(on, SITES.glue), 5)).toBe('a4918cd90a')
     // The clear goes on to Create_HotCold_Table.
@@ -89,6 +154,22 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(pagesOnly), { giveaways: false, giveawayPages: false })), buildRom(rom))).toBe(0)
   })
 
+  it('knows the version of 15 November, without the pass at the net, and replaces it when asked', () => {
+    const rom = open('NHL94.smc')
+    const on = applySnesHacks(rom, { giveaways: true }).bytes
+    const earlier = version15(rom.bytes, on, SITES.goalie, SITES.wide, SITES.scout)
+    const state = detectSnesHacks(earlier)
+    expect(state.choices.giveaways).toBe(true)
+    expect(state.unknown).not.toContain('giveaways')
+    expect(state.vaultVersions).toContain('giveaways')
+    expect(detectSnesHacks(on).vaultVersions ?? []).not.toContain('giveaways')
+    const project = openRom(buildRom({ ...rom, bytes: earlier }))
+    // Kept as it is unless asked; replaced by this one when asked.
+    expect(Buffer.compare(applySnesHacks(project, { giveaways: true }).bytes, project.bytes)).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: true }, true)), buildRom({ ...rom, bytes: on }))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: false })), buildRom(rom))).toBe(0)
+  })
+
   it('goes with the fights and the season shootout, which also use FallDown and free RAM in bank $7E', () => {
     const rom = open('NHL94.smc')
     const gt = { giveaways: true, giveawaysShown: true, giveawayPages: true }
@@ -121,6 +202,22 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       const on = openRom(buildRom(applySnesHacks(rom, { giveaways: true, giveawaysShown: true })))
       expect(detectSnesHacks(on.bytes).choices).toMatchObject({ giveaways: true, giveawaysShown: true })
       expect(Buffer.compare(buildRom(applySnesHacks(on, { giveaways: false, giveawaysShown: false })), buildRom(rom))).toBe(0)
+      // The goalie's touch and the pass at the net: hooked to the block's two entries, each build's own addresses
+      // (moved by $6000 in the SA-1 builds, the counts in BW-RAM there).
+      const sites = newSites(rom.bytes)
+      const sa1 = hex(rom.bytes, sites.wide, 5) === 'addf6e85a5'
+      expect(hex(rom.bytes, sites.wide, 5)).toBe(sa1 ? 'addf6e85a5' : 'addf0e85a5')
+      expect(on.bytes[sites.goalie]).toBe(0x22)
+      expect(hex(on.bytes, sites.wide, 5).slice(0, 2) + hex(on.bytes, sites.wide + 4, 1)).toBe('22ea')
+      const touch = far(on.bytes, sites.goalie)
+      expect(hex(on.bytes, touch, 20)).toBe((sa1 ? 'af025540c9feffd007a9ffff8f005540' : 'af12fd7ec9feffd007a9ffff8f10fd7e') + '5c' + hex(rom.bytes, sites.goalie + 1, 3))
+      expect(far(on.bytes, sites.wide)).toBe(touch + 44)
+      expect(hex(on.bytes, touch + 44, 14)).toBe(sa1 ? 'da800868faaddf6e85a56bbdc374' : 'da800868faaddf0e85a56bbdc314')
+      // The version of 15 November in this build: known, replaced when asked, and out again.
+      const earlier = openRom(buildRom({ ...rom, bytes: version15(rom.bytes, applySnesHacks(rom, { giveaways: true }).bytes, sites.goalie, sites.wide, sites.scout) }))
+      expect(detectSnesHacks(earlier.bytes).vaultVersions).toContain('giveaways')
+      expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: true }, true)), buildRom(applySnesHacks(rom, { giveaways: true })))).toBe(0)
+      expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: false })), buildRom(rom))).toBe(0)
       // With all the others the ROM can take that go together.
       const others: Partial<Record<SnesHack, boolean>> = {}
       for (const hack of SNES_HACKS) {
@@ -133,6 +230,10 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       const found = detectSnesHacks(both.bytes)
       expect(found.unknown).toEqual(detectSnesHacks(all.bytes).unknown)
       for (const hack of Object.keys(others) as SnesHack[]) expect(found.choices[hack]).toBe(true)
+      // No other hack at the two new places.
+      const rest = applySnesHacks(rom, { ...others, giveaways: false, giveawaysShown: false, giveawayPages: false })
+      expect(hex(rest.bytes, sites.goalie, 4)).toBe(hex(rom.bytes, sites.goalie, 4))
+      expect(hex(rest.bytes, sites.wide, 5)).toBe(hex(rom.bytes, sites.wide, 5))
     })
   })
 })

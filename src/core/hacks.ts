@@ -2992,22 +2992,41 @@ const organResume: Part<boolean> = {
 //   st (puckc).w / btst #gmhl ($143FA), dopass's st (puckc).w / move.b
 //   #$10,nopuck(a3) ($BC6E) and doshot's bset #sf2shot ($C340) say why the
 //   puck came loose.
+// - A pass at the net counts as a shot, as Match Viewer counts it: picked up
+//   by the other team off the goalie or after it goes wide, it is no
+//   giveaway. puckgoalie's bclr #2,(sflags4).w ($154EE), on every touch of
+//   the goalie, holds too, before its carried-puck test, forgets the passer
+//   of a pass (Match Viewer's code); and dopass's .notgoalie, move.w
+//   (puckvx).w,d0 / move.w (puckvy).w,d1 ($BDD8), once the puck's speed is
+//   set (dump-ins and one-timer passes too), forgets him when the pass is
+//   one at the net: released in the attacking zone (puck y past the blue
+//   line, $58, toward the net the passer shoots at, pfgoal: the top's goal
+//   line y $108, the bottom's -$108), 20 or more in front of the goal line,
+//   moving toward it, its line crossing the goal line within 40 of the
+//   middle (x 0): x + vx * (goal line - y) / vy, muls / divs. NOSE4Web's
+//   version of 15 November 2026 had neither: recognised, and replaced.
 // - Game Stats has a row more, "Give/Takeaways" (giveaways / takeaways):
 //   DisplayStats' row count and table ($FDE5E with penalties, $FDE6C
 //   without) come from code with the ROM's tables and the new row, and the
 //   scroll limits ($FDCBC, $FDCCA) are a row further ($80, $40; Match Viewer).
-// The code; a version's DisplayStats tables are its lea (pc)s' extension words, patched (gtCode).
+// The code; a version's DisplayStats tables are its lea (pc)s' extension words, patched (gtCode); and how many of
+// GT_HOOKS it has (the first so many).
 interface GtVersion {
   code: Uint8Array
   tableA: number
   tableB: number
+  hooks: number
 }
 const GT_VERSIONS: GtVersion[] = [
-  { code: bytes('6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 0C41 FFFE 672C 4A41 6B2E EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x182, tableB: 0x18c },
+  { code: bytes('6000 0026 6000 0108 6000 0118 6000 013E 6000 014E 6000 0170 6000 0174 6000 011C 6000 0176 6000 0188 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 0C41 FFFE 672C 4A41 6B2E EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75 08B8 0002 C2F4 0C78 FFFE E802 6606 31FC FFFF E800 4E75 3238 B774 3038 B75E 082B 0007 0062 6604 4440 4441 0C40 0058 6D2E 4A41 6F2A 0440 0108 4440 0C40 0014 6D1E C1F8 B772 81C1 6916 D078 B74A 0640 0028 0C40 0050 6208 21FC FFFF FFFF E800 3038 B772 3238 B774 4E75'), tableA: 0x18a, tableB: 0x194, hooks: 11 },
+  // NOSE4Web's version of 15 November 2026 (7ad4a23), without the goalie's touch and the pass at the net (a pass
+  // shot picked up by the other team off the goalie or wide was a giveaway): recognised, and replaced when the
+  // hacks are next applied.
+  { code: bytes('6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 0C41 FFFE 672C 4A41 6B2E EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x182, tableB: 0x18c, hooks: 9 },
   // NOSE4Web's version of 14 November 2026 (dbc898a), which credited whoever held the carrier's or forcer's spot on
   // the ice when the puck was picked up (a line change while it was loose, the player come on): recognised, and
   // replaced when the hacks are next applied.
-  { code: bytes('6000 001E 6000 00F4 6000 00FE 6000 011E 6000 012E 6000 0150 6000 0154 6000 00FC 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6678 0838 0000 C2FA 6664 0838 0004 C2F0 665C 3238 E800 6B56 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 673E 3238 E802 0C41 FFFE 6728 4A41 6B2A EF49 43F8 B04A D2C1 4A69 0034 671C 1429 0062 102A 0062 B102 0802 0006 660C 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x16a, tableB: 0x174 },
+  { code: bytes('6000 001E 6000 00F4 6000 00FE 6000 011E 6000 012E 6000 0150 6000 0154 6000 00FC 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6678 0838 0000 C2FA 6664 0838 0004 C2F0 665C 3238 E800 6B56 EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 673E 3238 E802 0C41 FFFE 6728 4A41 6B2A EF49 43F8 B04A D2C1 4A69 0034 671C 1429 0062 102A 0062 B102 0802 0006 660C 7402 6120 600C 4A6A 0034 6706 2248 7400 6112 31EA 0052 E800 31FC FFFF E802 4CDF 0307 4E75 7000 1029 0066 6B3E 0C00 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 4E75 50F8 B7AA 31EB 0052 E802 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75'), tableA: 0x16a, tableB: 0x174, hooks: 9 },
 ]
 const GT_HOOKS: [Hook, number][] = [
   [{ at: 0x15288, original: bytes('302A 0052 31C0 B7AA') }, 0],
@@ -3019,6 +3038,8 @@ const GT_HOOKS: [Hook, number][] = [
   [{ at: 0xfde5e, original: bytes('7C0E 43FA 0148') }, 0x14],
   [{ at: 0xfde6c, original: bytes('3C3C 000A 43FA 0226') }, 0x18],
   [{ at: 0xbc6e, original: bytes('50F8 B7AA 177C 0010 005E') }, 0x1c],
+  [{ at: 0x154ee, original: bytes('08B8 0002 C2F4') }, 0x20],
+  [{ at: 0xbdd8, original: bytes('3038 B772 3238 B774') }, 0x24],
 ]
 const GT_LIMITS = [
   { at: 0xfdcbc, original: 0x70, hacked: 0x80 },
@@ -3059,17 +3080,21 @@ function gtCode(rom: Uint8Array, version: GtVersion = GT_VERSIONS[0]): Uint8Arra
   return code
 }
 // Where the code is, and how long (this version's or an earlier one).
-function gtIn(rom: Uint8Array): { base: number; length: number } | null {
+function gtIn(rom: Uint8Array): { base: number; length: number; hooks: number } | null {
   const base = readU16(rom, GT_HOOKS[0][0].at) === OP_JSR ? readU32(rom, GT_HOOKS[0][0].at + 2) : -1
   if (base < 0) return null
-  for (const [hook, entry] of GT_HOOKS) {
-    if (readU16(rom, hook.at) !== OP_JSR || readU32(rom, hook.at + 2) !== base + entry) return null
-    for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return null
-  }
   if (!GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked)) return null
   for (const version of GT_VERSIONS) {
     const code = gtCode(rom, version)
-    if (code && base + code.length <= rom.length && is(rom, base, code)) return { base, length: code.length }
+    if (!code || base + code.length > rom.length || !is(rom, base, code)) continue
+    const hooks = GT_HOOKS.slice(0, version.hooks)
+    for (const [hook, entry] of hooks) {
+      if (readU16(rom, hook.at) !== OP_JSR || readU32(rom, hook.at + 2) !== base + entry) return null
+      for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return null
+    }
+    // An earlier version's: the places it has no hook at as the game has them.
+    if (!GT_HOOKS.slice(version.hooks).every(([hook]) => is(rom, hook.at, hook.original))) return null
+    return { base, length: code.length, hooks: version.hooks }
   }
   return null
 }
@@ -3128,7 +3153,7 @@ const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
     const found = gtIn(rom)
     if (!found) return
     erase(rom, found.base, found.length)
-    for (const [hook] of GT_HOOKS) rom.set(hook.original, hook.at)
+    for (const [hook] of GT_HOOKS.slice(0, found.hooks)) rom.set(hook.original, hook.at)
     for (const l of GT_LIMITS) writeU16(rom, l.at, l.original)
   },
   apply(work, value) {
