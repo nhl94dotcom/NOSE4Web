@@ -150,6 +150,10 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     const rom = open('nhl94.bin')
     // That version: its 400 bytes of code (lea (pc) extension words at $182 and $18C), nine hooks.
     const earlier = earlierRom(rom, Buffer.from(EARLIER_GT_15, 'hex'), 0x182, 0x18c)
+    // The page offers to put in the current version; a ROM with it, or without the hack, is not offered it.
+    expect(giveawaysOutdated(earlier)).toBe(true)
+    expect(giveawaysOutdated(applyHacks(rom, { ...NO_HACKS, giveaways: true }).bytes)).toBe(false)
+    expect(giveawaysOutdated(rom.bytes)).toBe(false)
     expect(u16(earlier, 0x154ee)).toBe(0x08b8)
     expect(u16(earlier, 0xbdd8)).toBe(0x3038)
     expect(detectHacks(earlier).choices).toEqual({ ...NO_HACKS, giveaways: true })
