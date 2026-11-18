@@ -19,6 +19,7 @@
 
 import type { RomProject } from './rom'
 import { loRomAddress, loRomBank, loRomOffset } from './snes'
+import { findSnesSound, readSnesInstrument } from './snesaudio'
 import { freeSpace, keptBanks } from './snespictures'
 import { snesSongPointerEntries } from './snessongs'
 import { DRUMS, FRAMES_PER_SECOND, MidiError, type MadeSong, type MidiNote, type SongEvent } from './genesismusic'
@@ -327,6 +328,20 @@ export interface SnesMusicPart {
   // plays on (the track's last $DC; on the drums' track, its own: note - $2F; -1 where there is none, so that it is
   // never heard) and the track volume then (null for its instrument's own, which $DC sets).
   notes: { frame: number; length: number; note: number; velocity: number; tick: number; ticks: number; entry: number; volume: number | null }[]
+  // Its pitch bends ($E5, with a MIDI pitch bend's two bytes: StepTrack bends the track's voices sounding, and
+  // StartSoundVoice its notes after, toward the note its entry's bend range away), each with the entry then and how
+  // many of its notes come before it.
+  bends: SnesMusicBend[]
+}
+
+export interface SnesMusicBend {
+  tick: number
+  // The bend as MIDI's 14 bits ($2000 none, 0 the whole range down, $3FFF up).
+  value: number
+  // The entry then (-1 for none, where the bend does nothing), and its bend range in notes.
+  entry: number
+  range: number
+  notesBefore: number
 }
 
 export interface SnesMusic {
@@ -372,6 +387,7 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
     let loopStart = 0
     let loops = false
     const notes: SnesMusicPart['notes'] = []
+    const bends: SnesMusicBend[] = []
     for (let i = 0; i < 8000 && p.at < rom.length; i++) {
       tick += readVarLen(rom, p)
       const code = rom[p.at++]
@@ -397,6 +413,7 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
         if (!name) name = String.fromCharCode(...rom.subarray(p.at + 1, p.at + 1 + length)).replace(/\0+$/, '').trim()
         p.at += length + 1
       } else if (code === 0xdf || code === 0xe5) {
+        if (code === 0xe5) bends.push({ tick, value: (rom[p.at] & 0x7f) | ((rom[p.at + 1] & 0x7f) << 7), entry, range: 0, notesBefore: notes.length })
         if (code === 0xdf && rom[p.at] === 7) {
           if (!notes.length) volume = rom[p.at + 1]
           now = rom[p.at + 1]
@@ -420,7 +437,14 @@ export function readSnesMusic(rom: Uint8Array, pointer: number): SnesMusic | nul
       if (n.entry >= 0) break
       if (loops && entry >= 0 && n.tick >= loopStart) Object.assign(n, { entry, volume: now })
     }
-    parts.push({ name, drums: name.toLowerCase() === 'drums', volume, notes })
+    for (const b of bends) {
+      if (b.entry >= 0) break
+      if (loops && entry >= 0 && b.tick >= loopStart) b.entry = entry
+    }
+    // (Each bend with its entry's bend range: the instruments the game's pieces play on are the menus' set's.)
+    const sound = bends.length ? findSnesSound(rom) : null
+    for (const b of bends) b.range = sound && b.entry >= 0 ? readSnesInstrument(rom, sound.sets.menu.table, b.entry).bendRange : 0
+    parts.push({ name, drums: name.toLowerCase() === 'drums', volume, notes, bends })
   }
   if (!parts.some((part) => part.notes.length)) return null
   return { pointer, parts, seconds: last, tempo, ticks, loop: Math.max(0, loop) }
@@ -519,6 +543,24 @@ export function readSnesNotesText(text: string): { code: number; entry: number; 
   return notes.length ? notes : null
 }
 
+// An organ part left out as it doubles another a tick later (the playoff music's 'orgn (R) #47', of 'orgn (L) #31')
+// is played again from the other's notes when put back, as long as those; where one of its notes is not, the other's
+// track says so in a text: 'SNES doubled lengths 101:1', its note 101 (from 0, in the track's order) doubled for 1
+// tick.
+export const SNES_DOUBLED_TEXT = 'SNES doubled lengths'
+
+// The lengths such a text gives, by note, or null where it is none.
+export function readSnesDoubledText(text: string): Map<number, number> | null {
+  if (!text.startsWith(`${SNES_DOUBLED_TEXT} `)) return null
+  const lengths = new Map<number, number>()
+  for (const word of text.slice(SNES_DOUBLED_TEXT.length).trim().split(/\s+/)) {
+    const found = /^(\d+):(\d+)$/.exec(word)
+    if (!found) return null
+    lengths.set(Number(found[1]), Number(found[2]))
+  }
+  return lengths.size ? lengths : null
+}
+
 // The entry a track's name gives: ' on #NN' at its end (snesMusicToMidi's), else the first '#NN' (EA's, as
 // 'chug  (L) #50'; or '*NN', as the menu music's 'dist *38').
 export function snesTrackEntry(name: string): number | undefined {
@@ -534,8 +576,9 @@ export function snesTrackEntry(name: string): number | undefined {
 // out. The drums on the drum channel as General MIDI's drums (SNES_DRUM_GM; another note as it is), and a part of one
 // percussion sound (a crash, a cowbell) there as that drum, on a track of its own with a text of what the game plays
 // each of its notes with (SNES_NOTES_TEXT: no controller 7, which would set every drum's volume in a MIDI player).
-// The first track has the place the piece plays again from
-// (MIDI_LOOP_MARKER) and its end; a part that only doubles another is left out.
+// A part's pitch bends ($E5) are MIDI's pitch bends, the game's two bytes, with its entry's bend range. The first
+// track has the place the piece plays again from (MIDI_LOOP_MARKER) and its end; a part that only doubles another is
+// left out (SNES_DOUBLED_TEXT where its notes are not as long).
 export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
   const chunk = (type: string, body: number[]) => [...type].map((c) => c.charCodeAt(0)).concat([(body.length >>> 24) & 0xff, (body.length >>> 16) & 0xff, (body.length >>> 8) & 0xff, body.length & 0xff], body)
   const text = (value: string) => [...value.slice(0, 60)].map((c) => (c.charCodeAt(0) < 0x7f ? c.charCodeAt(0) : 0x3f))
@@ -552,18 +595,27 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
   // Each part's notes that are heard, and on a track of its own for each entry it plays on (a track's instrument may
   // change, $DC, as the menu music's 'crshbkwd/cow #4, #35' does), named with that entry where the game's name does
   // not give it (snesTrackEntry).
-  const tracksOf = (part: SnesMusicPart) => {
-    if (part.drums || drumFor(part) !== null) return [{ name: part.name, notes: part.notes.filter((n) => n.entry >= 0) }]
+  // (A part's pitch bends go on the track of the entry the part has then, where the entry bends: a bend of a range of
+  // none, or with no instrument, does nothing.)
+  const tracksOf = (part: SnesMusicPart): { name: string; notes: SnesMusicPart['notes']; bends: SnesMusicBend[] }[] => {
+    if (part.drums || drumFor(part) !== null) return [{ name: part.name, notes: part.notes.filter((n) => n.entry >= 0), bends: [] }]
     const entries = [...new Set(part.notes.filter((n) => n.entry >= 0).map((n) => n.entry))]
     const named = snesTrackEntry(part.name)
     const plain = (entry: number) => (named === undefined ? entries.length === 1 : named === entry)
-    return entries.map((entry) => ({ name: plain(entry) ? part.name : `${part.name} on #${entry}`, notes: part.notes.filter((n) => n.entry === entry) }))
+    const bending = part.bends.filter((b) => b.range > 0)
+    return entries.map((entry, i) => ({
+      name: plain(entry) ? part.name : `${part.name} on #${entry}`,
+      notes: part.notes.filter((n) => n.entry === entry),
+      bends: bending.filter((b) => b.entry === entry || (i === 0 && !entries.includes(b.entry))),
+    }))
   }
   // A part's track: on the drum channel for the drums and a part of one percussion sound, each note as the drum of
   // the entry it plays on where the drums' track has that entry (the crash in the middle, 61, as 49; the one on the
   // right, 62, as 57; the crash played backwards, 51, as 52), else as the part's drum; any other on a channel of its
-  // own with the track volume at its first note (127 for its instrument's own).
-  const partTrack = (part: SnesMusicPart, name: string, notes: SnesMusicPart['notes']): number[] | null => {
+  // own with the track volume at its first note (127 for its instrument's own), and its pitch bends: each as the game's
+  // two bytes, among its notes as the game's track has them, and the bend range its entry has (MIDI's registered
+  // parameter 0, where it is not MIDI's 2 notes), so that a MIDI player bends as far.
+  const partTrack = (part: SnesMusicPart, name: string, notes: SnesMusicPart['notes'], bends: SnesMusicBend[] = [], doubled: string | null = null): number[] | null => {
     const single = drumFor(part)
     let channel = DRUMS
     if (!part.drums && single === null) {
@@ -578,13 +630,22 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
       const said = [...snesNotesText(notes)].map((c) => c.charCodeAt(0))
       body.push(0, 0xff, 0x01, ...varLen(said.length), ...said)
     }
-    const timed: { frame: number; bytes: number[]; off: boolean }[] = []
+    if (doubled) {
+      const said = [...doubled].map((c) => c.charCodeAt(0))
+      body.push(0, 0xff, 0x01, ...varLen(said.length), ...said)
+    }
+    const range = bends[0]?.range ?? 2
+    if (channel !== DRUMS && bends.length && range !== 2) body.push(0, 0xb0 | channel, 101, 0, 0, 0xb0 | channel, 100, 0, 0, 0xb0 | channel, 6, Math.min(127, range), 0, 0xb0 | channel, 38, 0, 0, 0xb0 | channel, 101, 127, 0, 0xb0 | channel, 100, 127)
+    // (Within a tick, the note-offs first, then the notes and bends in the track's order.)
+    const timed: { frame: number; bytes: number[]; off: boolean; order: number }[] = []
+    const place = new Map(part.notes.map((n, i) => [n, i]))
     for (const n of notes) {
       const note = part.drums ? (SNES_DRUM_GM[n.note] ?? n.note) : single !== null ? (SNES_DRUM_GM[n.entry + 0x2f] ?? single) : n.note
-      timed.push({ frame: n.tick, bytes: [0x90 | channel, note, n.velocity], off: false })
-      timed.push({ frame: n.tick + n.ticks, bytes: [0x80 | channel, note, 0x40], off: true })
+      timed.push({ frame: n.tick, bytes: [0x90 | channel, note, n.velocity], off: false, order: 2 * place.get(n)! + 1 })
+      timed.push({ frame: n.tick + n.ticks, bytes: [0x80 | channel, note, 0x40], off: true, order: 0 })
     }
-    timed.sort((a, b) => a.frame - b.frame || Number(b.off) - Number(a.off))
+    if (channel !== DRUMS) for (const b of bends) timed.push({ frame: b.tick, bytes: [0xe0 | channel, b.value & 0x7f, b.value >> 7], off: false, order: 2 * b.notesBefore })
+    timed.sort((a, b) => a.frame - b.frame || Number(b.off) - Number(a.off) || a.order - b.order)
     let frame = 0
     for (const t of timed) {
       body.push(...varLen(t.frame - frame), ...t.bytes)
@@ -593,12 +654,30 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
     body.push(0, 0xff, 0x2f, 0)
     return body
   }
+  // (An organ part a tick after another that it doubles is left out, the other's track saying where its notes are not
+  // as long, SNES_DOUBLED_TEXT.)
+  const doubledBy = new Map<SnesMusicPart, SnesMusicPart>()
   for (const part of music.parts) {
-    if (!part.notes.length || kept.some((other) => doubles(part, other))) continue
-    kept.push(part)
+    if (!part.notes.length) continue
+    const other = kept.find((o) => doubles(part, o))
+    if (!other) kept.push(part)
+    else if (!doubledBy.has(other)) doubledBy.set(other, part)
+  }
+  const doubledText = (notes: SnesMusicPart['notes'], by: SnesMusicPart | undefined) => {
+    const taken = new Set<number>()
+    const words: string[] = []
+    notes.forEach((n, i) => {
+      const at = by?.notes.findIndex((d, k) => !taken.has(k) && d.note === n.note && d.tick === n.tick + 1) ?? -1
+      if (at < 0) return
+      taken.add(at)
+      if (by!.notes[at].ticks !== n.ticks) words.push(`${i}:${by!.notes[at].ticks}`)
+    })
+    return words.length ? `${SNES_DOUBLED_TEXT} ${words.join(' ')}` : null
+  }
+  for (const part of kept) {
     for (const own of tracksOf(part)) {
       if (!own.notes.length) continue
-      const body = partTrack(part, own.name, own.notes)
+      const body = partTrack(part, own.name, own.notes, own.bends, doubledText(own.notes, doubledBy.get(part)))
       if (body) tracks.push(body)
     }
   }

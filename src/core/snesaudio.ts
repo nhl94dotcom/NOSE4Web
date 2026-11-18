@@ -303,6 +303,10 @@ interface Track {
   bend: number
   bendRange: number
   sustain: number
+  // Where its loop starts ($E2: where the track last went on after a wait; else its start), and the times it has
+  // reached its loop's end.
+  loop: number
+  rounds: number
   done: boolean
 }
 
@@ -318,8 +322,22 @@ interface DspVoice {
   keyOn: boolean
 }
 
+// What the DSP is told for a voice in a frame, from its key-on until it is stopped or its release has faded (as an
+// emulator's log of the DSP's registers gives it, to measure a piece frame by frame).
+export interface SnesVoiceFrame {
+  sample: number
+  pitch: number
+  left: number
+  right: number
+  // Keyed on this frame; let go (its release's GAIN, fading).
+  keyOn: boolean
+  released: boolean
+}
+
 export interface SnesMusicRender {
   notes: SnesVoiceNote[]
+  // Each frame's voices (null for one silent), where asked for (`trace`); else empty.
+  frames: (SnesVoiceFrame | null)[][]
   seconds: number
   // At SNES_SAMPLE_RATE; empty unless asked for.
   left: Float32Array
@@ -330,9 +348,10 @@ const mulFrac8 = (a: number, b: number) => Math.floor(((a & 0xff) * (b & 0xff)) 
 const mulFrac16 = (a: number, b: number) => Math.floor(((a & 0xffff) * (b & 0xff)) / 128) & 0xffff
 
 // Plays the song at `pointer` (a long pointer) on sample set `set` once through (to its loop's end, or its stop), as
-// the console would: the notes the voices play, and the sound itself when `render` is set. Null where the ROM's sound
-// is not found or the song is not one.
-export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSoundSetName, render = true): SnesMusicRender | null {
+// the console would: the notes the voices play, the sound itself when `render` is set, and each frame's voices when
+// `trace` is; `times` through, where asked for more than once. Null where the ROM's sound is not found or the song is not
+// one.
+export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSoundSetName, render = true, trace = false, times = 1): SnesMusicRender | null {
   const sound = findSnesSound(rom)
   if (!sound) return null
   const at = offsetOf(pointer)
@@ -345,11 +364,12 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
   for (let t = 0; t < count; t++) {
     const offset = wordAt(rom, at + 8 + 2 * t)
     if (!offset) return null
-    tracks.push({ ptr: at + offset, wait: 0, inst: null, left: 0, right: 0, bend: 0, bendRange: 0, sustain: 0, done: false })
+    tracks.push({ ptr: at + offset, wait: 0, inst: null, left: 0, right: 0, bend: 0, bendRange: 0, sustain: 0, loop: at + offset, rounds: 0, done: false })
   }
   const voices: Voice[] = Array.from({ length: 8 }, () => ({ state: 0, track: 0xff, priority: 0, length: 0, age: 0, inst: null, note: 0, basePitch: 0, pitch: 0, velocity: 0, gain: 0, played: null }))
   const dsp: DspVoice[] = Array.from({ length: 8 }, () => ({ left: 0, right: 0, sample: 0, adsr1: 0, adsr2: 0, gain: 0, pitch: 0, keyOn: false }))
   const notes: SnesVoiceNote[] = []
+  const frames: (SnesVoiceFrame | null)[][] = []
   let tempoTick = Math.floor(0x2760 / tempo) & 0xff
   // A tick of 0 never comes, and one past $C0 is missed as the byte turns over: such a song is not played here.
   const badTempo = () => tempoTick === 0 || tempoTick > MOST_TEMPO_TICK
@@ -508,14 +528,20 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
         musicStop()
         return
       } else if (code === 0xdb) {
-        // The loop's end (back to the loop's start, $E2, or the track's): once through is enough.
-        track.done = true
-        return
+        // The loop's end: back to the loop's start, $E2, or the track's (once through is enough, unless asked for more).
+        if (++track.rounds >= times) {
+          track.done = true
+          return
+        }
+        track.ptr = track.loop
+        p.at = track.loop
+        continue
       } else if (code === 0xe7) {
         p.at += byteAt(rom, p.at) + 1
       } else if (code === 0xdc || code === 0xdd || code === 0xde || code === 0xe2 || code === 0xea) {
         const data = byteAt(rom, p.at++)
-        if (code === 0xdc) setInstrument(track, instrumentAt(rom, entryAt(rom, table, data === 0x6a ? 0x14 : data)))
+        if (code === 0xe2) track.loop = track.ptr
+        else if (code === 0xdc) setInstrument(track, instrumentAt(rom, entryAt(rom, table, data === 0x6a ? 0x14 : data)))
         else if (code === 0xdd) {
           tempoTick = data
           if (badTempo()) musicOn = false
@@ -658,7 +684,9 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
       if (badTempo()) return null
       if (ended < 0 && (!musicOn || tracks.every((track) => track.done))) ended = frame
     }
+    if (trace) frames.push(voices.map((voice, v) => (voice.state ? { sample: dsp[v].sample, pitch: dsp[v].pitch, left: dsp[v].left, right: dsp[v].right, keyOn: dsp[v].keyOn, released: voice.state === 4 } : null)))
     if (render) renderFrame()
+    else for (const d of dsp) d.keyOn = false
     const silent = voices.every((voice) => !voice.state) && play.every((p) => !p.on || p.env === 0)
     if (!silent) stepped = frame
     if (ended < 0 && frame - stepped >= IDLE_FRAMES) ended = frame
@@ -678,7 +706,7 @@ export function renderSnesMusic(rom: Uint8Array, pointer: number, set: SnesSound
     }
     return all
   }
-  const result = { notes, seconds, left: join(chunks[0]), right: join(chunks[1]) }
+  const result = { notes, frames, seconds, left: join(chunks[0]), right: join(chunks[1]) }
   chunks = [[], []]
   return result
 }

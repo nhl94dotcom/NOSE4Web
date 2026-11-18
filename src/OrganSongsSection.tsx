@@ -26,6 +26,7 @@ import {
   defaultSnesPartChoices,
   midiLoopStart,
   midiPartNames,
+  midiPitchBends,
   snesCustomMusicName,
   snesEntrySide,
   SnesMusicError,
@@ -37,6 +38,7 @@ import {
   snesOwnMidi,
   withOriginalSnesMusic,
   withSnesMusic,
+  type MidiBend,
   type SnesMusicInstrument,
   type SnesOwnMidi,
   type SnesPartChoice,
@@ -565,6 +567,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     notes: MidiNote[]
     end: number
     loop: number
+    bends: MidiBend[]
     parts: MusicPart[]
     choices: Map<number, SnesPartChoice>
     own: SnesOwnMidi | null
@@ -592,6 +595,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
         notes,
         end,
         loop: midiLoopStart(bytes),
+        bends: midiPitchBends(bytes),
         parts,
         choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)),
         own: snesOwnMidi(found, bytes),
@@ -608,7 +612,7 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     if (!pending || !kit) return
     const name = SNES_GAME_MUSIC[pending.index].name.toLowerCase()
     try {
-      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end, { tempo: snesMusicTempo(project.bytes, pending.index), loop: pending.loop }, pending.own)
+      const made = snesMusicFromMidi(kit, pending.notes, pending.choices, pending.end, { tempo: snesMusicTempo(project.bytes, pending.index), loop: pending.loop, bends: pending.bends }, pending.own)
       const next = withSnesMusic(project, pending.index, made, pending.title)
       onChange(next)
       const said = [

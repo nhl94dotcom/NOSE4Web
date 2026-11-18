@@ -11,6 +11,7 @@ import {
   defaultSnesPartChoices,
   midiLoopStart,
   midiPartNames,
+  midiPitchBends,
   snesCustomMusicBytes,
   snesCustomMusicName,
   snesMusicFromMidi,
@@ -72,8 +73,9 @@ function frameOfTick(tempo: number, tick: number) {
 // The voices a piece's notes were planned on never hold two at once, and are eight at most; each is a voice its
 // entry may take. (A piece's own drum of more voices, as the crash in the middle, takes the one the game finds; a
 // track on an entry of more voices has each note's own; a track that changes entry on the way, each note's entry. A
-// note of a piece's own file that another cuts the tick it starts, as in the game's piece, is planned as long as none.)
-function voicesHeldOnce(rom: Uint8Array, made: ReturnType<typeof snesMusicFromMidi>, set: 'title' | 'menu') {
+// note of a piece's own file that another cuts the tick it starts, as in the game's piece, is planned as long as none.
+// A piece's own file's notes keep the file's lengths, the game cutting them as it plays, `own`: their voices only.)
+function voicesHeldOnce(rom: Uint8Array, made: ReturnType<typeof snesMusicFromMidi>, set: 'title' | 'menu', own = false) {
   const kit = snesMusicKit(rom, set)!
   const spans: { voice: number; on: number; off: number }[] = []
   made.tracks.forEach((track, t) => {
@@ -85,9 +87,9 @@ function voicesHeldOnce(rom: Uint8Array, made: ReturnType<typeof snesMusicFromMi
       spans.push({ voice, on: n.tick, off: n.tick + n.length })
     }
   })
-  for (let v = 0; v < 8; v++) {
-    const own = spans.filter((s) => s.voice === v).sort((a, b) => a.on - b.on || a.off - b.off)
-    own.forEach((s, i) => i > 0 && expect(s.on, `voice ${v}`).toBeGreaterThanOrEqual(own[i - 1].off))
+  for (let v = 0; v < 8 && !own; v++) {
+    const held = spans.filter((s) => s.voice === v).sort((a, b) => a.on - b.on || a.off - b.off)
+    held.forEach((s, i) => i > 0 && expect(s.on, `voice ${v}`).toBeGreaterThanOrEqual(held[i - 1].off))
   }
   expect(spans.every((s) => s.voice >= 0 && s.voice < 8)).toBe(true)
 }
@@ -157,7 +159,7 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     const { made, next } = roundTrip(project, index)
     expect(made.leftOut).toBe(0)
     expect(made.moved).toBe(0)
-    voicesHeldOnce(project.bytes, made, piece.sounds)
+    voicesHeldOnce(project.bytes, made, piece.sounds, true)
     const pointer = snesMusicPointer(next.bytes, index)
     expect(pointer).not.toBe(piece.pointer)
     expect(snesCustomMusicName(next.bytes, index)).toBe(`${piece.name} again`)
@@ -613,15 +615,38 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('a MIDI file put in as the page 
       // Every percussion note as the game plays it, on its own entry at its track volume and pitch: the title music's
       // 'cowbell #21' at 69 and 'crash #14' at 97, the menu music's 'crshbkwd/cow #4, #35' at 79, 97 and its own, its
       // 'crash #15' and 'ohat #32' at 97, the playoff music's 'xtra crsh #15' and 'crshbkwd #4' (before, on the drum
-      // track, at their entries' own volumes, the drum track's pitch, and the hat on the drums' 56). But one crash of
-      // the playoff music's drums at frame 1268, cut a frame later than the game's (its organ's copies are planned
-      // as they always were, one given up where the game's piece cuts another).
+      // track, at their entries' own volumes, the drum track's pitch, and the hat on the drums' 56). (Before, one crash
+      // of the playoff music's drums at frame 1268 was cut a frame later than the game's, its organ's copies planned on
+      // free voices only.)
       const was = heard(project.bytes, piece.pointer, PERCUSSION)
       const now = heard(done.bytes, pointer, PERCUSSION)
       expect(now.length, piece.name).toBe(was.length)
-      expect(missing(was, now), piece.name).toHaveLength(index === 2 ? 1 : 0)
-      // The menu music every note as the game's; the title music all but one of its dist's (1,695 notes).
-      if (index < 2) expect(missing(heard(project.bytes, piece.pointer), heard(done.bytes, pointer)), piece.name).toHaveLength(index === 0 ? 1 : 0)
+      expect(missing(was, now), piece.name).toHaveLength(0)
+      // Every note as the game's. (Before, the title music all but one of its dist's: the file's two notes of one key
+      // on its entry of two voices, the first cut at the second.)
+      expect(missing(heard(project.bytes, piece.pointer), heard(done.bytes, pointer)), piece.name).toEqual([])
+    })
+  })
+
+  // Each frame's voices as the DSP is told them (sample, pitch, left and right volumes, key-on), as an emulator's log
+  // of its registers gives them: Match Viewer's measure.
+  const traced = (rom: Uint8Array, pointer: number, times: number) =>
+    renderSnesMusic(rom, pointer, 'menu', false, true, times)!.frames.map((voices) => voices.map((v) => (v ? `${v.sample} ${v.pitch} ${v.left} ${v.right}${v.keyOn ? ' on' : ''}${v.released ? ' off' : ''}` : '-')).join(' | '))
+
+  it.each(names)('plays each piece of %s put back from its own MIDI file frame by frame as the game plays its own, three times round', (name) => {
+    const project = open(name)
+    SNES_GAME_MUSIC.forEach((piece, index) => {
+      const done = snesMusicFromFile(project, index, snesMusicToMidi(readSnesMusic(project.bytes, piece.pointer)!, piece.name), 'Again')
+      // Every voice every frame: the pitch bends (the title music's bass and dist, the menu music's power guitar,
+      // which bends up two notes), the notes as long as the game's (a crash, the timpani and a dist note cut short
+      // where another took their voice first time round rang shorter the next), the drums in the game's order within
+      // a tick (a bend takes the tuning of the instrument the game read last), the playoff organ's copies on the voices
+      // the game finds them, and a track's instrument and volume coming round as the game's do. (Before, in NHL94.smc,
+      // 2,030 voice-frames differed in the title music, 626 in the menu music and 1,527 in the playoff music.)
+      const was = traced(project.bytes, piece.pointer, 3)
+      const now = traced(done.bytes, snesMusicPointer(done.bytes, index), 3)
+      expect(now.length, piece.name).toBe(was.length)
+      expect(now.filter((frame, f) => frame !== was[f]).length, piece.name).toBe(0)
     })
   })
 })
@@ -699,5 +724,69 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the tracks the game has, and no
     // (Before, 278: a note that came to its part's voice by cutting a weaker one was counted on the voice's other entry.)
     expect(played).toBe(273)
     expect(made.otherEntry).toBe(played)
+  })
+})
+
+describe.skipIf(!existsSync(path('NHL94.smc')))("another MIDI file's pitch bends", () => {
+  // A format 0 file, 60 ticks a beat at 60 beats a minute (a tick a frame): a bass line on channel 1 bending up, the
+  // whole way, at tick 30 and back at 50, its bend range set to `range`; and a chord on channel 0 that bends too.
+  const bendFile = (range?: number) => {
+    const events: [number, number[]][] = [
+      [0, [0xc1, 38]],
+      [0, [0xc0, 61]],
+      ...(range === undefined ? [] : ([[0, [0xb1, 101, 0]], [0, [0xb1, 100, 0]], [0, [0xb1, 6, range]]] as [number, number[]][])),
+      [0, [0x91, 40, 100]],
+      [0, [0x90, 60, 100]],
+      [0, [0x90, 64, 100]],
+      [30, [0xe1, 0x7f, 0x7f]],
+      [30, [0xe0, 0, 0x50]],
+      [50, [0xe1, 0, 0x40]],
+      [55, [0x81, 40, 0]],
+      [55, [0x80, 60, 0]],
+      [55, [0x80, 64, 0]],
+    ]
+    const track: number[] = [0, 0xff, 0x51, 3, 0x0f, 0x42, 0x40]
+    let tick = 0
+    for (const [at, bytes] of events) {
+      track.push(at - tick, ...bytes)
+      tick = at
+    }
+    track.push(5, 0xff, 0x2f, 0)
+    return Uint8Array.from([0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 60, 0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, track.length, ...track])
+  }
+
+  it('bends each track of the part as far as the file does, for the bend range of its entry', () => {
+    const project = open()
+    const kit = snesMusicKit(project.bytes, 'menu')!
+    const make = (bytes: Uint8Array) => {
+      const { notes, end, programs } = readMidi(bytes)
+      return snesMusicFromMidi(kit, notes, defaultSnesPartChoices(kit, musicParts(notes), programs), end, { bends: midiPitchBends(bytes) })
+    }
+    expect(midiPitchBends(bendFile()).map((b) => [Math.round(b.start * 60), b.channel, b.value, b.range, b.first])).toEqual([
+      [30, 1, 0x3fff, 2, true],
+      [30, 0, 0x2800, 2, true],
+      [50, 1, 0x2000, 2, true],
+    ])
+    const made = make(bendFile())
+    const bass = made.tracks.find((t) => t.entry === 2)!
+    // Two notes up in MIDI's range, a sixth of the bass's 12: $2000 + $1FFF / 6.
+    expect(bass.bends!.map((b) => [b.tick, b.value])).toEqual([
+      [30, 0x2555],
+      [50, 0x2000],
+    ])
+    // The chord on two voices of the brass, two tracks: each bends.
+    const brass = made.tracks.filter((t) => t.notes.length && t.entry !== 2 && t.name.startsWith('Brass'))
+    expect(brass.length).toBe(2)
+    for (const track of brass) expect(track.bends!.map((b) => [b.tick, b.value])).toEqual([[30, 0x2000 + Math.round(0x800 / 6)]])
+    // With the file's range 12, as it is; the piece's tracks bend in the game.
+    expect(make(bendFile(12)).tracks.find((t) => t.entry === 2)!.bends!.map((b) => b.value)).toEqual([0x3fff, 0x2000])
+    const next = withSnesMusic(project, 0, made, 'Bends')
+    const played = renderSnesMusic(next.bytes, snesMusicPointer(next.bytes, 0), 'menu', false, true)!
+    const pitches = new Set(played.frames.slice(0, 60).map((voices) => voices[5]?.pitch))
+    expect(pitches.size).toBeGreaterThan(1)
+    // A file without bends: none, and a piece as before.
+    const plain = midiFile([{ tick: 0, length: 30, note: 40, channel: 1 }], 60)
+    expect(midiPitchBends(plain)).toEqual([])
+    expect(make(plain).tracks.some((t) => t.bends)).toBe(false)
   })
 })

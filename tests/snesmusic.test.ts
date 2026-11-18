@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { readMidi, songToMidi } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
-import { readSnesMusic, readSnesNotesText, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesNotesText, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
+import { readSnesDoubledText, readSnesMusic, readSnesNotesText, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesNotesText, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
 import { snesSongChoices, snesSongName } from '../src/core/snessongs'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -179,5 +179,51 @@ describe("the SNES game's percussion parts in MIDI files", () => {
       // No channel volume on the drum channel: a MIDI player plays every drum at the file's velocities, as before.
       expect(tracks.flatMap((t) => t.events).filter(([status, controller]) => status === 0xb9 && controller === 7)).toEqual([])
     })
+  })
+})
+
+describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES game's pitch bends in MIDI files", () => {
+  it("reads each piece's pitch bends and exports them as MIDI's, at the bend range of their entries", () => {
+    const rom = open().bytes
+    // The title music's bass (#2) and dist A (#27) bend a whole octave (their entries' range, 12 notes), down and back;
+    // the menu music's power guitar (#41 to #43, on its 'bsec ... apower' tracks) bends up two notes (its range). The
+    // playoff music bends nothing.
+    const bending = SNES_GAME_MUSIC.map((piece) =>
+      readSnesMusic(rom, piece.pointer)!
+        .parts.filter((part) => part.bends.length)
+        .map((part) => `${part.name.trim()}: ${part.bends.length} on ${[...new Set(part.bends.map((b) => `#${b.entry} range ${b.range}`))].join(', ')}`),
+    )
+    expect(bending).toEqual([
+      ['BASS #2: 250 on #2 range 12', 'dist A  #27: 18 on #27 range 12'],
+      ['bsec (R) #17 apower #43 (M): 85 on #43 range 2', 'bsec (L) #16 apower #42 (R): 85 on #42 range 2', 'bsec (M) #40 apower #41 (L): 22 on #41 range 2'],
+      [],
+    ])
+    SNES_GAME_MUSIC.forEach((piece) => {
+      const music = readSnesMusic(rom, piece.pointer)!
+      const bytes = snesMusicToMidi(music, piece.name)
+      const tracks = midiTrackEvents(bytes)
+      // Each bend as the game's two bytes on its part's track (a part of more entries: the entry's track), and the
+      // track's bend range set first (registered parameter 0) where it is not MIDI's 2 notes.
+      for (const part of music.parts.filter((p) => p.bends.length)) {
+        const track = tracks.find((t) => t.name === part.name || t.name === `${part.name} on #${part.bends[0].entry}`)!
+        expect(track.events.filter(([status]) => (status & 0xf0) === 0xe0).map(([, low, high]) => low | (high << 7)), part.name).toEqual(part.bends.map((b) => b.value))
+        const controllers = track.events.filter(([status]) => (status & 0xf0) === 0xb0).map(([, number, value]) => [number, value])
+        if (part.bends[0].range === 2) expect(controllers.some(([number]) => number === 101)).toBe(false)
+        else expect(controllers).toEqual(expect.arrayContaining([[101, 0], [100, 0], [6, part.bends[0].range], [38, 0], [101, 127], [100, 127]]))
+      }
+      // A valid file a MIDI player plays as before: every note still there.
+      expect(readMidi(bytes).notes.length).toBeGreaterThan(100)
+    })
+  })
+
+  it("says where the playoff music's doubled organ line plays a note for another length", () => {
+    const rom = open().bytes
+    const tracks = midiTrackEvents(snesMusicToMidi(readSnesMusic(rom, SNES_GAME_MUSIC[2].pointer)!))
+    // 'orgn (R) #47' doubles 'orgn (L) #31' a tick later, its note at tick 862 (the line's last, 101 from 0) a tick long where
+    // #31's is two.
+    const organ = tracks.find((t) => t.name === 'orgn (L) #31')!
+    expect(organ.texts.map(readSnesDoubledText).find((t) => t)).toEqual(new Map([[101, 1]]))
+    expect(tracks.some((t) => t.name === 'orgn (R) #47')).toBe(false)
+    for (const other of ['', 'SNES doubled lengths', 'SNES doubled lengths 5', 'SNES doubled lengths a:1', 'SNES notes 61:1']) expect(readSnesDoubledText(other), other).toBeNull()
   })
 })

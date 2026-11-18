@@ -1580,7 +1580,8 @@ each note's `tick` and `ticks`. A track: variable-length wait (7 bits a byte, hi
 | `$D9`, `$DA` | end of the song (the first track there stops the music) | |
 | `$DB` | the loop's end ("then the stop ($D9): the piece plays again from its loop's start") | |
 | `$E7` | text: length byte, that many bytes; the first names the part (EA's names, e.g. `BASS #2`, `HORN (L) #16`) | |
-| `$DF`, `$E5` | (skipped) | 2 bytes |
+| `$DF` | controller: 7 the track volume (read), `$40` sustain, `$0B`/`$0C` left/right, echo ones (skipped) | 2 bytes |
+| `$E5` | pitch bend: MIDI's two bytes (low 7 bits, high 7 bits; `$00 $40` none), read into `part.bends` (`SnesMusicBend`: tick, 14-bit `value`, `entry`, its `range` from the entry's byte `$2F`, `notesBefore`) | 2 bytes |
 | `$E2` | the loop's start (MusicStart makes the track's start the loop start; the menu and playoff music set it at tick 96, the title music has none) | 1 byte (`$7F`) |
 | `$DC` (instrument), `$DD`, `$DE`, `$EA` | (skipped) | 1 byte |
 
@@ -1648,7 +1649,10 @@ loses it"); a note's pitch is PitchTable[note + transpose] plus the tuning; rate
 (`snesPitchRate`). Test: note 69's pitch is `$6BA`. Track 9 is the drums: "each note picks the instrument entry (note -
 $2F), and plays at note $3F + its transpose".
 
-**`renderSnesMusic(rom, pointer, set, render = true)`**: runs the sequencer as SoundUpdate does once a frame
+**`renderSnesMusic(rom, pointer, set, render = true, trace = false, times = 1)`** (`trace`: `frames`, each frame's eight
+voices as the DSP is told them, `SnesVoiceFrame` { sample, pitch, left, right, keyOn, released } or null for a silent one,
+an emulator register log's view; `times`: round the loop that many times, `$DB` going back to `$E2`'s place, which is
+where the track last went on after a wait, as StepTrack stores TrackPtr): runs the sequencer as SoundUpdate does once a frame
 (UpdateSfxVoices, SequencerTick, UpdateVoices, StepTrack, FindFreeVoice, VolumeCurve[velocity], pitch bend `$E5`), then
 the DSP per voice: BRR at the pitch rate, ADSR or GAIN after release (GAIN `$9F/$99/$8C/$81` by the release word's high
 byte), left/right volume, main volume `$50`. Echo off. The Gaussian interpolation is the hardware's (`SNES_GAUSS`, the
@@ -1864,6 +1868,57 @@ text, no controller 7 there), `snesgamemusic.test.ts` (title and menu tracks wit
 every sample's frames on each side within 5%/3 with no percussion exception, the bsec and crshbkwd/cow parts on one
 track each, and for every SNES ROM present each piece's percussion note for note through `snesMusicFromFile`).
 
+**Frame by frame, every time round** (2026-11-18, after Match Viewer's round 9 in Snes9x: menu sample 15 at a steady
+$0E41/$1965 where the game bends it up 2 notes; title bass at $05FE where the game slides down to $0359; title crash,
+timpani at $050A and dist at $0480 short; the playoff brass right 204 against 200). Our tests compared rendered notes
+(start, pitch at key-on, frames to let go) once through, so they missed what changes a voice after its key-on and
+what happens only the second time round, which Match Viewer's register log sees. The measure now is the DSP's view each
+frame (`renderSnesMusic(..., trace, times)`), every voice, three times round. Causes and fixes:
+1. **Pitch bends were dropped.** The driver has one pitch command, `$E5` (StepTrack: bends the track's sounding voices,
+   `bend = signed high byte of ((high << 8 | (low << 1 & $FF)) - $4000) << 1`, toward PitchTable[note +/- the entry's
+   range, byte `$2F`], linear in pitch; StartSoundVoice bends later notes too; `$DC` and each drum note set it back to 0).
+   The title's BASS #2 (250 bends, range 12: down an octave and back each phrase) and dist A #27 (18, the ending) and the
+   menu's three apower parts (85, 85, 22; range 2) have them. No portamento or vibrato command exists (the music's
+   entries' vibrato bytes are 0), and nothing else moves a pitch. Now: `readSnesMusic` reads them; export writes each as
+   a MIDI pitch bend of the game's very two bytes on the track of the entry then, ordered among the notes as the game's
+   track has them, with registered parameter 0 (CC 101/100 0, CC 6 range, CC 38 0, then 127/127) where the range is not
+   2; `midiPitchBends(bytes)` reads any file's (seconds, channel, 14-bit value, the channel's range then, `first`: before
+   the channel's notes at that tick); `snesMusicFromMidi(..., { bends })` gives each made track the bends of its channels
+   (every track of a part on more voices), scaled `$2000 + (v - $2000) x fileRange / entryRange` (the same bytes where the
+   ranges match), and `snesMusicBytes` writes `$E5` before the notes of its tick where `first` (after a `$DC` it needs),
+   else after them. The page and `snesMusicFromFile` pass them.
+2. **Notes cut short by the plan were written short.** The planner sets a note's `off` where another takes its voice and
+   wrote that as its length. The game cuts it there anyway the first time round, but the second time FindFreeVoice's
+   rotating start differs, the note lands on a free voice, and it lets go early: the title's crash 7 at $05FE (1,891
+   frames in three rounds against 1,929), timpani 12 at $050A (72 against 97), brass 8, dist 13 at $0480 (1,812 against
+   1,856). Now a piece's own file writes each note as long as the file has it (`Planned.end`); other files as before.
+3. **The same-key rule** (a part's note ends the same note sounding) is not the game's on an entry of more voices: the
+   title's dist A plays note 82 at 2015 and 2016 on voices 0 and 1, both 8 ticks. readMidi also ends the first at the
+   second's start; `sequence` now carries each note's length as its track has it (`length`, first off of its key after
+   it), and an own file skips the rule.
+4. **Drums within a tick**: the drum channel's track kept no order (readMidi sorts by pitch), and the game steps them in
+   byte order; a bend takes the tuning of InstPtr, the last instrument the driver read (StepTrack `.6`), so the title's
+   bass bent one frame a phrase off ($055D against $05B7). `sequence` now includes the drums' track.
+5. **Instrument and volume at the loop.** `snesMusicBytes` set them again at the first note after `$E2`; the game's
+   track comes back with its last `$DC`/`$DF 07`. The menu's 'crshbkwd/cow #4, #35' plays its note at 1512 at volume 79
+   the first time and its instrument's own after (sample 3: 80/98 against 48/60). Now a track with notes before the loop
+   keeps the state on; one with none there (the bsec ... apower tracks, whose `$DC` comes at 480) still sets it.
+6. **The playoff organ's copies** (entry 31, voices 0-2) were planned on free voices only, the same-key rule freeing them.
+   In an own file each copy now takes the voice FindFreeVoice gives it (`gameVoice` with its own turn, `copyRotorOf`),
+   cutting what is there (or cut a tick later by its own note on that voice), on one track before the own notes' (as
+   'orgn (L) #31' is before 'orgn (R) #47'). The left-out #47 line has one note shorter than #31's (tick 862, 1 tick
+   against 2): export says so on #31's track (`SNES_DOUBLED_TEXT`, `SNES doubled lengths 101:1`, `readSnesDoubledText`;
+   `sequence[i].doubled`), and the own note takes that length.
+Results (NHL94.smc; NHL94_Classic, SDL16, nhl94_2026, nhl94snes_2026 and SA-1 the same): voice-frames (8 a frame)
+differing from the game's over three rounds, before / now: title 2,030 / 0 of 126,728, menu 626 / 0 of 99,080, playoff
+1,527 / 0 of 38,232; every track's notes and bends (tick, code, velocity, length) are the game's byte for byte. Before,
+per sample, three rounds: bass 1 centred $0359 0 / 384 (the game's 384), $05FE 2,709 / 1,833; power guitar 15 centred
+$0E41 396 / 225, $1965 153 / 42, right $0E41 399 / 222, $1965 162 / 51; crash played backwards 3 centred 81 / 131,
+right 100 / 50; organ 14 centred 1,895 / 1,970; brass 8 right only (playoff) 1,393 / 1,373. Other files: the four MIDI
+files of mv_review_2026-11-17 build byte for byte as before into all three pieces (they have no bends). Test:
+`snesgamemusic.test.ts` "plays each piece of %s put back from its own MIDI file frame by frame as the game plays its own,
+three times round" (every ROM present), every note as the game's for all three pieces, and a hand-made file's bends.
+
 Match Viewer's round-6 ROMs (mv_review_2026-11-17/round6) were not this round trip: their playoff tracks have
 `$DF 07` 97/99/121/89 (the kit's medians) and velocities scaled, as without `snesOwnVolumes`; the renderer gives them
 width 0.138, L/R 3,405/3,476 (Snes9x: 0.143, 3,455/3,515), and per-sample frames in step with Match Viewer's (each
@@ -1914,12 +1969,20 @@ for the title too). `snesaudio.ts` keeps the `title` set. Measured (11.0-12.4 s 
   edited so that its note count no longer matches puts that part on the drum track, as other files' drums.
 - `$DF 07` on a track changes the volume of that track's notes still sounding (`trackVolume`), so a track that changes
   volume on the way does what the game's own does only where its changes come where the game's do (before the note).
+- Compare round trips frame by frame and more than once round (`renderSnesMusic(rom, pointer, 'menu', false, true, 3)`):
+  a note's start and length once through hide bends, lengths the game cuts the first time only, and the state a track
+  carries round its loop.
+- A bend adds the tuning of the instrument the driver read last (InstPtr), not the track's: the order of other tracks'
+  events within a tick changes a bent pitch.
+- `$E2` stores TrackPtr, where the track last went on after a wait, not the place after it: events before it at its tick
+  are played again each time round.
 
 ### Files and tests
 
 `src/core/snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicTune`, `snesMusicToMidi`, `PROGRAMS`,
-`SINGLE_DRUMS`, `SNES_DRUM_GM`, `SNES_NOTES_TEXT`, `snesNotesText`, `readSnesNotesText`); `src/core/snesgamemusic.ts`
-(`snesMusicPlaces`, `snesMusicKit`, `defaultSnesPartChoices`, `snesOwnVolumes`, `snesOwnMidi`, `snesMusicFromMidi`,
+`SINGLE_DRUMS`, `SNES_DRUM_GM`, `SNES_NOTES_TEXT`, `snesNotesText`, `readSnesNotesText`, `SNES_DOUBLED_TEXT`,
+`readSnesDoubledText`); `src/core/snesgamemusic.ts`
+(`snesMusicPlaces`, `snesMusicKit`, `defaultSnesPartChoices`, `snesOwnVolumes`, `snesOwnMidi`, `midiPitchBends`, `snesMusicFromMidi`,
 `snesMusicBytes`, `withSnesMusic`, `withOriginalSnesMusic`, `snesCustomMusicBytes`, `snesMusicFromFile`);
 `tests/snesgamemusic.test.ts` (places and kit in every ROM, round trips, percussion note for note, a hand-made file with
 drums, eight voices, byte-for-byte put back (a 1 MB ROM grown, and a 2 MB one), tempo/length/loop to the frame, the
