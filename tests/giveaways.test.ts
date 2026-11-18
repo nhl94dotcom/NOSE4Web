@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { applyHacks, detectHacks, NO_HACKS, type HackChoices } from '../src/core/hacks'
+import { applyHacks, detectHacks, giveawaysOutdated, NO_HACKS, type HackChoices } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))

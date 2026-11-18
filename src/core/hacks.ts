@@ -3141,6 +3141,13 @@ function applyPages(work: Work, toi: boolean): void {
   const base = place(work, GP_CODES[toi ? 1 : 0].code)
   for (const key of TOI_KEYS) writeHook(work.rom, TOI_HOOKS[key], base + GP_ENTRIES[key])
 }
+// Whether this ROM has an earlier version of NOSE4Web's giveaways and takeaways (the counts read as on, and the
+// current version goes in whenever the hacks are applied).
+export function giveawaysOutdated(rom: Uint8Array): boolean {
+  const found = gtIn(rom)
+  return found !== null && found.hooks !== GT_VERSIONS[0].hooks
+}
+
 const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
   detect(rom) {
     if (gtBase(rom) !== null) return true
