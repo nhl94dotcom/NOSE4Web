@@ -1559,11 +1559,42 @@ const toiParts95 = TOI_KEYS95.map((key) => ({ key, part: hookedFix(TOI_HOOKS95[k
 // $9240E and $924FC), dopass ($84502), and the scroll limits ($92120, $9212E). One more than NHL 94: NHL '95's
 // FallDown drops the puck of a carrier who stumbles from a hit (bsr.w DropPuck / bra.w .hitter, $7B142) without the
 // st (puckc).w the others pass through, so that call goes through code that marks the hitter as the forcer first.
+// A pass at the net counts as a shot, as in NHL 94: picked up by the other team off the goalie or after it reaches the
+// goal line, it is no giveaway; picked off before then (in the slot, say), it is one, as Match Viewer counts it.
+// puckgoalie's bclr #2,(sflags4).w ($7C1BE, sflags4 $BEFA), on every touch of the goalie, holds too, before its
+// carried-puck test, forgets the passer of a pass. dopass's .notgoalie, move.w (puckvx).w,d0 / move.w (puckvy).w,d1
+// ($846A0), once the puck's speed is set (dump-ins and one-timer passes too), marks a pass at the net (cause $FFFD,
+// the passer kept): released in the attacking zone (puck y, $B376, past NHL '95's blue line, $56, toward the net the
+// passer shoots at, pfgoal: the top's goal line y $10B, the bottom's -$10B), 20 or more in front of the goal line,
+// moving toward it, its line crossing the goal line within 40 of the middle (x 0): x + vx * (goal line - y) / vy,
+// with puckx $B362, puckvx $B38A, puckvy $B38C. pucknorm's jsr (PuckIChk).l ($8129E), each frame of the loose puck,
+// forgets the passer of such a pass once the puck is at or past either goal line (it can only reach the one it was
+// passed at); puckglue takes any cause below $FFFF as a pass ($FFFE or $FFFD). NHL 94's rule with NHL '95's rink:
+// its blue and goal lines (NHL 94's are $58 and $108); the 20 and 40, about the net, as NHL 94's.
 const GT_BODY95 = hex(
-  '6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B3C2 48E7 E0C0 0838 0004 BEF0 6600 0088 0838 0000 BF00 666C 0838 0004 BEF6 6664 3238 EA00 6B5E EF49 41F8 AC62 D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 EA02 0C41 FFFE 672C 4A41 6B2E EF49 43F8 AC62 D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 EA05 7402 612A 6010 4A6A 0034 670A 2248 1038 EA04 7400 6118 31EA 0052 EA00 11EA 0066 EA04 31FC FFFF EA02 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 EA10 4A42 6704 41F8 EA50 0C30 00FF 0000 6704 5230 0000 41F8 EB00 0829 0006 0062 6704 41F8 EE66 5270 2000 4E75 31E8 0052 BAD8 31EA 0052 EA02 11EA 0066 EA05 4E75 50F8 B3C2 31EB 0052 EA02 11EB 0066 EA05 0838 0004 BEF0 4E75 50F8 B3C2 177C 0010 005E 31FC FFFE EA02 4E75 08F8 0004 BEF4 31FC FFFF EA00 31FC FFFF EA02 4E75 4278 C02C 4278 C196 21FC FFFF FFFF EA00 41F8 EA10 701F 4298 51C8 FFFC 42B8 EB00 42B8 EE66 4E75 7C0F 43FA 0000 4E75 3C3C 000B 43FA 0000 4E75 ' +
+  '6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B3C2 48E7 E0C0 0838 0004 BEF0 6600 0088 0838 0000 BF00 666C 0838 0004 BEF6 6664 3238 EA00 6B5E EF49 41F8 AC62 D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 EA02 0C41 FFFF 6732 4A41 6B28 EF49 43F8 AC62 D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 EA05 7402 612A 6010 4A6A 0034 670A 2248 1038 EA04 7400 6118 31EA 0052 EA00 11EA 0066 EA04 31FC FFFF EA02 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 EA10 4A42 6704 41F8 EA50 0C30 00FF 0000 6704 5230 0000 41F8 EB00 0829 0006 0062 6704 41F8 EE66 5270 2000 4E75 31E8 0052 BAD8 31EA 0052 EA02 11EA 0066 EA05 4E75 50F8 B3C2 31EB 0052 EA02 11EB 0066 EA05 0838 0004 BEF0 4E75 50F8 B3C2 177C 0010 005E 31FC FFFE EA02 4E75 08F8 0004 BEF4 31FC FFFF EA00 31FC FFFF EA02 4E75 4278 C02C 4278 C196 21FC FFFF FFFF EA00 41F8 EA10 701F 4298 51C8 FFFC 42B8 EB00 42B8 EE66 4E75 7C0F 43FA 0000 4E75 3C3C 000B 43FA 0000 4E75 ' +
     // +$190, the stumble: the hitter is the forcer of the carrier he knocked down; then DropPuck, and on to .hitter.
-    '3F00 302A 0052 B078 B3C2 660C 31EB 0052 EA02 11EB 0066 EA05 301F 4EB9 0007 C4F6 588F 4EF9 0007 B426',
+    '3F00 302A 0052 B078 B3C2 660C 31EB 0052 EA02 11EB 0066 EA05 301F 4EB9 0007 C4F6 588F 4EF9 0007 B426 ' +
+    // +$1B8, the goalie's touch: bclr #2,(sflags4).w, then the carrier of a pass ($FFFE) or a pass at the net ($FFFD)
+    // forgotten.
+    '08B8 0002 BEFA 0C78 FFFE EA02 6708 0C78 FFFD EA02 6606 31FC FFFF EA00 4E75 ' +
+    // +$1D6, the pass at the net, marked so ($FFFD); then dopass's own two moves.
+    '3238 B38C 3038 B376 082B 0007 0062 6604 4440 4441 0C40 0056 6D2C 4A41 6F28 0440 010B 4440 0C40 0014 6D1C C1F8 B38A ' +
+    '81C1 6914 D078 B362 0640 0028 0C40 0050 6206 31FC FFFD EA02 3038 B38A 3238 B38C 4E75 ' +
+    // +$226, each frame of the loose puck: a pass at the net that has reached a goal line (y $10B or -$10B) is a shot,
+    // its passer forgotten; then PuckIChk.
+    '0C78 FFFD EA02 6618 0C78 010B B376 6C08 0C78 FEF5 B376 6E08 21FC FFFF FFFF EA00 4EF9 0008 9ADA',
 )
+// The versions: this one, and NOSE4Web's of 17 November 2026 (63b2559), the same code up to the goalie's touch but
+// puckglue's test of the cause (cmpi.w #$FFFE,d1 / beq.s / tst.w d1 / bmi.s), which had neither the goalie's touch
+// nor the pass at the net (a pass shot picked up by the other team off the goalie or wide was a giveaway): recognised,
+// and replaced when the hacks are next applied. Each with how many of GT_HOOKS95 it has (the first so many).
+const GT_BODY95_17 = GT_BODY95.slice(0, 0x1b8)
+GT_BODY95_17.set(hex('0C41 FFFE 672C 4A41 6B2E'), 0x68)
+const GT_VERSIONS95 = [
+  { body: GT_BODY95, hooks: 13 },
+  { body: GT_BODY95_17, hooks: 10 },
+]
 const GT_TABLE_A95 = 0x182
 const GT_TABLE_B95 = 0x18c
 const GT_HOOKS95: [Hook, number][] = [
@@ -1577,6 +1608,9 @@ const GT_HOOKS95: [Hook, number][] = [
   [{ at: 0x922d0, original: hex('3C3C 000A 43FA 0226') }, 0x18],
   [{ at: 0x84502, original: hex('50F8 B3C2 177C 0010 005E') }, 0x1c],
   [{ at: 0x7b142, original: hex('6100 13B2 6000 02DE') }, 0x190],
+  [{ at: 0x7c1be, original: hex('08B8 0002 BEFA') }, 0x1b8],
+  [{ at: 0x846a0, original: hex('3038 B38A 3238 B38C') }, 0x1d6],
+  [{ at: 0x8129e, original: hex('4EB9 0008 9ADA') }, 0x226],
 ]
 const GT_LIMITS95 = [
   { at: 0x92120, original: 0x70, hacked: 0x80 },
@@ -1594,13 +1628,13 @@ function gtTable95(rom: Uint8Array, at: number, rows: number): Uint8Array | null
   return rom.slice(at, end)
 }
 // The code, with the ROM's two tables and the row after each, its lea (pc)s' extension words set to them.
-function gtCode95(rom: Uint8Array): Uint8Array | null {
+function gtCode95(rom: Uint8Array, body = GT_BODY95): Uint8Array | null {
   const withPen = gtTable95(rom, 0x9240e, 15)
   const noPen = gtTable95(rom, 0x924fc, 11)
   if (!withPen || !noPen) return null
-  const code = new Uint8Array(GT_BODY95.length + withPen.length + noPen.length + 2 * GT_ROW95.length)
-  code.set(GT_BODY95)
-  let at = GT_BODY95.length
+  const code = new Uint8Array(body.length + withPen.length + noPen.length + 2 * GT_ROW95.length)
+  code.set(body)
+  let at = body.length
   const tableA = at
   code.set(withPen, at)
   code.set(GT_ROW95, (at += withPen.length))
@@ -1611,13 +1645,26 @@ function gtCode95(rom: Uint8Array): Uint8Array | null {
   writeU16(code, GT_TABLE_B95, tableB - GT_TABLE_B95)
   return code
 }
-function gtIn95(rom: Uint8Array): { base: number; length: number } | null {
+// Where the code is, how long, and how many hooks it has (this version's or the earlier one's).
+function gtIn95(rom: Uint8Array): { base: number; length: number; hooks: number } | null {
   const base = hookTarget(rom, GT_HOOKS95[0][0])
   if (base === null) return null
-  for (const [hook, entry] of GT_HOOKS95) if (hookTarget(rom, hook) !== base + entry) return null
   if (!GT_LIMITS95.every((l) => readU16(rom, l.at) === l.hacked)) return null
-  const code = gtCode95(rom)
-  return code && base + code.length <= rom.length && matches(rom, base, code) ? { base, length: code.length } : null
+  for (const { body, hooks } of GT_VERSIONS95) {
+    const code = gtCode95(rom, body)
+    if (!code || base + code.length > rom.length || !matches(rom, base, code)) continue
+    for (const [hook, entry] of GT_HOOKS95.slice(0, hooks)) if (hookTarget(rom, hook) !== base + entry) return null
+    // The earlier version's: the places it has no hook at as the game has them.
+    if (!GT_HOOKS95.slice(hooks).every(([hook]) => matches(rom, hook.at, hook.original))) return null
+    return { base, length: code.length, hooks }
+  }
+  return null
+}
+// Whether this ROM has NOSE4Web's earlier giveaways and takeaways (the counts read as on, and the current version goes
+// in whenever the hacks are applied with them on).
+export function nhl95GiveawaysOutdated(rom: Uint8Array): boolean {
+  const found = gtIn95(rom)
+  return found !== null && found.hooks !== GT_VERSIONS95[0].hooks
 }
 // Player Stats pages (game stats only): Giveaways and Takeaways past Penalty Minutes (or Checks For), then Time On Ice
 // when it is on too, at the time on ice's five places (entries +0 col, +4 title, +8 head, +C get, +10 row).
@@ -1663,7 +1710,7 @@ const giveaways95: Part<boolean> = {
     const found = gtIn95(rom)
     if (!found) return
     erase(rom, found.base, found.length)
-    for (const [hook] of GT_HOOKS95) rom.set(hook.original, hook.at)
+    for (const [hook] of GT_HOOKS95.slice(0, found.hooks)) rom.set(hook.original, hook.at)
     for (const l of GT_LIMITS95) writeU16(rom, l.at, l.original)
   },
   apply(work, value) {
@@ -1824,6 +1871,8 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   const change = NHL95_HACKS.filter((hack) => wanted[hack] !== undefined && wanted[hack] !== choices[hack])
   // The fighting patch without Match Viewer's fix is put in again with it.
   if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
+  // So are giveaways and takeaways of an earlier version, with the current one.
+  if (choices.giveaways && wanted.giveaways === true && nhl95GiveawaysOutdated(project.bytes)) change.push('giveaways')
   for (const hack of change) {
     if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: something else has already changed this part of the ROM, so it is left as it is.`)
     const bad = nhl95BadValue(hack, wanted[hack])
@@ -1967,7 +2016,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
     `The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and goals against, shots faced and shutouts for goalies, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
   bodychecks: "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
   timeOnIce: "Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player's time on ice.",
-  giveaways: "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways.",
+  giveaways: "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways. A pass at the net counts as a shot, not a giveaway, if the other team picks it up off the goalie or after it goes wide.",
   realTime: 'The clocks count real seconds, so a period lasts as long as it says.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < N.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,

@@ -933,7 +933,7 @@ which the WN95HL sets for the game" expects every W18 / W18p choice to equal `NO
 | | the penalty's add to PIM `$8941E` | `D532 0000` | `4E71 4E71` (around: `$8941A` `0640 0104`, `$89422` `0440 0104`) |
 | | Player Stats texts `$92B01`, `$92B76` | `PIM`, `Penalty Minutes` | `Chk`, `   Checks For  ` |
 | `timeOnIce` | five hooks (`TOI_HOOKS95`): col `$926F2` (12 bytes), title `$92826` (16), head `$927F4` (6), get `$92A32` (6), row `$92980` (8) | `B07C FFFF 6DF0 B07C 0004 6EEA`; `43FA 02DC 7001 D078 D276 4EB9 0007 CB38`; `4EB9 0007 C6E6`; `3400 301F B042`; `7204 4EB9 0007 D154` | each `hookedFix` to its `TOI_CODES95` code; time on ice read from player `+$138`, capped at `$176F`; the page's sort/print variables `$D276`, `$AC40`, `$AC44` |
-| `giveaways` | ten hooks (`GT_HOOKS95`, entry offset into the code): puckglue `$7BAB6` (+0), the steals `$7B9E6` and `$7C220` (+4), FallDown's `st (puckc).w` `$7B446` (+8), doshot `$84BE8` (+`$C`), StartGame's `.noso` `$9CA0` (+`$10`), DisplayStats' rows/tables `$922C2` (+`$14`) and `$922D0` (+`$18`), dopass `$84502` (+`$1C`), FallDown's stumble `bsr.w DropPuck / bra.w .hitter` `$7B142` (+`$190`) | as in `GT_HOOKS95` | one code block: `GT_BODY95` (a jump table, then the code), then a copy of the ROM's stats table at `$9240E` (15 rows) and of `$924FC` (11 rows), each followed by the row `0010` "Give/Takeaways" `2878 287A`; the two `lea (pc)` words at code +`$182` / +`$18C` point at the copies |
+| `giveaways` | thirteen hooks (`GT_HOOKS95`, entry offset into the code): puckglue `$7BAB6` (+0), the steals `$7B9E6` and `$7C220` (+4), FallDown's `st (puckc).w` `$7B446` (+8), doshot `$84BE8` (+`$C`), StartGame's `.noso` `$9CA0` (+`$10`), DisplayStats' rows/tables `$922C2` (+`$14`) and `$922D0` (+`$18`), dopass `$84502` (+`$1C`), FallDown's stumble `bsr.w DropPuck / bra.w .hitter` `$7B142` (+`$190`), puckgoalie's `bclr #2,(sflags4).w` `$7C1BE` (`08B8 0002 BEFA`, +`$1B8`), dopass's `.notgoalie` `move.w (puckvx).w,d0 / move.w (puckvy).w,d1` `$846A0` (`3038 B38A 3238 B38C`, +`$1D6`), pucknorm's `jsr (PuckIChk).l` `$8129E` (`4EB9 0008 9ADA`, +`$226`) | as in `GT_HOOKS95` | one code block: `GT_BODY95` (a jump table, then the code), then a copy of the ROM's stats table at `$9240E` (15 rows) and of `$924FC` (11 rows), each followed by the row `0010` "Give/Takeaways" `2878 287A`; the two `lea (pc)` words at code +`$182` / +`$18C` point at the copies |
 | | scroll limits `$92120`, `$9212E` | `$0070`, `$0030` | `$0080`, `$0040` |
 
 A stats table row is a length word (even, 2-40), that many bytes of label, then two offset words (`gtTable95`).
@@ -941,6 +941,20 @@ NHL '95 values the giveaway code uses: puckc `$B3C2`, lastplayer `$BAD8`, gmode 
 `$BEF4`, sflags3 `$BEF6`, SortCords `$AC62`, team structs `$C288` / `$C5EE`; RAM in section 10. The stumble hook is
 "One more than NHL 94: NHL '95's FallDown drops the puck of a carrier who stumbles from a hit ... without the st
 (puckc).w the others pass through" (comment above `GT_BODY95`).
+
+**A pass at the net** (added 2026-11-18, not yet tested in the game): a pass picked up by the other team off the
+goalie or once it has reached the goal line is no giveaway; picked off before then, it is one (Match Viewer: "a pass
+shot has to reach the mouth or the goalie"). The cause word `$FFEA02`: `$FFFF` none, `$FFFE` a pass, `$FFFD` a pass
+at the net (the passer kept as carrier at `$FFEA00`), else the forcer's spot. dopass's `.notgoalie` hook marks
+`$FFFD` when the pass is released past the blue line (y `$56` toward the net the passer shoots at, pfgoal), 20 or more
+in front of the goal line (`$10B`), moving toward it, and its line crosses the goal line within 40 of the middle; the
+goalie's touch (puckgoalie hook, every touch) forgets the carrier of a `$FFFE` or `$FFFD` pass; pucknorm's hook, each
+frame before PuckIChk, sets carrier and cause to `$FFFF` for a `$FFFD` pass once pucky is `$10B` or more or `-$10B`
+or less (a per-frame check, as the puck can come back off the end boards before anyone picks it up). puckglue takes
+any cause below `$FFFF` as a pass (`cmpi.w #$FFFF,d1 / beq / tst.w d1 / bmi`, code +`$68`). NHL 94's rule with NHL
+'95's lines (NHL 94: blue `$58`, goal `$108`); the 20 and 40 as NHL 94's. NOSE4Web's version of 17 November 2026
+(63b2559, ten hooks, puckglue testing `$FFFE` alone) is recognised as on (`nhl95GiveawaysOutdated`), replaced
+whenever the hacks are applied with giveaways on, and the Hacks page offers "Put in the current version" for it.
 
 **Giveaways with time on ice**: with `giveaways` on, the Player Stats pages are one code block (`GP_CODES95`, with or
 without the Time On Ice page) at the five time-on-ice hooks, entries +0 col, +4 title, +8 head, +`$C` get, +`$10`

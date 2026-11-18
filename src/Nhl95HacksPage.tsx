@@ -11,6 +11,7 @@ import {
   NHL95_HACK_SECTIONS,
   NHL95_HACK_TITLES,
   NO_NHL95_HACKS,
+  nhl95GiveawaysOutdated,
   nhl95HackSheet,
   nhl95HacksForDiscord,
   nhl95HackStateChanges,
@@ -349,7 +350,8 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       team to the other with no whistle between. A takeaway goes to the skater who forced it, with a stick steal or a
       check; any other loss is a giveaway for the player who lost it. Shots, faceoffs, passes and dump-ins don't count,
       nor anything in highlights or a shootout. Game Stats gets a Give/Takeaways row, and Player Stats a page for each,
-      past Penalty Minutes (or Checks For), for the game only.
+      past Penalty Minutes (or Checks For), for the game only. A pass at the net counts as a shot, not a giveaway, if
+      the other team picks it up off the goalie or after it goes wide (not yet tested in the game).
     </>
   ),
   realTime: () => (
@@ -554,6 +556,26 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
     hitEnergy: (
       <p>
         {button(`Use the recommended ${RECOMMENDED_HIT_ENERGY}`, { hitEnergy: RECOMMENDED_HIT_ENERGY })} {button('Energy from hits only', HITS_ONLY)}
+      </p>
+    ),
+    // An earlier version of giveaways and takeaways: on, and put in again as the current one.
+    giveaways: nhl95GiveawaysOutdated(project.bytes) && (
+      <p>
+        <b>This ROM has an earlier version of it.</b>{' '}
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              onChange(applyNhl95Hacks(project, state.choices))
+              setNotice("Done: giveaways and takeaways is now NOSE4Web's current version. Undo puts it back.")
+              setError('')
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e))
+            }
+          }}
+        >
+          Put in the current version
+        </button>
       </p>
     ),
     holdEnergy: <p>{button(`Use the recommended ${RECOMMENDED_HOLD_ENERGY}`, { holdEnergy: RECOMMENDED_HOLD_ENERGY })}</p>,
