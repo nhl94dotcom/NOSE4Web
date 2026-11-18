@@ -2435,7 +2435,7 @@ export function HelpPage() {
           <b>Fighting</b>, Vancecookcobxin's fighting patch with a fix by Match Viewer: it adds a Fighting setting to Game
           Setup (Off, On, or On - Arcade Mode), and a league chooses which it starts at. Players fight by their Fighting
           rating (in Handed/Fighting): 71 or more to start a fight, 14 or more to fight back. The WN95HL's Season 18 ROM
-          rates no one, so a league there raises some. Three of NHL 94's Ratings options, not yet tested in the game:
+          rates no one, so a league there raises some. Three of NHL 94's Ratings options:
           the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
           <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
           are not offered: NHL '95 works out and shows ratings differently.

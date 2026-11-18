@@ -1207,9 +1207,12 @@ expects the three to end with the not-yet-tested line.
 
 ### Status
 
-All tested in the game by the NHL94 Match Viewer project but the three Ratings options above (`NOT_YET` in
-`Nhl95HacksPage.tsx` is `baseWeight`, `hotColdRange`, `clutchTime`, whose notes end "... Not yet tested in the
-game."). Every other setting ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
+All tested in the game by the NHL94 Match Viewer project, the three Ratings options too (2026-11-18, on NHL_95.bin and
+W18.bin: clutch +3 at the 2:00 tick on all 12 players, awareness only at a rebuild (the calc skips only Aggression; the
+tick skips awareness too, as NHL 94's), about +2 on NHL '95's five re-boosted ratings at a rebuild; hot/cold range 4
+gives -4..3 and 0 all zeros; base weight 144 shows +4 lb, plays frame for frame as the original). The clock hook and
+the AttributeCalc jump shift play slightly (NHL '95 steps by vertical blanks since its last step), with no slowdown.
+`NOT_YET` in `Nhl95HacksPage.tsx` is empty; a new option not yet played goes there. Every other setting ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
 NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The test "shows every option ... each
 setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
 aebaeb9).

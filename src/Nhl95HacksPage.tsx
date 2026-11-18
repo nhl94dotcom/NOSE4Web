@@ -107,7 +107,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = ['baseWeight', 'hotColdRange', 'clutchTime']
+const NOT_YET: Nhl95Hack[] = []
 
 const OT3_MORE = (
   <p className="note">
