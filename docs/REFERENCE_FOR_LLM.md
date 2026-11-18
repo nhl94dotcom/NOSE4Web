@@ -942,7 +942,7 @@ NHL '95 values the giveaway code uses: puckc `$B3C2`, lastplayer `$BAD8`, gmode 
 "One more than NHL 94: NHL '95's FallDown drops the puck of a carrier who stumbles from a hit ... without the st
 (puckc).w the others pass through" (comment above `GT_BODY95`).
 
-**A pass at the net** (added 2026-11-18, not yet tested in the game; as NHL 94's, section 16): a pass picked up by
+**A pass at the net** (added 2026-11-18, tested in the game by Match Viewer on NHL_95.bin and W18.bin; as NHL 94's, section 16): a pass picked up by
 the other team after it reaches the goalie or the goal line is no giveaway; picked off before then, it is one (Match
 Viewer: "a pass shot has to reach the mouth or the goalie"). The cause word `$FFEA02`: `$FFFF` none, `$FFFE` a pass,
 `$FFFD` / `$FFFC` a pass at the net toward the top's goal line (y `$10B`) / the bottom's (`-$10B`) (the passer kept as
@@ -1958,8 +1958,10 @@ inside PuckIChk, which the frame code calls), the fights and the season shootout
 
 ### Status
 
-The counts: tested in the game by Match Viewer. The pass at the net as above (reached the goalie or the goal line): not
-yet tested in the game. NHL '95's version is in section 11.
+The counts: tested in the game by Match Viewer. The pass at the net as above (reached the goalie, the net or the goal line): tested in the game by Match
+Viewer on 2026-11-18 on every system, with both marks, the goalie's stick and the posts. On the retail SNES the
+added cycles shift play slightly on identical inputs (the game steps from the beam position); there is no slowdown,
+and the SA-1 doesn't drift. NHL '95's version is in section 11.
 
 ## 17. Feature status
 

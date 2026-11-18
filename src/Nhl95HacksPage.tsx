@@ -351,7 +351,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       check; any other loss is a giveaway for the player who lost it. Shots, faceoffs, passes and dump-ins don't count,
       nor anything in highlights or a shootout. Game Stats gets a Give/Takeaways row, and Player Stats a page for each,
       past Penalty Minutes (or Checks For), for the game only. A pass at the net counts as a shot, not a giveaway, if
-      the other team picks it up after it reaches the goalie or the goal line (not yet tested in the game).
+      the other team picks it up after it reaches the goalie or the goal line.
     </>
   ),
   realTime: () => (
