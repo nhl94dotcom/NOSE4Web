@@ -37,7 +37,14 @@
 // another entry of the instrument; its drums go on the very drum notes they were (the crash in the middle among them,
 // which may take voice 2 or 3). A track on an entry of more voices (the title music's dist on 27 to 29, voices 0 and
 // 1, and its HORN on 30; the menu music's power guitar on 41, voices 0 and 4) goes back on it too, each note planned
-// on the voice FindFreeVoice would give it, so that the plan is what the game plays.
+// on the voice FindFreeVoice would give it, so that the plan is what the game plays. Its percussion parts (the crashes,
+// the cowbell, the menu music's open hi-hat), which the file has on the drum channel, go back on tracks of their own,
+// each note on its entry at its own pitch and track volume (snesMusicToMidi's SNES_NOTES_TEXT: on the drum track
+// every note would play at its entry's own volume and the drum track's one pitch); a part the file has on a track for
+// each entry goes back on one track, its instrument and volume set before a note where they change, as the game's
+// tracks are; and the notes are planned in the game's order (each tick, the tracks from the last, a track's notes as
+// the file has them), a note cut the tick it starts kept as the game's piece has it. So the title and menu music put
+// back play as the game's own, note for note, but one of the title music's dist notes.
 //
 // The organ: the playoff music plays its organ line twice, on entry 31 (which
 // may take voices 0 to 2, in the middle) and a tick later on entry 47 (voice 0
@@ -62,7 +69,7 @@
 import type { RomProject } from './rom'
 import { findCodeAll, grownSnesRom, loRomAddress, loRomBank, loRomOffset, SNES_GROWN_SIZE } from './snes'
 import { findSnesSound, readSnesInstrument, snesNotePitch, type SnesInstrument, type SnesSoundSetName } from './snesaudio'
-import { MIDI_LOOP_MARKER, SNES_DRUM_GM, SNES_GAME_MUSIC, snesTicksPerSecond, snesTrackEntry } from './snesmusic'
+import { MIDI_LOOP_MARKER, readSnesNotesText, SNES_DRUM_GM, SNES_GAME_MUSIC, snesTicksPerSecond, snesTrackEntry } from './snesmusic'
 import { freeSpace, keptBanks } from './snespictures'
 import { DRUMS, FRAMES_PER_SECOND, MidiError, musicParts, readMidi, type MidiNote, type MusicPart } from './genesismusic'
 
@@ -324,6 +331,9 @@ export interface SnesMusicKit {
   entrySamples: number[]
   entryStates: number[]
   entryReleases: number[]
+  // Each entry the music uses, with the voices it may take and its left and right volumes (a piece's own percussion
+  // part goes back on its entry, whichever sample it plays: snesOwnMidi).
+  entrySides: SnesMusicEntry[]
 }
 
 // The drum track's notes for MIDI's drums (General MIDI note: code), and the sample each must play; a code whose
@@ -464,7 +474,11 @@ function makeKit(rom: Uint8Array, set: 'title' | 'menu'): SnesMusicKit | null {
     const gain = (((entry.adsr1 | (entry.adsr2 << 8)) >> 1) & 0x7000) + 0x0fff
     return entry.release ? Math.floor(gain / entry.release) + 1 : Infinity
   })
-  return { set, instruments, drums, drumVoice, drumRank, drumVelocity: median(drumVelocities, VELOCITY), ownDrums, ownDrumVoices, entrySamples: entries.map((entry) => entry.sample), entryStates, entryReleases }
+  const entrySides = entries.map((entry, i) => {
+    const voices = Array.from({ length: VOICES }, (_, v) => v).filter((v) => entry.voices & (1 << v))
+    return { entry: i, voice: voices[0] ?? -1, voices, left: entry.left, right: entry.right }
+  })
+  return { set, instruments, drums, drumVoice, drumRank, drumVelocity: median(drumVelocities, VELOCITY), ownDrums, ownDrumVoices, entrySamples: entries.map((entry) => entry.sample), entryStates, entryReleases, entrySides }
 }
 
 // ------------------------------------------------- choices
@@ -596,8 +610,10 @@ export function defaultSnesPartChoices(kit: SnesMusicKit, parts: MusicPart[], pr
 export interface SnesMadeMusic {
   // The piece's tracks, track 9 the drums' (empty tracks where there are fewer parts), and the voice each was planned
   // on (-1 for the drums' and the empty ones).
-  // (A track on an entry of more voices has notes on more than one: each note's own `voice`.)
-  tracks: { name: string; entry: number; volume: number; voice: number; notes: { tick: number; code: number; velocity: number; length: number; voice?: number }[] }[]
+  // (A track on an entry of more voices has notes on more than one: each note's own `voice`. A track that changes
+  // instrument or volume on the way, as a piece's own part of more entries goes back, has each note's own `entry` and
+  // `volume`, which snesMusicBytes sets before the note where it changes.)
+  tracks: { name: string; entry: number; volume: number; voice: number; notes: { tick: number; code: number; velocity: number; length: number; voice?: number; entry?: number; volume?: number }[] }[]
   // Its tempo byte, its length in ticks (the rest at the file's end kept), and the tick it plays again from.
   tempo: number
   ticks: number
@@ -617,12 +633,75 @@ export interface SnesMadeMusic {
 // (where an instrument's voices are all taken, the drums, then the bass, then the higher notes are kept). The piece
 // keeps the file's timing, a rest at its start and, to `end` (where the file ends: readMidi), at its end; it plays at
 // `timing.tempo` (the tempo byte of the piece it replaces: snesMusicTempo) and again from `timing.loop` (seconds:
-// midiLoopStart). A piece's own MIDI file (`ownVolumes`: snesOwnVolumes) keeps its velocities, and its parts' track
-// volumes, and is played as the game plays it (above).
-export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices: Map<number, SnesPartChoice>, end = 0, timing: { tempo?: number; loop?: number } = {}, ownVolumes: Map<number, number> | null = null): SnesMadeMusic {
+// midiLoopStart). A piece's own MIDI file (`ownFile`: snesOwnMidi, or only its track volumes, snesOwnVolumes) keeps
+// its velocities, and its parts' track volumes, and is played as the game plays it (above); with snesOwnMidi its
+// percussion parts go back on tracks of their own, and a part's tracks for each entry on one track, as the game has them.
+export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midiChoices: Map<number, SnesPartChoice>, end = 0, timing: { tempo?: number; loop?: number } = {}, ownFile: SnesOwnMidi | Map<number, number> | null = null): SnesMadeMusic {
   const tempo = timing.tempo ?? TEMPO
   const perSecond = snesTicksPerSecond(tempo)
+  const ownMidi: SnesOwnMidi | null = ownFile instanceof Map ? { volumes: ownFile, parts: new Map(), percussion: [], sequence: new Map() } : ownFile
+  const ownVolumes = ownMidi?.volumes ?? null
+  // A piece's own percussion parts (on the drum channel, while it plays the game's drums): each entry of each on a
+  // channel of its own past the file's (16 on), on that entry at its notes' own codes and volumes; the channels of
+  // one part going back on one track (`partOf`: the part's first channel), among the others where the file has it.
+  let notes = midiNotes
+  const choices = new Map(midiChoices)
+  const ownInstruments = new Map<number, SnesMusicInstrument>()
+  const ownOrder = new Map<number, number>()
+  const ownNames = new Map<number, string>()
+  const noteVolumes = new Map<MidiNote, number>()
+  // Each note's place in its track of the file (where a piece's own file gives it), by which the notes of a track at
+  // one tick go in the order the game's track has them.
+  const fileIndex = new Map<MidiNote, number>()
+  const partOf = new Map(ownMidi?.parts ?? [])
+  if (ownMidi && choices.get(DRUMS) === 'drums') {
+    let channel = MOST_TRACKS
+    ownMidi.percussion.forEach((part, k) => {
+      const drums = notes.filter((n) => n.channel === DRUMS)
+      const taken = new Set<MidiNote>()
+      for (const n of part.notes) {
+        const found = drums.find((d) => !taken.has(d) && d.note === n.note && Math.abs(d.start - n.start) < 1e-3)
+        if (!found) return
+        taken.add(found)
+      }
+      if (part.notes.some((n) => n.entry >= MUSIC_ENTRIES || !kit.entrySides[n.entry]?.voices.length)) return
+      const channels = new Map<number, number>()
+      const first = channel
+      for (const n of part.notes) {
+        if (channels.has(n.entry)) continue
+        const side = kit.entrySides[n.entry]
+        const sample = kit.entrySamples[n.entry]
+        ownInstruments.set(channel, { sample, name: part.name, entries: new Map(side.voices.map((v) => [v, n.entry])), sides: [side], lowest: 0, highest: 127, velocity: kit.drumVelocity, volume: TRACK_VOLUME, doubled: null })
+        choices.set(channel, { sample, entry: n.entry })
+        ownOrder.set(channel, part.after + (k + 1) / 1000)
+        ownNames.set(channel, part.name)
+        partOf.set(channel, first)
+        channels.set(n.entry, channel++)
+      }
+      const moved = part.notes.map((n, i) => {
+        const note: MidiNote = { start: n.start, length: n.length, note: n.code, velocity: n.velocity, channel: channels.get(n.entry)! }
+        noteVolumes.set(note, n.volume)
+        fileIndex.set(note, i)
+        return note
+      })
+      notes = [...notes.filter((d) => !taken.has(d)), ...moved]
+    })
+    notes.sort((a, b) => a.start - b.start || a.note - b.note)
+  }
+  for (const [channel, sequence] of ownMidi?.sequence ?? []) {
+    const used = new Set<number>()
+    for (const midi of notes) {
+      if (midi.channel !== channel) continue
+      const i = sequence.findIndex((n, k) => !used.has(k) && n.note === midi.note && Math.abs(n.start - midi.start) < 1e-3)
+      if (i < 0) continue
+      used.add(i)
+      fileIndex.set(midi, i)
+    }
+  }
+  const orderOf = (channel: number) => ownOrder.get(channel) ?? channel
   const instrumentOf = (channel: number) => {
+    const own = ownInstruments.get(channel)
+    if (own) return own
     const choice = choices.get(channel)
     const sample = snesChoiceSample(choice)
     return sample === undefined ? undefined : kit.instruments.find((i) => i.sample === sample)
@@ -635,7 +714,7 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
     if (typeof choice === 'object') return instrument?.sides.find((side) => side.entry === choice.entry)
     return ownVolumes !== null && instrument && !instrument.doubled && instrument.sides.length === 1 ? instrument.sides[0] : undefined
   }
-  const tuneChannels = [...new Set(notes.map((n) => n.channel))].filter((channel) => instrumentOf(channel)).sort((a, b) => a - b)
+  const tuneChannels = [...new Set(notes.map((n) => n.channel))].filter((channel) => instrumentOf(channel)).sort((a, b) => orderOf(a) - orderOf(b))
   const drumsOn = choices.get(DRUMS) === 'drums'
   // A piece's own MIDI file is played as the game plays the piece: its drums on the very drum notes they were (their
   // entries' voices, as the crash in the middle's 2 and 3), as long as they were; and a part on one entry takes that
@@ -675,7 +754,7 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
 
   // `doubled`: the earlier copy of an organ note, on the organ's other entry.
   // `entry`: the entry it plays on; `shared`, on the part's entry of more voices.
-  type Planned = { on: number; off: number; code: number; velocity: number; channel: number; voice: number; entry: number; rank: number; drum: boolean; doubled: boolean; shared: boolean }
+  type Planned = { on: number; off: number; code: number; velocity: number; channel: number; voice: number; entry: number; rank: number; drum: boolean; doubled: boolean; shared: boolean; volume: number }
   // The notes to come of the parts that have one voice only (the organ, the bass, the timpani, a part put on one entry;
   // and each drum), by voice: a part of more voices keeps off a voice one of them will want while its note sounds.
   const needs: { on: number; off: number; channel: number }[][] = Array.from({ length: VOICES }, () => [])
@@ -693,7 +772,8 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
   const needed = (voice: number, on: number, off: number, channel: number) => needs[voice].some((n) => n.channel !== channel && n.on < off && n.off > on)
   // The game's rotating start for FindFreeVoice: it moves on by one for each note started, the tracks stepped from the
   // last each tick (SequencerTick). So each note's turn, from the tracks the piece will have as near as they are known
-  // here (the parts in channel order, an organ part's copies after its own, track 9 the drums').
+  // here (the parts in channel order, an organ part's copies after its own, a part's channels for each entry of it in a
+  // piece's own file one track, track 9 the drums').
   const sorted = [...notes].sort((a, b) => a.start - b.start || b.note - a.note)
   const trackGuess = new Map<number, number>()
   const copyTrackGuess = new Map<number, number>()
@@ -702,24 +782,38 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
     if (nextTrack === DRUM_TRACK) nextTrack++
     return nextTrack++
   }
+  const partTrack = new Map<number, number>()
   for (const channel of tuneChannels) {
-    trackGuess.set(channel, takeTrack())
+    const part = partOf.get(channel)
+    const track = part !== undefined && partTrack.has(part) ? partTrack.get(part)! : takeTrack()
+    if (part !== undefined) partTrack.set(part, track)
+    trackGuess.set(channel, track)
     if (instrumentOf(channel)!.doubled) copyTrackGuess.set(channel, takeTrack())
   }
+  // The tracks the planned notes so far take (`tracks`' keys, below): a part's channels for each entry one.
+  const trackCount = (keys: Set<string>) => new Set([...keys].filter((key) => !key.startsWith('d')).map((key) => (!key.endsWith(':d') && partOf.has(Number(key.split(':')[0])) ? `p${partOf.get(Number(key.split(':')[0]))}` : key))).size
   const trackOf = (p: { channel: number; drum: boolean; doubled: boolean }) => (p.drum ? DRUM_TRACK : (p.doubled ? copyTrackGuess : trackGuess).get(p.channel)!)
-  const turns: { tick: number; track: number; order: number; note: MidiNote | null }[] = []
+  const turns: { tick: number; track: number; order: number; midi: MidiNote; note: MidiNote | null; copyOf?: MidiNote }[] = []
   sorted.forEach((midi, order) => {
     const instrument = instrumentOf(midi.channel)
     const drum = drumsOn && midi.channel === DRUMS && drumCode(midi.note) !== undefined
     if (!drum && (!instrument || midi.length <= 0)) return
     const late = instrument?.doubled ? 1 : 0
     const tick = Math.round(midi.start * perSecond) + late
-    turns.push({ tick, track: trackOf({ channel: midi.channel, drum, doubled: false }), order, note: midi })
-    if (late) turns.push({ tick: tick - late, track: trackOf({ channel: midi.channel, drum, doubled: true }), order, note: null })
+    turns.push({ tick, track: trackOf({ channel: midi.channel, drum, doubled: false }), order, midi, note: midi })
+    if (late) turns.push({ tick: tick - late, track: trackOf({ channel: midi.channel, drum, doubled: true }), order, midi, note: null, copyOf: midi })
   })
-  turns.sort((a, b) => a.tick - b.tick || b.track - a.track || a.order - b.order)
+  // (Within a track at one tick, in a piece's own file, the file's order.)
+  const inFile = (a: MidiNote, b: MidiNote) => (a.channel === b.channel && fileIndex.has(a) && fileIndex.has(b) ? fileIndex.get(a)! - fileIndex.get(b)! : 0)
+  turns.sort((a, b) => a.tick - b.tick || b.track - a.track || inFile(a.midi, b.midi) || a.order - b.order)
   const rotorOf = new Map<MidiNote, number>()
   turns.forEach((turn, i) => turn.note && rotorOf.set(turn.note, (i + 1) % VOICES))
+  // A piece's own file is planned in the game's order (each tick, the tracks from the last; an organ note with its copy
+  // a tick before it), so that each note finds the voices as the game finds them; another file in time order, the
+  // higher notes first.
+  const copied = new Set(turns.flatMap((turn) => (turn.copyOf ? [turn.copyOf] : [])))
+  const inTurn = new Set(turns.flatMap((turn) => (turn.note && !copied.has(turn.note) ? [turn.note] : turn.copyOf ? [turn.copyOf] : [])))
+  const planOrder = own ? [...turns.flatMap((turn) => (turn.copyOf ? [turn.copyOf] : turn.note && !copied.has(turn.note) ? [turn.note] : [])), ...sorted.filter((midi) => !inTurn.has(midi))] : sorted
   // The notes planned once keeping off those voices and once not: the way that keeps more of them is taken.
   const plan = (lookahead: boolean) => {
     const held: (Planned | null)[] = new Array(VOICES).fill(null)
@@ -763,7 +857,7 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
       }
       return best
     }
-    for (const midi of sorted) {
+    for (const midi of planOrder) {
       const choice = choices.get(midi.channel) ?? 'out'
       const instrument = instrumentOf(midi.channel)
       const drum = choice === 'drums' && midi.channel === DRUMS
@@ -807,11 +901,11 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
         // (A part put on one entry: that entry's voice first.)
         voices = own.sort((a, b) => Number(b === pinned?.voice) - Number(a === pinned?.voice) || Number(b === last) - Number(a === last) || Number(hasTrack(b)) - Number(hasTrack(a)) || wanted[a] - wanted[b] || a - b)
         // Past the tracks the game has, a part keeps to those it has.
-        const melodic = [...tracks].filter((key) => !key.startsWith('d')).length
+        const melodic = trackCount(tracks)
         if (melodic >= MOST_TRACKS - 1) voices = voices.filter(hasTrack)
       }
       const velocity = Math.max(1, Math.min(127, Math.round(midi.velocity * (loudness.get(midi.channel) ?? 1))))
-      const planned: Planned = { on, off, code, velocity, channel: midi.channel, voice: -1, entry: -1, rank, drum, doubled: false, shared: false }
+      const planned: Planned = { on, off, code, velocity, channel: midi.channel, voice: -1, entry: -1, rank, drum, doubled: false, shared: false, volume: drum ? 0 : (noteVolumes.get(midi) ?? ownVolumes?.get(midi.channel) ?? instrument!.volume) }
       // The same note of the same part ends the one sounding.
       for (const other of held) if (other && other.channel === midi.channel && other.code === code && other.off > on) other.off = on
       // A free voice no other part has used lately; then the part's own note begun before it, cut short (as a line's
@@ -877,7 +971,7 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
       const doubled = instrument?.doubled
       if (doubled) {
         const copyOn = on - late
-        const melodic = [...tracks].filter((key) => !key.startsWith('d')).length
+        const melodic = trackCount(tracks)
         const hasCopy = (v: number) => tracks.has(`${midi.channel}:${v}:d`)
         const copyVoices = doubled.voices
           .filter((v) => melodic < MOST_TRACKS - 1 || hasCopy(v))
@@ -899,35 +993,49 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
   const { played, leftOut, dropped, moved } = kept(ways[1]) > kept(ways[0]) ? ways[1] : ways[0]
   // (An organ note's copy only where the note itself was kept.)
   const keptNotes = new Set(played.filter((p) => p.off > p.on && !p.doubled).map((p) => `${p.channel}:${p.code}:${p.on}`))
-  const sounding = played.filter((p) => p.off > p.on && (!p.doubled || keptNotes.has(`${p.channel}:${p.code}:${p.on + 1}`)))
+  // (In a piece's own file a note another cuts the tick it starts is kept too, as the game's piece has it: the game
+  // starts it and the other takes its voice, and its turn moves FindFreeVoice's rotating start on, as planned.)
+  const sounding = played.filter((p) => (p.off > p.on || (own && p.off === p.on && !p.doubled)) && (!p.doubled || keptNotes.has(`${p.channel}:${p.code}:${p.on + 1}`)))
   const last = sounding.reduce((latest, p) => Math.max(latest, p.off), 0)
   const ticks = Math.max(1, last, Math.round(end * perSecond))
   const loopTick = Math.round((timing.loop ?? 0) * perSecond)
   const loop = loopTick > 0 && loopTick < ticks ? loopTick : 0
   // The tracks: the parts' in channel order then voice order (an organ part's copies after its own notes, and a part's
-  // notes on its entry of more voices one track), track 9 kept for the drums.
+  // notes on its entry of more voices one track; in a piece's own file, a part's channels for each entry one track, at
+  // the first one's place, each note with its own entry and volume where they change), track 9 kept for the drums.
   const keyOf = (p: Planned) => (p.shared ? `${p.channel}:${p.entry}:s` : `${p.channel}:${p.voice}${p.doubled ? ':d' : ''}`)
   const keys = [...new Set(sounding.filter((p) => !p.drum).map(keyOf))].sort((a, b) => {
     const [ca, va, da] = a.split(':')
     const [cb, vb, db] = b.split(':')
-    return Number(ca) - Number(cb) || Number(Boolean(da)) - Number(Boolean(db)) || Number(va) - Number(vb)
+    return orderOf(Number(ca)) - orderOf(Number(cb)) || Number(Boolean(da)) - Number(Boolean(db)) || Number(va) - Number(vb)
   })
+  const groupOf = (key: string) => (!key.endsWith(':d') && partOf.has(Number(key.split(':')[0])) ? `p${partOf.get(Number(key.split(':')[0]))}` : key)
+  const groups = [...new Set(keys.map(groupOf))].map((group) => keys.filter((key) => groupOf(key) === group))
   const drumNotes = sounding.filter((p) => p.drum)
   const otherEntry = sounding.filter((p) => !p.drum && !p.doubled && pinnedOf(p.channel) && p.entry !== pinnedOf(p.channel)!.entry).length
   const out: SnesMadeMusic['tracks'] = []
   const empty = () => ({ name: '', entry: -1, volume: 0, voice: -1, notes: [] })
   const notesOf = (own: Planned[]) => own.map((p) => ({ tick: p.on, code: p.code, velocity: p.velocity, length: p.off - p.on, voice: p.voice }))
-  for (const key of keys) {
+  for (const group of groups) {
     if (out.length === DRUM_TRACK) out.push(empty())
-    const [channel, voiceOrEntry] = key.split(':').map(Number)
-    const copies = key.endsWith(':d')
-    const sharedTrack = key.endsWith(':s')
-    const instrument = instrumentOf(channel)!
-    const own = sounding.filter((p) => keyOf(p) === key)
-    const pinned = pinnedOf(channel)
-    const entry = sharedTrack ? voiceOrEntry : copies ? instrument.doubled!.entry : pinned?.voice === voiceOrEntry && pinned.voices.length === 1 ? pinned.entry : instrument.entries.get(voiceOrEntry)!
-    const voice = sharedTrack ? pinned!.voice : voiceOrEntry
-    out.push({ name: `${instrument.name} (MIDI ${channel + 1})${copies ? ' doubled' : ''}`, entry, volume: ownVolumes?.get(channel) ?? instrument.volume, voice, notes: notesOf(own) })
+    const made = group.map((key) => {
+      const [channel, voiceOrEntry] = key.split(':').map(Number)
+      const copies = key.endsWith(':d')
+      const sharedTrack = key.endsWith(':s')
+      const instrument = instrumentOf(channel)!
+      const own = sounding.filter((p) => keyOf(p) === key)
+      const pinned = pinnedOf(channel)
+      const entry = sharedTrack ? voiceOrEntry : copies ? instrument.doubled!.entry : pinned?.voice === voiceOrEntry && pinned.voices.length === 1 ? pinned.entry : instrument.entries.get(voiceOrEntry)!
+      const voice = sharedTrack ? pinned!.voice : voiceOrEntry
+      const name = ownNames.get(channel) ?? `${instrument.name} (MIDI ${channel + 1})${copies ? ' doubled' : ''}`
+      return { name, voice, notes: notesOf(own).map((n, i) => ({ ...n, entry, volume: own[i].volume })) }
+    })
+    const notes = made.flatMap((track) => track.notes).sort((a, b) => a.tick - b.tick)
+    const { name, voice } = made[0]
+    // (One entry and volume all through: the track's own, as before; else each note's.)
+    if (new Set(notes.map((n) => `${n.entry}:${n.volume}`)).size === 1) {
+      out.push({ name, entry: notes[0].entry, volume: notes[0].volume, voice, notes: notes.map((n) => ({ tick: n.tick, code: n.code, velocity: n.velocity, length: n.length, voice: n.voice })) })
+    } else out.push({ name, entry: notes[0].entry, volume: notes[0].volume, voice, notes })
   }
   if (drumNotes.length) {
     while (out.length < DRUM_TRACK) out.push(empty())
@@ -943,6 +1051,147 @@ export function snesMusicFromMidi(kit: SnesMusicKit, notes: MidiNote[], choices:
 // null for another file.
 export function snesOwnVolumes(kit: SnesMusicKit, bytes: Uint8Array): Map<number, number> | null {
   return [...midiPartNames(bytes).values()].some((name) => typeof namedEntry(kit, name) === 'object') ? midiPartVolumes(bytes) : null
+}
+
+export interface SnesOwnPercussion {
+  name: string
+  // The channel of the file's last tune track before it (-1 for none): its track goes after that one's.
+  after: number
+  // Its notes as the file has them on the drum channel (in seconds, as readMidi reads them), with the code, entry
+  // and track volume the game plays each with (snesMusicToMidi's SNES_NOTES_TEXT).
+  notes: { start: number; length: number; note: number; velocity: number; code: number; entry: number; volume: number }[]
+}
+
+export interface SnesOwnMidi {
+  // The file's track volumes by channel (snesOwnVolumes).
+  volumes: Map<number, number>
+  // The channels of one part of the game's, a track for each entry it plays on (snesMusicToMidi's ' on #NN', as the
+  // menu music's 'bsec (L) #16 apower #42 (R)' on 16, 42 and 44), by the first of them: they go back on one track.
+  parts: Map<number, number>
+  // Its percussion parts (a crash, a cowbell) on the drum channel, each a track of its own.
+  percussion: SnesOwnPercussion[]
+  // The notes of each tune channel's track in the file's order (in seconds): within a tick, the order the game's track
+  // has them in (a chord rising in the title music's tracks, falling in the menu music's), which readMidi's notes,
+  // in time and pitch order, do not keep.
+  sequence: Map<number, { start: number; note: number }[]>
+}
+
+// What a piece's own MIDI file puts back as the game has it, beyond its track volumes: its parts of more entries on one
+// track each, and its percussion parts on their own tracks at their own pitch, volume and entry (where a track of the
+// drum channel has SNES_NOTES_TEXT, a note for each of its notes); null for another file (snesOwnVolumes).
+export function snesOwnMidi(kit: SnesMusicKit, bytes: Uint8Array): SnesOwnMidi | null {
+  const volumes = snesOwnVolumes(kit, bytes)
+  if (!volumes) return null
+  const names = [...midiPartNames(bytes)].filter(([channel]) => channel !== DRUMS)
+  const base = (name: string) => name.replace(/ on #\d+$/, '')
+  const parts = new Map<number, number>()
+  for (const [channel, name] of names) {
+    const same = names.filter(([, other]) => base(other) === base(name))
+    if (same.length > 1 && same.some(([, other]) => other !== base(other))) parts.set(channel, Math.min(...same.map(([other]) => other)))
+  }
+  return { volumes, parts, ...midiOwnTracks(bytes) }
+}
+
+// Seconds at a tick through a MIDI file's tempo changes (120 beats a minute until the first), as readMidi counts them.
+function midiSeconds(tempos: { tick: number; value: number }[], division: number): (tick: number) => number {
+  const sorted = [...tempos].sort((a, b) => a.tick - b.tick)
+  return (tick) => {
+    let seconds = 0
+    let from = 0
+    let value = 500000
+    for (const change of sorted) {
+      if (change.tick >= tick) break
+      seconds += ((change.tick - from) * value) / division / 1e6
+      from = change.tick
+      value = change.value
+    }
+    return seconds + ((tick - from) * value) / division / 1e6
+  }
+}
+
+// The tracks of the drum channel alone that have SNES_NOTES_TEXT giving a note for each of theirs; and the notes of
+// each track of one tune channel, in order.
+function midiOwnTracks(bytes: Uint8Array): Pick<SnesOwnMidi, 'percussion' | 'sequence'> {
+  const u32 = (at: number) => ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0
+  const none = { percussion: [], sequence: new Map() }
+  if (bytes.length < 14 || String.fromCharCode(...bytes.subarray(0, 4)) !== 'MThd') return none
+  const division = (bytes[12] << 8) | bytes[13]
+  if (!division || division & 0x8000) return none
+  const tempos: { tick: number; value: number }[] = []
+  const found: { name: string; after: number; said: NonNullable<ReturnType<typeof readSnesNotesText>>; notes: { on: number; off: number; note: number; velocity: number }[] }[] = []
+  const tunes = new Map<number, { on: number; off: number; note: number; velocity: number }[]>()
+  let after = -1
+  let at = 8 + u32(4)
+  while (at + 8 <= bytes.length && String.fromCharCode(...bytes.subarray(at, at + 4)) === 'MTrk') {
+    const end = Math.min(bytes.length, at + 8 + u32(at + 4))
+    let p = at + 8
+    let tick = 0
+    let running = 0
+    let name = ''
+    let said: ReturnType<typeof readSnesNotesText> = null
+    const channels = new Set<number>()
+    const notes: { on: number; off: number; note: number; velocity: number }[] = []
+    const vlq = () => {
+      let value = 0
+      for (let i = 0; i < 4 && p < end; i++) {
+        const byte = bytes[p++]
+        value = (value << 7) | (byte & 0x7f)
+        if (!(byte & 0x80)) break
+      }
+      return value
+    }
+    while (p < end) {
+      tick += vlq()
+      let status = bytes[p]
+      if (status & 0x80) p++
+      else status = running
+      if (status === 0xff) {
+        const type = bytes[p++]
+        const length = vlq()
+        const text = String.fromCharCode(...bytes.subarray(p, p + length))
+        if (type === 0x51 && length === 3) tempos.push({ tick, value: (bytes[p] << 16) | (bytes[p + 1] << 8) | bytes[p + 2] })
+        if (type === 0x03 && !name) name = text.replace(/[^\x20-\x7e]/g, '').trim()
+        if (type === 0x01 && !said) said = readSnesNotesText(text)
+        p += length
+        continue
+      }
+      if (status === 0xf0 || status === 0xf7) {
+        p += vlq()
+        continue
+      }
+      running = status
+      const command = status & 0xf0
+      const channel = status & 0x0f
+      if (command === 0x90 || command === 0x80) {
+        channels.add(channel)
+        const [note, velocity] = [bytes[p], bytes[p + 1]]
+        if (command === 0x90 && velocity > 0) notes.push({ on: tick, off: -1, note, velocity })
+        else {
+          const open = notes.find((n) => n.note === note && n.off < 0)
+          if (open) open.off = tick
+        }
+      }
+      p += command === 0xc0 || command === 0xd0 ? 1 : 2
+    }
+    if (said && channels.size === 1 && channels.has(DRUMS) && said.length === notes.length) found.push({ name, after, said, notes })
+    else if (channels.size === 1 && !channels.has(DRUMS)) {
+      after = [...channels][0]
+      if (!tunes.has(after)) tunes.set(after, notes)
+    }
+    at = end
+  }
+  const seconds = midiSeconds(tempos, division)
+  return {
+    percussion: found.map(({ name, after, said, notes }) => ({
+      name,
+      after,
+      notes: notes.map((n, i) => {
+        const start = seconds(n.on)
+        return { start, length: seconds(n.off < 0 ? n.on + 1 : n.off) - start, note: n.note, velocity: n.velocity, ...said[i] }
+      }),
+    })),
+    sequence: new Map([...tunes].map(([channel, notes]) => [channel, notes.map((n) => ({ start: seconds(n.on), note: n.note }))])),
+  }
 }
 
 // The tempo byte of the game's own piece `index` in this ROM (TEMPO where it is not found).
@@ -999,19 +1248,7 @@ export function midiLoopStart(bytes: Uint8Array): number {
     }
     at = end
   }
-  if (loop <= 0) return 0
-  // Ticks to seconds through the tempo changes (120 beats a minute until the first), as readMidi counts them.
-  tempos.sort((a, b) => a.tick - b.tick)
-  let seconds = 0
-  let from = 0
-  let value = 500000
-  for (const change of tempos) {
-    if (change.tick >= loop) break
-    seconds += ((change.tick - from) * value) / division / 1e6
-    from = change.tick
-    value = change.value
-  }
-  return seconds + ((loop - from) * value) / division / 1e6
+  return loop <= 0 ? 0 : midiSeconds(tempos, division)(loop)
 }
 
 // The piece's bytes: the header, then each track (the first with NOSE4Web's mark) with its name, instrument and
@@ -1030,13 +1267,24 @@ export function snesMusicBytes(made: SnesMadeMusic, replaced: number, name: stri
     // The loop's start where the piece plays again from (its notes before it played once only).
     let tick = 0
     let looped = false
+    // The entry and volume in force (a note of its own sets them where they change; after the loop's start, as the
+    // track comes back there with its last, the first note sets them again).
+    let now = { entry: track.entry, volume: track.volume }
     const loopStart = () => {
       out.push(...varLen(made.loop - tick), LOOP_START, 0x7f)
       tick = made.loop
       looped = true
+      now = { entry: -1, volume: -1 }
     }
     for (const n of [...track.notes].sort((a, b) => a.tick - b.tick)) {
       if (!looped && n.tick >= made.loop) loopStart()
+      if (n.entry !== undefined && n.volume !== undefined && (n.entry !== now.entry || n.volume !== now.volume)) {
+        out.push(...varLen(n.tick - tick))
+        if (n.entry !== now.entry || n.volume >= 127) out.push(INSTRUMENT, n.entry, ...(n.volume < 127 ? [0, CONTROLLER, 7, n.volume] : []))
+        else out.push(CONTROLLER, 7, n.volume)
+        tick = n.tick
+        now = { entry: n.entry, volume: n.volume }
+      }
       out.push(...varLen(n.tick - tick), n.code, n.velocity, ...varLen(Math.max(1, n.length)))
       tick = n.tick
     }
@@ -1139,6 +1387,6 @@ export function snesMusicFromFile(project: RomProject, index: number, midi: Uint
   const kit = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
   if (!kit) throw new SnesMusicError("The editor cannot find this ROM's instruments.")
   const choices = defaultSnesPartChoices(kit, musicParts(notes), programs, midiPartNames(midi))
-  const made = snesMusicFromMidi(kit, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(midi) }, snesOwnVolumes(kit, midi))
+  const made = snesMusicFromMidi(kit, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(midi) }, snesOwnMidi(kit, midi))
   return withSnesMusic(project, index, made, name)
 }

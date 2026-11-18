@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { readMidi, songToMidi } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
-import { readSnesMusic, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
+import { readSnesMusic, readSnesNotesText, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesNotesText, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
 import { snesSongChoices, snesSongName } from '../src/core/snessongs'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -99,5 +99,85 @@ describe.skipIf(names.length === 0)("the SNES game's other music", () => {
       return [music!.parts.length, Math.round(music!.seconds)]
     })
     expect(found).toEqual([[13, 88], [14, 70], [14, 28]])
+  })
+})
+
+// A MIDI file's tracks: each one's name, its texts, and its channel events (status and data bytes).
+function midiTrackEvents(bytes: Uint8Array) {
+  const u32 = (at: number) => ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0
+  const tracks: { name: string; texts: string[]; events: number[][] }[] = []
+  let at = 8 + u32(4)
+  while (at + 8 <= bytes.length) {
+    const end = at + 8 + u32(at + 4)
+    let p = at + 8
+    let running = 0
+    const track = { name: '', texts: [] as string[], events: [] as number[][] }
+    const vlq = () => {
+      let value = 0
+      for (let i = 0; i < 4; i++) {
+        const byte = bytes[p++]
+        value = (value << 7) | (byte & 0x7f)
+        if (!(byte & 0x80)) break
+      }
+      return value
+    }
+    while (p < end) {
+      vlq()
+      let status = bytes[p]
+      if (status & 0x80) p++
+      else status = running
+      if (status === 0xff) {
+        const type = bytes[p++]
+        const length = vlq()
+        const text = String.fromCharCode(...bytes.subarray(p, p + length))
+        if (type === 0x03) track.name = text
+        if (type === 0x01) track.texts.push(text)
+        p += length
+        continue
+      }
+      running = status
+      const size = (status & 0xf0) === 0xc0 || (status & 0xf0) === 0xd0 ? 1 : 2
+      track.events.push([status, ...bytes.subarray(p, p + size)])
+      p += size
+    }
+    tracks.push(track)
+    at = end
+  }
+  return tracks
+}
+
+describe("the SNES game's percussion parts in MIDI files", () => {
+  it('says what the game plays each percussion note with: its code, entry and track volume', () => {
+    const notes = [
+      { note: 66, entry: 4, volume: 79 },
+      { note: 66, entry: 4, volume: 79 },
+      { note: 68, entry: 35, volume: 97 },
+      { note: 65, entry: 4, volume: null },
+    ].map((n, i) => ({ ...n, frame: i, length: 1, velocity: 100, tick: i, ticks: 1 }))
+    const text = snesNotesText(notes)
+    expect(text).toBe('SNES notes #4 v79: 66 66 #35 v97: 68 #4 v127: 65')
+    expect(readSnesNotesText(text)).toEqual(notes.map((n) => ({ code: n.note, entry: n.entry, volume: n.volume ?? 127 })))
+    for (const other of ['', 'Drums', 'SNES notes', 'SNES notes 66', 'SNES notes #4 v79: x', 'SNES notes #4: 200']) expect(readSnesNotesText(other), other).toBeNull()
+  })
+
+  it.skipIf(!existsSync(path('NHL94.smc')))('puts each percussion part on the drum channel on a track of its own, with that text and no channel volume', () => {
+    const rom = open().bytes
+    SNES_GAME_MUSIC.forEach((piece, index) => {
+      const music = readSnesMusic(rom, piece.pointer)!
+      const tracks = midiTrackEvents(snesMusicToMidi(music, piece.name))
+      // The crashes', cowbell's and open hi-hat's parts (title: 2, menu: 3, playoff: 2), each as the game plays it.
+      const percussion = music.parts.filter((part) => !part.drums && /crash|crsh|cow|hat/i.test(part.name))
+      expect(percussion.length, piece.name).toBe([2, 3, 2][index])
+      for (const part of percussion) {
+        const track = tracks.find((t) => t.name === part.name)!
+        expect(track.events.every(([status]) => (status & 0x0f) === 9), part.name).toBe(true)
+        const said = track.texts.map(readSnesNotesText).find((n) => n)!
+        const heard = part.notes.filter((n) => n.entry >= 0)
+        expect(said, part.name).toEqual(heard.map((n) => ({ code: n.note, entry: n.entry, volume: n.volume ?? 127 })))
+        expect(track.events.filter(([status]) => (status & 0xf0) === 0x90)).toHaveLength(heard.length)
+      }
+      // No channel volume on the drum channel: a MIDI player plays every drum at the file's velocities, as before.
+      expect(tracks.flatMap((t) => t.events).filter(([status, controller]) => status === 0xb9 && controller === 7)).toEqual([])
+    })
   })
 })

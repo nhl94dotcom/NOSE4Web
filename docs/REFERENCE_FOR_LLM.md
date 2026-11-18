@@ -1720,9 +1720,10 @@ each side (`renderSnesMusic` notes, keyed on to let go, by `snesEntrySide`), pla
 418, right 410 / 418, middle 0 / 0 (before 87); crash middle 84 / 83, right 71 / 71 (before right 151); crash played
 backwards 11 / 11 (before 0); the rest within 2. Menu: right cowbell 182 / 182 (before 0), crash right 629 / 629,
 crash played backwards 71 / 71 frames in all (its sides differ: on the drum track a note takes its entry's own
-volume, StepTrack, not the track's 79). Left as they are: a percussion part's notes play at the drum track's fixed
-pitch ($3F + transpose), and at its entry's own volume, not its track's (the title's 'cowbell #21' at 69 is so about
-1.85 times as loud, its quiet hits counted left 12 / centre 372 against 24 / 384).
+volume, StepTrack, not the track's 79). Then left as they were (fixed since: **Percussion parts kept**, below): a
+percussion part's notes played at the drum track's fixed pitch ($3F + transpose), and at its entry's own volume, not
+its track's (the title's 'cowbell #21' at 69 was so about 1.85 times as loud, its quiet hits counted left 12 / centre
+372 against 24 / 384).
 
 **Entries of more voices kept** (2026-11-18, after Match Viewer's round 7: the playoff matched, width 0.245 / 0.242,
 every sample's sides; the menu's power guitar had lost its left, the title's dist sat right). A part named with an
@@ -1748,6 +1749,56 @@ Menu width 0.101 / 0.101 / 0.102, notes 1,554 / 1,548 / 1,550; power guitar left
 495, right 699 / 720 / 699; every other sample's sides as the original's but the crash played backwards (above).
 Playoff unchanged, byte for byte (0.236, 703 of 704 notes). Test: every sample's frames on each side within 5% (or 3)
 for all three pieces, the drum-channel percussion by its total.
+
+**Percussion parts kept** (2026-11-18, after Match Viewer's round 8: title width, brass, menu sample 15 and the playoff
+matched; "leftovers only in percussion"). The game's pieces play some percussion on tracks of their own, not the drum
+track (9): the title's 'cowbell #21' (entry 21, track volume 69, code 68) and 'crash #14' (14, 97, 61); the menu's
+'crshbkwd/cow #4, #35' (4 at 79, 35 at 97, 4 at its own; codes 65-68), 'crash #15' (15, 97, codes 60-63) and 'ohat #32'
+(32, sample 6, 97, 63); the playoff's 'xtra crsh #15' and 'crshbkwd #4'. On such a track a note sounds at its code's
+pitch and at the track's volume ($DC entry, `$DF 07`); on the drum track each note sets its entry's own volume and
+plays at one pitch ($3F + transpose), so going through the drum channel lost both (and the hat went on the drums' 56,
+entry 9). **Export** (`snesMusicToMidi`): such a part stays one MIDI track on channel 10 (each note the General MIDI
+drum of its entry, as before, so a MIDI player plays it as a crash or cowbell), and the track carries a text event (FF
+01, which players do not play) of what the game plays each note with (`SNES_NOTES_TEXT`, `snesNotesText`,
+`readSnesNotesText`): `SNES notes #4 v79: 66 66 #35 v97: 68 ... #4 v127: 65`, `#NN` the entry from there on, `vNN` the
+track volume (127 the instrument's own), each number a note's code, one per note of the track in order. No controller 7
+on channel 10: it would set every drum's volume in a player (channel-wide), and a per-track CC7 or pan there would
+fight between the drum channel's tracks; velocity scaling was not used either, as the game's velocity curve and 8-bit
+volume products cannot be undone exactly. **Import**: `snesOwnMidi(kit, bytes)` (null where `snesOwnVolumes` is null,
+i.e. any file whose track names give no entry) returns `{ volumes, parts, percussion, sequence }`; the page's Replace
+and `snesMusicFromFile` pass it as `snesMusicFromMidi`'s last argument (which still takes a volumes Map, as before,
+without the rest). `percussion`: each
+channel-10 track with such a text whose note count matches; its notes (seconds through the tempo map, `midiSeconds`,
+shared with `midiLoopStart`) are matched to readMidi's channel-9 notes (same note, start within 1 ms) and, while the
+drum channel's choice is the drums, moved to channels of their own (16 on, one per entry of the part) pinned to their
+entry (a part instrument made from `kit.entrySides`, the voices and L/R of every entry 0-51, so the hat's sample 6
+needs no instrument in the list), at their own codes and volumes; a part not fully matched stays on the drums.
+`parts`: channels whose names are one part's but ' on #NN' (the menu's three bsec/apower parts, the title's HORN (M))
+go back on **one track**, as the game's are: a made track's notes may carry `entry` and `volume`, and `snesMusicBytes`
+writes `$DC` (and `$DF 07` where under 127) before a note where they change, again after the loop start (the track
+comes back there with its last). Without this the menu needed 18 tracks (15 is the most beside the drums). The tracks
+take the original's places (a percussion track after the tune track before it in the file: title 0 timp ... 3 cowbell,
+4 crash ... 8 HORN (M), 9 drums ...; menu 2 crshbkwd/cow, 3 crash, ..., 10 ohat), so the same-tick rule by track is the
+game's. `sequence`: each tune channel's notes in file order, so the notes of one track at one tick go in the game's
+byte order (chords rise in the title's tracks, fall in the menu's), which readMidi's sorted notes lose. In an own file
+the planner now plans in the game's order (`planOrder`: each tick the tracks from the last, the file's order within a
+track, an organ note at its copy's turn) rather than time then pitch, and keeps a note another cuts the tick it starts
+(written length 1; the game starts it and the other takes the voice at once, and its start moves VoiceRotor on as
+`rotorOf` assumed). Other files are untouched (byte-identical output for the three pieces' notes imported without
+names, with and without programs). Results, NHL94.smc, nhl94_2026.sfc and nhl94snes_SA1.sfc alike (and NHL94_Classic,
+SDL16, nhl94snes_2026), each rendered note (frame, sample, L, R, rate, frames to let go) of the original against the
+round trip through `snesMusicFromFile`: percussion notes differing before / now: title crash 17 / 0 (L/R sums 1,044
+against 1,385 before, rate 11,984 against 13,453), cowbell 36 / 0 (4 hits lost before; L/R 759/634 against 1,293/1,059,
+rate 10,297 against 7,766); menu crash played backwards 3 / 0 (L/R 157/195 against 205/253), crash 25 / 0 (1,054/1,613
+against 1,407/2,133), open hat 20 / 0 (255/281 against 482/482, wrong entry), right cowbell 15 / 0 (261/343 against
+347/462), snare 2 / 0; playoff crash played backwards 1 / 0 (rate 12,695 against 9,508), crash 3 / 1 (the drums' crash
+at frame 1268 let go at once against a frame later: the organ's copies are planned as before). All notes: title 1,695
+/ 1,695, every one as the game's but one dist note (2015, 1 frame against 8); dist centre 4,494 / 4,271 before / 4,487,
+brass centre 1,230 / 1,285 / 1,230, all brass sides exact; menu 1,554 / 1,554, every note as the game's; playoff as
+before (703 of 704). Tests: `snesmusic.test.ts` (the text written and read; each percussion part on channel 10 with its
+text, no controller 7 there), `snesgamemusic.test.ts` (title and menu tracks with the game's entries track by track,
+every sample's frames on each side within 5%/3 with no percussion exception, the bsec and crshbkwd/cow parts on one
+track each, and for every SNES ROM present each piece's percussion note for note through `snesMusicFromFile`).
 
 Match Viewer's round-6 ROMs (mv_review_2026-11-17/round6) were not this round trip: their playoff tracks have
 `$DF 07` 97/99/121/89 (the kit's medians) and velocities scaled, as without `snesOwnVolumes`; the renderer gives them
@@ -1795,13 +1846,18 @@ for the title too). `snesaudio.ts` keeps the `title` set. Measured (11.0-12.4 s 
   `game`.
 - TempoTick is `floor($2760 / tempo)`: 154 and 155 are 65, not 64.
 - The PitchTable index wraps at `$FF` bytes, as the game's does.
+- A percussion part's MIDI track needs its `SNES notes` text (one code per note) to go back on its own track; a file
+  edited so that its note count no longer matches puts that part on the drum track, as other files' drums.
+- `$DF 07` on a track changes the volume of that track's notes still sounding (`trackVolume`), so a track that changes
+  volume on the way does what the game's own does only where its changes come where the game's do (before the note).
 
 ### Files and tests
 
 `src/core/snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicTune`, `snesMusicToMidi`, `PROGRAMS`,
-`SINGLE_DRUMS`, `SNES_DRUM_GM`); `src/core/snesgamemusic.ts` (`snesMusicPlaces`, `snesMusicKit`,
-`defaultSnesPartChoices`, `snesMusicFromMidi`, `snesMusicBytes`, `withSnesMusic`, `withOriginalSnesMusic`,
-`snesCustomMusicBytes`); `tests/snesgamemusic.test.ts` (places and kit in every ROM, round trips, a hand-made file with
+`SINGLE_DRUMS`, `SNES_DRUM_GM`, `SNES_NOTES_TEXT`, `snesNotesText`, `readSnesNotesText`); `src/core/snesgamemusic.ts`
+(`snesMusicPlaces`, `snesMusicKit`, `defaultSnesPartChoices`, `snesOwnVolumes`, `snesOwnMidi`, `snesMusicFromMidi`,
+`snesMusicBytes`, `withSnesMusic`, `withOriginalSnesMusic`, `snesCustomMusicBytes`, `snesMusicFromFile`);
+`tests/snesgamemusic.test.ts` (places and kit in every ROM, round trips, percussion note for note, a hand-made file with
 drums, eight voices, byte-for-byte put back (a 1 MB ROM grown, and a 2 MB one), tempo/length/loop to the frame, the
 organ doubled, all three in one ROM grown once, the fights with the music in either order, project file, no room, places not found); `src/core/snesaudio.ts` (`decodeBrr`, `findSnesSound`, `readSnesSample`, `readSnesInstrument`,
 `snesNotePitch`, `snesPitchRate`, `renderSnesMusic`); `src/snesplayer.ts`; `src/OrganSongsSection.tsx`

@@ -478,6 +478,47 @@ const doubles = (part: SnesMusicPart, other: SnesMusicPart) => {
 // The marker a MIDI file gives the place it plays again from when it ends (as many games' MIDI files mark it).
 export const MIDI_LOOP_MARKER = 'loopStart'
 
+// A part of one percussion sound goes on the drum channel (snesMusicToMidi), where a MIDI note is a drum, not a pitch,
+// and a channel's volume (controller 7) would set every drum's. So its track carries, in a text event that MIDI
+// players do not play, what the game plays each of its notes with: 'SNES notes #21 v69: 68 68 ...', each '#NN' the
+// entry from there on, each 'vNN' the track volume (127 the instrument's own, as $DC sets it), each number a note's
+// code (its pitch), one for each note of the track in order. A piece's own MIDI file so puts such a part back on its
+// own track, at its own pitch, volume and entry (snesOwnMidi, snesgamemusic.ts).
+export const SNES_NOTES_TEXT = 'SNES notes'
+
+export function snesNotesText(notes: SnesMusicPart['notes']): string {
+  const words: string[] = []
+  let entry = -1
+  let volume = -1
+  for (const n of notes) {
+    const v = Math.min(127, n.volume ?? 127)
+    if (n.entry !== entry || v !== volume) {
+      words.push(`#${n.entry}`, `v${v}:`)
+      entry = n.entry
+      volume = v
+    }
+    words.push(String(n.note))
+  }
+  return `${SNES_NOTES_TEXT} ${words.join(' ')}`
+}
+
+// The notes such a text gives (snesNotesText), or null where it is none.
+export function readSnesNotesText(text: string): { code: number; entry: number; volume: number }[] | null {
+  if (!text.startsWith(`${SNES_NOTES_TEXT} `)) return null
+  const notes: { code: number; entry: number; volume: number }[] = []
+  let entry = -1
+  let volume = 127
+  for (const word of text.slice(SNES_NOTES_TEXT.length).trim().split(/\s+/)) {
+    const value = Number(word.replace(/^[#v]/, '').replace(/:$/, ''))
+    if (!Number.isInteger(value) || value < 0 || value > 255) return null
+    if (word.startsWith('#')) entry = value
+    else if (word.startsWith('v')) volume = Math.min(127, value)
+    else if (entry < 0 || value > 127) return null
+    else notes.push({ code: value, entry, volume })
+  }
+  return notes.length ? notes : null
+}
+
 // The entry a track's name gives: ' on #NN' at its end (snesMusicToMidi's), else the first '#NN' (EA's, as
 // 'chug  (L) #50'; or '*NN', as the menu music's 'dist *38').
 export function snesTrackEntry(name: string): number | undefined {
@@ -491,7 +532,9 @@ export function snesTrackEntry(name: string): number | undefined {
 // way a track for each entry it plays on, and one whose name does not give its entry, its name with ' on #NN'
 // (snesTrackEntry), so that each goes back on its entry; the notes the game never plays (with no instrument) left
 // out. The drums on the drum channel as General MIDI's drums (SNES_DRUM_GM; another note as it is), and a part of one
-// percussion sound (a crash, a cowbell) there as that drum. The first track has the place the piece plays again from
+// percussion sound (a crash, a cowbell) there as that drum, on a track of its own with a text of what the game plays
+// each of its notes with (SNES_NOTES_TEXT: no controller 7, which would set every drum's volume in a MIDI player).
+// The first track has the place the piece plays again from
 // (MIDI_LOOP_MARKER) and its end; a part that only doubles another is left out.
 export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
   const chunk = (type: string, body: number[]) => [...type].map((c) => c.charCodeAt(0)).concat([(body.length >>> 24) & 0xff, (body.length >>> 16) & 0xff, (body.length >>> 8) & 0xff, body.length & 0xff], body)
@@ -530,6 +573,11 @@ export function snesMusicToMidi(music: SnesMusic, name = ''): Uint8Array {
     }
     const body: number[] = [0, 0xff, 0x03, text(name).length, ...text(name)]
     if (channel !== DRUMS) body.push(0, 0xc0 | channel, programFor(part.name), 0, 0xb0 | channel, 7, Math.min(127, notes[0].volume ?? 127))
+    // (A part of one percussion sound: what the game plays its notes with, SNES_NOTES_TEXT.)
+    if (single !== null) {
+      const said = [...snesNotesText(notes)].map((c) => c.charCodeAt(0))
+      body.push(0, 0xff, 0x01, ...varLen(said.length), ...said)
+    }
     const timed: { frame: number; bytes: number[]; off: boolean }[] = []
     for (const n of notes) {
       const note = part.drums ? (SNES_DRUM_GM[n.note] ?? n.note) : single !== null ? (SNES_DRUM_GM[n.entry + 0x2f] ?? single) : n.note
