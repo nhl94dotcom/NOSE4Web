@@ -1436,9 +1436,9 @@ marker, as the pieces' own MIDI files have). A part on the organ is played twice
 plays its organ. A piece's own MIDI file keeps each part on its own side and as loud as it was. The console has eight voices for the music and its drums, and each instrument only some of them: where an instrument's voices are all taken,
 the drums, then the bass, then the higher notes are kept. Tested in the game by the NHL94 Match Viewer project." Its flow mirrors the Genesis's
 (section 12): Replace… reads the file, a table of its parts with an instrument select each ("Bass, one note at a time",
-"Brass, up to 3 notes at once", ...; after each instrument of more than one single-voice entry its sides, "Brass
+"Brass, up to 3 notes at once", ...; after each instrument of more than one entry in `sides` its sides, "Brass
 (left)", "Brass (centre)", "Brass (right)": value `sample:entry`, the part's own entry for its side where it is on one,
-else the side's first in table order; the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
+else the side's first (the single-voice entries come first); the drum channel "The game's drums: kick, snare, hi-hats, toms, crash"), **Put it
 in**, a notice ("The playoff music is now "...", m:ss long, playing again from the start when it ends." or "... from
 m:ss (the file's loop marker) when it ends." with "Not as in
 the file: ..." for notes left out, past the voices, moved by octaves, or "played on another side of their instrument
@@ -1632,7 +1632,8 @@ of 101). Round trips (notes the game plays, of the original's): title 1,636 of 1
 1,628, 1,539, 695; before the organ's doubling: 1,628, 1,535, 590).
 
 **Entries kept** (a piece's own MIDI file put back): a part's choice may be one entry (`{ sample, entry }`, one of the
-instrument's `sides`: every single-voice entry of its sample, with voice and L/R volumes; `snesEntrySide`: centre where
+instrument's `sides`: every single-voice entry of its sample, with voice and L/R volumes, then each entry of more voices
+the game's pieces play but the organ's 31, `voices` its mask's voices; the range is from the single-voice ones only; `snesEntrySide`: centre where
 |L - R| < 20% of the louder, else left or right). Such a part takes its entry's voice where free, or cuts its own
 earlier note there; else the instrument's other entries by the rules above (`otherEntry` counts those notes). Its notes
 to come are among the one-voice parts' (`needs`). Export writes each track's volume as controller 7 (the `$DF 07`/`$DE`
@@ -1668,8 +1669,10 @@ heard on that one each time round after: readSnesMusic gives it that entry (the 
 brass), and -1 to one never heard. Export (`snesMusicToMidi`) writes a MIDI track for each entry a part plays on,
 named as the game's where its name gives that entry ('#NN' or '*NN', the first; `snesTrackEntry`), else with
 ' on #NN' added ("HORN (M) #25 on #30", "bsec (R) #17 apower #43 (M) on #43"), with the volume at its first note;
-notes of entry -1 left out. `namedEntry` reads ' on #NN' first; an entry that is no instrument's side (of more voices,
-as 30, 31, 41) puts the part on the entry's sample (`kit.entrySamples`). A part of one percussion sound on the drum
+notes of entry -1 left out. `namedEntry` reads ' on #NN' first; an entry that is no side of an instrument of two sides
+or more (the organ's 31; the timpani's 22, orchestra hit's 19, bass's 2) puts the part on the entry's sample
+(`kit.entrySamples`); in an own file a part on an instrument of one side but the organ is on that side all the same
+(`pinnedOf`). A part of one percussion sound on the drum
 channel plays each note as the drum of its entry where the drum track has it (`SNES_DRUM_GM[entry + $2F]`: 14 -> 49,
 15 -> 57, 4 -> 52, 21 -> 56, 35 -> 67, new: the right cowbell, 82), else as the part's drum (the hat #32 as 46).
 
@@ -1679,10 +1682,34 @@ each side (`renderSnesMusic` notes, keyed on to let go, by `snesEntrySide`), pla
 418, right 410 / 418, middle 0 / 0 (before 87); crash middle 84 / 83, right 71 / 71 (before right 151); crash played
 backwards 11 / 11 (before 0); the rest within 2. Menu: right cowbell 182 / 182 (before 0), crash right 629 / 629,
 crash played backwards 71 / 71 frames in all (its sides differ: on the drum track a note takes its entry's own
-volume, StepTrack, not the track's 79). Left as they are: entries of more voices are not pinned (the menu's power
-guitar #41, left, 283 frames, plays on 42/43; the title's dist #27/#28/#29 and HORN #26/#30 on the instrument's
-single-voice entries, so its distorted guitar leans right), and a percussion part's notes play at the drum track's
-fixed pitch ($3F + transpose).
+volume, StepTrack, not the track's 79). Left as they are: a percussion part's notes play at the drum track's fixed
+pitch ($3F + transpose), and at its entry's own volume, not its track's (the title's 'cowbell #21' at 69 is so about
+1.85 times as loud, its quiet hits counted left 12 / centre 372 against 24 / 384).
+
+**Entries of more voices kept** (2026-11-18, after Match Viewer's round 7: the playoff matched, width 0.245 / 0.242,
+every sample's sides; the menu's power guitar had lost its left, the title's dist sat right). A part named with an
+entry of more voices (the title's dist A #27, dist echo #28/#29, voices 0-1; its HORN (M) on #30, voices 2-3, release
+1399 so a let-go voice fades about 24 frames; the menu's apower #41, voices 0 and 4) is pinned to it like a
+single-voice one, and each note takes the voice FindFreeVoice would give it (`gameVoice` in the planner): from the
+rotating start (`rotorOf`: the note's turn among all the piece's note starts, ticks in order, and within a tick the
+tracks from the last, by `trackOf`, the tracks the piece will have: tune parts in channel order, an organ part's
+copies next, 9 the drums), the first voice of the mask in state 0 (never used, or let go and faded:
+`kit.entryReleases`, `floor(gain / release) + 1` frames from the envelope's sustain level, 0 for a gain-mode entry;
+`kit.entryStates` 2 or 1 while it sounds); else the highest state (4, let go, then sounding), then the oldest, the age
+read from the voices counted the other way, as the game reads it. The note cuts what is there; in an own file always
+(of two at one tick the lower track's keeps it), elsewhere only where the voice is free or holds the part's own note,
+else it moves to another entry as before. Its notes are one track (`Distorted guitar (MIDI n)` on entry 27), each
+note with its planned `voice`. In an own file every drum also takes its voice as the game gives it (the crash in the
+middle, 61, by `gameVoice` over voices 2-3), the same-tick rule by track (drums 9) rather than by rank. NHL94.smc and
+nhl94_2026.sfc alike, original / before / now: title width 0.069 / 0.078 / 0.069, notes 1,695 / 1,636 / 1,675 (the
+missing ones mostly cut the tick they start); dist (sample 13) centre 4,494 / 1,589 / 4,271, left 149 / 56 / 149,
+right 272 / 2,520 / 261; brass centre 1,230 / 742 / 1,285; orchestra hit 310 / 226 / 310; crash centre 627 / 559 /
+604; timpani 210 / 282 / 210; cowbell 408 / 432 / 384 in all (two hits lost at the tick of a HORN (L) note on voice 4:
+the game's own piece has the cowbell on track 3, stepped after the HORN's 7, ours on the drums' 9, stepped before).
+Menu width 0.101 / 0.101 / 0.102, notes 1,554 / 1,548 / 1,550; power guitar left 283 / 0 / 283, centre 495 / 656 /
+495, right 699 / 720 / 699; every other sample's sides as the original's but the crash played backwards (above).
+Playoff unchanged, byte for byte (0.236, 703 of 704 notes). Test: every sample's frames on each side within 5% (or 3)
+for all three pieces, the drum-channel percussion by its total.
 
 Match Viewer's round-6 ROMs (mv_review_2026-11-17/round6) were not this round trip: their playoff tracks have
 `$DF 07` 97/99/121/89 (the kit's medians) and velocities scaled, as without `snesOwnVolumes`; the renderer gives them
