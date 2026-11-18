@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { backgroundNote, withSeeThroughBackground } from './core/background'
 import type { ColorFormat } from './core/color'
+import { gameBannerColoursShown } from './core/gamebannercolours'
 import { isGenesis94 } from './core/games'
 import {
   bannerColors,
@@ -35,6 +36,7 @@ import { pictureChanged, resetPicture } from './core/reset'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
 import { download } from './download'
+import { GameBannerColours } from './GameBannerColours'
 import { pictureToPng, readImage } from './images'
 import { PaletteEditor } from './Palette'
 import { PixelEditor } from './PixelEditor'
@@ -86,9 +88,11 @@ interface Props {
   project: RomProject
   team: number
   onChange: (project: RomProject) => void
+  // Opens the Rink colours page.
+  onShowRink?: () => void
 }
 
-export function GraphicsEditor({ project, team, onChange }: Props) {
+export function GraphicsEditor({ project, team, onChange, onShowRink }: Props) {
   const [notice, setNoticeOnly] = useState('')
   // The logo just imported with its background made see-through, to import again as it was.
   const [cleared, setCleared] = useState<{ file: File; kind: PictureKind; team: number } | null>(null)
@@ -480,6 +484,12 @@ export function GraphicsEditor({ project, team, onChange }: Props) {
               onReset={() => onChange({ ...project, graphics: resetPicture(project, team, 'bannerColors') })}
             />
           </p>
+          {gameBannerColoursShown(project) && (
+            <GameBannerColours project={project} team={team} text={wanted} onChange={onChange} onShowRink={onShowRink} />
+          )}
+          {project.game.edition === 95 && (
+            <p className="note">These colour the Game Setup banners only. The in-game banners are pictures and keep their own colours.</p>
+          )}
         </>
       )}
 

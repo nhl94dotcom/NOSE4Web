@@ -113,6 +113,14 @@ interface Roles {
 
 const distance = (a: number[], b: number[]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
 
+// Which of the in-game banners' 16 colours (1 to 15; 0 is see-through) a
+// colour is drawn in: the nearest, the first of any that are equally near.
+export function nearestBannerColour(palette: number[], word: number): number {
+  let best = 1
+  for (let i = 1; i < 16; i++) if (distance(colorRgb(palette[i]), colorRgb(word)) < distance(colorRgb(palette[best]), colorRgb(word))) best = i
+  return best
+}
+
 function roles(project: RomProject, kind: BannerKind, team: number): Roles {
   // On the menus the same places hold the same colours for every team: white
   // and black, and the team's two stripe colours.
@@ -122,18 +130,14 @@ function roles(project: RomProject, kind: BannerKind, team: number): Roles {
   // nearest there is. In the original game that gives the banners' own look:
   // a grey frame lit from the top left, and pale lettering.
   const palette = bannerPalette(project, kind, team)
-  const nearest = (word: number, from: number) => {
-    let best = from
-    for (let i = from; i < 16; i++) if (distance(colorRgb(palette[i]), colorRgb(word)) < distance(colorRgb(palette[best]), colorRgb(word))) best = i
-    return best
-  }
+  const nearest = (word: number) => nearestBannerColour(palette, word)
   const [top, bottom] = bannerColors(project, team)
   return {
-    frame: { outer: nearest(0x0ccc, 1), inner: nearest(0x0888, 1), lowerInner: nearest(0x0444, 1), lowerOuter: nearest(0x0222, 1) },
-    top: nearest(top, 1),
-    bottom: nearest(bottom, 1),
-    letters: nearest(0x0ccc, 1),
-    shadow: nearest(0x0222, 1),
+    frame: { outer: nearest(0x0ccc), inner: nearest(0x0888), lowerInner: nearest(0x0444), lowerOuter: nearest(0x0222) },
+    top: nearest(top),
+    bottom: nearest(bottom),
+    letters: nearest(0x0ccc),
+    shadow: nearest(0x0222),
   }
 }
 

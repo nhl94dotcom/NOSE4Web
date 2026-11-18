@@ -10,14 +10,14 @@ editor). It points you at the right files and gives the facts you need to write 
 How to use it:
 
 1. Read sections 1 to 4 (purpose, licence, repo map, conventions). They apply to every game.
-2. Find your feature in the status table (section 15). If "Documented here" says yes, read that feature section.
+2. Find your feature in the status table (section 16). If "Documented here" says yes, read that feature section.
 3. Then read the files and tests the section cites. The code is the authority; this document is a guide to it.
 
-Detailed feature sections are added one feature and one game at a time. Today there are ten. NHL '95: fighting (5),
+Detailed feature sections are added one feature and one game at a time. Today there are eleven. NHL '95: fighting (5),
 organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
 pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
-NHL 94 Genesis: game music (12). NHL '94 SNES: game music and the real-sample player (14). Everything else is listed
-in section 15 with its files only.
+NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Everything else is listed
+in section 16 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
 these 2 MB-or-smaller cartridges); `$FFxxxx` is 68000 RAM. "(inferred)" marks a statement that is my reading,
@@ -1791,7 +1791,74 @@ The real-sample player is a **browser preview, not game-tested**: it imitates th
 "close but not to the bit"); the page text has no "Tested" line. Replacement built (`snesgamemusic.ts`), tested
 in the game by the NHL94 Match Viewer project (loops on the original's frames, grown ROMs, put-back, fighting).
 
-## 15. Feature status
+## 15. NHL 94 Genesis: in-game banner colours
+
+### What it does (for the player)
+
+Under **Menu banner colours** on a team page, each stripe colour is shown as the in-game banner will draw it
+("Top stripe in the game:" and a swatch), with "In the game this shows as grey: the in-game banners share 16 colours
+with the crowd, and none is close to this one." when it is far off. **Use this colour in the game too** puts that
+colour in arena colour B, with a preview of the lettered in-game banner (`GameBannerColours.tsx`). Undo takes it
+back; the user letters the in-game banner again to use it.
+
+### Origin and credit
+
+League feedback (a black and teal menu banner came out grey in the game). Reading the ROM and abdulahmad/NHL94Genesis.
+
+### Where it lives
+
+- The in-game banners (Teamblocksmap, `bannerReferences.game`) are drawn in palette line 1 (their map words' bits
+  13-14, kept by `CopyTeamBlockMapData`). During play line 1 is the arena: `setupIceRinkPal` copies the rink map's
+  palette lines 0 and 1, the 32 words at `$59924` (`rinkPaletteOffset`; NOSE4Web's `rinkPalette`, 16 to 31). The
+  block's own copy of those 16 is never loaded. So `bannerPalette(project, 'game', team)` returns the arena colours
+  where `rinkPalette` has 32 (`gameBannersOnArena`, `graphics.ts`).
+- The menu stripe colours never reach the in-game banner by themselves: the original banners are fixed pictures.
+  Only NOSE4Web's lettering (`letterBanner`, `nearestBannerColour` in `lettering.ts`: nearest of slots 1-15 by RGB
+  distance) and image import (nearest of the allowed colours) map them, and that is the grey the league saw.
+- The playoff tree draws the same banners with line 1 taken from EASportsBGMap's palette (`$54E24`, a second copy of
+  the arena 16, also the scouting report background), which this does not change (inferred: `PlayoffScreen`, not
+  game-tested).
+- What else uses line 1 during play (decoded from the ROM; `gamebannercolours.ts` header): 1-4 and 7 the frames,
+  menus, replay panel; 5-6 replay letters and marker; 8 the score digits (BigFont `$A9A10`); 9 player 1's arrow and
+  face-off pad (frames 384-390); 10 pads 3/4 arrows (frames 838-844) and a net/puck in the crowd's colours; 12-13 the
+  EA logo, energy bars and the blood (`genesisblood.ts`); 14-15 the referee's face (RefMap2 `$5CF64` line-1 tiles,
+  face-off sprites `$A78AE` frames 7-10). Colour 11 (`$020`) is used only by the crowd (rink map rows above the
+  replay panel, crowd sprites `$A4B54`), New Jersey's in-game banner, and two pixels of the net/puck frames.
+  `SPARE_ARENA_COLOURS = [11]`.
+- The change writes one word: `$59924 + 27 * 2 = $5995A` (and the header checksum `$18E`), through `buildRom`'s
+  rink colours. Project files carry it as `rinkPalette`.
+
+### Applying and removing
+
+`withArenaColour(project, 11, word)`; Undo or Reset arena colours on the Rink colours page.
+
+### Detecting
+
+`gameBannerColoursShown`: NHL 94 family (`isGenesis94`), 32 rink colours, pictures the editor reads, an in-game
+banner set whose map uses line 1. Not offered on the SNES (each team's block has its own 16 colours,
+`TeamBlockPalettes`, on every screen) or in NHL '95 (its in-game banners are pictures in colours each screen repeats;
+no lettering there).
+
+### Interactions
+
+The Rink colours page edits the same 16. Hacks that repaint the crowd or move sprites into line 1 would need their own
+check.
+
+### Gotchas
+
+Changing arena colour B also changes New Jersey's in-game banner green and some crowd pixels.
+
+### Files and tests
+
+`src/core/gamebannercolours.ts`, `src/GameBannerColours.tsx`, `graphics.ts` (`bannerPalette`, `gameBannerLine`),
+`lettering.ts`; `tests/gamebannercolours.test.ts`; e2e "shows banner colours as the in-game banners draw them and
+gives them a missing one".
+
+### Status
+
+Not yet tested in the game.
+
+## 16. Feature status
 
 "Game-tested" follows the page texts ("Tested in the game by the NHL94 Match Viewer project" vs. "Not yet tested
 in the game"). For NHL 94 Genesis and SNES, each option on `HacksPage.tsx` / `SnesHacksPage.tsx` carries its own
@@ -1823,6 +1890,7 @@ line; check there.
 | Logos, banners, lettering, photos, score logos, splash, menu picture, announcer, credits | `graphics.ts`, `pictureset.ts`, `lettering.ts`, `photos.ts`, `genesisscorelogos.ts`, `splash.ts`, `menupicture.ts`, `announcer.ts`, `credits.ts` | No |
 | Organ songs and team songs | `genesismusic.ts`, `teamsongs.ts` | No |
 | Game music (title, end of period, scouting report): play, export, replace from MIDI (tested in the game) | `genesismusic.ts` (`GAME_MUSIC`, `gameMusicFromMidi`, `gameMusicToMidi`), `OrganSongsSection.tsx` (`GameMusicSection`) | **Yes (12)** |
+| In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
@@ -1841,9 +1909,9 @@ line; check there.
 - SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
   exporting it is built (section 14).
 
-## 16. How to extend this document
+## 17. How to extend this document
 
-Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 15.
+Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 16.
 Copy this template; cite file and function names for every fact and mark inferences.
 
 ```markdown

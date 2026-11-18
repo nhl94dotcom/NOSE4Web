@@ -1,6 +1,6 @@
 import { readU16, readU32, reorderEntries, writeU16, writeU32 } from './bytes'
 import { colorRgb, GENESIS_COLORS, nearestColorWord } from './color'
-import type { GameConfig } from './games'
+import { isGenesis94, type GameConfig } from './games'
 import { claimSpace, claimSpace95 } from './space'
 
 // Team pictures: the logo at centre ice, the logo on the main menu, and the
@@ -404,6 +404,8 @@ interface Source {
   game: GameConfig
   bytes: Uint8Array
   graphics: GraphicsEdits
+  // The ice and arena colours, where the work has them (rom.ts).
+  rinkPalette?: number[]
 }
 
 export function rinkLogo(project: Source, team: number): Picture {
@@ -478,7 +480,22 @@ export function bannerPalette(project: Source, kind: BannerKind, team: number): 
   const line = (block.entries[0] >> 13) & 3
   const palette = Array.from({ length: 16 }, (_, i) => readU16(project.bytes, block.paletteAt + (line * 16 + i) * 2))
   if (kind === 'menu' || kind === 'visitor') bannerColors(project, team).forEach((color, i) => (palette[BANNER_COLOR_SLOTS[i]] = color))
+  if (gameBannersOnArena(project, kind, line)) return [palette[0], ...project.rinkPalette!.slice(17)]
   return palette
+}
+
+// Whether NHL 94's in-game banners are drawn in the arena colours: during play
+// their palette line, 1, holds the arena's 16 (setupIceRinkPal copies the
+// rink's lines 0 and 1), not the block's own copy of them, which the game
+// never loads. So a change to the arena colours changes the banners too.
+function gameBannersOnArena(project: Source, kind: BannerKind, line: number): boolean {
+  return kind === 'game' && line === 1 && isGenesis94(project.game) && project.rinkPalette?.length === 32
+}
+
+// The palette line every in-game banner is drawn in, or null where the ROM has none the editor can show.
+export function gameBannerLine(project: Source): number | null {
+  const block = layout(project.bytes, project.game).banners?.game
+  return block ? (block.entries[0] >> 13) & 3 : null
 }
 
 // The block whose map lays out a set of banners. The game draws the visiting

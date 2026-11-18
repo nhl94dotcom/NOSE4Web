@@ -792,6 +792,16 @@ export function HelpPage() {
         team's location, as the original game's do.
       </p>
       <p>
+        In NHL 94 the in-game banners share the 16 arena colours with the crowd, so a stripe colour that is not
+        among them shows as the nearest one. Under the <b>menu banner colours</b> the page shows each stripe as the
+        game will, and says when it is far off. <b>Use this colour in the game too</b> puts that colour in place of
+        arena colour B, a dark green that only the crowd and a few in-game banners use, so it changes there too;
+        then letter the in-game banner again. The other arena colours also colour the menus, the score, the
+        players' arrows, the referee or the energy bars, so they are left alone. All 16 are on the Rink colours
+        page. On the SNES each team's banner has colours of its own, and in NHL '95 the in-game banners are
+        pictures that keep their own colours.
+      </p>
+      <p>
         <b>Another team's banners</b> gives this team a copy of another team's banners, and their stripe colours
         unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own. On the SNES,
         where a banner is just its colours and the name lettered on it, <b>Use the banner of</b> under the name

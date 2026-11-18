@@ -504,7 +504,7 @@ export default function App() {
               current.graphicsSupported ? (
                 <>
                   <TeamSongsSection project={current} team={selected} original={opened.teams[selected]} onChange={change} />
-                  <GraphicsEditor project={current} team={selected} onChange={change} />
+                  <GraphicsEditor project={current} team={selected} onChange={change} onShowRink={() => setSelected(RINK)} />
                   <GenesisScoreLogoEditor project={current} team={selected} onChange={change} />
                   {photosSupported(current) && <PhotosEditor project={current} team={selected} onChange={change} />}
                 </>

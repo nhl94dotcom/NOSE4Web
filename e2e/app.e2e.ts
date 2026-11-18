@@ -1515,6 +1515,36 @@ test.describe('with the NHL 94 ROM', () => {
     expect(readRom(new Uint8Array(readFileSync(await rom.path()))).graphicsSupported).toBe(true)
   })
 
+  test('shows banner colours as the in-game banners draw them and gives them a missing one', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'San Jose Sharks').click()
+    const stripes = page.locator('.palette-editor').filter({ has: page.locator('button[title^="Top stripe"]') })
+    const tool = page.locator('.game-banner-colours')
+    await stripes.locator('button[title^="Bottom stripe"]').click()
+    await stripes.locator('input[type=color]').fill('#000000')
+    await stripes.locator('button[title^="Top stripe"]').click()
+    await stripes.locator('input[type=color]').fill('#00aaaa') // a teal, $0AA0
+    const far = tool.getByText('In the game this shows as grey: the in-game banners share 16 colours with the crowd, and none is close to this one.')
+    await expect(far).toHaveCount(1) // the top stripe; black is in the game's colours
+    const replaces = /Replaces the in-game colour\s+\(dark green, arena colour B\), which also changes it in the crowd and on the in-game banners of New Jersey Devils\./
+    await expect(tool.getByText(replaces)).toBeVisible()
+    await expect(tool.getByText('The in-game banner with it:')).toBeVisible()
+    await tool.screenshot({ path: 'test-results/shots/game-banner-colours.png' })
+
+    await tool.getByRole('button', { name: 'Use this colour in the game too' }).click()
+    await expect(far).toHaveCount(0)
+    await expect(tool.getByRole('button', { name: 'Use this colour in the game too' })).toHaveCount(0)
+    const rom = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    const bytes = new Uint8Array(readFileSync(await rom.path()))
+    expect((bytes[0x5995a] << 8) | bytes[0x5995b]).toBe(0x0aa0) // arena colour B
+
+    // The arena colours are on the Rink colours page, and Undo takes the change back.
+    await tool.getByRole('button', { name: 'Rink colours' }).click()
+    await expect(page.locator('button[title="Arena colour B (0AA0)"]')).toBeVisible()
+    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect(page.locator('button[title="Arena colour B (0020)"]')).toBeVisible()
+  })
+
   test('letters a banner and copies colours and pictures to another team', async ({ page }) => {
     await openRom(page)
     await team(page, 'Boston Bruins').click()
