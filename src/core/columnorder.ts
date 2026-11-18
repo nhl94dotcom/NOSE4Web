@@ -1,8 +1,8 @@
 import type { GameConfig } from './games'
 
-// The order the attribute columns are shown in. It only changes what the
-// editor shows: the ROM, the files it writes and the files it reads keep the
-// game's own order.
+// The order the attribute columns are shown in. The editor's tables, and the
+// players table of exported spreadsheet files (in the skaters' order), follow
+// it; the ROM keeps the game's own order, and files are read by their headings.
 
 export type AttributeGroup = 'skaters' | 'goalies'
 

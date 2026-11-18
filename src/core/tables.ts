@@ -803,9 +803,18 @@ const SETTINGS_TABLES: CsvTable[] = [playoffs, rules, clock, menu]
 export type TeamOrder = 'rom' | 'name'
 
 // A table's rows, with the teams in the order asked for. The rows of one team
-// keep their own order.
-export function tableRows(project: RomProject, table: CsvTable, order: TeamOrder = 'rom'): Cell[][] {
-  const rows = table.rows(project)
+// keep their own order. `attributes`, an order of the attribute places (as the
+// roster tables show them), puts the players table's attribute columns, its
+// last ones, in that order; an import reads the columns by their headings.
+export function tableRows(project: RomProject, table: CsvTable, order: TeamOrder = 'rom', attributes?: number[]): Cell[][] {
+  let rows = table.rows(project)
+  const count = project.game.playerAttributeLabels.length
+  if (table.id === 'players' && attributes && attributes.length === count) {
+    rows = rows.map((row) => {
+      const first = row.length - count
+      return [...row.slice(0, first), ...attributes.map((at) => row[first + at])]
+    })
+  }
   if (order === 'rom' || rows[0]?.[0] !== 'Team') return rows
   const names = project.teams.map(teamDisplayName)
   const key = (row: Cell[]) => names[Number(row[0]) - 1] ?? ''
@@ -963,8 +972,8 @@ function importTableRows(
 // The same tables as sheets of one spreadsheet file, each sheet named after
 // its table.
 
-export function workbookSheets(project: RomProject, order: TeamOrder = 'rom'): { name: string; rows: Cell[][] }[] {
-  return tablesFor(project.game).map((table) => ({ name: table.id, rows: tableRows(project, table, order) }))
+export function workbookSheets(project: RomProject, order: TeamOrder = 'rom', attributes?: number[]): { name: string; rows: Cell[][] }[] {
+  return tablesFor(project.game).map((table) => ({ name: table.id, rows: tableRows(project, table, order, attributes) }))
 }
 
 // Sheets with other names, such as a user's own notes, are left alone.

@@ -364,8 +364,9 @@ export function HelpPage() {
         Agr, Rgh for skaters, and Wgt, PkC, Spd, Agl, OfA, DfA, StR, StL, GvR, GvL for goalies, with any others after
         them. To change it, press <b>Columns…</b> above the roster and move a column up or down; <b>Reset to
         default</b> puts the league's order back. The order is the same on every page that shows attributes (the
-        team page, Trade and the roster card) and is kept in this browser. It only changes what you see: the ROM and
-        spreadsheet files keep the game's own order.
+        team page, Trade and the roster card) and is kept in this browser. Exported spreadsheet files put the players
+        table's attribute columns in the skaters' order too, and import them in any order, by their headings. The ROM
+        keeps the game's own order.
       </p>
       <p>The buttons at the end of each row:</p>
       <ul>

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { formatCsv, parseCsv, type Cell } from '../src/core/csv'
 import { expandTeamSpace } from '../src/core/expand'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
-import { CSV_TABLES, csvFileName, CsvImportError, identifyCsvFile, importCsv, importCsvSet } from '../src/core/tables'
+import { CSV_TABLES, csvFileName, CsvImportError, identifyCsvFile, importCsv, importCsvSet, tableRows } from '../src/core/tables'
+import { DEFAULT_ORDER_NAMES, defaultOrder } from '../src/core/columnorder'
 import { compareProjects } from '../src/core/compare'
 import { resetTeamPart, teamPartChanged } from '../src/core/reset'
 import { goalieCount } from '../src/core/team'
@@ -32,6 +33,21 @@ describe.skipIf(!hasRom)('CSV tables', () => {
   const original = hasRom ? new Uint8Array(readFileSync(romPath)) : new Uint8Array()
   const table = (id: string) => CSV_TABLES.find((t) => t.id === id)!
   const state = (p: RomProject) => ({ teams: p.teams, settings: p.settings, rinkPalette: p.rinkPalette })
+
+  it("exports the players' attributes in the roster tables' order, and imports them back the same", () => {
+    const project = openRom(original)
+    const labels = project.game.playerAttributeLabels
+    const order = defaultOrder(labels, DEFAULT_ORDER_NAMES.skaters)
+    const plain = tableRows(project, table('players'))
+    const rows = tableRows(project, table('players'), 'rom', order)
+    const first = plain[0].length - labels.length
+    expect(rows[0].slice(first).map((h) => String(h).split(' ')[0])).toEqual(order.map((at) => labels[at]))
+    expect(rows[0].slice(first, first + 4).map((h) => String(h).split(' ')[0])).toEqual(['Wgt', 'Chk', 'Spd', 'Agl'])
+    expect(rows[1].slice(0, first)).toEqual(plain[1].slice(0, first))
+    expect(rows[1].slice(first)).toEqual(order.map((at) => plain[1][first + at]))
+    const result = importCsv(table('players'), project, formatCsv(rows))
+    expect(state(result.project)).toEqual(state(project))
+  })
 
   // Exports a table, lets the test edit the rows, and imports the result.
   function roundTrip(project: RomProject, id: string, edit: (rows: Cell[][]) => Cell[][] = (rows) => rows) {

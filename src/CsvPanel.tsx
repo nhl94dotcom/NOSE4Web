@@ -15,6 +15,7 @@ import {
 } from './core/tables'
 import { readWorkbook, writeWorkbook } from './core/workbook'
 import { download } from './download'
+import { attributeOrder } from './useColumnOrder'
 import { websiteRosterCsv, websiteRosterFileName, websiteRosterSupported } from './core/websiteroster'
 
 const MAX_PROBLEMS_SHOWN = 20
@@ -47,12 +48,12 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
   function exportTables(tables: CsvTable[]) {
     // Browsers drop downloads that start at the same instant, so they are spaced out.
     tables.forEach((table, i) => {
-      setTimeout(() => download(formatCsv(tableRows(project, table, order)), csvFileName(setName, table), 'text/csv'), i * 250)
+      setTimeout(() => download(formatCsv(tableRows(project, table, order, attributeOrder(project.game, 'skaters'))), csvFileName(setName, table), 'text/csv'), i * 250)
     })
   }
 
   async function exportWorkbook() {
-    download(await writeWorkbook(workbookSheets(project, order)), `${setName}.xlsx`, XLSX_TYPE)
+    download(await writeWorkbook(workbookSheets(project, order, attributeOrder(project.game, 'skaters'))), `${setName}.xlsx`, XLSX_TYPE)
   }
 
   // Runs an import and reports what happened, whichever kind of file it was.
