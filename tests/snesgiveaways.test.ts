@@ -21,7 +21,29 @@ const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, sho
 // dex / dex / bpl loop / jml Create_HotCold_Table.
 const CLEAR_LENGTH = 29
 // The places found in the ROM as `on` has them hooked.
-type Sites = { goalie: number; wide: number; touch: number; frame: number; goal: number; scout: number }
+type Sites = { glue: number; goalie: number; wide: number; touch: number; frame: number; goal: number; scout: number }
+// The stoppage's two parts, between the net's and the clear: the pickup's (lda gmode / and #$0004 / bne / jmp the count /
+// ldy a2 / sty puckc / lda #$FFFF / sta carrier / sta cause / rtl) and the frame's (lda gmode / and #$0004 / beq / lda
+// #$FFFF / sta carrier / sta cause / jmp the frame's part).
+const STOP_LENGTH = 50
+// A ROM with NOSE4Web's later version of 18 November 2026 (1d24880), from one with this version (`on`): without the
+// stoppage's parts, puckglue's and pucknorm's calls to the parts they go on to, the clear moved down over them.
+function versionNet(on: Uint8Array, sites: Sites): Uint8Array {
+  const earlier = on.slice()
+  const stop = far(on, sites.glue)
+  const clear = far(on, sites.scout)
+  expect(clear).toBe(stop + STOP_LENGTH)
+  expect(hex(on, stop + 3, 6)).toBe('290400d0034c')
+  expect(hex(on, stop + 28 + 3, 5)).toBe('290400f00b')
+  expect(far(on, sites.frame)).toBe(stop + 28)
+  earlier.set(on.subarray(stop + 9, stop + 11), sites.glue + 1)
+  earlier.set(on.subarray(stop + 28 + 20, stop + 28 + 22), sites.frame + 1)
+  earlier.fill(0xff, stop, clear + CLEAR_LENGTH)
+  earlier.set(on.subarray(clear, clear + CLEAR_LENGTH), stop)
+  earlier[sites.scout + 1] = (0x8000 | (stop & 0x7fff)) & 0xff
+  earlier[sites.scout + 2] = (0x8000 | (stop & 0x7fff)) >> 8
+  return earlier
+}
 // A ROM with NOSE4Web's version of 18 November 2026 (bfda480), from one with this version (`on`): its pickup took only
 // $FFFE for a pass (cmp #$FFFE / beq pass / cmp #$8000 / bcs give, where this one has cmp #$FFFF / beq give / cmp
 // #$8000 / bcs pass), the pass at the net forgot the carrier and the cause as it was released, and there was no goalie's
@@ -90,6 +112,7 @@ function newSites(rom: Uint8Array): Sites {
     return found[0].at
   }
   return {
+    glue: find('a4..cc....f0..a90300' + '22......22......9c....9c....' + '..........' + '84..64') + 24,
     goalie: find('22......22......a9060022......ad....c90030'),
     wide: find('bd....d0..bd....f0..ad....30..80..ad....30..49ffff1a8d....' + '..........' + 'ad....85..22') + 29,
     touch: find('..........90034c....b9....8f......b9....8f......984a8f'),
@@ -113,8 +136,22 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(hex(rom.bytes, SITES.touch, 5)).toBe('a491c01800')
     expect(rom.bytes[SITES.frame]).toBe(0x22)
     expect(hex(rom.bytes, SITES.goal, 4)).toBe('a9ffff8d')
-    const on = applySnesHacks(rom, { giveaways: true }).bytes
-    for (const at of Object.values(SITES)) expect(on[at]).toBe(0x22)
+    const now = applySnesHacks(rom, { giveaways: true }).bytes
+    for (const at of Object.values(SITES)) expect(now[at]).toBe(0x22)
+    // From the whistle to the end of the ref's sequence (gmode's gmpen, $0004): at the pickup, the carrier and the cause
+    // forgotten, nothing counted; each frame, the same. Else on to the count and the frame's part, as they were.
+    const stop = far(now, SITES.glue)
+    const on = versionNet(now, { ...SITES, ...newSites(rom.bytes) })
+    const count = far(on, SITES.glue)
+    const frame = far(on, SITES.frame)
+    const local = (at: number) => hex(Uint8Array.of((0x8000 | (at & 0x7fff)) & 0xff, (0x8000 | (at & 0x7fff)) >> 8), 0, 2)
+    expect(hex(now, stop, STOP_LENGTH)).toBe(
+      ('add415 290400 d003 4c' + local(count) + ' a491 8cd90a a9ffff 8f10fd7e 8f12fd7e 6b' + ' add415 290400 f00b a9ffff 8f10fd7e 8f12fd7e 4c' + local(frame)).replace(/ /g, ''),
+    )
+    expect(detectSnesHacks(now).choices.giveaways).toBe(true)
+    expect(detectSnesHacks(now).vaultVersions ?? []).not.toContain('giveaways')
+    expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: now })), { giveaways: false })), buildRom(rom))).toBe(0)
+    // The rest as the later version of 18 November has it.
     expect(on[SITES.wide + 4]).toBe(0xea)
     expect(on[SITES.touch + 4]).toBe(0xea)
     expect(hex(on, SITES.goal + 4, 2)).toBe('eaea')
@@ -230,10 +267,24 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(pagesOnly), { giveaways: false, giveawayPages: false })), buildRom(rom))).toBe(0)
   })
 
+  it('knows the later version of 18 November, which counted a pickup after the whistle, and replaces it when asked', () => {
+    const rom = open('NHL94.smc')
+    const on = applySnesHacks(rom, { giveaways: true }).bytes
+    const earlier = versionNet(on, { ...SITES, ...newSites(rom.bytes) })
+    const state = detectSnesHacks(earlier)
+    expect(state.choices.giveaways).toBe(true)
+    expect(state.unknown).not.toContain('giveaways')
+    expect(state.vaultVersions).toContain('giveaways')
+    const project = openRom(buildRom({ ...rom, bytes: earlier }))
+    expect(Buffer.compare(applySnesHacks(project, { giveaways: true }).bytes, project.bytes)).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: true }, true)), buildRom({ ...rom, bytes: on }))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: false })), buildRom(rom))).toBe(0)
+  })
+
   it('knows the version of 18 November, which forgot a pass at the net as it was released, and replaces it when asked', () => {
     const rom = open('NHL94.smc')
     const on = applySnesHacks(rom, { giveaways: true }).bytes
-    const earlier = version18(rom.bytes, on, SITES)
+    const earlier = version18(rom.bytes, versionNet(on, { ...SITES, ...newSites(rom.bytes) }), SITES)
     expect(hex(earlier, SITES.touch, 5)).toBe('a491c01800')
     expect(earlier[SITES.wide]).toBe(0x22)
     const state = detectSnesHacks(earlier)
@@ -249,7 +300,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
   it('knows the version of 15 November, without the pass at the net, and replaces it when asked', () => {
     const rom = open('NHL94.smc')
     const on = applySnesHacks(rom, { giveaways: true }).bytes
-    const earlier = version15(rom.bytes, version18(rom.bytes, on, SITES), SITES.goalie, SITES.wide, SITES.scout)
+    const earlier = version15(rom.bytes, version18(rom.bytes, versionNet(on, { ...SITES, ...newSites(rom.bytes) }), SITES), SITES.goalie, SITES.wide, SITES.scout)
     const state = detectSnesHacks(earlier)
     expect(state.choices.giveaways).toBe(true)
     expect(state.unknown).not.toContain('giveaways')
@@ -301,6 +352,10 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       expect(hex(rom.bytes, sites.wide, 5)).toBe(sa1 ? 'addf6e85a5' : 'addf0e85a5')
       expect(on.bytes[sites.goalie]).toBe(0x22)
       expect(hex(on.bytes, sites.wide, 5).slice(0, 2) + hex(on.bytes, sites.wide + 4, 1)).toBe('22ea')
+      // The stoppage's parts at puckglue's and pucknorm's calls; the rest as the later version of 18 November has it.
+      expect(hex(on.bytes, far(on.bytes, sites.glue), 9)).toBe(sa1 ? 'add475290400d0034c' : 'add415290400d0034c')
+      expect(far(on.bytes, sites.frame)).toBe(far(on.bytes, sites.glue) + 28)
+      const net = versionNet(on.bytes, sites)
       const touch = far(on.bytes, sites.goalie)
       expect(hex(on.bytes, touch, 20)).toBe((sa1 ? 'af025540c9feffd007a9ffff8f005540' : 'af12fd7ec9feffd007a9ffff8f10fd7e') + '5c' + hex(rom.bytes, sites.goalie + 1, 3))
       expect(far(on.bytes, sites.wide)).toBe(touch + 44)
@@ -311,14 +366,15 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       expect(hex(on.bytes, sites.touch, 1) + hex(on.bytes, sites.touch + 4, 1)).toBe('22ea')
       const goalieTouch = far(on.bytes, sites.touch)
       expect(hex(on.bytes, goalieTouch, 16)).toBe(sa1 ? 'a491c01800b01cb9436fd017af025540' : 'a491c01800b01cb9430fd017af12fd7e')
-      expect(far(on.bytes, sites.frame)).toBe(goalieTouch + 41)
+      expect(far(net, sites.frame)).toBe(goalieTouch + 41)
       expect(hex(on.bytes, goalieTouch + 41 + 43, 4)).toBe('5c' + hex(rom.bytes, sites.frame + 1, 3))
       expect(hex(rom.bytes, sites.goal, 4)).toBe('a9ffff8d')
       expect(far(on.bytes, sites.goal)).toBe(goalieTouch + 41 + 47)
       expect(hex(on.bytes, goalieTouch + 41 + 47, 6)).toBe('a9ffff8d' + hex(rom.bytes, sites.goal + 4, 2))
-      // The versions of 18 and 15 November in this build: known, replaced when asked, and out again.
-      const with18 = version18(rom.bytes, applySnesHacks(rom, { giveaways: true }).bytes, sites)
-      for (const bytes of [with18, version15(rom.bytes, with18, sites.goalie, sites.wide, sites.scout)]) {
+      // The versions of 18 (both) and 15 November in this build: known, replaced when asked, and out again.
+      const withNet = versionNet(applySnesHacks(rom, { giveaways: true }).bytes, sites)
+      const with18 = version18(rom.bytes, withNet, sites)
+      for (const bytes of [withNet, with18, version15(rom.bytes, with18, sites.goalie, sites.wide, sites.scout)]) {
         const earlier = openRom(buildRom({ ...rom, bytes }))
         expect(detectSnesHacks(earlier.bytes).vaultVersions).toContain('giveaways')
         expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: true }, true)), buildRom(applySnesHacks(rom, { giveaways: true })))).toBe(0)
@@ -338,6 +394,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       for (const hack of Object.keys(others) as SnesHack[]) expect(found.choices[hack]).toBe(true)
       // No other hack at the five newer places.
       const rest = applySnesHacks(rom, { ...others, giveaways: false, giveawaysShown: false, giveawayPages: false })
+      expect(hex(rest.bytes, sites.glue, 5)).toBe(hex(rom.bytes, sites.glue, 5))
       expect(hex(rest.bytes, sites.goalie, 4)).toBe(hex(rom.bytes, sites.goalie, 4))
       expect(hex(rest.bytes, sites.wide, 5)).toBe(hex(rom.bytes, sites.wide, 5))
       expect(hex(rest.bytes, sites.touch, 5)).toBe(hex(rom.bytes, sites.touch, 5))

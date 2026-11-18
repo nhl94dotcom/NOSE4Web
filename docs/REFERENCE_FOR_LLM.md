@@ -933,7 +933,7 @@ which the WN95HL sets for the game" expects every W18 / W18p choice to equal `NO
 | | the penalty's add to PIM `$8941E` | `D532 0000` | `4E71 4E71` (around: `$8941A` `0640 0104`, `$89422` `0440 0104`) |
 | | Player Stats texts `$92B01`, `$92B76` | `PIM`, `Penalty Minutes` | `Chk`, `   Checks For  ` |
 | `timeOnIce` | five hooks (`TOI_HOOKS95`): col `$926F2` (12 bytes), title `$92826` (16), head `$927F4` (6), get `$92A32` (6), row `$92980` (8) | `B07C FFFF 6DF0 B07C 0004 6EEA`; `43FA 02DC 7001 D078 D276 4EB9 0007 CB38`; `4EB9 0007 C6E6`; `3400 301F B042`; `7204 4EB9 0007 D154` | each `hookedFix` to its `TOI_CODES95` code; time on ice read from player `+$138`, capped at `$176F`; the page's sort/print variables `$D276`, `$AC40`, `$AC44` |
-| `giveaways` | fifteen hooks (`GT_HOOKS95`; entry offsets into the code in `GT_VERSIONS95[0].entries`): puckglue `$7BAB6` (+0), the steals `$7B9E6` and `$7C220` (+4), FallDown's `st (puckc).w` `$7B446` (+8), doshot `$84BE8` (+`$C`), StartGame's `.noso` `$9CA0` (+`$10`), DisplayStats' rows/tables `$922C2` (+`$14`) and `$922D0` (+`$18`), dopass `$84502` (+`$1C`), FallDown's stumble `bsr.w DropPuck / bra.w .hitter` `$7B142` (+`$190`), puckgoalie's `bclr #2,(sflags4).w` `$7C1BE` (`08B8 0002 BEFA`, +`$1B8`), dopass's `.notgoalie` `move.w (puckvx).w,d0 / move.w (puckvy).w,d1` `$846A0` (`3038 B38A 3238 B38C`, +`$1CE`), pucknorm's `jsr (PuckIChk).l` `$8129E` (`4EB9 0008 9ADA`, +`$250`), a2touchpuck's `move.w (a2),(ltx).w / move.w Ypos(a2),(lty).w` `$8142C` (`31D2 BB82 31EA 0014 BB84`, +`$226`), checkgoal's `st (collflag).w / cmpi.w #$D,OldZpos(a3)` `$7BDD0` (`50F8 BBA6 0C6B 000D 0024`, +`$280`) | as in `GT_HOOKS95` | one code block: `GT_BODY95` (a jump table, then the code), then a copy of the ROM's stats table at `$9240E` (15 rows) and of `$924FC` (11 rows), each followed by the row `0010` "Give/Takeaways" `2878 287A`; the two `lea (pc)` words at code +`$182` / +`$18C` point at the copies |
+| `giveaways` | fifteen hooks (`GT_HOOKS95`; entry offsets into the code in `GT_VERSIONS95[0].entries`): puckglue `$7BAB6` (+0), the steals `$7B9E6` and `$7C220` (+4), FallDown's `st (puckc).w` `$7B446` (+8), doshot `$84BE8` (+`$C`), StartGame's `.noso` `$9CA0` (+`$10`), DisplayStats' rows/tables `$922C2` (+`$14`) and `$922D0` (+`$18`), dopass `$84502` (+`$1C`), FallDown's stumble `bsr.w DropPuck / bra.w .hitter` `$7B142` (+`$190`), puckgoalie's `bclr #2,(sflags4).w` `$7C1BE` (`08B8 0002 BEFA`, +`$1B8`), dopass's `.notgoalie` `move.w (puckvx).w,d0 / move.w (puckvy).w,d1` `$846A0` (`3038 B38A 3238 B38C`, +`$1CE`), pucknorm's `jsr (PuckIChk).l` `$8129E` (`4EB9 0008 9ADA`, +`$2AA`, which goes on to +`$250`), a2touchpuck's `move.w (a2),(ltx).w / move.w Ypos(a2),(lty).w` `$8142C` (`31D2 BB82 31EA 0014 BB84`, +`$226`), checkgoal's `st (collflag).w / cmpi.w #$D,OldZpos(a3)` `$7BDD0` (`50F8 BBA6 0C6B 000D 0024`, +`$280`) | as in `GT_HOOKS95` | one code block: `GT_BODY95` (a jump table, then the code; its +0 `bra.w` goes to +`$28E`), then a copy of the ROM's stats table at `$9240E` (15 rows) and of `$924FC` (11 rows), each followed by the row `0010` "Give/Takeaways" `2878 287A`; the two `lea (pc)` words at code +`$182` / +`$18C` point at the copies |
 | | scroll limits `$92120`, `$9212E` | `$0070`, `$0030` | `$0080`, `$0040` |
 
 A stats table row is a length word (even, 2-40), that many bytes of label, then two offset words (`gtTable95`).
@@ -971,7 +971,14 @@ puckglue takes any cause below `$FFFF` as a pass (`cmpi.w #$FFFF,d1 / beq / tst.
 `nhl95GiveawaysOutdated`), replaced whenever the hacks are applied with giveaways on, and the Hacks page offers "Put in
 the current version" for them: 17 November 2026 (63b2559, ten hooks, puckglue testing `$FFFE` alone) and 18 November
 2026 (28d6450, thirteen hooks at entries +`$1B8`, +`$1D6`, +`$226`: one mark, `$FFFD`, for either net, forgotten at
-either goal line or by the puckgoalie hook alone, so not off the goalie's stick or body nor at a post).
+either goal line or by the puckgoalie hook alone, so not off the goalie's stick or body nor at a post), and later on
+18 November 2026 (02b6053, `GT_BODY95_18B`: all fifteen hooks, the frame at +`$250`, without the stoppage parts below).
+
+**No whistle between** (added 2026-11-18, not yet tested in the game; as NHL 94's, section 16): from the whistle to
+the end of the ref's sequence (gmpen, gmode `$BEF0` bit 2) the carrier and the cause `$FFEA00` / `$FFEA02` are
+forgotten (`move.l #-1,($EA00).w`) at every pickup, which is not counted (+`$28E`: `btst #2,(gmode).w / beq.w` to
+the count at +`$20`; else puckglue's two moves, the forgetting, `rts`), and each frame (+`$2AA`: the same test and
+forgetting, then `bra.w` to +`$250`).
 
 **Giveaways with time on ice**: with `giveaways` on, the Player Stats pages are one code block (`GP_CODES95`, with or
 without the Time On Ice page) at the five time-on-ice hooks, entries +0 col, +4 title, +8 head, +`$C` get, +`$10`
@@ -1892,7 +1899,9 @@ one team to the other with no whistle between. A takeaway for a skater who force
 knocked the carrier down); any other loss a giveaway for the player who lost the puck. Not counted: shots, faceoff
 wins, passes between teammates, a pass the other goalie collects, highlights, shootouts. A pass at the net counts as a
 shot: picked up by the other team once it has reached the goalie or the goal line, it is no giveaway; picked off before
-then (in the slot, say), it is one (Match Viewer: "a pass shot has to reach the mouth or the goalie").
+then (in the slot, say), it is one (Match Viewer: "a pass shot has to reach the mouth or the goalie"). A puck
+picked up after the whistle (before the faceoff or the penalty shot) is not counted, and the next one is not counted
+against the carrier before the whistle (added 2026-11-18, not yet tested in the game).
 
 ### Origin and credit
 
@@ -1928,6 +1937,18 @@ the puck's radius is 5); and by the a2touchpuck hook
 when the toucher is a goalie (`position` 0), which covers puckgoalie (it calls a2touchpuck) and the puck off his stick
 (puckstick's deflection) or body (puckbody), which do not go through puckgoalie.
 
+**No whistle between** (all three games): after the whistle play goes on until the ref's sequence starts (pucknorm
+still runs its collision checks with the clock stopped: `btst #gmclock / bne .end` skips only the still-puck timer),
+so skaters can pick up the loose puck; and a penalty shot starts with no faceoff (no sf3fo: `Endfaceoff`'s
+`bset #sf3fo` is the only place that sets it, puckglue's `bclr` the only one that clears it). Before this, such a
+pickup, or the shooter's, was compared with the carrier before the whistle. The test is gmpen (Genesis gmode `$C2EA`
+bit 2, `bset #gmpen` in Stop4Pen, which every stoppage goes through, `bclr` in InProgress as it hands the puck to
+puckfaceoff or puckshootout; it is clear during the penalty shot itself, unlike gmclock). Genesis: the jump table's
++0 goes to +`$280` (`btst #2,(gmode).w / beq.w` the count at +`$34`; else puckglue's two moves, `move.l
+#-1,($E800).w`, `rts`) and +`$2C` to +`$29C` (the same test and forgetting, then `bra.w` the frame code at +`$23C`). No
+new places. Not changed: a pickup in the frame before its whistle (icing is called at the defender's touch, a delayed
+penalty at the penalized team's, both by a2touchpuck after the pickup) still counts.
+
 ### Where it lives: SNES (`sneshacks.ts`, `gtEnv`, `gtCode`, `giveawayPlaces`)
 
 The places are found by code patterns (`gtEnv`), each a `jsl` to one block in free room (`farRoom`): puckglue,
@@ -1938,7 +1959,11 @@ puckstick's steal, dopass and assdumpin, doshot, FallDown's two drops, StartGame
 icing's place) and checkgoal's `lda #$FFFF / sta collflag` (`goal`, the puck in a net's box). RAM at `$7E:FD10` (SA-1 builds: `$40:5500`): +0 carrier object, +2 cause (the same codes), +4
 giveaways, +`$6C` takeaways (a word a roster player, the visitors `$34` on), +`$D4` totals, +`$DC` / +`$DE` the carrier's
 and forcer's roster places. The pickup: `cmp #$FFFF / beq give / cmp #$8000 / bcs pass`. The pass at the net's mark:
-`lda #$FFFD / ldy pucky / bpl / dec / sta cause`.
+`lda #$FFFD / ldy pucky / bpl / dec / sta cause`. No whistle between (gmode `$15D4` & `$0004`, gmpen, set by Stop4Pen,
+cleared by InProgress_exit): two parts after the net's, before the clear (`stopGlue`, `stopFrame`, 50 bytes); puckglue's
+and pucknorm's `jsl` go to them: `lda gmode / and #$0004 / bne / jmp` the count, else `ldy a2 / sty puckc / lda #$FFFF
+/ sta carrier / sta cause / rtl`; and `lda gmode / and #$0004 / beq / lda #$FFFF / sta carrier / sta cause / jmp` the
+frame's part.
 
 ### Applying and removing
 
@@ -1950,9 +1975,10 @@ stock 1 MB ROM grows to 2 MB with the counts and their pages. SNES: the `Placed`
 Genesis `gtIn`: the block byte for byte (any of `GT_VERSIONS`, with the ROM's tables), its hooks (the first `hooks` of
 `GT_HOOKS`) and the places it has none at as the game has them. Earlier versions: 14 November 2026 (credited the spot),
 15 November (no goalie's touch, no pass at the net), 18 November (bfda480: forgot the passer as a pass at the net was
-released). They read as on; `giveawaysOutdated` says so, the Hacks page offers "Put in the current version", and any
-apply with giveaways on puts it in. SNES: versions 0-3 (`GT_NOW` 3, `GT_WIDE` 2 the 18 November one); an earlier one is
-`earlier` (vault version), replaced when asked.
+released), later on 18 November (1d24880: no stoppage parts, a pickup after the whistle counted). They read as on;
+`giveawaysOutdated` says so, the Hacks page offers "Put in the current version", and any apply with giveaways on puts
+it in. SNES: versions 0-4 (`GT_NOW` 4, `GT_NET` 3 the later 18 November one, `GT_WIDE` 2 the first 18 November one);
+an earlier one is `earlier` (vault version), replaced when asked.
 
 ### Interactions
 

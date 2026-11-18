@@ -30,6 +30,10 @@ const EARLIER_GT_15 =
 const EARLIER_GT_18 =
   '6000002660000108600001186000013e6000014e60000170600001746000011c6000017660000188302a005231c0b7aa48e7e0c008380004c2ea6600008808380000c2fa666c08380004c2f066643238e8006b5eef4941f8b04ad0c114280062122a0062b3020802000667463238e8020c41fffe672c4a416b2eef4943f8b04ad2c14a690034672014290062102a0062b1020802000666101038e8057402612a60104a6a0034670a22481038e8047400611831ea0052e80011ea0066e80431fcffffe8024cdf03074e75024000ff0c400020643808290006006267040640002041f8e8104a42670441f8e8500c3000ff000067045230000041f8e900082900060062670441f8ec64527020004e7531e80052beda31ea0052e80211ea0066e8054e7550f8b7aa31eb0052e80211eb0066e80508380004c2ea4e7550f8b7aa177c0010005e31fcfffee8024e7508f80004c2ee31fcffffe80031fcffffe8024e754278c4724278c5dc21fcffffffffe80041f8e810701f429851c8fffc42b8e90042b8ec644e757c0f43fafffc4e753c3c000b43fafffa4e7508b80002c2f40c78fffee802660631fcffffe8004e753238b7743038b75e082b000700626604444044410c4000586d2e4a416f2a0440010844400c4000146d1ec1f8b77281c16916d078b74a064000280c400050620821fcffffffffe8003038b7723238b7744e75'
 
+// NOSE4Web's later giveaways code of 18 November 2026 (1d24880), before the tables: a pickup after the whistle counted.
+const EARLIER_GT_18B =
+  '6000003260000114600001246000014a6000015a6000017c60000180600001286000018260000194600001e86000020e60000240302a005231c0b7aa48e7e0c008380004c2ea6600008808380000c2fa666c08380004c2f066643238e8006b5eef4941f8b04ad0c114280062122a0062b3020802000667463238e8024a416a06464167306028ef4943f8b04ad2c14a690034672014290062102a0062b1020802000666101038e8057402612a60104a6a0034670a22481038e8047400611831ea0052e80011ea0066e80431fcffffe8024cdf03074e75024000ff0c400020643808290006006267040640002041f8e8104a42670441f8e8500c3000ff000067045230000041f8e900082900060062670441f8ec64527020004e7531e80052beda31ea0052e80211ea0066e8054e7550f8b7aa31eb0052e80211eb0066e80508380004c2ea4e7550f8b7aa177c0010005e31fcfffee8024e7508f80004c2ee31fcffffe80031fcffffe8024e754278c4724278c5dc21fcffffffffe80041f8e810701f429851c8fffc42b8e90042b8ec644e757c0f43fafffc4e753c3c000b43fafffa4e7508b80002c2f40c78fffee802660631fcffffe8004e753238b7743038b75e082b000700626604444044410c4000586d344a416f300440010844400c4000146d24c1f8b77281c1691cd078b74a064000280c400050620e70fd4a78b75e6a02534031c0e8023038b7723238b7744e7531d2bf7c31ea0014bf7e4a6a003466180c78fffde80267080c78fffce802660821fcffffffffe8004e754eb9000102460c78fffde802660a0c780108b75e6c1260180c78fffce80266100c78fef8b75e6e0821fcffffffffe8004ef90000ffea50f8bfa061aa0c6b000d00244e75'
+
 describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesis)', () => {
   it('counts at puckglue, learns why at the steals, FallDown and doshot, clears at StartGame, and adds the Game Stats row', () => {
     const rom = open('nhl94.bin')
@@ -45,13 +49,17 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(u16(on, 0xfdcca)).toBe(0x40)
     // puckglue's own two instructions first.
     expect(hex(on, base + 0x34, 8)).toBe('302a005231c0b7aa')
+    // From the whistle to the end of the ref's sequence (gmpen, gmode bit 2): a pickup is not counted, the carrier and
+    // the cause forgotten (puckglue's own two moves, then move.l #-1,(LASTC).w); else on to the count.
+    expect(base + 2 + u16(on, base + 2)).toBe(base + 0x280)
+    expect(hex(on, base + 0x280, 0x1c)).toBe('08380002c2ea 6700fdac 302a0052 31c0b7aa 21fcffffffffe800 4e75'.replace(/ /g, ''))
     // The cause: from $FFFC (a pass, the pass at the net's two marks too), the other team's skater picking it up a
     // giveaway; $FFFF (none), a giveaway whoever picks it up; else the forcer's spot.
     expect(hex(on, base + 0x78, 14)).toBe('3238e8024a416a06464167306028')
     // TBLA: moveq #$F,d6 / lea (pc) to the table after the code: Score first, Give/Takeaways last.
     expect(hex(on, base + 0x192, 2)).toBe('7c0f')
     const table = base + 0x196 + u16(on, base + 0x196)
-    expect(table).toBe(base + 0x280)
+    expect(table).toBe(base + 0x2b0)
     expect(hex(on, table, 7)).toBe('000853636f7265')
     const text = Buffer.from(on.subarray(base, base + 0x500)).toString('latin1')
     expect(text.split('Give/Takeaways').length).toBe(3)
@@ -70,8 +78,11 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     // A goalie's touch (a2touchpuck's own two moves, then position(a2) 0) forgets the passer of a pass at the net.
     expect(base + 0x2a + u16(on, base + 0x2a)).toBe(base + 0x212)
     expect(hex(on, base + 0x212, 0x2a)).toBe('31d2bf7c 31ea0014bf7e 4a6a0034 6618 0c78fffde802 6708 0c78fffce802 6608 21fcffffffffe800 4e75'.replace(/ /g, ''))
-    // Each frame of pucknorm (PuckIChk, then ChkOffsides): a pass at the net that has reached its goal line forgotten.
-    expect(base + 0x2e + u16(on, base + 0x2e)).toBe(base + 0x23c)
+    // Each frame of pucknorm (PuckIChk, then ChkOffsides): the carrier and the cause forgotten from the whistle to the
+    // end of the ref's sequence, then on; a pass at the net that has reached its goal line forgotten.
+    expect(base + 0x2e + u16(on, base + 0x2e)).toBe(base + 0x29c)
+    expect(hex(on, base + 0x29c, 0x14)).toBe('08380002c2ea 6708 21fcffffffffe800 6000ff8e'.replace(/ /g, ''))
+    expect(base + 0x2ae + u16(on, base + 0x2ae) - 0x10000).toBe(base + 0x23c)
     expect(hex(on, base + 0x23c, 0x36)).toBe(
       '4eb900010246 0c78fffde802 660a 0c780108b75e 6c12 6018 0c78fffce802 6610 0c78fef8b75e 6e08 21fcffffffffe800 4ef90000ffea'.replace(/ /g, ''),
     )
@@ -81,7 +92,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(hex(on, base + 0x272, 0xe)).toBe('50f8bfa0 61aa 0c6b000d0024 4e75'.replace(/ /g, ''))
     // The carrier's and the forcer's roster places kept as they get or force the puck: move.b pnum(a2),(LASTP).w at
     // the pickup, pnum(a2) / pnum(a3) to CAUSEP at the steal and FallDown.
-    const code = hex(on, base, 0x280)
+    const code = hex(on, base, 0x2b0)
     expect(code).toContain('11ea0066e804')
     expect(code).toContain('11ea0066e805')
     expect(code).toContain('11eb0066e805')
@@ -140,14 +151,14 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     const secondTable = 0x1a0 + u16(on, base + 0x1a0)
     // The end: past the second Give/Takeaways row (its label, then two offsets).
     const end = Buffer.from(on).indexOf('Give/Takeaways', base + secondTable, 'latin1') + 14 + 4
-    const tables = on.slice(base + 0x280, end)
+    const tables = on.slice(base + 0x2b0, end)
     const earlier = on.slice()
     earlier.fill(0xff, base, end)
     earlier.set(body, base)
     earlier.set(tables, base + body.length)
     earlier[base + tableA] = (body.length - tableA) >> 8
     earlier[base + tableA + 1] = (body.length - tableA) & 0xff
-    const b = secondTable - 0x280 + body.length - tableB
+    const b = secondTable - 0x2b0 + body.length - tableB
     earlier[base + tableB] = b >> 8
     earlier[base + tableB + 1] = b & 0xff
     for (const at of missing) earlier.set(rom.bytes.subarray(at, at + 10), at)
@@ -161,7 +172,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(detectHacks(earlier).choices).toEqual({ ...NO_HACKS, giveaways: true })
     expect(detectHacks(earlier).unknown).toEqual([])
     const again = applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), { ...NO_HACKS, giveaways: true }).bytes
-    expect(hex(again, u32(again, 0x15288 + 2), 0x280)).toContain('11ea0066e804')
+    expect(hex(again, u32(again, 0x15288 + 2), 0x2b0)).toContain('11ea0066e804')
     expect(Buffer.compare(buildRom({ ...rom, bytes: again }), buildRom(applyHacks(rom, { ...NO_HACKS, giveaways: true })))).toBe(0)
     expect(Buffer.compare(buildRom(applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), NO_HACKS)), buildRom(grown(rom, earlier.length)))).toBe(0)
   })
@@ -204,6 +215,20 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('giveaways and takeaways (Genesi
     expect(u16(again, 0x1013e)).toBe(0x4eb9)
     expect(u16(again, 0xff86)).toBe(0x4eb9)
     expect(u16(again, 0x14664)).toBe(0x4eb9)
+    // Off: the game, byte for byte.
+    expect(Buffer.compare(buildRom(applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), NO_HACKS)), buildRom(grown(rom, earlier.length)))).toBe(0)
+  })
+
+  it('knows the later version of 18 November, which counted a pickup after the whistle, and replaces it when applied again', () => {
+    const rom = open('nhl94.bin')
+    // That version: its 640 bytes of code (lea (pc) extension words at $196 and $1A0), all fourteen hooks.
+    const earlier = earlierRom(rom, Buffer.from(EARLIER_GT_18B, 'hex'), 0x196, 0x1a0, [])
+    expect(giveawaysOutdated(earlier)).toBe(true)
+    expect(detectHacks(earlier).choices).toEqual({ ...NO_HACKS, giveaways: true })
+    expect(detectHacks(earlier).unknown).toEqual([])
+    const again = applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), { ...NO_HACKS, giveaways: true }).bytes
+    expect(Buffer.compare(buildRom({ ...rom, bytes: again }), buildRom(applyHacks(rom, { ...NO_HACKS, giveaways: true })))).toBe(0)
+    expect(giveawaysOutdated(again)).toBe(false)
     // Off: the game, byte for byte.
     expect(Buffer.compare(buildRom(applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), NO_HACKS)), buildRom(grown(rom, earlier.length)))).toBe(0)
   })

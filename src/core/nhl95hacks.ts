@@ -1579,7 +1579,7 @@ const toiParts95 = TOI_KEYS95.map((key) => ({ key, part: hookedFix(TOI_HOOKS95[k
 // ($8142C, ltx $BB82, lty $BB84), on every touch, by a goalie (position 0): puckgoalie (which calls it), and the puck
 // off his stick or his body (puckstick's .stdef, puckbody), which do not go through puckgoalie. NHL 94's rule with
 // NHL '95's rink: its blue and goal lines (NHL 94's are $58 and $108); the 20 and 40, about the net, as NHL 94's.
-const GT_BODY95 = hex(
+const GT_BODY95_18B = hex(
   '6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B3C2 48E7 E0C0 0838 0004 BEF0 6600 0088 0838 0000 BF00 666C 0838 0004 BEF6 6664 3238 EA00 6B5E EF49 41F8 AC62 D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 EA02 0C41 FFFF 6732 4A41 6B28 EF49 43F8 AC62 D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 EA05 7402 612A 6010 4A6A 0034 670A 2248 1038 EA04 7400 6118 31EA 0052 EA00 11EA 0066 EA04 31FC FFFF EA02 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 EA10 4A42 6704 41F8 EA50 0C30 00FF 0000 6704 5230 0000 41F8 EB00 0829 0006 0062 6704 41F8 EE66 5270 2000 4E75 31E8 0052 BAD8 31EA 0052 EA02 11EA 0066 EA05 4E75 50F8 B3C2 31EB 0052 EA02 11EB 0066 EA05 0838 0004 BEF0 4E75 50F8 B3C2 177C 0010 005E 31FC FFFE EA02 4E75 08F8 0004 BEF4 31FC FFFF EA00 31FC FFFF EA02 4E75 4278 C02C 4278 C196 21FC FFFF FFFF EA00 41F8 EA10 701F 4298 51C8 FFFC 42B8 EB00 42B8 EE66 4E75 7C0F 43FA 0000 4E75 3C3C 000B 43FA 0000 4E75 ' +
     // +$190, the stumble: the hitter is the forcer of the carrier he knocked down; then DropPuck, and on to .hitter.
     '3F00 302A 0052 B078 B3C2 660C 31EB 0052 EA02 11EB 0066 EA05 301F 4EB9 0007 C4F6 588F 4EF9 0007 B426 ' +
@@ -1598,15 +1598,28 @@ const GT_BODY95 = hex(
     // +$280, checkgoal's st (collflag).w, the pass at the net's passer forgotten (+$236), and its cmpi.w #$D,OldZpos(a3).
     '50F8 BBA6 61B0 0C6B 000D 0024 4E75',
 )
-// The versions: this one; NOSE4Web's of 18 November 2026 (28d6450), the same code up to the goalie's touch, which
-// marked a pass at the net $FFFD whichever net, and forgot its passer at either goal line or in puckgoalie alone (not
-// off the goalie's stick or body, nor at the post); and NOSE4Web's of 17 November 2026 (63b2559), the same code up to
+// No whistle between: from the whistle to the end of the ref's sequence (gmpen, gmode bit 2: set by Stop4Pen at every
+// stoppage, cleared by InProgress as the faceoff or the penalty shot comes), the carrier and the cause are forgotten,
+// each frame and at every pickup, which is not counted. The play goes on after the whistle (pucknorm runs its collision
+// checks with the clock stopped), and a pickup then, or the shooter's at a penalty shot (no faceoff, so no sf3fo), was
+// counted against the carrier before the whistle. +$28E, the pickup: btst #gmpen,(gmode).w / beq.w to the count
+// (+$20); puckglue's two moves, the carrier and the cause forgotten. +$2AA, each frame: the same, then on to +$250. The
+// entry at +0 goes to +$28E.
+const GT_BODY95 = new Uint8Array([
+  ...GT_BODY95_18B,
+  ...hex('0838 0002 BEF0 6700 FD8A 302A 0052 31C0 B3C2 21FC FFFF FFFF EA00 4E75 0838 0002 BEF0 6708 21FC FFFF FFFF EA00 6000 FF94'),
+])
+GT_BODY95.set(hex('6000 028C'), 0)
+// The versions: this one; NOSE4Web's later one of 18 November 2026 (02b6053), the same code without the two parts at
+// the end (a pickup after the whistle counted against the carrier before it); NOSE4Web's of 18 November 2026
+// (28d6450), the same code up to the goalie's touch, which marked a pass at the net $FFFD whichever net, and forgot its
+// passer at either goal line or in puckgoalie alone (not off the goalie's stick or body, nor at the post); and NOSE4Web's of 17 November 2026 (63b2559), the same code up to
 // the goalie's touch but puckglue's test of the cause (cmpi.w #$FFFE,d1 / beq.s / tst.w d1 / bmi.s), which had neither
 // the goalie's touch nor the pass at the net (a pass shot picked up by the other team off the goalie or wide was a
 // giveaway). The earlier ones are recognised, and replaced when the hacks are next applied. Each with its entries for
 // the first so many of GT_HOOKS95.
 const GT_BODY95_18 = new Uint8Array([
-  ...GT_BODY95.slice(0, 0x1b8),
+  ...GT_BODY95_18B.slice(0, 0x1b8),
   ...hex(
     '08B8 0002 BEFA 0C78 FFFE EA02 6708 0C78 FFFD EA02 6606 31FC FFFF EA00 4E75 3238 B38C 3038 B376 082B 0007 0062 6604 ' +
       '4440 4441 0C40 0056 6D2C 4A41 6F28 0440 010B 4440 0C40 0014 6D1C C1F8 B38A 81C1 6914 D078 B362 0640 0028 0C40 0050 ' +
@@ -1614,11 +1627,12 @@ const GT_BODY95_18 = new Uint8Array([
       'FFFF EA00 4EF9 0008 9ADA',
   ),
 ])
-const GT_BODY95_17 = GT_BODY95.slice(0, 0x1b8)
+const GT_BODY95_17 = GT_BODY95_18B.slice(0, 0x1b8)
 GT_BODY95_17.set(hex('0C41 FFFE 672C 4A41 6B2E'), 0x68)
 const GT_ENTRIES95_17 = [0, 4, 4, 8, 0xc, 0x10, 0x14, 0x18, 0x1c, 0x190]
 const GT_VERSIONS95 = [
-  { body: GT_BODY95, entries: [...GT_ENTRIES95_17, 0x1b8, 0x1ce, 0x250, 0x226, 0x280] },
+  { body: GT_BODY95, entries: [...GT_ENTRIES95_17, 0x1b8, 0x1ce, 0x2aa, 0x226, 0x280] },
+  { body: GT_BODY95_18B, entries: [...GT_ENTRIES95_17, 0x1b8, 0x1ce, 0x250, 0x226, 0x280] },
   { body: GT_BODY95_18, entries: [...GT_ENTRIES95_17, 0x1b8, 0x1d6, 0x226] },
   { body: GT_BODY95_17, entries: GT_ENTRIES95_17 },
 ]

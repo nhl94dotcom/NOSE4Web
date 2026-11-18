@@ -1780,9 +1780,11 @@ const GT_LASTP = GT_SIZE
 const GT_CAUSEP = GT_SIZE + 2
 type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal'
 // The versions: 8650b4a's (14 November 2026), 7ad4a23's (15 November), bfda480's (18 November: with the goalie's touch
-// and the swing, which forgot the passer of a pass at the net as it was released) and this one.
+// and the swing, which forgot the passer of a pass at the net as it was released), 1d24880's (later on 18 November: with
+// a goalie's touch at a2touchpuck, the frame and the net, which counted a pickup after the whistle) and this one.
 const GT_WIDE = 2
-const GT_NOW = 3
+const GT_NET = 3
+const GT_NOW = 4
 
 interface GtEnv {
   ram: (typeof GT_RAM)[number]
@@ -1868,7 +1870,7 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
   }
 }
 
-type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal' | 'scout'
+type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal' | 'stopGlue' | 'stopFrame' | 'scout'
 
 // The block: COUNT give (x the player's object), COUNT take, then the entries (the goalie's ending jml ChkShotStat,
 // `check`; a multiply for the pass at the net; the frame's ending jml ChkOffsides, `offsides`; the net's sta collflag,
@@ -1925,7 +1927,7 @@ function gtCode(
     { branch: BPL, to: 'reset' },
     // The cause: $FFFF none, a giveaway; from $8000 a pass (the pass at the net's $FFFD and $FFFC too); else the
     // forcer's spot. Earlier versions had only $FFFE for a pass.
-    ...(version >= GT_NOW
+    ...(version >= GT_NET
       ? [bytesOf('AF', L(2), 'C9FFFF'), { branch: BEQ, to: 'give' }, bytesOf('C90080'), { branch: BCS, to: 'pass' }]
       : [bytesOf('AF', L(2), 'C9FEFF'), { branch: BEQ, to: 'pass' }, bytesOf('C90080'), { branch: BCS, to: 'give' }]),
     bytesOf('AA BD', W(position)),
@@ -2026,7 +2028,7 @@ function gtCode(
     { label: 'hit' },
     // Marked, the passer kept: $FFFD at the top's net (the puck's y positive), $FFFC at the bottom's. The earlier
     // version forgot him (carrier and cause $FFFF).
-    ...(version >= GT_NOW
+    ...(version >= GT_NET
       ? [bytesOf('A9FDFF AC', W(pucky)), { branch: BPL, to: 'mark' }, '3A', { label: 'mark' }, bytesOf('8F', L(2))]
       : [bytesOf('A9FFFF 8F', L(0), '8F', L(2))]),
     { label: 'out4' },
@@ -2092,9 +2094,32 @@ function gtCode(
     ['shot', shot],
     ['fall', fall],
     ...(version >= GT_WIDE ? ([['goalie', goalie], ['mul', mul], ['wide', wide]] as [string, Uint8Array][]) : []),
-    ...(version >= GT_NOW ? ([['touch', touch], ['frame', frame], ['goal', goal]] as [string, Uint8Array][]) : []),
-    ['scout', scout],
+    ...(version >= GT_NET ? ([['touch', touch], ['frame', frame], ['goal', goal]] as [string, Uint8Array][]) : []),
   ]
+  // No whistle between: from the whistle to the end of the ref's sequence (gmode's gmpen, $0004: set by Stop4Pen at
+  // every stoppage, cleared by InProgress_exit as the faceoff comes), the carrier and the cause forgotten, at every
+  // pickup (puckglue's call, its ldy a2 / sty puckc first; not counted) and each frame (pucknorm's, then the frame's
+  // part). The play goes on after the whistle (pucknorm runs its collision checks with the clock stopped), and a pickup
+  // then was counted against the carrier before the whistle.
+  if (version >= GT_NOW) {
+    const offset = (key: string) => parts.slice(0, parts.findIndex(([name]) => name === key)).reduce((sum, [, bytes]) => sum + bytes.length, 0)
+    const stopGlue = asm65([
+      bytesOf('AD', W(gmode), '290400'),
+      { branch: BNE, to: 'stop' },
+      bytesOf('4C', abs(base + offset('glue'))),
+      { label: 'stop' },
+      bytesOf('A4', a2, '8C', word(env.puckc), 'A9FFFF 8F', L(0), '8F', L(2), '6B'),
+    ])
+    const stopFrame = asm65([
+      bytesOf('AD', W(gmode), '290400'),
+      { branch: BEQ, to: 'on' },
+      bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+      { label: 'on' },
+      bytesOf('4C', abs(base + offset('frame'))),
+    ])
+    parts.push(['stopGlue', stopGlue], ['stopFrame', stopFrame])
+  }
+  parts.push(['scout', scout])
   const entries = {} as Record<GtEntry, number>
   let at = 0
   for (const [key, bytes] of parts) {
@@ -2143,23 +2168,24 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     // block, or an earlier one's.
     if (rom[sites.glue] !== 0x22) return null
     const called = loRomOffset(rom[sites.glue + 3], readU16(rom, sites.glue + 1))
-    const blockAt = (block: { code: Uint8Array; entries: Record<GtEntry, number> }) => called - block.entries.glue
+    // (From this version the call goes to the stoppage's part for the pickup.)
+    const blockAt = (block: { code: Uint8Array; entries: Record<GtEntry, number> }) => called - (block.entries.stopGlue ?? block.entries.glue)
     const holds = (v: number) => {
       const block = gtCode(env, 0, new Uint8Array(3), v)
       const at = blockAt(block)
       if (at < 0) return false
       const ends = rom.slice(at + block.code.length - 3, at + block.code.length)
-      const now = v >= GT_NOW
+      const now = v >= GT_NET
       const full = gtCode(env, at, ends, v, v >= GT_WIDE ? checkIn(at, block) : check, now ? offsidesIn(at, block) : offsides, now ? collflagIn(at, block) : collflag)
       return same(rom, at, full.code)
     }
-    version = [GT_NOW, GT_WIDE, 1, 0].find(holds) ?? GT_NOW
+    version = [GT_NOW, GT_NET, GT_WIDE, 1, 0].find(holds) ?? GT_NOW
     probe = gtCode(env, 0, new Uint8Array(3), version)
     base = blockAt(probe)
     if (base < 0) return null
     hotCold = rom.slice(base + probe.code.length - 3, base + probe.code.length)
     if (version >= GT_WIDE) check = checkIn(base, probe)
-    if (version >= GT_NOW) {
+    if (version >= GT_NET) {
       offsides = offsidesIn(base, probe)
       collflag = collflagIn(base, probe)
     }
@@ -2173,12 +2199,14 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
   const { code, entries } = gtCode(env, base, hotCold, version, check, offsides, collflag)
   // The places an earlier version has the game's own code at: the goalie's touch and the swing before 18 November; a
   // goalie's touch at a2touchpuck, pucknorm's frame and checkgoal's net before this one.
-  const unhooked = (key: GtSite) => (version < GT_WIDE && (key === 'goalie' || key === 'wide')) || (version < GT_NOW && (key === 'touch' || key === 'frame' || key === 'goal'))
+  const unhooked = (key: GtSite) => (version < GT_WIDE && (key === 'goalie' || key === 'wide')) || (version < GT_NET && (key === 'touch' || key === 'frame' || key === 'goal'))
+  // From this version, the pickup and the frame go through the stoppage's parts first.
+  const entry = (key: GtSite): GtEntry => (key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : version >= GT_NOW && key === 'glue' ? 'stopGlue' : version >= GT_NOW && key === 'frame' ? 'stopFrame' : key)
   return [
     ...(Object.keys(originals) as GtSite[]).map((key) => ({
       at: sites[key],
       original: originals[key],
-      hacked: unhooked(key) ? originals[key] : jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
+      hacked: unhooked(key) ? originals[key] : jsl(base + entries[entry(key)], pads[key]),
     })),
     { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
     { at: base, original: unused(code.length), hacked: code, ...(version < GT_NOW ? { earlier: true } : {}) },
