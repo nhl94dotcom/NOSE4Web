@@ -937,3 +937,38 @@ main > [data-tab-hidden] {
 .team-pick .step {
   padding: 0.35rem 0.6rem;
 }
+
+/* The order of the attribute columns, and the roster card's choices. */
+.column-control {
+  margin: 0.5rem 0;
+}
+
+.column-panel,
+.card-options {
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+}
+
+.column-orders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.column-order ol {
+  margin: 0.3rem 0;
+  padding-left: 1.8rem;
+}
+
+.column-order li span {
+  display: inline-block;
+  min-width: 2.5rem;
+}
+
+.column-order li button {
+  padding: 0 0.4rem;
+}

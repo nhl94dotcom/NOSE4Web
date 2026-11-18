@@ -359,6 +359,14 @@ export function HelpPage() {
         Point at a column heading to see what that rating does in play; <a href="#help-ratinguse">What the ratings
         do in play</a> lists them all.
       </p>
+      <p>
+        The attribute columns start in the league's order: Wgt, Chk, Spd, Agl, ShP, ShA, StH, Pas, OfA, DfA, End,
+        Agr, Rgh for skaters, and Wgt, PkC, Spd, Agl, OfA, DfA, StR, StL, GvR, GvL for goalies, with any others after
+        them. To change it, press <b>Columns…</b> above the roster and move a column up or down; <b>Reset to
+        default</b> puts the league's order back. The order is the same on every page that shows attributes (the
+        team page, Trade and the roster card) and is kept in this browser. It only changes what you see: the ROM and
+        spreadsheet files keep the game's own order.
+      </p>
       <p>The buttons at the end of each row:</p>
       <ul>
         <li>
@@ -507,8 +515,8 @@ export function HelpPage() {
       <ul>
         <li>
           The keys <kbd>`</kbd> <kbd>1</kbd> <kbd>2</kbd> … <kbd>9</kbd> <kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd>{' '}
-          <kbd>Backspace</kbd> each raise one attribute by a step, in column order from the first attribute column to
-          the last. <kbd>\</kbd> also works for the last column.
+          <kbd>Backspace</kbd> each raise one attribute by a step, in the game's own order (Wgt, Agl, Spd and so on,
+          to Agr), whatever order the columns are shown in. <kbd>\</kbd> also works for the last one.
         </li>
         <li>
           Hold <kbd>Shift</kbd> to lower instead.
@@ -1902,6 +1910,13 @@ export function HelpPage() {
         A team's page can also save its <b>roster card</b>: the roster as a picture, with every player's number,
         position, overall and attributes under the team's name and colours, sized to post where the league can see
         it.
+      </p>
+      <p>
+        <b>Roster card (PNG)…</b> first opens its choices, then <b>Make card</b> saves the picture. Goalies and
+        skaters are listed apart, and each can be sorted by roster order, number, position, name, overall or any
+        attribute, and reversed. The ratings can be written as NOSE4Web shows them (63-80 and so on), as the game's
+        own ratings from 0 to 6, or as the values stored in the ROM. The overall column can be left out, and the
+        columns follow the order chosen with <b>Columns…</b>. The choices are kept in this browser.
       </p>
 
       <h3 id="help-rules">Your league's rules</h3>

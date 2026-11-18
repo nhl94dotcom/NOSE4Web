@@ -15,6 +15,7 @@ import type { RomProject } from './core/rom'
 import { rosterAverage } from './core/shownrating'
 import { teamLabels } from './core/team'
 import { NumberField } from './NumberField'
+import { useAttributeOrder } from './useColumnOrder'
 
 const PREVIEW_LIMIT = 300
 const optionalNumber = (text: string) => (text.trim() === '' || Number.isNaN(Number(text)) ? null : Number(text))
@@ -34,7 +35,9 @@ export function BulkPage({ project, onChange }: Props) {
   const [atMost, setAtMost] = useState('')
   const [notice, setNotice] = useState('')
 
-  const attributes = bulkAttributes(project.game, group)
+  // Listed in the order the tables show the columns in.
+  const order = useAttributeOrder(project.game, group === 'goalies' ? 'goalies' : 'skaters')
+  const attributes = bulkAttributes(project.game, group).sort((a, b) => order.indexOf(a.index) - order.indexOf(b.index))
   // Goalies and skaters have different attributes, so the choice may not carry over.
   const chosen = attributes.find((a) => a.index === attribute) ?? attributes[0]
   const values = bulkValues(chosen.kind)

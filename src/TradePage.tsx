@@ -7,6 +7,8 @@ import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import { overfullTeams, teamLabels, teamSpace } from './core/team'
 import { FREE_AGENTS, linePositionsLost, trade, tradeSummary, type TradeSide } from './core/trade'
+import { ColumnOrderButton } from './ColumnOrder'
+import { useAttributeOrder } from './useColumnOrder'
 
 interface Props {
   project: RomProject
@@ -36,6 +38,7 @@ const one = (value: number | null) => (value === null ? '–' : value.toFixed(1)
 export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam }: Props) {
   const { game } = project
   const [showAttributes, setShowAttributes] = useState(true)
+  const orders = { skaters: useAttributeOrder(game, 'skaters'), goalies: useAttributeOrder(game, 'goalies') }
   const storedOnly = !game.playerAttributeKinds.some(isRating)
   const count = project.teams.length
   const first = startTeam >= 0 && startTeam < count ? startTeam : 0
@@ -188,6 +191,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
         )}
         <span className="note">Hover a column heading for the attribute's full name.</span>
       </p>
+      {showAttributes && <ColumnOrderButton game={game} />}
       <div className="trade">
         {live.map((side, which) => {
           const rows = rowsOf(side.team)
@@ -229,6 +233,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                   const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
                   const attributeLabels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
                   const attributeNames = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
+                  const order = orders[isGoalies ? 'goalies' : 'skaters']
                   return (
                     <div key={String(isGoalies)} className="scroll">
                     <table className={showAttributes ? 'left attributes' : 'left'}>
@@ -241,9 +246,9 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                           <th>Ovr</th>
                           {showValue && <th title={LEAGUE_VALUE_TITLE}>LV</th>}
                           {showAttributes &&
-                            attributeLabels.map((text, a) => (
+                            order.map((a) => (
                               <th key={a} title={attributeNames[a]}>
-                                {text}
+                                {attributeLabels[a]}
                               </th>
                             ))}
                         </tr>
@@ -272,8 +277,8 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                             <td>{row.overall}</td>
                             {showValue && <td>{row.value}</td>}
                             {showAttributes &&
-                              row.attributes.map((value, a) => (
-                                <td key={a}>{rawAttributes ? value : (attributeText(kinds[a], value) ?? `! ${value}`)}</td>
+                              order.map((a) => (
+                                <td key={a}>{rawAttributes ? row.attributes[a] : (attributeText(kinds[a], row.attributes[a]) ?? `! ${row.attributes[a]}`)}</td>
                               ))}
                           </tr>
                         ))}

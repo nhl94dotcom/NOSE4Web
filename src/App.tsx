@@ -493,9 +493,9 @@ export default function App() {
             }))}
             onRelease={(indexes) => withFreeAgents(selected, indexes, [])}
             onSign={(agent, goalies) => withFreeAgents(selected, goalies, [agent])}
-            onRosterCard={() => {
+            onRosterCard={(layout) => {
               const team = current.teams[selected]
-              void rosterCardPng(current.game, team, rawAttributes)
+              void rosterCardPng(current.game, team, layout)
                 .then((png) => download(png, `${teamNames[selected].replace(/[^A-Za-z0-9]+/g, '_')}_roster.png`, 'image/png'))
                 .catch((e) => setError(e instanceof Error ? e.message : String(e)))
             }}

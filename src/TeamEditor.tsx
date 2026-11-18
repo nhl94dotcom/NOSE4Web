@@ -35,6 +35,10 @@ import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 import { useNarrow } from './useNarrow'
 import { NumberField } from './NumberField'
+import { ColumnOrderButton } from './ColumnOrder'
+import type { RosterCardLayout } from './rosterCard'
+import { RosterCardPanel } from './RosterCardPanel'
+import { useAttributeOrder } from './useColumnOrder'
 
 const ATTRIBUTE_VALUES = Array.from({ length: 16 }, (_, i) => i)
 
@@ -79,8 +83,8 @@ interface Props {
   // taking the place of the goalie ticked. Each returns a message if it cannot be done.
   onRelease: (indexes: number[]) => string
   onSign: (agent: number, goalies: number[]) => string
-  // Saves the roster as a picture to post.
-  onRosterCard: () => void
+  // Saves the roster as a picture to post, laid out as chosen.
+  onRosterCard: (layout: RosterCardLayout) => void
   // Positions on each line that this ROM leaves empty on every team.
   emptySlots: boolean[][]
   // Shown at the end of the page: the team's logos and banners.
@@ -109,6 +113,9 @@ export function TeamEditor(props: Props) {
   const { rosterSort: chosenSort, onRosterSortChange, otherTeams, onMovePlayers, footer, header, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
+  // The order the attribute columns are shown in, the same on every page.
+  const skaterOrder = useAttributeOrder(game, 'skaters')
+  const goalieOrder = useAttributeOrder(game, 'goalies')
   // Roster rows ticked for copying and pasting. Undo can shorten the roster
   // under them, so ticks past its end are dropped.
   const [allTicked, setTicked] = useState<number[]>([])
@@ -321,6 +328,7 @@ export function TeamEditor(props: Props) {
     const labels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
     const names = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
     const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
+    const order = isGoalies ? goalieOrder : skaterOrder
     // The rows to show, as roster positions, after filtering and sorting.
     const wanted = nameFilter.trim().toLowerCase()
     const position = (index: number) => (index < goalies ? 'G' : index - goalies < team.forwards ? 'F' : 'D')
@@ -482,9 +490,9 @@ export function TeamEditor(props: Props) {
                           League value {value(index)}
                         </p>
                       )}
-                      {names.map((name, a) => (
+                      {order.map((a) => (
                         <label key={a}>
-                          <span>{name}</span>
+                          <span>{names[a]}</span>
                           {attributeBox(index, a)}
                         </label>
                       ))}
@@ -513,9 +521,9 @@ export function TeamEditor(props: Props) {
                 <th>No.</th>
                 <th>Ovr</th>
                 {showValue && <th title={LEAGUE_VALUE_TITLE}>LV</th>}
-                {labels.map((label, i) => (
-                  <th key={i} title={attributeTitle(names[i], kinds[i], i, label, isGoalies)}>
-                    {label}
+                {order.map((i) => (
+                  <th key={i} title={attributeTitle(names[i], kinds[i], i, labels[i], isGoalies)}>
+                    {labels[i]}
                   </th>
                 ))}
                 <th />
@@ -531,7 +539,7 @@ export function TeamEditor(props: Props) {
                   <td>{numberBox(index)}</td>
                   <td>{overall(index)}</td>
                   {showValue && <td title={LEAGUE_VALUE_TITLE}>{value(index)}</td>}
-                  {team.players[index].attributes.map((_, a) => (
+                  {order.map((a) => (
                     <td key={a}>{attributeBox(index, a)}</td>
                   ))}
                   <td className="actions">{actions(index)}</td>
@@ -684,7 +692,7 @@ export function TeamEditor(props: Props) {
         {quickKeys && (
           <p className="note">
             With players ticked, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
-            attribute, in column order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
+            attribute, in the game's order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
             to lower it. The {QUICK_EDIT_JERSEY_LABEL} keys change the jersey number. Hover a column heading to see its key.
           </p>
         )}
@@ -747,10 +755,7 @@ export function TeamEditor(props: Props) {
             he replaces.
           </span>
         </p>
-        <p>
-          <button onClick={props.onRosterCard}>Roster card (PNG)</button>{' '}
-          <span className="note">The roster as a picture, to post where the league can see it.</span>
-        </p>
+        <RosterCardPanel game={game} onMake={props.onRosterCard} />
         <p>
           <label>
             Show in order of{' '}
@@ -768,6 +773,9 @@ export function TeamEditor(props: Props) {
           </label>{' '}
           {!plainView && <span className="note">This changes only what is shown, not the roster.</span>}
         </p>
+      </div>
+      <div data-tab="Roster">
+        <ColumnOrderButton game={game} />
       </div>
       {roster('Goalies', true, 0, goalies)}
       {roster('Skaters', false, goalies, team.players.length)}

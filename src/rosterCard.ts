@@ -1,12 +1,18 @@
-import { attributeText } from './core/attributes'
 import { hex } from './core/bytes'
 import { colorFormat, colorRgb, cssHex, type ColorFormat } from './core/color'
 import type { GameConfig } from './core/games'
 import { overallRating } from './core/rating'
+import { cardRows, cardValueText, usableSort, type RosterCardOptions } from './core/rostercard'
 import { goalieCount, teamDisplayName, type Team } from './core/team'
 
 // A team's roster as a picture, sized to post in a chat: the team's name
 // over a table of every player with his number, position and ratings.
+// The options choose each group's order, how ratings are written and whether
+// the overall is shown; the column orders are the editor's (core/columnorder.ts).
+export interface RosterCardLayout extends RosterCardOptions {
+  skaterOrder: number[]
+  goalieOrder: number[]
+}
 
 const SCALE = 2 // drawn at twice the size, so it stays sharp when a chat app shrinks it
 const PAD = 16
@@ -27,16 +33,25 @@ function inkOn(word: number, format: ColorFormat): string {
 // Where each game keeps a strip's jersey colour and a trim to go with it.
 const STRIP_SLOTS = { genesis: { band: 11, trim: 9 }, snes: { band: 12, trim: 8 } }
 
-export function drawRosterCard(game: GameConfig, team: Team, rawAttributes: boolean): HTMLCanvasElement {
+export function drawRosterCard(game: GameConfig, team: Team, layout: RosterCardLayout): HTMLCanvasElement {
   const goalies = goalieCount(team)
-  const groups = [
-    { title: 'Goalies', from: 0, to: goalies, labels: game.goalieAttributeLabels, kinds: game.goalieAttributeKinds, goalie: true },
-    { title: 'Skaters', from: goalies, to: team.players.length, labels: game.playerAttributeLabels, kinds: game.playerAttributeKinds, goalie: false },
-  ].filter((group) => group.to > group.from)
+  const groupOf = (goalie: boolean) => {
+    const order = goalie ? layout.goalieOrder : layout.skaterOrder
+    const sort = usableSort(game, goalie, goalie ? layout.goalies : layout.skaters, order)
+    return {
+      title: goalie ? 'Goalies' : 'Skaters',
+      rows: cardRows(game, team, goalie, sort),
+      labels: goalie ? game.goalieAttributeLabels : game.playerAttributeLabels,
+      kinds: goalie ? game.goalieAttributeKinds : game.playerAttributeKinds,
+      order,
+      goalie,
+    }
+  }
+  const groups = [groupOf(true), groupOf(false)].filter((g) => g.rows.length > 0)
 
-  const columns = 14
-  const width = PAD * 2 + SMALL_WIDTH * 3 + NAME_WIDTH + columns * CELL_WIDTH
-  const height = TITLE + groups.reduce((sum, group) => sum + HEAD + (group.to - group.from) * ROW + 10, 0) + PAD
+  const columns = Math.max(game.playerAttributeLabels.length, game.goalieAttributeLabels.length)
+  const width = PAD * 2 + SMALL_WIDTH * (layout.overall ? 3 : 2) + NAME_WIDTH + columns * CELL_WIDTH
+  const height = TITLE + groups.reduce((sum, g) => sum + HEAD + g.rows.length * ROW + 10, 0) + PAD
   const canvas = document.createElement('canvas')
   canvas.width = width * SCALE
   canvas.height = height * SCALE
@@ -83,13 +98,13 @@ export function drawRosterCard(game: GameConfig, team: Team, rawAttributes: bool
     cell('No.', SMALL_WIDTH)
     cell(group.title, NAME_WIDTH, 'left')
     cell('Pos', SMALL_WIDTH)
-    cell('Ovr', SMALL_WIDTH)
-    for (const label of group.labels) cell(label, CELL_WIDTH)
+    if (layout.overall) cell('Ovr', SMALL_WIDTH)
+    for (const a of group.order) cell(group.labels[a], CELL_WIDTH)
     y += ROW
 
-    for (let i = group.from; i < group.to; i++) {
+    group.rows.forEach((i, row) => {
       const player = team.players[i]
-      if ((i - group.from) % 2 === 0) {
+      if (row % 2 === 0) {
         c.fillStyle = '#e9ecf1'
         c.fillRect(PAD, y, width - PAD * 2, ROW)
       }
@@ -101,20 +116,22 @@ export function drawRosterCard(game: GameConfig, team: Team, rawAttributes: bool
       cell(player.name, NAME_WIDTH, 'left')
       c.font = `13px ${FONT}`
       cell(group.goalie ? 'G' : i - goalies < team.forwards ? 'F' : 'D', SMALL_WIDTH)
-      c.font = `700 13px ${FONT}`
-      cell(String(overallRating(player.attributes, group.goalie, game)), SMALL_WIDTH)
+      if (layout.overall) {
+        c.font = `700 13px ${FONT}`
+        cell(String(overallRating(player.attributes, group.goalie, game)), SMALL_WIDTH)
+      }
       c.font = `12px ${FONT}`
-      player.attributes.forEach((value, a) => cell(rawAttributes ? String(value) : (attributeText(group.kinds[a], value) ?? `!${value}`), CELL_WIDTH))
+      for (const a of group.order) cell(cardValueText(group.kinds[a], player.attributes[a], layout.scale), CELL_WIDTH)
       y += ROW
-    }
+    })
     y += 10
   }
   return canvas
 }
 
 // The card as a PNG file.
-export async function rosterCardPng(game: GameConfig, team: Team, rawAttributes: boolean): Promise<Uint8Array> {
-  const canvas = drawRosterCard(game, team, rawAttributes)
+export async function rosterCardPng(game: GameConfig, team: Team, layout: RosterCardLayout): Promise<Uint8Array> {
+  const canvas = drawRosterCard(game, team, layout)
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('The browser could not make a PNG file.')
   return new Uint8Array(await blob.arrayBuffer())

@@ -714,7 +714,8 @@ test.describe('with the NHL 94 ROM', () => {
   test('changes ticked players with quick edit keys', async ({ page }) => {
     await openRom(page)
     const row = rows(page, 'Skaters').first()
-    const agility = row.locator('select.attribute').nth(1)
+    // The key 1 raises the game's second attribute, wherever its column is shown.
+    const agility = row.locator('select.attribute[aria-label^="Agility of "]')
     const before = Number(await agility.inputValue())
     await page.getByLabel('Quick edit keys').check()
     await tick(row)
@@ -1119,7 +1120,7 @@ test.describe('with the NHL 94 ROM', () => {
     await openRom(page)
     const row = rows(page, 'Skaters').first()
     const other = rows(page, 'Skaters').nth(1)
-    const agility = (r: Locator) => r.locator('select.attribute').nth(1)
+    const agility = (r: Locator) => r.locator('select.attribute[aria-label^="Agility of "]')
     const jersey = row.locator('input.num').first()
     const before = Number(await agility(row).inputValue())
     const otherBefore = await agility(other).inputValue()
@@ -1873,7 +1874,8 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
 
     // The roster as a picture.
-    const card = await downloadFrom(page, page.getByRole('button', { name: 'Roster card (PNG)' }))
+    await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
+    const card = await downloadFrom(page, page.getByRole('button', { name: 'Make card' }))
     expect(card.suggestedFilename()).toBe('Boston_Bruins_roster.png')
     const png = readFileSync(await card.path())
     expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
@@ -1881,6 +1883,58 @@ test.describe('with the NHL 94 ROM', () => {
     expect(width).toBeGreaterThan(1500)
     expect(height).toBeGreaterThan(1000)
     writeFileSync('test-results/shots/roster-card.png', png)
+  })
+
+  test('rearranges the attribute columns on every page, and makes a roster card with its own choices', async ({ page }) => {
+    await openRom(page)
+    const headings = (table: Locator) => table.locator('thead th').allTextContents()
+    const skaterTable = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Skaters', exact: true }) }).locator('table')
+    // The league's order: name, position and number first as before, then Wgt, Chk, Spd and so on.
+    expect((await headings(skaterTable)).slice(7, 11)).toEqual(['Wgt', 'Chk', 'Spd', 'Agl'])
+    const goalieTable = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Goalies', exact: true }) }).locator('table')
+    expect((await headings(goalieTable)).slice(7, 11)).toEqual(['Wgt', 'PkC', 'Spd', 'Agl'])
+
+    // Checking moved down one, after Speed.
+    await page.getByRole('button', { name: 'Columns…' }).click()
+    await page.getByRole('button', { name: 'Move Checking down' }).click()
+    expect((await headings(skaterTable)).slice(7, 11)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
+    // The boxes follow their headings.
+    await expect(rows(page, 'Skaters').first().locator('select.attribute').nth(2)).toHaveAttribute('aria-label', /^Checking of /)
+
+    // The Trade page shows the same order, and it stays after a reload of the page's state.
+    await entry(page, 'Trade').click()
+    const main = page.locator('main')
+    const skaters = main.locator('.trade > section').first().locator('table').last()
+    expect((await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('nose4web.columnOrder.skaters')).length)).toBe(1)
+
+    // Reset puts the league's order back everywhere.
+    await main.getByRole('button', { name: 'Columns…' }).click()
+    await main.getByRole('group', { name: 'Order of the attribute columns' }).getByRole('button', { name: 'Reset to default' }).first().click()
+    expect((await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Chk', 'Spd', 'Agl'])
+
+    // The roster card: sorted by Speed, the game's 0-6 ratings, no overall, made without an error.
+    await team(page, 'Boston Bruins').click()
+    await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
+    const choices = page.getByRole('group', { name: 'Roster card choices' })
+    await choices.getByLabel('Sort skaters by', { exact: true }).selectOption({ label: 'Speed, highest first' })
+    await choices.getByLabel('Reverse goalies').check()
+    await choices.getByLabel('Ratings on the card', { exact: true }).selectOption({ label: 'Ratings 0-6 as the game stores them' })
+    await choices.getByLabel('Show overall').uncheck()
+    await choices.getByRole('button', { name: 'Move Weight down' }).first().click()
+    const card = await downloadFrom(page, choices.getByRole('button', { name: 'Make card' }))
+    expect(card.suggestedFilename()).toBe('Boston_Bruins_roster.png')
+    const png = readFileSync(await card.path())
+    expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    await expect(page.locator('p.error')).toHaveCount(0)
+    writeFileSync('test-results/shots/roster-card-options.png', png)
+    // The choices are kept, and the column move shows on the team's table too.
+    expect((await headings(skaterTable)).slice(7, 9)).toEqual(['Chk', 'Wgt'])
+    await page.reload()
+    await openRom(page)
+    await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
+    await expect(page.getByLabel('Sort skaters by', { exact: true })).toHaveValue('attribute:2')
+    await expect(page.getByLabel('Show overall')).not.toBeChecked()
   })
 
   test('lists changes as you go, and starts a new season', async ({ page }) => {
