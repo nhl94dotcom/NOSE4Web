@@ -796,8 +796,9 @@ export function HelpPage() {
         In NHL 94 the in-game banners share the 16 arena colours with the crowd, so a stripe colour that is not
         among them shows as the nearest one. Under the <b>menu banner colours</b> the page shows each stripe as the
         game will, and says when it is far off. <b>Use this colour in the game too</b> puts that colour in place of
-        arena colour B, a dark green that only the crowd and a few in-game banners use, so it changes there too;
-        then letter the in-game banner again. The other arena colours also colour the menus, the score, the
+        arena colour B, a dark green that only the crowd and a few in-game banners use, so it changes there too
+        (and on the playoff tree, which has its own copy); then letter the in-game banner again. Tested in the game by
+        the NHL94 Match Viewer project. The other arena colours also colour the menus, the score, the
         players' arrows, the referee or the energy bars, so they are left alone. All 16 are on the Rink colours
         page. On the SNES each team's banner has colours of its own, and in NHL '95 the in-game banners are
         pictures that keep their own colours.

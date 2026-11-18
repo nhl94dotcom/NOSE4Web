@@ -90,7 +90,9 @@ describe.skipIf(!base)('in-game banner colours in NHL 94', () => {
     // Arena colour 11 in the rink's colours, and the header's checksum.
     const before = buildRom(project)
     const after = buildRom(changed)
-    expect(differing(before, after)).toEqual([0x18e, 0x18f, ARENA_AT + 22, ARENA_AT + 23])
+    // The arena colour, the playoff tree's copy of it ($55270, Match Viewer's find), and the checksum.
+    expect(differing(before, after).filter((at) => at !== 0x18e && at !== 0x18f)).toEqual([0x55270, 0x55271, ARENA_AT + 22, ARENA_AT + 23])
+    expect((after[0x55270] << 8) | after[0x55271]).toBe(TEAL)
     expect(readU16(after, ARENA_AT + 22)).toBe(TEAL)
     expect(() => withArenaColour(project, 8, TEAL)).toThrow()
   })

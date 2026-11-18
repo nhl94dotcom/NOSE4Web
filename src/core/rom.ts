@@ -225,6 +225,18 @@ export function buildPatch(project: RomProject): Uint8Array {
 }
 
 // Produces the finished ROM file from the project's current state.
+// NHL 94's playoff tree draws the team blocks, and so the in-game banners, with its own copy of the arena's colours
+// (EASportsBGMap's palette, line 1, at $5523A + $20; Match Viewer found it). The one arena colour the Graphics page
+// may change for a banner (gamebannercolours.ts: colour 11) is written there too, where the ROM's copy is the
+// arena's; the tree's other colours are left as they are.
+const TREE_ARENA_COLOUR_11 = 0x55270
+function writePlayoffTreeArenaColour(rom: Uint8Array, project: RomProject): void {
+  const slot = project.game.rinkPaletteOffset + (16 + 11) * 2
+  if (project.rinkPalette.length !== 32 || TREE_ARENA_COLOUR_11 + 2 > rom.length) return
+  if (readU16(project.bytes, TREE_ARENA_COLOUR_11) !== readU16(project.bytes, slot)) return
+  writeU16(rom, TREE_ARENA_COLOUR_11, project.rinkPalette[16 + 11])
+}
+
 export function buildRom(project: RomProject): Uint8Array {
   const rom = project.bytes.slice()
   writeTeams(rom, project.game, project.teams, project.layout)
@@ -244,6 +256,7 @@ export function buildRom(project: RomProject): Uint8Array {
   if (project.game.platform === 'genesis') writeTeamSongs(rom, project.teams.map((team) => team.songs))
   if (isGenesis94(project.game)) writeShownTeamRatings(rom, project.teams)
   project.rinkPalette.forEach((word, i) => writeU16(rom, project.game.rinkPaletteOffset + i * 2, word))
+  if (isGenesis94(project.game)) writePlayoffTreeArenaColour(rom, project)
   if (project.game.settingsSupported) writeSettings(rom, project.game, project.settings)
   // NHL 94's pictures, and NHL '95's menu logos; nothing where none were edited.
   writeGraphics(rom, project.game, project.graphics)

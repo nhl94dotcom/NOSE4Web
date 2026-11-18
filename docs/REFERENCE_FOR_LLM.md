@@ -1832,9 +1832,17 @@ League feedback (a black and teal menu banner came out grey in the game). Readin
 - The menu stripe colours never reach the in-game banner by themselves: the original banners are fixed pictures.
   Only NOSE4Web's lettering (`letterBanner`, `nearestBannerColour` in `lettering.ts`: nearest of slots 1-15 by RGB
   distance) and image import (nearest of the allowed colours) map them, and that is the grey the league saw.
-- The playoff tree draws the same banners with line 1 taken from EASportsBGMap's palette (`$54E24`, a second copy of
-  the arena 16, also the scouting report background), which this does not change (inferred: `PlayoffScreen`, not
-  game-tested).
+- The playoff tree draws the same banners with line 1 taken from EASportsBGMap's palette (`$54E24`, palettes at
+  +$416 = `$5523A`, a second copy of the arena 16, also the scouting report background). Match Viewer found the tree's
+  team blocks take colour 11 from `$55270`; `buildRom` (`writePlayoffTreeArenaColour`, rom.ts) writes the arena's
+  colour 11 there too when the ROM's copy matches the arena's. Tested in the game by Match Viewer (2026-11-18) with a
+  scratch copy: San Jose teal on the tree, nothing else on that page uses it. The scouting report is not yet checked.
+  The arena line's colours 1-15 have eight more copies ($4E2B8, $AF8DE, $B8A2A, $BDB06, $BEE54, $BF102, $BF68C,
+  $ED81A), screens unknown; left alone.
+- Match Viewer's game test of 21bdc1ed (2026-11-18): San Jose's in-game banner teal on every in-game banner screen
+  (pause scoreboard, pre-faceoff, Game Statistics, Scoring and Penalty Summaries, Player Stats, Team Roster, line
+  editor, penalty rink, intermission); slot 11 otherwise only New Jersey's stripe and 10-60 crowd pixels; nothing else
+  on any screen checked.
 - What else uses line 1 during play (decoded from the ROM; `gamebannercolours.ts` header): 1-4 and 7 the frames,
   menus, replay panel; 5-6 replay letters and marker; 8 the score digits (BigFont `$A9A10`); 9 player 1's arrow and
   face-off pad (frames 384-390); 10 pads 3/4 arrows (frames 838-844) and a net/puck in the crowd's colours; 12-13 the
