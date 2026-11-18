@@ -877,6 +877,8 @@ export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midi
       let code: number
       let voices: number[]
       let rank: number
+      // Past the tracks the game has (15 for the parts, as track 9 is the drums'), a part keeps to those it has.
+      let capped = false
       const pinned = drum ? undefined : pinnedOf(midi.channel)
       if (drum) {
         code = drumCode(midi.note)!
@@ -900,9 +902,8 @@ export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midi
         const hasTrack = (voice: number) => tracks.has(`${midi.channel}:${voice}`)
         // (A part put on one entry: that entry's voice first.)
         voices = own.sort((a, b) => Number(b === pinned?.voice) - Number(a === pinned?.voice) || Number(b === last) - Number(a === last) || Number(hasTrack(b)) - Number(hasTrack(a)) || wanted[a] - wanted[b] || a - b)
-        // Past the tracks the game has, a part keeps to those it has.
-        const melodic = trackCount(tracks)
-        if (melodic >= MOST_TRACKS - 1) voices = voices.filter(hasTrack)
+        capped = trackCount(tracks) >= MOST_TRACKS - 1
+        if (capped) voices = voices.filter(hasTrack)
       }
       const velocity = Math.max(1, Math.min(127, Math.round(midi.velocity * (loudness.get(midi.channel) ?? 1))))
       const planned: Planned = { on, off, code, velocity, channel: midi.channel, voice: -1, entry: -1, rank, drum, doubled: false, shared: false, volume: drum ? 0 : (noteVolumes.get(midi) ?? ownVolumes?.get(midi.channel) ?? instrument!.volume) }
@@ -917,8 +918,10 @@ export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midi
       // The voices the game gives the note whatever holds them (FindFreeVoice: every entry the music uses has priority 0,
       // so the newest note takes the voice, cutting the one there): for a part put on one entry, its voice (where the
       // part may still use it: past the tracks the game has, one it has a track on); on an entry of more voices, the one
-      // the game finds for it; and in a piece's own file, each drum's.
-      const entryVoices = drum ? (own ? voices : undefined) : pinned && (pinned.voices.length > 1 || voices.includes(pinned.voice)) ? pinned.voices : undefined
+      // the game finds for it (past the tracks the game has, where the part has that entry's track); and in a piece's
+      // own file, each drum's.
+      const onShared = (entry: number) => !capped || trackCount(new Set([...tracks, `${midi.channel}:${entry}:s`])) === trackCount(tracks)
+      const entryVoices = drum ? (own ? voices : undefined) : pinned && (pinned.voices.length > 1 ? onShared(pinned.entry) : voices.includes(pinned.voice)) ? pinned.voices : undefined
       let voice: number | undefined
       if (entryVoices) {
         const v = entryVoices.length > 1 ? gameVoice(entryVoices, on, rotorOf.get(midi)!) : entryVoices[0]
@@ -961,7 +964,8 @@ export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midi
       }
       planned.voice = voice
       planned.shared = onEntry && pinned!.voices.length > 1
-      planned.entry = drum ? code - 0x2f : onEntry ? pinned!.entry : instrument!.entries.get(voice)!
+      // (A part put on one entry of one voice plays on it on that voice however it came to it, as its track has it, below.)
+      planned.entry = drum ? code - 0x2f : onEntry || (pinned?.voices.length === 1 && voice === pinned.voice) ? pinned!.entry : instrument!.entries.get(voice)!
       held[voice] = planned
       lastUse[voice] = planned
       played.push(planned)
@@ -1042,6 +1046,7 @@ export function snesMusicFromMidi(kit: SnesMusicKit, midiNotes: MidiNote[], midi
     out.splice(DRUM_TRACK, out.length > DRUM_TRACK && out[DRUM_TRACK].entry < 0 ? 1 : 0, { name: 'drums', entry: -1, volume: 0, voice: -1, notes: notesOf(drumNotes) })
   }
   if (!out.length) throw new MidiError('None of the chosen parts has a note the game can play.')
+  if (out.length > MOST_TRACKS) throw new MidiError(`The game plays ${MOST_TRACKS} tracks of music at most, and this would take ${out.length}. Leave out a part or two.`)
   // The game's pieces have two tracks or more (readSnesMusic).
   if (out.length < 2) out.push(empty())
   return { tracks: out, tempo, ticks, loop, seconds: ticks / perSecond, leftOut, dropped, moved, otherEntry }
@@ -1254,6 +1259,8 @@ export function midiLoopStart(bytes: Uint8Array): number {
 // The piece's bytes: the header, then each track (the first with NOSE4Web's mark) with its name, instrument and
 // volume, its loop start, its notes, and the loop's end where the piece ends.
 export function snesMusicBytes(made: SnesMadeMusic, replaced: number, name: string): Uint8Array {
+  // (Track 16 is the sound effects'.)
+  if (made.tracks.length > MOST_TRACKS) throw new SnesMusicError(`The game plays ${MOST_TRACKS} tracks of music at most, and this music has ${made.tracks.length}.`)
   const text = (value: string) => {
     const bytes = [...value.slice(0, 200)].map((c) => (c.charCodeAt(0) < 0x7f ? c.charCodeAt(0) : 0x3f))
     return [0, TEXT, bytes.length, ...bytes]

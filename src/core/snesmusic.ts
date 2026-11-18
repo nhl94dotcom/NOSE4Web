@@ -509,7 +509,7 @@ export function readSnesNotesText(text: string): { code: number; entry: number; 
   let entry = -1
   let volume = 127
   for (const word of text.slice(SNES_NOTES_TEXT.length).trim().split(/\s+/)) {
-    const value = Number(word.replace(/^[#v]/, '').replace(/:$/, ''))
+    const value = /^(#\d+|v\d+:|\d+)$/.test(word) ? Number(word.replace(/^[#v]/, '').replace(/:$/, '')) : NaN
     if (!Number.isInteger(value) || value < 0 || value > 255) return null
     if (word.startsWith('#')) entry = value
     else if (word.startsWith('v')) volume = Math.min(127, value)

@@ -625,3 +625,79 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('a MIDI file put in as the page 
     })
   })
 })
+
+describe.skipIf(!existsSync(path('NHL94.smc')))('the tracks the game has, and notes played on another entry', () => {
+  // A piece's MIDI file and its notes.
+  const exported = (project: RomProject, index: number) => {
+    const piece = SNES_GAME_MUSIC[index]
+    const bytes = snesMusicToMidi(readSnesMusic(project.bytes, piece.pointer)!, piece.name)
+    return { bytes, ...readMidi(bytes) }
+  }
+
+  it("keeps a piece's own MIDI file with four parts added to the game's 16 tracks, an entry of more voices too", () => {
+    const project = open()
+    const kit = snesMusicKit(project.bytes, SNES_GAME_MUSIC[0].sounds)!
+    const { bytes, notes, end, programs } = exported(project, 0)
+    const used = new Set(notes.map((n) => n.channel))
+    const free = Array.from({ length: 16 }, (_, c) => c).filter((c) => c !== 9 && !used.has(c))
+    expect(free).toEqual([12, 13, 14, 15])
+    // On each free channel, short chords of two near the start.
+    const added: MidiNote[] = free.flatMap((channel, i) => [0, 1, 2, 3].flatMap((k) => [60, 67].map((note) => ({ start: 0.01 + i * 0.05 + k * 0.01, length: 0.004, note, velocity: 90, channel }))))
+    const all = [...notes, ...added].sort((a, b) => a.start - b.start || a.note - b.note)
+    const choices = defaultSnesPartChoices(kit, musicParts(all), programs, midiPartNames(bytes))
+    const made = snesMusicFromMidi(kit, all, choices, end, { tempo: snesMusicTempo(project.bytes, 0), loop: midiLoopStart(bytes) }, snesOwnMidi(kit, bytes))
+    // (Before, 19: the distorted guitar on its entries 27 to 29 of two voices and the crash on #14's voices 2 and 3
+    // took new tracks past the 15 the parts have.)
+    expect(made.tracks.length).toBeLessThanOrEqual(16)
+    expect(made.tracks[9].name).toBe('drums')
+    withSnesMusic(project, 0, made, 'More parts')
+  })
+
+  it('keeps a part put on the power guitar (left), an entry of two voices, to the tracks the game has', () => {
+    const project = open()
+    const kit = snesMusicKit(project.bytes, SNES_GAME_MUSIC[0].sounds)!
+    // Fifteen parts, chords of two but the last's (on channel 15), which goes on entry 41.
+    const notes: MidiNote[] = []
+    for (let channel = 0; channel < 16; channel++) {
+      if (channel === 9) continue
+      for (let k = 0; k < 8; k++) {
+        const start = channel * 10 + k
+        notes.push({ start, length: 0.9, note: 60 + (channel % 5), velocity: 90, channel })
+        if (channel !== 14) notes.push({ start, length: 0.9, note: 64 + (channel % 5), velocity: 90, channel })
+      }
+    }
+    notes.sort((a, b) => a.start - b.start || a.note - b.note)
+    const choices = defaultSnesPartChoices(kit, musicParts(notes))
+    choices.set(14, { sample: 15, entry: 41 })
+    expect(kit.instruments.find((i) => i.sample === 15)!.sides.find((s) => s.entry === 41)!.voices.length).toBe(2)
+    // (Before, 17.)
+    const made = snesMusicFromMidi(kit, notes, choices, 200)
+    expect(made.tracks.length).toBeLessThanOrEqual(16)
+    withSnesMusic(project, 0, made, 'Fifteen parts')
+    // And a piece of more tracks is not put in.
+    const more = { ...made, tracks: [...made.tracks, { ...made.tracks[0] }] }
+    expect(() => withSnesMusic(project, 0, more, 'Too many')).toThrow(/16 tracks of music at most, and this music has 17/)
+  })
+
+  it('counts the notes played on another entry than the one their part is put on as its tracks play them', () => {
+    const project = open()
+    const kit = snesMusicKit(project.bytes, SNES_GAME_MUSIC[0].sounds)!
+    // The title music as another's file, each part of an instrument of several entries of one voice put on the first.
+    const { notes, end, programs } = exported(project, 0)
+    const choices = defaultSnesPartChoices(kit, musicParts(notes), programs)
+    for (const [channel, choice] of choices) {
+      const singles = kit.instruments.find((i) => i.sample === choice)?.sides.filter((s) => s.voices.length === 1) ?? []
+      if (typeof choice === 'number' && singles.length > 1) choices.set(channel, { sample: choice, entry: singles[0].entry })
+    }
+    const made = snesMusicFromMidi(kit, notes, choices, end)
+    let played = 0
+    for (const track of made.tracks) {
+      const channel = /\(MIDI (\d+)\)$/.exec(track.name)
+      const choice = channel ? choices.get(Number(channel[1]) - 1) : undefined
+      if (typeof choice === 'object') played += track.notes.filter((n) => (n.entry ?? track.entry) !== choice.entry).length
+    }
+    // (Before, 278: a note that came to its part's voice by cutting a weaker one was counted on the voice's other entry.)
+    expect(played).toBe(273)
+    expect(made.otherEntry).toBe(played)
+  })
+})

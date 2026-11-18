@@ -157,7 +157,7 @@ describe("the SNES game's percussion parts in MIDI files", () => {
     const text = snesNotesText(notes)
     expect(text).toBe('SNES notes #4 v79: 66 66 #35 v97: 68 #4 v127: 65')
     expect(readSnesNotesText(text)).toEqual(notes.map((n) => ({ code: n.note, entry: n.entry, volume: n.volume ?? 127 })))
-    for (const other of ['', 'Drums', 'SNES notes', 'SNES notes 66', 'SNES notes #4 v79: x', 'SNES notes #4: 200']) expect(readSnesNotesText(other), other).toBeNull()
+    for (const other of ['', 'Drums', 'SNES notes', 'SNES notes 66', 'SNES notes #4 v79: x', 'SNES notes #4: 200', 'SNES notes # v: 5', 'SNES notes #0x10 v1e2: 32', 'SNES notes #4 v79 5', 'SNES notes #4 v79: 0x20']) expect(readSnesNotesText(other), other).toBeNull()
   })
 
   it.skipIf(!existsSync(path('NHL94.smc')))('puts each percussion part on the drum channel on a track of its own, with that text and no channel volume', () => {
