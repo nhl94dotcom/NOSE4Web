@@ -227,14 +227,18 @@ export function buildPatch(project: RomProject): Uint8Array {
 // Produces the finished ROM file from the project's current state.
 // NHL 94's playoff tree draws the team blocks, and so the in-game banners, with its own copy of the arena's colours
 // (EASportsBGMap's palette, line 1, at $5523A + $20; Match Viewer found it). The one arena colour the Graphics page
-// may change for a banner (gamebannercolours.ts: colour 11) is written there too, where the ROM's copy is the
-// arena's; the tree's other colours are left as they are.
-const TREE_ARENA_COLOUR_11 = 0x55270
+// may change for a banner (gamebannercolours.ts: colour 11) is written there too: where the ROM's copy is the
+// arena's, or, once the colour is changed here, where the copy's other colours (1-10, 12-15) are the arena's (a
+// league ROM whose arena colour 11 was changed before, its tree's left as it was). The tree's other colours are left
+// as they are, and a ROM rebuilt unchanged keeps its own.
+const TREE_ARENA_LINE = 0x55270 - 11 * 2
 function writePlayoffTreeArenaColour(rom: Uint8Array, project: RomProject): void {
-  const slot = project.game.rinkPaletteOffset + (16 + 11) * 2
-  if (project.rinkPalette.length !== 32 || TREE_ARENA_COLOUR_11 + 2 > rom.length) return
-  if (readU16(project.bytes, TREE_ARENA_COLOUR_11) !== readU16(project.bytes, slot)) return
-  writeU16(rom, TREE_ARENA_COLOUR_11, project.rinkPalette[16 + 11])
+  const arena = project.game.rinkPaletteOffset + 16 * 2
+  if (project.rinkPalette.length !== 32 || TREE_ARENA_LINE + 32 > rom.length) return
+  const same = (colour: number) => readU16(project.bytes, TREE_ARENA_LINE + colour * 2) === readU16(project.bytes, arena + colour * 2)
+  const changed = project.rinkPalette[16 + 11] !== readU16(project.bytes, arena + 11 * 2)
+  const others = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15].every(same)
+  if (same(11) || (changed && others)) writeU16(rom, TREE_ARENA_LINE + 11 * 2, project.rinkPalette[16 + 11])
 }
 
 export function buildRom(project: RomProject): Uint8Array {

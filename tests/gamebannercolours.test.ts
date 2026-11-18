@@ -95,6 +95,14 @@ describe.skipIf(!base)('in-game banner colours in NHL 94', () => {
     expect((after[0x55270] << 8) | after[0x55271]).toBe(TEAL)
     expect(readU16(after, ARENA_AT + 22)).toBe(TEAL)
     expect(() => withArenaColour(project, 8, TEAL)).toThrow()
+    // A league ROM whose arena colour 11 was changed before, its tree's copy left as it was: rebuilt unchanged it
+    // keeps its own, and the tree takes a colour put in here.
+    const league = base!.slice()
+    league[ARENA_AT + 22] = 0x04
+    league[ARENA_AT + 23] = 0x04
+    const opened = openRom(league)
+    expect(readU16(buildRom(opened), 0x55270)).toBe(0x0020)
+    expect(readU16(buildRom(withArenaColour(opened, 11, TEAL)), 0x55270)).toBe(TEAL)
   })
 
   it('keeps the change in a project file', () => {

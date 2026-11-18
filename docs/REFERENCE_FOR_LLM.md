@@ -2051,7 +2051,7 @@ the blue line (y `$58` toward the passer's net, pfgoal), 20 or more in front of 
 line crossing the goal line within 40 of x 0 (`muls` / `divs`); it marks `$FFFD` when the puck's y is positive, else
 `$FFFC`, the passer kept. The mark is cleared (carrier and cause `$FFFF`) by pucknorm's hook once pucky is `$108` or more
 (`$FFFD`) or `-$108` or less (`$FFFC`), each frame of a loose puck, so a pass that crossed the line and came back out
-is seen; by the checkgoal hook when the puck touches a net below its crossbar (a post or the net's front: checkgoal sets
+is seen; by the checkgoal hook when the puck touches a net, its top too (a post or the net's front: checkgoal sets
 collflag and the puck is put back where it was, which may be short of the line, as the net is at y `$10C`, 2 deep, and
 the puck's radius is 5); and by the a2touchpuck hook
 when the toucher is a goalie (`position` 0), which covers puckgoalie (it calls a2touchpuck) and the puck off his stick

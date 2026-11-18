@@ -1587,7 +1587,7 @@ const toiParts95 = TOI_KEYS95.map((key) => ({ key, part: hookedFix(TOI_HOOKS95[k
 // cause $FFFF) once the pass has reached the goal line or the goalie: pucknorm's jsr (PuckIChk).l ($8129E), each
 // frame, looks at the puck's y (y $10B or more for $FFFD, -$10B or less for $FFFC; one that comes back out has been
 // seen as it crossed); checkgoal's st (collflag).w / cmpi.w #$D,OldZpos(a3) ($7BDD0, collflag $BBA6), the puck
-// touching a net below its crossbar (off the post or the net's front, where the puck, set back to where it was, may
+// touching a net, its top too (off the post or the net's front, where the puck, set back to where it was, may
 // not have reached the line: NHL '95's nets are at y $112 and -$112, 6 deep each way and $C wide each way of x 0, so
 // the front is at $10C, and the puck's radius is 5); and a2touchpuck's move.w (a2),(ltx).w / move.w Ypos(a2),(lty).w
 // ($8142C, ltx $BB82, lty $BB84), on every touch, by a goalie (position 0): puckgoalie (which calls it), and the puck

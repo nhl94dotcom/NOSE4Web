@@ -3012,7 +3012,7 @@ const organResume: Part<boolean> = {
 //   a loose puck, calls them and looks at the puck's y (y $108 or more at
 //   the top, -$108 or less at the bottom; one that comes back out has been
 //   seen as it crossed); checkgoal's st (collflag).w / cmpi.w #$D,OldZpos(a3)
-//   ($14664), the puck touching a net below its crossbar (off the post or
+//   ($14664), the puck touching a net, its top too (off the post or
 //   the net's front, where the puck, set back to where it was, may not have
 //   reached the line: the net at y $10C, 2 deep, the puck's radius 5); and
 //   a2touchpuck's move.w (a2),(ltx).w /

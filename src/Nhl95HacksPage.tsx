@@ -596,10 +596,12 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
         <b>This ROM has an earlier version of it.</b>{' '}
         <button
           type="button"
+          disabled={changes.length > 0}
+          title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
           onClick={() => {
             try {
               onChange(applyNhl95Hacks(project, state.choices))
-              setNotice("Done: giveaways and takeaways is now NOSE4Web's current version. Undo puts it back.")
+              setNotice("Done: giveaways and takeaways, and any other hack this ROM had an earlier version of, are now NOSE4Web's current versions. Undo puts it back.")
               setError('')
             } catch (e) {
               setError(e instanceof Error ? e.message : String(e))

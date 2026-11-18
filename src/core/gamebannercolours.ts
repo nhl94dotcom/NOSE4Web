@@ -70,6 +70,8 @@ export function teamsShowingArenaColour(project: RomProject, slot: number): numb
 
 // The spare arena colour to give up: the one fewest in-game banners show.
 export function spareArenaColour(project: RomProject): number {
+  // With one to choose from, no team's banner need be read.
+  if (SPARE_ARENA_COLOURS.length === 1) return SPARE_ARENA_COLOURS[0]
   const uses = SPARE_ARENA_COLOURS.map((slot) => teamsShowingArenaColour(project, slot).length)
   return SPARE_ARENA_COLOURS[uses.indexOf(Math.min(...uses))]
 }

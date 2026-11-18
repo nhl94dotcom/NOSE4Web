@@ -475,10 +475,12 @@ export function HacksPage({ project, name, onChange }: Props) {
                 {' '}
                 <b>This ROM has an earlier version of it.</b>{' '}
                 <button
+                  disabled={changes.length > 0}
+                  title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
                   onClick={() => {
                     try {
                       onChange(applyHacks(project, state.choices))
-                      setNotice("Done: giveaways and takeaways is now NOSE4Web's current version. Undo puts it back.")
+                      setNotice("Done: giveaways and takeaways, and any other hack this ROM had an earlier version of, are now NOSE4Web's current versions. Undo puts it back.")
                       setError('')
                     } catch (e) {
                       setError(e instanceof Error ? e.message : String(e))
@@ -490,7 +492,7 @@ export function HacksPage({ project, name, onChange }: Props) {
               </>
             )}
           </>,
-          "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. The count goes to the right player even when a line change or a penalty has put someone else in his spot before the loose puck is picked up. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor anything in highlights or a shootout. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not counted (not yet tested in the game). Tested in the game by the NHL94 Match Viewer project.",
+          "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. The count goes to the right player even when a line change or a penalty has put someone else in his spot before the loose puck is picked up. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor anything in highlights or a shootout. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not counted (not yet tested in the game). On a 1 MB ROM it makes the ROM 2 MB. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'threeStars',

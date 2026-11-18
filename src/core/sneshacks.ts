@@ -1743,7 +1743,7 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 //   jsl ChkOffsides (after hybrid icing's place, its jsl PuckIChk), each frame
 //   of a loose puck, looks at the puck's y first (y $108 or more at the top,
 //   -$108 or less at the bottom); checkgoal's lda #$FFFF / sta collflag, the
-//   puck in a net's box below its crossbar (off the post or the net's front,
+//   puck in a net's box, its top too (off the post or the net's front,
 //   where the puck, set back to where it was, may not have reached the line);
 //   and a2touchpuck's
 //   ldy a2 / cpy #$0018, on every touch, by a goalie: puckgoalie (which calls
@@ -2068,7 +2068,7 @@ function gtCode(
     { label: 'out' },
     bytesOf('5C', offsides),
   ])
-  // checkgoal, the puck in a net's box below its crossbar (its lda #$FFFF / sta collflag first): off the post or the
+  // checkgoal, the puck in a net's box, its top too (its lda #$FFFF / sta collflag first): off the post or the
   // net's front, where the puck, set back to where it was, may not have reached the goal line, the passer of a pass at
   // the net forgotten.
   const goal = asm65([
