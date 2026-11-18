@@ -14,14 +14,61 @@ const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at,
 const far = (b: Uint8Array, at: number) => ((b[at + 3] & 0x7f) << 15) | ((b[at + 1] | (b[at + 2] << 8)) & 0x7fff)
 const latin = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('latin1')
 // The places in the original game (file offsets): puckglue, puckstick, dopass, assdumpin, doshot, FallDown .25, StartGame_scout,
-// puckgoalie's .t2 jsl ChkShotStat and dopass_swing's .2 lda puckvx / sta d0.
-const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, injury: 0xf1ddf, scout: 0xf8334, goalie: 0xf70ec, wide: 0xf6ae9 }
+// puckgoalie's .t2 jsl ChkShotStat, dopass_swing's .2 lda puckvx / sta d0, a2touchpuck's ldy a2 / cpy #$0018, pucknorm's
+// jsl ChkOffsides and checkgoal's lda #$FFFF / sta collflag.
+const SITES = { glue: 0xf1a61, steal: 0xf7680, pass: 0xf69d4, dump: 0xf6ecc, shot: 0xf62b3, fall: 0xf1e63, injury: 0xf1ddf, scout: 0xf8334, goalie: 0xf70ec, wide: 0xf6ae9, touch: 0xf44f3, frame: 0xf5d43, goal: 0xf10ff }
 // The clear, the block's last part: lda #$FFFF / sta last carrier / sta cause / lda #0 / ldx #n / loop: sta counts,x /
 // dex / dex / bpl loop / jml Create_HotCold_Table.
 const CLEAR_LENGTH = 29
-// A ROM with NOSE4Web's version of 15 November 2026 (7ad4a23): this one's block without the goalie's touch, the
-// multiply and the pass at the net (between the fall's entry and the clear), the game's own code at their two places.
 // The places found in the ROM as `on` has them hooked.
+type Sites = { goalie: number; wide: number; touch: number; frame: number; goal: number; scout: number }
+// A ROM with NOSE4Web's version of 18 November 2026 (bfda480), from one with this version (`on`): its pickup took only
+// $FFFE for a pass (cmp #$FFFE / beq pass / cmp #$8000 / bcs give, where this one has cmp #$FFFF / beq give / cmp
+// #$8000 / bcs pass), the pass at the net forgot the carrier and the cause as it was released, and there was no goalie's
+// touch at a2touchpuck, the frame nor the net (between the pass at the net and the clear), the game's own code at their
+// places.
+function version18(rom: Uint8Array, on: Uint8Array, sites: Sites): Uint8Array {
+  const earlier = on.slice()
+  // The pickup's test: the last cmp #$FFFF / beq before the goalie's touch (the steal, pass, shot and fall entries after
+  // it have none).
+  const block = far(on, sites.goalie) - 0x200
+  const test = Buffer.from(on.subarray(block, far(on, sites.goalie))).lastIndexOf(Buffer.from('c9fffff0', 'hex')) + block
+  expect(hex(on, test + 5, 4).slice(0, 6)).toBe('c90080')
+  const [give, pass] = [on[test + 4], on[test + 9]]
+  earlier.set([0xc9, 0xfe, 0xff, 0xf0, pass + 5, 0xc9, 0x00, 0x80, 0xb0, give - 5], test)
+  const wideAt = far(on, sites.wide)
+  const touchAt = far(on, sites.touch)
+  const clear = far(on, sites.scout)
+  // The mark (lda #$FFFD / ldy pucky / bpl / dec / sta cause): lda #$FFFF / sta carrier / sta cause, two bytes shorter;
+  // the four branches over it and the brl at the end two nearer their outs.
+  let shorter = hex(on, wideAt, touchAt - wideAt)
+  for (const [from, to] of [['a303f039', 'a303f037'], ['e3033027', 'e3033025'], ['c3019020', 'c301901e'], ['f002b00d', 'f002b00b']]) {
+    expect(shorter.split(from).length).toBe(2)
+    shorter = shorter.replace(from, to)
+  }
+  const wide = Buffer.from(shorter, 'hex')
+  const mark = wide.indexOf(Buffer.from('a9fdffac', 'hex'))
+  expect(hex(wide, mark + 6, 4)).toBe('10013a8f')
+  const cause = wide.subarray(mark + 10, mark + 13)
+  const carrier = Buffer.from([cause[0] - 2, cause[1], cause[2]])
+  const older = Buffer.concat([wide.subarray(0, mark), Buffer.from('a9ffff8f', 'hex'), carrier, Buffer.from('8f', 'hex'), cause, wide.subarray(mark + 13)])
+  expect(older[older.length - 3]).toBe(0x82)
+  const brl = older.readInt16LE(older.length - 2) + 2
+  older.writeInt16LE(brl, older.length - 2)
+  earlier.fill(0xff, wideAt, clear + CLEAR_LENGTH)
+  earlier.set(older, wideAt)
+  earlier.set(on.subarray(clear, clear + CLEAR_LENGTH), wideAt + older.length)
+  const to = wideAt + older.length
+  earlier[sites.scout + 1] = (0x8000 | (to & 0x7fff)) & 0xff
+  earlier[sites.scout + 2] = (0x8000 | (to & 0x7fff)) >> 8
+  earlier.set(rom.subarray(sites.touch, sites.touch + 5), sites.touch)
+  earlier.set(rom.subarray(sites.frame, sites.frame + 4), sites.frame)
+  earlier.set(rom.subarray(sites.goal, sites.goal + 6), sites.goal)
+  return earlier
+}
+// A ROM with NOSE4Web's version of 15 November 2026 (7ad4a23), from one with the version of 18 November (`on`): its
+// block without the goalie's touch, the multiply and the pass at the net (between the fall's entry and the clear), the
+// game's own code at their two places.
 function version15(rom: Uint8Array, on: Uint8Array, goalie: number, wide: number, scout: number): Uint8Array {
   const earlier = on.slice()
   const from = far(on, goalie)
@@ -35,8 +82,8 @@ function version15(rom: Uint8Array, on: Uint8Array, goalie: number, wide: number
   earlier.set(rom.subarray(wide, wide + 5), wide)
   return earlier
 }
-// The two new places in a ROM, found as the hack finds them.
-function newSites(rom: Uint8Array): { goalie: number; wide: number; scout: number } {
+// The five newer places in a ROM, found as the hack finds them, and the clear's.
+function newSites(rom: Uint8Array): Sites {
   const find = (pattern: string) => {
     const found = findCodeAll(rom, pattern)
     expect(found.length).toBe(1)
@@ -45,6 +92,9 @@ function newSites(rom: Uint8Array): { goalie: number; wide: number; scout: numbe
   return {
     goalie: find('22......22......a9060022......ad....c90030'),
     wide: find('bd....d0..bd....f0..ad....30..80..ad....30..49ffff1a8d....' + '..........' + 'ad....85..22') + 29,
+    touch: find('..........90034c....b9....8f......b9....8f......984a8f'),
+    frame: find('22......22......ad....d0..ad....10') + 4,
+    goal: find('............ad....c90d0030..ad....8d....4c'),
     scout: find('22......22......a9ffff8d....22'),
   }
 }
@@ -60,9 +110,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(rom.bytes[SITES.scout]).toBe(0x22)
     expect(hex(rom.bytes, SITES.goalie, 4)).toBe('2213f29e')
     expect(hex(rom.bytes, SITES.wide, 5)).toBe('addf0e85a5')
+    expect(hex(rom.bytes, SITES.touch, 5)).toBe('a491c01800')
+    expect(rom.bytes[SITES.frame]).toBe(0x22)
+    expect(hex(rom.bytes, SITES.goal, 4)).toBe('a9ffff8d')
     const on = applySnesHacks(rom, { giveaways: true }).bytes
     for (const at of Object.values(SITES)) expect(on[at]).toBe(0x22)
     expect(on[SITES.wide + 4]).toBe(0xea)
+    expect(on[SITES.touch + 4]).toBe(0xea)
+    expect(hex(on, SITES.goal + 4, 2)).toBe('eaea')
+    // The pickup: lda cause / cmp #$FFFF (none) / beq give / cmp #$8000 (a pass from there, the pass at the net's two
+    // marks too) / bcs pass, else the forcer's spot.
+    expect(hex(on, far(on, SITES.glue), 0x60)).toContain('af12fd7ec9fffff0')
     // The goalie's touch: lda cause / cmp #$FFFE / bne / lda #$FFFF / sta last carrier, then jml ChkShotStat.
     expect(hex(on, far(on, SITES.goalie), 20)).toBe('af12fd7ec9feffd007a9ffff8f10fd7e5c13f29e')
     // Then the multiply (A = A * Y, with d0 and d1), and the pass at the net.
@@ -71,7 +129,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     const address = 0x8000 | (mul & 0x7fff)
     const call = '20' + hex(Uint8Array.of(address & 0xff, address >> 8), 0, 2)
     expect(far(on, SITES.wide)).toBe(mul + 24)
-    expect(hex(on, mul + 24, 0xad)).toBe(
+    expect(hex(on, mul + 24, 0xaf)).toBe(
       [
         // phx / bra start / out1: pla / out: plx / lda puckvx / sta d0 / rtl
         'da 8008 68 fa addf0e 85a5 6b',
@@ -84,13 +142,31 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
         // both halved to under 256
         'c00001 b007 a303 c90001 900a 984aa8 a3034a8303 80ea',
         // p = a * dist; past +40 if (40 - x) * vy < p, past -40 if (-40 - x) * vy > p
-        'a303 f037 a305 ' + call + ' 48 a305 a8 a92800 38 e303 3025 ' + call + ' c301 901e a9d8ff 38 e303 300b f009 ' + call + ' c301 f002 b00b',
-        // a shot: the carrier and the cause forgotten; then the pulls and out
-        'a9ffff 8f10fd7e 8f12fd7e 68 6868 8256ff',
+        'a303 f039 a305 ' + call + ' 48 a305 a8 a92800 38 e303 3027 ' + call + ' c301 9020 a9d8ff 38 e303 300b f009 ' + call + ' c301 f002 b00d',
+        // at the net: the cause $FFFD at the top's net (pucky positive), $FFFC at the bottom's, the passer kept; then
+        // the pulls and out
+        'a9fdff acd30d 1001 3a 8f12fd7e 68 6868 8254ff',
       ]
         .join(' ')
         .replace(/ /g, ''),
     )
+    // A goalie's touch at a2touchpuck (its own ldy a2 / cpy #$0018 last): position,y 0 and the cause $FFFC or $FFFD
+    // (ora #1 / cmp #$FFFD), the carrier and the cause forgotten.
+    const touch = mul + 24 + 0xaf
+    expect(far(on, SITES.touch)).toBe(touch)
+    expect(hex(on, touch, 41)).toBe('a491c01800 b01c b9430f d017 af12fd7e 090100 c9fdff d00b a9ffff 8f10fd7e 8f12fd7e a491c01800 6b'.replace(/ /g, ''))
+    // Each frame of pucknorm, then jml ChkOffsides: the pass at the net at the top's goal line (pucky $108 or more) or the
+    // bottom's (-$108 or less) forgotten.
+    expect(far(on, SITES.frame)).toBe(touch + 41)
+    expect(hex(on, touch + 41, 47)).toBe(
+      ('af12fd7e c9fdff d00a add30d c90801 301a 800d c9fcff d013 add30d c9f9fe 100b a9ffff 8f10fd7e 8f12fd7e 5c' + hex(rom.bytes, SITES.frame + 1, 3)).replace(/ /g, ''),
+    )
+    // The puck in a net's box below its crossbar (checkgoal's own lda #$FFFF / sta collflag first): the cause $FFFC or
+    // $FFFD, the carrier and the cause forgotten.
+    const net = touch + 41 + 47
+    expect(far(on, SITES.goal)).toBe(net)
+    expect(hex(on, net, 30)).toBe(('a9ffff 8d' + hex(rom.bytes, SITES.goal + 4, 2) + ' af12fd7e 090100 c9fdff d00b a9ffff 8f10fd7e 8f12fd7e 6b').replace(/ /g, ''))
+    expect(far(on, SITES.scout)).toBe(net + 30)
     // puckglue's call: its own two instructions first.
     expect(hex(on, far(on, SITES.glue), 5)).toBe('a4918cd90a')
     // The clear goes on to Create_HotCold_Table.
@@ -154,10 +230,26 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(pagesOnly), { giveaways: false, giveawayPages: false })), buildRom(rom))).toBe(0)
   })
 
+  it('knows the version of 18 November, which forgot a pass at the net as it was released, and replaces it when asked', () => {
+    const rom = open('NHL94.smc')
+    const on = applySnesHacks(rom, { giveaways: true }).bytes
+    const earlier = version18(rom.bytes, on, SITES)
+    expect(hex(earlier, SITES.touch, 5)).toBe('a491c01800')
+    expect(earlier[SITES.wide]).toBe(0x22)
+    const state = detectSnesHacks(earlier)
+    expect(state.choices.giveaways).toBe(true)
+    expect(state.unknown).not.toContain('giveaways')
+    expect(state.vaultVersions).toContain('giveaways')
+    const project = openRom(buildRom({ ...rom, bytes: earlier }))
+    expect(Buffer.compare(applySnesHacks(project, { giveaways: true }).bytes, project.bytes)).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: true }, true)), buildRom({ ...rom, bytes: on }))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks(project, { giveaways: false })), buildRom(rom))).toBe(0)
+  })
+
   it('knows the version of 15 November, without the pass at the net, and replaces it when asked', () => {
     const rom = open('NHL94.smc')
     const on = applySnesHacks(rom, { giveaways: true }).bytes
-    const earlier = version15(rom.bytes, on, SITES.goalie, SITES.wide, SITES.scout)
+    const earlier = version15(rom.bytes, version18(rom.bytes, on, SITES), SITES.goalie, SITES.wide, SITES.scout)
     const state = detectSnesHacks(earlier)
     expect(state.choices.giveaways).toBe(true)
     expect(state.unknown).not.toContain('giveaways')
@@ -213,11 +305,25 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       expect(hex(on.bytes, touch, 20)).toBe((sa1 ? 'af025540c9feffd007a9ffff8f005540' : 'af12fd7ec9feffd007a9ffff8f10fd7e') + '5c' + hex(rom.bytes, sites.goalie + 1, 3))
       expect(far(on.bytes, sites.wide)).toBe(touch + 44)
       expect(hex(on.bytes, touch + 44, 14)).toBe(sa1 ? 'da800868faaddf6e85a56bbdc374' : 'da800868faaddf0e85a56bbdc314')
-      // The version of 15 November in this build: known, replaced when asked, and out again.
-      const earlier = openRom(buildRom({ ...rom, bytes: version15(rom.bytes, applySnesHacks(rom, { giveaways: true }).bytes, sites.goalie, sites.wide, sites.scout) }))
-      expect(detectSnesHacks(earlier.bytes).vaultVersions).toContain('giveaways')
-      expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: true }, true)), buildRom(applySnesHacks(rom, { giveaways: true })))).toBe(0)
-      expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: false })), buildRom(rom))).toBe(0)
+      // A goalie's touch at a2touchpuck, the frame at pucknorm's jsl ChkOffsides and the net at checkgoal, after the pass at
+      // the net.
+      expect(hex(rom.bytes, sites.touch, 5)).toBe('a491c01800')
+      expect(hex(on.bytes, sites.touch, 1) + hex(on.bytes, sites.touch + 4, 1)).toBe('22ea')
+      const goalieTouch = far(on.bytes, sites.touch)
+      expect(hex(on.bytes, goalieTouch, 16)).toBe(sa1 ? 'a491c01800b01cb9436fd017af025540' : 'a491c01800b01cb9430fd017af12fd7e')
+      expect(far(on.bytes, sites.frame)).toBe(goalieTouch + 41)
+      expect(hex(on.bytes, goalieTouch + 41 + 43, 4)).toBe('5c' + hex(rom.bytes, sites.frame + 1, 3))
+      expect(hex(rom.bytes, sites.goal, 4)).toBe('a9ffff8d')
+      expect(far(on.bytes, sites.goal)).toBe(goalieTouch + 41 + 47)
+      expect(hex(on.bytes, goalieTouch + 41 + 47, 6)).toBe('a9ffff8d' + hex(rom.bytes, sites.goal + 4, 2))
+      // The versions of 18 and 15 November in this build: known, replaced when asked, and out again.
+      const with18 = version18(rom.bytes, applySnesHacks(rom, { giveaways: true }).bytes, sites)
+      for (const bytes of [with18, version15(rom.bytes, with18, sites.goalie, sites.wide, sites.scout)]) {
+        const earlier = openRom(buildRom({ ...rom, bytes }))
+        expect(detectSnesHacks(earlier.bytes).vaultVersions).toContain('giveaways')
+        expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: true }, true)), buildRom(applySnesHacks(rom, { giveaways: true })))).toBe(0)
+        expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: false })), buildRom(rom))).toBe(0)
+      }
       // With all the others the ROM can take that go together.
       const others: Partial<Record<SnesHack, boolean>> = {}
       for (const hack of SNES_HACKS) {
@@ -230,10 +336,13 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       const found = detectSnesHacks(both.bytes)
       expect(found.unknown).toEqual(detectSnesHacks(all.bytes).unknown)
       for (const hack of Object.keys(others) as SnesHack[]) expect(found.choices[hack]).toBe(true)
-      // No other hack at the two new places.
+      // No other hack at the five newer places.
       const rest = applySnesHacks(rom, { ...others, giveaways: false, giveawaysShown: false, giveawayPages: false })
       expect(hex(rest.bytes, sites.goalie, 4)).toBe(hex(rom.bytes, sites.goalie, 4))
       expect(hex(rest.bytes, sites.wide, 5)).toBe(hex(rom.bytes, sites.wide, 5))
+      expect(hex(rest.bytes, sites.touch, 5)).toBe(hex(rom.bytes, sites.touch, 5))
+      expect(hex(rest.bytes, sites.frame, 4)).toBe(hex(rom.bytes, sites.frame, 4))
+      expect(hex(rest.bytes, sites.goal, 6)).toBe(hex(rom.bytes, sites.goal, 6))
     })
   })
 })

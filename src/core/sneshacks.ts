@@ -1724,18 +1724,34 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 // - StartGame_scout's jsl Create_HotCold_Table clears the counts (not the season
 //   shootout's StartGame_go).
 // - A pass at the net counts as a shot, as Match Viewer counts it: picked up by
-//   the other team off the goalie or after it goes wide, it is no giveaway.
-//   puckgoalie's .t2 jsl ChkShotStat, on every touch of the goalie (holds too)
+//   the other team once it has reached the goalie or the goal line, it is no
+//   giveaway (before that, it is). puckgoalie's .t2 jsl ChkShotStat, on every touch of the goalie (holds too)
 //   before its carried-puck test at .5, forgets the passer of a pass, then goes
 //   to ChkShotStat; and dopass_swing's .2 lda puckvx / sta d0, where dopass and
-//   assdumpin go once the puck's speed is set (X the passer), forgets him when
-//   the pass is one at the net, as on the Genesis: released in the attacking
+//   assdumpin go once the puck's speed is set (X the passer), marks the pass
+//   one at the net, as on the Genesis: released in the attacking
 //   zone (puck y past the blue line, $58, toward the net the passer shoots at,
 //   pfgoal,x: the top's goal line y $108, the bottom's -$108), 20 or more in
 //   front of the goal line, moving toward it, its line crossing the goal line
 //   within 40 of the middle (x 0). With no divide, the test is x * vy +
 //   vx * (goal line - y) within 40 * vy, the x mirrored to make vx positive
-//   and the speeds halved together to under 256 for an 8-bit multiply.
+//   and the speeds halved together to under 256 for an 8-bit multiply. The
+//   mark, as on the Genesis, is the cause, $FFFD at the top's net, $FFFC at the
+//   bottom's (the puck's y is on that side), with the passer kept: a pass to
+//   everything else, the other team's skater picking it up a giveaway. He is
+//   forgotten once the pass has reached the goal line or the goalie: pucknorm's
+//   jsl ChkOffsides (after hybrid icing's place, its jsl PuckIChk), each frame
+//   of a loose puck, looks at the puck's y first (y $108 or more at the top,
+//   -$108 or less at the bottom); checkgoal's lda #$FFFF / sta collflag, the
+//   puck in a net's box below its crossbar (off the post or the net's front,
+//   where the puck, set back to where it was, may not have reached the line);
+//   and a2touchpuck's
+//   ldy a2 / cpy #$0018, on every touch, by a goalie: puckgoalie (which calls
+//   it), and the puck off his stick or his body (puckstick's deflection,
+//   puckbody), which do not go through puckgoalie. NOSE4Web's version of 18
+//   November 2026 (bfda480) forgot the passer as it released a pass at the
+//   net, so one picked off in the slot was no giveaway: recognised, and
+//   replaced when asked.
 // The counts, a word per roster player (the visitors $34 bytes on, as the time
 // on ice), giveaways then takeaways, then each team's totals (home and visitors'
 // giveaways, then takeaways), after the last carrier and the cause ($FFFF none,
@@ -1762,9 +1778,11 @@ const GT_SIZE = GT_TOTALS + 8
 // loose). Not cleared: each is set with the spot it goes with.
 const GT_LASTP = GT_SIZE
 const GT_CAUSEP = GT_SIZE + 2
-type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury' | 'goalie' | 'wide'
-// The versions: 8650b4a's (14 November 2026), 7ad4a23's (15 November) and this one.
-const GT_NOW = 2
+type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal'
+// The versions: 8650b4a's (14 November 2026), 7ad4a23's (15 November), bfda480's (18 November: with the goalie's touch
+// and the swing, which forgot the passer of a pass at the net as it was released) and this one.
+const GT_WIDE = 2
+const GT_NOW = 3
 
 interface GtEnv {
   ram: (typeof GT_RAM)[number]
@@ -1800,7 +1818,16 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
   // dopass_swing: lda position,x / bne .2 / lda pfgoal,x / beq .t1 / lda puckvy / bmi .1 / bra .2 / .t1: lda puckvy /
   // bmi .2 / .1: eor #$FFFF / inc / sta puckvy / .2: lda puckvx / sta d0 / lda puckvy / sta d1 / jsl vtoa.
   const swing = findCodeAll(rom, 'bd(....)d0..bd(....)f0..ad....30..80..ad....30..49ffff1a8d....' + '..........' + 'ad(....)85(..)22')
-  if ([glue, steal, pass, shot, dump, fall, injury, scout, goalie, swing].some((found) => found.length !== 1)) return null
+  // a2touchpuck: ldy a2 / cpy #$0018 (or the jsl there) / bcc .t2 / jmp .6 / .t2: lda Xpos,y / sta.l ltx / lda Ypos,y /
+  // sta.l lty / tya / lsr / sta.l ltplayer.
+  const touch = findCodeAll(rom, any5 + '90034c....b9....8f......b9....8f......984a8f')
+  // pucknorm .4: jsl PuckIChk (or hybrid icing's code) / jsl ChkOffsides (or the jsl there) / lda gmclock / bne .13 /
+  // lda puckc / bpl .11.
+  const frame = findCodeAll(rom, '22......22......ad....d0..ad(....)10')
+  // checkgoal, the puck in a net's box: lda #$FFFF / sta collflag (or the jsl there) / lda puckoldz / cmp #$000D / bmi
+  // .t2 / lda puckoldz / sta puckz / jmp .10.
+  const goal = findCodeAll(rom, '............ad(....)c90d0030..ad(....)8d....4c')
+  if ([glue, steal, pass, shot, dump, fall, injury, scout, goalie, swing, touch, frame, goal].some((found) => found.length !== 1)) return null
   const [a2, puckc] = glue[0].groups
   if (a2 !== 0x91 || puckc !== 0x0ad9 + moved) return null
   const [position, pfgoal, puckvy, d1] = swing[0].groups
@@ -1808,6 +1835,14 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
   // The swing's lda puckvx / sta d0, or the jsl there.
   const wide = swing[0].at + 29
   if (!same(rom, wide, bytesOf('AD', word(0x0edf + moved), '85A5')) && rom[wide] !== 0x22) return null
+  // a2touchpuck's ldy a2 / cpy #$0018, or the jsl there (and a nop).
+  const touched = touch[0].at
+  if (!same(rom, touched, bytesOf('A4', a2, 'C01800')) && (rom[touched] !== 0x22 || rom[touched + 4] !== 0xea)) return null
+  if (frame[0].groups[0] !== puckc) return null
+  // checkgoal's lda #$FFFF / sta collflag, or the jsl there (and two nops).
+  const netted = goal[0].at
+  if (goal[0].groups[0] !== goal[0].groups[1]) return null
+  if (!same(rom, netted, hexBytes('A9FFFF8D')) && (rom[netted] !== 0x22 || readU16(rom, netted + 4) !== 0xeaea)) return null
   return {
     ram,
     a2,
@@ -1826,15 +1861,27 @@ function gtEnv(rom: Uint8Array): GtEnv | null {
       scout: scout[0].at,
       goalie: goalie[0].at,
       wide,
+      touch: touched,
+      frame: frame[0].at + 4,
+      goal: netted,
     },
   }
 }
 
-type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'goalie' | 'wide' | 'scout'
+type GtEntry = 'glue' | 'steal' | 'pass' | 'shot' | 'fall' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal' | 'scout'
 
 // The block: COUNT give (x the player's object), COUNT take, then the entries (the goalie's ending jml ChkShotStat,
-// `check`; a multiply for the pass at the net); the clear's jml last. `version` an earlier one (GT_NOW this one).
-function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, version = GT_NOW, check = new Uint8Array(3)): { code: Uint8Array; entries: Record<GtEntry, number> } {
+// `check`; a multiply for the pass at the net; the frame's ending jml ChkOffsides, `offsides`; the net's sta collflag,
+// `collflag`); the clear's jml last. `version` an earlier one (GT_NOW this one).
+function gtCode(
+  env: GtEnv,
+  base: number,
+  hotCold: Uint8Array,
+  version = GT_NOW,
+  check = new Uint8Array(3),
+  offsides = new Uint8Array(3),
+  collflag = new Uint8Array(2),
+): { code: Uint8Array; entries: Record<GtEntry, number> } {
   const { ram, a2, a3 } = env
   const earlier = version === 0
   const L = (offset: number) => bytesOf(word(ram.at + offset), ram.bank)
@@ -1876,10 +1923,11 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, version = GT_NOW,
     { branch: BMI, to: 'reset' },
     sameTeam,
     { branch: BPL, to: 'reset' },
-    bytesOf('AF', L(2), 'C9FEFF'),
-    { branch: BEQ, to: 'pass' },
-    bytesOf('C90080'),
-    { branch: BCS, to: 'give' },
+    // The cause: $FFFF none, a giveaway; from $8000 a pass (the pass at the net's $FFFD and $FFFC too); else the
+    // forcer's spot. Earlier versions had only $FFFE for a pass.
+    ...(version >= GT_NOW
+      ? [bytesOf('AF', L(2), 'C9FFFF'), { branch: BEQ, to: 'give' }, bytesOf('C90080'), { branch: BCS, to: 'pass' }]
+      : [bytesOf('AF', L(2), 'C9FEFF'), { branch: BEQ, to: 'pass' }, bytesOf('C90080'), { branch: BCS, to: 'give' }]),
     bytesOf('AA BD', W(position)),
     { branch: BEQ, to: 'give' },
     bytesOf('8A', sameTeam),
@@ -1976,12 +2024,57 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, version = GT_NOW,
     { branch: BEQ, to: 'hit' },
     { branch: BCS, to: 'out4' },
     { label: 'hit' },
-    bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+    // Marked, the passer kept: $FFFD at the top's net (the puck's y positive), $FFFC at the bottom's. The earlier
+    // version forgot him (carrier and cause $FFFF).
+    ...(version >= GT_NOW
+      ? [bytesOf('A9FDFF AC', W(pucky)), { branch: BPL, to: 'mark' }, '3A', { label: 'mark' }, bytesOf('8F', L(2))]
+      : [bytesOf('A9FFFF 8F', L(0), '8F', L(2))]),
     { label: 'out4' },
     '68',
     { label: 'out3' },
     '68 68',
     { brl: 'out1' },
+  ])
+  // A goalie's touch, at a2touchpuck (its ldy a2 / cpy #$0018 last, for its bcc), whatever the touch (puckgoalie's, or
+  // the puck off his stick or his body, which do not go through puckgoalie): the passer of a pass at the net forgotten.
+  const touch = asm65([
+    bytesOf('A4', a2, 'C01800'),
+    { branch: BCS, to: 'x' },
+    bytesOf('B9', W(position)),
+    { branch: BNE, to: 'x' },
+    bytesOf('AF', L(2), '090100 C9FDFF'),
+    { branch: BNE, to: 'x' },
+    bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+    { label: 'x' },
+    bytesOf('A4', a2, 'C01800 6B'),
+  ])
+  // Each frame of pucknorm, before ChkOffsides: the passer of a pass at the net forgotten once the puck has reached its
+  // goal line (y $108 or more at the top, -$108 or less at the bottom).
+  const frame = asm65([
+    bytesOf('AF', L(2), 'C9FDFF'),
+    { branch: BNE, to: 'bottom' },
+    bytesOf('AD', W(pucky), 'C90801'),
+    { branch: BMI, to: 'out' },
+    { branch: BRA, to: 'clear' },
+    { label: 'bottom' },
+    bytesOf('C9FCFF'),
+    { branch: BNE, to: 'out' },
+    bytesOf('AD', W(pucky), 'C9F9FE'),
+    { branch: BPL, to: 'out' },
+    { label: 'clear' },
+    bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+    { label: 'out' },
+    bytesOf('5C', offsides),
+  ])
+  // checkgoal, the puck in a net's box below its crossbar (its lda #$FFFF / sta collflag first): off the post or the
+  // net's front, where the puck, set back to where it was, may not have reached the goal line, the passer of a pass at
+  // the net forgotten.
+  const goal = asm65([
+    bytesOf('A9FFFF 8D', collflag, 'AF', L(2), '090100 C9FDFF'),
+    { branch: BNE, to: 'x' },
+    bytesOf('A9FFFF 8F', L(0), '8F', L(2)),
+    { label: 'x' },
+    '6B',
   ])
   const scout = asm65([
     bytesOf('A9FFFF 8F', L(0), '8F', L(2), 'A90000 A2', word(GT_SIZE - GT_GIVE - 2)),
@@ -1998,7 +2091,8 @@ function gtCode(env: GtEnv, base: number, hotCold: Uint8Array, version = GT_NOW,
     ['pass', pass],
     ['shot', shot],
     ['fall', fall],
-    ...(version >= GT_NOW ? ([['goalie', goalie], ['mul', mul], ['wide', wide]] as [string, Uint8Array][]) : []),
+    ...(version >= GT_WIDE ? ([['goalie', goalie], ['mul', mul], ['wide', wide]] as [string, Uint8Array][]) : []),
+    ...(version >= GT_NOW ? ([['touch', touch], ['frame', frame], ['goal', goal]] as [string, Uint8Array][]) : []),
     ['scout', scout],
   ]
   const entries = {} as Record<GtEntry, number>
@@ -2025,16 +2119,25 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
     injury: bytesOf('A9FFFF 8D', word(env.puckc)),
     goalie: new Uint8Array(4),
     wide: bytesOf('AD', word(0x0edf + env.ram.shift), '85', env.d0),
+    touch: bytesOf('A4', env.a2, 'C01800'),
+    frame: new Uint8Array(4),
+    goal: new Uint8Array(6),
   }
-  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2, goalie: 0, wide: 1 }
+  const pads: Record<GtSite, number> = { glue: 1, steal: 1, pass: 1, dump: 1, shot: 1, fall: 2, injury: 2, goalie: 0, wide: 1, touch: 1, frame: 0, goal: 2 }
   let probe = gtCode(env, 0, new Uint8Array(3))
   let base: number
   let hotCold = rom.slice(sites.scout + 1, sites.scout + 4)
-  // ChkShotStat, from the goalie's jsl (or, with this version in, the block's jml).
+  // ChkShotStat, from the goalie's jsl (or, with a version that has it in, the block's jml); ChkOffsides, from
+  // pucknorm's jsl, and collflag, from checkgoal's sta (or, with this version in, the frame's jml and the net's sta).
   let check = rom.slice(sites.goalie + 1, sites.goalie + 4)
+  let offsides = rom.slice(sites.frame + 1, sites.frame + 4)
+  let collflag = rom.slice(sites.goal + 4, sites.goal + 6)
   let version = GT_NOW
-  // The jml's address in a block at `at` (the goalie's entry: lda, cmp, bne, lda, sta, then jml).
+  // The jml's address in a block at `at` (the goalie's entry: lda, cmp, bne, lda, sta, then jml); the frame's jml
+  // (its last, just before the net's entry) and the net's sta (lda #$FFFF, then sta collflag).
   const checkIn = (at: number, block: { entries: Record<GtEntry, number> }) => rom.slice(at + block.entries.goalie + 17, at + block.entries.goalie + 20)
+  const offsidesIn = (at: number, block: { entries: Record<GtEntry, number> }) => rom.slice(at + block.entries.goal - 3, at + block.entries.goal)
+  const collflagIn = (at: number, block: { entries: Record<GtEntry, number> }) => rom.slice(at + block.entries.goal + 4, at + block.entries.goal + 6)
   if (!same(rom, sites.glue, originals.glue)) {
     // In: the block from the glue's call, and Create_HotCold_Table from the clear's jml at its end; this version's
     // block, or an earlier one's.
@@ -2045,27 +2148,37 @@ function giveawayPlaces(rom: Uint8Array): Placed[] | null {
       const block = gtCode(env, 0, new Uint8Array(3), v)
       const at = blockAt(block)
       if (at < 0) return false
-      const full = gtCode(env, at, rom.slice(at + block.code.length - 3, at + block.code.length), v, v >= GT_NOW ? checkIn(at, block) : check)
+      const ends = rom.slice(at + block.code.length - 3, at + block.code.length)
+      const now = v >= GT_NOW
+      const full = gtCode(env, at, ends, v, v >= GT_WIDE ? checkIn(at, block) : check, now ? offsidesIn(at, block) : offsides, now ? collflagIn(at, block) : collflag)
       return same(rom, at, full.code)
     }
-    version = [GT_NOW, 1, 0].find(holds) ?? GT_NOW
+    version = [GT_NOW, GT_WIDE, 1, 0].find(holds) ?? GT_NOW
     probe = gtCode(env, 0, new Uint8Array(3), version)
     base = blockAt(probe)
     if (base < 0) return null
     hotCold = rom.slice(base + probe.code.length - 3, base + probe.code.length)
-    if (version >= GT_NOW) check = checkIn(base, probe)
+    if (version >= GT_WIDE) check = checkIn(base, probe)
+    if (version >= GT_NOW) {
+      offsides = offsidesIn(base, probe)
+      collflag = collflagIn(base, probe)
+    }
   } else {
     base = farRoom(rom, sites.glue, originals.glue, probe.code.length)
     if (base < 0) return null
   }
   originals.goalie = bytesOf('22', check)
-  const { code, entries } = gtCode(env, base, hotCold, version, check)
+  originals.frame = bytesOf('22', offsides)
+  originals.goal = bytesOf('A9FFFF 8D', collflag)
+  const { code, entries } = gtCode(env, base, hotCold, version, check, offsides, collflag)
+  // The places an earlier version has the game's own code at: the goalie's touch and the swing before 18 November; a
+  // goalie's touch at a2touchpuck, pucknorm's frame and checkgoal's net before this one.
+  const unhooked = (key: GtSite) => (version < GT_WIDE && (key === 'goalie' || key === 'wide')) || (version < GT_NOW && (key === 'touch' || key === 'frame' || key === 'goal'))
   return [
     ...(Object.keys(originals) as GtSite[]).map((key) => ({
       at: sites[key],
       original: originals[key],
-      // An earlier version has the game's own code at the goalie's touch and the swing.
-      hacked: version < GT_NOW && (key === 'goalie' || key === 'wide') ? originals[key] : jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
+      hacked: unhooked(key) ? originals[key] : jsl(base + entries[key === 'dump' ? 'pass' : key === 'injury' ? 'fall' : key], pads[key]),
     })),
     { at: sites.scout, original: bytesOf('22', hotCold), hacked: jsl(base + entries.scout, 0) },
     { at: base, original: unused(code.length), hacked: code, ...(version < GT_NOW ? { earlier: true } : {}) },

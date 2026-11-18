@@ -2993,18 +2993,36 @@ const organResume: Part<boolean> = {
 //   #$10,nopuck(a3) ($BC6E) and doshot's bset #sf2shot ($C340) say why the
 //   puck came loose.
 // - A pass at the net counts as a shot, as Match Viewer counts it: picked up
-//   by the other team off the goalie or after it goes wide, it is no
-//   giveaway. puckgoalie's bclr #2,(sflags4).w ($154EE), on every touch of
+//   by the other team once it has reached the goalie or the goal line, it is
+//   no giveaway (before that, it is). puckgoalie's bclr #2,(sflags4).w ($154EE), on every touch of
 //   the goalie, holds too, before its carried-puck test, forgets the passer
 //   of a pass (Match Viewer's code); and dopass's .notgoalie, move.w
 //   (puckvx).w,d0 / move.w (puckvy).w,d1 ($BDD8), once the puck's speed is
-//   set (dump-ins and one-timer passes too), forgets him when the pass is
-//   one at the net: released in the attacking zone (puck y past the blue
-//   line, $58, toward the net the passer shoots at, pfgoal: the top's goal
-//   line y $108, the bottom's -$108), 20 or more in front of the goal line,
-//   moving toward it, its line crossing the goal line within 40 of the
-//   middle (x 0): x + vx * (goal line - y) / vy, muls / divs. NOSE4Web's
-//   version of 15 November 2026 had neither: recognised, and replaced.
+//   set (dump-ins and one-timer passes too), marks the pass one at the net:
+//   released in the attacking zone (puck y past the blue line, $58, toward
+//   the net the passer shoots at, pfgoal: the top's goal line y $108, the
+//   bottom's -$108), 20 or more in front of the goal line, moving toward it,
+//   its line crossing the goal line within 40 of the middle (x 0): x + vx *
+//   (goal line - y) / vy, muls / divs. The mark is the cause, $FFFD at the
+//   top's net, $FFFC at the bottom's (the puck's y is on that side), with the
+//   passer kept: a pass to everything else, the other team's skater picking
+//   it up a giveaway. The passer is forgotten (carrier and cause $FFFF) once
+//   the pass has reached the goal line or the goalie, as Match Viewer counts
+//   it: pucknorm's bsr.w PuckIChk / bsr.w ChkOffsides ($FF86), each frame of
+//   a loose puck, calls them and looks at the puck's y (y $108 or more at
+//   the top, -$108 or less at the bottom; one that comes back out has been
+//   seen as it crossed); checkgoal's st (collflag).w / cmpi.w #$D,OldZpos(a3)
+//   ($14664), the puck touching a net below its crossbar (off the post or
+//   the net's front, where the puck, set back to where it was, may not have
+//   reached the line: the net at y $10C, 2 deep, the puck's radius 5); and
+//   a2touchpuck's move.w (a2),(ltx).w /
+//   move.w Ypos(a2),(lty).w ($1013E), on every touch, by a goalie: puckgoalie
+//   (which calls it), and the puck off his stick or his body (puckstick's
+//   deflection, puckbody), which do not go through puckgoalie. NOSE4Web's
+//   version of 18 November 2026 (bfda480) forgot the passer as it released
+//   a pass at the net, so one picked off in the slot was no giveaway; its
+//   version of 15 November 2026 had neither the goalie's touch nor the pass
+//   at the net. Both recognised, and replaced.
 // - Game Stats has a row more, "Give/Takeaways" (giveaways / takeaways):
 //   DisplayStats' row count and table ($FDE5E with penalties, $FDE6C
 //   without) come from code with the ROM's tables and the new row, and the
@@ -3018,6 +3036,10 @@ interface GtVersion {
   hooks: number
 }
 const GT_VERSIONS: GtVersion[] = [
+  { code: bytes('6000 0032 6000 0114 6000 0124 6000 014A 6000 015A 6000 017C 6000 0180 6000 0128 6000 0182 6000 0194 6000 01E8 6000 020E 6000 0240 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 4A41 6A06 4641 6730 6028 EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75 08B8 0002 C2F4 0C78 FFFE E802 6606 31FC FFFF E800 4E75 3238 B774 3038 B75E 082B 0007 0062 6604 4440 4441 0C40 0058 6D34 4A41 6F30 0440 0108 4440 0C40 0014 6D24 C1F8 B772 81C1 691C D078 B74A 0640 0028 0C40 0050 620E 70FD 4A78 B75E 6A02 5340 31C0 E802 3038 B772 3238 B774 4E75 31D2 BF7C 31EA 0014 BF7E 4A6A 0034 6618 0C78 FFFD E802 6708 0C78 FFFC E802 6608 21FC FFFF FFFF E800 4E75 4EB9 0001 0246 0C78 FFFD E802 660A 0C78 0108 B75E 6C12 6018 0C78 FFFC E802 6610 0C78 FEF8 B75E 6E08 21FC FFFF FFFF E800 4EF9 0000 FFEA 50F8 BFA0 61AA 0C6B 000D 0024 4E75'), tableA: 0x196, tableB: 0x1a0, hooks: 14 },
+  // NOSE4Web's version of 18 November 2026 (bfda480), which forgot the passer of a pass at the net as it was released
+  // (a pass at the net picked off before it reached the goal line was no giveaway): recognised, and replaced when the
+  // hacks are next applied.
   { code: bytes('6000 0026 6000 0108 6000 0118 6000 013E 6000 014E 6000 0170 6000 0174 6000 011C 6000 0176 6000 0188 302A 0052 31C0 B7AA 48E7 E0C0 0838 0004 C2EA 6600 0088 0838 0000 C2FA 666C 0838 0004 C2F0 6664 3238 E800 6B5E EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 E802 0C41 FFFE 672C 4A41 6B2E EF49 43F8 B04A D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 E805 7402 612A 6010 4A6A 0034 670A 2248 1038 E804 7400 6118 31EA 0052 E800 11EA 0066 E804 31FC FFFF E802 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 E810 4A42 6704 41F8 E850 0C30 00FF 0000 6704 5230 0000 41F8 E900 0829 0006 0062 6704 41F8 EC64 5270 2000 4E75 31E8 0052 BEDA 31EA 0052 E802 11EA 0066 E805 4E75 50F8 B7AA 31EB 0052 E802 11EB 0066 E805 0838 0004 C2EA 4E75 50F8 B7AA 177C 0010 005E 31FC FFFE E802 4E75 08F8 0004 C2EE 31FC FFFF E800 31FC FFFF E802 4E75 4278 C472 4278 C5DC 21FC FFFF FFFF E800 41F8 E810 701F 4298 51C8 FFFC 42B8 E900 42B8 EC64 4E75 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75 08B8 0002 C2F4 0C78 FFFE E802 6606 31FC FFFF E800 4E75 3238 B774 3038 B75E 082B 0007 0062 6604 4440 4441 0C40 0058 6D2E 4A41 6F2A 0440 0108 4440 0C40 0014 6D1E C1F8 B772 81C1 6916 D078 B74A 0640 0028 0C40 0050 6208 21FC FFFF FFFF E800 3038 B772 3238 B774 4E75'), tableA: 0x18a, tableB: 0x194, hooks: 11 },
   // NOSE4Web's version of 15 November 2026 (7ad4a23), without the goalie's touch and the pass at the net (a pass
   // shot picked up by the other team off the goalie or wide was a giveaway): recognised, and replaced when the
@@ -3040,6 +3062,9 @@ const GT_HOOKS: [Hook, number][] = [
   [{ at: 0xbc6e, original: bytes('50F8 B7AA 177C 0010 005E') }, 0x1c],
   [{ at: 0x154ee, original: bytes('08B8 0002 C2F4') }, 0x20],
   [{ at: 0xbdd8, original: bytes('3038 B772 3238 B774') }, 0x24],
+  [{ at: 0x1013e, original: bytes('31D2 BF7C 31EA 0014 BF7E') }, 0x28],
+  [{ at: 0xff86, original: bytes('6100 02BE 6100 005E') }, 0x2c],
+  [{ at: 0x14664, original: bytes('50F8 BFA0 0C6B 000D 0024') }, 0x30],
 ]
 const GT_LIMITS = [
   { at: 0xfdcbc, original: 0x70, hacked: 0x80 },
@@ -3079,12 +3104,12 @@ function gtCode(rom: Uint8Array, version: GtVersion = GT_VERSIONS[0]): Uint8Arra
   writeU16(code, version.tableB, tableB - version.tableB)
   return code
 }
-// Where the code is, and how long (this version's or an earlier one).
-function gtIn(rom: Uint8Array): { base: number; length: number; hooks: number } | null {
+// Where the code is, and how long (this version's or an earlier one: `version`, its place in GT_VERSIONS).
+function gtIn(rom: Uint8Array): { base: number; length: number; hooks: number; version: number } | null {
   const base = readU16(rom, GT_HOOKS[0][0].at) === OP_JSR ? readU32(rom, GT_HOOKS[0][0].at + 2) : -1
   if (base < 0) return null
   if (!GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked)) return null
-  for (const version of GT_VERSIONS) {
+  for (const [index, version] of GT_VERSIONS.entries()) {
     const code = gtCode(rom, version)
     if (!code || base + code.length > rom.length || !is(rom, base, code)) continue
     const hooks = GT_HOOKS.slice(0, version.hooks)
@@ -3094,7 +3119,7 @@ function gtIn(rom: Uint8Array): { base: number; length: number; hooks: number } 
     }
     // An earlier version's: the places it has no hook at as the game has them.
     if (!GT_HOOKS.slice(version.hooks).every(([hook]) => is(rom, hook.at, hook.original))) return null
-    return { base, length: code.length, hooks: version.hooks }
+    return { base, length: code.length, hooks: version.hooks, version: index }
   }
   return null
 }
@@ -3145,7 +3170,7 @@ function applyPages(work: Work, toi: boolean): void {
 // current version goes in whenever the hacks are applied).
 export function giveawaysOutdated(rom: Uint8Array): boolean {
   const found = gtIn(rom)
-  return found !== null && found.hooks !== GT_VERSIONS[0].hooks
+  return found !== null && found.version !== 0
 }
 
 const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {

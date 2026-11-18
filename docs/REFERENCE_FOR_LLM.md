@@ -10,14 +10,14 @@ editor). It points you at the right files and gives the facts you need to write 
 How to use it:
 
 1. Read sections 1 to 4 (purpose, licence, repo map, conventions). They apply to every game.
-2. Find your feature in the status table (section 16). If "Documented here" says yes, read that feature section.
+2. Find your feature in the status table (section 17). If "Documented here" says yes, read that feature section.
 3. Then read the files and tests the section cites. The code is the authority; this document is a guide to it.
 
-Detailed feature sections are added one feature and one game at a time. Today there are eleven. NHL '95: fighting (5),
+Detailed feature sections are added one feature and one game at a time. Today there are twelve. NHL '95: fighting (5),
 organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
 pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
-NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Everything else is listed
-in section 16 with its files only.
+NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). Everything else is listed
+in section 17 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
 these 2 MB-or-smaller cartridges); `$FFxxxx` is 68000 RAM. "(inferred)" marks a statement that is my reading,
@@ -1858,7 +1858,93 @@ gives them a missing one".
 
 Not yet tested in the game.
 
-## 16. Feature status
+## 16. NHL 94 Genesis and NHL '94 SNES: giveaways and takeaways, and the pass at the net
+
+### What it does (for the player)
+
+Counts each player's giveaways and takeaways as the NHL94 Match Viewer project does: the puck carrier changing from
+one team to the other with no whistle between. A takeaway for a skater who forced it (a stick steal, or a check that
+knocked the carrier down); any other loss a giveaway for the player who lost the puck. Not counted: shots, faceoff
+wins, passes between teammates, a pass the other goalie collects, highlights, shootouts. A pass at the net counts as a
+shot: picked up by the other team once it has reached the goalie or the goal line, it is no giveaway; picked off before
+then (in the slot, say), it is one (Match Viewer: "a pass shot has to reach the mouth or the goalie").
+
+### Origin and credit
+
+Match Viewer's definitions and its review of recorded games; the goalie's-touch code at puckgoalie is Match Viewer's.
+NOSE4Web's code (comments above `GT_VERSIONS` in `hacks.ts` and `GT_RAM` in `sneshacks.ts`).
+
+### Where it lives: Genesis (`hacks.ts`, `GT_HOOKS`, `GT_VERSIONS`)
+
+One code block (a jump table of `bra.w`, then the code, then copies of the two Game Stats tables with the
+"Give/Takeaways" row), hooked by `jsr` (and `nop`s) at: puckglue `$15288` (+0, counts), the steals `$151BC` and `$15548`
+(+4), FallDown `$143FA` (+8), doshot `$C340` (+`$C`), StartGame `$77B8` (+`$10`, clears), DisplayStats `$FDE5E` and
+`$FDE6C` (+`$14`, +`$18`), dopass `$BC6E` (+`$1C`, a pass: cause `$FFFE`), puckgoalie's `bclr #2,(sflags4).w` `$154EE`
+(+`$20`, a goalie's touch forgets the passer of a `$FFFE` pass), dopass's `.notgoalie` `$BDD8` (+`$24`, the pass at the
+net), a2touchpuck's first two moves `$1013E` (`31D2 BF7C 31EA 0014 BF7E`, +`$28`) and pucknorm's `bsr.w PuckIChk /
+bsr.w ChkOffsides` `$FF86` (`6100 02BE 6100 005E`, +`$2C`; the code calls `$10246` and ends `jmp $FFEA`) and checkgoal's
+`st (collflag).w / cmpi.w #$D,OldZpos(a3)` `$14664` (`50F8 BFA0 0C6B 000D 0024`, +`$30`). Scroll limits
+`$FDCBC`, `$FDCCA` `$70`/`$30` to `$80`/`$40`.
+
+RAM: last carrier's spot `$FFE800` (`$FFFF` none), cause `$FFE802`, their roster places `$FFE804` / `$FFE805`,
+giveaways `$FFE810`, takeaways `$FFE850` (a byte a roster place, 32 a team), team totals at team struct `+$2232` /
+`+$2234` (`$FFE900`, `$FFEC64`).
+
+The cause: `$FFFF` none, `$FFFE` a pass, `$FFFD` / `$FFFC` a pass at the net toward the top's goal line (y `$108`) /
+the bottom's (`-$108`), else the forcer's spot. puckglue's test (code +`$7C`: `tst.w d1 / bpl forcer / not.w d1 / beq
+giveaway / bra pass`) takes every negative cause but `$FFFF` as a pass. The release rule (dopass hook): released past
+the blue line (y `$58` toward the passer's net, pfgoal), 20 or more in front of the goal line, moving toward it, its
+line crossing the goal line within 40 of x 0 (`muls` / `divs`); it marks `$FFFD` when the puck's y is positive, else
+`$FFFC`, the passer kept. The mark is cleared (carrier and cause `$FFFF`) by pucknorm's hook once pucky is `$108` or more
+(`$FFFD`) or `-$108` or less (`$FFFC`), each frame of a loose puck, so a pass that crossed the line and came back out
+is seen; by the checkgoal hook when the puck touches a net below its crossbar (a post or the net's front: checkgoal sets
+collflag and the puck is put back where it was, which may be short of the line, as the net is at y `$10C`, 2 deep, and
+the puck's radius is 5); and by the a2touchpuck hook
+when the toucher is a goalie (`position` 0), which covers puckgoalie (it calls a2touchpuck) and the puck off his stick
+(puckstick's deflection) or body (puckbody), which do not go through puckgoalie.
+
+### Where it lives: SNES (`sneshacks.ts`, `gtEnv`, `gtCode`, `giveawayPlaces`)
+
+The places are found by code patterns (`gtEnv`), each a `jsl` to one block in free room (`farRoom`): puckglue,
+puckstick's steal, dopass and assdumpin, doshot, FallDown's two drops, StartGame_scout's `jsl Create_HotCold_Table`
+(the clear, last in the block), puckgoalie's `.t2 jsl ChkShotStat` (the goalie's touch, `$FFFE` passes), dopass_swing's
+`.2 lda puckvx / sta d0` (the pass at the net: as the Genesis, with no divide), a2touchpuck's `ldy a2 / cpy #$0018`
+(`touch`, kept last for its `bcc`), pucknorm's `jsl ChkOffsides` (`frame`; the `jsl PuckIChk` before it is hybrid
+icing's place) and checkgoal's `lda #$FFFF / sta collflag` (`goal`, the puck in a net's box). RAM at `$7E:FD10` (SA-1 builds: `$40:5500`): +0 carrier object, +2 cause (the same codes), +4
+giveaways, +`$6C` takeaways (a word a roster player, the visitors `$34` on), +`$D4` totals, +`$DC` / +`$DE` the carrier's
+and forcer's roster places. The pickup: `cmp #$FFFF / beq give / cmp #$8000 / bcs pass`. The pass at the net's mark:
+`lda #$FFFD / ldy pucky / bpl / dec / sta cause`.
+
+### Applying and removing
+
+Genesis: `place` the block, `writeHook` each of `GT_HOOKS`; out: the hooks' original bytes back, the block erased. A
+stock 1 MB ROM grows to 2 MB with the counts and their pages. SNES: the `Placed` list of `giveawayPlaces`.
+
+### Detecting
+
+Genesis `gtIn`: the block byte for byte (any of `GT_VERSIONS`, with the ROM's tables), its hooks (the first `hooks` of
+`GT_HOOKS`) and the places it has none at as the game has them. Earlier versions: 14 November 2026 (credited the spot),
+15 November (no goalie's touch, no pass at the net), 18 November (bfda480: forgot the passer as a pass at the net was
+released). They read as on; `giveawaysOutdated` says so, the Hacks page offers "Put in the current version", and any
+apply with giveaways on puts it in. SNES: versions 0-3 (`GT_NOW` 3, `GT_WIDE` 2 the 18 November one); an earlier one is
+`earlier` (vault version), replaced when asked.
+
+### Interactions
+
+Time on ice (shared Player Stats pages), hybrid icing (SNES: the `jsl PuckIChk` beside the frame's place; Genesis:
+inside PuckIChk, which the frame code calls), the fights and the season shootout (RAM, FallDown).
+
+### Files and tests
+
+`src/core/hacks.ts`, `src/core/sneshacks.ts`, `HacksPage.tsx`, `SnesHacksPage.tsx`; `tests/giveaways.test.ts`,
+`tests/snesgiveaways.test.ts`.
+
+### Status
+
+The counts: tested in the game by Match Viewer. The pass at the net as above (reached the goalie or the goal line): not
+yet tested in the game. NHL '95's version is in section 11.
+
+## 17. Feature status
 
 "Game-tested" follows the page texts ("Tested in the game by the NHL94 Match Viewer project" vs. "Not yet tested
 in the game"). For NHL 94 Genesis and SNES, each option on `HacksPage.tsx` / `SnesHacksPage.tsx` carries its own
@@ -1891,6 +1977,7 @@ line; check there.
 | Organ songs and team songs | `genesismusic.ts`, `teamsongs.ts` | No |
 | Game music (title, end of period, scouting report): play, export, replace from MIDI (tested in the game) | `genesismusic.ts` (`GAME_MUSIC`, `gameMusicFromMidi`, `gameMusicToMidi`), `OrganSongsSection.tsx` (`GameMusicSection`) | **Yes (12)** |
 | In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
+| Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
@@ -1902,6 +1989,7 @@ line; check there.
 | Logos, centre ice logos, name blocks, photos, score logos | `snespictures.ts`, `huffman.ts`, `lz.ts`, `snesblock*.ts`, `snesphotos.ts`, `snesscore*.ts` | No |
 | Songs and team songs | `snesmusic.ts`, `snessongs.ts` | No |
 | Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
+| Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
 
 ### Planned / not built
@@ -1909,9 +1997,9 @@ line; check there.
 - SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
   exporting it is built (section 14).
 
-## 17. How to extend this document
+## 18. How to extend this document
 
-Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 16.
+Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 17.
 Copy this template; cite file and function names for every fact and mark inferences.
 
 ```markdown
