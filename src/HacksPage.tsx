@@ -409,10 +409,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'awarenessFix',
           onOff('awarenessFix'),
           <>
-            Among the recommended fixes. How often a computer skater rethinks what to do is set by his awareness:
-            Offensive Awareness when his team has the puck, Defensive when it does not. But in the original game
-            computer wingers and centres on offence use their Defensive Awareness by mistake. With this on they use
-            Offensive. A small change: for most players the difference is a tiny fraction of a second. Found by the
+            Among the recommended fixes. How often a computer skater rethinks what to do is set by his awareness.
+            Computer skaters use Offensive Awareness when their team has the puck and Defensive when it does not, but
+            in the original game computer wingers and centres use Defensive on offence too. Whether that was meant is
+            not known. With this on they use Offensive, like the others. A small change: for most players the
+            difference is a tiny fraction of a second. Found by the
             NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}

@@ -65,7 +65,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   snipingFix: () => 'With your own goalie off the ice (for a delayed penalty or a pull), your shots are no longer always dead on target, just as accurate as any other shot.',
   goaliePullFix: () => 'Late in the third period the computer pulls its goalie when one or two goals behind, not only when exactly two.',
   blindRingFix: () => "The goalie's body now stops flat pucks that used to slide through his legs.",
-  awarenessFix: () => "Computer forwards on offence react by their Offensive Awareness, as intended, not their Defensive.",
+  awarenessFix: () => "Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.",
   crowdFix: () => "The crowd's speed boost comes only while the crowd is loud, so skaters are a little slower in quiet spells.",
   stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one he catches already does.",
   bodychecks: () => "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
@@ -222,7 +222,7 @@ const SNES: Record<SnesHack, string> = {
   yButtonFix: 'A skater who is down or tied up can no longer hook or hold with Y.',
   faceoffFix:
     "Every faceoff is on one of the nine dots, as in today's NHL: at centre after a goal, in the offending team's end after a penalty, and otherwise at a dot near where play stopped.",
-  awarenessFix: 'Computer forwards on offence react by their Offensive Awareness, as intended, not their Defensive.',
+  awarenessFix: 'Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
   stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does.",
   bodychecks: "Each player's bodychecks given and taken are counted, for nhl94online.com to read from save states.",

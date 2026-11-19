@@ -1729,8 +1729,9 @@ export function HelpPage() {
         </li>
         <li>
           <b>Computer forwards' awareness fix</b> (with the fixes, Genesis and SNES; recommended on both): computer
-          forwards on offence react at the pace of their Defensive Awareness when it should be their Offensive
-          Awareness. With this on they use Offensive. A small change for most players.
+          forwards on offence react at the pace of their Defensive Awareness, where every other computer skater on
+          offence uses Offensive. Whether that was meant is not known. With this on they use Offensive. A small
+          change for most players.
         </li>
         <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,

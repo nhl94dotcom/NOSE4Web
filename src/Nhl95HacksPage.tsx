@@ -147,9 +147,10 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   awarenessFix: (
     <p className="note">
-      How quickly a computer skater rethinks what to do depends on his awareness: Offensive when his team has the puck,
-      Defensive when it does not. By a slip in the original game, computer wingers and centres use Defensive on offence
-      too. With this on they use Offensive. A small change. {FROM_94}
+      How quickly a computer skater rethinks what to do depends on his awareness. Computer skaters use Offensive when
+      their team has the puck and Defensive when it does not, but in the original game computer wingers and centres use
+      Defensive on offence too. Whether that was meant is not known. With this on they use Offensive, like the others.
+      A small change. {FROM_94}
     </p>
   ),
   stickShots: (
