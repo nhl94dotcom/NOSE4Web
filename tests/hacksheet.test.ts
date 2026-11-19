@@ -11,7 +11,7 @@ describe('the hack sheet', () => {
       weightFix: 'on', bodychecks: 'on', secondAssist: true, oneTimerAssist: true, regainAssist: true, plusMinus: true, wideRatings: true, bonuses: 'disabled',
       threeStars: 'linesOn', baseWeight: 144, checkFix: 'all120', aggressionFix: true, ppPkFix: true, comebackFix: true,
       passFix: true, openNetFix: true, repeatCheckFix: true, fighting: 'arcade', faceoffFix: true, runawayFix: true, penaltyShotTableFix: true, penaltyShotFixes: true,
-      goaliePullFix: true, blindRingFix: true, snipingFix: true, awarenessFix: true, centreDefenceFix: true, crowdFix: true, stickShots: true,
+      goaliePullFix: true, blindRingFix: true, snipingFix: true, awarenessFix: true, centreDefenceFix: true, goalieTurnFix: true, crowdFix: true, stickShots: true,
       goalieHold: 0, goalieWidth: 40, goalieOut: 224, goalieLine: 144, stamina: true, energyDrain: 65,
       energyRecovery: 6, noSkatingDrain: true, burstEnergy: 0, speedBurst: 24, turnRate: 300, realTime: true, injuries: 'period', hotColdRange: 4, noIcing: true, hybridIcing: true, delayedCalls: true, threeOnThree: 'season', bCheckPenaltiesOff: 'asPenaltiesOn', goalieDelay: 12, fewerSkaterLines: 32, introWait: 20, puckFriction: 8, puckColours: 'home', netColours: 'crowd', greenFan: true, barrPick: true, barrCoin: true, fourthPeriodOvertime: 5940, seasonTies: 'overtime', anyPosition: true, hitEnergy: 204, holdEnergy: 102, injuryBonus: 2, injuryCap: 12, headBleeding: true, penaltySeconds: 30, fightSeconds: 150, shootoutInjuries: true, nhlShootout: true, choppyIce: true, clutchTime: true, timeOnIce: true, giveaways: true, organResume: true,
     }

@@ -501,6 +501,22 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { centreDefenceFix: false }).bytes, rom.bytes)
   })
 
+  it.each(names)("puts NHL 94's goalie turning fix into %s at NHL '95's place", (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    // AdjustFacingDirection: btst #pfjoycon,pflags(a3) / bne.w .add / btst d1,#$42 / beq.w .add / add.w d0,d1
+    expect(hex(rom.bytes, 0x8043a, 16)).toBe('082b000300626600002a033c00426700')
+    expect(Buffer.from(rom.bytes).indexOf(Buffer.from('033c004267000022', 'hex'))).toBe(0x80444)
+    expect(Buffer.from(rom.bytes).indexOf(Buffer.from('033c004267000022', 'hex'), 0x80445)).toBe(-1)
+    expect(base.goalieTurnFix).toBe(false)
+    const on = applyNhl95Hacks(rom, { goalieTurnFix: true })
+    expect([...on.bytes.keys()].filter((i) => on.bytes[i] !== rom.bytes[i])).toEqual([0x80447])
+    expect(hex(on.bytes, 0x80444, 4)).toBe('033c0044') // btst d1,#$44
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, goalieTurnFix: true })
+    expectSameBytes(applyNhl95Hacks(on, { goalieTurnFix: false }).bytes, rom.bytes)
+  })
+
   it.each(names)("puts NHL 94's power play, faceoff, awareness and stick-shot fixes into %s at NHL '95's places", (name) => {
     const rom = open(name)
     const base = detectNhl95Hacks(rom.bytes).choices

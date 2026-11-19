@@ -18,6 +18,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
       [{ snipingFix: true }, { 0xc422: '4e714e71' }],
       [{ awarenessFix: true }, { 0xd0e1: '6a', 0xd2d9: '6a' }],
       [{ centreDefenceFix: true }, { 0xd27a: 'd2424e71' }],
+      [{ goalieTurnFix: true }, { 0xdb86: '033c004467000022' }],
       [{ crowdFix: true }, { 0xfef66: '4e714e71' }],
     ] as const) {
       const before = rom()
@@ -35,6 +36,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
     expect(hex(original, 0xd2d6, 6)).toBe('176b006b0040')
     // asscenterd: moveq #-128,d1 / cmp.w #-88,d2 / blt.w .chkgoal / add.w (pucky).w,d1 / asr.w #1,d1
     expect(hex(original, 0xd270, 16)).toBe('7280b47cffa86d000008d278b75ee241')
+    // AdjustFacingDirection: btst d1,#$42 / beq.w .add
+    expect(hex(original, 0xdb86, 8)).toBe('033c004267000022')
     expect(hex(original, 0xfef66, 4)).toBe('6000000c')
   })
 })
@@ -73,6 +76,24 @@ describe.skipIf(leagues.length === 0)("the computer centres' defence fix in leag
     expect(hex(after, 0xd270, 16)).toBe('7280b47cffa86d000008d2424e71e241')
     expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, centreDefenceFix: true })
     expect(hex(hackRom(after, { ...choices, centreDefenceFix: false }), 0xd270, 16)).toBe('7280b47cffa86d000008d278b75ee241')
+  })
+})
+
+// The goalie turning fix, in the league ROMs, EVO included: the same bytes at the same place in each.
+const allLeagues = [local.league30Rom, ...(local.otherRoms ?? [])].filter((name): name is string => !!name && existsSync(path(name)))
+describe.skipIf(allLeagues.length === 0)('the goalie turning fix in league ROMs', () => {
+  it.each(allLeagues)('goes in and comes out of %s at $DB86', (name) => {
+    const before = new Uint8Array(readFileSync(path(name)))
+    // btst #pfjoycon,pflags(a3) / bne.w .add / btst d1,#$42 / beq.w .add, once in the ROM
+    expect(Buffer.from(before).indexOf(Buffer.from('033c004267000022', 'hex'))).toBe(0xdb86)
+    expect(Buffer.from(before).indexOf(Buffer.from('033c004267000022', 'hex'), 0xdb87)).toBe(-1)
+    expect(hex(before, 0xdb7c, 16)).toBe('082b000300626600002a033c00426700')
+    expect(detectHacks(before).choices.goalieTurnFix).toBe(false)
+    const choices = detectHacks(before).choices
+    const after = hackRom(before, { ...choices, goalieTurnFix: true })
+    expect(hex(after, 0xdb86, 8)).toBe('033c004467000022')
+    expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, goalieTurnFix: true })
+    expect(hex(hackRom(after, { ...choices, goalieTurnFix: false }), 0xdb86, 8)).toBe('033c004267000022')
   })
 })
 

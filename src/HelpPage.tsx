@@ -1742,6 +1742,13 @@ export function HelpPage() {
           puck is loose. Found by chaos. The SNES does not have this bug.
         </li>
         <li>
+          <b>Goalie turning fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the game by the
+          NHL94 Match Viewer project): a computer goalie turning to follow the puck is meant never to turn round
+          through his own net. At the bottom net the original game misses one case, so when the puck goes right to
+          left behind his goal line he turns the long way, facing into his net for a moment. With this on he turns
+          the short way, as the top goalie does. Found by NOSE4Web and the NHL94 Match Viewer project.
+        </li>
+        <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
           +2 Speed and more) is meant to come only when the crowd meter is past its record, but because of a bug it
           is on all the time. With this on it follows the meter, which in recorded games is past its record about

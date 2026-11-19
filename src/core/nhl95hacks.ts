@@ -69,6 +69,7 @@ export interface Nhl95HackChoices {
   faceoffFix: boolean
   awarenessFix: boolean
   centreDefenceFix: boolean
+  goalieTurnFix: boolean
   stickShots: boolean
   anyPosition: boolean
   // Statistics. NHL '95 has no earlier bodycheck counts to keep, so they are off or on.
@@ -122,7 +123,7 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 // page their pages take in.
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
-  'anyPosition',
+  'goalieTurnFix', 'anyPosition',
   'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
@@ -157,6 +158,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   faceoffFix: false,
   awarenessFix: false,
   centreDefenceFix: false,
+  goalieTurnFix: false,
   stickShots: false,
   anyPosition: false,
   threeStars: 'original',
@@ -245,6 +247,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   faceoffFix: 'Faceoff spot fix',
   awarenessFix: "Computer forwards' awareness fix",
   centreDefenceFix: "Computer centres' defence fix",
+  goalieTurnFix: 'Goalie turning fix',
   stickShots: 'Count stick deflections as shots',
   anyPosition: 'Any skater at any position',
   threeStars: 'Three stars',
@@ -364,6 +367,10 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   //   $80E14 takes the raw puck y where the end-turned d2 belongs, so at one end the spot is mirrored. add.w d2,d1 /
   //   nop. (The defence mode 1 .cover path, NHL '95's own, does not come here.)
   centreDefenceFix: { at: 0x80e14, original: hex('D278 B376'), hacked: hex('D242 4E71') },
+  // - AdjustFacingDirection (the same code as NHL 94's, hacks.ts goalieTurnFix): the test that keeps a computer
+  //   goalie from turning through his own net runs from facings 1 and 6 (btst d1,#$42 at $80444), where the bottom
+  //   goalie needs 2. #$44 (2 and 6).
+  goalieTurnFix: { at: 0x80444, original: hex('033C 0042'), hacked: hex('033C 0044') },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -385,6 +392,10 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
   ppPkFix: [
     { at: 0x839ce, bytes: hex('4EB9 0007 D894 6700 0012') }, // jsr chkpk2 / beq.w .pk
     { at: 0x839f4, bytes: hex('1028 0002 0200 000F') }, // d0 loaded afresh after either
+  ],
+  goalieTurnFix: [
+    { at: 0x8043a, bytes: hex('082B 0003 0062 6600 002A') }, // btst #pfjoycon,pflags(a3) / bne.w .add
+    { at: 0x80448, bytes: hex('6700 0022 D240 082B 0007 0062') }, // beq.w .add / add.w d0,d1 / btst #pfgoal,pflags(a3)
   ],
   centreDefenceFix: [
     { at: 0x80e0a, bytes: hex('7282 B47C FFAA 6D00 0008') }, // moveq #-$7E,d1 / cmp.w #-$56,d2 / blt.w .chkgoal
@@ -1955,6 +1966,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     stickShots: stickState(rom),
     anyPosition: switchState(rom, 'anyPosition'),
     centreDefenceFix: switchState(rom, 'centreDefenceFix'),
+    goalieTurnFix: switchState(rom, 'goalieTurnFix'),
     threeStars: threeStars95.detect(rom),
     bodychecks: bodychecks95.detect(rom),
     timeOnIce: timeOnIce95.detect(rom),
@@ -2042,7 +2054,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix', 'goalieTurnFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -2261,6 +2273,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
     "Every faceoff is on a dot, as today's NHL rules have it, where the original often holds one where play stopped, between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use their Offensive Awareness, where the original uses their Defensive.',
   centreDefenceFix: 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
+  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
@@ -2308,7 +2321,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'snipingFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'snipingFix'] },
   {
     id: 'rules',
     title: 'Rules',

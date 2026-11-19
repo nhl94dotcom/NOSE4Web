@@ -754,6 +754,7 @@ code is placed by `placeCode` (section 10). NHL 94 address given briefly for ref
 | `faceoffFix` | Stop4Pen, `$8907A` (86 bytes, `movem.w d0-d1,-(sp)` to `addq.w #4,sp`); limitfo `$88F5C` | hook to `FACEOFF_CODE` (146 bytes: PenBuf `$BFCE`, SortCords `$AC62`, fox/foy `$BB9A`/`$BB9C`; end dots x +-`$4D`, y +-`$D7`; blue lines y +-`$56`; neutral dots x +-`$53` (83), y +-`$41`); edit `303C 0046` -> `303C 0053` | faceoffs between the dots; neutral-zone drop 13 px inside the drawn dot | `$12504` |
 | `awarenessFix` | asswingo `$80C2F`, asscentero `$80F37` (low byte of an operand) | `6B` -> `6A` at both (aidef -> aioff) | computer wingers/centres use Defensive Awareness on offence | `$D0E1`, `$D2D9` |
 | `centreDefenceFix` | asscenterd, `$80E14` (around `$80E0A`, `$80E18`) | `D278 B376` -> `D242 4E71` (add.w (pucky).w,d1 -> add.w d2,d1 / nop) | computer centre on defence covers a mirrored spot at one end (see below) | `$D27A` (`D278 B75E` -> `D242 4E71`) |
+| `goalieTurnFix` | AdjustFacingDirection, `$80444` (around `$8043A`, `$80448`) | `033C 0042` -> `033C 0044` (btst d1,#$42 -> #$44) | bottom computer goalie turns through his own net (see below) | `$DB86` (the same bytes) |
 | `stickShots` | puckstick `.stdef` `$7BA02` | hook on `4EB9 0008 142C 6000 0342` (jsr a2touchpuck / bra.w deflect); code (62 bytes) counts the shot through ChkShotStat's `.addShot` `$8AC7A` (shotplayer `$BAD6`) after tests of gmode `$BEF0` and sflags2 `$BEF4`, then a2touchpuck and `jmp deflect ($7BD4C)` | a save off the goalie's stick isn't a shot | `$151D6` |
 | `blindRingFix` | checkpuckcoll `$7B6B8` | hook on `6100 024A 6000` + edit `$7B6BE` `0052` -> `6650`; code (46 bytes) with puckc `$B3C2`, gmode `$BEF0`, puckstick `$7B904` | dead area round the goalie's stick (8 to ~20 units in NHL '95) | `$14EC8` |
 
@@ -782,6 +783,22 @@ there; NHL '93 has the same code at `$B032`). NHL '95 and W18: `7282 B47C FFAA 6
 NHL '95's team defence mode 1 path (`.cover`) does not reach this code. SNES (NHL94SNES `asscenterd.asm`): the two
 ends are written out separately, `$80`/`$FF80` plus pucky halved for each, both right, so there is no SNES option.
 Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
+
+### Goalie turning fix (`goalieTurnFix`; added 2026-11-18, tested in the game by Match Viewer 2026-11-18)
+
+Genesis NHL 94 (`hacks.ts`, Fixes, off by default, not recommended) and NHL '95 (`nhl95hacks.ts`, `SWITCHES` /
+`AROUND`, How the game plays section after `centreDefenceFix`). Found by NOSE4Web and Match Viewer.
+AdjustFacingDirection (NHL94Genesis `logic94.asm`; NHL95Genesis `logic95.asm`) turns a computer goalie's facedir one
+step toward the puck (skipped for a human goalie, pfjoycon). It is meant never to turn him through the facings into
+his own net: when the test runs he takes the step, and if the new facing is in his mask (top goalie `$83` = 7, 0, 1;
+bottom goalie, pfgoal set, `$38` = 3, 4, 5) he turns the other way instead. The test only runs when the current
+facing is in `btst d1,#$42` = 1 or 6. The top goalie needs it from 6 (and has it); the bottom goalie needs it from 2,
+the mirror of 6; facing 1 never needs it. So with the puck going right to left behind the bottom goal line the bottom
+goalie turns 2-3-4-5-6, through his net. The fix: `#$44` (2 and 6). Match Viewer in the game: bottom goalie
+2-3-4-5-6 before, 2-1-0-7-6 after; the top goalie's mirror case 6-5-4-3-2 on both. Bytes `033C 0042 6700 0022`:
+NHL 94 at `$DB86` (byte `$DB89`), once in the ROM and at `$DB86` in every league ROM tried, EVO included (NHL '93 has
+it at `$B6A6`); NHL '95, W18 and W18p at `$80444` (byte `$80447`), once. SNES not checked. Tests:
+`tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
 ### Organ after a pause (`organResume`)
 
@@ -2224,6 +2241,7 @@ line; check there.
 | 3 on 3 overtime | `nhl95hacks.ts` (`OT3_*`) | Yes | **Yes (8)** |
 | Fixes: assists x3, aggression, comeback, rocket pass, open net, blind ring, runaway, goalie pull, sniping, penalty shot x2, pass direction, ppPk, faceoff, awareness, stick shots | `nhl95hacks.ts`, `hacks.ts` | Yes | **Yes (9)** |
 | Computer centres' defence fix | `nhl95hacks.ts` (`SWITCHES.centreDefenceFix`), `hacks.ts` | No (not yet) | **Yes (9)** |
+| Goalie turning fix | `nhl95hacks.ts` (`SWITCHES.goalieTurnFix`), `hacks.ts` | Yes | **Yes (9)** |
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
@@ -2241,6 +2259,7 @@ line; check there.
 | Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
+| Goalie turning fix (tested in the game) | `hacks.ts` (`goalieTurnFix`) | **Yes (9)** |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
 ### NHL '94 SNES

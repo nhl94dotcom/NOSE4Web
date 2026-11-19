@@ -91,6 +91,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
   centreDefenceFix: 'A computer centre defending outside his zone covers the right spot at both ends of the rink.',
+  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
@@ -161,6 +162,14 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       nears his blue line. Each team has it every other period. With this on he covers the right spot at both ends.
       In NHL '95 it only matters while the puck is loose: with a man on the puck the centre covers in another way,
       which is right at both ends. Found by chaos. {FROM_94}
+    </p>
+  ),
+  goalieTurnFix: (
+    <p className="note">
+      A computer goalie turning to follow the puck is meant never to turn round through his own net. At the bottom net
+      the original game misses one case, so when the puck goes right to left behind his goal line he turns the long
+      way, facing into his net for a moment. With this on he turns the short way, as the top goalie does. Found by
+      NOSE4Web and the NHL94 Match Viewer project. {FROM_94}
     </p>
   ),
   stickShots: (
