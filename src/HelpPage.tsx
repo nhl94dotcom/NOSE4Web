@@ -295,15 +295,14 @@ export function HelpPage() {
               <b>Goalies</b>: Agility only, worth about a quarter of a goal a game for each step.
             </li>
             <li>
-              How much Weight costs is not certain (somewhere between a sixth of a point and 1.3 points a step, about
-              half a point most likely), but heavy stars come out lower anywhere in that range.
+              Exactly how much Weight costs is not certain, but heavy stars come out lower either way.
             </li>
             <li>
               Defencemen are valued mainly on offence; how much they stop goals against is not measured yet.
             </li>
             <li>
-              Off. and Def. Awareness count for almost nothing. Tests showed they make too little difference to
-              measure, and they only affect the skaters a person is not controlling.
+              Off. and Def. Awareness count for almost nothing. They make very little difference, and only to the
+              skaters a person is not controlling.
             </li>
             <li>A goalie's Agility only counts while the computer plays him. A person in net always has the longest reach.</li>
           </ul>
@@ -397,8 +396,7 @@ export function HelpPage() {
 
       <h3 id="help-ratinguse">What the ratings do in play</h3>
       <p>
-        The NHL94 Match Viewer project worked out what each rating does in the game, and checked much of it against
-        recorded games. Being hot or cold moves a rating up or down a little, and the team ratings nudge some of
+        The NHL94 Match Viewer project worked out what each rating does in the game. Being hot or cold moves a rating up or down a little, and the team ratings nudge some of
         them. What each one does:
       </p>
       <ul>
@@ -1340,11 +1338,9 @@ export function HelpPage() {
           the Classic leagues' results. It is 71% the average league value of the team's four best forwards, 15% its
           three best defencemen and 14% its best goalie, so on the same 0–99 scale as the league value (see{' '}
           <b>LV</b> under the team pages). Built only on the best players, it does not depend on how the lines are
-          set. It explains about 69% of the differences in strength between the leagues' teams, and 50% of a team
-          left out of the fit, where the game's Overall explains almost none of a team it has not seen; so it is
-          the better measure of whether a league is balanced. <b>League balance</b> can be measured by it too. It
-          is for the Genesis game with its own ratings; the SNES teams' strengths repeat too poorly from season to
-          season to fit one.
+          set. It predicts how strong a team plays far better than the game's Overall, so it is the better measure
+          of whether a league is balanced. <b>League balance</b> can be measured by it too. It is for the Genesis
+          game with its own ratings; SNES team results vary too much from season to season to build one.
         </li>
         <li>
           <b>Two teams side by side</b> puts any two teams' ratings next to each other: the overall, every line,
@@ -1519,7 +1515,7 @@ export function HelpPage() {
           <b>Count stick deflections as shots</b> (with the statistics, Genesis and SNES): in the original game a
           hard low shot the goalie knocks away with his stick does not count as a shot on goal, so shots along the
           ice go missing from the totals. With this on it counts, for the shooter and his team and against the
-          goalie: about 2 more shots on goal a game in recorded league games. On the SNES hard high shots knocked
+          goalie: about 2 more shots on goal a game. On the SNES hard high shots knocked
           away by the stick or glove count too: up to about 4 more a game. Only the statistics change.
         </li>
         <li>
@@ -1649,9 +1645,9 @@ export function HelpPage() {
           <b>One-timer open net fix</b> (Genesis only, among the recommended fixes): the game aims one-timers
           itself. When the goalie is out of position, it aims just under the crossbar, so many open-net one-timers
           sail over. The fix aims them at the middle of the net, as the game does with the goalie pulled; the
-          computer's shots get the same aim. Tested in the game by the NHL94 Match Viewer project: open-net
-          one-timers went in 86% of the time with it, 56% without, and those with the goalie in position were
-          unchanged. On the SNES one-timers already go where the stick aims.
+          computer's shots get the same aim. Many more open-net one-timers go in, and those with the goalie in
+          position are unchanged. On the SNES one-timers already go where the stick aims. Tested in the game by the
+          NHL94 Match Viewer project.
         </li>
         <li>
           <b>Tied regular-season games</b> (Genesis): the original game ends a regular-season game still tied after
@@ -1676,9 +1672,10 @@ export function HelpPage() {
           builds and NOSE4Web's own fighting. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Fight momentum</b> (Genesis NHL 94, with fighting; not yet tested in the game): the team whose player wins
-          a fight gets +2 Agility and +2 Speed for its skaters, not the goalie, for 90 seconds of play, on top of any
-          crowd boost. The time runs only with the clock and carries over an intermission; another fight hands it on.
+          <b>Fight momentum</b> (Genesis NHL 94, needs fighting on): the team whose player wins a fight gets +2
+          Agility and +2 Speed for its skaters, not the goalie, for 90 seconds of play, on top of any crowd boost.
+          The time runs only with the clock and carries over an intermission; another fight hands it on. Not yet
+          tested in the game.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
@@ -1695,7 +1692,7 @@ export function HelpPage() {
         <li>
           <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
           NHL rules have them. Since 2007–08 every NHL faceoff has been on one of the nine dots. The game follows the
-          older rules, so many faceoffs (about 1 in 8 in recorded Genesis games, mostly after penalties) are in open
+          older rules, so many faceoffs (about 1 in 8, mostly after penalties) are in open
           ice, level with the nearest dots. With the fix every faceoff is on a dot: after a goal at centre; after a
           penalty in the offending team's end, on the side the puck was; otherwise at the nearest dot on the puck's
           side. A puck shot out of play is faced off where the player who last touched it was. When both teams take
@@ -1706,7 +1703,7 @@ export function HelpPage() {
           <b>Runaway speed fix</b> (in with the fixes, Genesis only): now and then a skater you control shoots off
           at up to twice top speed and slides out of control for a second or two. It happens when you take over a
           skater while a pass is coming to him, when a player gets up from a fall into the boards, and when a
-          one-timer misses the puck (about 8 times a game in recorded games). The fix stops it in all three cases.
+          one-timer misses the puck (about 8 times a game). The fix stops it in all three cases.
           Computer skaters still glide onto passes, and a skater you take over with a pass coming is now steered by
           you. Found by the NHL94 Match Viewer project. The SNES game does not have this bug.
         </li>
@@ -1744,56 +1741,51 @@ export function HelpPage() {
           change for most players.
         </li>
         <li>
-          <b>Computer centres' defence fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the
-          game by the NHL94 Match Viewer project): a computer centre defending outside his own zone is meant to stand halfway between the puck
+          <b>Computer centres' defence fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option): a computer centre defending outside his own zone is meant to stand halfway between the puck
           and his own slot. At one end of the rink the original game mirrors the spot, so he drops back as the puck
           goes up the ice and comes out as it comes at him. Teams change ends each period, so each team has it every
           other period. With this on he covers the right spot at both ends. In NHL '95 it only matters while the
-          puck is loose. Found by chaos. The SNES does not have this bug.
+          puck is loose. Found by chaos. The SNES does not have this bug. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Goalie turning fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the game by the
-          NHL94 Match Viewer project): a computer goalie turning to follow the puck is meant never to turn round
+          <b>Goalie turning fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option): a computer goalie turning to follow the puck is meant never to turn round
           through his own net. At the bottom net the original game misses one case, so when the puck goes right to
           left behind his goal line he turns the long way, facing into his net for a moment. With this on he turns
-          the short way, as the top goalie does. Found by NOSE4Web and the NHL94 Match Viewer project.
+          the short way, as the top goalie does. Found by NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Bottom goalie's stick fix</b> (with the fixes, Genesis NHL 94; an option, tested in the game by the NHL94
-          Match Viewer project): the game draws the goalie facing up the screen and facing down it separately, and the
-          bottom goalie's stick ends up in a slightly different place, so low shots get past him a little more often
+          <b>Bottom goalie's stick fix</b> (with the fixes, Genesis NHL 94; an option): the bottom goalie's stick sits
+          in a slightly different place from the top goalie's, so low shots get past him a little more often
           (about 3% more goals against a computer goalie). With this on, in his ready stance and glove saves his stick sits where the top goalie's does.
-          Found by NOSE4Web and the NHL94 Match Viewer project.
+          Found by NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Stick reach fix</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a bug in
+          <b>Stick reach fix</b> (NHL '95; an option): a bug in
           NHL '95 makes every stick reach the puck in a square instead of a circle, and the shorter reach meant for just
           after a pass never applies, so sticks pick up loose pucks very easily. With this on they reach in a circle, as NHL 94 has
-          it: quick steals of loose pucks fall by about 40%. Found by NOSE4Web.
+          it: quick steals of loose pucks fall by about 40%. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Skaters block the puck</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a
-          bug in NHL '95 means a puck never bounces off a skater's body, so only sticks and goalies stop it. With this
-          on skaters block shots and passes, as in NHL 94: about 12 more blocks a game. Found by NOSE4Web.
+          <b>Skaters block the puck</b> (NHL '95; an option): a bug in NHL '95 means a puck never bounces off a skater's body, so only sticks and goalies stop it. With this
+          on skaters block shots and passes, as in NHL 94: about 12 more blocks a game. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the game by
-          the NHL94 Match Viewer project): for shots at the bottom net the original game halves part of a shot's random miss,
-          so they go in a little more often (under 1%). With this
+          <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option): shots at the bottom
+          net miss by a little less than at the top net, so they go in a little more often (under 1%). With this
           on both nets are the same. On Genesis NHL 94, together with the stick fix, this evens out most of the extra goals at the bottom
-          net that league records show.
+          net that league records show. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
           +2 Speed and more) is meant to come only when the crowd meter is past its record, but because of a bug it
-          is on all the time. With this on it follows the meter, which in recorded games is past its record about
-          three quarters of the time.
+          is on all the time. With this on it follows the meter, which is past its record about three quarters of
+          the time.
         </li>
         <li>
           <b>Close the five-hole blind ring</b> (with the fixes, Genesis only; an option, a matter of taste): in the
           butterfly and some kick saves there is a gap where a flat puck touches neither the goalie's stick nor his
-          body, and slides through his legs. With this on his body stops it as anywhere else. Small overall (about
-          0.3% fewer expected goals in recorded games), but it accounts for some five-hole goals (3 of 218 recorded).
+          body, and slides through his legs. With this on his body stops it as anywhere else. A small change: it
+          stops the odd five-hole goal.
         </li>
         <li>
           <b>Goalie hold time:</b> seconds a goalie may hold the puck before the whistle, 2.33 in the original
@@ -1839,10 +1831,10 @@ export function HelpPage() {
           injury</b> (the hit is still called and the player lies down about ten seconds before he skates on); every
           injury lasting the period, or the whole game; or <b>a long fall instead</b> (a hit that would injure keeps
           the player down about 5 seconds, then he plays on, with no injury and no penalty; not with head
-          bleeding). <b>Referee strictness</b> (Genesis NHL 94 tested in the game by the NHL94 Match Viewer project; SNES and NHL
-          '95 not yet): from very lenient (about
-          half the calls) to very strict (about twice), for holding, hooking, tripping, charging, roughing and goalie
-          interference, everyone's Aggression still counting. <b>Hot and cold range</b>: how far hot and cold swing a
+          bleeding). <b>Referee strictness</b>: from very lenient (about half the calls) to very
+          strict (about twice), for holding, hooking, tripping, charging, roughing and goalie interference, everyone's
+          Aggression still counting. Tested in the game by the NHL94 Match Viewer project on Genesis NHL 94; not yet
+          tested in the game on the SNES or in NHL '95. <b>Hot and cold range</b>: how far hot and cold swing a
           rating. <b>No icing</b>.{' '}
           <b>Hybrid icing</b>: decided as the puck crosses the goal line, by which team's nearest skater is closer to
           the end-zone faceoff dots, as the NHL plays it (the original game plays touch icing).{' '}
@@ -2227,7 +2219,7 @@ export function HelpPage() {
               skipping the intros, the extra attacker fix, any skater at any position in Edit Lines, showing the
               maximum boost in Edit Lines, and pulling the goalie with L+R (the last two in NOSE4Web's versions,
               which fix gaps in the Vault's), and the bodycheck counts for each player, shown in Player Stats (sorted by
-              them too, where the Vault's sorts by penalty minutes; the counts stay where nhl94online.com reads them).
+              them too, where the Vault's sorts by penalty minutes; nhl94online.com can still read the counts).
             </li>
             <li>
               On McMarkis's SA-1 and 32-team builds, which are laid out differently, the editor still finds the
@@ -2303,7 +2295,8 @@ export function HelpPage() {
               <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD play overtime,
               in the regular season or every overtime; a penalty gives the other team an extra skater, and a team with
               three in the box plays two skaters. For the original game, league ROMs built on it, and McMarkis's
-              32-team and SA-1 builds; tested in the game on the original game and the SA-1 build.
+              32-team and SA-1 builds. Tested in the game by the NHL94 Match Viewer project on the original game and the
+              SA-1 build.
             </li>
           </ul>
         </li>
@@ -2438,7 +2431,7 @@ export function HelpPage() {
         <li>
           <b>Team colours</b>: NHL '95 uses a strip's 16 colours differently from NHL 94 (the jersey's main colour,
           the goalie's pads and mask, a stripe at the shoulders and waist...). Each is labelled with what it colours,
-          as Match Viewer found in the game, and the previews are NHL '95's own players and rink.
+          as the NHL94 Match Viewer project found in the game, and the previews are NHL '95's own players and rink.
         </li>
         <li>
           <b>Between NHL 94 and NHL '95</b>: players copied from one and pasted into the other, or a team brought in from
@@ -2450,7 +2443,7 @@ export function HelpPage() {
           penalties and line changes, and the play modes the game can start in.
         </li>
         <li>
-          <b>As in NHL 94</b> (checked by Match Viewer): the goalie bytes and forward count split the roster the same
+          <b>As in NHL 94</b> (checked by the NHL94 Match Viewer project): the goalie bytes and forward count split the roster the same
           way, and only whether a goalie box is 0 matters; the six team ratings do the same jobs; and new playoffs
           freeze with a Team 1 that is in none of the playoff draws, which Check ROM looks for. One difference: a
           season remembers each team's forward and defence counts from when it started, so a change to them only
@@ -2481,9 +2474,8 @@ export function HelpPage() {
           94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own, every option on it but three below tested in the game by the NHL94 Match
-          Viewer project.
-          NHL 94's fixes where NHL '95 has the same code: the three
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness is tested in
+          the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
           fixes, the faceoff spot fix, counting stick deflections as shots, the one-timer open net fix, the five-hole blind ring fix,
           the <b>rocket pass fix</b>, the runaway speed fix, the computer goalie pull fix, the pulled-goalie sniping fix
@@ -2492,14 +2484,14 @@ export function HelpPage() {
           the passer, instead of to the teammate he's pointing at. NHL 94's overtime and shootout options:{' '}
           <b>overtime until a goal</b>, a <b>shootout</b> for tied regular-season games (after overtime or after period
           3), the <b>NHL shootout</b> (three rounds, then sudden death) and <b>3 on 3 overtime</b>. And{' '}
-          <b>Fighting</b>, Vancecookcobxin's fighting patch with a fix by Match Viewer: it adds a Fighting setting to Game
+          <b>Fighting</b>, Vancecookcobxin's fighting patch with a fix by the NHL94 Match Viewer project: it adds a Fighting setting to Game
           Setup (Off, On, or On - Arcade Mode), and a league chooses which it starts at. Players fight by their Fighting
           rating (in Handed/Fighting): 71 or more to start a fight, 14 or more to fight back. The WN95HL's Season 18 ROM
           rates no one, so a league there raises some. Three of NHL 94's Ratings options:
           the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
           <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
           are not offered: NHL '95 works out and shows ratings differently. <b>Referee strictness</b>, NHL 94's five
-          levels, from very lenient (about half the calls) to very strict (about twice); not yet tested in the game.
+          levels, from very lenient (about half the calls) to very strict (about twice). Not yet tested in the game.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved
@@ -2572,8 +2564,7 @@ export function HelpPage() {
         <a href="https://github.com/nhl94dotcom/NHL94MatchViewer" target="_blank" rel="noreferrer">
           NHL94 Match Viewer
         </a>{' '}
-        project, which read them in the community's disassembly of the game by abdulahmad and checked them against
-        recorded games.
+        project, which found them in abdulahmad's disassembly of the game.
       </p>
       <p>
         What the editor knows of the SNES game comes from the community's disassemblies of NHL '94 for the SNES:{' '}
