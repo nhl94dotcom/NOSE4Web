@@ -186,17 +186,15 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
     <p className="note">
       A bug in NHL '95 makes every stick reach the puck in a square instead of a circle, so it reaches further on the
       diagonals, and the shorter reach meant for just after a pass never applies. Sticks pick up loose pucks
-      very easily. With this on they reach in a circle, as NHL 94 has it: in a computer test, quick steals of loose pucks fell by about
-      40% and teams kept more of their own loose pucks. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer
-      project.
+      very easily. With this on they reach in a circle, as NHL 94 has it, so there are fewer quick steals of loose
+      pucks. Found by NOSE4Web. {TESTED}
     </p>
   ),
   bodyBlockFix: (
     <p className="note">
       A bug in NHL '95 means a puck never bounces off a skater's body: it passes through him, and only sticks and
-      goalies stop it. With this on skaters block shots and passes, as in NHL 94: in a computer test, about 12 more
-      blocks a game and a couple fewer shots on goal. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer
-      project.
+      goalies stop it. With this on skaters block shots and passes, as in NHL 94, so a game has more blocks and a
+      few fewer shots on goal. Found by NOSE4Web. {TESTED}
     </p>
   ),
   stickShots: (
@@ -350,9 +348,9 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   rocketFix: (
     <p className="note">
-      The game works out how long a pass will take to reach its man and sets the puck's speed to match, but it rounds
-      that time down, so some passes go nearly twice as fast as they should and a few far faster: the rocket passes.
-      The fix works the time out properly, so passes go at their own speed. NHL '95's slow flat pass stays as slow as
+      The game sets each pass's speed from how long it should take to reach its man, but it works that time out
+      wrongly, so some passes go nearly twice as fast as they should and a few far faster: the rocket passes. With the
+      fix passes go at their own speed. NHL '95's slow flat pass stays as slow as
       before, and the receiver still waits for it. {FROM_94}
     </p>
   ),
@@ -376,15 +374,15 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
     <>
       The original game picks its three stars very simply. The improved way weighs goals, assists, shots and checks for
       skaters, and goals against, shots faced and shutouts for goalies. Choose it for how the ROM will mostly be played:
-      skaters are given a little more with line changes on, when each plays less. It uses the checks NHL '95 counts for
-      each player itself, so it needs no bodycheck statistics.
+      skaters are given a little more with line changes on, when each plays less. It works without Bodycheck
+      statistics.
     </>
   ),
   bodychecks: () => (
     <>
       Counts each player's checks while the clock runs and shows them in Player Stats as Chk, where penalty minutes were
-      (sorted as Checks For); players' penalty minutes are then not kept. It counts the checks a player gives, using
-      NHL '95's own count; unlike NHL 94's version, the checks he takes are not counted.
+      (sorted as Checks For); players' penalty minutes are then not kept. It counts the checks a player gives; unlike
+      NHL 94's version, the checks he takes are not counted.
     </>
   ),
   timeOnIce: () => (
@@ -403,7 +401,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       nor anything in highlights or a shootout. Game Stats gets a Give/Takeaways row, and Player Stats a page for each,
       past Penalty Minutes (or Checks For), for the game only. A pass at the net counts as a shot, not a giveaway, if
       the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not
-      counted. Tested in the game by the NHL94 Match Viewer project.
+      counted.
     </>
   ),
   realTime: () => (
@@ -510,7 +508,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
     <>
       Each knockdown a skater takes this game makes a later injury a little likelier, and half of it wears off at each
       intermission. 0 is the original game. Only hits that can already injure are affected. The numbers mean the same
-      as in NHL 94, about that many more chances in 160 for each knockdown; NHL '95 is scaled to match. Recommended in
+      as in NHL 94: about that many more chances in 160 for each knockdown. Recommended in
       NHL 94: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}.
     </>
   ),
@@ -548,8 +546,8 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   puckFriction: (_, stock) => (
     <>
       How fast the puck slows on the ice. A smaller number slows it faster, and each step is double or half: 6 slows it
-      twice as fast as 7, and 8 half as fast. Only the puck changes: NHL '95 gives the puck a number of its own (NHL 94's
-      is shared with gliding skaters), so skaters glide as before. {stock}
+      twice as fast as 7, and 8 half as fast. Only the puck changes, so skaters glide as before (in NHL 94 this setting
+      moves gliding skaters too). {stock}
     </>
   ),
   choppyIce: () => (

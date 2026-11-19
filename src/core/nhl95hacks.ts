@@ -713,7 +713,7 @@ const NHL_SO_ADDRESSES: [number, number, number][] = [
 function nhlSoCode(): Uint8Array {
   const code = NHL_SHOOTOUT_CODE.slice()
   for (const [at, was, now] of NHL_SO_ADDRESSES) {
-    if (((code[at] << 8) | code[at + 1]) !== was) throw new Error("NHL 94's shootout code is not as NHL '95's version of it expects.")
+    if (((code[at] << 8) | code[at + 1]) !== was) throw new Error("The shootout can't be added: this part of the ROM is not as NOSE4Web expects.")
     code.set([now >> 8, now & 0xff], at)
   }
   return code
@@ -2331,7 +2331,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
     `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
   holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   injuryBonus: (c) =>
-    `Each knockdown a skater takes makes a hit that can injure him about ${chance(c.injuryBonus)} in 100 more likely to, its own included (at most about ${chance(c.injuryCap)} in 100), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
+    `Each knockdown a skater takes, the hit itself included, makes a hit that can injure him about ${chance(c.injuryBonus)} in 100 more likely to (at most about ${chance(c.injuryCap)} in 100 in all), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
   injuryCap: (c) => `The injury risk knockdowns add is at most about ${chance(c.injuryCap)} in 100 more on a hit that can injure.`,
   goalieHold: (c) =>
     c.goalieHold === 0
