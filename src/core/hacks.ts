@@ -2030,8 +2030,13 @@ const goalieTurnFix = switchPart(0xdb86, bytes('033C 0042 6700 0022'), bytes('03
 // both nets and stay. Match Viewer, replaying the same shots against the
 // computer goalie: Down/Up 1.03 on the original, 1.00 with this; the top net
 // unchanged; holds and passes look normal. HotList is found through GetHot's
-// movea.l #HotList,a1 ($A44C8; EVO moved it to $1F9400).
+// movea.l #HotList,a1 ($A44C8; EVO moved it to $1F9400). chaos's fighting
+// patch brings its own copy and points GetHot at it ($208916), so this goes in
+// after fighting (hackRom), into the table the game reads; fight.ts lets the
+// copy's changed frames be. A ROM made before that rule may have the change in
+// the original table while the game reads the patch's: removing puts both back.
 const HOTLIST_CODE_AT = 0x106f4
+const ORIGINAL_HOTLIST = 0xa44c8
 const BLADE_RUNS = [
   { frame: 407, original: bytes('00F9 07FC FAF8 04FA 0B01 01F7'), hacked: bytes('01FA 04FB FCFF 0BFC 03FD 01FB') },
   { frame: 428, original: bytes('FAFF FBFA F5FB'), hacked: bytes('F9F9 F9F8 F802') },
@@ -2049,8 +2054,10 @@ const goalieBladeFix: Part<boolean> = {
     return BLADE_RUNS.every((run) => is(rom, at + 2 * run.frame, run.hacked)) ? true : undefined
   },
   remove(rom) {
-    const at = hotList(rom)
-    if (at !== null) for (const run of BLADE_RUNS) rom.set(run.original, at + 2 * run.frame)
+    const tables = [hotList(rom), ORIGINAL_HOTLIST].filter(
+      (at): at is number => at !== null && BLADE_RUNS.every((run) => is(rom, at + 2 * run.frame, run.original) || is(rom, at + 2 * run.frame, run.hacked)),
+    )
+    for (const at of new Set(tables)) for (const run of BLADE_RUNS) rom.set(run.original, at + 2 * run.frame)
   },
   apply(work, value) {
     const at = hotList(work.rom)
@@ -3796,7 +3803,6 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
     ['centreDefenceFix', () => centreDefenceFix.remove(work.rom), () => centreDefenceFix.apply(work, wanted.centreDefenceFix)],
     ['goalieTurnFix', () => goalieTurnFix.remove(work.rom), () => goalieTurnFix.apply(work, wanted.goalieTurnFix)],
-    ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
     ['shotScatterFix', () => shotScatterFix.remove(work.rom), () => shotScatterFix.apply(work, wanted.shotScatterFix)],
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
     ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
@@ -3837,6 +3843,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
+    // After fighting, whose copy of HotList the game reads once it is in.
+    ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
     // After fighting, whose code its winner hook goes into.
     ['fightMomentum', () => fightMomentum.remove(work.rom), () => fightMomentum.apply(work, wanted.fightMomentum)],
   ]

@@ -1762,14 +1762,14 @@ export function HelpPage() {
           <b>Bottom goalie's stick fix</b> (with the fixes, Genesis NHL 94; an option, tested in the game by the NHL94
           Match Viewer project): the game draws the goalie facing up the screen and facing down it separately, and the
           bottom goalie's stick ends up in a slightly different place, so low shots get past him a little more often
-          (about 3% more goals against a computer goalie). With this on his stick sits where the top goalie's does.
+          (about 3% more goals against a computer goalie). With this on, in his ready stance and glove saves his stick sits where the top goalie's does.
           Found by NOSE4Web and the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Stick reach fix</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a bug in
           NHL '95 makes every stick reach the puck in a square instead of a circle, and the shorter reach meant for just
-          after a shot or pass never applies, so sticks pick up loose pucks very easily. With this on they reach as in
-          NHL 94: quick steals of loose pucks fall by about 40%. Found by NOSE4Web.
+          after a pass never applies, so sticks pick up loose pucks very easily. With this on they reach in a circle, as NHL 94 has
+          it: quick steals of loose pucks fall by about 40%. Found by NOSE4Web.
         </li>
         <li>
           <b>Skaters block the puck</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a
@@ -1780,7 +1780,7 @@ export function HelpPage() {
           <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the game by
           the NHL94 Match Viewer project): for shots at the bottom net the original game halves part of a shot's random miss,
           so they go in a little more often (under 1%). With this
-          on both nets are the same. Together with the stick fix this evens out most of the extra goals at the bottom
+          on both nets are the same. On Genesis NHL 94, together with the stick fix, this evens out most of the extra goals at the bottom
           net that league records show.
         </li>
         <li>

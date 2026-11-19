@@ -68,7 +68,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   awarenessFix: () => "Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.",
   centreDefenceFix: () => 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
   goalieTurnFix: () => 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
-  goalieBladeFix: () => "The bottom goalie's stick sits where the top goalie's does, so low shots beat him no more often than the top goalie.",
+  goalieBladeFix: () => "In his ready stance and glove saves the bottom goalie's stick sits where the top goalie's does, so low shots beat him no more often.",
   shotScatterFix: () => 'Shots at the bottom net miss as often as shots at the top net.',
   crowdFix: () => "The crowd's speed boost comes only while the crowd is loud, so skaters are a little slower in quiet spells.",
   stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one he catches already does.",
@@ -113,7 +113,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : c.injuries === 'penaltyOnly'
         ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
-  fightMomentum: () => "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
+  fightMomentum: () => "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters (not the goalie) for 90 seconds of play.",
   referees: (c) =>
     c.referees === 'veryLenient' || c.referees === 'lenient'
       ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryLenient' ? 'about half' : 'about three quarters'} as often.`
@@ -315,7 +315,9 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
           ][amounts.injuries] || SNES[hack]
       : hack === 'referees' && amounts
         ? amounts.referees < 2
-          ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${amounts.referees === 0 ? 'about half' : 'about three quarters'} as often.`
+          ? amounts.referees === 0
+            ? 'The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called about half as often.'
+            : 'The referee is more lenient: holding, hooking, tripping, charging and roughing are called about three quarters as often; goalie interference as before.'
           : `The referee is stricter: holding, hooking, tripping, charging, roughing and goalie interference are called ${amounts.referees === 4 ? 'about twice' : 'about one and a half times'} as often.`
       : hack === 'fighting' && amounts
         ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`

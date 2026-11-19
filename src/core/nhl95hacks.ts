@@ -2357,7 +2357,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   centreDefenceFix: 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
   goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
-  stickReachFix: "A stick reaches the puck in a circle, as in NHL 94, and less far right after a shot or pass, so there are fewer quick steals.",
+  stickReachFix: "A stick reaches the puck in a circle, as NHL 94 has it, and less far right after a pass, so there are fewer quick steals.",
   bodyBlockFix: "A puck that hits a skater's body bounces off him, as in NHL 94, so skaters block shots and passes.",
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',

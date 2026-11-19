@@ -60,3 +60,30 @@ describe.skipIf(roms.length === 0)('fight momentum', () => {
     expect(hex(after, 0x10c02, 10)).toBe('08380001c2fe6600000c')
   })
 })
+
+// The bottom goalie's stick fix goes into the HotList the game reads: with NOSE4Web's fighting in, the patch's own copy.
+describe.skipIf(roms.length === 0)("the bottom goalie's stick fix with fighting", () => {
+  it.each(roms)('goes into the fight patch copy and comes back out of %s', (name) => {
+    const before = new Uint8Array(readFileSync(path(name)))
+    const choices = detectHacks(before).choices
+    const on = hackRom(before, { ...choices, fighting: 'on', goalieBladeFix: true })
+    const table = Buffer.from(on).readUInt32BE(0x106f6)
+    expect(table).toBe(0x208916)
+    expect(hex(on, table + 2 * 407, 12)).toBe('01fa04fbfcff0bfc03fd01fb')
+    expect(hex(on, 0xa44c8 + 2 * 407, 12)).toBe('00f907fcfaf804fa0b0101f7')
+    expect(detectHacks(on)).toEqual({ choices: { ...detectHacks(hackRom(before, { ...choices, fighting: 'on' })).choices, goalieBladeFix: true }, unknown: [] })
+    // Fighting out, stick fix kept: back in the original table.
+    const noFight = hackRom(on, { ...choices, goalieBladeFix: true })
+    expect(detectHacks(noFight).choices.goalieBladeFix).toBe(true)
+    // Both out: the original bytes everywhere.
+    const off = hackRom(on, choices)
+    expect(detectHacks(off).choices.goalieBladeFix).toBe(false)
+    expect(hex(off, 0xa44c8 + 2 * 407, 12)).toBe('00f907fcfaf804fa0b0101f7')
+    // A ROM made before the order was right (change in the original table, the game reading the patch's): off is off.
+    const old = new Uint8Array(hackRom(before, { ...choices, fighting: 'on' }))
+    old.set(Buffer.from('01fa04fbfcff0bfc03fd01fb', 'hex'), 0xa44c8 + 2 * 407)
+    old.set(Buffer.from('f9f9f9f8f802', 'hex'), 0xa44c8 + 2 * 428)
+    const fixed = hackRom(hackRom(old, { ...choices, fighting: 'on' }), choices)
+    expect(detectHacks(fixed).choices.goalieBladeFix).toBe(false)
+  })
+})

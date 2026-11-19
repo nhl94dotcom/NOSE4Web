@@ -93,6 +93,10 @@ const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
   // .FightFall's move.w #$FFFF,$44(a0), which fight momentum (hacks.ts) makes a jsr.
   [FIGHT_WINNER_AT, FIGHT_WINNER_AT + 6],
+  // The patch's own copy of HotList ($208916, GetHot pointed at it): the bottom goalie's stick fix
+  // (hacks.ts goalieBladeFix) changes frames 407-412 and 428-430 in it.
+  [0x208916 + 2 * 407, 0x208916 + 2 * 413],
+  [0x208916 + 2 * 428, 0x208916 + 2 * 431],
   ...[...FIGHT_RAM_NAMED, ...FIGHT_RAM_OFFSETS].map((at): [number, number] => [at, at + 2]),
   TABLES,
   [FRAME_TABLE_OFFSET, FRAME_TABLE_OFFSET + 4],

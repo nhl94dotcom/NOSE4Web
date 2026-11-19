@@ -447,7 +447,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             The game draws the goalie facing up the screen and facing down it separately, and the bottom goalie's
             stick ends up in a slightly different place. Low shots get past him a little more often, about 3% more
-            goals against a computer goalie. With this on his stick sits where the top goalie's does. Found by
+            goals against a computer goalie. With this on, in his ready stance and glove saves his stick sits where the top goalie's does. Found by
             NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
@@ -541,7 +541,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'blockedShots',
           onOff('blockedShots'),
-          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice. Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Not yet tested in the game.",
+          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Not yet tested in the game.",
         )}
         {hack(
           'threeStars',
@@ -888,7 +888,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging,
             roughing and goalie interference. A player's Aggression still counts as before, for people's players and
-            the computer's alike. Offsides, icing and the other calls are unchanged. In computer games very lenient
+            the computer's alike. Offsides, icing and the other calls are unchanged (and on EVO v0.4, which has its own goalie
+            interference code, so is goalie interference). In computer games very lenient
             gave about 64% of the calls and very strict about 242%. Tested in the game by the NHL94 Match Viewer
             project.
           </>,

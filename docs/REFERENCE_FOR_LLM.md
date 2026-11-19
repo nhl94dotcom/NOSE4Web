@@ -789,7 +789,7 @@ Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hac
 
 ### Fight momentum (`fightMomentum`; added 2026-11-19, not yet tested in the game)
 
-Genesis NHL 94 with chaos's fighting (`hacks.ts`, Rules, after Fighting; applied after the fight block goes in). The
+Genesis NHL 94 with chaos's fighting (`hacks.ts`, Rules, after Fighting penalty time; applied after the fight block goes in). The
 fight winner's team gets +2 Agility and +2 Speed for its skaters (not the goalie) for 90 seconds of play, on top of
 any crowd boost (which is global, and always on unless `crowdFix`). One code block (`momentumCode`, 178 bytes):
 - **Winner:** chkhit's .FightFall is the only place a fight gets its winner (a0) and loser (a3) (Match Viewer, from
