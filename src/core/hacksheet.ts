@@ -109,6 +109,10 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : c.injuries === 'penaltyOnly'
         ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
+  referees: (c) =>
+    c.referees === 'veryLenient' || c.referees === 'lenient'
+      ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryLenient' ? 'about half' : 'about three quarters'} as often.`
+      : `The referee is stricter: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryStrict' ? 'about twice' : 'about one and a half times'} as often.`,
   hotColdRange: (c) =>
     c.hotColdRange <= 2
       ? 'Hot and cold no longer change how anyone plays (Edit Lines may still show small differences).'
@@ -178,6 +182,7 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   goalieOut: 'How far out of his net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
   injuries: 'How often hits injure, and how long an injury lasts.',
+  referees: 'How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.',
   hotColdRange: "How far hot and cold can move a player's ratings.",
   threeOnThree: 'Overtime played 3 on 3, as the NHL does, with a skater more for a power play.',
   hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so he tires sooner.',

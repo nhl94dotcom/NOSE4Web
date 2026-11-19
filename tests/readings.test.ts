@@ -22,6 +22,11 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
       // HotList frames 407-412 and 428-430: the facing-up goalie frames' hot spots, mirrored from the facing-down ones
       [{ goalieBladeFix: true }, { 0xa47f6: '01fa04fbfcff0bfc03fd01fb', 0xa4820: 'f9f9f9f8f802' }],
       [{ shotScatterFix: true }, { 0xc48a: '4a6f00046a0000044e71' }],
+      // checkagr's mulu.w #$D,d0 and goalie interference's cmp.w #4,d0
+      [{ referees: 'veryLenient' }, { 0x13e32: '001a', 0x13caa: '0002' }],
+      [{ referees: 'lenient' }, { 0x13e32: '0011', 0x13caa: '0003' }],
+      [{ referees: 'strict' }, { 0x13e32: '0009', 0x13caa: '0006' }],
+      [{ referees: 'veryStrict' }, { 0x13e32: '0006', 0x13caa: '000a' }],
       [{ crowdFix: true }, { 0xfef66: '4e714e71' }],
     ] as const) {
       const before = rom()
@@ -112,6 +117,24 @@ describe.skipIf(allLeagues.length === 0)('the goalie turning fix in league ROMs'
     expect(hex(after, 0xdb86, 8)).toBe('033c004467000022')
     expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, goalieTurnFix: true })
     expect(hex(hackRom(after, { ...choices, goalieTurnFix: false }), 0xdb86, 8)).toBe('033c004267000022')
+  })
+})
+
+// The referee setting in the league ROMs: EVO v0.4 has its own goalie interference code, so only checkagr changes there.
+describe.skipIf(allLeagues.length === 0)('the referee setting in league ROMs', () => {
+  it.each(allLeagues)('goes in and comes out of %s', (name) => {
+    const before = new Uint8Array(readFileSync(path(name)))
+    const choices = detectHacks(before).choices
+    expect(choices.referees).toBe('original')
+    expect(hex(before, 0x13e26, 14)).toBe('303c0028902b0073e208c0fc000d')
+    const own = hex(before, 0x13c9c, 16) === '303c0028902b00736100d3e0b07c0004'
+    const after = hackRom(before, { ...choices, referees: 'veryStrict' })
+    expect(hex(after, 0x13e32, 2)).toBe('0006')
+    expect(hex(after, 0x13caa, 2)).toBe(own ? '000a' : hex(before, 0x13caa, 2))
+    expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, referees: 'veryStrict' })
+    const back = hackRom(after, { ...choices, referees: 'original' })
+    expect(hex(back, 0x13e26, 14)).toBe('303c0028902b0073e208c0fc000d')
+    expect(hex(back, 0x13c9c, 16)).toBe(hex(before, 0x13c9c, 16))
   })
 })
 

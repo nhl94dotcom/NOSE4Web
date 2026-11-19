@@ -20,6 +20,7 @@ import {
   menuLineChanges,
   BCHECK_TEXTS,
   INJURY_TEXTS,
+  REFEREE_TEXTS,
   hacksSupported,
   holdSeconds,
   NO_HACKS,
@@ -32,6 +33,7 @@ import {
   type BCheckPenaltiesOff,
   type PuckColours,
   type Injuries,
+  type Referees,
   THREE_ON_THREE_TEXTS,
   type ThreeOnThree,
   type ThreeStars,
@@ -849,6 +851,21 @@ export function HacksPage({ project, name, onChange }: Props) {
             again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
             post, with the period, penalty and long-fall choices worked out by the NHL94 Match Viewer project. Tested
             in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'referees',
+          <select aria-label={HACK_TITLES.referees} className="wide" disabled={unknown('referees')} value={wanted.referees} onChange={(e) => set({ referees: e.target.value as Referees })}>
+            {(Object.keys(REFEREE_TEXTS) as Referees[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {REFEREE_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging,
+            roughing and goalie interference. A player's Aggression still counts as before, for people's players and
+            the computer's alike. Offsides, icing and the other calls are unchanged. Not yet tested in the game.
           </>,
         )}
       </section>

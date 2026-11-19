@@ -145,6 +145,8 @@ export interface HackChoices {
   realTime: boolean
   // Whether a hit can injure, and for how long.
   injuries: Injuries
+  // How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.
+  referees: Referees
   // The range of each player's hot and cold values: from -n to n - 1.
   hotColdRange: number
   noIcing: boolean
@@ -217,6 +219,8 @@ export type SeasonTies = 'tie' | 'overtime' | 'shootout' | 'shootoutNow'
 
 export type BCheckPenaltiesOff = 'original' | 'asPenaltiesOn' | 'forum'
 export type Injuries = 'original' | 'never' | 'penaltyOnly' | 'period' | 'game' | 'longFall'
+// How often the referee calls the judgement penalties (see referees).
+export type Referees = 'veryLenient' | 'lenient' | 'original' | 'strict' | 'veryStrict'
 
 // 'ratings' covers the rating scale and the bonuses, whose code is shared.
 // 'goalieBox' covers both ways a goalie without the puck may roam.
@@ -264,6 +268,7 @@ export type HackPart =
   | 'turnRate'
   | 'clock'
   | 'injuries'
+  | 'referees'
   | 'hotColdRange'
   | 'noIcing'
   | 'hybridIcing'
@@ -350,6 +355,7 @@ export const NO_HACKS: HackChoices = {
   turnRate: 150,
   realTime: false,
   injuries: 'original',
+  referees: 'original',
   hotColdRange: 9,
   noIcing: false,
   hybridIcing: false,
@@ -2317,6 +2323,51 @@ const injuries: Part<Injuries> = {
   },
 }
 
+// ------------------------------------------------------------- referees
+// The judgement penalties (holding and hooking after a hold, tripping after a
+// B-check, charging and roughing after a check) all roll checkagr: d0 =
+// randomd0(((40 - Agr) / 2) x 13), doubled for a player on a pad and halved
+// near the puck, and the caller calls the penalty when d0 is small (holding
+// 6 or less, tripping and charging 4, roughing 3). The x 13 (mulu.w #$D,d0
+// at $13E30) sets how strict the referee is: a call is about (threshold + 1) /
+// range, so a larger multiplier calls fewer, every player's Aggression
+// counting as before. Goalie interference rolls on its own, randomd0($28 -
+// Agr) <= 4 at $13CA8 (collide .ci), so its threshold moves to match (calls
+// (t + 1) / 5 as often). EVO v0.4 replaced that roll with its own code: there
+// only the multiplier changes.
+const REFEREE_AT = 0x13e26
+const REFEREE_LEAD = bytes('303C 0028 902B 0073 E208 C0FC') // move.w #$28,d0 / sub.b aggress(a3),d0 / lsr.b #1,d0 / mulu.w #
+const INTERFERENCE_AT = 0x13c9c
+const INTERFERENCE_LEAD = bytes('303C 0028 902B 0073 6100 D3E0 B07C') // move.w #$28,d0 / sub.b aggress(a3),d0 / bsr.w randomd0 / cmp.w #
+const REFEREE_LEVELS: Record<Referees, { multiplier: number; interference: number }> = {
+  veryLenient: { multiplier: 26, interference: 2 },
+  lenient: { multiplier: 17, interference: 3 },
+  original: { multiplier: 13, interference: 4 },
+  strict: { multiplier: 9, interference: 6 },
+  veryStrict: { multiplier: 6, interference: 10 },
+}
+const refereeLevel = (rom: Uint8Array, key: 'multiplier' | 'interference', at: number) =>
+  (Object.keys(REFEREE_LEVELS) as Referees[]).find((level) => readU16(rom, at) === REFEREE_LEVELS[level][key])
+const interferenceHere = (rom: Uint8Array) => is(rom, INTERFERENCE_AT, INTERFERENCE_LEAD)
+const referees: Part<Referees> = {
+  detect(rom) {
+    if (!is(rom, REFEREE_AT, REFEREE_LEAD)) return undefined
+    const level = refereeLevel(rom, 'multiplier', REFEREE_AT + REFEREE_LEAD.length)
+    if (!level || !interferenceHere(rom)) return level
+    return refereeLevel(rom, 'interference', INTERFERENCE_AT + INTERFERENCE_LEAD.length) === level ? level : undefined
+  },
+  remove(rom) {
+    if (!is(rom, REFEREE_AT, REFEREE_LEAD)) return
+    writeU16(rom, REFEREE_AT + REFEREE_LEAD.length, REFEREE_LEVELS.original.multiplier)
+    if (interferenceHere(rom)) writeU16(rom, INTERFERENCE_AT + INTERFERENCE_LEAD.length, REFEREE_LEVELS.original.interference)
+  },
+  apply(work, value) {
+    if (value === 'original' || !is(work.rom, REFEREE_AT, REFEREE_LEAD)) return
+    writeU16(work.rom, REFEREE_AT + REFEREE_LEAD.length, REFEREE_LEVELS[value].multiplier)
+    if (interferenceHere(work.rom)) writeU16(work.rom, INTERFERENCE_AT + INTERFERENCE_LEAD.length, REFEREE_LEVELS[value].interference)
+  },
+}
+
 // ------------------------------------------------------- hot and cold range
 // Create_HotCold_Table fills each player's 16 hot and cold values with
 // randomd0s of move.w #9,d0 at $F70AC: each from -n to n - 1, so -9 to 8 in
@@ -3368,6 +3419,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     turnRate: found('turnRate', turnRate.detect(rom), NO_HACKS.turnRate),
     realTime: found('clock', clock.detect(rom), NO_HACKS.realTime),
     injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
+    referees: found('referees', referees.detect(rom), NO_HACKS.referees),
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
     hybridIcing: found('hybridIcing', hybridIcing.detect(rom), NO_HACKS.hybridIcing),
@@ -3489,6 +3541,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
     ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
     ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
+    ['referees', () => referees.remove(work.rom), () => referees.apply(work, wanted.referees)],
     ['hotColdRange', () => hotColdRange.remove(work.rom), () => hotColdRange.apply(work, wanted.hotColdRange)],
     ['noIcing', () => noIcing.remove(work.rom), () => noIcing.apply(work, wanted.noIcing)],
     ['hybridIcing', () => hybridIcing.remove(work.rom), () => hybridIcing.apply(work, wanted.hybridIcing)],
@@ -3755,6 +3808,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   turnRate: 'Stopping and turning',
   realTime: 'Real-time clock',
   injuries: 'Injuries',
+  referees: 'Referee strictness',
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
   hybridIcing: 'Hybrid icing',
@@ -3836,6 +3890,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   turnRate: 'turnRate',
   realTime: 'clock',
   injuries: 'injuries',
+  referees: 'referees',
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
   hybridIcing: 'hybridIcing',
@@ -3881,6 +3936,13 @@ export const BCHECK_TEXTS: Record<BCheckPenaltiesOff, string> = {
   asPenaltiesOn: 'As with penalties on',
   forum: "The forum's version",
 }
+export const REFEREE_TEXTS: Record<Referees, string> = {
+  veryLenient: 'Very lenient: about half the calls',
+  lenient: 'Lenient: about three quarters of the calls',
+  original: 'As in the original game',
+  strict: 'Strict: about half as many calls again',
+  veryStrict: 'Very strict: about twice the calls',
+}
 export const INJURY_TEXTS: Record<Injuries, string> = {
   original: 'As in the original game',
   never: 'Never: a hit is only a fall',
@@ -3908,6 +3970,7 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   // The choices that are not just on and off, in the words their menus use.
   if (key === 'bCheckPenaltiesOff') return lower(BCHECK_TEXTS[choices.bCheckPenaltiesOff])
   if (key === 'injuries') return lower(INJURY_TEXTS[choices.injuries])
+  if (key === 'referees') return lower(REFEREE_TEXTS[choices.referees])
   if (key === 'threeOnThree') return lower(THREE_ON_THREE_TEXTS[choices.threeOnThree])
   if (key === 'fighting') return lower(FIGHT_TEXTS[choices.fighting])
   if (key === 'baseWeight') return `${choices.baseWeight} pounds`

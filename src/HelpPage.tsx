@@ -1829,7 +1829,10 @@ export function HelpPage() {
           injury</b> (the hit is still called and the player lies down about ten seconds before he skates on); every
           injury lasting the period, or the whole game; or <b>a long fall instead</b> (a hit that would injure keeps
           the player down about 5 seconds, then he plays on, with no injury and no penalty; not with head
-          bleeding). <b>Hot and cold range</b>: how far hot and cold swing a rating. <b>No icing</b>.{' '}
+          bleeding). <b>Referee strictness</b> (Genesis NHL 94; not yet tested in the game): from very lenient (about
+          half the calls) to very strict (about twice), for holding, hooking, tripping, charging, roughing and goalie
+          interference, everyone's Aggression still counting. <b>Hot and cold range</b>: how far hot and cold swing a
+          rating. <b>No icing</b>.{' '}
           <b>Hybrid icing</b>: decided as the puck crosses the goal line, by which team's nearest skater is closer to
           the end-zone faceoff dots, as the NHL plays it (the original game plays touch icing).{' '}
           <b>The injured sit out the shootout</b>: with a shootout for tied regular-season games, a skater injured for

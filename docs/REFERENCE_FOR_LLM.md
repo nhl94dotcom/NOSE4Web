@@ -787,6 +787,19 @@ NHL '95's team defence mode 1 path (`.cover`) does not reach this code. SNES (NH
 ends are written out separately, `$80`/`$FF80` plus pucky halved for each, both right, so there is no SNES option.
 Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
+### Referee strictness (`referees`; added 2026-11-19, not yet tested in the game)
+
+Genesis NHL 94 (`hacks.ts`, Rules, five levels, default `original`). The judgement penalties all roll checkagr
+(collide94): d0 = randomd0(((40 - Agr) / 2) x 13), doubled for a pad player and halved within $28 of the puck, and
+the caller calls the penalty when d0 is small (holding/hooking after a hold <= 6, tripping after a B-check <= 4,
+charging <= 4, roughing <= 3). A call is about (threshold + 1) / range, so the level sets the `mulu.w #$D,d0`
+multiplier (word at `$13E32`, after `303C 0028 902B 0073 E208 C0FC` at `$13E26`): very lenient 26 (about 50%), lenient
+17 (76%), original 13, strict 9 (144%), very strict 6 (217%). Goalie interference (.ci) rolls randomd0($28 - Agr) <= 4
+(`cmp.w #4` word at `$13CAA`, after `303C 0028 902B 0073 6100 D3E0 B07C` at `$13C9C`), so its threshold moves to match:
+2, 3, 4, 6, 10 ((t + 1) / 5 of the calls). Every league ROM tried has both at those places; EVO v0.4.0 replaced the
+interference roll with a jsr to its own code, so there only the multiplier changes. Offsides, icing, fights and
+penalty shots are untouched. Tests: `tests/readings.test.ts`.
+
 ### Goalie turning fix (`goalieTurnFix`; added 2026-11-18, tested in the game by Match Viewer 2026-11-18)
 
 Genesis NHL 94 (`hacks.ts`, Fixes, off by default, not recommended) and NHL '95 (`nhl95hacks.ts`, `SWITCHES` /

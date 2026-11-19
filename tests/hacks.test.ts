@@ -248,6 +248,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { goalieTurnFix: true },
       { goalieBladeFix: true },
       { shotScatterFix: true },
+      { referees: 'veryLenient' },
+      { referees: 'veryStrict' },
       { crowdFix: true },
       { barrPick: true },
       { stickShots: true },
