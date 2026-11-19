@@ -66,6 +66,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   goaliePullFix: () => 'Late in the third period the computer pulls its goalie when one or two goals behind, not only when exactly two.',
   blindRingFix: () => "The goalie's body now stops flat pucks that used to slide through his legs.",
   awarenessFix: () => "Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.",
+  centreDefenceFix: () => 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
   crowdFix: () => "The crowd's speed boost comes only while the crowd is loud, so skaters are a little slower in quiet spells.",
   stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one he catches already does.",
   bodychecks: () => "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",

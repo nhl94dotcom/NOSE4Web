@@ -487,6 +487,20 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(claimSpace95(fight.bytes, 0x100)!.at + 0x100 <= start || claimSpace95(fight.bytes, 0x100)!.at >= end).toBe(true)
   })
 
+  it.each(names)("puts NHL 94's computer centres' defence fix into %s at NHL '95's place", (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    // asscenterd: moveq #-$7E,d1 / cmp.w #-$56,d2 / blt.w .chkgoal / add.w (pucky).w,d1 / asr.w #1,d1
+    expect(hex(rom.bytes, 0x80e0a, 16)).toBe('7282b47cffaa6d000008d278b376e241')
+    expect(base.centreDefenceFix).toBe(false)
+    const on = applyNhl95Hacks(rom, { centreDefenceFix: true })
+    expect([...on.bytes.keys()].filter((i) => on.bytes[i] !== rom.bytes[i])).toEqual([0x80e15, 0x80e16, 0x80e17])
+    expect(hex(on.bytes, 0x80e14, 4)).toBe('d2424e71') // add.w d2,d1 / nop
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, centreDefenceFix: true })
+    expectSameBytes(applyNhl95Hacks(on, { centreDefenceFix: false }).bytes, rom.bytes)
+  })
+
   it.each(names)("puts NHL 94's power play, faceoff, awareness and stick-shot fixes into %s at NHL '95's places", (name) => {
     const rom = open(name)
     const base = detectNhl95Hacks(rom.bytes).choices

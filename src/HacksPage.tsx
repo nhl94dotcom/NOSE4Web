@@ -161,7 +161,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'organResume') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'organResume') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -415,6 +415,17 @@ export function HacksPage({ project, name, onChange }: Props) {
             not known. With this on they use Offensive, like the others. A small change: for most players the
             difference is a tiny fraction of a second. Found by the
             NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'centreDefenceFix',
+          onOff('centreDefenceFix'),
+          <>
+            A computer centre defending outside his own zone is meant to stand between the puck and his net. In the
+            original game, at one end of the rink he goes the wrong way: he drops back as the puck goes up the ice and
+            comes out to meet it as it nears his blue line. Teams change ends each period, so each team has it every
+            other period. With this on he covers the right spot at both ends. Found by chaos. Not yet tested in the
+            game.
           </>,
         )}
         {hack(

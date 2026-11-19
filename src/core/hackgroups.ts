@@ -19,7 +19,8 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
     title: 'Fixes',
     hacks: [
       'checkFix', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'openNetFix', 'repeatCheckFix', 'passFix',
-      'faceoffFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'crowdFix',
+      'faceoffFix', 'runawayFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix',
+      'centreDefenceFix', 'crowdFix',
     ],
   },
   { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'timeOnIce', 'giveaways', 'threeStars'] },

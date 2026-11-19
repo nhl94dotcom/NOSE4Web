@@ -90,6 +90,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   ppPkFix: "A team's power play and penalty kill ratings work as set, where the original mixes the two up.",
   faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
+  centreDefenceFix: 'A computer centre defending outside his zone covers the right spot at both ends of the rink.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
@@ -151,6 +152,14 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       their team has the puck and Defensive when it does not, but in the original game computer wingers and centres use
       Defensive on offence too. Whether that was meant is not known. With this on they use Offensive, like the others.
       A small change. {FROM_94}
+    </p>
+  ),
+  centreDefenceFix: (
+    <p className="note">
+      A computer centre defending outside his own zone is meant to stand between the puck and his net. In the original
+      game, at one end of the rink he goes the wrong way: he drops back as the puck goes up the ice and comes out as it
+      nears his blue line. Each team has it every other period. With this on he covers the right spot at both ends.
+      Found by chaos. The same fix as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game.
     </p>
   ),
   stickShots: (

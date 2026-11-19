@@ -1734,6 +1734,14 @@ export function HelpPage() {
           change for most players.
         </li>
         <li>
+          <b>Computer centres' defence fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, not yet tested
+          in the game): a computer centre defending outside his own zone is meant to stand halfway between the puck
+          and his own slot. At one end of the rink the original game mirrors the spot, so he drops back as the puck
+          goes up the ice and comes out as it comes at him. Teams change ends each period, so each team has it every
+          other period. With this on he covers the right spot at both ends. Found by chaos. The SNES does not have
+          this bug.
+        </li>
+        <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
           +2 Speed and more) is meant to come only when the crowd meter is past its record, but because of a bug it
           is on all the time. With this on it follows the meter, which in recorded games is past its record about

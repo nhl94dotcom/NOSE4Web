@@ -109,6 +109,8 @@ export interface HackChoices {
   snipingFix: boolean
   // Computer wingers and centres on offence time their decisions by Offensive Awareness, not Defensive.
   awarenessFix: boolean
+  // A computer centre on defence covers between the puck and his own net at both ends, not mirrored at one.
+  centreDefenceFix: boolean
   // The crowd's +2 Agility and Speed come only when the crowd meter is past its record, not always.
   crowdFix: boolean
   // A goalie's stick deflection counts as a shot on goal, as a catch or a body save does.
@@ -238,6 +240,7 @@ export type HackPart =
   | 'blindRingFix'
   | 'snipingFix'
   | 'awarenessFix'
+  | 'centreDefenceFix'
   | 'crowdFix'
   | 'stickShots'
   | 'goalieHold'
@@ -319,6 +322,7 @@ export const NO_HACKS: HackChoices = {
   blindRingFix: false,
   snipingFix: false,
   awarenessFix: false,
+  centreDefenceFix: false,
   crowdFix: false,
   stickShots: false,
   goalieHold: 140,
@@ -1958,6 +1962,19 @@ function bothParts(a: Part<boolean>, b: Part<boolean>): Part<boolean> {
 // frame at most for most skaters. (Match Viewer's reading of the eight reloads.)
 const awarenessFix = bothParts(switchPart(0xd0e1, bytes('6B'), bytes('6A')), switchPart(0xd2d9, bytes('6B'), bytes('6A')))
 
+// The computer centre on defence (asscenterd; moveq #-128,d1 at $D270;
+// chaos's report, forum topic 35236). Outside his own zone he skates to the
+// midpoint of the puck and his own high slot. d2 is pucky turned so that his own end is negative (neg
+// when pfgoal is clear, shooting at the bottom net), d1 = -128, and with d2 not
+// below -88 (puck out of his zone) add.w (pucky).w,d1 / asr.w #1,d1, then d1 is
+// turned back at .chkgoal. The add takes the raw pucky, not d2: right for the
+// team shooting at the top net, mirrored for the other, which gets
+// (128 - pucky) / 2 where it should get (128 + pucky) / 2, so it backs in as the
+// puck goes up ice and comes out as the puck comes at it. Teams change ends each
+// period, so it is each team in turn. The fix adds d2 (add.w d2,d1 / nop).
+// x (puckx / 2) needs no turn. The SNES has the two ends written out and right.
+const centreDefenceFix = switchPart(0xd27a, bytes('D278 B75E'), bytes('D242 4E71'))
+
 // The crowd bonus (bug 21). When the crowd meter is past its record
 // (sflags7 bit 6) skaters get +2 Agility and +2 Speed in skating, a
 // boost for the chaser of the puck, more reach for the goalie's body and a
@@ -3254,6 +3271,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     blindRingFix: found('blindRingFix', blindRingFix.detect(rom), NO_HACKS.blindRingFix),
     snipingFix: found('snipingFix', snipingFix.detect(rom), NO_HACKS.snipingFix),
     awarenessFix: found('awarenessFix', awarenessFix.detect(rom), NO_HACKS.awarenessFix),
+    centreDefenceFix: found('centreDefenceFix', centreDefenceFix.detect(rom), NO_HACKS.centreDefenceFix),
     crowdFix: found('crowdFix', crowdFix.detect(rom), NO_HACKS.crowdFix),
     stickShots: found('stickShots', stickShots.detect(rom), NO_HACKS.stickShots),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
@@ -3383,6 +3401,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['blindRingFix', () => blindRingFix.remove(work.rom), () => blindRingFix.apply(work, wanted.blindRingFix)],
     ['snipingFix', () => snipingFix.remove(work.rom), () => snipingFix.apply(work, wanted.snipingFix)],
     ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
+    ['centreDefenceFix', () => centreDefenceFix.remove(work.rom), () => centreDefenceFix.apply(work, wanted.centreDefenceFix)],
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
     ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
     ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
@@ -3633,6 +3652,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   blindRingFix: 'Close the five-hole blind ring',
   snipingFix: 'Pulled-goalie sniping fix',
   awarenessFix: "Computer forwards' awareness fix",
+  centreDefenceFix: "Computer centres' defence fix",
   crowdFix: 'Crowd bonus fix',
   stickShots: 'Count stick deflections as shots',
   goalieHold: 'Goalie hold time',
@@ -3710,6 +3730,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   blindRingFix: 'blindRingFix',
   snipingFix: 'snipingFix',
   awarenessFix: 'awarenessFix',
+  centreDefenceFix: 'centreDefenceFix',
   crowdFix: 'crowdFix',
   stickShots: 'stickShots',
   goalieHold: 'goalieHold',

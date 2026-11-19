@@ -17,6 +17,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
     for (const [choice, changes] of [
       [{ snipingFix: true }, { 0xc422: '4e714e71' }],
       [{ awarenessFix: true }, { 0xd0e1: '6a', 0xd2d9: '6a' }],
+      [{ centreDefenceFix: true }, { 0xd27a: 'd2424e71' }],
       [{ crowdFix: true }, { 0xfef66: '4e714e71' }],
     ] as const) {
       const before = rom()
@@ -32,6 +33,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
     expect(hex(original, 0xc422, 4)).toBe('6b000084')
     expect(hex(original, 0xd0de, 6)).toBe('176b006b0040')
     expect(hex(original, 0xd2d6, 6)).toBe('176b006b0040')
+    // asscenterd: moveq #-128,d1 / cmp.w #-88,d2 / blt.w .chkgoal / add.w (pucky).w,d1 / asr.w #1,d1
+    expect(hex(original, 0xd270, 16)).toBe('7280b47cffa86d000008d278b75ee241')
     expect(hex(original, 0xfef66, 4)).toBe('6000000c')
   })
 })
@@ -49,6 +52,27 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('counting stick deflections as s
     )
     expect(detectHacks(after)).toEqual({ choices: { ...NO_HACKS, stickShots: true }, unknown: [] })
     expect(Buffer.compare(hackRom(after, NO_HACKS), before)).toBe(0)
+  })
+})
+
+// The computer centre's defence fix, in the league ROMs: the same code at the same place in each.
+const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
+const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const leagues = [local.league30Rom, ...(local.otherRoms ?? [])].filter(
+  (name): name is string => !!name && !/EVO/.test(name) && existsSync(path(name)),
+)
+describe.skipIf(leagues.length === 0)("the computer centres' defence fix in league ROMs", () => {
+  it.each(leagues)('goes in and comes out of %s at $D27A', (name) => {
+    const before = new Uint8Array(readFileSync(path(name)))
+    expect(hex(before, 0xd270, 16)).toBe('7280b47cffa86d000008d278b75ee241')
+    expect(detectHacks(before).choices.centreDefenceFix).toBe(false)
+    // Other hacks are read and written back as they are, which in some league ROMs moves bytes elsewhere, so
+    // only this place is compared.
+    const choices = detectHacks(before).choices
+    const after = hackRom(before, { ...choices, centreDefenceFix: true })
+    expect(hex(after, 0xd270, 16)).toBe('7280b47cffa86d000008d2424e71e241')
+    expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, centreDefenceFix: true })
+    expect(hex(hackRom(after, { ...choices, centreDefenceFix: false }), 0xd270, 16)).toBe('7280b47cffa86d000008d278b75ee241')
   })
 })
 

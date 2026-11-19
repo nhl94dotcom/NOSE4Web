@@ -753,11 +753,35 @@ code is placed by `placeCode` (section 10). NHL 94 address given briefly for ref
 | `ppPkFix` | setplayer `$839D8` (28 bytes) | `11E8 0001 CAF0 0238 000F CAF0 6000 000E 1028 0001 E808 4400 11C0 CAF1` -> `1028 0001 E808 11C0 CAF0 4E71 6000 000E 700F C028 0001 4400 11C0 CAF1` | PPBonus `$CAF0` / PKBonus `$CAF1` read from the wrong halves of team byte 1 | `$15B1E` |
 | `faceoffFix` | Stop4Pen, `$8907A` (86 bytes, `movem.w d0-d1,-(sp)` to `addq.w #4,sp`); limitfo `$88F5C` | hook to `FACEOFF_CODE` (146 bytes: PenBuf `$BFCE`, SortCords `$AC62`, fox/foy `$BB9A`/`$BB9C`; end dots x +-`$4D`, y +-`$D7`; blue lines y +-`$56`; neutral dots x +-`$53` (83), y +-`$41`); edit `303C 0046` -> `303C 0053` | faceoffs between the dots; neutral-zone drop 13 px inside the drawn dot | `$12504` |
 | `awarenessFix` | asswingo `$80C2F`, asscentero `$80F37` (low byte of an operand) | `6B` -> `6A` at both (aidef -> aioff) | computer wingers/centres use Defensive Awareness on offence | `$D0E1`, `$D2D9` |
+| `centreDefenceFix` | asscenterd, `$80E14` (around `$80E0A`, `$80E18`) | `D278 B376` -> `D242 4E71` (add.w (pucky).w,d1 -> add.w d2,d1 / nop) | computer centre on defence covers a mirrored spot at one end (see below) | `$D27A` (`D278 B75E` -> `D242 4E71`) |
 | `stickShots` | puckstick `.stdef` `$7BA02` | hook on `4EB9 0008 142C 6000 0342` (jsr a2touchpuck / bra.w deflect); code (62 bytes) counts the shot through ChkShotStat's `.addShot` `$8AC7A` (shotplayer `$BAD6`) after tests of gmode `$BEF0` and sflags2 `$BEF4`, then a2touchpuck and `jmp deflect ($7BD4C)` | a save off the goalie's stick isn't a shot | `$151D6` |
 | `blindRingFix` | checkpuckcoll `$7B6B8` | hook on `6100 024A 6000` + edit `$7B6BE` `0052` -> `6650`; code (46 bytes) with puckc `$B3C2`, gmode `$BEF0`, puckstick `$7B904` | dead area round the goalie's stick (8 to ~20 units in NHL '95) | `$14EC8` |
 
 Faceoff around checks: `$8901C`, `$890D0` (jsr limitfo), `$88F56`. Stick around: `$7B9F8`, `$8AC66`. Ring around:
 `$7B6B2`, `$7B6C0`. Others: `AROUND` in `nhl95hacks.ts`.
+
+### Computer centres' defence fix (`centreDefenceFix`; added 2026-11-18, not yet tested in the game)
+
+Genesis NHL 94 (`hacks.ts`, Fixes, off by default, not recommended) and NHL '95 (`nhl95hacks.ts`, `SWITCHES` /
+`AROUND`, Ratings section next to `awarenessFix`). Reported by chaos (forum.nhl94.com topic 35236, "Player
+Assignments - Center"; he blamed the zone check, the slip is the add). asscenterd (NHL94Genesis `logic94.asm`;
+NHL95Genesis `logic95.asm`): with the other team on the puck (or nobody), the computer centre skates to x = puckx / 2
+and a y worked out with his own end negative: d2 = pucky, negated when pfgoal is clear (pfgoal set = shooting at
+the top net, +y; his own net is then at -y). d1 = -128 (-$7E in NHL '95), his own high slot. If d2 < -88 (-$56 in
+'95; puck in his zone) he keeps -128; else `add.w (pucky).w,d1 / asr.w #1,d1`, then d1 is negated back when pfgoal is
+clear. The add takes the raw pucky, not d2. Shooting at the top net that is right, (pucky - 128) / 2, halfway between
+the puck and his slot. Shooting at the bottom net (own net at +y) he gets (128 - pucky) / 2 where it should be
+(128 + pucky) / 2: the spot is mirrored about y 64. Puck at centre ice: 64 either way. Puck near his blue line (y
++80): should be 104, is 24 (he stands out by centre). Puck at the far blue line (y -88): should be 20, is 108 (he is
+back near his own slot). Puck deep in the far end (y -200): should be -36, is 164 (between his slot and his goal
+line). So he backs off as the puck goes away and comes out as it comes at him. Teams change ends each period, so it
+is each team in alternate periods. x needs no turn. The fix: `add.w d2,d1 / nop`. NHL 94 Genesis: `7280 B47C FFA8
+6D00 0008 D278 B75E E241` at `$D270`, once in the ROM, at `$D270` in every league ROM tried (not EVO, which has
+already changed this code to `add.w d2,d1` with -80 for the zone: `D242 E241 4E71`, so the option reads as unknown
+there; NHL '93 has the same code at `$B032`). NHL '95 and W18: `7282 B47C FFAA 6D00 0008 D278 B376 E241` at `$80E0A`.
+NHL '95's team defence mode 1 path (`.cover`) does not reach this code. SNES (NHL94SNES `asscenterd.asm`): the two
+ends are written out separately, `$80`/`$FF80` plus pucky halved for each, both right, so there is no SNES option.
+Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
 ### Organ after a pause (`organResume`)
 
@@ -802,7 +826,7 @@ shot, organ, power play/faceoff/awareness/stick-shot, pass direction tests).
 
 ### Status
 
-All tested in the game by the NHL94 Match Viewer project: the NHL 94 fixes end with `FROM_94` ("The same fix as in NHL
+All but `centreDefenceFix` (not yet tested) tested in the game by the NHL94 Match Viewer project: the NHL 94 fixes end with `FROM_94` ("The same fix as in NHL
 94; it works on the WN95HL's ROMs too. Tested in the game by the NHL94 Match Viewer project."), `passFix` and
 `organResume` with `TESTED` (`Nhl95HacksPage.tsx`).
 
@@ -2199,6 +2223,7 @@ line; check there.
 | Overtime until a goal, season shootouts, NHL shootout | `nhl95hacks.ts` | Yes | **Yes (8)** |
 | 3 on 3 overtime | `nhl95hacks.ts` (`OT3_*`) | Yes | **Yes (8)** |
 | Fixes: assists x3, aggression, comeback, rocket pass, open net, blind ring, runaway, goalie pull, sniping, penalty shot x2, pass direction, ppPk, faceoff, awareness, stick shots | `nhl95hacks.ts`, `hacks.ts` | Yes | **Yes (9)** |
+| Computer centres' defence fix | `nhl95hacks.ts` (`SWITCHES.centreDefenceFix`), `hacks.ts` | No (not yet) | **Yes (9)** |
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
@@ -2215,6 +2240,7 @@ line; check there.
 | In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
 | Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
+| Computer centres' defence fix (not yet tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
 ### NHL '94 SNES
@@ -2227,6 +2253,7 @@ line; check there.
 | Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
 | Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
+| Computer centres' defence: the SNES code is right at both ends, no option | (none) | **Yes (9)** |
 
 ### Planned / not built
 
