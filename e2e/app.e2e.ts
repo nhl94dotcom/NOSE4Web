@@ -2094,7 +2094,7 @@ test.describe('with the NHL 94 ROM', () => {
     const league = buildRom(applyHacks(readRom(new Uint8Array(readFileSync(romPath))), { ...NO_HACKS, passFix: true, faceoffFix: true, goalieHold: 300 }))
     await main.getByLabel('Copy hacks from another ROM').setInputFiles({ name: 'league.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(league) })
     await expect(main.getByText("Set to league.bin's hacks.")).toBeVisible()
-    await expect(main.locator('.outcome li')).toHaveText(['Rocket pass fix: off to on.', 'Faceoff spot fix: off to on.', 'Goalie hold time: 2.33 seconds to 5 seconds.'])
+    await expect(main.locator('.outcome li')).toHaveText(['Rocket pass fix: off to on.', 'Faceoffs on the dots: off to on.', 'Goalie hold time: 2.33 seconds to 5 seconds.'])
     await expect(main.getByLabel('Goalie hold time')).toHaveValue('5')
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await expect(main.getByText('Done: 3 changes to the game. Undo puts it back.')).toBeVisible()
@@ -2106,7 +2106,7 @@ test.describe('with the NHL 94 ROM', () => {
     await openRom(page)
     const main = page.locator('main')
     await entry(page, 'Hacks').click()
-    await main.getByLabel('Faceoff spot fix').selectOption('on')
+    await main.getByLabel('Faceoffs on the dots').selectOption('on')
     await main.getByRole('button', { name: 'Turn on the recommended fixes' }).click()
     await expect(main.locator('.outcome li')).toHaveText([
       'Second-assist bug fix: off to on.',
@@ -2122,7 +2122,7 @@ test.describe('with the NHL 94 ROM', () => {
       'One-timer open net fix: off to on.',
       'Repeated checks fix: off to on.',
       // A choice made already is kept.
-      'Faceoff spot fix: off to on.',
+      'Faceoffs on the dots: off to on.',
       'Runaway speed fix: off to on.',
       'Penalty shot table fix: off to on.',
       'Penalty shot fixes: off to on.',
@@ -2157,7 +2157,7 @@ test.describe('with the NHL 94 ROM', () => {
         '- **One-timer open net fix**',
         '- **Repeated checks fix**',
         '- **Rocket pass fix**',
-        '- **Faceoff spot fix**',
+        '- **Faceoffs on the dots**',
         '- **Runaway speed fix**',
         '- **Penalty shot table fix**',
         '- **Penalty shot fixes**',
@@ -2613,8 +2613,8 @@ test.describe('with the SNES game', () => {
     await entry(page, 'Hacks').click()
     const league = applySnesHacks(readRom(new Uint8Array(readFileSync(snesPath))), { hotColdFix: true, faceoffFix: true })
     await main.getByLabel('Copy hacks from another ROM').setInputFiles({ name: 'league.smc', mimeType: 'application/octet-stream', buffer: Buffer.from(buildRom(league)) })
-    await expect(main.locator('.outcome li')).toHaveText(['Hot and cold bug fix: off to on.', 'Faceoff spot fix: off to on.'])
-    await expect(main.getByLabel('Faceoff spot fix')).toHaveValue('on')
+    await expect(main.locator('.outcome li')).toHaveText(['Hot and cold bug fix: off to on.', 'Faceoffs on the dots: off to on.'])
+    await expect(main.getByLabel('Faceoffs on the dots')).toHaveValue('on')
     // A Genesis ROM is not taken.
     await main.getByLabel('Copy hacks from another ROM').setInputFiles(romPath)
     await expect(main.getByText(/is NHL 94.*not an SNES ROM/)).toBeVisible()
@@ -2642,8 +2642,8 @@ test.describe('with the SNES game', () => {
       'No icing within the crease: off to on.',
       'One-timer that never fires fix: off to on.',
       'Shot that never fires fix: off to on.',
-      'B while checking or bursting fix: off to on.',
-      'L and R while busy fix: off to on.',
+      'B button while checking or bursting fix: off to on.',
+      'L and R defenceman pick while busy fix: off to on.',
     ])
     await main.getByRole('button', { name: 'Apply', exact: true }).click()
     await main.getByRole('button', { name: "Copy this ROM's hacks for Discord" }).click()
@@ -2655,7 +2655,7 @@ test.describe('with the SNES game', () => {
     expect(snesTexts.join('\n')).toMatch(/- \*\*Second-assist bug fix\*\*: .*\n(.*\n)*- \*\*Regained-puck assist fix\*\*: /)
     await main.getByLabel('explain each hack').uncheck()
     await expect(main.getByLabel("This ROM's hacks for Discord")).toHaveValue(
-      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Computer forwards\' awareness fix**\n- **One-timer that never fires fix**\n- **Shot that never fires fix**\n- **B while checking or bursting fix**\n- **L and R while busy fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Bodycheck counts for each player**\n- **Bodychecks in Player Stats**\n- **Regained-puck assist fix**\n- **Defence control on**\n- **No icing within the crease**\n- **Goalie poke check reaches the ice**\n- **Skip the EA intro**\n- **Skip the flying pucks intro**',
+      '**Hacks in NHL94**\n- **Power play and penalty kill fix**\n- **Comeback bonus fix**\n- **Penalty shot fixes**\n- **Extra attacker fix**\n- **Computer forwards\' awareness fix**\n- **One-timer that never fires fix**\n- **Shot that never fires fix**\n- **B button while checking or bursting fix**\n- **L and R defenceman pick while busy fix**\n- **Second-assist bug fix**\n- **Count stick deflections as shots**\n- **Bodycheck counts for each player**\n- **Bodychecks in Player Stats**\n- **Regained-puck assist fix**\n- **Defence control on**\n- **No icing within the crease**\n- **Goalie poke check reaches the ice**\n- **Skip the EA intro**\n- **Skip the flying pucks intro**',
     )
     const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
     expect(sheet).toContain("NHL '94 for the SNES.")
@@ -2681,7 +2681,7 @@ test.describe('with the SNES game', () => {
     await main.getByLabel('Hot and cold bug fix').selectOption('on')
     await main.getByLabel('Any skater at any position in Edit Lines').selectOption('on')
     await expect(main.getByLabel('Extra attacker fix')).toHaveValue('on')
-    await main.getByLabel('Show the maximum boost in Edit Lines').selectOption('on')
+    await main.getByLabel('Show hot/cold-boosted ratings in Edit Lines').selectOption('on')
     await expect(main.getByLabel('Hot and cold bug fix')).toHaveValue('off')
     await main.getByLabel('Pull the goalie with L+R').selectOption('on')
     await main.getByRole('button', { name: 'Apply', exact: true }).click()

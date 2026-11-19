@@ -1468,7 +1468,7 @@ export function HelpPage() {
           bodycheck counts and their column in Player Stats, and skipping both intros.
         </li>
         <li>
-          Left for each league to choose: the faceoff spot fix (a choice between eras), every option, and three
+          Left for each league to choose: Faceoffs on the dots (a choice between eras), every option, and three
           fixes leagues may not want: the Genesis pulled-goalie sniping fix (a quirk some leagues like), the SNES hot
           and cold bug fix (players play lower than people are used to) and the SNES Y button fix (a habit people
           expect).
@@ -1690,7 +1690,7 @@ export function HelpPage() {
           in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Faceoff spot fix</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
+          <b>Faceoffs on the dots</b> (in with the fixes, on the Genesis and the SNES Hacks pages): faceoffs as today's
           NHL rules have them. Since 2007–08 every NHL faceoff has been on one of the nine dots. The game follows the
           older rules, so many faceoffs (about 1 in 8, mostly after penalties) are in open
           ice, level with the nearest dots. With the fix every faceoff is on a dot: after a goal at centre; after a
@@ -1782,7 +1782,7 @@ export function HelpPage() {
           the time.
         </li>
         <li>
-          <b>Close the five-hole blind ring</b> (with the fixes, Genesis only; an option, a matter of taste): in the
+          <b>Five-hole blind spot fix</b> (with the fixes, Genesis only; an option, a matter of taste): in the
           butterfly and some kick saves there is a gap where a flat puck touches neither the goalie's stick nor his
           body, and slides through his legs. With this on his body stops it as anywhere else. A small change: it
           stops the odd five-hole goal.
@@ -2477,7 +2477,7 @@ export function HelpPage() {
           <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness is tested in
           the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
-          fixes, the faceoff spot fix, counting stick deflections as shots, the one-timer open net fix, the five-hole blind ring fix,
+          fixes, faceoffs on the dots, counting stick deflections as shots, the one-timer open net fix, the five-hole blind spot fix,
           the <b>rocket pass fix</b>, the runaway speed fix, the computer goalie pull fix, the pulled-goalie sniping fix
           (an option) and the two penalty shot fixes.
           The <b>pass direction fix</b>, an option: in NHL '95 a pass now and then goes straight across, or back behind
