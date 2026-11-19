@@ -5,18 +5,29 @@
 // give or take a little for being hot or cold.
 
 export const SKATER_RATING_USES: Record<string, string> = {
-  Wgt: 'how quickly he speeds up (heavier is slower), whether checks knock players down, and collisions',
+  // CCStart: 120 (240 for a checker a person controls), minus 8 x his Weight, plus 8 x the hit man's, halved,
+  // less the hit's impact; byte arithmetic, so at 240 a man 16 lb or more heavier wraps round (the weight bug).
+  Wgt: "how quickly he speeds up (heavier is slower), collisions, and checks: the heavier the checker than the man he hits, the likelier a knockdown. In the original game a man you control knocks down almost anyone 16 pounds or more heavier than himself (the weight bug; see Hacks)",
   Agl: 'how quickly he speeds up and turns',
   Spd: 'top speed',
   OfA: 'how quickly computer players react when chasing a loose puck or the man with it, when carrying the puck (deciding to shoot or pass), and as a defenceman whose team has the puck; the team ratings and the comeback bonus change it',
   DfA: 'how quickly computer players react in their other jobs: a defenceman covering a rush, and wingers and centres whether or not their team has the puck (the original game uses Defensive Awareness for forwards on offence too; the computer forwards' awareness option changes that)',
-  ShP: 'shot speed; at 3 or less he cannot wind up a full slapshot',
-  Chk: 'how often his checks knock a man down, whether he can upend a man (4 or more), and how often a computer player tries to check or goes after the man with the puck',
-  'H/F': 'shooting hand, and how long the players he injures are out',
+  // ShotMode: speed 15 +1 a frame held; a working ShP under 20 ends the windup sooner (about 31 against 35);
+  // one-timers 31, backhands x 3/4; then x (20 + ShP / 2) by energy.
+  ShP: 'shot speed: a 6 shoots about twice as hard as a 0. At 5 or 6 he can wind a slapshot up longer, for about an eighth more speed; at 4 only when he is not cold, at 3 or less never. One-timers always get the shorter windup, and backhands lose a quarter',
+  // CCStart: a check needs an impact of 20 or more; after the weight sum, a roll of 0 to that sum less one
+  // knocks down if it is no more than his working Chk / 2 (0-15).
+  Chk: 'how often his checks knock a man down: after the hit and the weights, a 6 wins the last roll many times as often as a 0. Also whether he can upend a man (4 or more), and how often a computer player tries to check or goes after the man with the puck',
+  // setInjuryType: the checker's fighting byte / 4. 0 the period, 3 the game, 1 or 2 the game only when the
+  // injured man's fighting byte has bit 1 set (chkFgtBit1). FallDown .21: only a puck carrier falling back.
+  'H/F': "shooting hand, and how long the men he injures are out: at fighting 0 or 14 for the period, at 85 or 100 for the game, and in between for the game only if the injured man's own fighting is 14, 42, 71 or 100. A hit can only injure a man carrying the puck who is knocked onto his back with the clock running, and the harder the hit the likelier",
   // puckstick's catch limit is 13,000 + 350 x his working value (0-30); FallDown's stumble needs 24 or more, a
   // roll of 16-31 above the hit's impact, and not a hit into the boards. Steals: Match Viewer's test.
   StH: 'catching passes and loose pucks: the higher it is, the faster a puck he can stop on his stick rather than have it bounce off, up to about 1.8 times as fast at 6 as at 0 (shots get no help); stumbling rather than falling when hit, only at 5 or more (4 with the power play, home or hot bonuses), a chance that shrinks the harder the hit, and never when knocked into the boards; and, after a steal, how long before either player can touch the puck again. Whether a steal happens barely depends on it',
-  ShA: 'how often a shot goes exactly where it is aimed, and how far it strays if not',
+  // doshot: within 200 pixels of the aim spot, perfect if a roll of 0 to 15 + working ShA is over 14, so
+  // (ShA + 1) / (ShA + 16); always in highlights, shootouts and with the shooter's goalie pulled. Otherwise a
+  // spread of (speed / 16 + 16 - ShA / 2) x distance / 64.
+  ShA: 'how often a shot goes exactly where it is aimed, which can only happen from about the blue line in: about 1 time in 10 at 0, 4 in 10 at 2, 6 in 10 at 4 and 2 in 3 at 6, a little more on the power play. Shootout shots, and shots with his own goalie pulled, always go exactly. Otherwise it strays, more the farther out and the harder the shot; a 6 strays about a sixth as far as a 0',
   End: 'how fast he tires, which only matters with line changes on',
   Rgh: 'for a computer puck carrier, how readily he shoots rather than passes (the game calls it the pass / shoot bias)',
   Pas: 'pass speed only: passes always go where they are aimed',
