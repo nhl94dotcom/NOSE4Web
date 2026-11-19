@@ -19,6 +19,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
       [{ awarenessFix: true }, { 0xd0e1: '6a', 0xd2d9: '6a' }],
       [{ centreDefenceFix: true }, { 0xd27a: 'd2424e71' }],
       [{ goalieTurnFix: true }, { 0xdb86: '033c004467000022' }],
+      // HotList frames 407-412 and 428-430: the facing-up goalie frames' hot spots, mirrored from the facing-down ones
+      [{ goalieBladeFix: true }, { 0xa47f6: '01fa04fbfcff0bfc03fd01fb', 0xa4820: 'f9f9f9f8f802' }],
+      [{ shotScatterFix: true }, { 0xc48a: '4a6f00046a0000044e71' }],
       [{ crowdFix: true }, { 0xfef66: '4e714e71' }],
     ] as const) {
       const before = rom()
@@ -39,6 +42,21 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13,
     // AdjustFacingDirection: btst d1,#$42 / beq.w .add
     expect(hex(original, 0xdb86, 8)).toBe('033c004267000022')
     expect(hex(original, 0xfef66, 4)).toBe('6000000c')
+    // doshot: tst.w 4(sp) / bpl.w .ycalc / lsr.w #1,d0 (the bottom net's y adjustment halved)
+    expect(hex(original, 0xc48a, 10)).toBe('4a6f00046a000004e248')
+    // GetHot: movea.l #HotList,a1
+    expect(hex(original, 0x106f4, 6)).toBe('227c000a44c8')
+  })
+
+  it('mirrors each facing-up hot spot from its facing-down partner, the glove frames from the other hand', () => {
+    const original = rom()
+    const after = hackRom(original, { ...NO_HACKS, goalieBladeFix: true })
+    const s8 = (b: number) => (b > 127 ? b - 256 : b)
+    const spot = (r: Uint8Array, frame: number) => [s8(r[0xa44c8 + 2 * frame]), s8(r[0xa44c8 + 2 * frame + 1])]
+    for (const [frame, from] of [[407, 419], [408, 421], [409, 420], [410, 416], [411, 418], [412, 417], [428, 422], [429, 424], [430, 423]]) {
+      const [x, y] = spot(original, from)
+      expect(spot(after, frame)).toEqual([x, -y])
+    }
   })
 })
 
@@ -94,6 +112,27 @@ describe.skipIf(allLeagues.length === 0)('the goalie turning fix in league ROMs'
     expect(hex(after, 0xdb86, 8)).toBe('033c004467000022')
     expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, goalieTurnFix: true })
     expect(hex(hackRom(after, { ...choices, goalieTurnFix: false }), 0xdb86, 8)).toBe('033c004267000022')
+  })
+})
+
+// The bottom goalie's stick fix and the shot aim fix in the league ROMs: EVO keeps HotList at $1F9400, found
+// through GetHot.
+describe.skipIf(allLeagues.length === 0)("the bottom net's stick and aim fixes in league ROMs", () => {
+  it.each(allLeagues)('go in and come out of %s', (name) => {
+    const before = new Uint8Array(readFileSync(path(name)))
+    const choices = detectHacks(before).choices
+    expect(choices.goalieBladeFix).toBe(false)
+    expect(choices.shotScatterFix).toBe(false)
+    const hotList = Buffer.from(before).readUInt32BE(0x106f6)
+    const after = hackRom(before, { ...choices, goalieBladeFix: true, shotScatterFix: true })
+    expect(hex(after, hotList + 2 * 407, 12)).toBe('01fa04fbfcff0bfc03fd01fb')
+    expect(hex(after, hotList + 2 * 428, 6)).toBe('f9f9f9f8f802')
+    expect(hex(after, 0xc48a, 10)).toBe('4a6f00046a0000044e71')
+    expect(detectHacks(after).choices).toEqual({ ...detectHacks(hackRom(before, choices)).choices, goalieBladeFix: true, shotScatterFix: true })
+    const back = hackRom(after, { ...choices, goalieBladeFix: false, shotScatterFix: false })
+    expect(hex(back, hotList + 2 * 407, 12)).toBe(hex(before, hotList + 2 * 407, 12))
+    expect(hex(back, hotList + 2 * 428, 6)).toBe(hex(before, hotList + 2 * 428, 6))
+    expect(hex(back, 0xc48a, 10)).toBe('4a6f00046a000004e248')
   })
 })
 

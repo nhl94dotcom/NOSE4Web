@@ -161,7 +161,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'organResume') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'goalieBladeFix' | 'shotScatterFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'organResume') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -437,6 +437,25 @@ export function HacksPage({ project, name, onChange }: Props) {
             turns the long way, facing into his net for a moment. With this on he turns the short way, as the top
             goalie does. Found by NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match
             Viewer project.
+          </>,
+        )}
+        {hack(
+          'goalieBladeFix',
+          onOff('goalieBladeFix'),
+          <>
+            The game draws the goalie facing up the screen and facing down it separately, and the bottom goalie's
+            stick ends up in a slightly different place. Low shots get past him a little more often, about 3% more
+            goals against a computer goalie. With this on his stick sits where the top goalie's does. Found by
+            NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'shotScatterFix',
+          onOff('shotScatterFix'),
+          <>
+            A shot that isn't perfect goes a random amount off target. For shots at the bottom net the original game
+            halves part of that, so they miss a little less often, about 1% more goals. With this on both nets are
+            the same. Not yet tested in the game.
           </>,
         )}
         {hack(

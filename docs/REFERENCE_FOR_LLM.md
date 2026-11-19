@@ -800,6 +800,43 @@ NHL 94 at `$DB86` (byte `$DB89`), once in the ROM and at `$DB86` in every league
 it at `$B6A6`); NHL '95, W18 and W18p at `$80444` (byte `$80447`), once. SNES not checked. Tests:
 `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
+### The bottom net's goals: stick fix and shot aim fix (`goalieBladeFix`, `shotScatterFix`; added 2026-11-19)
+
+Genesis NHL 94 only (`hacks.ts`, Fixes, both off by default, not recommended: a league picks). Background: the
+commissioner's database of Genesis league games (87,260) shows about 3% more goals at the bottom net (Down) than
+the top (Up) once the home edge is taken out (home skates up in periods 1 and 3); more on the power play (7.6%, PP2
+14%, not explained). What NOSE4Web and Match Viewer found, all small and all leaning Down:
+
+- How a save works: checkpuckcoll `.ccx` touches the goalie when the puck (z 15 or lower) is inside his body circle
+  (radius 15 for a pad-controlled goalie, `.cbg` by Agility for the computer; pad stack wider and offset) or (z 5 or
+  lower, Zvel `$200` or less) inside 14 of his stick's hot spot (GetHot, HotList). puckgoalie then works out save odds
+  from his glove/stick attributes (`.list`) and the frame (`.list2` / `.list3`) and never uses them: every touch is
+  a save (bounce or hold).
+- `goalieBladeFix`: HotList (two signed bytes per frame, x then y, world y = -y; at `$A44C8`, found through GetHot's
+  `movea.l #HotList,a1` at `$106F4`; EVO moved it to `$1F9400`) is not y-mirrored between the goalie's facing-up
+  frames (the bottom goalie) and facing-down ones. E.g. turned toward a shooter on screen-right the bottom goalie's
+  blade is 4 to that side, the top goalie's 11. The fix sets frames 407-412 and 428-430 (ready, glove right, glove
+  left for up, up-right, up-left; goalie frames are 407 + 3 x facing + kind) to (x, -y) of 419, 421, 420, 416, 418,
+  417 and 422, 424, 423: a glove frame takes the other hand's, because the goalie's right hand is on screen-right
+  facing up and screen-left facing down. Bytes at frame 407: `00F9 07FC FAF8 04FA 0B01 01F7` -> `01FA 04FB FCFF 0BFC
+  03FD 01FB`; at 428: `FAFF FBFA F5FB` -> `F9F9 F9F8 F802`. The sideways frames (facing 2 and 6) serve both nets and
+  cannot be mirrored this way. Match Viewer's replays of the same shots against the computer goalie: Down/Up 1.03 on
+  retail, 1.00 with the ready frames mirrored and with all 9 (the glove frames never came into those shots); the top
+  net's 1,061 results unchanged. In 6 computer games each, holds and pass-outs looked normal (the hot spot is also
+  where a held puck sits).
+- `shotScatterFix`: doshot's random miss for a shot that is not exact adds up to the adjustment across the screen and
+  (capped `$3C`) up and down it, but for a shot at the bottom net (dy negative) `tst.w 4(sp) / bpl.w .ycalc / lsr.w
+  #1,d0` at `$C48A` halves the up-and-down one. The fix: the `lsr` (`E248` at `$C492`) -> `nop`. About 1% of the
+  bottom net's goals (Match Viewer's replays). Not yet tested in the game. NHL '95 has the same code at `$84D38`
+  (not offered there yet); the SNES halves too (but the SNES's league records lean Up, 0.976).
+- Other end differences found, not offered: rebounds off the bottom goalie are about 5% faster (a `move.b` keeps the
+  old low byte); the glass behind the top net is taller (wallcollb `$14BE0`, Ypos `$118`), which stops far shots but
+  barely changes goals; the shoulder-save fumble (ghighr/ghighl hold points behind the top goalie) adds Up goals; the
+  one-timer target (an A-tap spot pass) never feeds a one-timer; D-pad shot height is fixed to the screen, and flat
+  shots knocked away by the stick are not counted as shots (the 0.94 shot count at the bottom net).
+
+Tests: `tests/readings.test.ts` (nhl94.bin, the 9 frames against their partners, and the league ROMs, EVO included).
+
 ### Organ after a pause (`organResume`)
 
 Two hooks (`organSave`, `organRestore`), both needed for "on":
@@ -2260,6 +2297,7 @@ line; check there.
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Goalie turning fix (tested in the game) | `hacks.ts` (`goalieTurnFix`) | **Yes (9)** |
+| Bottom goalie's stick fix (tested in the game), bottom net shot aim fix | `hacks.ts` (`goalieBladeFix`, `shotScatterFix`) | **Yes (9)** |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
 ### NHL '94 SNES

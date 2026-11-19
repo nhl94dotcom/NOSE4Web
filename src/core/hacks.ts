@@ -113,6 +113,10 @@ export interface HackChoices {
   centreDefenceFix: boolean
   // A computer goalie turning toward the puck never turns round through his own net, at either end.
   goalieTurnFix: boolean
+  // The bottom goalie's stick blade sits where the top goalie's does, mirrored, as he faces up the screen.
+  goalieBladeFix: boolean
+  // Shots at the bottom net scatter up and down the screen as much as shots at the top net.
+  shotScatterFix: boolean
   // The crowd's +2 Agility and Speed come only when the crowd meter is past its record, not always.
   crowdFix: boolean
   // A goalie's stick deflection counts as a shot on goal, as a catch or a body save does.
@@ -244,6 +248,8 @@ export type HackPart =
   | 'awarenessFix'
   | 'centreDefenceFix'
   | 'goalieTurnFix'
+  | 'goalieBladeFix'
+  | 'shotScatterFix'
   | 'crowdFix'
   | 'stickShots'
   | 'goalieHold'
@@ -327,6 +333,8 @@ export const NO_HACKS: HackChoices = {
   awarenessFix: false,
   centreDefenceFix: false,
   goalieTurnFix: false,
+  goalieBladeFix: false,
+  shotScatterFix: false,
   crowdFix: false,
   stickShots: false,
   goalieHold: 140,
@@ -1992,6 +2000,59 @@ const centreDefenceFix = switchPart(0xd27a, bytes('D278 B75E'), bytes('D242 4E71
 // goalie's mirror case is 6-5-4-3-2 either way). The SNES is not checked here.
 const goalieTurnFix = switchPart(0xdb86, bytes('033C 0042 6700 0022'), bytes('033C 0044 6700 0022'))
 
+// The goalie's stick blade. Any touch of the goalie is a save (puckgoalie
+// works out save odds from his ratings and the frame, then never uses them):
+// a puck at z 15 or lower inside his body circle, or at z 5 or lower inside
+// 14 of his stick's hot spot (checkpuckcoll .ccx, GetHot). The hot spot is
+// drawn into each frame (HotList, two signed bytes, x then y, for each frame),
+// and the goalie's facing-up frames (the bottom goalie) are not the mirror of
+// his facing-down ones: turned toward a shooter on screen-right, the bottom
+// goalie's blade is 4 to that side, the top goalie's 11. This sets the nine
+// facing-up frames (ready, glove right, glove left for up, up-right and
+// up-left: 407-412, 428-430) to (x, -y) of their facing-down partners, a
+// glove frame taking the other hand's (the goalie's right hand is on
+// screen-right facing up, screen-left facing down): 407-412 from 419, 421,
+// 420, 416, 418, 417; 428-430 from 422, 424, 423. The sideways frames serve
+// both nets and stay. Match Viewer, replaying the same shots against the
+// computer goalie: Down/Up 1.03 on the original, 1.00 with this; the top net
+// unchanged; holds and passes look normal. HotList is found through GetHot's
+// movea.l #HotList,a1 ($A44C8; EVO moved it to $1F9400).
+const HOTLIST_CODE_AT = 0x106f4
+const BLADE_RUNS = [
+  { frame: 407, original: bytes('00F9 07FC FAF8 04FA 0B01 01F7'), hacked: bytes('01FA 04FB FCFF 0BFC 03FD 01FB') },
+  { frame: 428, original: bytes('FAFF FBFA F5FB'), hacked: bytes('F9F9 F9F8 F802') },
+]
+function hotList(rom: Uint8Array): number | null {
+  if (rom[HOTLIST_CODE_AT] !== 0x22 || rom[HOTLIST_CODE_AT + 1] !== 0x7c) return null
+  const at = readU32(rom, HOTLIST_CODE_AT + 2)
+  return at + 2 * 431 <= rom.length ? at : null
+}
+const goalieBladeFix: Part<boolean> = {
+  detect(rom) {
+    const at = hotList(rom)
+    if (at === null) return undefined
+    if (BLADE_RUNS.every((run) => is(rom, at + 2 * run.frame, run.original))) return false
+    return BLADE_RUNS.every((run) => is(rom, at + 2 * run.frame, run.hacked)) ? true : undefined
+  },
+  remove(rom) {
+    const at = hotList(rom)
+    if (at !== null) for (const run of BLADE_RUNS) rom.set(run.original, at + 2 * run.frame)
+  },
+  apply(work, value) {
+    const at = hotList(work.rom)
+    if (value && at !== null) for (const run of BLADE_RUNS) work.rom.set(run.hacked, at + 2 * run.frame)
+  },
+}
+
+// The shot's aim. A shot that is not exact gets a random adjustment of its
+// aim, up to the same amount across the screen and (to $3C) up and down it;
+// but for a shot at the bottom net (dy negative) doshot halves the up-and-down
+// one: tst.w 4(sp) / bpl.w .ycalc / lsr.w #1,d0 at $C48A. So shots at the
+// bottom net scatter less. This takes the halving out (nop). Worth about one
+// goal in a hundred at the bottom net (Match Viewer's replays). NHL '95 has the
+// same code ($84D38) and the SNES halves there too.
+const shotScatterFix = switchPart(0xc48a, bytes('4A6F 0004 6A00 0004 E248'), bytes('4A6F 0004 6A00 0004 4E71'))
+
 // The crowd bonus (bug 21). When the crowd meter is past its record
 // (sflags7 bit 6) skaters get +2 Agility and +2 Speed in skating, a
 // boost for the chaser of the puck, more reach for the goalie's body and a
@@ -3290,6 +3351,8 @@ export function detectHacks(rom: Uint8Array): HackState {
     awarenessFix: found('awarenessFix', awarenessFix.detect(rom), NO_HACKS.awarenessFix),
     centreDefenceFix: found('centreDefenceFix', centreDefenceFix.detect(rom), NO_HACKS.centreDefenceFix),
     goalieTurnFix: found('goalieTurnFix', goalieTurnFix.detect(rom), NO_HACKS.goalieTurnFix),
+    goalieBladeFix: found('goalieBladeFix', goalieBladeFix.detect(rom), NO_HACKS.goalieBladeFix),
+    shotScatterFix: found('shotScatterFix', shotScatterFix.detect(rom), NO_HACKS.shotScatterFix),
     crowdFix: found('crowdFix', crowdFix.detect(rom), NO_HACKS.crowdFix),
     stickShots: found('stickShots', stickShots.detect(rom), NO_HACKS.stickShots),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
@@ -3421,6 +3484,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['awarenessFix', () => awarenessFix.remove(work.rom), () => awarenessFix.apply(work, wanted.awarenessFix)],
     ['centreDefenceFix', () => centreDefenceFix.remove(work.rom), () => centreDefenceFix.apply(work, wanted.centreDefenceFix)],
     ['goalieTurnFix', () => goalieTurnFix.remove(work.rom), () => goalieTurnFix.apply(work, wanted.goalieTurnFix)],
+    ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
+    ['shotScatterFix', () => shotScatterFix.remove(work.rom), () => shotScatterFix.apply(work, wanted.shotScatterFix)],
     ['crowdFix', () => crowdFix.remove(work.rom), () => crowdFix.apply(work, wanted.crowdFix)],
     ['stickShots', () => stickShots.remove(work.rom), () => stickShots.apply(work, wanted.stickShots)],
     ['injuries', () => injuries.remove(work.rom), () => injuries.apply(work, wanted.injuries)],
@@ -3673,6 +3738,8 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   awarenessFix: "Computer forwards' awareness fix",
   centreDefenceFix: "Computer centres' defence fix",
   goalieTurnFix: 'Goalie turning fix',
+  goalieBladeFix: "Bottom goalie's stick fix",
+  shotScatterFix: 'Bottom net shot aim fix',
   crowdFix: 'Crowd bonus fix',
   stickShots: 'Count stick deflections as shots',
   goalieHold: 'Goalie hold time',
@@ -3752,6 +3819,8 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   awarenessFix: 'awarenessFix',
   centreDefenceFix: 'centreDefenceFix',
   goalieTurnFix: 'goalieTurnFix',
+  goalieBladeFix: 'goalieBladeFix',
+  shotScatterFix: 'shotScatterFix',
   crowdFix: 'crowdFix',
   stickShots: 'stickShots',
   goalieHold: 'goalieHold',

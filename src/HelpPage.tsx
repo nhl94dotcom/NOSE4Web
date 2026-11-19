@@ -1749,6 +1749,19 @@ export function HelpPage() {
           the short way, as the top goalie does. Found by NOSE4Web and the NHL94 Match Viewer project.
         </li>
         <li>
+          <b>Bottom goalie's stick fix</b> (with the fixes, Genesis NHL 94; an option, tested in the game by the NHL94
+          Match Viewer project): the game draws the goalie facing up the screen and facing down it separately, and the
+          bottom goalie's stick ends up in a slightly different place, so low shots get past him a little more often
+          (about 3% more goals against a computer goalie). With this on his stick sits where the top goalie's does.
+          Found by NOSE4Web and the NHL94 Match Viewer project.
+        </li>
+        <li>
+          <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94; an option): for shots at the bottom net the
+          original game halves part of a shot's random miss, so they go in a little more often (about 1%). With this
+          on both nets are the same. Together with the stick fix this evens out most of the extra goals at the bottom
+          net that league records show.
+        </li>
+        <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
           +2 Speed and more) is meant to come only when the crowd meter is past its record, but because of a bug it
           is on all the time. With this on it follows the meter, which in recorded games is past its record about
