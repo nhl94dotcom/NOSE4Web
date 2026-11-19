@@ -517,6 +517,28 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { goalieTurnFix: false }).bytes, rom.bytes)
   })
 
+  it.each(names)("puts the stick reach and body block fixes into %s at checkpuckcoll", (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    // cmp.w (NegChkStickP).w,d1 / blt.w / muls / muls / add.l / move.l #ChkStickSqP,d1 / tst.b nopuck(a3) / ble.w / lsr.w #2,d1
+    expect(hex(rom.bytes, 0x7b694, 30)).toBe('b278dc726d000026c1c0c3c1d081223cffffdc764a2b005e6f00000' + '4e449')
+    // cmp.w (ChkBodyP).w,d1 / bgt.w / move.w (NegChkBodyP).w,d1 / blt.w / muls / muls / add.l / cmp.l (ChkBodySqP).w,d0 / bhi.w
+    expect(hex(rom.bytes, 0x7b6ee, 30)).toBe('b278dc6c6e00001c3238dc706d000014c1c0c3c1d081b0b8dc7462000006')
+    expect(base.stickReachFix).toBe(false)
+    expect(base.bodyBlockFix).toBe(false)
+    const stick = applyNhl95Hacks(rom, { stickReachFix: true })
+    expect([...stick.bytes.keys()].filter((i) => stick.bytes[i] !== rom.bytes[i])).toEqual([0x7b6a2, 0x7b6a3, 0x7b6a4, 0x7b6a5])
+    expect(hex(stick.bytes, 0x7b6a2, 6)).toBe('72003238dc76') // moveq #0,d1 / move.w (ChkStickSqP).w,d1
+    const body = applyNhl95Hacks(rom, { bodyBlockFix: true })
+    expect([...body.bytes.keys()].filter((i) => body.bytes[i] !== rom.bytes[i])).toEqual([0x7b6f6, 0x7b6f7, 0x7b705])
+    expect(hex(body.bytes, 0x7b6f6, 4)).toBe('b278dc70') // cmp.w (NegChkBodyP).w,d1
+    expect(hex(body.bytes, 0x7b704, 4)).toBe('b078dc74') // cmp.w (ChkBodySqP).w,d0
+    const both = applyNhl95Hacks(rom, { stickReachFix: true, bodyBlockFix: true })
+    expect(detectNhl95Hacks(both.bytes).choices).toEqual({ ...base, stickReachFix: true, bodyBlockFix: true })
+    expectSameBytes(applyNhl95Hacks(both, { stickReachFix: false, bodyBlockFix: false }).bytes, rom.bytes)
+  })
+
   it.each(names)("puts NHL 94's bottom net shot aim fix into %s at NHL '95's place", (name) => {
     const rom = open(name)
     const base = detectNhl95Hacks(rom.bytes).choices

@@ -71,6 +71,8 @@ export interface Nhl95HackChoices {
   centreDefenceFix: boolean
   goalieTurnFix: boolean
   shotScatterFix: boolean
+  stickReachFix: boolean
+  bodyBlockFix: boolean
   stickShots: boolean
   anyPosition: boolean
   // Statistics. NHL '95 has no earlier bodycheck counts to keep, so they are off or on.
@@ -124,7 +126,7 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 // page their pages take in.
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
-  'goalieTurnFix', 'shotScatterFix', 'anyPosition',
+  'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'anyPosition',
   'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
@@ -161,6 +163,8 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   centreDefenceFix: false,
   goalieTurnFix: false,
   shotScatterFix: false,
+  stickReachFix: false,
+  bodyBlockFix: false,
   stickShots: false,
   anyPosition: false,
   threeStars: 'original',
@@ -251,6 +255,8 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   centreDefenceFix: "Computer centres' defence fix",
   goalieTurnFix: 'Goalie turning fix',
   shotScatterFix: 'Bottom net shot aim fix',
+  stickReachFix: 'Stick reach fix',
+  bodyBlockFix: 'Skaters block the puck',
   stickShots: 'Count stick deflections as shots',
   anyPosition: 'Any skater at any position',
   threeStars: 'Three stars',
@@ -378,6 +384,21 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   //   adjustment of its aim, and for a shot at the bottom net (dy negative) tst.w 4(sp) / bpl.w / lsr.w #1,d0 at
   //   $84D38 halves the up-and-down one. The lsr at $84D40 -> nop. Retail, W18 and W18p alike.
   shotScatterFix: { at: 0x84d38, original: hex('4A6F 0004 6A00 0004 E248'), hacked: hex('4A6F 0004 6A00 0004 4E71') },
+  // - checkpuckcoll (NHL '95's own bugs; NHL 94 has neither). The stick test, after the box (ChkStickP /
+  //   NegChkStickP), loads move.l #ChkStickSqP,d1 at $7B6A2: the RAM address, not the reach squared kept there, so
+  //   the circle test always passes (the reach is a box) and the half reach while the puck's nopuck runs (lsr.w #2,d1)
+  //   never applies. moveq #0,d1 / move.w (ChkStickSqP).w,d1. Match Viewer, 4 computer games: quick steals of loose
+  //   pucks about 40% fewer, more of a team's own loose pucks kept; goalies about the same.
+  stickReachFix: { at: 0x7b6a2, original: hex('223C FFFF DC76'), hacked: hex('7200 3238 DC76') },
+  //   The skater body test's y check is move.w (NegChkBodyP).w,d1 at $7B6F6 where a cmp belongs, so the blt always
+  //   exits and puckbody is never reached: pucks pass through skaters. And its circle test, cmp.l (ChkBodySqP).w,d0
+  //   at $7B704, reads ChkBodySqP and ChkStickSqP as one long. cmp.w for both (d0 is at most 2 x 11 x 11 there).
+  //   Match Viewer: about 12 more blocks a game, a couple fewer shots on goal; nothing stuck.
+  bodyBlockFix: {
+    at: 0x7b6f6,
+    original: hex('3238 DC70 6D00 0014 C1C0 C3C1 D081 B0B8 DC74'),
+    hacked: hex('B278 DC70 6D00 0014 C1C0 C3C1 D081 B078 DC74'),
+  },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -403,6 +424,14 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
   goalieTurnFix: [
     { at: 0x8043a, bytes: hex('082B 0003 0062 6600 002A') }, // btst #pfjoycon,pflags(a3) / bne.w .add
     { at: 0x80448, bytes: hex('6700 0022 D240 082B 0007 0062') }, // beq.w .add / add.w d0,d1 / btst #pfgoal,pflags(a3)
+  ],
+  stickReachFix: [
+    { at: 0x7b694, bytes: hex('B278 DC72 6D00 0026 C1C0 C3C1 D081') }, // cmp.w (NegChkStickP).w,d1 / blt.w / muls / muls / add.l
+    { at: 0x7b6a8, bytes: hex('4A2B 005E 6F00 0004 E449 B081 6200 000A') }, // tst.b nopuck(a3) / ble.w / lsr.w #2,d1 / cmp.l / bhi.w
+  ],
+  bodyBlockFix: [
+    { at: 0x7b6ee, bytes: hex('B278 DC6C 6E00 001C') }, // cmp.w (ChkBodyP).w,d1 / bgt.w .exit
+    { at: 0x7b708, bytes: hex('6200 0006 6100 059A') }, // bhi.w .exit / bsr.w puckbody
   ],
   shotScatterFix: [
     { at: 0x84d2c, bytes: hex('B07C 003C 6300 0006 703C 3E80') }, // cmp.w #$3C,d0 / bls.w / moveq #$3C,d0 / move.w d0,(sp)
@@ -1979,6 +2008,8 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     centreDefenceFix: switchState(rom, 'centreDefenceFix'),
     goalieTurnFix: switchState(rom, 'goalieTurnFix'),
     shotScatterFix: switchState(rom, 'shotScatterFix'),
+    stickReachFix: switchState(rom, 'stickReachFix'),
+    bodyBlockFix: switchState(rom, 'bodyBlockFix'),
     threeStars: threeStars95.detect(rom),
     bodychecks: bodychecks95.detect(rom),
     timeOnIce: timeOnIce95.detect(rom),
@@ -2066,7 +2097,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -2287,6 +2318,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   centreDefenceFix: 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
   goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
+  stickReachFix: "A stick reaches the puck in a circle, as in NHL 94, and less far right after a shot or pass, so there are fewer quick steals.",
+  bodyBlockFix: "A puck that hits a skater's body bounces off him, as in NHL 94, so skaters block shots and passes.",
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
@@ -2334,7 +2367,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'snipingFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'snipingFix'] },
   {
     id: 'rules',
     title: 'Rules',

@@ -93,6 +93,8 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   centreDefenceFix: 'A computer centre defending outside his zone covers the right spot at both ends of the rink.',
   goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net.',
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
+  stickReachFix: 'A stick reaches the puck in a circle, and less far right after a shot or pass.',
+  bodyBlockFix: "A puck that hits a skater's body bounces off him.",
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
@@ -177,6 +179,23 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
     <p className="note">
       A shot that isn't perfect goes a random amount off target. For shots at the bottom net the original game halves
       part of that, so they miss a little less often. With this on both nets are the same. {FROM_94}
+    </p>
+  ),
+  stickReachFix: (
+    <p className="note">
+      A bug in NHL '95 makes every stick reach the puck in a square instead of a circle, so it reaches further on the
+      diagonals, and the shorter reach meant for just after a shot or pass never applies. Sticks pick up loose pucks
+      very easily. With this on they reach as in NHL 94: in a computer test, quick steals of loose pucks fell by about
+      40% and teams kept more of their own loose pucks. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer
+      project.
+    </p>
+  ),
+  bodyBlockFix: (
+    <p className="note">
+      A bug in NHL '95 means a puck never bounces off a skater's body: it passes through him, and only sticks and
+      goalies stop it. With this on skaters block shots and passes, as in NHL 94: in a computer test, about 12 more
+      blocks a game and a couple fewer shots on goal. Found by NOSE4Web. Tested in the game by the NHL94 Match Viewer
+      project.
     </p>
   ),
   stickShots: (

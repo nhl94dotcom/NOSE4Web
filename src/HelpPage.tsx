@@ -1756,6 +1756,17 @@ export function HelpPage() {
           Found by NOSE4Web and the NHL94 Match Viewer project.
         </li>
         <li>
+          <b>Stick reach fix</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a bug in
+          NHL '95 makes every stick reach the puck in a square instead of a circle, and the shorter reach meant for just
+          after a shot or pass never applies, so sticks pick up loose pucks very easily. With this on they reach as in
+          NHL 94: quick steals of loose pucks fall by about 40%. Found by NOSE4Web.
+        </li>
+        <li>
+          <b>Skaters block the puck</b> (NHL '95; an option, tested in the game by the NHL94 Match Viewer project): a
+          bug in NHL '95 means a puck never bounces off a skater's body, so only sticks and goalies stop it. With this
+          on skaters block shots and passes, as in NHL 94: about 12 more blocks a game. Found by NOSE4Web.
+        </li>
+        <li>
           <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the game by
           the NHL94 Match Viewer project): for shots at the bottom net the original game halves part of a shot's random miss,
           so they go in a little more often (under 1%). With this

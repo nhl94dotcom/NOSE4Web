@@ -755,6 +755,8 @@ code is placed by `placeCode` (section 10). NHL 94 address given briefly for ref
 | `awarenessFix` | asswingo `$80C2F`, asscentero `$80F37` (low byte of an operand) | `6B` -> `6A` at both (aidef -> aioff) | computer wingers/centres use Defensive Awareness on offence | `$D0E1`, `$D2D9` |
 | `centreDefenceFix` | asscenterd, `$80E14` (around `$80E0A`, `$80E18`) | `D278 B376` -> `D242 4E71` (add.w (pucky).w,d1 -> add.w d2,d1 / nop) | computer centre on defence covers a mirrored spot at one end (see below) | `$D27A` (`D278 B75E` -> `D242 4E71`) |
 | `goalieTurnFix` | AdjustFacingDirection, `$80444` (around `$8043A`, `$80448`) | `033C 0042` -> `033C 0044` (btst d1,#$42 -> #$44) | bottom computer goalie turns through his own net (see below) | `$DB86` (the same bytes) |
+| `stickReachFix` | checkpuckcoll, `$7B6A2` (around `$7B694`, `$7B6A8`) | `223C FFFF DC76` -> `7200 3238 DC76` (move.l #ChkStickSqP -> moveq #0 / move.w (ChkStickSqP).w) | '95 only: the stick circle test reads the address, so the reach is a box and the post-release half reach never applies (tested in the game 2026-11-19) | none (NHL 94 is right) |
+| `bodyBlockFix` | checkpuckcoll, `$7B6F6`-`$7B707` (around `$7B6EE`, `$7B708`) | `3238 DC70` -> `B278 DC70` and `B0B8 DC74` -> `B078 DC74` (move -> cmp; cmp.l -> cmp.w) | '95 only: the skater body y test is a move, so puckbody is never reached and pucks pass through skaters (tested in the game 2026-11-19: about 12 more blocks a game) | none (NHL 94 is right) |
 | `shotScatterFix` | doshot, `$84D38` (around `$84D2C`, `$84D42`) | `4A6F 0004 6A00 0004 E248` -> `... 4E71` (lsr.w #1,d0 -> nop) | bottom net's y aim adjustment halved (tested in the game in '95 by Match Viewer 2026-11-19: top net's 900 results identical, bottom net's wides 1.9% -> 3.0%) | `$C48A` (the same bytes) |
 | `stickShots` | puckstick `.stdef` `$7BA02` | hook on `4EB9 0008 142C 6000 0342` (jsr a2touchpuck / bra.w deflect); code (62 bytes) counts the shot through ChkShotStat's `.addShot` `$8AC7A` (shotplayer `$BAD6`) after tests of gmode `$BEF0` and sflags2 `$BEF4`, then a2touchpuck and `jmp deflect ($7BD4C)` | a save off the goalie's stick isn't a shot | `$151D6` |
 | `blindRingFix` | checkpuckcoll `$7B6B8` | hook on `6100 024A 6000` + edit `$7B6BE` `0052` -> `6650`; code (46 bytes) with puckc `$B3C2`, gmode `$BEF0`, puckstick `$7B904` | dead area round the goalie's stick (8 to ~20 units in NHL '95) | `$14EC8` |
@@ -861,7 +863,10 @@ the top (Up) once the home edge is taken out (home skates up in periods 1 and 3)
   crouch and stick-save frames only (18 frames, gloves kept): a model gives Down/Up 1.00 in save mode (retail 1.01-1.05,
   turned ready 1.18). Also new in '95: checkpuckcoll's one-timer reach ($12) is reset to $E by each earlier
   non-one-timer in OOlist order, which should favour one-timers at the bottom net; and the stick test loads
-  `move.l #$FFFFDC76,d1` at `$7B6A2` (ChkStickSqP's address, not its value), so the stick reach is a box, not a circle.
+  `move.l #$FFFFDC76,d1` at `$7B6A2` (ChkStickSqP's address, not its value), so the stick reach is a box, not a circle (offered as `stickReachFix`); next to it the skater body test's y check is a
+  `move` where a `cmp` belongs, so pucks never hit skaters' bodies (offered as `bodyBlockFix`). Match Viewer, 4 computer
+  games a ROM: blocks 16 -> 28 a game with the body fix, quick loose-puck steals 33 -> 20 with the stick fix, goalies
+  about the same, nothing stuck.
 - The SNES (league 0.976: about 2.4% fewer goals at the bottom net, shots 0.989, penalties even): no stick-art,
   turning or shoulder-save faults like the Genesis's. The y-scatter halving is the same (`$9E:E36D`, about 0.5%). The
   goalie body box (checkpuckcoll_ccx .7, `$9E:98FB`, goalie - puck in [-11, 10]) barely matters in the game. puckgoalie
@@ -2321,6 +2326,7 @@ line; check there.
 | Computer centres' defence fix | `nhl95hacks.ts` (`SWITCHES.centreDefenceFix`), `hacks.ts` | No (not yet) | **Yes (9)** |
 | Goalie turning fix | `nhl95hacks.ts` (`SWITCHES.goalieTurnFix`), `hacks.ts` | Yes | **Yes (9)** |
 | Bottom net shot aim fix | `nhl95hacks.ts` (`SWITCHES.shotScatterFix`), `hacks.ts` | Yes | **Yes (9)** |
+| Stick reach fix, skaters block the puck ('95's own bugs) | `nhl95hacks.ts` (`SWITCHES.stickReachFix`, `bodyBlockFix`) | Yes | **Yes (9)** |
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
