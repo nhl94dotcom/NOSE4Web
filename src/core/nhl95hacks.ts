@@ -2307,8 +2307,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
-  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'centreDefenceFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'snipingFix'] },
+  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'snipingFix'] },
   {
     id: 'rules',
     title: 'Rules',
