@@ -780,7 +780,7 @@ const fourthPeriodOvertime: Part<number> = {
   apply(work, value) {
     if (value <= 0) return
     const tables = genesisOptionLimits(work.rom)
-    if (tables.length === 0) throw new HackError("The main menu's table of choices is not where the original game has it.")
+    if (tables.length === 0) throw new HackError("The extra period length needs the main menu's choices where the original game has them, and this ROM has them changed.")
     const before = readU16(work.rom, tables[0] + OT4_LINE * 2)
     hook(work, OT4_HOOK, Uint8Array.from([...ot4Code(value), OT4_TAG >> 8, OT4_TAG & 0xff, before >> 8, before & 0xff]))
     setPeriodChoices(work.rom, OT4_LENGTHS.hacked)
@@ -2329,7 +2329,7 @@ const injuries: Part<Injuries> = {
     if (value === 'longFall') {
       if (!listsAre(work.rom, 'original')) {
         throw new HackError(
-          "A long fall instead of an injury needs the injury animation as the original game has it. If this ROM has head bleeding, which draws its blood in that animation, take it out first: with no injuries it would never show.",
+          "A long fall instead of an injury needs the injury animation as the original game has it. If this ROM has head bleeding, take it out first: with no injuries, the blood would never show.",
         )
       }
       INJURY_LISTS.forEach((at, i) => work.rom.set(bytes(FALL_LISTS.longFall[i]), at))
@@ -2466,7 +2466,7 @@ const fightMomentum: Part<boolean> = {
     // Without fighting there are no fights to win: nothing to do (the page offers it only with fighting).
     const fights = fightState(work.rom)
     if (fights === 'none' || fights === undefined || !(FIGHT_WINNER_AT + 6 <= work.rom.length && is(work.rom, FIGHT_WINNER_AT, MOMENTUM_WINNER))) return
-    if (!momentumOriginal(work.rom)) throw new HackError("Fight momentum needs the game's skating and penalty clock code as the original game has it.")
+    if (!momentumOriginal(work.rom)) throw new HackError("Fight momentum needs the game's skating and penalty clock as the original game has them, and this ROM has them changed.")
     const tickTarget = readU32(work.rom, MOMENTUM_TICK_AT + 2)
     const base = place(work, momentumCode(tickTarget))
     writeHook(work.rom, MOMENTUM_AGILITY, base + MOMENTUM_ENTRIES.agility)
@@ -3737,7 +3737,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     if (!Number.isInteger(wanted[key]) || wanted[key] < least || wanted[key] > most) throw new HackError(`${HACK_TITLES[key]} has to be a whole number from ${least} to ${most}.`)
   }
   if (wanted.injuries === 'longFall' && wanted.headBleeding) {
-    throw new HackError('A long fall instead of an injury and head bleeding cannot both be on: the blood is drawn in the injury animation the long fall turns into a fall that gets up, and with no injuries it would never show.')
+    throw new HackError('A long fall instead of an injury and head bleeding cannot both be on: with no injuries, the blood would never show.')
   }
   if (wanted.barrPick && wanted.barrCoin) {
     throw new HackError("Ron Barr's pick every game and his pick by a coin flip cannot both be on: he picks one way or the other.")

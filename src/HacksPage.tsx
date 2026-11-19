@@ -195,10 +195,10 @@ export function HacksPage({ project, name, onChange }: Props) {
           smozROM
         </a>{' '}
         (built in here with his permission), from members of the NHL94 forums, from the NHL94 Match Viewer project,
-        which found many of the game's bugs and tests hacks in the game, and from chaos's fighting patch; each hack's
-        note says whose it is, and Help names everyone. The page shows what this ROM has now. Many of the settings
-        under Energy, Goalies and Skating are the game's own numbers, in its own units, so change them a little at a
-        time and try the result in a game. Test a hacked ROM in a game before a league plays on it.
+        which found many of the game's bugs, and from chaos's fighting patch; each hack's note says whose it is, and
+        Help names everyone. The page shows what this ROM has now. Many of the settings under Energy, Goalies and
+        Skating are the game's own numbers, in its own units, so change them a little at a time and try the result in
+        a game. Play a hacked ROM yourself before a league plays on it.
       </p>
       <HackShortcuts
         onRecommended={
@@ -314,11 +314,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           onOff('passFix'),
           <>
             Now and then in the original game a pass goes nearly twice as fast as the passer's rating allows: the
-            rocket pass, mostly to a teammate skating towards the passer 17 to 23 feet away. And a pass to a teammate
-            skating away close by is sometimes fired at him almost at once. Both come from rough timing in how the game
-            works out a pass. With this fix every pass goes at the speed its Passing rating sets; how high a pass lifts
-            is unchanged. Passing will feel different to players used to the rocket pass, and a receiver catches more
-            of the passes that used to bounce off his stick. Found and measured by the NHL94 Match Viewer project.
+            rocket pass, mostly to a teammate skating towards the passer from a short way off. And a pass to a
+            teammate skating away close by is sometimes fired at him almost at once. With this fix every pass goes at
+            the speed its Passing rating sets; how high a pass lifts is unchanged. Passing will feel different to
+            players used to the rocket pass, and a receiver catches more of the passes that used to bounce off his
+            stick. Found by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -341,13 +341,13 @@ export function HacksPage({ project, name, onChange }: Props) {
           onOff('runawayFix'),
           <>
             Now and then a skater you control shoots off far past top speed and slides out of control for a second or
-            two, usually racing back on defence. The game lets a computer skater glide onto a pass, and a player
-            knocked into the boards slide, by letting him barely slow down. Three things leave that gliding on: taking
+            two, usually racing back on defence. The game lets a skater glide, barely slowing, when a computer player
+            skates onto a pass or a player is knocked into the boards, and three things leave that gliding on: taking
             over a skater while a pass is coming to him, getting up after a fall into the boards, and a one-timer that
             misses the puck. Each speed burst then adds to the last, and he runs away. With this fix he skates normally
             once he is yours, back on his feet, or done with the one-timer. Computer skaters still glide onto passes,
             and a one-timer still glides while it is being taken. Taking over a skater with a pass coming, you now
-            steer him onto it yourself. Found by the NHL94 Match Viewer project, which recorded the runaways.
+            steer him onto it yourself. Found by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -403,8 +403,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             An option, a matter of taste. When a goalie drops into the butterfly or makes some kick saves, his stick
             moves aside, leaving a small blind spot just past his blade where a flat puck touches neither his stick nor
             his body and slides through his legs. With this on, his body stops such a puck as it would anywhere else.
-            A small change overall, but it falls on five-hole goals: 3 of the 218 in recorded games.
-            Measured by the NHL94 Match Viewer project.
+            A small change: only a few five-hole goals go in this way. From the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -415,8 +414,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             Computer skaters use Offensive Awareness when their team has the puck and Defensive when it does not, but
             in the original game computer wingers and centres use Defensive on offence too. Whether that was meant is
             not known. With this on they use Offensive, like the others. A small change: for most players the
-            difference is a tiny fraction of a second. Found by the
-            NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
+            difference is a tiny fraction of a second. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -445,10 +443,10 @@ export function HacksPage({ project, name, onChange }: Props) {
           'goalieBladeFix',
           onOff('goalieBladeFix'),
           <>
-            The game draws the goalie facing up the screen and facing down it separately, and the bottom goalie's
-            stick ends up in a slightly different place. Low shots get past him a little more often, about 3% more
-            goals against a computer goalie. With this on, in his ready stance and glove saves his stick sits where the top goalie's does. Found by
-            NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
+            The bottom goalie's stick sits in a slightly different place from the top goalie's, so low shots get past
+            him a little more often: about 3% more goals against a computer goalie. With this on, in his ready stance
+            and glove saves his stick sits where the top goalie's does. Found by NOSE4Web and the NHL94 Match Viewer
+            project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -482,8 +480,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             A hard low shot that the goalie knocks away with his stick is a save, but the original game does not count
             it as a shot on goal: only a catch or a save with his body counts. So shots along the ice go missing from
             the totals, more so for the team attacking down the screen. With this on, each such shot counts once as a
-            shot on goal for the shooter and his team and against the goalie: about 2 more shots on goal a game in
-            league games. Only the statistics change; play, the crowd and everything else are as before. Found and
+            shot on goal for the shooter and his team and against the goalie: about 2 more shots on goal a game. Only the statistics change; play, the crowd and everything else are as before. Found and
             built by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
@@ -536,7 +533,7 @@ export function HacksPage({ project, name, onChange }: Props) {
               </>
             )}
           </>,
-          "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. The count goes to the right player even when a line change or a penalty has put someone else in his spot before the loose puck is picked up. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor anything in highlights or a shootout. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not counted. On a 1 MB ROM it makes the ROM 2 MB. Tested in the game by the NHL94 Match Viewer project.",
+          "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. A line change or a penalty before the loose puck is picked up does not move the count to the wrong player. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor a puck picked up after the whistle, nor anything in highlights or a shootout. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. On a 1 MB ROM it makes the ROM 2 MB. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'blockedShots',
@@ -825,7 +822,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'delayedCalls',
           onOff('delayedCalls'),
-          "An option, a matter of taste. In the original game, while one team has a penalty pending (the referee's arm up, play going on until it touches the puck), the other team cannot be called for anything: its checks, holds, hooks and pokes are never penalties until the whistle. With this on they can be. A foul by the team with the puck stops play at once, and both players go to the box, 4 on 4. Goalie interference was already called. The SNES game has no such rule. Known bug 12 on the NHL94 Match Viewer project's list. Tested in the game by the NHL94 Match Viewer project.",
+          "An option, a matter of taste. In the original game, while one team has a penalty pending (the referee's arm up, play going on until it touches the puck), the other team cannot be called for anything: its checks, holds, hooks and pokes are never penalties until the whistle. With this on they can be. A foul by the team with the puck stops play at once, and both players go to the box, 4 on 4. Goalie interference was already called. The SNES game has no such rule. One of the NHL94 Match Viewer project's known bugs. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'bCheckPenaltiesOff',
@@ -888,9 +885,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging,
             roughing and goalie interference. A player's Aggression still counts as before, for people's players and
-            the computer's alike. Offsides, icing and the other calls are unchanged (and on EVO v0.4, which has its own goalie
-            interference code, so is goalie interference). In computer games very lenient
-            gave about 64% of the calls and very strict about 242%. Tested in the game by the NHL94 Match Viewer
+            the computer's alike. Offsides, icing and the other calls are unchanged, and so is goalie interference on
+            EVO v0.4, which has its own goalie interference rule. Tested in the game by the NHL94 Match Viewer
             project.
           </>,
         )}
@@ -905,8 +901,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more
             line changes. {stock('energyDrain')} Keep it at 16 or more: below that a player with high endurance gains
-            energy instead of losing it, and after a minute or two a fast skater drops to the slowest speed there is
-            (found in the game by the NHL94 Match Viewer project). For no tiring from skating at all, use Skating costs no
+            energy instead of losing it, and after a minute or two a fast skater drops to the slowest speed there is.
+            For no tiring from skating at all, use Skating costs no
             energy, below.
           </>,
         )}
@@ -942,15 +938,14 @@ export function HacksPage({ project, name, onChange }: Props) {
             where a hit costs the skater nothing. Only with line changes On, where energy counts at all. Full energy is{' '}
             {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a burst
             of speed costs, or about 25 seconds of skating: the most-hit players tire noticeably and the computer changes
-            lines a little more often, while the average skater is hardly touched. People hit about twice as often as
-            the computer does. Half as much is too little to notice. Up to 4096, all of a skater's energy, for a league
-            that wants hits to wear players down. For energy lost only to hits, the button below turns on Skating costs
-            no energy, makes a speed burst cost nothing, and sets a knockdown to {HITS_ONLY.hitEnergy} (a third) and a
-            hold to {HITS_ONLY.holdEnergy}: three knockdowns then empty a skater, each one taking about an eighth
-            off an average skater's top speed, and he gets it back on the bench as usual, in about 7 minutes of game time from empty. At no energy
-            every skater is as slow as the slowest, and his shots and checks are weaker too. A knockdown by a puck, a
-            bump that does not knock him down, or a hit after the whistle costs nothing. Worked out by the NHL94 Match
-            Viewer project. Tested in the game by the NHL94 Match Viewer project.
+            lines a little more often, while the average skater is hardly touched. Half as much is too little to
+            notice. Up to 4096, all of a skater's energy, for a league that wants hits to wear players down. For energy
+            lost only to hits, the button below turns on Skating costs no energy, makes a speed burst cost nothing, and
+            sets a knockdown to {HITS_ONLY.hitEnergy} (a third) and a hold to {HITS_ONLY.holdEnergy}: three knockdowns
+            then empty a skater, each one taking about an eighth off an average skater's top speed, and he gets it back
+            on the bench as usual, in about 7 minutes of game time from empty. At no energy every skater is as slow as
+            the slowest, and his shots and checks are weaker too. A knockdown by a puck, a bump that does not knock him
+            down, or a hit after the whistle costs nothing. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
             Use the recommended {RECOMMENDED_HIT_ENERGY}
@@ -965,7 +960,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             Energy from hits only
           </button>{' '}
           <span className="note">
-            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Against the original game: as many line changes and the average skater as fresh, but about a third more knockdowns, and more than one skater a game emptied, whom the computer often leaves on the ice for up to about four minutes of game time. Tested in the game by the NHL94 Match Viewer project.
+            Skating and speed bursts cost nothing; a knockdown costs {HITS_ONLY.hitEnergy} and a hold {HITS_ONLY.holdEnergy}. Compared with the original game: as many line changes and the average skater as fresh, but about a third more knockdowns, and more than one skater a game worn right out, whom the computer often leaves on the ice for up to about four minutes of game time. Tested in the game by the NHL94 Match Viewer project.
           </span>
         </p>
         <HitsTable
@@ -996,8 +991,8 @@ export function HacksPage({ project, name, onChange }: Props) {
             the ice, with the clock running), so injuries stay rare. On such a hit, each knockdown the skater has taken
             this game, this one included, adds this many chances in 160 of an injury, up to the most below.
             Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}: about 27% more
-            injuries a game, estimated from recorded league games, with the skaters knocked down most about 1.3 times
-            as likely to be hurt; 10 and 50 come to about 54% and 1.7 times, and 2 and 10 are too little to notice.
+            injuries a game, with the skaters knocked down most about 1.3 times as likely to be hurt; 10 and 50 come
+            to about 54% more and 1.7 times, and 2 and 10 are too little to notice.
             Knockdowns in play are counted, with line changes on or off; those after the whistle are not. Worked out by
             the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
@@ -1013,7 +1008,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           'injuryCap',
           number('injuryCap'),
           <>
-            The most the knockdowns can add to a hit's impact, however many he has taken: at {wanted.injuryCap}, about{' '}
+            The most the knockdowns can add to a hit's chance of injury, however many he has taken: at {wanted.injuryCap}, about{' '}
             {Math.round((wanted.injuryCap / 160) * 100)} in 100 more on a hit that can injure. Used only when the risk above
             is more than 0.
           </>,
@@ -1058,8 +1053,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           number('goalieDelay'),
           <>
             How long a player holds B before he takes control of his goalie, in sixtieths of a second: 17, about a
-            quarter of a second, in the original game, so 12 is a fifth of a second. It is the same for all four pads in 2 on 2, a 4-Way Play adapter
-            included. From smozoma's forum post. {stock('goalieDelay')} Tested in the game by the NHL94 Match Viewer
+            quarter of a second, in the original game, so 12 is a fifth of a second. It is the same for all four
+            controllers in 2 on 2, with a 4-Way Play adapter too. From smozoma's forum post. {stock('goalieDelay')} Tested in the game by the NHL94 Match Viewer
             project.
           </>,
         )}
@@ -1246,8 +1241,7 @@ export function HacksPage({ project, name, onChange }: Props) {
               In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took
               the blood out. With this on, a player hurt for the game bleeds as he lies there: a little as he lands,
               more half a second later. A player out for the period lies as before. Only the look changes, not how the
-              game plays. The blood is drawn in colours 13 and 14 of the arena palette, which are dark reds in the
-              original game. It needs more room, which grows a 1 MB ROM to 2 MB. It works with or without the fighting
+              game plays. The blood uses two of the arena's colours, which are dark reds in the original game. It needs more room, which grows a 1 MB ROM to 2 MB. It works with or without the fighting
               patch. Tested in the game by the NHL94 Match Viewer project.
             </>,
           )}
