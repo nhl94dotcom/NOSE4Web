@@ -10,14 +10,14 @@ editor). It points you at the right files and gives the facts you need to write 
 How to use it:
 
 1. Read sections 1 to 4 (purpose, licence, repo map, conventions). They apply to every game.
-2. Find your feature in the status table (section 17). If "Documented here" says yes, read that feature section.
+2. Find your feature in the status table (section 18). If "Documented here" says yes, read that feature section.
 3. Then read the files and tests the section cites. The code is the authority; this document is a guide to it.
 
-Detailed feature sections are added one feature and one game at a time. Today there are twelve. NHL '95: fighting (5),
+Detailed feature sections are added one feature and one game at a time. Today there are thirteen. NHL '95: fighting (5),
 organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
 pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
-NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). Everything else is listed
-in section 17 with its files only.
+NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). NHL 94 Genesis: blocked shots (17). Everything else is listed
+in section 18 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
 these 2 MB-or-smaller cartridges); `$FFxxxx` is 68000 RAM. "(inferred)" marks a statement that is my reading,
@@ -2338,7 +2338,80 @@ Viewer on 2026-11-18 on every system, with both marks, the goalie's stick and th
 added cycles shift play slightly on identical inputs (the game steps from the beam position); there is no slowdown,
 and the SA-1 doesn't drift. NHL '95's version is in section 11.
 
-## 17. Feature status
+## 17. NHL 94 Genesis: blocked shots
+
+### What it does (for the player)
+
+Counts each skater's blocked shots: a shot by the other team that hits his body while it is still a shot (nothing
+has touched it since it left the stick). Not counted: a goalie's save, a stick stopping or deflecting the shot, a
+shot off a teammate's body (a deflection), a shot that has already hit the boards, a net or anyone, anything in a
+highlight or a shootout. Player Stats gets a Blocked Shots page (G, A, Pts, BLK; game stats only) after Giveaways and
+Takeaways (if on) and before Time On Ice (if on). Game Stats gets a "Blocked Shots" row with each team's total, **only
+with giveaways and takeaways off**: the table takes one more row at most (16), and Give/Takeaways takes it. The counts
+start again each game. Option `blockedShots` (Statistics group), off by default, not recommended.
+
+### Origin and credit
+
+The commissioner's definition (shots only, a skater not a goalie, the team that did not shoot); NOSE4Web's code
+(comment above `BLK_CODE` in `hacks.ts`). Built 2026-11-19.
+
+### Where it lives (`hacks.ts`, `BLK_CODE`, `BLK_HOOKS`, `GP_CODES`)
+
+- Counting: puckbody (`collide94.asm`, `$153CA`) is reached from the puck's collision check (`.chkbody`) for skaters
+  only (position 0 goes to `.chkgoalie`); its `.hit` (`$153E8`) calls a2touchpuck, which clears sf2shot (sflags2
+  `$C2EE` bit 4, set by doshot), so a shot counts once. The hook: puckbody's first instruction `btst
+  #pf3onetimer,pflags3(a2)` (`082A 0003 0064`) becomes `jsr` code +0, which repeats that test and returns its flags
+  (puckbody goes on unchanged), and in between repeats puckbody's own `.hit` test (`cmpi.w #8,Zpos(a3) / bgt`, else
+  `d0 & $F` = 0). A block: sf2shot set, not gmhl (gmode `$C2EA` bit 4), not a shootout (gmode2 `$C2FA` bit 0), the
+  skater not a goalie, and the shooter (shotplayer `$FFBED8`, the spot doshot writes as it sets sf2shot; spots 0-11)
+  on the other team (pflags `$62` bit 6).
+- Clear: StartGame's `.noso` `jsr (InitScores).l` (`$77CC`, `4EB9 0001 31F4`) becomes `jsr` code +4: clears the
+  counts (keeping d0/a0), then `jmp InitScores`. (Not `$77C0`: the fight momentum hack's place.)
+- Game Stats (giveaways off): `$FDE5E` (+8) and `$FDE6C` (+`$C`), the same places and scroll limits (`$FDCBC`,
+  `$FDCCA` to `$80`/`$40`) as giveaways' row, code with copies of the two tables and the row `0010` "Blocked Shots "
+  `2236 FFFF` after each; the `lea (pc)` extension words at code +`$D2` / +`$DC`.
+- Player Stats: the time on ice hack's five places (`TOI_HOOKS`) with a pages block (`GP_CODES`, all from one
+  source: `GV`, `BLK`, `TOI` flags; with `BLK` 0 it is the giveaway pages byte for byte). Pages: 5-6 Giveaways /
+  Takeaways (with giveaways), then Blocked Shots, then Time On Ice; the blocks page's GetStatColumn column is its page
+  number, reading the count byte.
+
+RAM: counts `$FFE890`-`$FFE8CF` (a byte a roster place, pnum, 32 a team, home first, to 255); team totals at team
+struct `+$2236` (`$FFE904`, `$FFEC68`). Match Viewer found `$FFE000`-`$FFFEBF` unwritten in recorded games apart from
+NOSE4Web's own blocks; giveaways ends at `$FFE88F` and its totals at `$FFE903` / `$FFEC67`; the fight momentum hack
+uses `$FFF750`-`$FFF753`.
+
+### Applying and removing
+
+`place` the block, `writeHook` both `BLK_HOOKS`; after giveaways (steps order) so the Game Stats places go to
+blocked shots only if they are still the game's. The pages go in at the time on ice step (`putPages`). Out: hooks'
+original bytes back, block erased, and if it had the row, the two table places and the limits back.
+
+### Detecting
+
+`blkIn`: the block byte for byte (with the ROM's tables), both hooks, the two table places either both pointing at
+it (with the limits hacked: "rows") or neither. Off when both places are the game's and giveaways' state is known (an
+EVO build, whose own code is at giveaways' places, reads unknown). Giveaways' own detection accepts its table places
+being blocked shots' row.
+
+### Interactions
+
+Giveaways (Game Stats row, shared pages), time on ice (shared pages), bodychecks (page 4 may be Checks For).
+
+### Gotchas
+
+- puckbody's `.hit` for a low puck needs `d0 & $F` = 0 (d0 the distance squared): many low touches never reach
+  `.hit` and so are no block. Kept as the game has it; to check in play.
+- A high fast puck at a skater makes him fall (FallDown): counted as a block.
+
+### Files and tests
+
+`src/core/hacks.ts`, `HacksPage.tsx`, `HelpPage.tsx`, `hacksheet.ts`, `hackgroups.ts`; `tests/blockedshots.test.ts`.
+
+### Status
+
+Not yet tested in the game.
+
+## 18. Feature status
 
 "Game-tested" follows the page texts ("Tested in the game by the NHL94 Match Viewer project" vs. "Not yet tested
 in the game"). For NHL 94 Genesis and SNES, each option on `HacksPage.tsx` / `SnesHacksPage.tsx` carries its own
@@ -2376,6 +2449,7 @@ line; check there.
 | Game music (title, end of period, scouting report): play, export, replace from MIDI (tested in the game) | `genesismusic.ts` (`GAME_MUSIC`, `gameMusicFromMidi`, `gameMusicToMidi`), `OrganSongsSection.tsx` (`GameMusicSection`) | **Yes (12)** |
 | In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
 | Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
+| Blocked shots (not yet tested in the game) | `hacks.ts` (`BLK_CODE`, `BLK_HOOKS`, `GP_CODES`) | **Yes (17)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Goalie turning fix (tested in the game) | `hacks.ts` (`goalieTurnFix`) | **Yes (9)** |
@@ -2399,9 +2473,9 @@ line; check there.
 - SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
   exporting it is built (section 14).
 
-## 18. How to extend this document
+## 19. How to extend this document
 
-Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 17.
+Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 18.
 Copy this template; cite file and function names for every fact and mark inferences.
 
 ```markdown

@@ -23,7 +23,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
       'centreDefenceFix', 'goalieTurnFix', 'goalieBladeFix', 'shotScatterFix', 'crowdFix',
     ],
   },
-  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'timeOnIce', 'giveaways', 'threeStars'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['wideRatings', 'baseWeight', 'bonuses', 'hotColdRange', 'clutchTime'] },
   { id: 'rules', title: 'Rules', hacks: ['seasonTies', 'fourthPeriodOvertime', 'fighting', 'shootoutInjuries', 'nhlShootout', 'fightSeconds', 'fightMomentum', 'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'threeOnThree', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees'] },
   {

@@ -1537,6 +1537,11 @@ export function HelpPage() {
           read save states (McMarkis's builds count their own).
         </li>
         <li>
+          <b>Blocked shots</b> (Genesis): counts each skater's blocked shots, a shot by the other team that hits his
+          body, and shows them on a Blocked Shots page in Player Stats. Game Stats shows each team's total too when
+          giveaways and takeaways are off. Not yet tested in the game.
+        </li>
+        <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
           one for line changes on. It counts bodychecks, so it goes with bodycheck statistics.
         </li>

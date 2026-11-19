@@ -196,6 +196,8 @@ export interface HackChoices {
   choppyIce: boolean
   // Each player's giveaways and takeaways, counted, and the teams' in Game Stats.
   giveaways: boolean
+  // Each skater's shots blocked (the other team's shots his body stops), and the teams' in Game Stats.
+  blockedShots: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
   nhlShootout: boolean
   // A Time On Ice page in Player Stats, from the time on ice the game counts.
@@ -295,6 +297,7 @@ export type HackPart =
   | 'clutchTime'
   | 'choppyIce'
   | 'giveaways'
+  | 'blockedShots'
   | 'nhlShootout'
   | 'timeOnIce'
   | 'puckColours'
@@ -383,6 +386,7 @@ export const NO_HACKS: HackChoices = {
   clutchTime: false,
   choppyIce: false,
   giveaways: false,
+  blockedShots: false,
   nhlShootout: false,
   timeOnIce: false,
   puckColours: 'rink',
@@ -2908,8 +2912,8 @@ const toiEarlier = (rom: Uint8Array) =>
 const timeOnIce: Part<boolean> = {
   detect(rom) {
     const pages = gpPages(rom)
-    // The giveaway pages without the counting code the editor knows: left alone, as giveaways are.
-    if (pages) return gtBase(rom) !== null ? pages.toi : undefined
+    // The giveaway or blocked shots pages without the counting code the editor knows: left alone, as those are.
+    if (pages) return (!pages.gv || gtBase(rom) !== null) && (!pages.blk || blkIn(rom) !== null) ? pages.toi : undefined
     if (TOI_KEYS.every((key) => is(rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return false
     if (TOI_KEYS.every((key) => toiCode(rom, key) !== null)) return true
     return toiEarlier(rom) ? true : undefined
@@ -3393,18 +3397,32 @@ const gtBase = (rom: Uint8Array): number | null => gtIn(rom)?.base ?? null
 // own that shows any mix of the three pages (TOI_HOOKS; entries +0 col, +4
 // title, +8 head, +C get, +10 row). With giveaways off, the time on ice page
 // is the time on ice hack's code as it always was. The counts are kept for
-// every player, goalies too (giveaways only).
-const GP_CODES = [false, true].map((toi) => ({
-  toi,
-  code: bytes(toi ? '6000 0012 6000 0030 6000 006E 6000 00D6 6000 012A 0C40 FFFF 6D14 4A47 6608 0C40 0007 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 019A 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0156 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D5E 0C43 0003 6D58 0C78 0007 D5AC 6732 2F09 43FA 0134 0C43 0004 6604 43FA 0130 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0102 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D42 0C41 0007 6722 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 3400 D442 0642 0136 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D5AC 6D74 0C45 0003 6D6E 0C78 0007 D5AC 673A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 0038 4E75 4240 1014 7207 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 000E 7A04 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 000A 2020 2020 2054 4F49 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020' : '6000 0012 6000 0030 6000 006E 6000 00B0 6000 00E4 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 0116 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 00DC 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D38 0C43 0003 6D32 2F09 43FA 00C2 0C43 0004 6604 43FA 00BE 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D22 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D5AC 6D40 0C45 0003 6D3A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 000C 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 2020'),
-}))
+// every player, goalies too (giveaways only). With blocked shots on, a
+// Blocked Shots page (G, A, Pts and BLK) past the giveaway pages, or past
+// Penalty Minutes without them, and before Time On Ice: the same code with
+// that page in (assembled from one source with the giveaway-only codes,
+// which it gives byte for byte with the page out, so ROMs with those keep
+// them as they are).
+const GP_CODES: { gv: boolean; blk: boolean; toi: boolean; code: Uint8Array }[] = [
+  ...[false, true].map((toi) => ({
+    gv: true,
+    blk: false,
+    toi,
+    code: bytes(toi ? '6000 0012 6000 0030 6000 006E 6000 00D6 6000 012A 0C40 FFFF 6D14 4A47 6608 0C40 0007 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 019A 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0156 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D5E 0C43 0003 6D58 0C78 0007 D5AC 6732 2F09 43FA 0134 0C43 0004 6604 43FA 0130 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0102 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D42 0C41 0007 6722 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 3400 D442 0642 0136 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D5AC 6D74 0C45 0003 6D6E 0C78 0007 D5AC 673A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 0038 4E75 4240 1014 7207 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 000E 7A04 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 000A 2020 2020 2054 4F49 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020' : '6000 0012 6000 0030 6000 006E 6000 00B0 6000 00E4 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 0116 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 00DC 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D38 0C43 0003 6D32 2F09 43FA 00C2 0C43 0004 6604 43FA 00BE 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D22 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D5AC 6D40 0C45 0003 6D3A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 000C 4E75 7204 4EF9 0001 1D3A 0002 0004 005D 0006 2020 4756 0006 2020 544B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 2020'),
+  })),
+  // The blocked shots page (blockedShots), with or without the giveaway pages before it and Time On Ice after.
+  { gv: false, blk: true, toi: false, code: bytes('6000 0012 6000 0030 6000 006E 6000 0088 6000 00A2 0C40 FFFF 6D14 4A47 6608 0C40 0005 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 00FE 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 00CA 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D10 0C43 0003 6D0A 0C78 0005 D5AC 6700 0046 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D08 0C41 0005 6700 0044 B042 4E75 0C78 0005 D5AC 6D10 0C45 0003 6D0A 0C78 0005 D5AC 6700 0040 7204 4EF9 0001 1D3A 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0056 4EB9 0001 1A48 225F D2D1 4E75 327C E890 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7205 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC C000 B02C 4EB9 0001 1BA4 43FA 0006 7A04 4E75 0002 0004 005D 0006 2042 4C4B 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 2020') },
+  { gv: false, blk: true, toi: true, code: bytes('6000 0012 6000 0030 6000 006E 6000 00AE 6000 00E8 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 0182 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0144 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D36 0C43 0003 6D30 0C78 0006 D5AC 670A 0C78 0005 D5AC 6700 00B8 0C43 0003 6614 31FC C000 B02C 2F09 43FA 010C 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D28 0C41 0006 6708 0C41 0005 6700 0092 3400 D442 0642 0136 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D5AC 6D44 0C45 0003 6D3E 0C78 0006 D5AC 670A 0C78 0005 D5AC 6700 006C 4240 1014 7206 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 006E 7A04 4E75 7204 4EF9 0001 1D3A 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0060 4EB9 0001 1A48 225F D2D1 4E75 327C E890 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7205 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC C000 B02C 4EB9 0001 1BA4 43FA 0006 7A04 4E75 0002 0004 005D 000A 2020 2020 2054 4F49 0006 2042 4C4B 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020') },
+  { gv: true, blk: true, toi: false, code: bytes('6000 0012 6000 0030 6000 006E 6000 00BA 6000 00F6 0C40 FFFF 6D14 4A47 6608 0C40 0007 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 0198 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 0158 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D42 0C43 0003 6D3C 0C78 0007 D5AC 6700 00D4 2F09 43FA 0134 0C43 0004 6604 43FA 0130 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D2A 0C41 0007 6700 00A0 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D5AC 6D4A 0C45 0003 6D44 0C78 0007 D5AC 6700 007A 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 006C 4E75 7204 4EF9 0001 1D3A 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0062 4EB9 0001 1A48 225F D2D1 4E75 327C E890 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7207 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC C000 B02C 4EB9 0001 1BA4 43FA 0006 7A04 4E75 0002 0004 005D 0006 2020 4756 0006 2020 544B 0006 2042 4C4B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 2020') },
+  { gv: true, blk: true, toi: true, code: bytes('6000 0012 6000 0030 6000 006E 6000 00E0 6000 013C 0C40 FFFF 6D14 4A47 6608 0C40 0008 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0000 954C 3038 D5AC 0C40 0005 6D0C 43FA 021C 5B40 4EF9 0001 3508 43F9 0000 9942 5240 4EB9 0001 3508 0C78 0004 D5AC 6614 4A47 6610 5378 B028 43FA 01D2 7000 4EF9 0001 3508 4E75 0C78 0005 D5AC 6D68 0C43 0003 6D62 0C78 0008 D5AC 673C 0C78 0007 D5AC 6700 0146 2F09 43FA 01A6 0C43 0004 6604 43FA 01A2 31FC 8000 B02C 3038 D5AC 5540 B043 6606 31FC C000 B02C 4EB9 0001 1A48 225F D2D1 4E75 0C43 0003 6614 31FC C000 B02C 2F09 43FA 0174 4EB9 0001 1A48 225F D2D1 4E75 4EF9 0001 1A48 3400 302F 0004 2F57 0002 548F 0C41 0005 6D4A 0C41 0008 672A 0C41 0007 6700 00EE 327C E810 0C41 0006 6604 43E9 0040 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 3400 D442 0642 0136 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D5AC 6D7E 0C45 0003 6D78 0C78 0008 D5AC 6744 0C78 0007 D5AC 6700 00A6 4240 1014 3205 5441 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC 8000 B02C 3005 5440 B078 D5AC 6606 31FC C000 B02C 4EB9 0001 1BA4 43FA 0098 4E75 4240 1014 7208 4EB9 0000 9872 3002 4EB9 0001 1CA2 5678 B028 31FC C000 B02C 4EB9 0001 1BA4 43FA 006E 7A04 4E75 7204 4EF9 0001 1D3A 0C43 0003 6614 31FC C000 B02C 2F09 43FA 006C 4EB9 0001 1A48 225F D2D1 4E75 327C E890 B4FC C6CE 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7207 4EB9 0000 9872 3002 7204 4EB9 0001 1D3A 31FC C000 B02C 4EB9 0001 1BA4 43FA 0006 7A04 4E75 0002 0004 005D 0006 2020 4756 0006 2020 544B 000A 2020 2020 2054 4F49 0006 2042 4C4B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020') },
+]
 const GP_ENTRIES: Record<keyof typeof TOI_HOOKS, number> = { col: 0, title: 4, head: 8, get: 0xc, row: 0x10 }
-// Where the pages' code is, and whether it has the time on ice page.
-function gpPages(rom: Uint8Array): { base: number; toi: boolean; length: number } | null {
+// Where the pages' code is, and which pages it has.
+function gpPages(rom: Uint8Array): { base: number; gv: boolean; blk: boolean; toi: boolean; length: number } | null {
   const first = TOI_HOOKS.col.at
   if (readU16(rom, first) !== OP_JSR) return null
   const base = readU32(rom, first + 2)
-  for (const { toi, code } of GP_CODES) {
+  for (const { gv, blk, toi, code } of GP_CODES) {
     if (base + code.length > rom.length || !is(rom, base, code)) continue
     const all = TOI_KEYS.every((key) => {
       const site = TOI_HOOKS[key]
@@ -3412,7 +3430,7 @@ function gpPages(rom: Uint8Array): { base: number; toi: boolean; length: number 
       for (let o = 6; o < site.original.length; o += 2) if (readU16(rom, site.at + o) !== OP_NOP) return false
       return true
     })
-    if (all) return { base, toi, length: code.length }
+    if (all) return { base, gv, blk, toi, length: code.length }
   }
   return null
 }
@@ -3422,10 +3440,11 @@ function removePages(rom: Uint8Array): void {
   erase(rom, found.base, found.length)
   for (const key of TOI_KEYS) rom.set(TOI_HOOKS[key].original, TOI_HOOKS[key].at)
 }
-// With giveaways on, the pages, if the five places are as the original game has them.
-function applyPages(work: Work, toi: boolean): void {
+// With giveaways or blocked shots on, the pages, if the five places are as the original game has them.
+function applyPages(work: Work, pages: { gv: boolean; blk: boolean; toi: boolean }): void {
   if (!TOI_KEYS.every((key) => is(work.rom, TOI_HOOKS[key].at, TOI_HOOKS[key].original))) return
-  const base = place(work, GP_CODES[toi ? 1 : 0].code)
+  const { code } = GP_CODES.find((c) => c.gv === pages.gv && c.blk === pages.blk && c.toi === pages.toi)!
+  const base = place(work, code)
   for (const key of TOI_KEYS) writeHook(work.rom, TOI_HOOKS[key], base + GP_ENTRIES[key])
 }
 // Whether this ROM has an earlier version of NOSE4Web's giveaways and takeaways (the counts read as on, and the
@@ -3435,11 +3454,15 @@ export function giveawaysOutdated(rom: Uint8Array): boolean {
   return found !== null && found.version !== 0
 }
 
-const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
+const giveaways: Part<boolean> = {
   detect(rom) {
     if (gtBase(rom) !== null) return true
-    if (gpPages(rom)) return undefined
-    const original = GT_HOOKS.every(([hook]) => is(rom, hook.at, hook.original)) && GT_LIMITS.every((l) => readU16(rom, l.at) === l.original)
+    if (gpPages(rom)?.gv) return undefined
+    // The Game Stats places (GT_HOOKS 6 and 7, and the scroll limits) may hold blocked shots' row.
+    const row = blkIn(rom)?.rows === true
+    const original =
+      GT_HOOKS.every(([hook], i) => is(rom, hook.at, hook.original) || (row && GT_TABLE_HOOKS.includes(i))) &&
+      (row || GT_LIMITS.every((l) => readU16(rom, l.at) === l.original))
     return original && gtCode(rom) !== null ? false : undefined
   },
   remove(rom) {
@@ -3457,7 +3480,140 @@ const giveaways: Part<boolean> & { pages(work: Work, toi: boolean): void } = {
     for (const [hook, entry] of GT_HOOKS) writeHook(work.rom, hook, base + entry)
     for (const l of GT_LIMITS) writeU16(work.rom, l.at, l.hacked)
   },
-  pages: applyPages,
+}
+
+// ------------------------------------------------------------ blocked shots
+// Each skater's blocked shots: a shot of the other team's that his body
+// stops (the commissioner's definition: shots only, by a skater, not a
+// goalie). puckbody (collide94.asm), reached from the puck's collision check
+// (.chkbody) for skaters only (position 0, a goalie, goes to .chkgoalie),
+// bounces the puck off the body at its .hit, which calls a2touchpuck, and
+// a2touchpuck clears the shot flag (sflags2's sf2shot, set by doshot), so a
+// shot is counted once at most. Counted: at .hit while sf2shot still stands,
+// the shooter (shotplayer, $FFBED8, the spot doshot keeps as it sets sf2shot)
+// on the other team (pfteam, pflags bit 6) from the skater; a shot off a
+// teammate's body is a deflection, not counted. Not counted: in a highlight
+// (gmode gmhl), in a shootout (gmode2 bit 0), a stick stopping it (puckstick:
+// its deflection or a catch; it clears sf2shot too, so a body hit after it
+// is no block), a shot that has hit the boards or a net (wallcoll clears
+// sf2shot) or the goalie (puckgoalie calls a2touchpuck).
+// - The hook: puckbody's first instruction, btst #pf3onetimer,pflags3(a2)
+//   ($153CA, 6 bytes), becomes a jsr to code that does the same test and
+//   returns its flags, so puckbody goes on as before. In between, with the
+//   bit clear, it repeats puckbody's own test for .hit: the puck high (Zpos
+//   > 8, cmpi.w #8,Zpos(a3) / bgt) or the low four bits of d0 (the distance
+//   squared) 0. A one-timer (pf3onetimer) is no hit: puckbody returns, and
+//   .chkbody does not call it then either.
+// - The counts, a byte a roster place (pnum, 32 a team, home first), at
+//   $FFE890 (to 255), just past giveaways' takeaways ($FFE850-$FFE88F); each
+//   team's total a word at its team struct + $2236 (home $FFE904, visitors
+//   $FFEC68), past giveaways' ($2232 / $2234). NOSE4Web's own code uses none
+//   of $FFE890-$FFE8FF, $FFE904-$FFE905 or $FFEC68-$FFEC69 (its other RAM: the
+//   injury counts $FFF000, lines $FFF040, the fight setting $FFF080, the
+//   shootout's $FFF082 on; smozROM's plus-minus log grows from $FFDEF4, 14
+//   bytes a goal; time on ice and the bodychecks are in the team structs).
+//   Match Viewer found $FFE000-$FFFEBF unwritten in its recorded games but
+//   for NOSE4Web's own blocks ($FFF000 on, giveaways at $FFE800); the fight
+//   momentum hack takes $FFF750-$FFF753.
+// - Cleared at each game's start: StartGame's .noso, its jsr (InitScores).l
+//   ($77CC; the code clears, keeping d0 / a0, then jumps to InitScores).
+//   Not $77C0 (clr.w (gsp).w / clr.w (ChkCnt).w, just past giveaways'
+//   $77B8): the fight momentum hack hooks that.
+// - Game Stats gets a row, "Blocked Shots", with the teams' totals, only
+//   with giveaways off: the table has room for one row more (16 at most),
+//   and giveaways' Give/Takeaways row takes it. The same two places and
+//   scroll limits as that row (GT_HOOKS 6 and 7, GT_LIMITS), the code with
+//   copies of the ROM's two tables.
+// - Player Stats gets a Blocked Shots page past Giveaways and Takeaways (if
+//   on) and before Time On Ice (if on), from the pages' code (GP_CODES).
+// For Match Viewer to check in the game (not sure from the code alone):
+// whether a low puck that touches a skater with d0's low four bits not 0
+// (no .hit: puckbody does nothing) is ever a shot a viewer would call
+// blocked; whether a shot that is blocked by a skater falling over (a high,
+// fast puck: FallDown) is right to count; and that shotplayer is always the
+// shooter of the shot in flight (doshot is its only writer).
+const BLK_CODE = bytes(
+  '6000 000E 6000 00A6 6000 00C4 6000 00C8 082A 0003 0064 6702 4E75 48E7 6080 0C6B 0008 0018 6E08 3200 0241 000F 6672 0838 0004 C2EE 676A 0838 0004 C2EA 6662 0838 0000 C2FA 665A 4A6A 0034 6754 3238 BED8 0C41 000B 624A EF49 41F8 B04A D0C1 1428 0062 122A 0062 B302 0802 0006 6732 4241 122A 0066 0C41 0020 6426 41F8 E904 082A 0006 0062 6708 0641 0020 41F8 EC68 5250 41F8 E890 0C30 00FF 1000 6704 5230 1000 4CDF 0106 082A 0003 0064 4E75 48E7 8080 41F8 E890 700F 4298 51C8 FFFC 4278 E904 4278 EC68 4CDF 0101 4EF9 0001 31F4 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
+)
+// TBLA's and TBLB's lea (pc) extension words in BLK_CODE.
+const BLK_TABLE_A = 0xd2
+const BLK_TABLE_B = 0xdc
+const BLK_HOOKS: [Hook, number][] = [
+  [{ at: 0x153ca, original: bytes('082A 0003 0064') }, 0],
+  [{ at: 0x77cc, original: bytes('4EB9 0001 31F4') }, 4],
+]
+// The Game Stats places, by their place in GT_HOOKS, and BLK_CODE's entries for them.
+const GT_TABLE_HOOKS = [6, 7]
+const BLK_TABLE_ENTRIES = [8, 0xc]
+const BLK_ROW = bytes('0010' + [...'Blocked Shots '].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('') + '2236 FFFF')
+// The code, with the ROM's two tables and the row after each.
+function blkCode(rom: Uint8Array): Uint8Array | null {
+  const withPen = gtTable(rom, GT_TABLE, 15)
+  const noPen = gtTable(rom, GT_TABLE_NO_PEN, 11)
+  if (!withPen || !noPen) return null
+  const code = new Uint8Array(BLK_CODE.length + withPen.length + noPen.length + 2 * BLK_ROW.length)
+  code.set(BLK_CODE)
+  let at = BLK_CODE.length
+  const tableA = at
+  code.set(withPen, at)
+  code.set(BLK_ROW, (at += withPen.length))
+  const tableB = (at += BLK_ROW.length)
+  code.set(noPen, at)
+  code.set(BLK_ROW, at + noPen.length)
+  writeU16(code, BLK_TABLE_A, tableA - BLK_TABLE_A)
+  writeU16(code, BLK_TABLE_B, tableB - BLK_TABLE_B)
+  return code
+}
+const jsrTo = (rom: Uint8Array, hook: Hook, target: number) => {
+  if (readU16(rom, hook.at) !== OP_JSR || readU32(rom, hook.at + 2) !== target) return false
+  for (let o = 6; o < hook.original.length; o += 2) if (readU16(rom, hook.at + o) !== OP_NOP) return false
+  return true
+}
+// Where the code is, how long, and whether it has the Game Stats row.
+function blkIn(rom: Uint8Array): { base: number; length: number; rows: boolean } | null {
+  const [first] = BLK_HOOKS[0]
+  if (readU16(rom, first.at) !== OP_JSR) return null
+  const base = readU32(rom, first.at + 2)
+  const code = blkCode(rom)
+  if (!code || base + code.length > rom.length || !is(rom, base, code)) return null
+  if (!BLK_HOOKS.every(([hook, entry]) => jsrTo(rom, hook, base + entry))) return null
+  const tables = GT_TABLE_HOOKS.map((i, n) => jsrTo(rom, GT_HOOKS[i][0], base + BLK_TABLE_ENTRIES[n]))
+  if (tables[0] !== tables[1]) return null
+  const rows = tables[0]
+  if (rows && !GT_LIMITS.every((l) => readU16(rom, l.at) === l.hacked)) return null
+  return { base, length: code.length, rows }
+}
+
+const blockedShots: Part<boolean> = {
+  detect(rom) {
+    if (blkIn(rom)) return true
+    if (gpPages(rom)?.blk) return undefined
+    // Only where the editor knows giveaways' code (in or out): a ROM whose own code is there (the EVO builds) may
+    // use the same RAM.
+    if (giveaways.detect(rom) === undefined) return undefined
+    return BLK_HOOKS.every(([hook]) => is(rom, hook.at, hook.original)) && blkCode(rom) !== null ? false : undefined
+  },
+  remove(rom) {
+    removePages(rom)
+    const found = blkIn(rom)
+    if (!found) return
+    erase(rom, found.base, found.length)
+    for (const [hook] of BLK_HOOKS) rom.set(hook.original, hook.at)
+    if (!found.rows) return
+    for (const i of GT_TABLE_HOOKS) rom.set(GT_HOOKS[i][0].original, GT_HOOKS[i][0].at)
+    for (const l of GT_LIMITS) writeU16(rom, l.at, l.original)
+  },
+  // After giveaways: its Game Stats row, when it is in, keeps the table's last place.
+  apply(work, value) {
+    if (!value) return
+    const base = place(work, blkCode(work.rom)!)
+    for (const [hook, entry] of BLK_HOOKS) writeHook(work.rom, hook, base + entry)
+    const free =
+      GT_TABLE_HOOKS.every((i) => is(work.rom, GT_HOOKS[i][0].at, GT_HOOKS[i][0].original)) && GT_LIMITS.every((l) => readU16(work.rom, l.at) === l.original)
+    if (!free) return
+    GT_TABLE_HOOKS.forEach((i, n) => writeHook(work.rom, GT_HOOKS[i][0], base + BLK_TABLE_ENTRIES[n]))
+    for (const l of GT_LIMITS) writeU16(work.rom, l.at, l.hacked)
+  },
 }
 
 // ------------------------------------------------------------ the whole ROM
@@ -3545,6 +3701,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     clutchTime: found('clutchTime', clutchTime.detect(rom), NO_HACKS.clutchTime),
     choppyIce: found('choppyIce', choppyIce.detect(rom), NO_HACKS.choppyIce),
     giveaways: found('giveaways', giveaways.detect(rom), NO_HACKS.giveaways),
+    blockedShots: found('blockedShots', blockedShots.detect(rom), NO_HACKS.blockedShots),
     nhlShootout: found('nhlShootout', nhlShootout.detect(rom), NO_HACKS.nhlShootout),
     timeOnIce: found('timeOnIce', timeOnIce.detect(rom), NO_HACKS.timeOnIce),
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
@@ -3599,6 +3756,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     }
     applyFight(work, wanted.fighting)
   }
+  const putPages = (gv: boolean, blk: boolean) => (gv || blk ? applyPages(work, { gv, blk, toi: wanted.timeOnIce }) : timeOnIce.apply(work, wanted.timeOnIce))
   const steps: [HackPart, () => void, () => void][] = [
     ['weightFix', () => weightFix.remove(work.rom), () => weightFix.apply(work, wanted.weightFix)],
     ['bodychecks', () => bodychecks.remove(work.rom), () => bodychecks.apply(work, wanted.bodychecks)],
@@ -3666,8 +3824,10 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['clutchTime', () => clutchTime.remove(work.rom), () => clutchTime.apply(work, wanted.clutchTime)],
     ['choppyIce', () => choppyIce.remove(work.rom), () => choppyIce.apply(work, wanted.choppyIce)],
     ['giveaways', () => giveaways.remove(work.rom), () => giveaways.apply(work, wanted.giveaways)],
-    // With giveaways on, their Player Stats pages take the time on ice page in too.
-    ['timeOnIce', () => timeOnIce.remove(work.rom), () => (wanted.giveaways && !unknown.includes('giveaways') ? giveaways.pages(work, wanted.timeOnIce) : timeOnIce.apply(work, wanted.timeOnIce))],
+    // After giveaways, whose Game Stats row comes first.
+    ['blockedShots', () => blockedShots.remove(work.rom), () => blockedShots.apply(work, wanted.blockedShots)],
+    // With giveaways or blocked shots on, their Player Stats pages take the time on ice page in too.
+    ['timeOnIce', () => timeOnIce.remove(work.rom), () => putPages(wanted.giveaways && !unknown.includes('giveaways'), wanted.blockedShots && !unknown.includes('blockedShots'))],
     ['nhlShootout', () => nhlShootout.remove(work.rom), () => nhlShootout.apply(work, wanted.nhlShootout)],
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
@@ -3936,6 +4096,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   clutchTime: 'Clutch time',
   choppyIce: 'Choppy ice',
   giveaways: 'Giveaways and takeaways',
+  blockedShots: 'Blocked shots',
   nhlShootout: 'Three-round shootout',
   timeOnIce: 'Time on ice in Player Stats',
   puckColours: 'Puck colours',
@@ -4019,6 +4180,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   clutchTime: 'clutchTime',
   choppyIce: 'choppyIce',
   giveaways: 'giveaways',
+  blockedShots: 'blockedShots',
   nhlShootout: 'nhlShootout',
   timeOnIce: 'timeOnIce',
   puckColours: 'puckColours',

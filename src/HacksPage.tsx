@@ -163,7 +163,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'goalieBladeFix' | 'shotScatterFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'organResume') => (
+  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'goalieBladeFix' | 'shotScatterFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'blockedShots' | 'organResume') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -537,6 +537,11 @@ export function HacksPage({ project, name, onChange }: Props) {
             )}
           </>,
           "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. The count goes to the right player even when a line change or a penalty has put someone else in his spot before the loose puck is picked up. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor anything in highlights or a shootout. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not counted. On a 1 MB ROM it makes the ROM 2 MB. Tested in the game by the NHL94 Match Viewer project.",
+        )}
+        {hack(
+          'blockedShots',
+          onOff('blockedShots'),
+          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice. Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Not yet tested in the game.",
         )}
         {hack(
           'threeStars',
