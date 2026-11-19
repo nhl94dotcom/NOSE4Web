@@ -1756,8 +1756,9 @@ export function HelpPage() {
           Found by NOSE4Web and the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94; an option): for shots at the bottom net the
-          original game halves part of a shot's random miss, so they go in a little more often (about 1%). With this
+          <b>Bottom net shot aim fix</b> (with the fixes, Genesis NHL 94; an option, tested in the game by the NHL94
+          Match Viewer project): for shots at the bottom net the original game halves part of a shot's random miss,
+          so they go in a little more often (under 1%). With this
           on both nets are the same. Together with the stick fix this evens out most of the extra goals at the bottom
           net that league records show.
         </li>

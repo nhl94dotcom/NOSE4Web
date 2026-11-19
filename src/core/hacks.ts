@@ -2048,8 +2048,8 @@ const goalieBladeFix: Part<boolean> = {
 // aim, up to the same amount across the screen and (to $3C) up and down it;
 // but for a shot at the bottom net (dy negative) doshot halves the up-and-down
 // one: tst.w 4(sp) / bpl.w .ycalc / lsr.w #1,d0 at $C48A. So shots at the
-// bottom net scatter less. This takes the halving out (nop). Worth about one
-// goal in a hundred at the bottom net (Match Viewer's replays). NHL '95 has the
+// bottom net scatter less. This takes the halving out (nop). Worth under one
+// goal in a hundred at the bottom net (Match Viewer, in the game). NHL '95 has the
 // same code ($84D38) and the SNES halves there too.
 const shotScatterFix = switchPart(0xc48a, bytes('4A6F 0004 6A00 0004 E248'), bytes('4A6F 0004 6A00 0004 4E71'))
 

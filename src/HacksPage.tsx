@@ -454,8 +454,8 @@ export function HacksPage({ project, name, onChange }: Props) {
           onOff('shotScatterFix'),
           <>
             A shot that isn't perfect goes a random amount off target. For shots at the bottom net the original game
-            halves part of that, so they miss a little less often, about 1% more goals. With this on both nets are
-            the same. Not yet tested in the game.
+            halves part of that, so they miss a little less often, under 1% more goals. With this on both nets are
+            the same. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(

@@ -800,7 +800,7 @@ NHL 94 at `$DB86` (byte `$DB89`), once in the ROM and at `$DB86` in every league
 it at `$B6A6`); NHL '95, W18 and W18p at `$80444` (byte `$80447`), once. SNES not checked. Tests:
 `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
-### The bottom net's goals: stick fix and shot aim fix (`goalieBladeFix`, `shotScatterFix`; added 2026-11-19)
+### The bottom net's goals: stick fix and shot aim fix (`goalieBladeFix`, `shotScatterFix`; added 2026-11-19, both tested in the game by Match Viewer 2026-11-19)
 
 Genesis NHL 94 only (`hacks.ts`, Fixes, both off by default, not recommended: a league picks). Background: the
 commissioner's database of Genesis league games (87,260) shows about 3% more goals at the bottom net (Down) than
@@ -826,8 +826,10 @@ the top (Up) once the home edge is taken out (home skates up in periods 1 and 3)
   where a held puck sits).
 - `shotScatterFix`: doshot's random miss for a shot that is not exact adds up to the adjustment across the screen and
   (capped `$3C`) up and down it, but for a shot at the bottom net (dy negative) `tst.w 4(sp) / bpl.w .ycalc / lsr.w
-  #1,d0` at `$C48A` halves the up-and-down one. The fix: the `lsr` (`E248` at `$C492`) -> `nop`. About 1% of the
-  bottom net's goals (Match Viewer's replays). Not yet tested in the game. NHL '95 has the same code at `$84D38`
+  #1,d0` at `$C48A` halves the up-and-down one. The fix: the `lsr` (`E248` at `$C492`) -> `nop`. Under 1% of the
+  bottom net's goals. Match Viewer, 2026-11-19: in the launch replays wides at the bottom net 8.2% -> 8.6% (goals 147
+  -> 146 of 1,063); played through the game's own doshot (25 spots x 9 aims x 4 seeds a net) the top net's 900
+  results identical, the bottom net's wides 2.7% -> 2.9% (16 results changed). NHL '95 has the same code at `$84D38`
   (not offered there yet); the SNES halves too (but the SNES's league records lean Up, 0.976).
 - Other end differences found, not offered: rebounds off the bottom goalie are about 5% faster (a `move.b` keeps the
   old low byte); the glass behind the top net is taller (wallcollb `$14BE0`, Ypos `$118`), which stops far shots but
@@ -2297,7 +2299,7 @@ line; check there.
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Goalie turning fix (tested in the game) | `hacks.ts` (`goalieTurnFix`) | **Yes (9)** |
-| Bottom goalie's stick fix (tested in the game), bottom net shot aim fix | `hacks.ts` (`goalieBladeFix`, `shotScatterFix`) | **Yes (9)** |
+| Bottom goalie's stick fix, bottom net shot aim fix (both tested in the game) | `hacks.ts` (`goalieBladeFix`, `shotScatterFix`) | **Yes (9)** |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
 ### NHL '94 SNES
