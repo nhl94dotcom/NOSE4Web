@@ -755,6 +755,7 @@ code is placed by `placeCode` (section 10). NHL 94 address given briefly for ref
 | `awarenessFix` | asswingo `$80C2F`, asscentero `$80F37` (low byte of an operand) | `6B` -> `6A` at both (aidef -> aioff) | computer wingers/centres use Defensive Awareness on offence | `$D0E1`, `$D2D9` |
 | `centreDefenceFix` | asscenterd, `$80E14` (around `$80E0A`, `$80E18`) | `D278 B376` -> `D242 4E71` (add.w (pucky).w,d1 -> add.w d2,d1 / nop) | computer centre on defence covers a mirrored spot at one end (see below) | `$D27A` (`D278 B75E` -> `D242 4E71`) |
 | `goalieTurnFix` | AdjustFacingDirection, `$80444` (around `$8043A`, `$80448`) | `033C 0042` -> `033C 0044` (btst d1,#$42 -> #$44) | bottom computer goalie turns through his own net (see below) | `$DB86` (the same bytes) |
+| `shotScatterFix` | doshot, `$84D38` (around `$84D2C`, `$84D42`) | `4A6F 0004 6A00 0004 E248` -> `... 4E71` (lsr.w #1,d0 -> nop) | bottom net's y aim adjustment halved (not yet tested in '95) | `$C48A` (the same bytes) |
 | `stickShots` | puckstick `.stdef` `$7BA02` | hook on `4EB9 0008 142C 6000 0342` (jsr a2touchpuck / bra.w deflect); code (62 bytes) counts the shot through ChkShotStat's `.addShot` `$8AC7A` (shotplayer `$BAD6`) after tests of gmode `$BEF0` and sflags2 `$BEF4`, then a2touchpuck and `jmp deflect ($7BD4C)` | a save off the goalie's stick isn't a shot | `$151D6` |
 | `blindRingFix` | checkpuckcoll `$7B6B8` | hook on `6100 024A 6000` + edit `$7B6BE` `0052` -> `6650`; code (46 bytes) with puckc `$B3C2`, gmode `$BEF0`, puckstick `$7B904` | dead area round the goalie's stick (8 to ~20 units in NHL '95) | `$14EC8` |
 
@@ -830,7 +831,7 @@ the top (Up) once the home edge is taken out (home skates up in periods 1 and 3)
   bottom net's goals. Match Viewer, 2026-11-19: in the launch replays wides at the bottom net 8.2% -> 8.6% (goals 147
   -> 146 of 1,063); played through the game's own doshot (25 spots x 9 aims x 4 seeds a net) the top net's 900
   results identical, the bottom net's wides 2.7% -> 2.9% (16 results changed). NHL '95 has the same code at `$84D38`
-  (not offered there yet); the SNES halves too (but the SNES's league records lean Up, 0.976).
+  (offered there too as `shotScatterFix`, added 2026-11-19, not yet tested in '95); the SNES halves too (but the SNES's league records lean Up, 0.976).
 - Other end differences found, not offered: rebounds off the bottom goalie are about 5% faster (a `move.b` keeps the
   old low byte); the glass behind the top net is taller (wallcollb `$14BE0`, Ypos `$118`), which stops far shots but
   barely changes goals; the shoulder-save fumble (ghighr/ghighl hold points behind the top goalie) adds Up goals; the
@@ -2319,6 +2320,7 @@ line; check there.
 | Fixes: assists x3, aggression, comeback, rocket pass, open net, blind ring, runaway, goalie pull, sniping, penalty shot x2, pass direction, ppPk, faceoff, awareness, stick shots | `nhl95hacks.ts`, `hacks.ts` | Yes | **Yes (9)** |
 | Computer centres' defence fix | `nhl95hacks.ts` (`SWITCHES.centreDefenceFix`), `hacks.ts` | No (not yet) | **Yes (9)** |
 | Goalie turning fix | `nhl95hacks.ts` (`SWITCHES.goalieTurnFix`), `hacks.ts` | Yes | **Yes (9)** |
+| Bottom net shot aim fix | `nhl95hacks.ts` (`SWITCHES.shotScatterFix`), `hacks.ts` | No (not yet) | **Yes (9)** |
 | Organ after a pause | `nhl95hacks.ts` (`ORGAN_*`) | Yes | **Yes (9)** |
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |

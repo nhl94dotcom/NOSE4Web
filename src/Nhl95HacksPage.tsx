@@ -92,6 +92,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
   centreDefenceFix: 'A computer centre defending outside his zone covers the right spot at both ends of the rink.',
   goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net.',
+  shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
@@ -108,6 +109,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 // The line each of NHL 94's settings ends with, tested or (UNTESTED) not yet.
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
+const FIX_UNTESTED = "The same fix as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
 const NOT_YET: Nhl95Hack[] = []
 
@@ -170,6 +172,12 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       the original game misses one case, so when the puck goes right to left behind his goal line he turns the long
       way, facing into his net for a moment. With this on he turns the short way, as the top goalie does. Found by
       NOSE4Web and the NHL94 Match Viewer project. {FROM_94}
+    </p>
+  ),
+  shotScatterFix: (
+    <p className="note">
+      A shot that isn't perfect goes a random amount off target. For shots at the bottom net the original game halves
+      part of that, so they miss a little less often. With this on both nets are the same. {FIX_UNTESTED}
     </p>
   ),
   stickShots: (

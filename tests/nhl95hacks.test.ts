@@ -517,6 +517,22 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { goalieTurnFix: false }).bytes, rom.bytes)
   })
 
+  it.each(names)("puts NHL 94's bottom net shot aim fix into %s at NHL '95's place", (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    // doshot: cmp.w #$3C,d0 / bls.w / moveq #$3C,d0 / move.w d0,(sp) / tst.w 4(sp) / bpl.w / lsr.w #1,d0 / jsr randomd0s
+    expect(hex(rom.bytes, 0x84d2c, 28)).toBe('b07c003c63000006703c3e804a6f00046a000004e2484eb90007c62e')
+    expect(Buffer.from(rom.bytes).indexOf(Buffer.from('4a6f00046a000004e248', 'hex'))).toBe(0x84d38)
+    expect(Buffer.from(rom.bytes).indexOf(Buffer.from('4a6f00046a000004e248', 'hex'), 0x84d39)).toBe(-1)
+    expect(base.shotScatterFix).toBe(false)
+    const on = applyNhl95Hacks(rom, { shotScatterFix: true })
+    expect([...on.bytes.keys()].filter((i) => on.bytes[i] !== rom.bytes[i])).toEqual([0x84d40, 0x84d41])
+    expect(hex(on.bytes, 0x84d40, 2)).toBe('4e71') // nop
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, shotScatterFix: true })
+    expectSameBytes(applyNhl95Hacks(on, { shotScatterFix: false }).bytes, rom.bytes)
+  })
+
   it.each(names)("puts NHL 94's power play, faceoff, awareness and stick-shot fixes into %s at NHL '95's places", (name) => {
     const rom = open(name)
     const base = detectNhl95Hacks(rom.bytes).choices
