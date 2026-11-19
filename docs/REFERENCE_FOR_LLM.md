@@ -807,7 +807,14 @@ any crowd boost (which is global, and always on unless `crowdFix`). One code blo
   fight hands the boost on and restarts it; the timer carries over intermissions. Without fighting nothing goes in.
   Tests: `tests/fightmomentum.test.ts`.
 
-### Referee strictness (`referees`; added 2026-11-19, not yet tested in the game)
+### Referee strictness (`referees`; added 2026-11-19; Genesis NHL 94 tested in the game by Match Viewer 2026-11-19)
+
+Match Viewer, 40 computer games a level (5-minute periods, penalties on except offsides, line changes off): calls a
+game (roughing after an injury excluded) original 2.93, very lenient 1.88 (64% +- 9), lenient 2.73 (93% +- 12),
+strict 4.13 (141% +- 17), very strict 7.08 (242% +- 27), each within about 1.5 standard errors of the expected 50 /
+76 / 144 / 217%; every caller scales (charging/slashing and roughing/cross-checking are each one call named by
+HVcount & 2); interference too rare to judge (0.12 a game). SNES and NHL '95 not yet tested.
+
 
 Genesis NHL 94 (`hacks.ts`, Rules, five levels, default `original`). The judgement penalties all roll checkagr
 (collide94): d0 = randomd0(((40 - Agr) / 2) x 13), doubled for a pad player and halved within $28 of the puck, and

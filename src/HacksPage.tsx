@@ -888,7 +888,9 @@ export function HacksPage({ project, name, onChange }: Props) {
           <>
             How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging,
             roughing and goalie interference. A player's Aggression still counts as before, for people's players and
-            the computer's alike. Offsides, icing and the other calls are unchanged. Not yet tested in the game.
+            the computer's alike. Offsides, icing and the other calls are unchanged. In computer games very lenient
+            gave about 64% of the calls and very strict about 242%. Tested in the game by the NHL94 Match Viewer
+            project.
           </>,
         )}
       </section>

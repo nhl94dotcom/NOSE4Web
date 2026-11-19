@@ -1839,7 +1839,8 @@ export function HelpPage() {
           injury</b> (the hit is still called and the player lies down about ten seconds before he skates on); every
           injury lasting the period, or the whole game; or <b>a long fall instead</b> (a hit that would injure keeps
           the player down about 5 seconds, then he plays on, with no injury and no penalty; not with head
-          bleeding). <b>Referee strictness</b> (Genesis NHL 94; not yet tested in the game): from very lenient (about
+          bleeding). <b>Referee strictness</b> (Genesis NHL 94 tested in the game by the NHL94 Match Viewer project; SNES and NHL
+          '95 not yet): from very lenient (about
           half the calls) to very strict (about twice), for holding, hooking, tripping, charging, roughing and goalie
           interference, everyone's Aggression still counting. <b>Hot and cold range</b>: how far hot and cold swing a
           rating. <b>No icing</b>.{' '}
