@@ -821,6 +821,26 @@ penalty on a breakaway, where checkagr replaces the range with 8 / 7 / 4 / 3 (Ma
 interference roll with a jsr to its own code, so there only the multiplier changes. Offsides, icing, fights and
 penalty shots are untouched. Tests: `tests/readings.test.ts`.
 
+NHL '95 (`nhl95hacks.ts`, `referees95`, Rules, same five levels, `REFEREE_TEXTS`): checkagr (penalty95) is d0 =
+randomd0(((50 - Agr) / 2) x 13), the same callers; the `mulu.w #$D,d0` word is at `$8997A` (after `303C 0032 902B 0073
+E208 C0FC` at `$8996E`), set to NHL 94's 26 / 17 / 13 / 9 / 6. Goalie interference (collide95 .ci) is randomd0($1E -
+Agr) <= 5 (`cmp.w #5` word at `$7C4D8`, after `303C 001E 902B 0073 4EB9 0007 C63A B07C` at `$7C4C8`), about (t + 1) / 6,
+so 2 / 4 / 5 / 8 / 12 (50 / 83 / 100 / 150 / 217%). NHL_95.bin and the WN95HL's W18 / W18p have both at those places.
+Tests: `tests/nhl95hacks.test.ts`.
+
+SNES (`sneshacks.ts`, `referees`, an amount 0-4 = very lenient to very strict, `SNES_REFEREE_TEXTS`, off = 2; Rules):
+checkagr is `lda.w #$0014 / sec / sbc.w aggress,x / asl a x4 / sta.b d0`, so (20 - Agr) x 16, doubled for a pad player
+and halved near the puck, then jml randomd0. There is no multiplier, so the four `asl a` (`0A0A0A0A`) become a jsl
+(withFarCode: bank $9B, $80 or the site's) to 13 bytes (NOPs after the rtl, the same length at every level) that
+multiply the 16-bit A by 32 (`asl` x5), 21 (`sta d0 / asl / asl / clc / adc d0 / asl / asl / clc / adc d0`), 11 (`sta
+d0 / asl / asl / clc / adc d0 / asl / clc / adc d0`) or 7 (`sta d0 / asl` x3 `/ sec / sbc d0`): 50 / 76 / 145 / 229%
+(d0 is the sta's own direct-page operand, $A5, overwritten right after). No hardware multiplier (SA-1). Goalie
+interference (checkint .ci) is `lda.w #$0014 / sec / sbc.w aggress,x / jsl randoma8 / cmp.w #$0002 / bcs .rtl`: a call
+when the roll is under 2, so only whole steps: 1 / 2 / 2 / 3 / 4 (50 / 100 / 100 / 150 / 200%, lenient keeping the
+original's 2 as nearer 76% than 1 is). Both found by their code (`a9140038fd....` + 4 bytes + `85..bd....300206..`; `a9140038fd....22......c9..00b0`),
+at $9E:C124 / $9E:BAB2 in the original game (file offsets $F4124 / $F3AB2; +$200 with a copier header), $F416C /
+$F3AF2 in nhl94snes_2026 and $F418C / $F3B12 in the SA-1 builds (aggress at $7443 there). Tests: `tests/snesreferees.test.ts`.
+
 ### Goalie turning fix (`goalieTurnFix`; added 2026-11-18, tested in the game by Match Viewer 2026-11-18)
 
 Genesis NHL 94 (`hacks.ts`, Fixes, off by default, not recommended) and NHL '95 (`nhl95hacks.ts`, `SWITCHES` /

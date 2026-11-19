@@ -15,6 +15,7 @@ import {
   numberPart,
   PASS_CODE,
   readSite,
+  REFEREE_TEXTS,
   site,
   switchPart,
   writeHook,
@@ -24,6 +25,7 @@ import {
   type Hook,
   type Injuries,
   type Part,
+  type Referees,
   type ThreeStars,
 } from './hacks'
 import { clockTime, fightTimeText, penaltyLengths, penaltyTimeText } from './penaltytime'
@@ -89,6 +91,7 @@ export interface Nhl95HackChoices {
   delayedCalls: boolean
   bCheckPenaltiesOff: BCheckPenaltiesOff
   injuries: Injuries
+  referees: Referees
   shootoutInjuries: boolean
   fourthPeriodOvertime: number
   // Energy and injury risk.
@@ -127,7 +130,7 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
   'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'anyPosition',
-  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'shootoutInjuries', 'fourthPeriodOvertime',
+  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
   'baseWeight', 'hotColdRange', 'clutchTime',
@@ -179,6 +182,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   delayedCalls: false,
   bCheckPenaltiesOff: 'original',
   injuries: 'original',
+  referees: 'original',
   shootoutInjuries: false,
   fourthPeriodOvertime: 0,
   stamina: false,
@@ -214,6 +218,7 @@ export const NHL95_HACK_CHOICES = {
   bodychecks: { off: 'Off', on: 'On' },
   bCheckPenaltiesOff: BCHECK_TEXTS,
   injuries: INJURY_TEXTS,
+  referees: REFEREE_TEXTS,
 } satisfies { [K in Nhl95Hack]?: Record<Nhl95HackChoices[K] & string, string> }
 export type Nhl95ChoiceHack = keyof typeof NHL95_HACK_CHOICES
 
@@ -271,6 +276,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   delayedCalls: 'Calls during a delayed penalty',
   bCheckPenaltiesOff: 'B-checks with penalties off',
   injuries: 'Injuries',
+  referees: 'Referee strictness',
   shootoutInjuries: 'The injured sit out the shootout',
   fourthPeriodOvertime: 'Extra period length with its own overtime',
   stamina: 'Unlimited stamina',
@@ -1497,6 +1503,31 @@ const injuries95: Part<Injuries> = {
     INJURY_SITES95.forEach((at, i) => work.rom.set(hex(INJURY_BYTES95[value][i]), at))
   },
 }
+// Referee strictness, as NHL 94's (hacks.ts, referees): checkagr (penalty95) rolls d0 = randomd0(((50 - Agr) / 2) x
+// 13), and its callers call holding, hooking, tripping, charging or roughing when d0 is small, so the mulu.w #$D,d0
+// multiplier (word at $8997A) sets how strict the referee is: 26 / 17 / 13 / 9 / 6, as NHL 94's. Goalie interference
+// (collide95 .ci) rolls randomd0($1E - Agr) <= 5 (cmp.w #5 word at $7C4D8), about 6 calls in the range, so its
+// threshold moves to match: 2 / 4 / 5 / 8 / 12 (50%, 83%, 100%, 150%, 217%).
+const REFEREE_AT95 = 0x8996e
+const REFEREE_LEAD95 = hex('303C 0032 902B 0073 E208 C0FC') // move.w #$32,d0 / sub.b aggress(a3),d0 / lsr.b #1,d0 / mulu.w #
+const INTERFERENCE_AT95 = 0x7c4c8
+const INTERFERENCE_LEAD95 = hex('303C 001E 902B 0073 4EB9 0007 C63A B07C') // move.w #$1E,d0 / sub.b aggress(a3),d0 / jsr randomd0 / cmp.w #
+const REFEREE_LEVELS95: Record<Referees, [multiplier: number, interference: number]> = {
+  veryLenient: [26, 2],
+  lenient: [17, 4],
+  original: [13, 5],
+  strict: [9, 8],
+  veryStrict: [6, 12],
+}
+const REFEREE_SITES95 = [REFEREE_AT95 + REFEREE_LEAD95.length, INTERFERENCE_AT95 + INTERFERENCE_LEAD95.length]
+const refereesHere95 = (rom: Uint8Array) => matches(rom, REFEREE_AT95, REFEREE_LEAD95) && matches(rom, INTERFERENCE_AT95, INTERFERENCE_LEAD95)
+const setReferees95 = (rom: Uint8Array, value: Referees) => REFEREE_SITES95.forEach((at, i) => writeU16(rom, at, REFEREE_LEVELS95[value][i]))
+const referees95: Part<Referees> = {
+  detect: (rom) =>
+    refereesHere95(rom) ? (Object.keys(REFEREE_LEVELS95) as Referees[]).find((value) => REFEREE_SITES95.every((at, i) => readU16(rom, at) === REFEREE_LEVELS95[value][i])) : undefined,
+  remove: (rom) => void (refereesHere95(rom) && setReferees95(rom, 'original')),
+  apply: (work, value) => void (refereesHere95(work.rom) && setReferees95(work.rom, value)),
+}
 // The injured out of the season shootout: NextShooter's move.w 0(a0,d0.w),(BA_Skater_Offset).w ($9DD82), with the
 // season shootout's mark ($FFF000) and kept team structs ($FFF002; tmpdst at $68, the visitors' $366 on).
 const SHOOTOUT_INJURY_HOOK95: Hook = { at: 0x9dd82, original: hex('31F0 0000 D00E') }
@@ -1938,6 +1969,7 @@ const SETTINGS95: { [K in Nhl95Hack]?: () => Part<Nhl95HackChoices[K]> } = {
   delayedCalls: () => delayedCalls95,
   bCheckPenaltiesOff: () => bCheckPenaltiesOff95,
   injuries: () => injuries95,
+  referees: () => referees95,
   shootoutInjuries: shootoutInjuries95,
   fourthPeriodOvertime: () => fourthPeriodOvertime95,
   stamina: () => stamina95,
@@ -2022,6 +2054,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     delayedCalls: delayedCalls95.detect(rom),
     bCheckPenaltiesOff: bCheckPenaltiesOff95.detect(rom),
     injuries: injuries95.detect(rom),
+    referees: referees95.detect(rom),
     shootoutInjuries: shootoutInjuries95().detect(rom),
     fourthPeriodOvertime: fourthPeriodOvertime95.detect(rom),
     stamina: stamina95.detect(rom),
@@ -2135,6 +2168,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     settingStep('delayedCalls'),
     settingStep('bCheckPenaltiesOff'),
     settingStep('injuries'),
+    settingStep('referees'),
     settingStep('shootoutInjuries'),
     // After fighting, whose copy of the Game Setup choices it sets too.
     settingStep('fourthPeriodOvertime'),
@@ -2215,6 +2249,7 @@ export function nhl95HackValueText<K extends Nhl95Hack>(hack: K, choices: Nhl95H
   if (hack === 'threeStars') return lower(NHL95_HACK_CHOICES.threeStars[choices.threeStars])
   if (hack === 'bCheckPenaltiesOff') return lower(BCHECK_TEXTS[choices.bCheckPenaltiesOff])
   if (hack === 'injuries') return lower(INJURY_TEXTS[choices.injuries])
+  if (hack === 'referees') return lower(REFEREE_TEXTS[choices.referees])
   if (hack === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
   if (hack === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (hack === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
@@ -2276,6 +2311,10 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
         : c.injuries === 'penaltyOnly'
           ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for a while and then skates on.'
           : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
+  referees: (c) =>
+    c.referees === 'veryLenient' || c.referees === 'lenient'
+      ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryLenient' ? 'about half' : 'about three quarters'} as often.`
+      : `The referee is stricter: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryStrict' ? 'about twice' : 'about one and a half times'} as often.`,
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
   fourthPeriodOvertime: (c) =>
     `Game Setup offers an extra period length, and a regular-season game played at it has ${clockTime(c.fourthPeriodOvertime)} of overtime; the other lengths and the playoffs keep theirs.`,
@@ -2373,7 +2412,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
     title: 'Rules',
     hacks: [
       'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'shootoutInjuries', 'threeOnThree', 'threeOnThreeAll', 'fourthPeriodOvertime', 'faceoffFix', 'penaltyShotTableFix', 'penaltyShotFixes',
-      'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries',
+      'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees',
     ],
   },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds'] },

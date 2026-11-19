@@ -23,6 +23,7 @@ import {
   RECOMMENDED_SNES_HOLD_ENERGY,
   SNES_AMOUNT_OFF,
   SNES_INJURY_TEXTS,
+  SNES_REFEREE_TEXTS,
   SNES_SHOOTOUT_TEXTS,
   SNES_THREE_ON_THREE_TEXTS,
   snesAmountText,
@@ -46,6 +47,7 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   fighting: SNES_FIGHT_BONUS_DEFAULT,
   // Not a recommendation: the original game.
   injuries: 0,
+  referees: 2,
   seasonShootout: 0,
   threeOnThree: 0,
   // Not a recommendation: a fighting major's 5:00.
@@ -89,6 +91,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
   thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',
+  referees:
+    "How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging, roughing and goalie interference. A player's Aggression still counts as before, for people's players and the computer's alike. Goalie interference can only change in whole steps: half as often when very lenient, as before when lenient, one and a half times as often when strict, twice when very strict. Offsides, icing and the other calls are unchanged. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
   lockedChangeFix:
     "Pressing B on defence sometimes does nothing at all: no switch and no poke. Right after a check or a speed burst your own skater is usually the one best placed for the puck, so B picks him, but he cannot poke until the move ends, and the press is lost. It happens often during a burst and nearly always during a check. With the fix B passes over your skater while he is busy and switches to the next best one, as on the Genesis. The one trade-off: right after a missed check you get a teammate rather than a poke. Found by a league member and the NHL94 Match Viewer project. Among the recommended fixes. Tested in the game by the NHL94 Match Viewer project.",
   lockedDefenceFix:
@@ -326,6 +330,17 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.injuries} onChange={(e) => setAmount('injuries', Number(e.target.value))}>
                       {SNES_INJURY_TEXTS.map((text, choice) => (
+                        <option key={choice} value={choice}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : hack === 'referees' ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.referees} onChange={(e) => setAmount('referees', Number(e.target.value))}>
+                      {SNES_REFEREE_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
                           {text}
                         </option>

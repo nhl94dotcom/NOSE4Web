@@ -43,6 +43,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   delayedCalls: 'While one team has a penalty pending, the other can be called too.',
   bCheckPenaltiesOff: 'Whether a B-check trips with penalties off as it does with them on.',
   injuries: 'How often hits injure, and how long an injury lasts.',
+  referees: 'How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.',
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt.',
   fourthPeriodOvertime: 'Adds a period length to Game Setup whose regular-season games get their own overtime, such as 99 minutes.',
   stamina: 'With line changes on, players on the ice do not tire.',
@@ -112,7 +113,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = []
+const NOT_YET: Nhl95Hack[] = ['referees']
 
 const OT3_MORE = (
   <p className="note">
@@ -454,6 +455,13 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       <b>Every injury for the period</b> and <b>for the game</b> make every injury last that long. With <b>a long fall
       instead</b> the player stays down about 5 seconds, then gets up and plays on: no injury and no penalty. The WN95HL's
       ROMs already have every injury for the game.
+    </>
+  ),
+  referees: () => (
+    <>
+      How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging, roughing
+      and goalie interference. A player's Aggression still counts as before, for people's players and the computer's
+      alike. Offsides, icing and the other calls are unchanged.
     </>
   ),
   shootoutInjuries: () => (

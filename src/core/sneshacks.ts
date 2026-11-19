@@ -1,6 +1,7 @@
 import { fightTimeText, penaltyTimeText } from './penaltytime'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
+import { REFEREE_TEXTS } from './hacks'
 import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
 import { SNES_FIGHT_BONUS_RANGE, SNES_FIGHT_SHARED_SITE, snesFightBlocked, snesFightCountJump, snesFightState, withoutSnesFight, withSnesFight } from './snesfight'
 import { snesPeriodCountPlace } from './snesmenu'
@@ -54,6 +55,7 @@ export type SnesHack =
   | 'penaltyTime'
   | 'fighting'
   | 'injuries'
+  | 'referees'
   | 'seasonShootout'
   | 'threeOnThree'
   | 'creaseIcing'
@@ -325,6 +327,7 @@ export const SNES_HACKS: SnesHack[] = [
   'penaltyTime',
   'fighting',
   'injuries',
+  'referees',
   'seasonShootout',
   'threeOnThree',
   'creaseIcing',
@@ -385,6 +388,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   penaltyTime: 'Penalty time',
   fighting: 'Fighting',
   injuries: 'Injuries',
+  referees: 'Referee strictness',
   seasonShootout: 'A shootout for tied regular-season games',
   threeOnThree: '3 on 3 overtime',
   creaseIcing: 'No icing within the crease',
@@ -529,8 +533,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'seasonShootout' | 'threeOnThree' | 'fightTime'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'seasonShootout', 'threeOnThree', 'fightTime']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -542,6 +546,8 @@ const SNES_FALL_LISTS = [
   { original: '19011400' + '1a011400' + '1b01e803' + '1b0118fc', longFall: '1a010600' + '1b01' + SNES_LONG_FALL + '1c010800' + '5901f8ff' },
   { original: '29011400' + '2a011400' + '2b01e803' + '2b0118fc', longFall: '2a010600' + '2b01' + SNES_LONG_FALL + '2c010800' + '5d01f8ff' },
 ]
+// The referee's choice: very lenient (0) to very strict (4), the Genesis's REFEREE_TEXTS; 2 the original game.
+export const SNES_REFEREE_TEXTS = Object.values(REFEREE_TEXTS)
 // The shootout's choice: none, after one overtime, or after period 3 with no overtime.
 export const SNES_SHOOTOUT_TEXTS = ['None: as the original game', 'A shootout after one overtime', 'A shootout after period 3, no overtime']
 // An amount in words, for the Apply list, Changes and the Discord post.
@@ -551,6 +557,8 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return value === SNES_AMOUNT_OFF.fighting ? 'off' : `on, with a bonus of ${value}`
     case 'injuries':
       return SNES_INJURY_TEXTS[value]?.toLowerCase() ?? String(value)
+    case 'referees':
+      return SNES_REFEREE_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'seasonShootout':
       return SNES_SHOOTOUT_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'threeOnThree':
@@ -563,7 +571,7 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
   }
 }
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, seasonShootout: 0, threeOnThree: 0, fightTime: 0 }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -573,7 +581,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -3288,6 +3296,28 @@ function organPlaces(rom: Uint8Array): Placed[] | null {
   ]
 }
 
+// The referee's code for each level, A times the multiplier, padded with NOPs to one length; none for the original.
+const REFEREE_OFF = 2
+const REFEREE_INTERFERENCE = [1, 2, 2, 3, 4]
+const REFEREE_LENGTH = 13
+const refereeCodes = (d0: number): (Uint8Array | null)[] =>
+  [
+    // x32: asl x5
+    '0A0A0A0A0A',
+    // x21: sta d0 / asl x2 / clc / adc d0 (x5) / asl x2 / clc / adc d0
+    `85${hex8(d0)} 0A0A 18 65${hex8(d0)} 0A0A 18 65${hex8(d0)}`,
+    null,
+    // x11: sta d0 / asl x2 / clc / adc d0 (x5) / asl / clc / adc d0
+    `85${hex8(d0)} 0A0A 18 65${hex8(d0)} 0A 18 65${hex8(d0)}`,
+    // x7: sta d0 / asl x3 / sec / sbc d0
+    `85${hex8(d0)} 0A0A0A 38 E5${hex8(d0)}`,
+  ].map((text) => {
+    if (text === null) return null
+    const code = bytesOf(text, '6B')
+    return bytesOf(code, new Array(REFEREE_LENGTH - code.length).fill(0xea))
+  })
+const hex8 = (value: number) => value.toString(16).padStart(2, '0')
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   organResume: (rom) => organPlaces(rom),
   // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
@@ -3428,6 +3458,38 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       { at: sites.tieTest, original: tieTest, hacked: choice === 2 ? jsl : tieTest },
       { at: sites.clock, original: original.clock, hacked: choice === 1 ? hexBytes('EAEA') : original.clock },
       { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock), ...(extras ? {} : { earlier: true }) },
+    ]
+  },
+  // Referee strictness, as on the Genesis (hacks.ts, referees). checkagr rolls d0 = randomd0((20 - Agr) x 16), doubled
+  // for a pad player and halved near the puck, and its callers call holding, hooking, tripping, charging or roughing
+  // when d0 is small. The x 16 is four asl a (16-bit A, after lda.w #$0014 / sec / sbc.w aggress,x, before sta.b d0):
+  // they become a jsl to code that multiplies A by 32, 21, 11 or 7 (shifts and adds through d0, which is stored right
+  // after) and returns: about 50%, 76%, 145% and 229% of the calls. The original game is no hook. Goalie
+  // interference (checkint .ci) calls when randoma8(20 - Agr) is under 2 (cmp.w #$0002 / bcs .rtl), so its threshold
+  // takes the nearest whole step: 1, 2, 2, 3, 4 (50%, 100%, 100%, 150%, 200%). The code is the same length at every
+  // level. Its amount is the choice, SNES_REFEREE_TEXTS.
+  referees: (rom, _source, amount) => {
+    const agr = only(rom, 'a9140038fd....' + '........' + '85..bd....300206..')
+    const int = only(rom, 'a9140038fd....22......c9..00b0')
+    if (agr < 0 || int < 0) return null
+    const site = agr + 7
+    const d0 = rom[agr + 12]
+    if (rom[agr + 19] !== d0) return null
+    const codes = refereeCodes(d0)
+    const original = hexBytes('0A0A0A0A')
+    // The level in the ROM: none (the original game), or the one whose code its jsl calls.
+    const target = rom[site] === 0x22 ? loRomOffset(rom[site + 3], readU16(rom, site + 1)) : -1
+    const now = same(rom, site, original) ? REFEREE_OFF : codes.findIndex((code) => code && target >= 0 && same(rom, target, code))
+    if (now < 0) return null
+    // Turned on without a choice (as when every hack is chosen): strict, unless the ROM has its own already.
+    const choice = amount ?? (now === REFEREE_OFF ? 3 : now)
+    const code = codes[choice === REFEREE_OFF ? 3 : choice]!
+    const placed = withFarCode(rom, site, original, 0, code)
+    if (!placed) return null
+    return [
+      { ...placed[0], amount: choice },
+      placed[1],
+      { at: int + 12, original: hexBytes('0200'), hacked: Uint8Array.of(REFEREE_INTERFERENCE[choice], 0) },
     ]
   },
   // Injuries, as on the Genesis (hacks.ts), at the places Match Viewer found (the SA-1 builds have the same code
@@ -4413,7 +4475,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
-  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
+  'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.

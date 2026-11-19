@@ -253,6 +253,7 @@ const SNES: Record<SnesHack, string> = {
   oneMinutePenalties: 'Minor penalties last one minute instead of two.',
   thirtySecondPeriods: 'The main menu also offers 30-second periods.',
   noInterference: 'Interference is never called.',
+  referees: 'How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.',
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
   lockedChangeFix: 'Pressing B while your skater is checking or bursting now switches to another skater, where the press was often lost.',
   lockedDefenceFix: 'L and R take a defenceman even while your skater is checking, bursting, down or otherwise busy, where the press was lost.',
@@ -312,6 +313,10 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
             'Every injury keeps the player out for the rest of the game.',
             'A hit that would injure has the player stay down about 5 seconds and then get up and play on: no injury, and no penalty.',
           ][amounts.injuries] || SNES[hack]
+      : hack === 'referees' && amounts
+        ? amounts.referees < 2
+          ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${amounts.referees === 0 ? 'about half' : 'about three quarters'} as often.`
+          : `The referee is stricter: holding, hooking, tripping, charging, roughing and goalie interference are called ${amounts.referees === 4 ? 'about twice' : 'about one and a half times'} as often.`
       : hack === 'fighting' && amounts
         ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
         : hack === 'fightTime' && amounts

@@ -610,6 +610,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       fightSeconds: 90,
       bCheckPenaltiesOff: 'asPenaltiesOn',
       injuries: 'longFall',
+      referees: 'strict',
       fourthPeriodOvertime: 300,
       energyDrain: 20,
       energyRecovery: 15,
@@ -631,6 +632,21 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...base, ...all }, unknown: [] })
     expect(detectNhl95Hacks(buildRom(on))).toEqual({ choices: { ...base, ...all }, unknown: [] })
     expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
+  })
+
+  // checkagr's mulu.w #$D,d0 ($8997A) and goalie interference's cmp.w #5,d0 ($7C4D8), as NHL 94's referee levels.
+  it.each(names)('sets the referee strictness in %s, changing only the two words', (name) => {
+    const rom = open(name)
+    expect(Buffer.from(rom.bytes.subarray(0x8996e, 0x8997c)).toString('hex')).toBe('303c0032902b0073e208c0fc000d')
+    expect(Buffer.from(rom.bytes.subarray(0x7c4c8, 0x7c4da)).toString('hex')).toBe('303c001e902b00734eb90007c63ab07c0005')
+    for (const [referees, multiplier, interference] of [['veryLenient', 26, 2], ['lenient', 17, 4], ['strict', 9, 8], ['veryStrict', 6, 12]] as const) {
+      const on = applyNhl95Hacks(rom, { referees })
+      expect(on.bytes.reduce((n, b, i) => (b !== rom.bytes[i] ? [...n, i] : n), [] as number[])).toEqual([0x7c4d9, 0x8997b])
+      expect(on.bytes[0x8997b]).toBe(multiplier)
+      expect(on.bytes[0x7c4d9]).toBe(interference)
+      expect(detectNhl95Hacks(buildRom(on))).toEqual({ choices: { ...detectNhl95Hacks(rom.bytes).choices, referees }, unknown: [] })
+      expectSameBytes(applyNhl95Hacks(on, { referees: 'original' }).bytes, rom.bytes)
+    }
   })
 
   it.each(names)('lets Edit Lines in %s put any skater at any position, a change in place', (name) => {

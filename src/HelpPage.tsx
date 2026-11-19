@@ -2294,6 +2294,11 @@ export function HelpPage() {
               Match Viewer project on the original game and the SA-1 build.
             </li>
             <li>
+              <b>Referee strictness</b>: the Genesis's five levels, from very lenient (about half the calls) to very
+              strict (about twice); goalie interference changes in whole steps (half to twice). For every build. Not yet
+              tested in the game.
+            </li>
+            <li>
               <b>3 on 3 overtime</b>: as on the Genesis, each team's goalie and its line's LW, C and RD play overtime,
               in the regular season or every overtime; a penalty gives the other team an extra skater, and a team with
               three in the box plays two skaters. For the original game, league ROMs built on it, and McMarkis's
@@ -2492,7 +2497,8 @@ export function HelpPage() {
           rates no one, so a league there raises some. Three of NHL 94's Ratings options:
           the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
           <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
-          are not offered: NHL '95 works out and shows ratings differently.
+          are not offered: NHL '95 works out and shows ratings differently. <b>Referee strictness</b>, NHL 94's five
+          levels, from very lenient (about half the calls) to very strict (about twice); not yet tested in the game.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved
