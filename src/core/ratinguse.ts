@@ -9,7 +9,7 @@ export const SKATER_RATING_USES: Record<string, string> = {
   Agl: 'how quickly he speeds up and turns',
   Spd: 'top speed',
   OfA: 'how quickly computer players react when chasing a loose puck or the man with it, when carrying the puck (deciding to shoot or pass), and as a defenceman whose team has the puck; the team ratings and the comeback bonus change it',
-  DfA: 'how quickly computer players react in their other jobs: a defenceman covering a rush, and wingers and centres whether or not their team has the puck (the game uses Defensive Awareness for forwards on offence too, a slip in its code)',
+  DfA: 'how quickly computer players react in their other jobs: a defenceman covering a rush, and wingers and centres whether or not their team has the puck (the original game uses Defensive Awareness for forwards on offence too; the computer forwards' awareness option changes that)',
   ShP: 'shot speed; at 3 or less he cannot wind up a full slapshot',
   Chk: 'how often his checks knock a man down, whether he can upend a man (4 or more), and how often a computer player tries to check or goes after the man with the puck',
   'H/F': 'shooting hand, and how long the players he injures are out',
