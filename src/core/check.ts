@@ -225,7 +225,7 @@ export function checkProject(project: RomProject): Finding[] {
       const stray = [...new Set([...city].filter((c) => c > 'Z' && !(c >= 'a' && c <= 'z')))]
       const why = [
         ...(city.length > 15 ? [`is ${city.length} letters long, and the box that names a shootout's winners has room for 15, so it runs off the screen there`] : []),
-        ...(stray.length ? [`has ${stray.map((c) => `"${c}"`).join(', ')}, which the big font of the box that names a shootout's winners has no letter for, so a stray tile shows there`] : []),
+        ...(stray.length ? [`has ${stray.map((c) => `"${c}"`).join(', ')}, which the big font of the box that names a shootout's winners has no letter for, so a stray mark shows there`] : []),
       ]
       if (why.length) findings.push({ level: 'note', where: labels[i], message: `Its Location, "${city}", ${why.join('; it also ')}.` })
     })

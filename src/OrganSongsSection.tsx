@@ -482,8 +482,8 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
         saves it as a MIDI file. <b>Replace</b> puts a MIDI file of your own in its place, played on the game's two
         organ sounds, left and right, at most {SNES_SONG_VOICES} notes at once (where more sound at once the highest
         are kept); drums are left out, and notes are moved by octaves into the organ's range. Every team with that
-        song in a slot plays the new one. Help, in the list on the left, has tips on preparing a MIDI file. Tested in
-        the game by the NHL94 Match Viewer project, on the original game and McMarkis's 32-team builds.
+        song in a slot plays the new one. Help, in the list on the left, has tips on preparing a MIDI file. Works on
+        the original game and McMarkis's 32-team builds. Tested in the game by the NHL94 Match Viewer project.
       </p>
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
       <p className="note">

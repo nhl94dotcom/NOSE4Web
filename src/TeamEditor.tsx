@@ -568,8 +568,8 @@ export function TeamEditor(props: Props) {
       {fewerSkaters && (
         <p className="notice">
           This ROM is a hack that puts fewer skaters on the ice. Such ROMs are played with line changes off, and are
-          known to crash with them on, so only the first line (NLC) is used. Editing them has been tested less widely
-          than editing the original game, so keep a copy of the file you opened.
+          known to crash with them on, so only the first line (NLC) is used. The editor knows them less well than
+          the original game, so keep a copy of the file you opened.
         </p>
       )}
       <section>

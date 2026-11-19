@@ -20,7 +20,7 @@ const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: num
     key: 'strength',
     label: 'Strength',
     title:
-      "Match Viewer's team strength, from the league value: 71% the average of the team's top four forwards, 15% its top three defencemen and 14% its best goalie. It explains about half of how strong the leagues' teams have played; the game's Overall explains almost none. Genesis only; see Help",
+      "How strong the team should play, from the league value (the NHL94 Match Viewer project's): 71% the average of the team's top four forwards, 15% its top three defencemen and 14% its best goalie. It matches how teams really play far better than the game's Overall does. Genesis only; see Help",
     decimals: 1,
   },
   { key: 'startingSkaters', label: 'First line', title: 'Average overall of the skaters on the first line (NLC), the one that plays when line changes are off', decimals: 1 },

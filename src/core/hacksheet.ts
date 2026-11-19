@@ -32,7 +32,7 @@ const clockText = (seconds: number) => `${Math.floor(seconds / 60)}:${String(sec
 const GENESIS: Record<keyof HackChoices, Explain> = {
   checkFix: (c) =>
     c.checkFix === 'all240'
-      ? "This ROM keeps an earlier version of the fix, where every check is worked out as for a person's player, so a light checker still knocks down much heavier players."
+      ? "This ROM has an earlier version of the fix, which judges every check as if a person controlled the checker, so a light checker still knocks down much heavier players."
       : 'Checks are worked out the same way for everyone, so a heavier checker does better, as in real hockey, and switching away with C then B just before a hit no longer helps.',
   secondAssist: () => 'When two players pass back and forth before a goal, the second assist is now credited.',
   oneTimerAssist: () => "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
@@ -130,7 +130,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   hitEnergy: (c) =>
     `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
   injuryBonus: (c) =>
-    `Each knockdown a skater takes, the hit itself included, adds ${c.injuryBonus} chances in 160 to the injury risk of a hit that can injure him, up to ${c.injuryCap} in all, and half wears off at each intermission; only the few hits that can injure in the original game are affected.`,
+    `Each knockdown a skater takes, the hit itself included, makes an injury more likely (${c.injuryBonus} more chances in 160, up to ${c.injuryCap} in all), and half of it wears off at each intermission. Only the few hits that can injure in the original game are affected.`,
   injuryCap: (c) => `Knockdowns add at most ${c.injuryCap} chances in 160 to the injury risk of a hit that can injure.`,
   holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
   anyPosition: () => "The game's Edit Lines offers every skater for every position, and keeps such lines when they are saved; a player plays the position the line gives him.",
@@ -157,7 +157,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   burstEnergy: (c) =>
     c.burstEnergy === 0
       ? 'A speed burst costs no energy.'
-      : `A speed burst costs ${c.burstEnergy} energy out of 4096 (${Math.round((c.burstEnergy / 4096) * 100)}% of full), where the original costs ${NO_HACKS.burstEnergy}.`,
+      : `A speed burst costs ${energyText(c.burstEnergy)} of a player's full energy, where the original costs ${energyText(NO_HACKS.burstEnergy)}.`,
   energyRecovery: (c) =>
     `Players get their energy back ${more(c.energyRecovery, NO_HACKS.energyRecovery, 'faster', 'more slowly')} on the bench (${c.energyRecovery}, where the original has ${NO_HACKS.energyRecovery}).`,
   speedBurst: (c) => `The C-button speed burst gives every player the same push, ${c.speedBurst}, tired or not; the original gives a fresh player 32 and a tired one less.`,
@@ -243,11 +243,11 @@ const SNES: Record<SnesHack, string> = {
   clutchTime: "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
   nhlShootout: "Shootouts are three rounds, then sudden death, as in today's NHL, and end as soon as one team cannot catch up.",
-  giveaways: "Each player's giveaways and takeaways are counted, for the stats pages below and for save-state readers. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
+  giveaways: "Each player's giveaways and takeaways are counted, for the stats pages below and for websites that read save states. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
   giveawaysShown: "Game Stats shows each team's giveaways and takeaways as Give/Take.",
   giveawayPages: "Player Stats has Giveaways and Takeaways pages (right past Penalties), sorted by each player's giveaways or takeaways, and the Goalies page shows each goalie's giveaways.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
-  timeOnIce: "Each player's time on ice is counted, as on the Genesis, for the Time On Ice page and for save-state readers.",
+  timeOnIce: "Each player's time on ice is counted, as on the Genesis, for the Time On Ice page and for websites that read save states.",
   bodychecksShown: "Player Stats shows each player's bodychecks as Cf, in place of penalty minutes, and sorts that column by them.",
   defenceControl: 'Defence control is on for both teams from the start of every game.',
   oneMinutePenalties: 'Minor penalties last one minute instead of two.',
@@ -269,7 +269,7 @@ const SNES: Record<SnesHack, string> = {
   skipPucksIntro: 'The game starts without the flying pucks.',
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
-  showMaxBoost: 'Edit Lines and the team roster show a rating the hot and cold bug puts at the maximum as 100, as it plays.',
+  showMaxBoost: 'Edit Lines and the team roster show a rating that the hot and cold bug raises to the maximum as 100, the way it plays.',
   manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts him back, with a beep.',
   regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
   hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
@@ -301,7 +301,7 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   // The energy hacks say how much: units and a share of full energy.
   const textOf = (hack: SnesHack) =>
     (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
-      ? SNES[hack].replace('some of his energy', `${amounts[hack]} units of his energy (${energyText(amounts[hack])})`)
+      ? SNES[hack].replace('some of his energy', `${energyText(amounts[hack])} of his energy`)
       : hack === 'seasonShootout' && amounts
         ? `A regular-season game tied ${amounts.seasonShootout === 2 ? 'after period 3 goes straight to a shootout, with no overtime' : 'after overtime is settled by a shootout'}; the winners get one goal more, so it never ends in a tie.`
       : hack === 'injuries' && amounts
@@ -320,7 +320,7 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
             : 'The referee is more lenient: holding, hooking, tripping, charging and roughing are called about three quarters as often; goalie interference as before.'
           : `The referee is stricter: holding, hooking, tripping, charging, roughing and goalie interference are called ${amounts.referees === 4 ? 'about twice' : 'about one and a half times'} as often.`
       : hack === 'fighting' && amounts
-        ? `${SNES.fighting} Each player's fighting rating counts ${amounts.fighting} more${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
+        ? `${SNES.fighting} Each player's fighting rating gets a bonus of ${amounts.fighting}${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
         : hack === 'fightTime' && amounts
         ? `A fight keeps each fighter in the box ${clockTime(amounts.fightTime)}, whatever its minutes; the statistics still show its usual penalty minutes.`
         : hack === 'penaltyTime' && amounts
@@ -355,7 +355,7 @@ export function hackSheetHtml(sheet: HackSheet, made: Date = new Date()): string
           .join('\n')
   const unread =
     sheet.unread.length > 0
-      ? `<p class="note">Also changed, in code NOSE4Web does not know, so not described here: ${escape(sheet.unread.join(', '))}.</p>`
+      ? `<p class="note">Also changed, in ways NOSE4Web cannot read, so not described here: ${escape(sheet.unread.join(', '))}.</p>`
       : ''
   return `<!doctype html>
 <html lang="en">
@@ -409,7 +409,7 @@ export function hackSheetDiscord(sheet: HackSheet): string[] {
     }
   }
   if (sheet.unread.length > 0) {
-    const line = `\nAlso changed, in code NOSE4Web does not know: ${sheet.unread.join(', ')}.`
+    const line = `\nAlso changed, in ways NOSE4Web cannot read: ${sheet.unread.join(', ')}.`
     const current = messages[messages.length - 1]
     if (size([...current, line]) > DISCORD_MOST) messages.push([line.trim()])
     else current.push(line)

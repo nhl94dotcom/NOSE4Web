@@ -63,8 +63,8 @@ export function MenuPictureSection({ project, opened, onChange }: Props) {
         320 by 224 pixels. Room for detail is limited, so a detailed picture is simplified to fit: logos and simple
         designs come out clean, photos blocky. It has up to {MENU_PICTURE_COLOURS} colours of its own, plus the menu's
         own white, greys and black, which stay so the menu's lettering and frames look as they do. The parts the menu
-        always covers are left blank, so the room goes to the parts that show. Tested in the game by the NHL94 Match
-        Viewer project: the menu, banners, logos and player cards stay exactly as they were.
+        always covers are left blank, so the room goes to the parts that show. The menu, banners, logos and player
+        cards are not changed. Tested in the game by the NHL94 Match Viewer project.
       </p>
       <PictureView picture={menu.picture} palette={menu.palette} scale={2} />
       <p>

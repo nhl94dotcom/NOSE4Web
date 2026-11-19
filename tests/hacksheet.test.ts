@@ -55,7 +55,7 @@ describe('the hack sheet for Discord', () => {
     })
     const text = messages.join('\n')
     for (const item of sheet.sections.flatMap((section) => section.items)) expect(text).toContain(`- **${item.title}**: ${item.text}`)
-    expect(text).toContain('Also changed, in code NOSE4Web does not know: Goalie hold time.')
+    expect(text).toContain('Also changed, in ways NOSE4Web cannot read: Goalie hold time.')
     expect(hackSheetDiscord(genesisHackSheet({ choices: NO_HACKS, unknown: [] }, 'stock'))).toEqual([
       "**Hacks in stock** (NHL '94 for the Genesis)\nNone: it plays as the original game.",
     ])

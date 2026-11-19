@@ -95,8 +95,8 @@ export function AnnouncerSection({ project, onChange }: Props) {
           photo that fills the whole space is too detailed. Either way it has up to 15 colours of its own, and the
           desk goes. Text in the box is drawn over the picture, and the longer lines reach into the left of it, so
           keep a face or a name to the right, as Ron Barr's is. <b>Put back the original</b> brings back the picture
-          the ROM was opened with. Tested in the game by the NHL94 Match Viewer project: the rest of the screen stays
-          exactly as it was.
+          the ROM was opened with. The rest of the screen is not changed. Tested in the
+          game by the NHL94 Match Viewer project.
         </p>
       ) : (
         <p className="note">
@@ -105,8 +105,8 @@ export function AnnouncerSection({ project, onChange }: Props) {
           scaled to fill the {ANNOUNCER_INSIDE.width} by {ANNOUNCER_INSIDE.height} pixels inside it, cropped to fit, so a
           head-and-shoulders photo works best. It has up to {ANNOUNCER_OWN_COLOURS} colours of its own, plus the seven
           the rest of the screen uses, which stay as they are. <b>Put back the original</b> brings back the picture
-          the ROM was opened with. Tested in the game by the NHL94 Match Viewer project: the rest of the screen
-          stays exactly as it was.
+          the ROM was opened with. The rest of the screen is not changed. Tested in the
+          game by the NHL94 Match Viewer project.
         </p>
       )}
       <PictureView picture={shown.picture} palette={shown.palette} scale={snes ? 2 : 3} format={format} />
