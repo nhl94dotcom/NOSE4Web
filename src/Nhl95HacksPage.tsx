@@ -109,7 +109,6 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 // The line each of NHL 94's settings ends with, tested or (UNTESTED) not yet.
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
-const FIX_UNTESTED = "The same fix as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
 const NOT_YET: Nhl95Hack[] = []
 
@@ -177,7 +176,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   shotScatterFix: (
     <p className="note">
       A shot that isn't perfect goes a random amount off target. For shots at the bottom net the original game halves
-      part of that, so they miss a little less often. With this on both nets are the same. {FIX_UNTESTED}
+      part of that, so they miss a little less often. With this on both nets are the same. {FROM_94}
     </p>
   ),
   stickShots: (
