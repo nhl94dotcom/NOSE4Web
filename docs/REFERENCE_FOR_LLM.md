@@ -836,6 +836,44 @@ the top (Up) once the home edge is taken out (home skates up in periods 1 and 3)
   barely changes goals; the shoulder-save fumble (ghighr/ghighl hold points behind the top goalie) adds Up goals; the
   one-timer target (an A-tap spot pass) never feeds a one-timer; D-pad shot height is fixed to the screen, and flat
   shots knocked away by the stick are not counted as shots (the 0.94 shot count at the bottom net).
+- The power play (2026-11-19, league data and captures). The league's bigger Down lean on the power play (PP goals
+  1.076, PP2 1.14, raw) is more power plays, not better ones: teams attacking Down draw 5.4% more penalties per
+  period (home 1.064, away 1.045, so not a period effect; every type about 1.05; interference 1.125, tripping 1.092),
+  while goals per power play lean about 1.03, as at even strength. 1.054 x 1.03 = 1.09; two penalties for PP2:
+  1.054^2 x 1.03 = 1.14. Match Viewer: chances for a computer defender to hook (within 30 of the carrier, facedir ==
+  vtoa) are even by end (1.006) but hooks per chance are 1.45 in people's games and even in computer-only games
+  (0.86), so it is how people play, not code: check4check, Acheck, vtoa and the slot rule (sflags6 bit 5, never set)
+  are all even. Interference is mostly goalie interference at the top crease: people stand the bottom goalie deeper
+  (24.7 out against 19.4), outside the call's crease window ($EF-$10A). Tripping: people's B pokes (1.18). The camera
+  (checkwindow, Vpos -$C8..$100) frames both ends alike in the game. Nothing to offer.
+
+#### NHL '95 and the SNES (2026-11-19; code reads and harness tests, nothing offered yet)
+
+- NHL '95 (no league data): the same as NHL 94 for the y-scatter halving (`$84D38`), unused save odds, the rebound
+  `move.b` (`$7C258`), the turn guard (`$80444`), the bottom goalie's stopped-puck quirk (`$803D4`, `$807B4`) and a
+  smaller top-glass band (wallcollb `$7A9A0`, Ypos `$110`). HotList at `$137B66` (GetHot's `227C 0013 7B66` at
+  `$7C686`; ready 606+f, glovel 614+f, glover 622+f, stickl 630+f, stickr 638+f, crouch 904 + 3 x slot for facings
+  0, 1, 3, 4, 5, 7). GetHot negates y unless attribute bit 4, never set for goalies, so every goalie hot spot points up
+  the screen: in front of the bottom goalie, behind the top one. Match Viewer's frame sheet: the facing-down stick
+  frames draw the blade in front of the spot (so the spot is wrong there); the glove frames' spot is the raised glove
+  (height, where a caught puck is drawn). Test variant C mirrors facing-down := (x, -y) of facing-up for the ready,
+  crouch and stick-save frames only (18 frames, gloves kept): a model gives Down/Up 1.00 in save mode (retail 1.01-1.05,
+  turned ready 1.18). Also new in '95: checkpuckcoll's one-timer reach ($12) is reset to $E by each earlier
+  non-one-timer in OOlist order, which should favour one-timers at the bottom net; and the stick test loads
+  `move.l #$FFFFDC76,d1` at `$7B6A2` (ChkStickSqP's address, not its value), so the stick reach is a box, not a circle.
+- The SNES (league 0.976: about 2.4% fewer goals at the bottom net, shots 0.989, penalties even): no stick-art,
+  turning or shoulder-save faults like the Genesis's. The y-scatter halving is the same (`$9E:E36D`, about 0.5%). The
+  goalie body box (checkpuckcoll_ccx .7, `$9E:98FB`, goalie - puck in [-11, 10]) barely matters in the game. puckgoalie
+  `.3x` (`$9E:F1AA`): the rebound keeps puck - goalie unless the goalie's Yvel has the same sign, and a still goalie's
+  Yvel 0 counts as positive, so every rebound off a still goalie goes toward -y: out of the top net, back toward the
+  bottom goal line (Match Viewer: 85 of 112 bottom rebounds goalward against 55 of 138 at the top; `bmi` -> `bra` at
+  file `$F71AF` evens it but also changes the top net). But rebound shots are only about 2% of shots in the captures
+  and the bottom net does not lose chances after saves, so it is a small part. The main part is people's aiming: shot
+  height is fixed to the screen (shotsets), so people shoot high (d-pad up-diagonals) at the top net and sideways, with
+  more one-timers, at the bottom, and the goalie's left/right strengths differ by end. Match Viewer's goal-rate map
+  weighted by the captures' per-end aim and shot-type mix gives 0.981 per shot in the slot and circles, against the
+  league's 0.987 per shot. Pending at Match Viewer: whether the left/right effect follows the goalie's hand
+  (attribute `$0800`), and one-timers by net.
 
 Tests: `tests/readings.test.ts` (nhl94.bin, the 9 frames against their partners, and the league ROMs, EVO included).
 
