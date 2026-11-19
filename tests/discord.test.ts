@@ -47,7 +47,7 @@ describe('the Discord post', () => {
         '- **Base weight**: 144 pounds (the original game has 140 pounds)',
         '- **Speed burst**: 24',
         "- **smozoma's weight bug fix (legacy)**: the earlier, simpler fix",
-        'Also changed, in code NOSE4Web does not know: Real-time clock, Goalie range to each side, Goalie range up the ice.',
+        'Also changed, in ways NOSE4Web cannot read: Real-time clock, Goalie range to each side, Goalie range up the ice.',
       ].join('\n'),
     )
   })
