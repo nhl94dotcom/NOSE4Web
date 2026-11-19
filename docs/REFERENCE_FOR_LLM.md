@@ -760,10 +760,10 @@ code is placed by `placeCode` (section 10). NHL 94 address given briefly for ref
 Faceoff around checks: `$8901C`, `$890D0` (jsr limitfo), `$88F56`. Stick around: `$7B9F8`, `$8AC66`. Ring around:
 `$7B6B2`, `$7B6C0`. Others: `AROUND` in `nhl95hacks.ts`.
 
-### Computer centres' defence fix (`centreDefenceFix`; added 2026-11-18, not yet tested in the game)
+### Computer centres' defence fix (`centreDefenceFix`; added 2026-11-18, tested in the game by Match Viewer 2026-11-18)
 
 Genesis NHL 94 (`hacks.ts`, Fixes, off by default, not recommended) and NHL '95 (`nhl95hacks.ts`, `SWITCHES` /
-`AROUND`, Ratings section next to `awarenessFix`). Reported by chaos (forum.nhl94.com topic 35236, "Player
+`AROUND`, How the game plays section next to `goaliePullFix`; in NHL '95 asscenterd takes its own `.cover` path whenever someone carries the puck, as HmDefMode / AwDefMode are always 1, so the fixed line only runs while the puck is loose (Match Viewer)). Reported by chaos (forum.nhl94.com topic 35236, "Player
 Assignments - Center"; he blamed the zone check, the slip is the add). asscenterd (NHL94Genesis `logic94.asm`;
 NHL95Genesis `logic95.asm`): with the other team on the puck (or nobody), the computer centre skates to x = puckx / 2
 and a y worked out with his own end negative: d2 = pucky, negated when pfgoal is clear (pfgoal set = shooting at
@@ -826,7 +826,7 @@ shot, organ, power play/faceoff/awareness/stick-shot, pass direction tests).
 
 ### Status
 
-All but `centreDefenceFix` (not yet tested) tested in the game by the NHL94 Match Viewer project: the NHL 94 fixes end with `FROM_94` ("The same fix as in NHL
+All tested in the game by the NHL94 Match Viewer project: the NHL 94 fixes end with `FROM_94` ("The same fix as in NHL
 94; it works on the WN95HL's ROMs too. Tested in the game by the NHL94 Match Viewer project."), `passFix` and
 `organResume` with `TESTED` (`Nhl95HacksPage.tsx`).
 
@@ -999,7 +999,7 @@ the current version" for them: 17 November 2026 (63b2559, ten hooks, puckglue te
 either goal line or by the puckgoalie hook alone, so not off the goalie's stick or body nor at a post), and later on
 18 November 2026 (02b6053, `GT_BODY95_18B`: all fifteen hooks, the frame at +`$250`, without the stoppage parts below).
 
-**No whistle between** (added 2026-11-18, not yet tested in the game; as NHL 94's, section 16): from the whistle to
+**No whistle between** (added 2026-11-18, tested in the game; as NHL 94's, section 16): from the whistle to
 the end of the ref's sequence (gmpen, gmode `$BEF0` bit 2) the carrier and the cause `$FFEA00` / `$FFEA02` are
 forgotten (`move.l #-1,($EA00).w`) at every pickup, which is not counted (+`$28E`: `btst #2,(gmode).w / beq.w` to
 the count at +`$20`; else puckglue's two moves, the forgetting, `rts`), and each frame (+`$2AA`: the same test and
@@ -2108,7 +2108,7 @@ wins, passes between teammates, a pass the other goalie collects, highlights, sh
 shot: picked up by the other team once it has reached the goalie or the goal line, it is no giveaway; picked off before
 then (in the slot, say), it is one (Match Viewer: "a pass shot has to reach the mouth or the goalie"). A puck
 picked up after the whistle (before the faceoff or the penalty shot) is not counted, and the next one is not counted
-against the carrier before the whistle (added 2026-11-18, not yet tested in the game).
+against the carrier before the whistle (added 2026-11-18, tested in the game by Match Viewer on all five builds).
 
 ### Origin and credit
 
@@ -2240,7 +2240,7 @@ line; check there.
 | In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
 | Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
-| Computer centres' defence fix (not yet tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
+| Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
 
 ### NHL '94 SNES

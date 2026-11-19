@@ -159,7 +159,8 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       A computer centre defending outside his own zone is meant to stand between the puck and his net. In the original
       game, at one end of the rink he goes the wrong way: he drops back as the puck goes up the ice and comes out as it
       nears his blue line. Each team has it every other period. With this on he covers the right spot at both ends.
-      Found by chaos. The same fix as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game.
+      In NHL '95 it only matters while the puck is loose: with a man on the puck the centre covers in another way,
+      which is right at both ends. Found by chaos. {FROM_94}
     </p>
   ),
   stickShots: (
@@ -366,7 +367,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       nor anything in highlights or a shootout. Game Stats gets a Give/Takeaways row, and Player Stats a page for each,
       past Penalty Minutes (or Checks For), for the game only. A pass at the net counts as a shot, not a giveaway, if
       the other team picks it up after it reaches the goalie or the goal line. A puck picked up after the whistle is not
-      counted (not yet tested in the game).
+      counted. Tested in the game by the NHL94 Match Viewer project.
     </>
   ),
   realTime: () => (

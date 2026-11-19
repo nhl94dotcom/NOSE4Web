@@ -1734,12 +1734,12 @@ export function HelpPage() {
           change for most players.
         </li>
         <li>
-          <b>Computer centres' defence fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, not yet tested
-          in the game): a computer centre defending outside his own zone is meant to stand halfway between the puck
+          <b>Computer centres' defence fix</b> (with the fixes, Genesis NHL 94 and NHL '95; an option, tested in the
+          game by the NHL94 Match Viewer project): a computer centre defending outside his own zone is meant to stand halfway between the puck
           and his own slot. At one end of the rink the original game mirrors the spot, so he drops back as the puck
           goes up the ice and comes out as it comes at him. Teams change ends each period, so each team has it every
-          other period. With this on he covers the right spot at both ends. Found by chaos. The SNES does not have
-          this bug.
+          other period. With this on he covers the right spot at both ends. In NHL '95 it only matters while the
+          puck is loose. Found by chaos. The SNES does not have this bug.
         </li>
         <li>
           <b>Crowd bonus fix</b> (with the fixes, Genesis only; an option): the crowd's boost to skaters (+2 Agility,
