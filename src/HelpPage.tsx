@@ -1671,6 +1671,11 @@ export function HelpPage() {
           builds and NOSE4Web's own fighting. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
+          <b>Fight momentum</b> (Genesis NHL 94, with fighting; not yet tested in the game): the team whose player wins
+          a fight gets +2 Agility and +2 Speed for its skaters, not the goalie, for 90 seconds of play, on top of any
+          crowd boost. The time runs only with the clock and carries over an intermission; another fight hands it on.
+        </li>
+        <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
           game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and

@@ -24,7 +24,7 @@
 import { fightTimeText, penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { FIGHT_TEXTS, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
+import { FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
@@ -145,6 +145,8 @@ export interface HackChoices {
   realTime: boolean
   // Whether a hit can injure, and for how long.
   injuries: Injuries
+  // With fighting, the fight winner's team gets +2 Agility and +2 Speed for 90 seconds of play.
+  fightMomentum: boolean
   // How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.
   referees: Referees
   // The range of each player's hot and cold values: from -n to n - 1.
@@ -269,6 +271,7 @@ export type HackPart =
   | 'clock'
   | 'injuries'
   | 'referees'
+  | 'fightMomentum'
   | 'hotColdRange'
   | 'noIcing'
   | 'hybridIcing'
@@ -356,6 +359,7 @@ export const NO_HACKS: HackChoices = {
   realTime: false,
   injuries: 'original',
   referees: 'original',
+  fightMomentum: false,
   hotColdRange: 9,
   noIcing: false,
   hybridIcing: false,
@@ -2368,6 +2372,103 @@ const referees: Part<Referees> = {
   },
 }
 
+// --------------------------------------------------------- fight momentum
+// With chaos's fighting, the team whose fighter wins a fight gets the crowd's
+// boost, +2 Agility and +2 Speed for its skaters (not the goalie), on top of
+// any crowd boost, for 90 seconds of play. chkhit's .FightFall (in the fight
+// block, FIGHT_WINNER_AT) is the only place a fight gets its winner (a0) and
+// loser (a3); its move.w #$FFFF,$44(a0) becomes a jsr that keeps the winner's
+// team bit (pflags bit 6, $00 home / $40 visitors) at $FFF750 and sets the
+// timer at $FFF752 to 90, then does the move. updatepentime calls
+// updatePPTeamTime once a second of the clock and never while it is stopped
+// ($128DA, jsr $FE14C), so a jsr there counts the timer down and goes on to it.
+// playeracc's two crowd boosts (agility at $10C02, speed at $10C86: btst #1,
+// sflags8 / bne / btst #6,sflags7 / beq / addq.b #2,d2) become a jsr (doing the
+// same) and a bra past them; the code adds 2 more for a skater of the boosted
+// team while the timer runs and the clock runs, and the speed is clamped at $1E
+// as before (above 31 it would wrap to the slowest). StartGame's clr.w $C466 /
+// clr.w $C46E at $77C0 (the pair after giveaways' $77B8) also clears both. A
+// second fight hands the boost to its winner's team and starts the 90 seconds
+// again; the timer carries over intermissions. RAM from Match Viewer: $FFE000
+// to $FFFEBF is never written by the game or the ROMs tried.
+const MOMENTUM_AGILITY: Hook = { at: 0x10c02, original: bytes('0838 0001 C2FE 6600 000C') }
+const MOMENTUM_SPEED: Hook = { at: 0x10c86, original: bytes('0838 0001 C2FE 6600 000C') }
+const MOMENTUM_TICK_AT = 0x128da
+const MOMENTUM_CLEAR: Hook = { at: 0x77c0, original: bytes('4278 C466 4278 C46E') }
+const MOMENTUM_WINNER = bytes('317C FFFF 0044')
+// After each boost's jsr, a bra.w past the rest of the original test: to $10C18 and to $10CA8.
+const MOMENTUM_SKIPS = [bytes('6000 000E'), bytes('6000 001A')]
+const MOMENTUM_ENTRIES = { agility: 0x34, speed: 0x50, tick: 0x76, clear: 0x86, winner: 0x98 }
+const momentumCode = (tickTarget: number) =>
+  bytes(
+    [
+      // 00 on: Z set when a3 gets the boost (d3 kept)
+      '48E7 1000 4A78 F752 6720 0838 0000 C2EA 6618 4A6B 0034 6712 162B 0062 0203 0040 B638 F750 4CDF 0008 4E75',
+      '4CDF 0008 023C 00FB 4E75',
+      // 34 agility
+      '0838 0001 C2FE 6608 0838 0006 C2FC 6702 5402 6100 FFB8 6602 5402 4E75',
+      // 50 speed, clamped at $1E
+      '0838 0001 C2FE 6608 0838 0006 C2FC 6702 5402 6100 FF9C 6602 5402 B43C 001E 6F04 143C 001E 4E75',
+      // 76 tick, then on to updatePPTeamTime
+      `4A78 F752 6704 5378 F752 4EF9 ${tickTarget.toString(16).padStart(8, '0')}`,
+      // 86 clear at the game's start
+      '4278 C466 4278 C46E 4278 F750 4278 F752 4E75',
+      // 98 winner
+      '11E8 0062 F750 0238 0040 F750 31FC 005A F752 317C FFFF 0044 4E75',
+    ].join(' '),
+  )
+// Where the tick's jsr goes in a ROM without momentum, or where the momentum code is in one with it.
+const momentumBase = (rom: Uint8Array): number | null => {
+  if (readU16(rom, MOMENTUM_TICK_AT) !== OP_JSR) return null
+  const target = readU32(rom, MOMENTUM_TICK_AT + 2) - MOMENTUM_ENTRIES.tick
+  if (target < 0 || target + 0xb2 > rom.length) return null
+  const tickTarget = readU32(rom, target + MOMENTUM_ENTRIES.tick + 12)
+  return is(rom, target, momentumCode(tickTarget)) ? target : null
+}
+const momentumOriginal = (rom: Uint8Array) =>
+  readU16(rom, MOMENTUM_TICK_AT) === OP_JSR &&
+  [MOMENTUM_AGILITY, MOMENTUM_SPEED, MOMENTUM_CLEAR].every((h) => is(rom, h.at, h.original)) &&
+  momentumBase(rom) === null
+const fightMomentum: Part<boolean> = {
+  detect(rom) {
+    const base = momentumBase(rom)
+    if (base === null) return momentumOriginal(rom) ? false : undefined
+    const hooks = [MOMENTUM_AGILITY, MOMENTUM_SPEED].every(
+      (h, i) => readU16(rom, h.at) === OP_JSR && readU32(rom, h.at + 2) === base + [MOMENTUM_ENTRIES.agility, MOMENTUM_ENTRIES.speed][i] && is(rom, h.at + 6, MOMENTUM_SKIPS[i]),
+    )
+    const cleared = readU16(rom, MOMENTUM_CLEAR.at) === OP_JSR && readU32(rom, MOMENTUM_CLEAR.at + 2) === base + MOMENTUM_ENTRIES.clear
+    const won = readU16(rom, FIGHT_WINNER_AT) === OP_JSR && readU32(rom, FIGHT_WINNER_AT + 2) === base + MOMENTUM_ENTRIES.winner
+    return hooks && cleared && won ? true : undefined
+  },
+  remove(rom) {
+    const base = momentumBase(rom)
+    if (base === null) return
+    const tickTarget = readU32(rom, base + MOMENTUM_ENTRIES.tick + 12)
+    for (const h of [MOMENTUM_AGILITY, MOMENTUM_SPEED, MOMENTUM_CLEAR]) if (readU16(rom, h.at) === OP_JSR) rom.set(h.original, h.at)
+    writeU32(rom, MOMENTUM_TICK_AT + 2, tickTarget)
+    if (FIGHT_WINNER_AT + 6 <= rom.length && readU16(rom, FIGHT_WINNER_AT) === OP_JSR && readU32(rom, FIGHT_WINNER_AT + 2) === base + MOMENTUM_ENTRIES.winner)
+      rom.set(MOMENTUM_WINNER, FIGHT_WINNER_AT)
+    erase(rom, base, momentumCode(tickTarget).length)
+  },
+  apply(work, value) {
+    if (!value) return
+    // Without fighting there are no fights to win: nothing to do (the page offers it only with fighting).
+    const fights = fightState(work.rom)
+    if (fights === 'none' || fights === undefined || !(FIGHT_WINNER_AT + 6 <= work.rom.length && is(work.rom, FIGHT_WINNER_AT, MOMENTUM_WINNER))) return
+    if (!momentumOriginal(work.rom)) throw new HackError("Fight momentum needs the game's skating and penalty clock code as the original game has it.")
+    const tickTarget = readU32(work.rom, MOMENTUM_TICK_AT + 2)
+    const base = place(work, momentumCode(tickTarget))
+    writeHook(work.rom, MOMENTUM_AGILITY, base + MOMENTUM_ENTRIES.agility)
+    work.rom.set(MOMENTUM_SKIPS[0], MOMENTUM_AGILITY.at + 6)
+    writeHook(work.rom, MOMENTUM_SPEED, base + MOMENTUM_ENTRIES.speed)
+    work.rom.set(MOMENTUM_SKIPS[1], MOMENTUM_SPEED.at + 6)
+    writeU32(work.rom, MOMENTUM_TICK_AT + 2, base + MOMENTUM_ENTRIES.tick)
+    writeHook(work.rom, MOMENTUM_CLEAR, base + MOMENTUM_ENTRIES.clear)
+    writeU16(work.rom, FIGHT_WINNER_AT, OP_JSR)
+    writeU32(work.rom, FIGHT_WINNER_AT + 2, base + MOMENTUM_ENTRIES.winner)
+  },
+}
+
 // ------------------------------------------------------- hot and cold range
 // Create_HotCold_Table fills each player's 16 hot and cold values with
 // randomd0s of move.w #9,d0 at $F70AC: each from -n to n - 1, so -9 to 8 in
@@ -3420,6 +3521,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     realTime: found('clock', clock.detect(rom), NO_HACKS.realTime),
     injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
     referees: found('referees', referees.detect(rom), NO_HACKS.referees),
+    fightMomentum: found('fightMomentum', fightMomentum.detect(rom), NO_HACKS.fightMomentum),
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
     hybridIcing: found('hybridIcing', hybridIcing.detect(rom), NO_HACKS.hybridIcing),
@@ -3575,6 +3677,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
+    // After fighting, whose code its winner hook goes into.
+    ['fightMomentum', () => fightMomentum.remove(work.rom), () => fightMomentum.apply(work, wanted.fightMomentum)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -3809,6 +3913,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   realTime: 'Real-time clock',
   injuries: 'Injuries',
   referees: 'Referee strictness',
+  fightMomentum: 'Fight momentum',
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
   hybridIcing: 'Hybrid icing',
@@ -3891,6 +3996,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   realTime: 'clock',
   injuries: 'injuries',
   referees: 'referees',
+  fightMomentum: 'fightMomentum',
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
   hybridIcing: 'hybridIcing',

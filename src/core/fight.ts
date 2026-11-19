@@ -42,6 +42,8 @@ export const FIGHT_TEXTS: Record<FightChoice, string> = {
 
 // loadDefFight's move.w #DefFight,d0: the menu's starting choice, 0 Off, 1 On, 2 Arcade.
 const DEFAULT_AT = 0x200ae4
+// In chkhit's .FightFall, where a fight has its winner (a0) and loser (a3): move.w #$FFFF,$44(a0).
+export const FIGHT_WINNER_AT = 0x2007e4
 // The menu's pointers, as above, and where the patch has Fighting's caption and choices.
 const CAPTIONS_AT = 0xf807c
 const CHOICES_AT = 0x209638
@@ -89,6 +91,8 @@ const moveFightRam = (rom: Uint8Array) => {
 // choice is kept.
 const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
+  // .FightFall's move.w #$FFFF,$44(a0), which fight momentum (hacks.ts) makes a jsr.
+  [FIGHT_WINNER_AT, FIGHT_WINNER_AT + 6],
   ...[...FIGHT_RAM_NAMED, ...FIGHT_RAM_OFFSETS].map((at): [number, number] => [at, at + 2]),
   TABLES,
   [FRAME_TABLE_OFFSET, FRAME_TABLE_OFFSET + 4],

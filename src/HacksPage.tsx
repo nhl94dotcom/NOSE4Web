@@ -732,6 +732,24 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'fightMomentum',
+          <select
+            aria-label={HACK_TITLES.fightMomentum}
+            disabled={unknown('fightMomentum') || (wanted.fighting === 'none' && !wanted.fightMomentum)}
+            value={wanted.fightMomentum ? 'on' : 'off'}
+            onChange={(e) => set({ fightMomentum: e.target.value === 'on' })}
+          >
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>,
+          <>
+            With fighting on: the team whose player wins a fight gets a lift, +2 Agility and +2 Speed for its skaters
+            (not the goalie) for 90 seconds of play, on top of any crowd boost. The 90 seconds run only while the clock
+            does, and carry over an intermission; another fight gives the lift to its winner's team and starts them
+            again. Not yet tested in the game.
+          </>,
+        )}
+        {hack(
           'penaltySeconds',
           <>
             {number('penaltySeconds')} seconds in the box for each penalty minute

@@ -787,6 +787,26 @@ NHL '95's team defence mode 1 path (`.cover`) does not reach this code. SNES (NH
 ends are written out separately, `$80`/`$FF80` plus pucky halved for each, both right, so there is no SNES option.
 Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
+### Fight momentum (`fightMomentum`; added 2026-11-19, not yet tested in the game)
+
+Genesis NHL 94 with chaos's fighting (`hacks.ts`, Rules, after Fighting; applied after the fight block goes in). The
+fight winner's team gets +2 Agility and +2 Speed for its skaters (not the goalie) for 90 seconds of play, on top of
+any crowd boost (which is global, and always on unless `crowdFix`). One code block (`momentumCode`, 178 bytes):
+- **Winner:** chkhit's .FightFall is the only place a fight gets its winner (a0) and loser (a3) (Match Viewer, from
+  chaos's fight_patch.asm). Its `move.w #$FFFF,$44(a0)` at `$2007E4` (in the fight block; `fight.ts` skips it when
+  recognising the block) becomes a jsr that stores the winner's pflags team bit ($00 / $40) at `$FFF750`, sets the
+  timer `$FFF752` to 90 and does the move last.
+- **Timer:** updatepentime's `jsr updatePPTeamTime` at `$128DA` runs once a second of the clock and never while it
+  is stopped; it becomes a jsr to code that counts the timer down and jumps on to the original target.
+- **Boost:** playeracc's crowd boosts (agility `$10C02`, speed `$10C86`: btst #1,sflags8 / bne / btst #6,sflags7 /
+  beq / addq.b #2,d2) become a jsr doing the same, then `bra.w` past the rest ($10C18, $10CA8). The code adds 2 more
+  while the timer runs and the clock runs (gmclock, `$C2EA` bit 0) for a non-goalie of the stored team; speed is
+  clamped at $1E as before (past 31 the MaxSpeed index wraps).
+- **Clear:** StartGame's `clr.w $C466 / clr.w $C46E` at `$77C0` (after giveaways' `$77B8`) also clears both words.
+- RAM `$FFF750-$FFF753`: Match Viewer found `$FFE000-$FFFEBF` never written apart from NOSE4Web's blocks. A second
+  fight hands the boost on and restarts it; the timer carries over intermissions. Without fighting nothing goes in.
+  Tests: `tests/fightmomentum.test.ts`.
+
 ### Referee strictness (`referees`; added 2026-11-19, not yet tested in the game)
 
 Genesis NHL 94 (`hacks.ts`, Rules, five levels, default `original`). The judgement penalties all roll checkagr
@@ -796,7 +816,8 @@ charging <= 4, roughing <= 3). A call is about (threshold + 1) / range, so the l
 multiplier (word at `$13E32`, after `303C 0028 902B 0073 E208 C0FC` at `$13E26`): very lenient 26 (about 50%), lenient
 17 (76%), original 13, strict 9 (144%), very strict 6 (217%). Goalie interference (.ci) rolls randomd0($28 - Agr) <= 4
 (`cmp.w #4` word at `$13CAA`, after `303C 0028 902B 0073 6100 D3E0 B07C` at `$13C9C`), so its threshold moves to match:
-2, 3, 4, 6, 10 ((t + 1) / 5 of the calls). Every league ROM tried has both at those places; EVO v0.4.0 replaced the
+2, 3, 4, 6, 10 ((t + 1) / 5 of the calls: 60, 80, 100, 140, 220%; a whole threshold can't give 50%). Not scaled: a
+penalty on a breakaway, where checkagr replaces the range with 8 / 7 / 4 / 3 (Match Viewer). Every league ROM tried has both at those places; EVO v0.4.0 replaced the
 interference roll with a jsr to its own code, so there only the multiplier changes. Offsides, icing, fights and
 penalty shots are untouched. Tests: `tests/readings.test.ts`.
 

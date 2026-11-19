@@ -109,6 +109,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : c.injuries === 'penaltyOnly'
         ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
+  fightMomentum: () => "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
   referees: (c) =>
     c.referees === 'veryLenient' || c.referees === 'lenient'
       ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryLenient' ? 'about half' : 'about three quarters'} as often.`
