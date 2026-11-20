@@ -1038,7 +1038,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original
             game allows only {holdSeconds(NO_HACKS.diveHold)} seconds, so you must pass or drop the puck at exactly the right
             moment to keep play going; a longer time gives you a chance. Every goalie, the computer's too. With no whistle
-            in the goalie hold time above, a goalie you control is not whistled for it at all. Not yet tested in the game.
+            in the goalie hold time above, a goalie you control is not whistled for it at all. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
