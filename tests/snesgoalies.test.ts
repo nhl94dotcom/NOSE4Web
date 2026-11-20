@@ -112,7 +112,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES goalie settings in the ori
   })
 
   it("the range changes the box for a person's goalie only", () => {
-    for (const width of [0, 20, 48, 60, 124]) {
+    for (const width of [0, 20, 40, 48]) {
       const on = applySnesHacks(rom, {}, false, { goalieWidth: width === 48 ? 47 : width }).bytes
       const w = width === 48 ? 47 : width
       expect(hex(on, 0xf5368, 6)).toMatch(/^22......eaea$/)
@@ -127,7 +127,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES goalie settings in the ori
         }
       }
     }
-    const on = applySnesHacks(rom, {}, false, { goalieOut: 200 }).bytes
+    const on = applySnesHacks(rom, {}, false, { goalieOut: 240 }).bytes
     expect(hex(on, 0xf5381, 5)).toMatch(/^22......ea$/)
     const code = on.slice(far(on, 0xf5381), far(on, 0xf5381) + 30)
     for (let depth = 150; depth <= 300; depth++) {
@@ -135,7 +135,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES goalie settings in the ori
         const r = ram(pad, {})
         const out = run(code, depth, 0, r)
         expect(r.get(0)).toBe(depth)
-        expect(out.n).toBe(depth < (pad === 0 ? 200 : 228))
+        expect(out.n).toBe(depth < (pad === 0 ? 240 : 228))
       }
     }
   })
@@ -150,7 +150,7 @@ describe.skipIf(names.length === 0)('SNES goalie settings in every ROM', () => {
       expect(before.choices[hack]).toBe(false)
       expect(before.amounts?.[hack]).toBe(SNES_AMOUNT_OFF[hack])
     }
-    const amounts: Record<SnesAmount, number[]> = { goalieHold: [0, 300, 1], goalieWidth: [70, 0], goalieOut: [180, 255], goalieLine: [120, 210, 0] } as Record<SnesAmount, number[]>
+    const amounts: Record<SnesAmount, number[]> = { goalieHold: [0, 300, 1], goalieWidth: [40, 0], goalieOut: [240, 255], goalieLine: [120, 210, 0] } as Record<SnesAmount, number[]>
     for (const hack of GOALIES) {
       for (const amount of amounts[hack]) {
         const on = applySnesHacks(rom, {}, false, { [hack]: amount })
@@ -166,9 +166,9 @@ describe.skipIf(names.length === 0)('SNES goalie settings in every ROM', () => {
       }
     }
     // All four with the goalie poke (whose code finds puckglue's hold too), and out again.
-    const all = applySnesHacks(rom, { goaliePoke: !before.choices.goaliePoke ? true : undefined }, false, { goalieHold: 0, goalieWidth: 70, goalieOut: 200, goalieLine: 150 })
+    const all = applySnesHacks(rom, { goaliePoke: !before.choices.goaliePoke ? true : undefined }, false, { goalieHold: 0, goalieWidth: 40, goalieOut: 240, goalieLine: 150 })
     const read = detectSnesHacks(openRom(buildRom(all)).bytes)
-    expect(GOALIES.map((hack) => read.amounts?.[hack])).toEqual([0, 70, 200, 150])
+    expect(GOALIES.map((hack) => read.amounts?.[hack])).toEqual([0, 40, 240, 150])
     expect(read.choices.goaliePoke).toBe(true)
     expect(read.unknown).toEqual(before.unknown)
     const sheet = snesHackSheet(all.bytes, name).sections.find((section) => section.heading === 'Goalies')

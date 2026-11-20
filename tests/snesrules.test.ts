@@ -26,6 +26,30 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES real-time clock and no ici
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { realTime: false })), buildRom(rom))).toBe(0)
   })
 
+  it("the real-time clock counts the penalty box's second in 60 frames, and brings the first version up to date", () => {
+    // updatepentime: lda Penaltytimer / sec / sbc d7 / sta / bpl / adc #$0018 at $9E:BF65.
+    const BOX = 0xf3f66
+    const rom = open('NHL94.smc')
+    expect(hex(rom.bytes, BOX - 1, 6)).toBe('6918008d2216')
+    const on = applySnesHacks(rom, { realTime: true })
+    expect(hex(on.bytes, BOX, 2)).toBe('3c00')
+    expect(detectSnesHacks(on.bytes).vaultVersions ?? []).not.toContain('realTime')
+    // The first version: the clock only.
+    const first = rom.bytes.slice()
+    for (const at of CLOCKS) first.set([0x44, 0x04], at + 1)
+    const read = detectSnesHacks(first)
+    expect(read.choices.realTime).toBe(true)
+    expect(read.unknown).not.toContain('realTime')
+    expect(read.vaultVersions).toContain('realTime')
+    const updated = applySnesHacks({ ...rom, bytes: first }, { realTime: true }, true)
+    expect(Buffer.compare(updated.bytes, on.bytes)).toBe(0)
+    expect(Buffer.compare(applySnesHacks({ ...rom, bytes: first }, { realTime: false }).bytes, rom.bytes)).toBe(0)
+    // Another number in the box's place is not ours.
+    const odd = on.bytes.slice()
+    odd[BOX] = 0x20
+    expect(detectSnesHacks(odd).unknown).toContain('realTime')
+  })
+
   it('the real-time clock goes with clutch time, which calls its code at the dec gameclock after it', () => {
     const rom = open('NHL94.smc')
     for (const order of [['clutchTime', 'realTime'], ['realTime', 'clutchTime']] as const) {

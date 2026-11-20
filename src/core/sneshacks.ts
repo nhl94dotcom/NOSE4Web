@@ -623,6 +623,9 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
 }
 // The goalie settings' original game (see goalieEnv): hold 140 frames, range 48 to each side and 228 from centre,
 // whistle line 187 from centre. The line is at most 210, as a computer goalie with the puck is always 211 or more out.
+// The range can only shrink (Match Viewer): updateplayers also holds every goalie without the puck, while the clock
+// runs, within 43 of the middle and 229 or more from centre (cmp #$FFD5 / #$002C, #$00E5 / #$FF1B), so a wider box
+// or one farther out changes nothing; hence width at most 48 and distance at least 228.
 export const SNES_GOALIE_HOLD = 140
 // A catch in a dive: 5 frames, counted once the goalie is up.
 export const SNES_DIVE_HOLD = 5
@@ -640,7 +643,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], diveHold: [1, 3600], goalieWidth: [0, 124], goalieOut: [0, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST], speedBurst: [0, 95], turnRate: [1, 225], puckFriction: [1, 12] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], diveHold: [1, 3600], goalieWidth: [0, SNES_GOALIE_WIDTH], goalieOut: [SNES_GOALIE_OUT, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST], speedBurst: [0, 95], turnRate: [1, 225], puckFriction: [1, 12] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -3832,13 +3835,21 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // $10000 = 24 frames a second, two and a half times a real clock, as on the Genesis (hacks.ts). Real time
   // takes $0444 instead (60 frames a second), in Gameloop and in the highlights' own copy of the loop
   // (SaveRegsStartHL2): lda gameclock / beq / lda gameclock+2 / sec / sbc #$0AAA / sta gameclock+2 / bcs (the
-  // dec gameclock after it is not part of the pattern: clutch time calls its code there). Penalties are counted
-  // in seconds of the game clock, so they follow. The penalty shot's limit is 1000 frames (pstimer), not clock
-  // seconds, and is shown nowhere, so it stays.
+  // dec gameclock after it is not part of the pattern: clutch time calls its code there). The penalty box keeps
+  // its own second (Match Viewer): updatepentime takes the frames from Penaltytimer and, when it runs out, adds
+  // 24 back (lda Penaltytimer / sec / sbc d7 / sta / bpl / adc #$0018 / sta / lda #$0020 / tsb sflags3), and
+  // that tick also counts attack-zone time, power-play time and time on ice; real time adds 60 ($3C). NOSE4Web's
+  // first version left it at 24 (a minor ended 48 seconds of the clock in): recognised, and brought up to date
+  // when the hacks are next applied. The penalty shot's limit is 1000 frames (pstimer), not clock seconds, and
+  // is shown nowhere, so it stays.
   realTime: (rom) => {
     const found = findCodeAll(rom, 'ad....f0..ad(....)38e9....8d(....)b0').filter(({ groups }) => groups[0] === groups[1])
-    if (found.length !== 2) return null
-    return found.map(({ at }) => ({ at: at + 10, original: hexBytes('AA0A'), hacked: hexBytes('4404') }))
+    const box = findCodeAll(rom, 'ad(....)38e5..8d(....)10..69..008d(....)a92000').filter(({ groups }) => groups[0] === groups[1] && groups[1] === groups[2])
+    if (found.length !== 2 || box.length !== 1) return null
+    const clock = found.map(({ at }) => ({ at: at + 10, original: hexBytes('AA0A'), hacked: hexBytes('4404') }))
+    const boxAt = box[0].at + 12
+    const first = clock.every((place) => holds(rom, place, 'hacked')) && rom[boxAt] === 0x18
+    return [...clock, first ? { at: boxAt, original: hexBytes('1800'), hacked: hexBytes('1800'), earlier: true } : { at: boxAt, original: hexBytes('1800'), hacked: hexBytes('3C00') }]
   },
   threeOnThree: (rom, _source, amount) => threeOnThreePlaces(rom, amount),
   // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one
@@ -4103,7 +4114,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const length = rom[found + DRAIN_SKIP_AT + 1]
     return [{ at: found + DRAIN_SKIP_AT, original: Uint8Array.of(0xd0, length), hacked: Uint8Array.of(0x80, length) }]
   },
-  // burst (the C button, with line changes on): jsl getpde; lda.l OptLine / beq; lda d0 / sec / sbc #$CC; sta d0;
+  // burst (the A button without the puck, with line changes on): jsl getpde; lda.l OptLine / beq; lda d0 / sec / sbc #$CC; sta d0;
   // jsl setpde, then full energy with Auto. The cost becomes 0.
   freeBurst: (rom) => {
     const found = only(rom, '22......af......f0..a5..38e9....85..22......af......c90200d005a90010')
