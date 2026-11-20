@@ -30,8 +30,8 @@ interface Game {
   checks: number[]
 }
 const WEIGHTS = [
-  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 1500, shutout: 16000 },
-  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1700, shutout: 20800 },
+  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 900, shutout: 16000 },
+  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1170, shutout: 20800 },
 ]
 
 // The score the Genesis option's formula gives player x (0-51).
@@ -208,9 +208,9 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES three stars', () => {
     }
   })
 
-  it("NOSE4Web's first version (the Genesis's 4000 / 4500 a shot faced) is recognised and brought up to date", () => {
+  it("NOSE4Web's earlier versions (4000 / 4500, then 1500 / 1700 a shot faced) are recognised and brought up to date", () => {
     const rom = open('NHL94.smc')
-    for (const [choice, now, then] of [[1, 'dc05', 'a00f'], [2, 'a406', '9411']] as const) {
+    for (const [choice, now, then] of [[1, '8403', 'a00f'], [2, '9204', '9411'], [1, '8403', 'dc05'], [2, '9204', 'a406']] as const) {
       const on = applySnesHacks(rom, {}, false, { threeStars: choice })
       const room = relocatedSnesHack(on.bytes, 'threeStars')![1].at
       const first = on.bytes.slice()

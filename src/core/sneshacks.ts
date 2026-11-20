@@ -3534,14 +3534,18 @@ interface StarWeights {
 }
 // A shot faced weighs less than on the Genesis (Match Viewer, 2026-11-20): with the Genesis's 4000 (4500), at about 30
 // shots a team, a goalie was first star in all 28 SNES games played and took 2 of the 3 stars (the original: 9 of 20
-// and 11 of 60). At 1500 (1700) a goalie's 30-shot game with 2 against is worth about a skater's two goals, 3
-// against about one, and a shutout still leads.
+// and 11 of 60); at 1500 (1700), 16 of 20 and 26 of 60. Rescoring those games, 800 matched the original's share and
+// 1000 gave goalies a little more; 900 (1170, the skaters' 1.3 times) sits between, and a 30-shot shutout still leads.
 const STAR_WEIGHTS: StarWeights[] = [
-  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 1500, shutout: 16000 },
-  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1700, shutout: 20800 },
+  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 900, shutout: 16000 },
+  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1170, shutout: 20800 },
 ]
-// NOSE4Web's first version (19 November 2026), the Genesis's weights: recognised, and brought up to date.
-const FIRST_STAR_WEIGHTS: StarWeights[] = STAR_WEIGHTS.map((w, i) => ({ ...w, shotsAgainst: [4000, 4500][i] }))
+// NOSE4Web's earlier versions: the Genesis's weights (19 November 2026), then 1500 / 1700 (20 November): recognised,
+// and brought up to date.
+const EARLIER_SHOT_WEIGHTS = [
+  [4000, 4500],
+  [1500, 1700],
+]
 function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const found = findCodeAll(rom, STARS17)
   if (found.length !== 1) return null
@@ -3611,7 +3615,7 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
       bytesOf('A5', d0 + 2, '0A 85', d0 + 2, 'A5', d0, '0A A5', d0 + 2, '69 0000 85', d0 + 2, 'A5', d0, '29 FF7F 85', d0, '6B'),
     ])
   const codes = STAR_WEIGHTS.map(codeFor)
-  const firstCodes = FIRST_STAR_WEIGHTS.map(codeFor)
+  const firstCodes = EARLIER_SHOT_WEIGHTS.flatMap((weights) => STAR_WEIGHTS.map((w, i) => codeFor({ ...w, shotsAgainst: weights[i] })))
   let room = -1
   let first = -1
   // No amount (or 0, taking it out): the choice the ROM holds.
@@ -3622,7 +3626,7 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
     if (!asked) {
       const which = codes.findIndex((code) => same(rom, room, code))
       first = which >= 0 ? -1 : firstCodes.findIndex((code) => same(rom, room, code))
-      choice = which >= 0 ? which + 1 : first >= 0 ? first + 1 : 1
+      choice = which >= 0 ? which + 1 : first >= 0 ? (first % 2) + 1 : 1
     }
   } else {
     for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
