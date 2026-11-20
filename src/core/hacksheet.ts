@@ -251,6 +251,7 @@ const SNES: Record<SnesHack, string> = {
   giveawaysShown: "Game Stats shows each team's giveaways and takeaways as Give/Take.",
   giveawayPages: "Player Stats has Giveaways and Takeaways pages (right past Penalties), sorted by each player's giveaways or takeaways, and the Goalies page shows each goalie's giveaways.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
+  postsFix: "A shot off the post counts in Game Stats' Posts for the shooter's team (McMarkis's 2 MB builds counted it for the wrong team).",
   timeOnIce: "Each player's time on ice is counted, as on the Genesis, for the Time On Ice page and for websites that read save states.",
   bodychecksShown: "Player Stats shows each player's bodychecks as Cf, in place of penalty minutes, and sorts that column by them.",
   defenceControl: 'Defence control is on for both teams from the start of every game.',

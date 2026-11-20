@@ -44,7 +44,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
     title: 'Fixes',
     hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'regainAssist'],
   },
-  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'threeStars'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'threeStars', 'postsFix'] },
   { id: 'rules', title: 'Rules', hacks: ['fighting', 'fightTime', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'realTime', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'shootoutInjuries', 'nhlShootout', 'threeOnThree', 'noIcing', 'creaseIcing', 'hybridIcing', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'clutchTime'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie', 'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine'] },

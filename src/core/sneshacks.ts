@@ -69,6 +69,7 @@ export type SnesHack =
   | 'openNetFix'
   | 'timeOnIce'
   | 'timeOnIceShown'
+  | 'postsFix'
   | 'nhlShootout'
   | 'choppyIce'
   | 'clutchTime'
@@ -353,6 +354,7 @@ export const SNES_HACKS: SnesHack[] = [
   'openNetFix',
   'timeOnIce',
   'timeOnIceShown',
+  'postsFix',
   'nhlShootout',
   'choppyIce',
   'clutchTime',
@@ -426,6 +428,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   openNetFix: 'Open net shot fix',
   timeOnIce: 'Time on ice for each player',
   timeOnIceShown: 'Time on ice in Player Stats',
+  postsFix: 'Posts counted for the right team',
   nhlShootout: 'Three-round shootout',
   choppyIce: 'Choppy ice',
   clutchTime: 'Clutch time',
@@ -1544,6 +1547,7 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
 // on to ScoutingReport. McMarkis's 2 MB and SA-1 builds count it themselves.
 const PTOI = 0x7ee800
 const OWN_STAT_PAGES = "This build's Player Stats has pages of its own after Penalties (its checks for and against), so NOSE4Web's Time On Ice page is not offered; the time on ice is still counted for save-state readers."
+const NO_POSTS = "This build does not count shots off the post (only McMarkis's 2 MB builds do), so there is nothing to fix."
 const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
 
 function ownIceTime(rom: Uint8Array): boolean {
@@ -4150,6 +4154,24 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   },
   // burst (the A button without the puck, with line changes on): jsl getpde; lda.l OptLine / beq; lda d0 / sec / sbc #$CC; sta d0;
   // jsl setpde, then full energy with Auto. The cost becomes 0.
+  // McMarkis's 2 MB builds count each team's shots off the post (tmposts, Game Stats' Posts): PostCount, which
+  // checkgoal's post branch calls, credits the team of lastplayer, the last player to touch the puck. But lastplayer
+  // holds a player's number (every writer stores it after lsr a), and PostCount takes it as his offset (ldx lastplayer
+  // / cpx #$0018 / lda pfteam,x), so it read the team of the player at half that number: a shot off the post went to
+  // the wrong team most of the time (Match Viewer, from a league game: Finland's three posts all went to the Czechs).
+  // The ldx / cpx (6 bytes) becomes a jsl to lda lastplayer / asl a / tax / cpx #$0018 / rtl (the bcs after reads the
+  // carry the cpx left). Since doshot sets lastplayer to the shooter, a shot straight off the post counts for his team.
+  postsFix: (rom) => {
+    const plain = only(rom, 'ad....d020da' + 'ae....e01800' + 'b016bd....f005a20200')
+    const hooked = only(rom, 'ad....d020da' + '22......eaea' + 'b016bd....f005a20200')
+    const site = (plain >= 0 ? plain : hooked) + 6
+    if ((plain >= 0) === (hooked >= 0)) return null
+    // The lastplayer address: from the ldx, or from the code the jsl calls.
+    const code = plain >= 0 ? -1 : loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    if (hooked >= 0 && (code < 0 || code + 9 > rom.length || rom[code] !== 0xad || !same(rom, code + 3, hexBytes('0AAAE018006B')))) return null
+    const lastplayer = plain >= 0 ? readU16(rom, site + 1) : readU16(rom, code + 1)
+    return withFarCode(rom, site, bytesOf('AE', word(lastplayer), 'E01800'), 2, bytesOf('AD', word(lastplayer), '0AAAE018006B'))
+  },
   freeBurst: (rom) => {
     const found = only(rom, '22......af......f0..a5..38e9....85..22......af......c90200d005a90010')
     if (found < 0) return null
@@ -4858,6 +4880,11 @@ function detect(rom: Uint8Array): SnesHackState {
     notOffered.timeOnIceShown = OWN_STAT_PAGES
     if (unknown.includes('timeOnIceShown')) unknown.splice(unknown.indexOf('timeOnIceShown'), 1)
   }
+  // Only McMarkis's 2 MB builds count posts: elsewhere the fix is not offered, and not other code in the way.
+  if (unknown.includes('postsFix') && only(rom, 'ad....d020da' + '..........00' + 'b016bd....f005a20200') < 0) {
+    notOffered.postsFix = NO_POSTS
+    unknown.splice(unknown.indexOf('postsFix'), 1)
+  }
   if (ownIceTime(rom)) {
     // Its own count is not other code in the way: the hack is off, and not offered.
     for (const hack of ['timeOnIce', 'timeOnIceShown'] as const) {
@@ -5010,7 +5037,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'postsFix', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
   'realTime', 'noIcing',
