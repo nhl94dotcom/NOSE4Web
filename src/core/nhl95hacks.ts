@@ -75,6 +75,7 @@ export interface Nhl95HackChoices {
   shotScatterFix: boolean
   stickReachFix: boolean
   bodyBlockFix: boolean
+  lockedChangeFix: boolean
   stickShots: boolean
   anyPosition: boolean
   // Statistics. NHL '95 has no earlier bodycheck counts to keep, so they are off or on.
@@ -129,7 +130,7 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 // page their pages take in.
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
-  'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'anyPosition',
+  'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'anyPosition',
   'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
@@ -168,6 +169,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   shotScatterFix: false,
   stickReachFix: false,
   bodyBlockFix: false,
+  lockedChangeFix: false,
   stickShots: false,
   anyPosition: false,
   threeStars: 'original',
@@ -262,6 +264,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   shotScatterFix: 'Bottom net shot aim fix',
   stickReachFix: 'Stick reach fix',
   bodyBlockFix: 'Skaters block the puck',
+  lockedChangeFix: 'B button while your skater is down fix',
   stickShots: 'Count stick deflections as shots',
   anyPosition: 'Any skater at any position',
   threeStars: 'Three stars',
@@ -405,6 +408,12 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
     original: hex('3238 DC70 6D00 0014 C1C0 C3C1 D081 B0B8 DC74'),
     hacked: hex('B278 DC70 6D00 0014 C1C0 C3C1 D081 B078 DC74'),
   },
+  // - chgplayer (B, choosing the pad's skater: NHL '95's own bug; Match Viewer's reading). It skips a locked skater
+  //   (pfalock: down, checking, bursting) except the pad's own: beq.w .2 at $AC0A jumps past the lock test for him.
+  //   Down or busy he is usually nearest the puck, so he is chosen again, and .same does nothing while he is locked:
+  //   the press is lost until he is free. NOPs make the lock test cover him too, as in NHL 94, so B takes the next
+  //   best. (.pass2's copy at $AD08 runs only when the pad has no skater, so it can never be taken; left alone.)
+  lockedChangeFix: { at: 0xac0a, original: hex('6700 000C'), hacked: hex('4E71 4E71') },
 }
 // What must come before and after each, as NHL '95 has it, for it to be the place.
 const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = {
@@ -434,6 +443,10 @@ const AROUND: Partial<Record<Nhl95Hack, { at: number; bytes: Uint8Array }[]>> = 
   stickReachFix: [
     { at: 0x7b694, bytes: hex('B278 DC72 6D00 0026 C1C0 C3C1 D081') }, // cmp.w (NegChkStickP).w,d1 / blt.w / muls / muls / add.l
     { at: 0x7b6a8, bytes: hex('4A2B 005E 6F00 0004 E449 B081 6200 000A') }, // tst.b nopuck(a3) / ble.w / lsr.w #2,d1 / cmp.l / bhi.w
+  ],
+  lockedChangeFix: [
+    { at: 0xabfa, bytes: hex('48A7 4000 3228 0052 B271 4000 4C9F 0002') }, // movem.w d1,-(sp) / move.w SCnum(a0),d1 / cmp.w (a1,d4.w),d1 / movem.w (sp)+,d1
+    { at: 0xac0e, bytes: hex('0828 0005 0062 6600 0028') }, // btst #pfalock,pflags(a0) / bne.w .next
   ],
   bodyBlockFix: [
     { at: 0x7b6ee, bytes: hex('B278 DC6C 6E00 001C') }, // cmp.w (ChkBodyP).w,d1 / bgt.w .exit
@@ -2042,6 +2055,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     shotScatterFix: switchState(rom, 'shotScatterFix'),
     stickReachFix: switchState(rom, 'stickReachFix'),
     bodyBlockFix: switchState(rom, 'bodyBlockFix'),
+    lockedChangeFix: switchState(rom, 'lockedChangeFix'),
     threeStars: threeStars95.detect(rom),
     bodychecks: bodychecks95.detect(rom),
     timeOnIce: timeOnIce95.detect(rom),
@@ -2130,7 +2144,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['secondAssist', () => assist.secondAssist.remove(work.rom), () => assist.secondAssist.apply(work, want.secondAssist)],
     ['oneTimerAssist', () => assist.oneTimerAssist.remove(work.rom), () => assist.oneTimerAssist.apply(work, want.oneTimerAssist, want.secondAssist)],
     ['regainAssist', () => assist.regainAssist.remove(work.rom), () => assist.regainAssist.apply(work, want.regainAssist)],
-    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
+    ...(['aggressionFix', 'comebackFix', 'openNetFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'ppPkFix', 'anyPosition', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix'] as const).map((hack): [Nhl95Hack, () => void, () => void] => {
       const place = SWITCHES[hack]!
       return [hack, () => work.rom.set(place.original, place.at), () => want[hack] && work.rom.set(place.hacked, place.at)]
     }),
@@ -2359,6 +2373,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
   stickReachFix: "A stick reaches the puck in a circle, as NHL 94 has it, and less far right after a pass, so there are fewer quick steals.",
   bodyBlockFix: "A puck that hits a skater's body bounces off him, as in NHL 94, so skaters block shots and passes.",
+  lockedChangeFix: 'B switches to another skater while yours is down, checking or bursting, as in NHL 94, where the press was lost.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
@@ -2406,7 +2421,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'snipingFix'] },
+  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'snipingFix'] },
   {
     id: 'rules',
     title: 'Rules',

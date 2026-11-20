@@ -96,6 +96,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
   stickReachFix: 'A stick reaches the puck in a circle, and less far right after a pass.',
   bodyBlockFix: "A puck that hits a skater's body bounces off him.",
+  lockedChangeFix: 'B switches skaters while yours is down or busy.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
@@ -195,6 +196,13 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       A bug in NHL '95 means a puck never bounces off a skater's body: it passes through him, and only sticks and
       goalies stop it. With this on skaters block shots and passes, as in NHL 94, so a game has more blocks and a
       few fewer shots on goal. Found by NOSE4Web. {TESTED}
+    </p>
+  ),
+  lockedChangeFix: (
+    <p className="note">
+      While your skater is down on the ice, checking or bursting, pressing B usually does nothing until he is free: he
+      is often the one nearest the puck, so the game picks him again. With this on B switches to the next best skater,
+      as in NHL 94. Found by a league member and the NHL94 Match Viewer project. Not yet tested in the game.
     </p>
   ),
   stickShots: (

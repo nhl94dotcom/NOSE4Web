@@ -517,6 +517,20 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expectSameBytes(applyNhl95Hacks(on, { goalieTurnFix: false }).bytes, rom.bytes)
   })
 
+  it.each(names)("puts the B button fix into %s at chgplayer", (name) => {
+    const rom = open(name)
+    const base = detectNhl95Hacks(rom.bytes).choices
+    const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
+    // cmp.w (a1,d4.w),d1 / movem.w (sp)+,d1 / beq.w .2 / btst #pfalock,pflags(a0) / bne.w .next
+    expect(hex(rom.bytes, 0xac02, 20)).toBe('b27140004c9f00026700000c0828000500626600')
+    expect(base.lockedChangeFix).toBe(false)
+    const on = applyNhl95Hacks(rom, { lockedChangeFix: true })
+    expect([...on.bytes.keys()].filter((i) => on.bytes[i] !== rom.bytes[i])).toEqual([0xac0a, 0xac0b, 0xac0c, 0xac0d])
+    expect(hex(on.bytes, 0xac0a, 4)).toBe('4e714e71')
+    expect(detectNhl95Hacks(on.bytes).choices).toEqual({ ...base, lockedChangeFix: true })
+    expectSameBytes(applyNhl95Hacks(on, { lockedChangeFix: false }).bytes, rom.bytes)
+  })
+
   it.each(names)("puts the stick reach and body block fixes into %s at checkpuckcoll", (name) => {
     const rom = open(name)
     const base = detectNhl95Hacks(rom.bytes).choices
