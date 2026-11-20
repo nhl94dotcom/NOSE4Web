@@ -3763,6 +3763,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   if (wanted.injuries === 'longFall' && wanted.headBleeding) {
     throw new HackError('A long fall instead of an injury and head bleeding cannot both be on: with no injuries, the blood would never show.')
   }
+  if (wanted.clockwiseSprites && wanted.netColours !== NO_HACKS.netColours) {
+    throw new HackError("Clockwise's sprite edit redraws the nets for their own colours: with it on, keep the nets in the original colours.")
+  }
   if (wanted.barrPick && wanted.barrCoin) {
     throw new HackError("Ron Barr's pick every game and his pick by a coin flip cannot both be on: he picks one way or the other.")
   }

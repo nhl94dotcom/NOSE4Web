@@ -1,6 +1,6 @@
 import { CLOCKWISE_GAPS, CLOCKWISE_LENGTHS, CLOCKWISE_ORIGINAL, CLOCKWISE_PATCHED } from './clockwisedata'
 
-// Clockwise's sprite edit for NHL 94 on the Genesis, his IPS patch from the
+// Clockwise's sprite edit for NHL 94 on the Genesis, Clockwise's IPS patch from the
 // NHL94 forum: touch-ups to the players' sprite tiles (stick tape, eye colour
 // and other small details), pixels only, in the tiles from Spritetiles
 // ($5DE84 in the original game) on. See clockwisedata.ts.

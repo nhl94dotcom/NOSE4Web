@@ -1880,8 +1880,8 @@ export function HelpPage() {
         </li>
         <li>
           <b>Looks and screens</b>: <b>puck colours</b> and <b>net colours</b> (drawn in the crowd's or a team's
-          colours), <b>the fan in green</b> (his missing arm and leg put back), <b>Clockwise's sprite edit</b> (his
-          touch-ups to the player graphics), <b>Ron Barr's pick every game</b> (he
+          colours), <b>the fan in green</b> (his missing arm and leg put back), <b>Clockwise's sprite edit</b> (taped sticks,
+          eyes and redrawn nets), <b>Ron Barr's pick every game</b> (he
           names the team that came out hotter before every game, not only when the gap is wide) or <b>by a coin
           flip</b> (a team named every game at random, whatever its form), and the <b>intro
           screen wait</b>.

@@ -103,6 +103,11 @@ describe.skipIf(!existsSync(ORIGINAL))("Clockwise's sprite edit on the original 
     expectSameBytes(hackRom(on, NO_HACKS), rom)
   })
 
+  it('refuses other net colours, as it redraws the nets for the rink colours', () => {
+    const rom = new Uint8Array(readFileSync(ORIGINAL))
+    expect(() => hackRom(rom, { ...NO_HACKS, clockwiseSprites: true, netColours: 'home' })).toThrow(/nets/)
+  })
+
   it('goes with the fighting patch, head bleeding and the goalie stick fix, in either order', () => {
     const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
     const others: Partial<HackChoices> = { fighting: 'on', headBleeding: true, goalieBladeFix: true }
