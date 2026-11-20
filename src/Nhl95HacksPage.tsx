@@ -13,6 +13,7 @@ import {
   NHL95_HACK_TITLES,
   NO_NHL95_HACKS,
   nhl95GiveawaysOutdated,
+  nhl95ShootoutOutdated,
   nhl95HackSheet,
   nhl95HacksForDiscord,
   nhl95HackStateChanges,
@@ -654,34 +655,37 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
       </button>
     )
   }
+  const putInCurrent = (
+    <p>
+      <b>This ROM has an earlier version of it.</b>{' '}
+      <button
+        type="button"
+        disabled={changes.length > 0}
+        title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
+        onClick={() => {
+          try {
+            onChange(applyNhl95Hacks(project, state.choices))
+            setNotice("Done: every hack this ROM had an earlier version of is now NOSE4Web's current version. Undo puts it back.")
+            setError('')
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+          }
+        }}
+      >
+        Put in the current version
+      </button>
+    </p>
+  )
   const BESIDE: Partial<Record<Nhl95Hack, ReactNode>> = {
     hitEnergy: (
       <p>
         {button(`Use the recommended ${RECOMMENDED_HIT_ENERGY}`, { hitEnergy: RECOMMENDED_HIT_ENERGY })} {button('Energy from hits only', HITS_ONLY)}
       </p>
     ),
-    // An earlier version of giveaways and takeaways: on, and put in again as the current one.
-    giveaways: nhl95GiveawaysOutdated(project.bytes) && (
-      <p>
-        <b>This ROM has an earlier version of it.</b>{' '}
-        <button
-          type="button"
-          disabled={changes.length > 0}
-          title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
-          onClick={() => {
-            try {
-              onChange(applyNhl95Hacks(project, state.choices))
-              setNotice("Done: giveaways and takeaways, and any other hack this ROM had an earlier version of, are now NOSE4Web's current versions. Undo puts it back.")
-              setError('')
-            } catch (e) {
-              setError(e instanceof Error ? e.message : String(e))
-            }
-          }}
-        >
-          Put in the current version
-        </button>
-      </p>
-    ),
+    // An earlier version of a hack: on, and put in again as the current one.
+    giveaways: nhl95GiveawaysOutdated(project.bytes) && putInCurrent,
+    seasonShootout: nhl95ShootoutOutdated(project.bytes) && putInCurrent,
+    seasonShootoutNow: nhl95ShootoutOutdated(project.bytes) && putInCurrent,
     holdEnergy: <p>{button(`Use the recommended ${RECOMMENDED_HOLD_ENERGY}`, { holdEnergy: RECOMMENDED_HOLD_ENERGY })}</p>,
     baseWeight: (
       <span className="by-year">

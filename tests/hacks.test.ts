@@ -10,6 +10,7 @@ import {
   applyHacks,
   baseWeightForYear,
   detectHacks,
+  shootoutOutdated,
   hackChanges,
   HackError,
   hackRom,
@@ -365,7 +366,10 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expectSameBytes(buildRom(applyHacks(shootout, NO_HACKS)), buildRom(opened))
     // The start code clears gmdir, so the shooters attack Shootout mode's ends (Match Viewer), and keeps the team structs.
     const startAt = (shootout.bytes[0x1725e] << 24) | (shootout.bytes[0x1725f] << 16) | (shootout.bytes[0x17260] << 8) | shootout.bytes[0x17261]
-    expect(at(shootout.bytes, startAt + 60, 6)).toBe('08b80001c2ea')
+    expect(at(shootout.bytes, startAt + 72, 6)).toBe('08b80001c2ea')
+    // It gives both teams six players on the ice (tmap): with the visitors a man short, the first attempt crashed.
+    expect(at(shootout.bytes, startAt + 60, 12)).toBe('31fc0006c6f231fc0006ca56')
+    expect(shootoutOutdated(shootout.bytes)).toBe(false)
     // ... and the plus-minus log's length word, which the end code puts back.
     expect(at(shootout.bytes, startAt + 54, 6)).toBe('31f8def4f74e')
     // Or straight after period 3: the tie test calls code that starts the shootout first; .eop and $1725C stay.
@@ -382,6 +386,25 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       expect(at(changed.bytes, 0x17262, 8)).toBe('3038c6da9078ca3e')
     }
     expectSameBytes(buildRom(applyHacks(now, NO_HACKS)), buildRom(opened))
+    // The first version's start code, without the six players: read as on, and replaced whenever the hacks are applied.
+    const toFirst = (bytes: Uint8Array, start: number) => {
+      const code = bytes.slice(start, start + 110)
+      const first = new Uint8Array([...code.subarray(0, 60), ...code.subarray(72)])
+      first[9] = 0x56
+      first[17] = 0x4e
+      const copy = bytes.slice()
+      copy.set(first, start)
+      copy.fill(0xff, start + 98, start + 110)
+      return copy
+    }
+    const nowStart = readU32(now.bytes, readU32(now.bytes, 0x17264) + 16)
+    for (const [built, start] of [[shootout, startAt], [now, nowStart]] as const) {
+      const first = toFirst(built.bytes, start)
+      expect(detectHacks(first)).toEqual(detectHacks(built.bytes))
+      expect(shootoutOutdated(first)).toBe(true)
+      expectSameBytes(buildRom(applyHacks({ ...built, bytes: first }, detectHacks(first).choices)), buildRom(built))
+      expectSameBytes(buildRom(applyHacks({ ...built, bytes: first }, NO_HACKS)), buildRom(opened))
+    }
     // A one-timer at an open net aimed at the middle, as with the goalie pulled (8), not high in the middle (0).
     expect(at(opened.bytes, 0xc5fc, 6)).toBe('4240b87c002c')
     expect(at(applyHacks(opened, { ...NO_HACKS, openNetFix: true }).bytes, 0xc5fc, 6)).toBe('7008b87c002c')

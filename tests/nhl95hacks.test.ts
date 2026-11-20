@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { compareProjects } from '../src/core/compare'
 import { FACEOFF_CODE, NHL_SHOOTOUT_CODE, PASS_CODE, RING_CODE, STICK_CODE } from '../src/core/hacks'
 import { hackSheetDiscord, hackSheetHtml } from '../src/core/hacksheet'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACKS, NO_NHL95_HACKS, Nhl95HackError, nhl95HackSheet, nhl95ShootoutOutdated, nhl95HacksForDiscord, nhl95HacksSupported } from '../src/core/nhl95hacks'
 import { anyPosition } from '../src/core/anyposition'
 import { hasPpPkFix } from '../src/core/ppfix'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -260,6 +260,27 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const nowCode = read32(now.bytes, 0x8cba6)
     expect(hex(now.bytes, read32(now.bytes, nowCode + 0x20), 8)).toBe('3038c294b078c5fa')
     expectSameBytes(applyNhl95Hacks(now, { seasonShootoutNow: false }).bytes, rom.bytes)
+    // Both teams get six players on the ice (tmap): with the visitors a man short, the first attempt hung.
+    expect(hex(after.bytes, start + 0x36, 12)).toBe('31fc0006c2ac31fc0006c612')
+    expect(nhl95ShootoutOutdated(after.bytes)).toBe(false)
+    // The first version's start code, without them: read as on, and replaced when the hacks are applied with it on.
+    const toFirst = (bytes: Uint8Array, at: number) => {
+      const code = bytes.slice(at, at + 104)
+      const first = new Uint8Array([...code.subarray(0, 0x36), ...code.subarray(0x42)])
+      first[9] = 0x50
+      first[17] = 0x48
+      const copy = bytes.slice()
+      copy.set(first, at)
+      copy.fill(0xff, at + 92, at + 104)
+      return copy
+    }
+    for (const [built, at, hack] of [[after, start, 'seasonShootout'], [now, read32(now.bytes, nowCode + 0x20), 'seasonShootoutNow']] as const) {
+      const first = { ...built, bytes: toFirst(built.bytes, at) }
+      expect(detectNhl95Hacks(first.bytes)).toEqual(detectNhl95Hacks(built.bytes))
+      expect(nhl95ShootoutOutdated(first.bytes)).toBe(true)
+      expectSameBytes(applyNhl95Hacks(first, { [hack]: true }).bytes, built.bytes)
+      expectSameBytes(applyNhl95Hacks(first, { [hack]: false }).bytes, rom.bytes)
+    }
     // One way to settle a tie at a time; from one to another directly.
     expect(() => applyNhl95Hacks(rom, { seasonShootout: true, seasonOvertime: true })).toThrow(Nhl95HackError)
     const swapped = applyNhl95Hacks(after, { seasonShootout: false, seasonShootoutNow: true })

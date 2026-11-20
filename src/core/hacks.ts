@@ -836,17 +836,38 @@ const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
 // So both team structs (all of those are in them, $364 bytes each), the
 // scoring summary's length and the plus-minus log's length word ($FFDEF4,
 // which the plus-minus hack's log starts with) are kept from $FFF084, to be
-// put back at the end.
+// put back at the end. Then both teams are given six players on the ice
+// (tmap, team struct +$24, as restoreteams sets it): with the visitors a man
+// short when it began, the first attempt crashed (an address error in
+// setplayer, Match Viewer, 2026-11-20); the home team short was fine.
 //   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x
 //   btst #0,(gmode2).w; bne.s .x; bset #0,(gmode2).w; st ($F082).w
 //   movem.l d0-d7/a0-a6,-(sp)
 //   lea (tmstruct).w,a0; lea ($F084).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
-//   move.w (ScoreSumbytes).w,(a1); move.w ($DEF4).w,($F74E).w; bclr #1,(gmode).w; jsr ClearShootout
+//   move.w (ScoreSumbytes).w,(a1); move.w ($DEF4).w,($F74E).w
+//   move.w #6,(tmstruct+tmap).w; move.w #6,(awtmstruct+tmap).w; bclr #1,(gmode).w; jsr ClearShootout
 //   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (awtmstruct).w,a0; jsr Create_HotCold_Table
 //   movem.l (sp)+,d0-d7/a0-a6; .x rts
 const SHOOTOUT_START = bytes(
+  '3038 C6DA B078 CA3E 6662 0838 0000 C2FA 665A 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 31FC 0006 C6F2 31FC 0006 CA56 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+)
+// NOSE4Web's first version (to 20 November 2026), without the six players: recognised, and replaced by the above
+// whenever the hacks are applied.
+const SHOOTOUT_START_FIRST = bytes(
   '3038 C6DA B078 CA3E 6656 0838 0000 C2FA 664E 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
 )
+const SHOOTOUT_STARTS = [SHOOTOUT_START, SHOOTOUT_START_FIRST]
+// Where the shootout's start code is, if `at` calls it (through hook or the period-3 code), and which version.
+function startCode(rom: Uint8Array, start: number): Uint8Array | undefined {
+  return SHOOTOUT_STARTS.find((code) => start + code.length <= rom.length && is(rom, start, code))
+}
+function startHooked(rom: Uint8Array): { start: number; code: Uint8Array } | null {
+  for (const code of SHOOTOUT_STARTS) {
+    const start = hooked(rom, SHOOTOUT_START_HOOK, code)
+    if (start !== null) return { start, code }
+  }
+  return null
+}
 // When the shootout is won, NextShooter jumps to ExitToOpening, back to the
 // title as Shootout mode does. For the editor's shootout that jump becomes a
 // call to the code below. Its shootout is told from Shootout mode's by the
@@ -887,13 +908,20 @@ const nowCode = (start: number) =>
 const NOW_JSR_AT = 16
 const NOW_LENGTH = 30
 // Where the tie test calls code for the shootout after period 3, and where that code's start code is.
-function nowHooked(rom: Uint8Array): { at: number; start: number } | null {
+function nowHooked(rom: Uint8Array): { at: number; start: number; code: Uint8Array } | null {
   if (readU16(rom, TIE_TEST_HOOK.at) !== OP_JSR || readU16(rom, TIE_TEST_HOOK.at + 6) !== OP_NOP) return null
   const at = readU32(rom, TIE_TEST_HOOK.at + 2)
   if (at + NOW_LENGTH > rom.length) return null
   const start = readU32(rom, at + NOW_JSR_AT)
-  if (!is(rom, at, nowCode(start)) || !is(rom, start, SHOOTOUT_START)) return null
-  return { at, start }
+  const code = startCode(rom, start)
+  if (!is(rom, at, nowCode(start)) || code === undefined) return null
+  return { at, start, code }
+}
+// Whether this ROM has the season shootout's first version (it reads as on, and the current one goes in whenever
+// the hacks are applied).
+export function shootoutOutdated(rom: Uint8Array): boolean {
+  const code = nowHooked(rom)?.code ?? startHooked(rom)?.code
+  return code === SHOOTOUT_START_FIRST
 }
 
 const seasonTies: Part<SeasonTies> = {
@@ -907,7 +935,7 @@ const seasonTies: Part<SeasonTies> = {
       return hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null && eop === 'tie' && is(rom, TIES_AT, TIES.original) ? 'shootoutNow' : undefined
     }
     if (!is(rom, TIE_TEST_HOOK.at, TIE_TEST_HOOK.original)) return undefined
-    if (hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
+    if (startHooked(rom) !== null && hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END) !== null) {
       return eop === 'overtime' ? 'shootout' : undefined
     }
     if (!endOriginal) return undefined
@@ -918,11 +946,12 @@ const seasonTies: Part<SeasonTies> = {
     const now = nowHooked(rom)
     if (now !== null) {
       erase(rom, now.at, NOW_LENGTH)
-      erase(rom, now.start, SHOOTOUT_START.length)
+      erase(rom, now.start, now.code.length)
       rom.set(TIE_TEST_HOOK.original, TIE_TEST_HOOK.at)
     }
-    const start = hooked(rom, SHOOTOUT_START_HOOK, SHOOTOUT_START)
-    if (start !== null) erase(rom, start, SHOOTOUT_START.length)
+    const hookedStart = startHooked(rom)
+    const start = hookedStart?.start ?? null
+    if (hookedStart !== null) erase(rom, hookedStart.start, hookedStart.code.length)
     const end = hooked(rom, SHOOTOUT_END_HOOK, SHOOTOUT_END)
     if (end !== null) {
       erase(rom, end, SHOOTOUT_END.length)

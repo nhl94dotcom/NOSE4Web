@@ -603,13 +603,24 @@ const word = (value: number) => value.toString(16).toUpperCase().padStart(4, '0'
 //   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x; btst #0,(gmode2).w; bne.s .x
 //   bset #0,(gmode2).w; st (mark).w; movem.l d0-d7/a0-a6,-(sp)
 //   lea (tmstruct).w,a0; lea (save).w,a1; move.w #$1B2,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
-//   move.w (ScoreSumbytes).w,(a1); bclr #1,(gmode).w; jsr ClearShootout
+//   move.w (ScoreSumbytes).w,(a1); move.w #6,(tmstruct+tmap).w; move.w #6,(AwShots+tmap).w
+//   bclr #1,(gmode).w; jsr ClearShootout
 //   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (AwShots).w,a0; jsr Create_HotCold_Table
 //   movem.l (sp)+,d0-d7/a0-a6; .x rts
+// Both teams get six players on the ice (tmap, +$24): with the visitors a man short when it began, the first attempt
+// hung on a black screen (Match Viewer, 2026-11-20), as NHL 94's crashed.
 const SHOOTOUT_START_95 = hex(
+  `3038 C294 B078 C5FA 665C 0838 0000 BF00 6654 08F8 0000 BF00 50F8 ${word(SHOOTOUT_MARK)} 48E7 FFFE 41F8 C288 43F8 ${word(SHOOTOUT_SAVE)} ` +
+    '303C 01B2 22D8 51C8 FFFC 32B8 C02C 31FC 0006 C2AC 31FC 0006 C612 08B8 0001 BEF0 4EB9 0009 DA50 41F8 C288 4EB9 0008 3E88 41F8 C5EE 4EB9 0008 3E88 4CDF 7FFF 4E75',
+)
+// NOSE4Web's first version (to 20 November 2026), without the six players: recognised, and replaced by the above
+// whenever the shootout is applied.
+const SHOOTOUT_START_95_FIRST = hex(
   `3038 C294 B078 C5FA 6650 0838 0000 BF00 6648 08F8 0000 BF00 50F8 ${word(SHOOTOUT_MARK)} 48E7 FFFE 41F8 C288 43F8 ${word(SHOOTOUT_SAVE)} ` +
     '303C 01B2 22D8 51C8 FFFC 32B8 C02C 08B8 0001 BEF0 4EB9 0009 DA50 41F8 C288 4EB9 0008 3E88 41F8 C5EE 4EB9 0008 3E88 4CDF 7FFF 4E75',
 )
+const SHOOTOUT_STARTS_95 = [SHOOTOUT_START_95, SHOOTOUT_START_95_FIRST]
+const startCode95 = (rom: Uint8Array, start: number) => SHOOTOUT_STARTS_95.find((code) => start + code.length <= rom.length && matches(rom, start, code))
 //   addq.l #4,sp; tst.b (mark).w; beq.s .title; cmpi.w #3,(gsp).w; beq.s .ours; .title jmp ExitToOpening
 //   .ours sf (mark).w; lea (save).w,a0; lea (tmstruct).w,a1; move.w #$1B2,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
 //   move.w (a0),(ScoreSumbytes).w; move.w (homeshootgoals).w,d0; cmp.w (awayshootgoals).w,d0; bgt.s .home
@@ -640,7 +651,13 @@ function calls(rom: Uint8Array, at: number, nops: number, code: (target: number)
   const target = read32(rom, at + 2)
   return target < rom.length && matches(rom, target, code(target)) ? target : null
 }
-const startAt = (rom: Uint8Array, at: number) => calls(rom, at, 0, () => SHOOTOUT_START_95)
+function startAt(rom: Uint8Array, at: number): number | null {
+  for (const code of SHOOTOUT_STARTS_95) {
+    const start = calls(rom, at, 0, () => code)
+    if (start !== null) return start
+  }
+  return null
+}
 const endAt = (rom: Uint8Array) => calls(rom, SHOOTOUT_END_AT, 0, () => SHOOTOUT_END_95)
 // The code the tie test calls for the shootout after period 3, and the start code it calls.
 function nowAt(rom: Uint8Array): { now: number; start: number } | null {
@@ -648,7 +665,14 @@ function nowAt(rom: Uint8Array): { now: number; start: number } | null {
   const now = read32(rom, TIE_TEST_AT + 2)
   if (now + 0x2e > rom.length) return null
   const start = read32(rom, now + 0x20)
-  return matches(rom, now, nowCode95(start)) && start < rom.length && matches(rom, start, SHOOTOUT_START_95) ? { now, start } : null
+  return matches(rom, now, nowCode95(start)) && startCode95(rom, start) !== undefined ? { now, start } : null
+}
+// Whether this ROM has the season shootout's first version (it reads as on, and the current one goes in when the
+// hacks are applied with it on).
+export function nhl95ShootoutOutdated(rom: Uint8Array): boolean {
+  const now = nowAt(rom)
+  const start = now?.start ?? startAt(rom, PERIOD_OVER.at)
+  return start !== null && startCode95(rom, start) === SHOOTOUT_START_95_FIRST
 }
 
 function tiesState(rom: Uint8Array): Ties | undefined {
@@ -671,10 +695,10 @@ function removeTies(work: { rom: Uint8Array }): void {
   const now = nowAt(rom)
   if (now !== null) {
     rom.fill(UNUSED, now.now, now.now + 0x2e)
-    rom.fill(UNUSED, now.start, now.start + SHOOTOUT_START_95.length)
+    rom.fill(UNUSED, now.start, now.start + startCode95(rom, now.start)!.length)
   }
   const start = startAt(rom, PERIOD_OVER.at)
-  if (start !== null) rom.fill(UNUSED, start, start + SHOOTOUT_START_95.length)
+  if (start !== null) rom.fill(UNUSED, start, start + startCode95(rom, start)!.length)
   const end = endAt(rom)
   if (end !== null) rom.fill(UNUSED, end, end + SHOOTOUT_END_95.length)
   rom.set(PERIOD_OVER.original, PERIOD_OVER.at)
@@ -2135,6 +2159,8 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
   // So are giveaways and takeaways of an earlier version, with the current one.
   if (choices.giveaways && wanted.giveaways === true && nhl95GiveawaysOutdated(project.bytes)) change.push('giveaways')
+  // And the season shootout's first version.
+  for (const hack of ['seasonShootout', 'seasonShootoutNow'] as const) if (choices[hack] && wanted[hack] === true && nhl95ShootoutOutdated(project.bytes)) change.push(hack)
   for (const hack of change) {
     if (unknown.includes(hack)) throw new Nhl95HackError(`${NHL95_HACK_TITLES[hack]}: something else has already changed this part of the ROM, so it is left as it is.`)
     const bad = nhl95BadValue(hack, wanted[hack])

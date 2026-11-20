@@ -602,6 +602,14 @@ NHL 94's options (`hacks.ts`: `seasonTies` 'overtime' / 'shootout' / 'shootoutNo
 put in with NHL '95's addresses from the NHL95Genesis disassembly; Match Viewer played overtime until a goal on both
 retail and W18 (comment above `PERIOD_OVER`, "a961bb7").
 
+Both games' season shootout start code also sets both teams' tmap (team struct `+$24`, players on the ice) to 6, as
+restoreteams does: with the visitors a man short when it began, NHL 94's first attempt crashed (address error in
+setplayer, `$15B9E`) and NHL '95's hung on a black screen; the home team short was fine (Match Viewer, 2026-11-20).
+NHL 94 writes `$C6F2` / `$CA56` (`SHOOTOUT_START`), NHL '95 `$C2AC` / `$C612`. The first versions, without it, are
+recognised (`shootoutOutdated`, `nhl95ShootoutOutdated`) and the pages offer "Put in the current version". A save state
+holds the whole game's stats from the first frame of the game-over screens (the end code's restore), not during the
+shootout or its winner's banner (MV, all three games).
+
 ### Where it lives: the three tie options (one shared step)
 
 All three use the same four places (`tiesState`, `removeTies`, `applyTies`), with surroundings checked by
@@ -619,8 +627,9 @@ equals the expected code (`calls`, `nowAt`).
 
 **start code** (`SHOOTOUT_START_95`, placed by `placeCode`): if `HmGoals ($C294) == AwGoals ($C5FA)` and not already a
 shootout (gmode2 `$BF00` bit 0): set gmode2 bit 0, `st` the mark `$FFF000`, save both team structs (`$C288`,
-`$1B3` longs = `$6CC` bytes, two structs of `$366`) to `$FFF002`, then ScoreSumbytes (`$C02C`) to `$FFF6CE`; `bclr
-#1,gmode ($BEF0)`; `jsr ClearShootout ($9DA50)`; `Create_HotCold_Table ($83E88)` for `$C288` and `$C5EE`; `rts`.
+`$1B3` longs = `$6CC` bytes, two structs of `$366`) to `$FFF002`, then ScoreSumbytes (`$C02C`) to `$FFF6CE`; `move.w
+#6` to both teams' tmap (`$C2AC`, `$C612`: with the visitors a man short the first attempt hung, MV 2026-11-20; the
+first version without it is recognised, `nhl95ShootoutOutdated`); `bclr #1,gmode ($BEF0)`; `jsr ClearShootout ($9DA50)`; `Create_HotCold_Table ($83E88)` for `$C288` and `$C5EE`; `rts`.
 
 **end code** (`SHOOTOUT_END_95`): drops its return address; if the mark is clear or `gsp ($C020) != 3`, `jmp
 ExitToOpening ($8CD02)` (Shootout mode's own end); else clear the mark, restore the structs and ScoreSumbytes, compare

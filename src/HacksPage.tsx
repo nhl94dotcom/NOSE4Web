@@ -7,6 +7,7 @@ import type { SeasonTies } from './core/hacks'
 import {
   applyHacks,
   giveawaysOutdated,
+  shootoutOutdated,
   baseWeightForYear,
   BONUS_TEXTS,
   detectHacks,
@@ -139,6 +140,28 @@ export function HacksPage({ project, name, onChange }: Props) {
   const suggested = /^\d{4}$/.test(year.trim()) ? baseWeightForYear(Number(year)) : null
 
   // One hack: its name, the control that sets it, and what it does.
+  // An earlier version of a hack (giveaways and takeaways, the season shootout): put in again as the current one.
+  const putInCurrent = (
+    <>
+      {' '}
+      <b>This ROM has an earlier version of it.</b>{' '}
+      <button
+        disabled={changes.length > 0}
+        title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
+        onClick={() => {
+          try {
+            onChange(applyHacks(project, state.choices))
+            setNotice("Done: every hack this ROM had an earlier version of is now NOSE4Web's current version. Undo puts it back.")
+            setError('')
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+          }
+        }}
+      >
+        Put in the current version
+      </button>
+    </>
+  )
   const hack = (key: keyof HackChoices, control: ReactNode, about: ReactNode, beside?: ReactNode) => (
     <div className="hack">
       <label>
@@ -511,27 +534,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           'giveaways',
           <>
             {onOff('giveaways')}
-            {giveawaysOutdated(project.bytes) && (
-              <>
-                {' '}
-                <b>This ROM has an earlier version of it.</b>{' '}
-                <button
-                  disabled={changes.length > 0}
-                  title={changes.length > 0 ? 'Apply or set back your other changes first.' : undefined}
-                  onClick={() => {
-                    try {
-                      onChange(applyHacks(project, state.choices))
-                      setNotice("Done: giveaways and takeaways, and any other hack this ROM had an earlier version of, are now NOSE4Web's current versions. Undo puts it back.")
-                      setError('')
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : String(e))
-                    }
-                  }}
-                >
-                  Put in the current version
-                </button>
-              </>
-            )}
+            {giveawaysOutdated(project.bytes) && putInCurrent}
           </>,
           "Counts each player's giveaways and takeaways, the way the NHL94 Match Viewer project counts them: the puck going from one team to the other with no whistle between. A takeaway goes to the skater who won the puck with a stick steal or a check that knocked the carrier down; any other loss, such as a pass picked off or a puck run into the other team's goalie, is a giveaway for the player who lost it. Goalies get no takeaways. A line change or a penalty before the loose puck is picked up does not move the count to the wrong player. Shots, faceoff wins, passes between teammates and dump-ins the other goalie collects are not counted, nor a puck picked up after the whistle, nor anything in highlights or a shootout. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line. Game Stats gets a new last row, Give/Takeaways, with each team's totals. Player Stats gets a page for each, after Penalty Minutes (or Checks For) and before Time On Ice, with the players sorted by giveaways (GV) or takeaways (TK); game stats only, as the game keeps nothing for the playoffs. The counts start again each game. On a 1 MB ROM it makes the ROM 2 MB. Tested in the game by the NHL94 Match Viewer project.",
         )}
@@ -644,12 +647,15 @@ export function HacksPage({ project, name, onChange }: Props) {
         <h3>Rules</h3>
         {hack(
           'seasonTies',
-          <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
-            <option value="tie">End in a tie (as the original game)</option>
-            <option value="overtime">Overtime until a goal</option>
-            <option value="shootout">A shootout after one overtime</option>
-            <option value="shootoutNow">A shootout after period 3, no overtime</option>
-          </select>,
+          <>
+            <select aria-label={HACK_TITLES.seasonTies} className="wide" disabled={unknown('seasonTies')} value={wanted.seasonTies} onChange={(e) => set({ seasonTies: e.target.value as SeasonTies })}>
+              <option value="tie">End in a tie (as the original game)</option>
+              <option value="overtime">Overtime until a goal</option>
+              <option value="shootout">A shootout after one overtime</option>
+              <option value="shootoutNow">A shootout after period 3, no overtime</option>
+            </select>
+            {shootoutOutdated(project.bytes) && putInCurrent}
+          </>,
           <>
             In the original game a regular-season game still tied after its overtime ends in a tie, where a playoff
             game plays another overtime, and another, until someone scores. <b>Overtime until a goal</b> plays the
