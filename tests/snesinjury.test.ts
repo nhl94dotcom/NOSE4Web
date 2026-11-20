@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { loRomOffset, snesCodeInPlace } from '../src/core/snes'
-import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { applySnesHacks, detectSnesHacks, SNES_AMOUNT_OFF } from '../src/core/sneshacks'
 import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -43,7 +43,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES injury risk from knockdown
     expect(() => applySnesHacks(project, {}, false, { injuryBonus: 21 })).toThrow('from 0 to 20')
     // With the energy options too.
     const all = applySnesHacks(project, {}, false, { injuryBonus: 4, hitEnergy: 204, holdEnergy: 102 })
-    expect(detectSnesHacks(openRom(buildRom(all)).bytes).amounts).toEqual({ injuryBonus: 4, hitEnergy: 204, holdEnergy: 102, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0 })
+    expect(detectSnesHacks(openRom(buildRom(all)).bytes).amounts).toEqual({ ...SNES_AMOUNT_OFF, injuryBonus: 4, hitEnergy: 204, holdEnergy: 102 })
     expectSameBytes(applySnesHacks(all, {}, false, { injuryBonus: 0, hitEnergy: 0, holdEnergy: 0 }).bytes, project.bytes)
   })
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { loRomOffset } from '../src/core/snes'
-import { applySnesHacks, detectSnesHacks, snesHackDifferences, snesHacksForDiscord } from '../src/core/sneshacks'
+import { applySnesHacks, detectSnesHacks, snesHackDifferences, snesHacksForDiscord, SNES_AMOUNT_OFF } from '../src/core/sneshacks'
 import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -48,7 +48,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
 
   it('jsr from FallDown and holdcheck to code that takes the amounts, with line changes on', () => {
     const project = open('NHL94.smc')
-    expect(detectSnesHacks(project.bytes).amounts).toEqual({ hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0 })
+    expect(detectSnesHacks(project.bytes).amounts).toEqual(SNES_AMOUNT_OFF)
     const on = applySnesHacks(project, {}, false, { hitEnergy: 100, holdEnergy: 50 })
     // FallDown's .t2 at $9E:9BB3: lda.w position,x becomes jsr, the beq after it kept.
     const t2 = 0xf1bb3
