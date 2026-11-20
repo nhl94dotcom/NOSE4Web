@@ -144,7 +144,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   netColours: (c) => `The nets are drawn in the ${c.netColours === 'crowd' ? "crowd's" : c.netColours === 'home' ? "home team's" : c.netColours === 'away' ? "visitors'" : "rink's"} colours.`,
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
   greenFan: () => 'The fan in green in the stands has his arm and leg back.',
-  clockwiseSprites: () => "The players are drawn with Clockwise's touch-ups: stick tape, eye colour and other small details.",
+  clockwiseSprites: () => "The players are drawn with Clockwise's touch-ups: stick tape, eye colour and other small details. NOSE4Web's own, in Clockwise's style, tape the sticks in the faceoff close-up and in the fight frames.",
   organResume: () => 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   barrPick: () => "Ron Barr names the team that came out hotter before every game, not only when one is much hotter.",
   barrCoin: () => 'Ron Barr names a team before every game by a coin flip, whatever their form.',

@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { clockwiseRecords, clockwiseState } from '../src/core/clockwise'
+import { clockwiseExtras, clockwiseRecords, clockwiseState, faceoffAnim } from '../src/core/clockwise'
 import { detectHacks, hackRom, hacksSupported, NO_HACKS, type HackChoices } from '../src/core/hacks'
+import { fightState } from '../src/core/fight'
+import { unpackTiles } from '../src/core/genesisunpack'
 import { buildRom, openRom } from '../src/core/rom'
 import { expectSameBytes } from './samebytes'
 
@@ -28,10 +30,23 @@ const tally = (rom: Uint8Array) => {
   }
   return counts
 }
-// Where two ROMs of one size differ, outside the records.
+// Where NOSE4Web's additions are in a ROM: the fight frames' tape, and the faceoff close-up's (in its packed
+// stream, or in its plain tiles).
+const extraRanges = (rom: Uint8Array): [number, number][] => {
+  const { fight, faceoff, packed } = clockwiseExtras()
+  const out = fight.map((t): [number, number] => [t.at, t.at + t.original.length])
+  const anim = faceoffAnim(rom)
+  if (anim !== null) {
+    const list = rom[anim + 8] & 0x80 ? packed : faceoff
+    for (const t of list) out.push([anim + 10 + t.at, anim + 10 + t.at + t.original.length])
+  }
+  return out
+}
+// Where two ROMs of one size differ, outside the records and NOSE4Web's additions.
 const outsideDiffers = (a: Uint8Array, b: Uint8Array) => {
   const inRecord = new Uint8Array(a.length)
   for (const r of clockwiseRecords()) inRecord.fill(1, r.at, r.at + r.original.length)
+  for (const [from, to] of [...extraRanges(a), ...extraRanges(b)]) inRecord.fill(1, from, to)
   const out: number[] = []
   for (let i = 0; i < a.length; i++) if (!inRecord[i] && a[i] !== b[i]) out.push(i)
   return out
@@ -83,7 +98,15 @@ describe.skipIf(!existsSync(IPS) || !existsSync(ORIGINAL))("Clockwise's sprite e
       else patched.set(bytes, at)
     }
     expect(header).toBe(5)
-    expectSameBytes(hackRom(original, { ...NO_HACKS, clockwiseSprites: true }), patched)
+    // With NOSE4Web's tape in the faceoff close-up besides, which comes out alone.
+    const ours = hackRom(original, { ...NO_HACKS, clockwiseSprites: true })
+    expect(outsideDiffers(ours, patched)).toEqual([])
+    const anim = faceoffAnim(original)!
+    for (const t of clockwiseExtras().packed) {
+      expect(ours.subarray(anim + 10 + t.at, anim + 10 + t.at + t.patched.length)).toEqual(t.patched)
+      ours.set(t.original, anim + 10 + t.at)
+    }
+    expectSameBytes(ours, patched)
   })
 })
 
@@ -191,5 +214,157 @@ describe.skipIf(leagueNames.length === 0)("Clockwise's sprite edit in the league
     expect(tally(same)).toEqual(before)
     expect(on.length).toBe(same.length)
     expect(outsideDiffers(on, same)).toEqual([])
+  })
+})
+
+// ------------------------------------------------ NOSE4Web's additions
+// Where two byte arrays of one size differ, as a map of offset to [a's byte, b's byte].
+const changes = (a: Uint8Array, b: Uint8Array, from = 0, to = a.length) => {
+  const out = new Map<number, [number, number]>()
+  for (let i = from; i < to; i++) if (a[i] !== b[i]) out.set(i, [a[i], b[i]])
+  return out
+}
+// The bytes the tape changes, as a map of offset (plus `base`) to [before, after].
+const tapeChanges = (list: readonly { at: number; original: Uint8Array; patched: Uint8Array }[], base = 0) => {
+  const out = new Map<number, [number, number]>()
+  for (const t of list) t.original.forEach((byte, i) => byte !== t.patched[i] && out.set(base + t.at + i, [byte, t.patched[i]]))
+  return out
+}
+const tilesOf = (rom: Uint8Array) => unpackTiles(rom, faceoffAnim(rom)! + 8)!
+// Where the CDL ROMs keep the faceoff tiles plain (MV's ROM offsets are these plus the tile offsets).
+const CDL_TILES = 0x11ea92
+
+describe("NOSE4Web's additions to Clockwise's sprite edit: data", () => {
+  it('has the fight frames’ 38 bytes in 28 runs and the faceoff’s 81 in 27, each a change, in order', () => {
+    const { fight, faceoff, packed } = clockwiseExtras()
+    expect([fight.length, tapeChanges(fight).size]).toEqual([28, 38])
+    expect([faceoff.length, tapeChanges(faceoff).size]).toEqual([27, 81])
+    for (const list of [fight, faceoff, packed]) {
+      list.forEach((t, i) => {
+        expect(t.patched.length).toBe(t.original.length)
+        expect(t.original).not.toEqual(t.patched)
+        if (i > 0) expect(t.at).toBeGreaterThanOrEqual(list[i - 1].at + list[i - 1].original.length)
+      })
+    }
+    // The fight frames lie in the fighting patch's frames, past Clockwise's records.
+    expect(fight[0].at).toBeGreaterThan(clockwiseRecords().at(-1)!.at)
+  })
+
+  it('unpacks plain tiles as they are, and refuses a stream that comes out short', () => {
+    const plain = new Uint8Array(2 + 64).map((_, i) => i)
+    plain.set([0x00, 0x02], 0)
+    expect(unpackTiles(plain, 0)).toEqual({ tiles: plain.slice(2), packed: false, end: 66 })
+    // One tile: 3 bytes as they are, 18 and then 11 copies of the one before, the end code.
+    const packedOne = Uint8Array.from([0x80, 0x01, 0x02, 0x11, 0x22, 0x33, 0x80 | 15, 1, 0x80 | 8, 1, 0xe0, 0x00])
+    const one = unpackTiles(packedOne, 0)!
+    expect(one.packed).toBe(true)
+    expect(one.end).toBe(packedOne.length)
+    expect([...one.tiles]).toEqual([0x11, 0x22, ...new Array<number>(30).fill(0x33)])
+    expect(unpackTiles(Uint8Array.from([0x80, 0x01, 0x02, 0x11, 0x22, 0x33, 0xe0, 0x00]), 0)).toBeNull()
+  })
+})
+
+describe.skipIf(!existsSync(ORIGINAL))("NOSE4Web's additions on the original game", () => {
+  it('finds the faceoff close-up from checkfo, and unpacks its 179 tiles up to its frames', () => {
+    const rom = new Uint8Array(readFileSync(ORIGINAL))
+    const anim = faceoffAnim(rom)!
+    expect(anim).toBe(0xa78ae)
+    expect((rom[anim + 8] << 8) | rom[anim + 9]).toBe(0x80b3)
+    const unpacked = tilesOf(rom)
+    expect(unpacked.packed).toBe(true)
+    expect(unpacked.tiles.length).toBe(179 * 32)
+    // The stream ends where the anim's frames begin (the long at +4).
+    expect(unpacked.end).toBe(anim + ((rom[anim + 4] << 24) | (rom[anim + 5] << 16) | (rom[anim + 6] << 8) | rom[anim + 7]))
+  })
+
+  it.skipIf(!existsSync(path(CDL)))('unpacks the faceoff tiles to what the CDL ROM has plain', () => {
+    const cdl = new Uint8Array(readFileSync(path(CDL)))
+    expect(faceoffAnim(cdl)).toBe(0x11ea88)
+    expect(tilesOf(cdl)).toEqual({ tiles: cdl.slice(CDL_TILES, CDL_TILES + 179 * 32), packed: false, end: CDL_TILES + 179 * 32 })
+    expect(tilesOf(new Uint8Array(readFileSync(ORIGINAL))).tiles).toEqual(cdl.slice(CDL_TILES, CDL_TILES + 179 * 32))
+  })
+
+  it('tapes the faceoff close-up: its stream changes as listed and unpacks to exactly the listed changes, and out again', () => {
+    const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
+    const on = hackRom(rom, { ...NO_HACKS, clockwiseSprites: true })
+    expect(on.length).toBe(rom.length)
+    const anim = faceoffAnim(rom)!
+    const { faceoff, packed } = clockwiseExtras()
+    // In the stream: the listed changes and nothing else.
+    const end = tilesOf(rom).end
+    expect(changes(rom, on, anim, end)).toEqual(tapeChanges(packed, anim + 10))
+    // Unpacked: MV's 81 bytes and nothing else.
+    expect(changes(tilesOf(rom).tiles, tilesOf(on).tiles)).toEqual(tapeChanges(faceoff))
+    expect(tilesOf(on).end).toBe(end)
+    expect(detectHacks(on)).toEqual({ choices: { ...NO_HACKS, clockwiseSprites: true }, unknown: [] })
+    expectSameBytes(hackRom(on, NO_HACKS), rom)
+  })
+
+  it('tapes the fight frames with the fighting patch in, in either order, and takes it all out again', () => {
+    const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
+    const all: HackChoices = { ...NO_HACKS, fighting: 'on', clockwiseSprites: true }
+    const together = hackRom(rom, all)
+    const fightOnly = hackRom(rom, { ...NO_HACKS, fighting: 'on' })
+    const clockwiseOnly = hackRom(rom, { ...NO_HACKS, clockwiseSprites: true })
+    expect(fightState(together)).toBe('on')
+    expect(detectHacks(together)).toEqual({ choices: all, unknown: [] })
+    // Against the fighting patch alone: Clockwise's records, the faceoff's stream and the fight frames' tape, as listed.
+    const { fight, packed } = clockwiseExtras()
+    const anim = faceoffAnim(rom)!
+    const expected = new Map([...tapeChanges(fight), ...tapeChanges(packed, anim + 10)])
+    for (const r of clockwiseRecords()) r.original.forEach((byte, i) => byte !== r.patched[i] && expected.set(r.at + i, [byte, r.patched[i]]))
+    expect(together.length).toBe(fightOnly.length)
+    expect(changes(fightOnly, together)).toEqual(expected)
+    // The fight frames' tape is in the patch's frames, so without fighting none of it goes in.
+    expect(changes(rom, clockwiseOnly, fight[0].at, fight.at(-1)!.at + 8).size).toBe(0)
+    // Either order, by itself in turn.
+    expectSameBytes(withChoices(fightOnly, { clockwiseSprites: true }), together)
+    expectSameBytes(withChoices(clockwiseOnly, { fighting: 'on' }), together)
+    // Another menu start keeps the tape.
+    expectSameBytes(withChoices(together, { fighting: 'arcade' }), hackRom(rom, { ...all, fighting: 'arcade' }))
+    // Out: fighting alone, this alone, both.
+    expectSameBytes(withChoices(together, { fighting: 'none' }), clockwiseOnly)
+    expectSameBytes(withChoices(together, { clockwiseSprites: false }), fightOnly)
+    expectSameBytes(hackRom(together, NO_HACKS), rom)
+  })
+
+  it('goes with head bleeding and the goalie stick fix besides, which leave the fight frames’ tape alone', () => {
+    const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
+    const all: HackChoices = { ...NO_HACKS, fighting: 'on', clockwiseSprites: true, headBleeding: true, goalieBladeFix: true }
+    const together = hackRom(rom, all)
+    expect(detectHacks(together)).toEqual({ choices: all, unknown: [] })
+    for (const t of clockwiseExtras().fight) expect(together.subarray(t.at, t.at + t.patched.length)).toEqual(t.patched)
+    expectSameBytes(withChoices(together, { headBleeding: false, goalieBladeFix: false }), hackRom(rom, { ...NO_HACKS, fighting: 'on', clockwiseSprites: true }))
+    expectSameBytes(hackRom(together, NO_HACKS), rom)
+  })
+
+  it('gives a ROM made before the additions (Clockwise in, the tape not) the tape when its hacks are put in again', () => {
+    const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
+    const all: HackChoices = { ...NO_HACKS, fighting: 'on', clockwiseSprites: true }
+    const together = hackRom(rom, all)
+    // As the editor made it before: Clockwise's records, no tape.
+    const earlier = together.slice()
+    const { fight, packed } = clockwiseExtras()
+    const anim = faceoffAnim(rom)!
+    for (const t of fight) earlier.set(t.original, t.at)
+    for (const t of packed) earlier.set(t.original, anim + 10 + t.at)
+    expect(tally(earlier)).toEqual({ original: 0, patched: 3498, own: 0 })
+    expect(detectHacks(earlier)).toEqual({ choices: all, unknown: [] })
+    expectSameBytes(withChoices(earlier, {}), together)
+    expectSameBytes(hackRom(earlier, NO_HACKS), rom)
+  })
+})
+
+describe.skipIf(!existsSync(path(CDL)))("NOSE4Web's additions on a league ROM with the faceoff tiles plain", () => {
+  it('changes the listed bytes of the faceoff tiles, and takes them out again', () => {
+    const rom = open(CDL).bytes
+    const same = withChoices(rom, {})
+    const on = withChoices(rom, { clockwiseSprites: true })
+    expect(changes(same, on, CDL_TILES - 10, CDL_TILES + 179 * 32)).toEqual(tapeChanges(clockwiseExtras().faceoff, CDL_TILES))
+    // MV's ROM offsets, the first and the last.
+    expect([on[0x11f78d], on[0x1200a2]]).toEqual([0x22, 0x22])
+    const off = withChoices(on, { clockwiseSprites: false })
+    expectSameBytes(off.subarray(CDL_TILES - 10, CDL_TILES + 179 * 32), same.subarray(CDL_TILES - 10, CDL_TILES + 179 * 32))
+    expect(detectHacks(on).unknown).toEqual(detectHacks(rom).unknown)
   })
 })

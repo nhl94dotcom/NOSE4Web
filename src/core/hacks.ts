@@ -26,7 +26,7 @@ import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
-import { clockwiseState, putClockwise, takeOutClockwise } from './clockwise'
+import { clockwiseState, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
@@ -3911,6 +3911,9 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
     // Last, as it makes the ROM 3 MB; what the others add goes below 2 MB.
     ['fighting', removeFight, putFight],
+    // After fighting, whose fight frames NOSE4Web's tape in Clockwise's style goes into (clockwise.ts). Taken out after
+    // fighting is: where the patch goes, so does the tape (withoutFight), and where it stays, it is taken out here.
+    ['clockwiseSprites', () => void (choices.clockwiseSprites && takeOutFightTape(work.rom)), () => void (wanted.clockwiseSprites && putFightTape(work.rom))],
     // After fighting, whose copy of HotList the game reads once it is in.
     ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
     // After fighting, whose code its winner hook goes into.

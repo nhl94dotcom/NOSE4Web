@@ -1210,7 +1210,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'clockwiseSprites',
           onOff('clockwiseSprites'),
-          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. Not yet tested in the game.",
+          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the centres' sticks in the faceoff close-up and, with chaos's fighting patch on, on the sticks in the fight frames, with an eye on the overhand punch. Not yet tested in the game.",
         )}
         {hack(
           'barrPick',

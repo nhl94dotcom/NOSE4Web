@@ -1,4 +1,5 @@
 import { FIGHT_BLOCKS, FIGHT_CHANGES } from './fightdata'
+import { FIGHT_TAPE } from './tapedata'
 
 // chaos's fighting patch for NHL 94 on the Genesis (github.com/Chaos81/nhl94-patches,
 // 94_fight, version 1.01, MIT licence; see fightdata.ts). It brings NHLPA 93's
@@ -88,7 +89,8 @@ const moveFightRam = (rom: Uint8Array) => {
 }
 // What may differ in a ROM with the patch: the starting choice, the menu's
 // pointers, the sprites' colours, what head bleeding changes, and where the
-// choice is kept.
+// choice is kept. (The fight frames may also have NOSE4Web's stick tape:
+// fightState takes the patch's bytes or the tape's there, tapedBytes.)
 const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
   // .FightFall's move.w #$FFFF,$44(a0), which fight momentum (hacks.ts) makes a jsr.
@@ -123,11 +125,22 @@ const u32 = (rom: Uint8Array, at: number) => ((rom[at] << 24) | (rom[at + 1] << 
 const put16 = (rom: Uint8Array, at: number, v: number) => rom.set([(v >> 8) & 0xff, v & 0xff], at)
 const put32 = (rom: Uint8Array, at: number, v: number) => rom.set([(v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff], at)
 
-const same = (rom: Uint8Array, at: number, bytes: Uint8Array, skips: [number, number][] = []) => {
+// The bytes NOSE4Web's stick tape and eye in the fight frames have (tapedata.ts, put in with Clockwise's
+// sprite edit), which a ROM with the patch may have in place of the patch's own there.
+let taped: Map<number, number> | null = null
+function tapedBytes() {
+  if (taped) return taped
+  taped = new Map()
+  for (const [at, , bytes] of FIGHT_TAPE) for (let i = 0; i < bytes.length / 2; i++) taped.set(at + i, parseInt(bytes.slice(i * 2, i * 2 + 2), 16))
+  return taped
+}
+
+// `also`: other bytes some places may have instead.
+const same = (rom: Uint8Array, at: number, bytes: Uint8Array, skips: [number, number][] = [], also?: Map<number, number>) => {
   if (at + bytes.length > rom.length) return false
   for (let i = 0; i < bytes.length; i++) {
     if (skips.some(([from, to]) => at + i >= from && at + i < to)) continue
-    if (rom[at + i] !== bytes[i]) return false
+    if (rom[at + i] !== bytes[i] && also?.get(at + i) !== rom[at + i]) return false
   }
   return true
 }
@@ -148,7 +161,7 @@ export function fightState(rom: Uint8Array): FightChoice | undefined {
   const choice = rom.length >= DEFAULT_AT + 2 ? DEFAULTS[u16(rom, DEFAULT_AT)] : undefined
   if (!choice) return undefined
   const skips: [number, number][] = [...SKIPPED, [coloursAt(rom), coloursAt(rom) + SPRITE_COLOURS]]
-  return changes.every((c) => same(rom, c.at, c.patched, skips)) && blocks.every((b) => same(rom, b.at, b.bytes, skips)) ? choice : undefined
+  return changes.every((c) => same(rom, c.at, c.patched, skips, tapedBytes())) && blocks.every((b) => same(rom, b.at, b.bytes, skips)) ? choice : undefined
 }
 
 // The ROM without the patch: the original game's code back, the added code
