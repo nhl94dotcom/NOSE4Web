@@ -163,7 +163,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   // "The original game has 150", with what this ROM has if that is different.
   const stock = (key: NumberKey) =>
     `The original game has ${NO_HACKS[key]}${!unknown(key) && state.choices[key] !== NO_HACKS[key] ? `, and this ROM has ${state.choices[key]}` : ''}.`
-  const onOff = (key: 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'goalieBladeFix' | 'shotScatterFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'blockedShots' | 'organResume') => (
+  const onOff = (key: 'clockwiseSprites' | 'clutchTime' | 'choppyIce' | 'nhlShootout' | 'timeOnIce' | 'secondAssist' | 'oneTimerAssist' | 'regainAssist' | 'plusMinus' | 'aggressionFix' | 'ppPkFix' | 'comebackFix' | 'passFix' | 'openNetFix' | 'repeatCheckFix' | 'faceoffFix' | 'runawayFix' | 'penaltyShotTableFix' | 'penaltyShotFixes' | 'goaliePullFix' | 'blindRingFix' | 'snipingFix' | 'awarenessFix' | 'centreDefenceFix' | 'goalieTurnFix' | 'goalieBladeFix' | 'shotScatterFix' | 'crowdFix' | 'stickShots' | 'stamina' | 'realTime' | 'noIcing' | 'hybridIcing' | 'shootoutInjuries' | 'delayedCalls' | 'greenFan' | 'barrPick' | 'barrCoin' | 'anyPosition' | 'noSkatingDrain' | 'headBleeding' | 'giveaways' | 'blockedShots' | 'organResume') => (
     <select aria-label={HACK_TITLES[key]} disabled={unknown(key)} value={wanted[key] ? 'on' : 'off'} onChange={(e) => set({ [key]: e.target.value === 'on' })}>
       <option value="off">Off</option>
       <option value="on">On</option>
@@ -1200,6 +1200,11 @@ export function HacksPage({ project, name, onChange }: Props) {
           'greenFan',
           onOff('greenFan'),
           "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it. Tested in the game by the NHL94 Match Viewer project.",
+        )}
+        {hack(
+          'clockwiseSprites',
+          onOff('clockwiseSprites'),
+          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from his patch on the NHL94 forum. Several league ROMs have some or all of it already. Art a league has redrawn itself is kept. Not yet tested in the game.",
         )}
         {hack(
           'barrPick',

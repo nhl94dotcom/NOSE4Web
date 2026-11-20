@@ -26,6 +26,7 @@ import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
+import { clockwiseState, putClockwise, takeOutClockwise } from './clockwise'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
@@ -210,6 +211,8 @@ export interface HackChoices {
   netColours: PuckColours
   // The fan in green in the stands, with his arm and leg back.
   greenFan: boolean
+  // Clockwise's touch-ups to the player sprites (clockwise.ts).
+  clockwiseSprites: boolean
   // Ron Barr names the hotter team every game, not only when the gap is wide.
   barrPick: boolean
   // Ron Barr picks home or visitors by a coin flip every game (instead of barrPick).
@@ -306,6 +309,7 @@ export type HackPart =
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
+  | 'clockwiseSprites'
   | 'barrPick'
   | 'barrCoin'
   | 'headBleeding'
@@ -396,6 +400,7 @@ export const NO_HACKS: HackChoices = {
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
+  clockwiseSprites: false,
   barrPick: false,
   barrCoin: false,
   headBleeding: false,
@@ -3724,6 +3729,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
+    clockwiseSprites: found('clockwiseSprites', clockwiseState(rom), NO_HACKS.clockwiseSprites),
     barrPick: found('barrPick', barrPick.detect(rom), NO_HACKS.barrPick),
     barrCoin: found('barrCoin', barrCoin.detect(rom), NO_HACKS.barrCoin),
     // With the long fall the injury animation is not the original's, so the blood cannot go in: off, not unknown.
@@ -3849,6 +3855,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
+    // Taken out only where the ROM has it all: a ROM with part of it keeps that part whatever else changes.
+    ['clockwiseSprites', () => void (choices.clockwiseSprites && takeOutClockwise(work.rom)), () => void (wanted.clockwiseSprites && putClockwise(work.rom))],
     ['barrPick', () => barrPick.remove(work.rom), () => barrPick.apply(work, wanted.barrPick)],
     ['barrCoin', () => barrCoin.remove(work.rom), () => barrCoin.apply(work, wanted.barrCoin)],
     ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
@@ -4122,6 +4130,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
+  clockwiseSprites: "Clockwise's sprite edit",
   barrPick: "Ron Barr's pick every game",
   barrCoin: "Ron Barr's pick by a coin flip",
   headBleeding: 'Head bleeding',
@@ -4207,6 +4216,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',
+  clockwiseSprites: 'clockwiseSprites',
   barrPick: 'barrPick',
   barrCoin: 'barrCoin',
   headBleeding: 'headBleeding',
