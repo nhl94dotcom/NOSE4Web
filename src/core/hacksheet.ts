@@ -2,7 +2,7 @@ import { clockTime, penaltyLengths } from './penaltytime'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
-import { detectSnesHacks, SNES_GOALIE_HOLD, SNES_GOALIE_LINE, SNES_GOALIE_OUT, SNES_GOALIE_WIDTH, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesAmount, type SnesHack } from './sneshacks'
+import { detectSnesHacks, SNES_GOALIE_HOLD, SNES_GOALIE_LINE, SNES_GOALIE_OUT, SNES_GOALIE_WIDTH, SNES_AMOUNT_OFF, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesAmount, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
 import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
 import { genesisScoreLogo, hasGenesisScoreLogos } from './genesisscorelogos'
@@ -295,6 +295,9 @@ const SNES: Record<SnesHack, string> = {
   goalieWidth: 'How far a goalie you control may go to either side of the net.',
   goalieOut: 'How far out of his net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
+  speedBurst: 'How much push a speed burst (A without the puck) gives.',
+  turnRate: 'How sharply skaters stop and turn.',
+  puckFriction: 'How quickly a sliding puck, and a skater gliding to take a pass, slows down.',
 }
 
 // The goalie settings on the sheet, with their amounts.
@@ -347,6 +350,12 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
         ? `A fight keeps each fighter in the box ${clockTime(amounts.fightTime)}, whatever its minutes; the statistics still show its usual penalty minutes.`
         : hack === 'threeStars' && amounts
         ? `${SNES.threeStars.slice(0, -1)}, made for line changes ${amounts.threeStars === 2 ? 'on' : 'off'}.`
+        : hack === 'speedBurst' && amounts
+        ? `The speed burst (A without the puck) gives every player the same push, ${amounts.speedBurst}, tired or not; the original gives a fresh player 35 and a tired one less.`
+        : hack === 'turnRate' && amounts
+        ? `Skaters ${more(amounts.turnRate, SNES_AMOUNT_OFF.turnRate, 'stop and turn more sharply', 'take a longer, sliding stop')} when they reverse (${amounts.turnRate}, where the original has ${SNES_AMOUNT_OFF.turnRate}).`
+        : hack === 'puckFriction' && amounts
+        ? `The puck slows ${amounts.puckFriction < SNES_AMOUNT_OFF.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so does a skater gliding to take a pass).`
         : hack === 'penaltyTime' && amounts
         ? `Penalties last ${amounts.penaltyTime < 60 ? 'less' : 'longer'} than they say: each penalty minute is ${amounts.penaltyTime} seconds in the box, so ${penaltyLengths(amounts.penaltyTime)}. The statistics still show the usual penalty minutes.`
         : SNES_GOALIE_SHEET[hack] && amounts

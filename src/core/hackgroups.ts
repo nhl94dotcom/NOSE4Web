@@ -45,9 +45,10 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
     hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'regainAssist'],
   },
   { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'threeStars'] },
-  { id: 'rules', title: 'Rules', hacks: ['fighting', 'fightTime', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'realTime', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'shootoutInjuries', 'nhlShootout', 'threeOnThree', 'noIcing', 'creaseIcing', 'hybridIcing', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'choppyIce', 'clutchTime'] },
+  { id: 'rules', title: 'Rules', hacks: ['fighting', 'fightTime', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'realTime', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'shootoutInjuries', 'nhlShootout', 'threeOnThree', 'noIcing', 'creaseIcing', 'hybridIcing', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'clutchTime'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine'] },
+  { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },
   { id: 'lines', title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'defenceControl'] },
   { id: 'looks', title: 'Looks and screens', hacks: ['skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume'] },
 ]

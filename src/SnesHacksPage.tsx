@@ -62,6 +62,17 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   goalieWidth: SNES_AMOUNT_OFF.goalieWidth,
   goalieOut: SNES_AMOUNT_OFF.goalieOut,
   goalieLine: SNES_AMOUNT_OFF.goalieLine,
+  // Not recommendations: the original game's.
+  speedBurst: SNES_AMOUNT_OFF.speedBurst,
+  turnRate: SNES_AMOUNT_OFF.turnRate,
+  puckFriction: SNES_AMOUNT_OFF.puckFriction,
+}
+// The amounts whose button puts back the original game's.
+const ORIGINAL_BUTTON: Partial<Record<SnesAmount, string>> = { penaltyTime: 'Use the original 60', speedBurst: "Use the original game's", turnRate: `Use the original ${SNES_AMOUNT_OFF.turnRate}`, puckFriction: `Use the original ${SNES_AMOUNT_OFF.puckFriction}` }
+const SKATING_TEXT: Partial<Record<SnesAmount, (value: number) => string>> = {
+  speedBurst: (value) => (value === 0 ? "0: the original game's push, from the player's energy." : `the push for every player, tired or not (the original gives a fresh player 35).`),
+  turnRate: (value) => (value === SNES_AMOUNT_OFF.turnRate ? 'the original game.' : value > SNES_AMOUNT_OFF.turnRate ? 'stops sooner than the original game.' : 'a longer, sliding stop than the original game.'),
+  puckFriction: (value) => (value === SNES_AMOUNT_OFF.puckFriction ? 'the original game.' : value < SNES_AMOUNT_OFF.puckFriction ? 'the puck slows faster than in the original game.' : 'the puck slides further than in the original game.'),
 }
 // The goalie settings, a number each as on the Genesis's page: the hold time in seconds, the rest in the game's units.
 const GOALIE_AMOUNTS: SnesHack[] = ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine']
@@ -73,7 +84,7 @@ const energyShare = (units: number) => (units === 0 ? 'Off: none taken.' : `${un
 // The injury risk: what it adds to a hit that can injure, at most.
 const riskShare = (bonus: number) => (bonus === 0 ? 'Off.' : `After five knockdowns, a hit that can injure has about ${Math.round(((bonus * 5) / 300) * 100)} in 100 more chance of doing so.`)
 const amountText = (hack: SnesAmount, value: number) =>
-  hack === 'penaltyTime' ? `seconds for each penalty minute: ${penaltyLengths(value)}.` : hack === 'fightTime' ? (value === 0 ? 'seconds: off, a fight is a usual 5-minute major.' : `seconds in the box for each fighter: ${clockTime(value)}.`) : hack === 'injuryBonus' ? riskShare(value) : energyShare(value)
+  SKATING_TEXT[hack] ? SKATING_TEXT[hack](value) : hack === 'penaltyTime' ? `seconds for each penalty minute: ${penaltyLengths(value)}.` : hack === 'fightTime' ? (value === 0 ? 'seconds: off, a fight is a usual 5-minute major.' : `seconds in the box for each fighter: ${clockTime(value)}.`) : hack === 'injuryBonus' ? riskShare(value) : energyShare(value)
 
 interface Props {
   project: RomProject
@@ -186,6 +197,12 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "Counts each player's time on ice, as the Genesis game does: each second of the game clock, everyone on the ice, goalies included, gets a second, up to 99:59. Time on ice in Player Stats shows it, and nhl94online.com and other save-state readers can read it as they do in McMarkis's 2 MB and SA-1 builds. It starts at 0 each game and is kept through a season shootout. McMarkis's code, adapted with his permission. Only for ROMs laid out like the original game, as his own builds count it already. Tested in the game by the NHL94 Match Viewer project.",
   clutchTime:
     "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime. A goal that makes it a two-goal game ends it at the next faceoff, and one that brings a game back within a goal starts it there. Players already at the top of a rating gain nothing in it. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
+  speedBurst:
+    "The push a speed burst (A without the puck) gives. Put 0 for the original game's, which is 35 for a fresh player and less for a tired one (with line changes off nobody tires, so it is always 35). Any other number is the push for everybody, tired or not: 1 as good as takes it away, 17 is about half the original's, and much over 64 can send a player who bursts twice the wrong way. What a burst costs in energy is as before (see Speed bursts cost no energy). Works in every build. Not yet tested in the game.",
+  turnRate:
+    "How quickly a skater stops and turns when he reverses. A larger number stops him sooner; a small one gives a long, sliding stop. Each player's leg strength rating adds a little more (0 to 15). The original game has 112, at most 225. Works in every build. Not yet tested in the game.",
+  puckFriction:
+    "How fast the puck slows down on the ice, on the same scale as the Genesis setting. A smaller number slows it faster: 8 slows it twice as fast as the original 9, and 10 half as fast. At 8 a loose puck keeps about 78% of its speed each second, where at 9 it keeps about 88%. A player gliding to take a pass slows the same way, as the game uses this setting for him too. Choppy ice, below, adds to it as before. It does not apply to a puck in the air. From chaos's forum post. Works in every build. Not yet tested in the game.",
   choppyIce:
     "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again at the start of each period and overtime. Only the puck: skaters glide as before. Works in every build. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
   nhlShootout:
@@ -449,7 +466,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                     />{' '}
                     <span className="note">{amountText(hack, wantedAmounts[hack])}</span>{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === RECOMMENDED_AMOUNTS[hack]} onClick={() => setAmount(hack, RECOMMENDED_AMOUNTS[hack])}>
-                      {hack === 'penaltyTime' ? 'Use the original 60' : hack === 'fightTime' ? 'Use 5:00' : `Use the recommended ${RECOMMENDED_AMOUNTS[hack]}`}
+                      {ORIGINAL_BUTTON[hack] ? ORIGINAL_BUTTON[hack] : hack === 'fightTime' ? 'Use 5:00' : `Use the recommended ${RECOMMENDED_AMOUNTS[hack]}`}
                     </button>
                   </label>
                 ) : (

@@ -83,6 +83,9 @@ export type SnesHack =
   | 'goalieWidth'
   | 'goalieOut'
   | 'goalieLine'
+  | 'speedBurst'
+  | 'turnRate'
+  | 'puckFriction'
 
 interface Site {
   // The game's address.
@@ -363,6 +366,9 @@ export const SNES_HACKS: SnesHack[] = [
   'goalieWidth',
   'goalieOut',
   'goalieLine',
+  'speedBurst',
+  'turnRate',
+  'puckFriction',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -432,6 +438,9 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
   goalieLine: 'Goalie whistle line',
+  speedBurst: 'Speed burst',
+  turnRate: 'Stopping and turning',
+  puckFriction: 'Puck friction',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -557,8 +566,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime' | 'threeStars' | 'goalieHold' | 'goalieWidth' | 'goalieOut' | 'goalieLine'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime', 'threeStars', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime' | 'threeStars' | 'goalieHold' | 'goalieWidth' | 'goalieOut' | 'goalieLine' | 'speedBurst' | 'turnRate' | 'puckFriction'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime', 'threeStars', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'speedBurst', 'turnRate', 'puckFriction']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -591,6 +600,8 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return penaltyTimeText(value)
     case 'fightTime':
       return fightTimeText(value)
+    case 'speedBurst':
+      return value === 0 ? "the original game's" : String(value)
     case 'threeStars':
       return SNES_STAR_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'goalieHold':
@@ -598,6 +609,8 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
     case 'goalieWidth':
     case 'goalieOut':
     case 'goalieLine':
+    case 'turnRate':
+    case 'puckFriction':
       return String(value)
     default:
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
@@ -610,7 +623,7 @@ export const SNES_GOALIE_WIDTH = 48
 export const SNES_GOALIE_OUT = 228
 export const SNES_GOALIE_LINE = 187
 export const SNES_GOALIE_LINE_MOST = 210
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0, threeStars: 0, goalieHold: SNES_GOALIE_HOLD, goalieWidth: SNES_GOALIE_WIDTH, goalieOut: SNES_GOALIE_OUT, goalieLine: SNES_GOALIE_LINE }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0, threeStars: 0, goalieHold: SNES_GOALIE_HOLD, goalieWidth: SNES_GOALIE_WIDTH, goalieOut: SNES_GOALIE_OUT, goalieLine: SNES_GOALIE_LINE, speedBurst: 0, turnRate: 0x70, puckFriction: 9 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -620,7 +633,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], goalieWidth: [0, 124], goalieOut: [0, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], goalieWidth: [0, 124], goalieOut: [0, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST], speedBurst: [0, 95], turnRate: [1, 225], puckFriction: [1, 12] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -3057,6 +3070,102 @@ function choppyIcePlaces(rom: Uint8Array): Placed[] | null {
 }
 const CHOPPY_LENGTH = 64
 
+// ------------------------------------------------------------ skating and the puck
+// Stopping and turning, as on the Genesis (hacks.ts, turnRate): stopna, the slowing of a skater who stops or reverses
+// (from dostop, noturn0 and goalieacc), takes ($70 + legstr) x timestep off each axis of his speed: lda #$0070 / clc /
+// adc legstr,x / ldx timestep / jsl Mul8U / sta r2 / plx. The $70 becomes the number wanted (the Genesis takes a flat
+// 150 a frame). Mul8U multiplies 8 bits, so the number plus a goalie's doubled leg strength (up to 30) stays under 256.
+export const SNES_TURN_RATE_ORIGINAL = 0x70
+const STOP_SITE = 'a9....187d....ae....22......85..fa'
+function turnRatePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const found = only(rom, STOP_SITE)
+  if (found < 0) return null
+  const now = readU16(rom, found + 1)
+  const [least, most] = SNES_AMOUNT_RANGES.turnRate
+  if (now !== SNES_TURN_RATE_ORIGINAL && (now < least || now > most)) return null
+  // Turned on without a number (as when every hack is chosen): the Genesis's 150, unless the ROM has its own already.
+  const value = amount !== undefined && amount !== SNES_AMOUNT_OFF.turnRate ? amount : now !== SNES_TURN_RATE_ORIGINAL ? now : 150
+  return [{ at: found + 1, original: bytesOf(word(SNES_TURN_RATE_ORIGINAL)), hacked: bytesOf(word(value)), amount: value }]
+}
+
+// Speed burst, as on the Genesis (hacks.ts, speedBurst): burst (A without the puck) works its push out from the
+// player's energy after the burst's cost (or $1000 with Auto line changes): lda d0 / ldx #$0233 / jsl Mul16U / ldx a3 /
+// lda r2+2 / sta burstspeed, 35 at full energy, then adds push x the facing's dirtab (200) to his speed. The jsl
+// Mul16U becomes jsl to code that puts the number wanted in r2+2 instead; the code ends with a jml to Mul16U, never
+// run, which keeps its address for taking the hack out.
+const BURST_SITE = '22......af......f0..a5..38e9....85..22......af......c90200d005a9001085..a5..a23302'
+const BURST_CODE_LENGTH = 10
+function speedBurstPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const found = findCodeAll(rom, BURST_SITE + '22......a6..a5(..)85..')
+  if (found.length !== 1) return null
+  const site = found[0].at + BURST_SITE.length / 2
+  const r2high = found[0].groups[0]
+  const target = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  const isIn = target >= 0 && target + BURST_CODE_LENGTH <= rom.length && rom[target] === 0xa9 && rom[target + 2] === 0 && same(rom, target + 3, bytesOf('85', r2high, '6B 5C'))
+  const mul = isIn ? rom.slice(target + 7, target + 10) : rom.slice(site + 1, site + 4)
+  // Taken out (0) or turned on without a number: the ROM's, else 24.
+  const value = amount || (isIn ? rom[target + 1] : 24)
+  const [least, most] = SNES_AMOUNT_RANGES.speedBurst
+  if (value < Math.max(least, 1) || value > most) return null
+  const code = bytesOf('A9', word(value), '85', r2high, '6B 5C', mul)
+  const placed = withFarCode(rom, site, bytesOf('22', mul), 0, code)
+  if (!placed) return null
+  placed[1].amount = value
+  return placed
+}
+
+// Puck friction, as on the Genesis (hacks.ts, puckFriction), on the same scale: a sliding puck (and any gliding
+// object: a skater receiving a pass) loses 1/2^n of its speed a frame, n = 9 in the original game. updateplayers
+// slows each object by multiplying its speed by a byte out of 256 for the frame step (timestep, 1-10 frames; usually
+// 2), from table .22 for a gliding one ($FF, $FF, $FE, ...: 1/256 a 2-frame step, so 1/512 a frame, the Genesis's
+// 9): lda.l .22-1,x / and #$FF / sta d2, then .1xx multiplies Xvel and Yvel by d2. The lda.l becomes jsl to code
+// with its own table: for n under 9, 256 x (1 - 1/2^n)^timestep; for 10 to 12, the original table on only one
+// update in 2, 4 or 8 (by gameloop's count of frames, gameframes), the others skipping .1xx's slowing altogether
+// (the jsl's return dropped, tyx, jml .10), as the table cannot hold less than 1/256. Choppy ice, which hooks .1xx,
+// adds to it as before. The code keeps the lda.l's address and n after its table.
+const FRICTION_HEAD = '29ff0085..'
+const FRICTION_TAIL = '22......99....be....a5..22......99....bb'
+const FRICTION_TABLE_AT = 27
+const FRICTION_CODE_LENGTH = FRICTION_TABLE_AT + 14
+function puckFrictionTable(n: number, original: Uint8Array): number[] {
+  if (n >= 9) return [...original]
+  return Array.from({ length: 10 }, (_, i) => Math.min(255, Math.max(1, Math.round(256 * (1 - 2 ** -n) ** (i + 1)))))
+}
+function puckFrictionPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const found = ['bf', '22'].flatMap((head) => ['be....a5..', '22......ea'].flatMap((mid) => findCodeAll(rom, `${head}......${FRICTION_HEAD}${mid}${FRICTION_TAIL}`)))
+  // gameloop: lda Vcount / sec / sbc OldVcount / beq / inc gameframes / lda #60 / ldx gameframes.
+  const frames = findCodeAll(rom, 'a5..38ed....f0..ee(....)a93c00ae(....)22')
+  if (found.length !== 1 || frames.length !== 1 || frames[0].groups[0] !== frames[0].groups[1]) return null
+  const site = found[0].at
+  const dot10 = site + 9 + 25
+  const target = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+  const isIn = rom[site] === 0x22
+  if (isIn && (target < 0 || target + FRICTION_CODE_LENGTH > rom.length || rom[target] !== 0xbf || rom[target + 4] !== 0x48)) return null
+  const lda = isIn ? rom.slice(target + FRICTION_TABLE_AT + 10, target + FRICTION_TABLE_AT + 13) : rom.slice(site + 1, site + 4)
+  const tableAt = loRomOffset(lda[2], readU16(lda, 0)) + 1
+  if (tableAt < 1 || tableAt + 10 > rom.length) return null
+  const [least, most] = SNES_AMOUNT_RANGES.puckFriction
+  // Taken out (9) or turned on without a number: the ROM's, else 8.
+  const value = amount !== undefined && amount !== SNES_AMOUNT_OFF.puckFriction ? amount : isIn ? rom[target + FRICTION_TABLE_AT + 13] : 8
+  if (value < least || value > most || value === SNES_AMOUNT_OFF.puckFriction) return null
+  const table = puckFrictionTable(value, rom.slice(tableAt, tableAt + 10))
+  const code = (room: number) =>
+    asm65([
+      bytesOf('BF', long(room + FRICTION_TABLE_AT - 1), '48 AD', word(frames[0].groups[0]), '29', word(value > 9 ? (1 << (value - 9)) - 1 : 0)),
+      { branch: BEQ, to: 'keep' },
+      bytesOf('68 68 E220 68 C220 BB 5C', long(dot10)),
+      { label: 'keep' },
+      bytesOf('68 6B', table, lda, value),
+    ])
+  // The code holds its own address, so it is made once its room is known.
+  const placed = withFarCode(rom, site, bytesOf('BF', lda), 0, unused(FRICTION_CODE_LENGTH))
+  if (!placed) return null
+  placed[1].hacked = code(placed[1].at)
+  if (placed[1].hacked.length !== FRICTION_CODE_LENGTH) return null
+  placed[1].amount = value
+  return placed
+}
+
 // --------------------------------------------------------------- clutch time
 // As on the Genesis (hacks.ts, clutchTime): in the last 2:00 of the third
 // period with the score within a goal, everyone on the ice plays half a rating
@@ -3675,6 +3784,9 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   giveawayPages: (rom) => giveawayPagesPlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
+  speedBurst: (rom, _source, amount) => speedBurstPlaces(rom, amount),
+  turnRate: (rom, _source, amount) => turnRatePlaces(rom, amount),
+  puckFriction: (rom, _source, amount) => puckFrictionPlaces(rom, amount),
   clutchTime: (rom) => clutchTimePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   threeStars: (rom, _source, amount) => threeStarsPlaces(rom, amount),
@@ -4836,6 +4948,7 @@ const SNES_PAGE_ORDER: SnesHack[] = [
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
   'realTime', 'noIcing',
   'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine',
+  'speedBurst', 'turnRate', 'puckFriction',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
