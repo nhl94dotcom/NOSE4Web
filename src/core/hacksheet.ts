@@ -290,6 +290,7 @@ const SNES: Record<SnesHack, string> = {
   energySpeed: 'With line changes on, a tired skater slows all the way to the slowest speed there is as his energy runs out, as on the Genesis, where the original SNES game keeps more than half his speed.',
   injuryBonus: 'Each knockdown a skater takes (up to five, the hit itself included) makes an injury a little more likely, and half wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'Adds a period length to the main menu whose regular-season games get 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
+  threeStars: 'The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and shots faced, goals against and shutouts for goalies.',
 }
 
 // A sentence on what each SNES hack does: the Hacks page's summary.
@@ -326,6 +327,8 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
         ? `${SNES.fighting} Each player's fighting rating gets a bonus of ${amounts.fighting}${amounts.fighting === 2 ? " (the patch's default)" : ''}.`
         : hack === 'fightTime' && amounts
         ? `A fight keeps each fighter in the box ${clockTime(amounts.fightTime)}, whatever its minutes; the statistics still show its usual penalty minutes.`
+        : hack === 'threeStars' && amounts
+        ? `${SNES.threeStars.slice(0, -1)}, made for line changes ${amounts.threeStars === 2 ? 'on' : 'off'}.`
         : hack === 'penaltyTime' && amounts
         ? `Penalties last ${amounts.penaltyTime < 60 ? 'less' : 'longer'} than they say: each penalty minute is ${amounts.penaltyTime} seconds in the box, so ${penaltyLengths(amounts.penaltyTime)}. The statistics still show the usual penalty minutes.`
         : SNES[hack]

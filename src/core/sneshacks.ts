@@ -78,6 +78,7 @@ export type SnesHack =
   | 'organResume'
   | 'realTime'
   | 'noIcing'
+  | 'threeStars'
 
 interface Site {
   // The game's address.
@@ -353,6 +354,7 @@ export const SNES_HACKS: SnesHack[] = [
   'organResume',
   'realTime',
   'noIcing',
+  'threeStars',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -417,6 +419,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   organResume: 'Organ music after a pause',
   realTime: 'Real-time clock',
   noIcing: 'No icing',
+  threeStars: 'Three stars',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -542,8 +545,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime' | 'threeStars'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime', 'threeStars']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -576,11 +579,13 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return penaltyTimeText(value)
     case 'fightTime':
       return fightTimeText(value)
+    case 'threeStars':
+      return SNES_STAR_TEXTS[value]?.toLowerCase() ?? String(value)
     default:
       return value === SNES_AMOUNT_OFF[hack] ? 'off' : String(value)
   }
 }
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0 }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0, threeStars: 0 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -590,7 +595,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -3356,6 +3361,130 @@ const refereeCodes = (d0: number): (Uint8Array | null)[] =>
   })
 const hex8 = (value: number) => value.toString(16).padStart(2, '0')
 
+// ------------------------------------------------------------- three stars
+// As on the Genesis (hacks.ts, threeStars): a fuller way of choosing the three stars. ShowThreeStars scores each
+// player of both teams (X 0-25 home, 26-51 visitors, as the per-player stats are kept) with its .17, a jsl'd
+// subroutine: the goal margin, then for a skater the overtime winner's bonus and goals x 11000, assists x 10100 and
+// shots x 10; for a goalie (the team's first places) +32000 for 3% or less of the shots going in, and 75000 more for
+// none. That .17 starts stz a2 / lda #2; those 5 bytes become jsl to new code / rtl. The new code scores as the
+// Genesis option does: the margin; a skater the overtime bonus as before, goals, assists, shots and the checks he
+// gave (NOSE4Web's bodycheck counts at $168E, or the 2 MB builds' own pchf); a goalie who faced a shot, each shot
+// faced (one fewer when his team is behind), half a skater's assist weight, a shutout bonus when neither he nor his
+// team let in a goal, and goals against x -11000. The packing of the score for the comparisons, as .17's .3xx.
+// Choice 1 has the Genesis weights for line changes off, 2 for line changes on. Found by .17's code.
+export const SNES_STAR_TEXTS = ["The original game's", 'Improved, for line changes off', 'Improved, for line changes on']
+const STARS17 =
+  '85(..)e01a0030..a9020085(..)64..a4..b9(....)a4..38f9....85(..)a90000e9000085..ec(....)30..ec(....)d0..a90b0085(..)a9b07185..20....' +
+  'e220bd(....)c22029ff00daa2f82a22......fa20....e220bd(....)c22029ff00daa2742722......fa20....' +
+  'e220bd(....)c22029ff00daa20a0022......fa20....80..a5..4822......a5..daa2280022......fa85..'
+// The byte offset in STARS17 of the end of `marker` (the long address that follows it).
+const starsAt = (marker: string) => (STARS17.replace(/[()]/g, '').indexOf(marker) + marker.length) / 2
+interface StarWeights {
+  goal: number
+  assist: number
+  shotFor: number
+  check: number
+  goalsAgainst: number
+  shotsAgainst: number
+  shutout: number
+}
+const STAR_WEIGHTS: StarWeights[] = [
+  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 4000, shutout: 16000 },
+  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 4500, shutout: 20800 },
+]
+function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const found = findCodeAll(rom, STARS17)
+  if (found.length !== 1) return null
+  const [a1, a2, tmscore, d0, goalieEnd, otScorer, r2High, tmgoals, tmassists, tmpshots] = found[0].groups
+  const r2 = r2High - 2
+  const at = found[0].at
+  const longAt = (marker: string) => rom.subarray(at + starsAt(marker), at + starsAt(marker) + 3)
+  const mul16u = longAt('a2f82a22')
+  const site = at - 5
+  const original = bytesOf('64', a2, 'A9 0200')
+  const isIn = rom[site] === 0x22 && rom[site + 4] === 0x6b
+  if (!isIn && !same(rom, site, original)) return null
+  // Each player's checks given: the 2 MB builds' own count, else NOSE4Web's (the Vault's) bodycheck counts.
+  // The variables' shift read from .17's own tmscore ($178E in the original game).
+  const own = only(rom, CLEAR_PLAYER_CHECKS)
+  const checks = own >= 0 ? bytesOf('BF', rom.subarray(own + 8, own + 11)) : bytesOf('BD', word(BODYCHECKS_GIVEN + tmscore - 0x178e))
+  const add = bytesOf('A5', d0, '18 65', r2, '85', d0, 'A5', d0 + 2, '65', r2 + 2, '85', d0 + 2)
+  const sub = bytesOf('A5', d0, '38 E5', r2, '85', d0, 'A5', d0 + 2, 'E5', r2 + 2, '85', d0 + 2)
+  // A times the weight into r2 (Mul16U, X kept).
+  const times = (weight: number) => bytesOf('DA A2', word(weight), '22', mul16u, 'FA')
+  const byte = (load: Uint8Array) => bytesOf('E2 20', load, 'C2 20 29 FF00')
+  const term = (load: Uint8Array, weight: number) => bytesOf(byte(load), times(weight), add)
+  const codeFor = (w: StarWeights) =>
+    asm65([
+      // a2 his team, a1 the other, as .17 sets them; d0 the goal margin, 32 bits.
+      bytesOf('64', a2, 'A9 0200 85', a1, 'E0 1A00'),
+      { branch: BMI, to: 'team' },
+      bytesOf('A9 0200 85', a2, '64', a1),
+      { label: 'team' },
+      bytesOf('A4', a2, 'B9', word(tmscore), 'A4', a1, '38 F9', word(tmscore), '85', d0, 'A9 0000 E9 0000 85', d0 + 2),
+      bytesOf('EC', word(goalieEnd)),
+      { branch: BPL, to: 'skater' },
+      { brl: 'goalie' },
+      { label: 'skater' },
+      bytesOf('EC', word(otScorer)),
+      { branch: BNE, to: 'counts' },
+      bytesOf('A9 0B00 85', r2 + 2, 'A9 B071 85', r2, add),
+      { label: 'counts' },
+      term(bytesOf('BD', word(tmgoals)), w.goal),
+      term(bytesOf('BD', word(tmassists)), w.assist),
+      term(bytesOf('BD', word(tmpshots)), w.shotFor),
+      term(checks, w.check),
+      { brl: 'pack' },
+      { label: 'goalie' },
+      byte(bytesOf('BD', word(tmpshots))),
+      { branch: BEQ, to: 'pack' },
+      bytesOf('A4', d0 + 2),
+      { branch: BPL, to: 'faced' },
+      '3A',
+      { label: 'faced' },
+      times(w.shotsAgainst),
+      add,
+      byte(bytesOf('BD', word(tmassists))),
+      times(w.assist),
+      bytesOf('46', r2 + 2, '66', r2, add),
+      byte(bytesOf('BD', word(tmgoals))),
+      { branch: BNE, to: 'against' },
+      bytesOf('A4', a1, 'B9', word(tmscore)),
+      { branch: BNE, to: 'pack' },
+      bytesOf('A9', word(w.shutout), '85', r2, '64', r2 + 2, add),
+      { branch: BRA, to: 'pack' },
+      { label: 'against' },
+      times(w.goalsAgainst),
+      sub,
+      // .3xx: the high word doubled with the low word's top bit, the low word's 15 bits.
+      { label: 'pack' },
+      bytesOf('A5', d0 + 2, '0A 85', d0 + 2, 'A5', d0, '0A A5', d0 + 2, '69 0000 85', d0 + 2, 'A5', d0, '29 FF7F 85', d0, '6B'),
+    ])
+  const codes = STAR_WEIGHTS.map(codeFor)
+  let room = -1
+  // No amount (or 0, taking it out): the choice the ROM holds.
+  const asked = amount === 1 || amount === 2
+  let choice = asked ? amount : 1
+  if (isIn) {
+    room = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    if (!asked) {
+      const which = codes.findIndex((code) => same(rom, room, code))
+      choice = which >= 0 ? which + 1 : 1
+    }
+  } else {
+    for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < rom.length) room = roomInBank(rom, start, codes[0].length)
+      if (room >= 0) break
+    }
+  }
+  if (room < 0) return null
+  return [
+    { at: site, original, hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80), '6B') },
+    { at: room, original: unused(codes[0].length), hacked: codes[choice - 1], amount: choice },
+  ]
+}
+
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   organResume: (rom) => organPlaces(rom),
   // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
@@ -3379,6 +3508,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   choppyIce: (rom) => choppyIcePlaces(rom),
   clutchTime: (rom) => clutchTimePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
+  threeStars: (rom, _source, amount) => threeStarsPlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
     return found && withFarCode(rom, found.mark, creaseMarkOriginal(found.env), 2, creaseCode(found.env))

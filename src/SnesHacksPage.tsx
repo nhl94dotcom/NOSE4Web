@@ -26,6 +26,7 @@ import {
   SNES_REFEREE_TEXTS,
   SNES_SHOOTOUT_TEXTS,
   SNES_THREE_ON_THREE_TEXTS,
+  SNES_STAR_TEXTS,
   snesAmountText,
   SNES_AMOUNT_RANGES,
   RECOMMENDED_SNES_INJURY_BONUS,
@@ -52,6 +53,8 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   threeOnThree: 0,
   // Not a recommendation: a fighting major's 5:00.
   fightTime: 300,
+  // Not a recommendation: the original game's.
+  threeStars: 0,
 }
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
@@ -195,6 +198,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "An option, the other half of the community idea: each knockdown a skater takes makes a later injury a little more likely, and half of it wears off at each intermission. 0 is the original game. Only the few hits that can already injure are affected (a puck carrier knocked onto his back while facing straight up or down the ice, with the clock running), so injuries stay rare. Each knockdown he has taken this game, up to five, the hit itself included, adds this number to the hit's chance of injuring him. Recommended: 6, which matches the Genesis's recommended setting: about a quarter more injuries a game, with the skaters knocked down most about a third more likely to be hurt. Each 1 more adds about 5% more injuries. Knockdowns in play count, with line changes on or off; those after the whistle do not. Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   fourthPeriodOvertime:
     "Lets one ROM play two kinds of regular-season game: the usual ones, and ones with 99 minutes of overtime, as good as playing until someone scores, so a league that needs both no longer needs a separate ROM. The main menu's Period Length gets an extra choice, the one the 30-second periods hack adds (so that turns on with this). Set its length and menu text on the Game settings page, for example 5:00 and \"5 Minutes, 99 Min OT\". A regular-season game played at that length then gets 99 minutes of overtime. Games at the other lengths keep the overtime set on the Game settings page, and playoff overtime is unchanged, as long as a period. From McMarkis's Genesis patch, as in NOSE4Web's Genesis option. Works in every build. Tested in the game by the NHL94 Match Viewer project.",
+  threeStars:
+    "The original game picks its three stars simply: goals and assists for skaters, and a bonus for a goalie who lets in few of his shots. The improved way, as on the Genesis, weighs goals, assists, shots and checks for skaters, and shots faced, goals against and shutouts for goalies. Choose it for how the ROM will mostly be played: skaters are given a little more with line changes on, when each plays less. Checks count with Bodycheck counts for each player on, and in McMarkis's 2 MB builds, which count them themselves. Not yet tested in the game.",
   faceoffFix:
     "Faceoffs as today's NHL rules have them. Only since 2007 has the NHL held every faceoff on one of the nine dots; before that a faceoff was often held where play stopped, and the game follows that older way, putting one on a dot only when play stops past the hash marks. With this on, every faceoff is on a dot: after a goal at centre; after a penalty in the offending team's own end, at the dot on the side the puck was; otherwise past a blue line at that end's dot on the puck's side, and in the neutral zone at the nearest neutral-zone dot. Leave it off to keep the game's own 1990s-style faceoffs. Worked out with the NHL94 Match Viewer project, from today's NHL rulebook.",
 }
@@ -309,7 +314,18 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
             const unknown = state.unknown.includes(hack)
             return (
               <div className="hack" key={hack}>
-                {hack === 'threeOnThree' ? (
+                {hack === 'threeStars' ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.threeStars} onChange={(e) => setAmount('threeStars', Number(e.target.value))}>
+                      {SNES_STAR_TEXTS.map((text, choice) => (
+                        <option key={choice} value={choice}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : hack === 'threeOnThree' ? (
                   <label>
                     <b>{SNES_HACK_TITLES[hack]}</b>{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.threeOnThree} onChange={(e) => setAmount('threeOnThree', Number(e.target.value))}>
