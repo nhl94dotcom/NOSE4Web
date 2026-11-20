@@ -174,7 +174,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('skating and the puck, retail NH
   })
 })
 
-describe('skating and the puck, every SNES ROM', () => {
+describe.skipIf(snesNames.length === 0)('skating and the puck, every SNES ROM', () => {
   const AMOUNTS: [SnesAmount, number, number][] = [
     ['speedBurst', 24, 50],
     ['turnRate', 150, 60],

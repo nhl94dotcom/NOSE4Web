@@ -76,7 +76,7 @@ describe('SNES goalie settings', () => {
 })
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES goalie settings in the original game', () => {
-  const rom = open('NHL94.smc')
+  const rom = existsSync(path('NHL94.smc')) ? open('NHL94.smc') : (undefined as never)
   // playerpad $19D4, Xpos $0D55, temp5 $1083, d7 $C1, r0 $00.
   const ram = (pad: number, values: Record<number, number>) => new Map<number, number>([[0x19d4, pad], ...Object.entries(values).map(([k, v]) => [Number(k), v] as [number, number])])
 
