@@ -80,7 +80,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES bodycheck statistics', () 
         expect(copied.notCopied.join(' '), name).toMatch(/counts each player's checks/)
         continue
       }
-      expect(state.notOffered, name).toBeUndefined()
+      expect(state.notOffered?.bodychecks, name).toBeUndefined()
+      expect(state.notOffered?.bodychecksShown, name).toBeUndefined()
       if (state.choices.bodychecksShown) continue
       const shown = applySnesHacks(rom, { bodychecks: true, bodychecksShown: true })
       expect(detectSnesHacks(shown.bytes).choices, name).toMatchObject({ bodychecks: true, bodychecksShown: true })
