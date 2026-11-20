@@ -2,7 +2,7 @@ import { clockTime, penaltyLengths } from './penaltytime'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
-import { detectSnesHacks, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesHack } from './sneshacks'
+import { detectSnesHacks, SNES_GOALIE_HOLD, SNES_GOALIE_LINE, SNES_GOALIE_OUT, SNES_GOALIE_WIDTH, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesAmount, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
 import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
 import { genesisScoreLogo, hasGenesisScoreLogos } from './genesisscorelogos'
@@ -291,6 +291,24 @@ const SNES: Record<SnesHack, string> = {
   injuryBonus: 'Each knockdown a skater takes (up to five, the hit itself included) makes an injury a little more likely, and half wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'Adds a period length to the main menu whose regular-season games get 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
   threeStars: 'The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and shots faced, goals against and shutouts for goalies.',
+  goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  goalieWidth: 'How far a goalie you control may go to either side of the net.',
+  goalieOut: 'How far out of his net a goalie you control may come without the puck.',
+  goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
+}
+
+// The goalie settings on the sheet, with their amounts.
+const SNES_GOALIE_SHEET: Partial<Record<SnesHack, (amounts: Record<SnesAmount, number>) => string>> = {
+  goalieHold: (a) =>
+    a.goalieHold === 0
+      ? 'A goalie you control is never whistled for holding the puck (a catch in a dive still is); the computer\'s goalie is as before.'
+      : `A goalie may hold the puck ${holdSeconds(a.goalieHold)} seconds before the whistle, ${more(a.goalieHold, SNES_GOALIE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_GOALIE_HOLD)}.`,
+  goalieWidth: (a) =>
+    `A goalie you control may go ${more(a.goalieWidth, SNES_GOALIE_WIDTH, 'wider', 'less far')} to either side of the net than in the original game before he is skated back (${a.goalieWidth}, where the original has ${SNES_GOALIE_WIDTH}).`,
+  goalieOut: (a) =>
+    `A goalie you control may ${more(a.goalieOut, SNES_GOALIE_OUT, 'not come as far out of his net', 'come farther out of his net')} without the puck before he is skated back (to ${a.goalieOut} from centre ice, where the original has ${SNES_GOALIE_OUT}).`,
+  goalieLine: (a) =>
+    `A goalie you control may carry the puck ${more(a.goalieLine, SNES_GOALIE_LINE, 'less far', 'farther')} up the ice before the whistle (to ${a.goalieLine} from centre ice, where the original has ${SNES_GOALIE_LINE}).`,
 }
 
 // A sentence on what each SNES hack does: the Hacks page's summary.
@@ -331,6 +349,8 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
         ? `${SNES.threeStars.slice(0, -1)}, made for line changes ${amounts.threeStars === 2 ? 'on' : 'off'}.`
         : hack === 'penaltyTime' && amounts
         ? `Penalties last ${amounts.penaltyTime < 60 ? 'less' : 'longer'} than they say: each penalty minute is ${amounts.penaltyTime} seconds in the box, so ${penaltyLengths(amounts.penaltyTime)}. The statistics still show the usual penalty minutes.`
+        : SNES_GOALIE_SHEET[hack] && amounts
+        ? SNES_GOALIE_SHEET[hack](amounts)
         : SNES[hack]
   const sections = SNES_SECTIONS.map(([heading, hacks]) => ({
     heading,

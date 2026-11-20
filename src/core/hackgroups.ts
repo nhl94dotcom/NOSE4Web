@@ -47,7 +47,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
   { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'threeStars'] },
   { id: 'rules', title: 'Rules', hacks: ['fighting', 'fightTime', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'realTime', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'shootoutInjuries', 'nhlShootout', 'threeOnThree', 'noIcing', 'creaseIcing', 'hybridIcing', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'choppyIce', 'clutchTime'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
-  { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie'] },
+  { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine'] },
   { id: 'lines', title: 'Edit Lines and controls', hacks: ['forwardsAndDefence', 'showMaxBoost', 'defenceControl'] },
   { id: 'looks', title: 'Looks and screens', hacks: ['skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume'] },
 ]

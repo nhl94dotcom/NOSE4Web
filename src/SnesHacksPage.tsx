@@ -9,6 +9,8 @@ import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
 import { hackSheetDiscord, hackSheetHtml, pictureItems, snesHackSheet, snesHackSummary, withPictures } from './core/hacksheet'
 import { NumberField } from './NumberField'
+import { NumberBox } from './NumberBox'
+import { holdSeconds } from './core/hacks'
 import {
   applySnesHacks,
   detectSnesHacks,
@@ -55,7 +57,15 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   fightTime: 300,
   // Not a recommendation: the original game's.
   threeStars: 0,
+  // Not recommendations: the original game's.
+  goalieHold: SNES_AMOUNT_OFF.goalieHold,
+  goalieWidth: SNES_AMOUNT_OFF.goalieWidth,
+  goalieOut: SNES_AMOUNT_OFF.goalieOut,
+  goalieLine: SNES_AMOUNT_OFF.goalieLine,
 }
+// The goalie settings, a number each as on the Genesis's page: the hold time in seconds, the rest in the game's units.
+const GOALIE_AMOUNTS: SnesHack[] = ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine']
+const goalieOriginal = (hack: SnesAmount) => (hack === 'goalieHold' ? `${holdSeconds(SNES_AMOUNT_OFF.goalieHold)} seconds` : String(SNES_AMOUNT_OFF[hack]))
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // An energy amount as units and as a share of full energy.
@@ -132,6 +142,14 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "How long a penalty keeps a player in the box. Each penalty has its minutes (2 for a minor, 5 for a major, and so on, which you can change one by one under Rule messages on the Game settings page). This sets how many seconds of the game clock each of those minutes lasts: at 60, as in the original game, a minute is a minute; at 30 every penalty lasts half as long. It suits a league that plays short periods: with 5-minute periods, 30 makes a minor 1:00. Only the time in the box changes: the penalty minutes in the statistics, which penalties are called, and a power-play goal letting a player out early are all as before. It goes with One-minute penalties, which halves the minors' minutes. Works in every build. Tested in the game by the NHL94 Match Viewer project.",
   goaliePoke:
     "Among the recommended fixes, from a community report that the goalie's poke check (X) seems useless. In the original game the poke only reaches a puck on the ice when the goalie holds his stick out to the side, so a poke straight up or down the ice, the way he usually faces, never touches it, and its reach is short. With this on, his poke reaches the ice whichever way he faces, about three times as far (as far as a skater's steal), and knocks the puck loose. It still cannot knock down a raised shot, and his stance and stick saves are as before. It also fixes a poke straight up the ice, which in the original game never stretches out fully. Computer goalies poke too. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
+  goalieHold:
+    "How long a goalie may hold the puck before the whistle. The original game allows 2.33 seconds. Put 0 for no whistle for a goalie you control; holding the puck past the whistle line below, or a catch in a dive, is still whistled at once, and the computer's goalie is whistled as before. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+  goalieWidth:
+    "How far a goalie you control may go, without the puck, to either side of the middle of the ice. Past it the game takes him over and skates him back to his net. A larger number lets him go wider; the original game has 48. The computer's goalie is as before. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+  goalieOut:
+    "How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets him come farther out. Past it the game skates him back to his net. For scale, the goal line is 264 from centre ice and the blue line 88; the original game has 228. The computer's goalie is as before. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+  goalieLine:
+    "The line a goalie you control may not carry the puck past without a whistle, again as a distance from centre ice, so a smaller number lets him go farther; the original game has 187, and 0 lets him go anywhere. At most 210, just outside his crease. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
   freeBurst:
     'With line changes on, a speed burst (C button) costs no energy, where in the original game each costs 5% of full energy. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.',
   noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
@@ -399,6 +417,23 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                         </button>
                       </>
                     )}
+                  </label>
+                ) : GOALIE_AMOUNTS.includes(hack) && isAmount(hack) ? (
+                  <label>
+                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <NumberBox
+                      label={SNES_HACK_TITLES[hack]}
+                      value={wantedAmounts[hack]}
+                      range={SNES_AMOUNT_RANGES[hack]}
+                      perUnit={hack === 'goalieHold' ? 60 : 1}
+                      fresh={project.bytes}
+                      disabled={unknown}
+                      onChange={(n) => setAmount(hack, n)}
+                    />{' '}
+                    {hack === 'goalieHold' && <span className="note">{wantedAmounts.goalieHold === 0 ? 'seconds: no whistle.' : 'seconds.'}</span>}{' '}
+                    <button type="button" disabled={unknown || wantedAmounts[hack] === SNES_AMOUNT_OFF[hack]} onClick={() => setAmount(hack, SNES_AMOUNT_OFF[hack])}>
+                      Use the original {goalieOriginal(hack)}
+                    </button>
                   </label>
                 ) : isAmount(hack) ? (
                   <label>
