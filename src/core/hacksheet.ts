@@ -269,6 +269,8 @@ const SNES: Record<SnesHack, string> = {
   barrCoin: 'Ron Barr names a team before every game by a coin flip, whatever their form.',
   skipPucksIntro: 'The game starts without the flying pucks.',
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
+  realTime: 'The game clock counts real seconds, so a period lasts as long as it says.',
+  noIcing: 'Icing is never called.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating that the hot and cold bug raises to the maximum as 100, the way it plays.',
   manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts him back, with a beep.',

@@ -141,6 +141,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   skipPucksIntro: 'Starts the game without the flying pucks.',
   organResume:
     "Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on the organ carries on with its song from where it was. The bit of the song that faded out as the pause began is heard again, and a note that was sounding comes back at the song's next note. Tested in the game by the NHL94 Match Viewer project.",
+  realTime:
+    "The original game's clock runs two and a half times as fast as a real one, so a 5-minute period takes 2 minutes to play. This makes the game clock count true seconds, and penalty time with it. Periods then last as long as they say, so choose shorter ones in the game's options. The time limit on a penalty shot is as before. As on the Genesis. Not yet tested in the game.",
+  noIcing:
+    "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. With this on, No icing within the crease and Hybrid icing have no effect. As on the Genesis, from TheTome's forum post. Not yet tested in the game.",
   extraAttackerFix:
     "In Edit Lines, picking a line's extra attacker for one of its positions puts him in both places and drops the player he replaced, so the line is a skater short. With the fix the two swap, as they do for any other move within the line. McMarkis's fix from NHL94SNESVault. NOSE4Web's version also fixes the penalty-kill lines, which the Vault's misses (found by the NHL94 Match Viewer project). Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   yButtonFix:

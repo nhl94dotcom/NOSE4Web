@@ -76,6 +76,8 @@ export type SnesHack =
   | 'giveawaysShown'
   | 'giveawayPages'
   | 'organResume'
+  | 'realTime'
+  | 'noIcing'
 
 interface Site {
   // The game's address.
@@ -349,6 +351,8 @@ export const SNES_HACKS: SnesHack[] = [
   'giveawaysShown',
   'giveawayPages',
   'organResume',
+  'realTime',
+  'noIcing',
 ]
 
 export const SNES_HACK_TITLES: Record<SnesHack, string> = {
@@ -411,6 +415,8 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   giveawaysShown: 'Giveaways and takeaways in Game Stats',
   giveawayPages: 'Giveaways and takeaways in Player Stats',
   organResume: 'Organ music after a pause',
+  realTime: 'Real-time clock',
+  noIcing: 'No icing',
 }
 
 // Hacks that go together, as NHL94SNESVault has them: one that needs another
@@ -3381,6 +3387,26 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const found = icingEnv(rom)
     return found && withFarCode(rom, found.call, bytesOf('22', found.env.puckIChk), 0, hybridCode(found.env))
   },
+  // As on the Genesis (hacks.ts): a2touchpuck arms icing at its end, lda #ifok / tsb iflags / rtl, after the
+  // short-handed test (sec / sbc d0 / sta d0 / lda d0 / bmi). The lda #$0004 becomes lda #$0000, so the tsb
+  // sets nothing: icing is never armed, PuckIChk never marks a crossing, updateplayers has none to wave off and
+  // the goalie plays the puck as any loose one. No icing within the crease and hybrid icing then do nothing.
+  noIcing: (rom) => {
+    const found = only(rom, '38e5..85..a5..30..a9....0c....6b')
+    return found < 0 ? null : [{ at: found + 10, original: hexBytes('0400'), hacked: hexBytes('0000') }]
+  },
+  // The game clock takes $0AAA from its fraction every frame and a second when that borrows: 60 / $0AAA x
+  // $10000 = 24 frames a second, two and a half times a real clock, as on the Genesis (hacks.ts). Real time
+  // takes $0444 instead (60 frames a second), in Gameloop and in the highlights' own copy of the loop
+  // (SaveRegsStartHL2): lda gameclock / beq / lda gameclock+2 / sec / sbc #$0AAA / sta gameclock+2 / bcs (the
+  // dec gameclock after it is not part of the pattern: clutch time calls its code there). Penalties are counted
+  // in seconds of the game clock, so they follow. The penalty shot's limit is 1000 frames (pstimer), not clock
+  // seconds, and is shown nowhere, so it stays.
+  realTime: (rom) => {
+    const found = findCodeAll(rom, 'ad....f0..ad(....)38e9....8d(....)b0').filter(({ groups }) => groups[0] === groups[1])
+    if (found.length !== 2) return null
+    return found.map(({ at }) => ({ at: at + 10, original: hexBytes('AA0A'), hacked: hexBytes('4404') }))
+  },
   threeOnThree: (rom, _source, amount) => threeOnThreePlaces(rom, amount),
   // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one
   // overtime, its lda #4 / sta gsp (a regular-season game after overtime) becomes jsl A; after period 3, its tie
@@ -4509,6 +4535,7 @@ const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
+  'realTime', 'noIcing',
 ]
 
 // Whether Edit Lines may put any skater at any position in this ROM.
