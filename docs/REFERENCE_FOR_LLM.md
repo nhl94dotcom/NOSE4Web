@@ -615,7 +615,7 @@ sets the teams up again). The SNES's Stars of the Game come only from PenEOG, wh
 clock ends with the score not tied, so after a season shootout they never showed; since 2026-11-21 its RUN code, after
 the restore and the winners' goal, calls ShowThreeStars (from InProgress's jsl for PenDataEOG; retail `$9C:9BAB`, SA-1
 `$9C:9C7D`), QueueTextDMA (`$9F:BF75` / `$9F:C035`) and WaitFrames (X 180, Y 1; `$80:858F` / `$80:85E1`) before its
-jml PeriodOver (MV's sequence, tried on its builds; the stars come from the restored stats). The version without is
+jml PeriodOver (MV-tested 2026-11-21 on retail and SA-1, both choices: 180 frames, from the restored stats). The version without is
 recognised as earlier (`sneshacks.ts`, `seasonShootout`, `withStars`).
 
 ### Where it lives: the three tie options (one shared step)
