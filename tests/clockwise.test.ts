@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { clockwiseExtras, clockwiseRecords, clockwiseState, faceoffAnim } from '../src/core/clockwise'
+import { clockwiseExtras, clockwiseKept, clockwiseRecords, clockwiseState, faceoffAnim } from '../src/core/clockwise'
 import { detectHacks, hackRom, hacksSupported, NO_HACKS, type HackChoices } from '../src/core/hacks'
 import { fightState } from '../src/core/fight'
 import { unpackTiles } from '../src/core/genesisunpack'
@@ -21,6 +21,15 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const is = (rom: Uint8Array, at: number, bytes: Uint8Array) => bytes.every((byte, i) => rom[at + i] === byte)
 const withChoices = (rom: Uint8Array, more: Partial<HackChoices>) => hackRom(rom, { ...detectHacks(rom).choices, ...more })
 // Which records hold the original game's bytes, Clockwise's, or neither.
+// The records in sprite tiles a league has redrawn itself (where some record has neither the original game's
+// bytes nor Clockwise's), which the edit leaves alone both ways.
+const TILES = 0x5de84
+const tilesOfRecord = (r: { at: number; original: Uint8Array }) => [Math.floor((r.at - TILES) / 32), Math.floor((r.at + r.original.length - 1 - TILES) / 32)]
+const leftAlone = (rom: Uint8Array) => {
+  const own = new Set<number>()
+  for (const r of clockwiseRecords()) if (!is(rom, r.at, r.original) && !is(rom, r.at, r.patched)) tilesOfRecord(r).forEach((t) => own.add(t))
+  return clockwiseRecords().filter((r) => tilesOfRecord(r).some((t) => own.has(t)))
+}
 const tally = (rom: Uint8Array) => {
   const counts = { original: 0, patched: 0, own: 0 }
   for (const r of clockwiseRecords()) {
@@ -47,6 +56,8 @@ const outsideDiffers = (a: Uint8Array, b: Uint8Array) => {
   const inRecord = new Uint8Array(a.length)
   for (const r of clockwiseRecords()) inRecord.fill(1, r.at, r.at + r.original.length)
   for (const [from, to] of [...extraRanges(a), ...extraRanges(b)]) inRecord.fill(1, from, to)
+  // And the block that says which records a ROM had before (clockwiseKept).
+  for (const kept of [clockwiseKept(a), clockwiseKept(b)]) if (kept) inRecord.fill(1, kept.at, kept.at + kept.length)
   const out: number[] = []
   for (let i = 0; i < a.length; i++) if (!inRecord[i] && a[i] !== b[i]) out.push(i)
   return out
@@ -164,24 +175,34 @@ describe.skipIf(!existsSync(path(CDL)))("Clockwise's sprite edit on a league ROM
     const state = detectHacks(rom)
     expect(state.unknown).not.toContain('clockwiseSprites')
     expect(state.choices.clockwiseSprites).toBe(false)
-    const own = clockwiseRecords().filter((r) => !is(rom, r.at, r.original) && !is(rom, r.at, r.patched))
+    // CDL's own nets: their tiles are left alone, the one record there that has Clockwise's bytes too among them.
+    const alone = leftAlone(rom)
+    const aloneOriginal = alone.filter((r) => is(rom, r.at, r.original)).length
+    expect(alone.filter((r) => is(rom, r.at, r.patched)).length).toBe(1)
     const on = withChoices(rom, { clockwiseSprites: true })
     expect(detectHacks(on).choices).toEqual({ ...state.choices, clockwiseSprites: true })
-    expect(tally(on)).toEqual({ original: 0, patched: 3450, own: 48 })
-    for (const r of own) expect(on.subarray(r.at, r.at + r.original.length)).toEqual(rom.subarray(r.at, r.at + r.original.length))
+    expect(tally(on)).toEqual({ original: aloneOriginal, patched: 3450 - aloneOriginal, own: 48 })
+    for (const r of alone) expect(on.subarray(r.at, r.at + r.original.length)).toEqual(rom.subarray(r.at, r.at + r.original.length))
+    expect(clockwiseKept(on)).toBeNull()
     // The editor puts the league's other hacks in afresh (their code may move), so compare with the ROM as it does that.
     const same = withChoices(rom, {})
     expect(tally(same)).toEqual(before)
     expect(on.length).toBe(same.length)
     expect(outsideDiffers(on, same)).toEqual([])
-    // Off: every record that has Clockwise's goes back to the original game's, his one that was in already too.
+    // Off: the ROM as it was, CDL's nets untouched (Match Viewer found their one Clockwise record turned original).
     const off = withChoices(on, { clockwiseSprites: false })
-    expect(tally(off)).toEqual({ original: 3450, patched: 0, own: 48 })
-    const fixed = same.slice()
-    for (const r of clockwiseRecords()) if (is(same, r.at, r.patched)) fixed.set(r.original, r.at)
-    expectSameBytes(off, fixed)
+    expectSameBytes(off, same)
     // And on again: as before.
     expectSameBytes(withChoices(off, { clockwiseSprites: true }), on)
+  })
+
+  it('with head bleeding too, on and off gives the ROM back, the blood where it was', () => {
+    // Head bleeding comes out and goes back last at every apply, so the code the ROM's own hacks place does not move
+    // past it on a second apply (Match Viewer found 268 bytes moved on CDL).
+    const bleeding = withChoices(open(CDL).bytes, { headBleeding: true })
+    expectSameBytes(withChoices(bleeding, {}), bleeding)
+    const on = withChoices(bleeding, { clockwiseSprites: true })
+    expectSameBytes(withChoices(on, { clockwiseSprites: false }), bleeding)
   })
 })
 
@@ -208,12 +229,19 @@ describe.skipIf(leagueNames.length === 0)("Clockwise's sprite edit in the league
     expect(state.choices.clockwiseSprites).toBe(before.original === 0 && before.patched > 0)
     const on = withChoices(rom, { clockwiseSprites: true })
     expect(detectHacks(on).choices).toEqual({ ...state.choices, clockwiseSprites: before.patched + before.original > 0 })
-    expect(tally(on)).toEqual({ original: 0, patched: before.original + before.patched, own: before.own })
+    const aloneOriginal = leftAlone(rom).filter((r) => is(rom, r.at, r.original)).length
+    expect(tally(on)).toEqual({ original: aloneOriginal, patched: before.original + before.patched - aloneOriginal, own: before.own })
     // Against the ROM with its own choices put in afresh, as the editor does.
     const same = withChoices(rom, {})
     expect(tally(same)).toEqual(before)
     expect(on.length).toBe(same.length)
     expect(outsideDiffers(on, same)).toEqual([])
+    // Off again, where it was off: the ROM as it was, the records it had of Clockwise's before kept (the block).
+    if (!state.choices.clockwiseSprites) {
+      // A block only where some record it uses had Clockwise's bytes already.
+      expect(clockwiseKept(on) !== null).toBe(before.patched > leftAlone(rom).filter((r) => is(rom, r.at, r.patched)).length)
+      expectSameBytes(withChoices(on, { clockwiseSprites: false }), same)
+    }
   })
 })
 

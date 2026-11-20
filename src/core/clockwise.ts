@@ -60,30 +60,84 @@ export function clockwiseRecords(): readonly SpriteRecord[] {
   return spriteRecords()
 }
 
-// On where no record has the original game's bytes and at least one has
-// Clockwise's; off otherwise, so that turning it on finishes a ROM that has
-// part of it. Undefined only where the ROM is too short to hold the tiles.
+// The records the edit leaves alone: those in a sprite tile the league has
+// redrawn itself, where some record has neither the original game's bytes nor
+// Clockwise's. Left alone both ways: CDL Season 12's own nets have, in tile
+// 3886, 3 bytes that are Clockwise's too, which taking the edit out turned
+// into the original game's, in the middle of CDL's net (Match Viewer).
+const SPRITE_TILES = 0x5de84
+const tilesOf = (r: SpriteRecord) => {
+  const first = Math.floor((r.at - SPRITE_TILES) / 32)
+  const last = Math.floor((r.at + r.original.length - 1 - SPRITE_TILES) / 32)
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i)
+}
+function used(rom: Uint8Array): SpriteRecord[] {
+  const own = new Set<number>()
+  for (const r of spriteRecords()) if (!is(rom, r.at, r.original) && !is(rom, r.at, r.patched)) for (const tile of tilesOf(r)) own.add(tile)
+  return own.size === 0 ? spriteRecords() : spriteRecords().filter((r) => !tilesOf(r).some((tile) => own.has(tile)))
+}
+
+// On where no record it uses has the original game's bytes and at least one
+// has Clockwise's; off otherwise, so that turning it on finishes a ROM that
+// has part of it. Undefined only where the ROM is too short to hold the tiles.
 export function clockwiseState(rom: Uint8Array): boolean | undefined {
   if (rom.length < end()) return undefined
   let patched = false
-  for (const r of spriteRecords()) {
+  for (const r of used(rom)) {
     if (is(rom, r.at, r.original)) return false
     if (!patched && is(rom, r.at, r.patched)) patched = true
   }
   return patched
 }
 
-// Clockwise's bytes in each record that has the original game's, and
+// Where a ROM already had some of Clockwise's records before the edit went in
+// (several league ROMs have most of it: NHL2008, nhl94juiced), taking the edit
+// out must leave those as they were. So putting it in then gives back a block to
+// keep in the ROM: a mark and one bit per record, set for each that had
+// Clockwise's bytes before. A ROM that had none needs no block.
+const KEPT_MARK = Uint8Array.from('NOSECLW1', (char) => char.charCodeAt(0))
+const keptLength = () => KEPT_MARK.length + Math.ceil(spriteRecords().length / 8)
+// The block, if the ROM has one: where it is and its bits.
+export function clockwiseKept(rom: Uint8Array): { at: number; length: number; had: Uint8Array } | null {
+  const length = keptLength()
+  let found: number | null = null
+  for (let at = rom.indexOf(KEPT_MARK[0]); at >= 0 && at + length <= rom.length; at = rom.indexOf(KEPT_MARK[0], at + 1)) {
+    if (!is(rom, at, KEPT_MARK)) continue
+    if (found !== null) return null
+    found = at
+  }
+  return found === null ? null : { at: found, length, had: rom.slice(found + KEPT_MARK.length, found + length) }
+}
+const bit = (bits: Uint8Array, i: number) => (bits[i >> 3] >> (i & 7)) & 1
+
+// Clockwise's bytes in each record it uses that has the original game's, and
 // NOSE4Web's tape in the faceoff close-up (the fight frames' goes in after the
-// fighting patch: putFightTape).
-export function putClockwise(rom: Uint8Array): void {
-  for (const r of spriteRecords()) if (is(rom, r.at, r.original)) rom.set(r.patched, r.at)
+// fighting patch: putFightTape). Gives back the block to keep (above), or null.
+export function putClockwise(rom: Uint8Array): Uint8Array | null {
+  const all = spriteRecords()
+  const uses = new Set(used(rom))
+  const kept = new Uint8Array(keptLength())
+  kept.set(KEPT_MARK)
+  let any = false
+  all.forEach((r, i) => {
+    if (!uses.has(r)) return
+    if (is(rom, r.at, r.original)) rom.set(r.patched, r.at)
+    else if (is(rom, r.at, r.patched)) {
+      kept[KEPT_MARK.length + (i >> 3)] |= 1 << (i & 7)
+      any = true
+    }
+  })
   putFaceoffTape(rom)
+  return any ? kept : null
 }
 
-// The original game's bytes back in each record that has Clockwise's, and the faceoff close-up's.
-export function takeOutClockwise(rom: Uint8Array): void {
-  for (const r of spriteRecords()) if (is(rom, r.at, r.patched)) rom.set(r.original, r.at)
+// The original game's bytes back in each record it uses that has Clockwise's (but for those the block says the
+// ROM had before), and the faceoff close-up's.
+export function takeOutClockwise(rom: Uint8Array, had?: Uint8Array): void {
+  const uses = new Set(used(rom))
+  spriteRecords().forEach((r, i) => {
+    if (uses.has(r) && is(rom, r.at, r.patched) && !(had && bit(had, i))) rom.set(r.original, r.at)
+  })
   takeOutFaceoffTape(rom)
 }
 

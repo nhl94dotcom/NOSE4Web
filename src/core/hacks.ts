@@ -26,7 +26,7 @@ import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
-import { clockwiseState, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
+import { clockwiseKept, clockwiseState, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
@@ -3810,13 +3810,15 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }
   // Fighting that stays in is left as it is, but for its menu's starting
-  // choice. Head bleeding goes on top of everything: it comes out first where
-  // it is not wanted, or where fighting (whose frames it goes into) changes,
-  // and goes in last.
+  // choice. Head bleeding goes on top of everything: it comes out first, and
+  // goes in last. Taken out even where it stays, so that the code the other
+  // hacks place goes where it went before it (else, on a ROM whose own hack
+  // code NOSE4Web moves, that code went past the blood on the second apply:
+  // the same game, different bytes; Match Viewer, CDL Season 12).
   const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
   const bloodKnown = !unknown.includes('headBleeding')
   // Read afresh: work.rom changes in place below, and a state remembered for it would go stale.
-  if (bloodKnown && bloodInNow(rom) && (!wanted.headBleeding || (!fightKept && choices.fighting !== wanted.fighting))) work.rom = bloodTakenOut(work.rom)
+  if (bloodKnown && bloodInNow(rom)) work.rom = bloodTakenOut(work.rom)
   const removeFight = () => {
     if (fightKept) return
     work.rom = withoutFight(work.rom)
@@ -3905,7 +3907,19 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     // Taken out only where the ROM has it all: a ROM with part of it keeps that part whatever else changes.
-    ['clockwiseSprites', () => void (choices.clockwiseSprites && takeOutClockwise(work.rom)), () => void (wanted.clockwiseSprites && putClockwise(work.rom))],
+    [
+      'clockwiseSprites',
+      () => {
+        if (!choices.clockwiseSprites) return
+        const kept = clockwiseKept(work.rom)
+        takeOutClockwise(work.rom, kept?.had)
+        if (kept) erase(work.rom, kept.at, kept.length)
+      },
+      () => {
+        const kept = wanted.clockwiseSprites ? putClockwise(work.rom) : null
+        if (kept) place(work, kept)
+      },
+    ],
     ['barrPick', () => barrPick.remove(work.rom), () => barrPick.apply(work, wanted.barrPick)],
     ['barrCoin', () => barrCoin.remove(work.rom), () => barrCoin.apply(work, wanted.barrCoin)],
     ['organResume', () => organResume.remove(work.rom), () => organResume.apply(work, wanted.organResume)],
