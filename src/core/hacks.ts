@@ -2231,7 +2231,15 @@ const goalieHold: Part<number> = {
 
 // A goalie who catches the puck in a dive gets a hold count of only 5, counted
 // once he stands up: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive.
-const diveHold = numberPart([site(0x1531e, '357C')], NO_HACKS.diveHold)
+const diveFrames = numberPart([site(0x1531e, '357C')], NO_HACKS.diveHold)
+// A number the setting cannot hold (such as 0) reads as unknown, so the ROM's other hacks can still change.
+const diveHold: Part<number> = {
+  ...diveFrames,
+  detect(rom) {
+    const frames = diveFrames.detect(rom)
+    return frames !== undefined && frames >= HACK_RANGES.diveHold[0] && frames <= HACK_RANGES.diveHold[1] ? frames : undefined
+  },
+}
 
 // Where a goalie may go. Without the puck he is kept in a box in front of his
 // net; play is whistled if a goalie a person controls crosses a line, with

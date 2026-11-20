@@ -1152,7 +1152,15 @@ const goalieHold95: Part<number> = {
   },
 }
 // A catch in a dive: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive, counted once the goalie is up.
-const diveHold95 = numberPart([site(0x7bb56, '357C')], NO_NHL95_HACKS.diveHold)
+const diveFrames95 = numberPart([site(0x7bb56, '357C')], NO_NHL95_HACKS.diveHold)
+// A number the setting cannot hold (such as 0) reads as unknown.
+const diveHold95: Part<number> = {
+  ...diveFrames95,
+  detect(rom) {
+    const frames = diveFrames95.detect(rom)
+    return frames !== undefined && frames >= NHL95_HACK_RANGES.diveHold[0] && frames <= NHL95_HACK_RANGES.diveHold[1] ? frames : undefined
+  },
+}
 const goalieWidth95 = numberPart([site(0x8b8ea, '0C53'), site(0x8b908, '0C53', true)], NO_NHL95_HACKS.goalieWidth)
 const goalieOut95 = numberPart([site(0x8b922, '0C6B'), site(0x8b92c, '0C6B', true)], NO_NHL95_HACKS.goalieOut)
 const goalieLine95 = numberPart([site(0x8301e, 'B27C'), site(0x83026, 'B27C', true)], NO_NHL95_HACKS.goalieLine)

@@ -43,6 +43,17 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the goalie hold after a dive ca
     expect(() => applyHacks(rom, { ...NO_HACKS, diveHold: 0 })).toThrow(/1 to 3600/)
   })
 
+  it('reads a number it cannot hold as unknown, and leaves it while other hacks change', () => {
+    const rom = open('nhl94.bin')
+    const odd = rom.bytes.slice()
+    odd.set([0, 0], 0x1531e)
+    const state = detectHacks(odd)
+    expect(state.unknown).toContain('diveHold')
+    const other = applyHacks({ ...rom, bytes: odd }, { ...state.choices, goalieHold: 300 })
+    expect(hex(other.bytes, 0x1531e, 2)).toBe('0000')
+    expect(detectHacks(other.bytes).choices.goalieHold).toBe(300)
+  })
+
   it('goes with the goalie hold time, either way round', () => {
     const rom = open('nhl94.bin')
     for (const goalieHold of [0, 300]) {
