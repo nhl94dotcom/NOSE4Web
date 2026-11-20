@@ -610,7 +610,13 @@ and at `$12E20`) and NHL '95's hung on a black screen (Match Viewer, 2026-11-20)
 back. NHL 94 tmap `$C6F2` / `$CA56` (`SHOOTOUT_START`), NHL '95 `$C2AC` / `$C612`; the two bne at the top are bne.w.
 The earlier versions (none of it; tmap only, 11b5e39) are recognised (`shootoutOutdated`, `nhl95ShootoutOutdated`) and the pages offer "Put in the current version". A save state
 holds the whole game's stats from the first frame of the game-over screens (the end code's restore), not during the
-shootout or its winner's banner (MV, all three games).
+shootout or its winner's banner (MV, all three games). The SNES needs neither change (PlayShootout's StartGame_go
+sets the teams up again). The SNES's Stars of the Game come only from PenEOG, which clockcont_0 queues as a period's
+clock ends with the score not tied, so after a season shootout they never showed; since 2026-11-21 its RUN code, after
+the restore and the winners' goal, calls ShowThreeStars (from InProgress's jsl for PenDataEOG; retail `$9C:9BAB`, SA-1
+`$9C:9C7D`), QueueTextDMA (`$9F:BF75` / `$9F:C035`) and WaitFrames (X 180, Y 1; `$80:858F` / `$80:85E1`) before its
+jml PeriodOver (MV's sequence, tried on its builds; the stars come from the restored stats). The version without is
+recognised as earlier (`sneshacks.ts`, `seasonShootout`, `withStars`).
 
 ### Where it lives: the three tie options (one shared step)
 

@@ -710,6 +710,8 @@ const SHOOTOUT_RAM = [
 const SHOOTOUT_A_LENGTH = 37
 const SHOOTOUT_B_LENGTH = 51
 const SHOOTOUT_B_TEST = 44
+// How long the Stars of the Game show after a season shootout: 3 seconds.
+const SHOOTOUT_STARS_FRAMES = 180
 // ------------------------------------------------------ 3 on 3 overtime
 // As on the Genesis (hacks.ts, threeOnThree): in overtime each team has its
 // goalie and its line's LW, C and RD; a penalty gives the other team a skater
@@ -3939,8 +3941,20 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const now3 = (run: number) =>
       bytesOf('AF', mark, '29FF00', 'D01C', 'AF', playMode, 'D01D', 'AD', gsp, 'C90300', 'D015', 'AD', word(score), 'CD', word(score + 2), 'D00D',
         'A20200', '4C', word(run), 'A90000', '8F', mark, tieTest, '6B')
+    // The Stars of the Game, after the restore (Match Viewer, 2026-11-20): the game queues them (PenEOG) only as a
+    // period's clock ends with the score not tied, so after a shootout they never came. ShowThreeStars (found from
+    // InProgress's jsl for PenDataEOG) picks them from the restored stats and prints them into the text map;
+    // QueueTextDMA, which the play loop calls, sends the map to the screen; WaitFrames (X frames, Y 1) shows them for
+    // 3 seconds over the rink, beside the winner's banner, before PeriodOver fades out.
+    const showStars = only(rom, 'c9....d00422......a7..29ff00')
+    const textDma = only(rom, 'ad....3025a80a69f43785..a9..0085')
+    const waitFrames = only(rom, '22......cad0f988d0f66b')
+    if (showStars < 0 || textDma < 0 || waitFrames < 0) return null
+    const farCall = (at: number) => bytesOf('22', word(loRomAddress(at)), loRomBank(at, 0x80))
+    const stars = bytesOf('C230', '22', rom.slice(showStars + 6, showStars + 9), farCall(textDma), 'A2', word(SHOOTOUT_STARS_FRAMES), 'A00100', farCall(waitFrames))
     // `extras`: with the 2 MB builds' player stats saved too; NOSE4Web's of the morning of 12 November 2026 had not.
-    const runOf = (extras: boolean) => bytesOf(
+    // `withStars`: with the Stars of the Game; NOSE4Web's before 21 November 2026 had not.
+    const runOf = (extras: boolean, withStars = true) => bytesOf(
       'C230', '8B', 'DA', 'A9FF00', '8F', mark,
       // Saved: $15D3-$1D52 to $F100, $30F4-$347B to $F880, lastperiod to $FC08, a 2 MB build's player stats to $FC10 (as the layout has them).
       '8B', 'A97F07', 'A2', word(0x15d3 + ram.shift), 'A0', word(ram.low), '54', b, b, 'A98703', 'A2F430', 'A0', word(ram.game), '54', b, b, saveExtra(false, extras), 'AB',
@@ -3952,15 +3966,17 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       '8B', 'A97F07', 'A2', word(ram.low), 'A0', word(0x15d3 + ram.shift), '54', b, b, 'A98703', 'A2', word(ram.game), 'A0F430', '54', b, b, saveExtra(true, extras), 'AB',
       'AF', long(ram.last), '8F', long(0x1ead + ram.shift),
       // The winners' goal; gsp to come back with; PeriodOver from the top, the jsl's return dropped.
-      'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, b, 'AB', '3B', '18', '690300', '1B', '5C', periodOver,
+      'FA', 'BF', long(score), '1A', '9F', long(score), 'FA', '8A', '8F', gsp, b, 'AB', '3B', '18', '690300', '1B', withStars ? stars : [], '5C', periodOver,
     )
     // The code as it is in, where it is (to take out, or to read), or as it is to go in.
     const shape = now && (choice === 0 || choice === now) ? now : choice
     const hookLength = shape === 1 ? SHOOTOUT_A_LENGTH : SHOOTOUT_B_LENGTH
     // In, the version is the one whose Exit Shootout lock (after RUN) the exit's jsl calls.
     const locksAt = (runLength: number) => now && codeAt >= 0 && rom[sites.exit] === 0x22 && readU16(rom, sites.exit + 1) === (loRomAddress(codeAt + hookLength + runLength) & 0xffff)
-    const extras = !(now && extra && !locksAt(runOf(true).length) && locksAt(runOf(false).length))
-    const run = runOf(extras)
+    const versions = [[true, true], [false, true], [true, false], [false, false]] as const
+    const inRom = now ? versions.find(([e, w]) => (e || extra) && locksAt(runOf(e, w).length)) : undefined
+    const [extras, withStars] = inRom ?? [true, true]
+    const run = runOf(extras, withStars)
     // Exit Shootout locked: while the mark is set, AskExitGame's call answers No at once (lda #0), so the menu stays
     // for Resume and a league game cannot be left from its shootout; with the mark clear it is AskExitGame (jml).
     const askAt = codeAt >= 0 ? codeAt + hookLength + run.length : -1
@@ -3978,7 +3994,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       { at: sites.afterOvertime, original: original.afterOvertime, hacked: choice === 1 ? jsl : original.afterOvertime, amount: choice },
       { at: sites.tieTest, original: tieTest, hacked: choice === 2 ? jsl : tieTest },
       { at: sites.clock, original: original.clock, hacked: choice === 1 ? hexBytes('EAEA') : original.clock },
-      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock), ...(extras ? {} : { earlier: true }) },
+      { at: codeRoom, original: unused(length), hacked: bytesOf(hook, run, lock), ...(extras && withStars ? {} : { earlier: true }) },
     ]
   },
   // Referee strictness, as on the Genesis (hacks.ts, referees). checkagr rolls d0 = randomd0((20 - Agr) x 16), doubled

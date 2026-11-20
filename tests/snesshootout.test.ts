@@ -45,6 +45,10 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
     expect(code).toContain('5cb18c9f')
     // The winner: bcs +3 over ldx #2.
     expect(code).toContain('b003a20200da')
+    // Before PeriodOver, the Stars of the Game: ShowThreeStars ($9C:9BAB), QueueTextDMA ($9F:BF75), 180 frames' wait
+    // (WaitFrames, $80:858F).
+    const stars = 'c23022ab9b9c2275bf9fa2b400a00100228f8580'
+    expect(code).toContain(`1b${stars}5cb18c9f`)
     // Exit Shootout locked: PauseExitGame's jsl AskExitGame ($9F:F00B, at $9F:E74B) goes to the stub after RUN,
     // which with the mark set answers No (lda #0 / rtl) and else is AskExitGame (beq +4 to jml $9F:F00B).
     const EXIT = 0xfe74b
@@ -54,6 +58,21 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the SNES shootout for tied regu
     expect(hex(on.bytes, lock, 17)).toBe('aff0f07e29ff00f004a900006b5c0bf09f')
     // Out: the original game.
     expect(Buffer.compare(buildRom(applySnesHacks(on, {}, false, { seasonShootout: 0 })), buildRom(retail()))).toBe(0)
+    // NOSE4Web's earlier version, without the stars (the lock straight after RUN): an earlier version, brought up to date.
+    const starsAt = run + code.indexOf(`1b${stars}`) / 2 + 1
+    const earlier = on.bytes.slice()
+    const tail = on.bytes.slice(starsAt + 20, lock + 17)
+    earlier.set(tail, starsAt)
+    earlier.fill(0xff, starsAt + tail.length, lock + 17)
+    const earlierLock = lock - 20
+    earlier.set([earlierLock & 0xff, ((earlierLock & 0x7fff) | 0x8000) >> 8], EXIT + 1)
+    const read = detectSnesHacks(earlier)
+    expect(read.unknown).not.toContain('seasonShootout')
+    expect(read.amounts?.seasonShootout).toBe(1)
+    expect(read.vaultVersions).toContain('seasonShootout')
+    expect(detectSnesHacks(on.bytes).vaultVersions ?? []).not.toContain('seasonShootout')
+    expect(Buffer.compare(applySnesHacks({ ...on, bytes: earlier }, { seasonShootout: true }, true).bytes, on.bytes)).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks({ ...on, bytes: earlier }, {}, false, { seasonShootout: 0 })), buildRom(retail()))).toBe(0)
   })
 
   it('after period 3: the tie test becomes the call, which does the test after, and the choices switch', () => {
