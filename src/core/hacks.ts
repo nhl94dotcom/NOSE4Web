@@ -837,26 +837,35 @@ const EOP_BEFORE = bytes('0C78 0003 C466 6600 0008 4A78 D048')
 // scoring summary's length and the plus-minus log's length word ($FFDEF4,
 // which the plus-minus hack's log starts with) are kept from $FFF084, to be
 // put back at the end. Then both teams are given six players on the ice
-// (tmap, team struct +$24, as restoreteams sets it): with the visitors a man
-// short when it began, the first attempt crashed (an address error in
-// setplayer, Match Viewer, 2026-11-20); the home team short was fine.
+// (tmap, team struct +$24, as restoreteams sets it) and an empty penalty box
+// (each tmpdst, +$66, of 0 or more becomes $FFFE, the bench, and the box
+// list at +$9A ends at once): with a team a man short or a player in the box
+// when it began, an attempt crashed (an address error in setplayer or at
+// $12E20, Match Viewer, 2026-11-20).
 //   move.w (HmGoals).w,d0; cmp.w (AwGoals).w,d0; bne.s .x
 //   btst #0,(gmode2).w; bne.s .x; bset #0,(gmode2).w; st ($F082).w
 //   movem.l d0-d7/a0-a6,-(sp)
 //   lea (tmstruct).w,a0; lea ($F084).w,a1; move.w #$1B1,d0; .l move.l (a0)+,(a1)+; dbf d0,.l
 //   move.w (ScoreSumbytes).w,(a1); move.w ($DEF4).w,($F74E).w
-//   move.w #6,(tmstruct+tmap).w; move.w #6,(awtmstruct+tmap).w; bclr #1,(gmode).w; jsr ClearShootout
+//   move.w #6,(tmstruct+tmap).w; move.w #6,(awtmstruct+tmap).w
+//   lea (tmstruct).w,a0; moveq #1,d1; .team moveq #25,d0; lea tmpdst(a0),a1
+//   .p tst.w (a1)+; bmi.s .n; move.w #$FFFE,-2(a1); .n dbf d0,.p; st $9A(a0); lea tmsize(a0),a0; dbf d1,.team
+//   bclr #1,(gmode).w; jsr ClearShootout
 //   lea (tmstruct).w,a0; jsr Create_HotCold_Table; lea (awtmstruct).w,a0; jsr Create_HotCold_Table
 //   movem.l (sp)+,d0-d7/a0-a6; .x rts
+// (The two bne to .x are bne.w.)
 const SHOOTOUT_START = bytes(
-  '3038 C6DA B078 CA3E 6662 0838 0000 C2FA 665A 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 31FC 0006 C6F2 31FC 0006 CA56 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+  '3038 C6DA B078 CA3E 6600 008C 0838 0000 C2FA 6600 0082 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 31FC 0006 C6F2 31FC 0006 CA56 41F8 C6CE 7201 7019 43E8 0066 4A59 6B06 337C FFFE FFFE 51C8 FFF4 50E8 009A 41E8 0364 51C9 FFE2 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
 )
-// NOSE4Web's first version (to 20 November 2026), without the six players: recognised, and replaced by the above
-// whenever the hacks are applied.
+// NOSE4Web's earlier versions, recognised and replaced by the above whenever the hacks are applied: the first (to 20
+// November 2026), with neither; the second (11b5e39, 20 November), with the six players but not the empty box.
 const SHOOTOUT_START_FIRST = bytes(
   '3038 C6DA B078 CA3E 6656 0838 0000 C2FA 664E 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
 )
-const SHOOTOUT_STARTS = [SHOOTOUT_START, SHOOTOUT_START_FIRST]
+const SHOOTOUT_START_SECOND = bytes(
+  '3038 C6DA B078 CA3E 6662 0838 0000 C2FA 665A 08F8 0000 C2FA 50F8 F082 48E7 FFFE 41F8 C6CE 43F8 F084 303C 01B1 22D8 51C8 FFFC 32B8 C472 31F8 DEF4 F74E 31FC 0006 C6F2 31FC 0006 CA56 08B8 0001 C2EA 4EB9 000F C47C 41F8 C6CE 4EB9 000F 70A2 41F8 CA32 4EB9 000F 70A2 4CDF 7FFF 4E75',
+)
+const SHOOTOUT_STARTS = [SHOOTOUT_START, SHOOTOUT_START_FIRST, SHOOTOUT_START_SECOND]
 // Where the shootout's start code is, if `at` calls it (through hook or the period-3 code), and which version.
 function startCode(rom: Uint8Array, start: number): Uint8Array | undefined {
   return SHOOTOUT_STARTS.find((code) => start + code.length <= rom.length && is(rom, start, code))
@@ -917,11 +926,11 @@ function nowHooked(rom: Uint8Array): { at: number; start: number; code: Uint8Arr
   if (!is(rom, at, nowCode(start)) || code === undefined) return null
   return { at, start, code }
 }
-// Whether this ROM has the season shootout's first version (it reads as on, and the current one goes in whenever
-// the hacks are applied).
+// Whether this ROM has an earlier version of the season shootout (it reads as on, and the current one goes in
+// whenever the hacks are applied).
 export function shootoutOutdated(rom: Uint8Array): boolean {
   const code = nowHooked(rom)?.code ?? startHooked(rom)?.code
-  return code === SHOOTOUT_START_FIRST
+  return code !== undefined && code !== SHOOTOUT_START
 }
 
 const seasonTies: Part<SeasonTies> = {

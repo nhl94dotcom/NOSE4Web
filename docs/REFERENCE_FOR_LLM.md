@@ -603,10 +603,12 @@ put in with NHL '95's addresses from the NHL95Genesis disassembly; Match Viewer 
 retail and W18 (comment above `PERIOD_OVER`, "a961bb7").
 
 Both games' season shootout start code also sets both teams' tmap (team struct `+$24`, players on the ice) to 6, as
-restoreteams does: with the visitors a man short when it began, NHL 94's first attempt crashed (address error in
-setplayer, `$15B9E`) and NHL '95's hung on a black screen; the home team short was fine (Match Viewer, 2026-11-20).
-NHL 94 writes `$C6F2` / `$CA56` (`SHOOTOUT_START`), NHL '95 `$C2AC` / `$C612`. The first versions, without it, are
-recognised (`shootoutOutdated`, `nhl95ShootoutOutdated`) and the pages offer "Put in the current version". A save state
+restoreteams does, and empties the penalty box: each tmpdst word (26, NHL 94 `+$66`, NHL '95 `+$68`) of 0 or more
+becomes `$FFFE` (the bench) and the box list (`+$9A` / `+$9C`) ends at once (`st`). With the visitors a man short, or
+a player of either team in the box, when it began, NHL 94's attempts crashed (address errors in setplayer, `$15B9E`,
+and at `$12E20`) and NHL '95's hung on a black screen (Match Viewer, 2026-11-20). The end code's restore puts both
+back. NHL 94 tmap `$C6F2` / `$CA56` (`SHOOTOUT_START`), NHL '95 `$C2AC` / `$C612`; the two bne at the top are bne.w.
+The earlier versions (none of it; tmap only, 11b5e39) are recognised (`shootoutOutdated`, `nhl95ShootoutOutdated`) and the pages offer "Put in the current version". A save state
 holds the whole game's stats from the first frame of the game-over screens (the end code's restore), not during the
 shootout or its winner's banner (MV, all three games).
 

@@ -246,7 +246,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const start = read32(after.bytes, 0x8cba0)
     // HmGoals = AwGoals, not a shootout already; both team structs ($1B3 longs) and ScoreSumbytes kept.
     expect(hex(after.bytes, start, 8)).toBe('3038c294b078c5fa')
-    expect(hex(after.bytes, start + 0x28, 4)).toBe('303c01b2')
+    expect(hex(after.bytes, start + 0x2c, 4)).toBe('303c01b2')
     const end = read32(after.bytes, 0x9dd4a)
     expect(hex(after.bytes, end + 0x10, 6)).toBe('4ef90008cd02') // Shootout mode's own end, to the title
     expect(hex(after.bytes, end + 0x56, 6)).toBe('4ef900009d18') // PeriodOver_sp
@@ -260,26 +260,27 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     const nowCode = read32(now.bytes, 0x8cba6)
     expect(hex(now.bytes, read32(now.bytes, nowCode + 0x20), 8)).toBe('3038c294b078c5fa')
     expectSameBytes(applyNhl95Hacks(now, { seasonShootoutNow: false }).bytes, rom.bytes)
-    // Both teams get six players on the ice (tmap): with the visitors a man short, the first attempt hung.
-    expect(hex(after.bytes, start + 0x36, 12)).toBe('31fc0006c2ac31fc0006c612')
+    // Both teams get six players on the ice (tmap) and an empty box: with a team a man short, or a player in the box,
+    // the first attempt hung.
+    expect(hex(after.bytes, start + 0x3a, 12)).toBe('31fc0006c2ac31fc0006c612')
+    expect(hex(after.bytes, start + 0x46, 38)).toBe('41f8c2887201701943e800684a596b06337cfffefffe51c8fff450e8009c41e8036651c9ffe2')
     expect(nhl95ShootoutOutdated(after.bytes)).toBe(false)
-    // The first version's start code, without them: read as on, and replaced when the hacks are applied with it on.
-    const toFirst = (bytes: Uint8Array, at: number) => {
-      const code = bytes.slice(at, at + 104)
-      const first = new Uint8Array([...code.subarray(0, 0x36), ...code.subarray(0x42)])
-      first[9] = 0x50
-      first[17] = 0x48
-      const copy = bytes.slice()
-      copy.set(first, at)
-      copy.fill(0xff, at + 92, at + 104)
-      return copy
-    }
+    // The earlier versions' start code, without them or with only the six players: read as on, and replaced when the
+    // hacks are applied with it on.
+    const earlierStarts = [
+      '3038c294b078c5fa66500838 0000bf00664808f80000bf0050f8f00048e7fffe41f8c28843f8f002303c01b222d851c8fffc32b8c02c08b80001bef04eb90009da5041f8c2884eb900083e8841f8c5ee4eb900083e884cdf7fff4e75',
+      '3038c294b078c5fa665c0838 0000bf00665408f80000bf0050f8f00048e7fffe41f8c28843f8f002303c01b222d851c8fffc32b8c02c31fc0006c2ac31fc0006c61208b80001bef04eb90009da5041f8c2884eb900083e8841f8c5ee4eb900083e884cdf7fff4e75',
+    ].map((code) => Buffer.from(code.replaceAll(' ', ''), 'hex'))
     for (const [built, at, hack] of [[after, start, 'seasonShootout'], [now, read32(now.bytes, nowCode + 0x20), 'seasonShootoutNow']] as const) {
-      const first = { ...built, bytes: toFirst(built.bytes, at) }
-      expect(detectNhl95Hacks(first.bytes)).toEqual(detectNhl95Hacks(built.bytes))
-      expect(nhl95ShootoutOutdated(first.bytes)).toBe(true)
-      expectSameBytes(applyNhl95Hacks(first, { [hack]: true }).bytes, built.bytes)
-      expectSameBytes(applyNhl95Hacks(first, { [hack]: false }).bytes, rom.bytes)
+      for (const code of earlierStarts) {
+        const earlier = { ...built, bytes: built.bytes.slice() }
+        earlier.bytes.fill(0xff, at, at + 146)
+        earlier.bytes.set(code, at)
+        expect(detectNhl95Hacks(earlier.bytes)).toEqual(detectNhl95Hacks(built.bytes))
+        expect(nhl95ShootoutOutdated(earlier.bytes)).toBe(true)
+        expectSameBytes(applyNhl95Hacks(earlier, { [hack]: true }).bytes, built.bytes)
+        expectSameBytes(applyNhl95Hacks(earlier, { [hack]: false }).bytes, rom.bytes)
+      }
     }
     // One way to settle a tie at a time; from one to another directly.
     expect(() => applyNhl95Hacks(rom, { seasonShootout: true, seasonOvertime: true })).toThrow(Nhl95HackError)
