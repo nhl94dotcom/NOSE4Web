@@ -1204,7 +1204,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         {hack(
           'clockwiseSprites',
           onOff('clockwiseSprites'),
-          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from his patch on the NHL94 forum. Several league ROMs have some or all of it already. Art a league has redrawn itself is kept. Not yet tested in the game.",
+          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. Art a league has redrawn itself is kept. Not yet tested in the game.",
         )}
         {hack(
           'barrPick',
