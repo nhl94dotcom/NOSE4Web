@@ -256,6 +256,7 @@ const SNES: Record<SnesHack, string> = {
   referees: 'How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.',
   shootoutInjuries: 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
   lockedChangeFix: 'Pressing B while your skater is checking or bursting now switches to another skater, where the press was often lost.',
+  openNetFix: "A computer player's shot at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar.",
   lockedDefenceFix: 'L and R take a defenceman even while your skater is checking, bursting, down or otherwise busy, where the press was lost.',
   shotFix: 'A shooter who gets the puck back during his wind-up, after it was knocked loose, now still shoots.',
   oneTimerFix: 'A one-timer whose pass comes late no longer leaves the player swinging with the puck and never shooting: he takes the pass and can shoot it.',

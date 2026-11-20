@@ -2494,6 +2494,8 @@ line; check there.
 | Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
 | Computer centres' defence: the SNES code is right at both ends, no option | (none) | **Yes (9)** |
+| Open net shot fix (not yet tested in the game): shotdiradj (`$9E:DFF7`, aims computer shots only) does `ldx a3 / stz d0` at `$9E:E094` (`A6 95 64 A5`) before its sightline test, so an open net gets aim 0 (high middle); jsl to `A6 95 A9 0800 85 A5 6B` sets 8 | `sneshacks.ts` (`openNetPlaces`), `tests/snesopennet.test.ts` | Yes (here) |
+| Genesis fixes the SNES does NOT need (Match Viewer's reading, 2026-11-19): pulled-goalie sniping (doshot `$9E:E220` has no goalie test), computer goalie pull (CPgoalie `$9E:D130` already pulls at 1 or 2 behind), rocket pass (dopass `$9E:E9BF`: speed from distance), gliding skater, repeated checks (FallDown `$9E:9B52` has no pair test), crowd bonus (crowd never affects play), Aggression wrap (checkagr `$9E:C124` is 16-bit), five-hole blind spot (checkpuckcoll_ccx `$9E:97DD`), penalty shot foul names (no table), one-timer assist; '95's stick reach and body y bugs are right on the SNES | (none) | Yes (here) |
 
 ### Planned / not built
 

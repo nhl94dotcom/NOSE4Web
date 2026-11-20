@@ -66,6 +66,7 @@ export type SnesHack =
   | 'shotFix'
   | 'lockedChangeFix'
   | 'lockedDefenceFix'
+  | 'openNetFix'
   | 'timeOnIce'
   | 'timeOnIceShown'
   | 'nhlShootout'
@@ -338,6 +339,7 @@ export const SNES_HACKS: SnesHack[] = [
   'shotFix',
   'lockedChangeFix',
   'lockedDefenceFix',
+  'openNetFix',
   'timeOnIce',
   'timeOnIceShown',
   'nhlShootout',
@@ -399,6 +401,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   shotFix: 'Shot that never fires fix',
   lockedChangeFix: 'B button while checking or bursting fix',
   lockedDefenceFix: 'L and R defenceman pick while busy fix',
+  openNetFix: 'Open net shot fix',
   timeOnIce: 'Time on ice for each player',
   timeOnIceShown: 'Time on ice in Player Stats',
   nhlShootout: 'Three-round shootout',
@@ -1233,6 +1236,35 @@ function syncFightPairing(rom: Uint8Array): void {
   const seconds = Math.min(0x7ff, fight > 0 ? fight : 5 * perMinute)
   rom.set(bytesOf(word(seconds | 0x2000)), pairs[0].at + 3)
   rom.set(bytesOf(word(seconds)), times[0].at + 4)
+}
+
+// ------------------------------------------------------------- open net shot
+// As on the Genesis (hacks.ts, openNetFix), from Match Viewer's reading:
+// shotdiradj, which aims every computer shot (doshot calls it; a person's
+// shots follow the pad), clears d0 (stz d0, aim 0: high in the middle, just
+// under the bar) before testing whether the goalie's sightline covers the
+// net, and when it doesn't (an open net) leaves it 0. With no goalie found it
+// gives 8 (the middle). Its ldx a3 / stz d0 becomes jsl to code that does the
+// ldx and sets d0 to 8, so an open net gets the middle; covered nets still
+// set their own aim after it. Found by the code around it.
+function openNetPlaces(rom: Uint8Array): Placed[] | null {
+  // lda d4 / clc / adc d5 / sta d4 / ldx a3 / stz d0 / lda d4 / cmp #$FFD3 / bmi / cmp #$002D / bpl; or the hack's jsl there.
+  const plain = findCodeAll(rom, 'a5..1865..85..a6(..)64(..)a5..c9d3ff30..c92d0010')
+  const hooked = findCodeAll(rom, 'a5..1865..85..22(....)(..)a5..c9d3ff30..c92d0010').filter(({ groups }) => {
+    const code = loRomOffset(groups[1], groups[0])
+    return code >= 0 && rom[code] === 0xa6 && same(rom, code + 2, hexBytes('A90800 85'))
+  })
+  if (plain.length + hooked.length !== 1) return null
+  const site = (plain[0] ?? hooked[0]).at + 7
+  let a3: number
+  let d0: number
+  if (plain.length) [a3, d0] = plain[0].groups
+  else {
+    const code = loRomOffset(hooked[0].groups[1], hooked[0].groups[0])
+    a3 = rom[code + 1]
+    d0 = rom[code + 6]
+  }
+  return withFarCode(rom, site, bytesOf('A6', a3, '64', d0), 0, bytesOf('A6', a3, 'A9 0800 85', d0, '6B'))
 }
 
 // ---------------------------------------------------- the one-timer that never fires
@@ -3331,6 +3363,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   shotFix: (rom) => shotPlaces(rom),
   lockedChangeFix: (rom) => lockedChangePlaces(rom),
   lockedDefenceFix: (rom) => lockedDefencePlaces(rom),
+  openNetFix: (rom) => openNetPlaces(rom),
   timeOnIce: (rom) => timeOnIcePlaces(rom),
   timeOnIceShown: (rom) => timeOnIceShownPlaces(rom),
   giveaways: (rom) => giveawayPlaces(rom),
@@ -4473,7 +4506,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
-  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
+  'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'nhlShootout', 'choppyIce', 'clutchTime',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
 ]

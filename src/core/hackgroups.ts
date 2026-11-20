@@ -42,7 +42,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
   {
     id: 'fixes',
     title: 'Fixes',
-    hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'secondAssist', 'regainAssist'],
+    hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'regainAssist'],
   },
   { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages'] },
   { id: 'rules', title: 'Rules', hacks: ['fighting', 'fightTime', 'oneMinutePenalties', 'penaltyTime', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'seasonShootout', 'shootoutInjuries', 'nhlShootout', 'threeOnThree', 'creaseIcing', 'hybridIcing', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'choppyIce', 'clutchTime'] },
