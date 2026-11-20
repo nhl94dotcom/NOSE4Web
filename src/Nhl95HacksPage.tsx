@@ -202,7 +202,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
     <p className="note">
       While your skater is down on the ice, checking or bursting, pressing B usually does nothing until he is free: he
       is often the one nearest the puck, so the game picks him again. With this on B switches to the next best skater,
-      as in NHL 94. Found by a league member and the NHL94 Match Viewer project. Not yet tested in the game.
+      as in NHL 94. Found by a league member and the NHL94 Match Viewer project. {TESTED}
     </p>
   ),
   stickShots: (
