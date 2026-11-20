@@ -124,6 +124,8 @@ export interface HackChoices {
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
+  // Sixtieths of a second a goalie who caught the puck in a dive may hold it after he gets up, before the whistle.
+  diveHold: number
   // How far a goalie a person controls may go without the puck to either side of the middle of the ice.
   goalieWidth: number
   // How near centre ice a goalie may come, as his distance from it: without the puck, then before
@@ -261,6 +263,7 @@ export type HackPart =
   | 'crowdFix'
   | 'stickShots'
   | 'goalieHold'
+  | 'diveHold'
   | 'goalieBox'
   | 'goalieLine'
   | 'stamina'
@@ -349,6 +352,7 @@ export const NO_HACKS: HackChoices = {
   crowdFix: false,
   stickShots: false,
   goalieHold: 140,
+  diveHold: 5,
   goalieWidth: 36,
   goalieOut: 231,
   goalieLine: 170,
@@ -401,6 +405,7 @@ export const NO_HACKS: HackChoices = {
 // The least and most each number can be.
 export const HACK_RANGES = {
   goalieHold: [0, 3600],
+  diveHold: [1, 3600],
   goalieWidth: [0, 124],
   goalieOut: [0, 255],
   goalieLine: [0, 255],
@@ -2219,6 +2224,10 @@ const goalieHold: Part<number> = {
   },
 }
 
+// A goalie who catches the puck in a dive gets a hold count of only 5, counted
+// once he stands up: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive.
+const diveHold = numberPart([site(0x1531e, '357C')], NO_HACKS.diveHold)
+
 // Where a goalie may go. Without the puck he is kept in a box in front of his
 // net; play is whistled if a goalie a person controls crosses a line, with
 // the puck or without it.
@@ -3671,6 +3680,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     crowdFix: found('crowdFix', crowdFix.detect(rom), NO_HACKS.crowdFix),
     stickShots: found('stickShots', stickShots.detect(rom), NO_HACKS.stickShots),
     goalieHold: found('goalieHold', goalieHold.detect(rom), NO_HACKS.goalieHold),
+    diveHold: found('diveHold', diveHold.detect(rom), NO_HACKS.diveHold),
     goalieWidth: NO_HACKS.goalieWidth,
     goalieOut: NO_HACKS.goalieOut,
     goalieLine: found('goalieLine', goalieLine.detect(rom), NO_HACKS.goalieLine),
@@ -3779,6 +3789,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['ppPkFix', () => ppPkFix.remove(work.rom), () => ppPkFix.apply(work, wanted.ppPkFix)],
     ['comebackFix', () => comebackFix.remove(work.rom), () => comebackFix.apply(work, wanted.comebackFix)],
     ['goalieHold', () => goalieHold.remove(work.rom), () => goalieHold.apply(work, wanted.goalieHold)],
+    ['diveHold', () => diveHold.remove(work.rom), () => diveHold.apply(work, wanted.diveHold)],
     ['goalieBox', () => goalieWidth.remove(work.rom), () => goalieWidth.apply(work, wanted.goalieWidth)],
     ['goalieBox', () => goalieOut.remove(work.rom), () => goalieOut.apply(work, wanted.goalieOut)],
     ['goalieLine', () => goalieLine.remove(work.rom), () => goalieLine.apply(work, wanted.goalieLine)],
@@ -4068,6 +4079,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   crowdFix: 'Crowd bonus fix',
   stickShots: 'Count stick deflections as shots',
   goalieHold: 'Goalie hold time',
+  diveHold: 'Goalie hold after a dive catch',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
   goalieLine: 'Goalie whistle line',
@@ -4152,6 +4164,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   crowdFix: 'crowdFix',
   stickShots: 'stickShots',
   goalieHold: 'goalieHold',
+  diveHold: 'diveHold',
   goalieWidth: 'goalieBox',
   goalieOut: 'goalieBox',
   goalieLine: 'goalieLine',
@@ -4251,6 +4264,7 @@ export function hackValueText<K extends keyof HackChoices>(key: K, choices: Hack
   if (key === 'fighting') return lower(FIGHT_TEXTS[choices.fighting])
   if (key === 'baseWeight') return `${choices.baseWeight} pounds`
   if (key === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
+  if (key === 'diveHold') return `${holdSeconds(choices.diveHold)} seconds`
   if (key === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (key === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
   if (key === 'fightSeconds') return fightTimeText(choices.fightSeconds)

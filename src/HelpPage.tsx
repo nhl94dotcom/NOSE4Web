@@ -1792,6 +1792,11 @@ export function HelpPage() {
           game. 0 means no whistle.
         </li>
         <li>
+          <b>Goalie hold after a dive catch:</b> seconds a goalie who catches the puck in a dive may hold it after he
+          gets up, before the whistle: only 0.08 in the original game, so the puck must be passed or dropped at
+          exactly the right moment. Every goalie, the computer's too. Not yet tested in the game.
+        </li>
+        <li>
           <b>Goalie range to each side</b> and <b>up the ice:</b> how far a goalie you control can roam without the
           puck. The original game has 36 to each side and 231 from centre ice; several league ROMs have 40 and 224, a
           little more room each way. For scale, about 3 units make a foot: the rink is about 260 wide, the goal line

@@ -59,6 +59,7 @@ const RECOMMENDED_AMOUNTS: Record<SnesAmount, number> = {
   threeStars: 0,
   // Not recommendations: the original game's.
   goalieHold: SNES_AMOUNT_OFF.goalieHold,
+  diveHold: SNES_AMOUNT_OFF.diveHold,
   goalieWidth: SNES_AMOUNT_OFF.goalieWidth,
   goalieOut: SNES_AMOUNT_OFF.goalieOut,
   goalieLine: SNES_AMOUNT_OFF.goalieLine,
@@ -75,8 +76,8 @@ const SKATING_TEXT: Partial<Record<SnesAmount, (value: number) => string>> = {
   puckFriction: (value) => (value === SNES_AMOUNT_OFF.puckFriction ? 'the original game.' : value < SNES_AMOUNT_OFF.puckFriction ? 'the puck slows faster than in the original game.' : 'the puck slides further than in the original game.'),
 }
 // The goalie settings, a number each as on the Genesis's page: the hold time in seconds, the rest in the game's units.
-const GOALIE_AMOUNTS: SnesHack[] = ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine']
-const goalieOriginal = (hack: SnesAmount) => (hack === 'goalieHold' ? `${holdSeconds(SNES_AMOUNT_OFF.goalieHold)} seconds` : String(SNES_AMOUNT_OFF[hack]))
+const GOALIE_AMOUNTS: SnesHack[] = ['goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine']
+const goalieOriginal = (hack: SnesAmount) => (hack === 'goalieHold' || hack === 'diveHold' ? `${holdSeconds(SNES_AMOUNT_OFF[hack])} seconds` : String(SNES_AMOUNT_OFF[hack]))
 const FULL_ENERGY = 0x1000
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // An energy amount as units and as a share of full energy.
@@ -155,6 +156,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "Among the recommended fixes, from a community report that the goalie's poke check (X) seems useless. In the original game the poke only reaches a puck on the ice when the goalie holds his stick out to the side, so a poke straight up or down the ice, the way he usually faces, never touches it, and its reach is short. With this on, his poke reaches the ice whichever way he faces, about three times as far (as far as a skater's steal), and knocks the puck loose. It still cannot knock down a raised shot, and his stance and stick saves are as before. It also fixes a poke straight up the ice, which in the original game never stretches out fully. Computer goalies poke too. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
   goalieHold:
     "How long a goalie may hold the puck before the whistle. The original game allows 2.33 seconds. Put 0 for no whistle for a goalie you control; holding the puck past the whistle line below, or a catch in a dive, is still whistled at once, and the computer's goalie is whistled as before. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+  diveHold:
+    "How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original game allows only 0.08 seconds, so you must pass or drop the puck at exactly the right moment to keep play going; a longer time gives you a chance. Every goalie, the computer's too. With 0 (no whistle) in the goalie hold time above, a goalie you control is not whistled for it at all once this is longer than 0.08 seconds. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
   goalieWidth:
     "How far a goalie you control may go, without the puck, to either side of the middle of the ice. Past it the game takes him over and skates him back to his net. A larger number lets him go wider; the original game has 48. The computer's goalie is as before. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
   goalieOut:
@@ -442,12 +445,13 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
                       label={SNES_HACK_TITLES[hack]}
                       value={wantedAmounts[hack]}
                       range={SNES_AMOUNT_RANGES[hack]}
-                      perUnit={hack === 'goalieHold' ? 60 : 1}
+                      perUnit={hack === 'goalieHold' || hack === 'diveHold' ? 60 : 1}
                       fresh={project.bytes}
                       disabled={unknown}
                       onChange={(n) => setAmount(hack, n)}
                     />{' '}
                     {hack === 'goalieHold' && <span className="note">{wantedAmounts.goalieHold === 0 ? 'seconds: no whistle.' : 'seconds.'}</span>}{' '}
+                    {hack === 'diveHold' && <span className="note">seconds.</span>}{' '}
                     <button type="button" disabled={unknown || wantedAmounts[hack] === SNES_AMOUNT_OFF[hack]} onClick={() => setAmount(hack, SNES_AMOUNT_OFF[hack])}>
                       Use the original {goalieOriginal(hack)}
                     </button>

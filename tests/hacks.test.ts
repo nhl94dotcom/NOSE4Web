@@ -258,6 +258,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
       { repeatCheckFix: true },
       { goalieHold: 0 },
       { goalieHold: 300 },
+      { diveHold: 30 },
+      { goalieHold: 0, diveHold: 300 },
       { goalieWidth: 40, goalieOut: 224 },
       { goalieLine: 96 },
       { stamina: true },

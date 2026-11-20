@@ -107,6 +107,7 @@ export interface Nhl95HackChoices {
   injuryCap: number
   // Goalies.
   goalieHold: number
+  diveHold: number
   goalieWidth: number
   goalieOut: number
   goalieLine: number
@@ -133,7 +134,7 @@ export const NHL95_HACKS: Nhl95Hack[] = [
   'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'anyPosition',
   'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
-  'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
+  'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
   'baseWeight', 'hotColdRange', 'clutchTime',
 ]
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
@@ -197,6 +198,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   injuryBonus: 0,
   injuryCap: 10,
   goalieHold: 140,
+  diveHold: 5,
   goalieWidth: 36,
   goalieOut: 231,
   goalieLine: 170,
@@ -292,6 +294,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   injuryBonus: 'Injury risk added by each knockdown',
   injuryCap: 'Most injury risk knockdowns can add',
   goalieHold: 'Goalie hold time',
+  diveHold: 'Goalie hold after a dive catch',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
   goalieLine: 'Goalie whistle line',
@@ -1148,6 +1151,8 @@ const goalieHold95: Part<number> = {
     else holdFrames95.apply(work, value)
   },
 }
+// A catch in a dive: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive, counted once the goalie is up.
+const diveHold95 = numberPart([site(0x7bb56, '357C')], NO_NHL95_HACKS.diveHold)
 const goalieWidth95 = numberPart([site(0x8b8ea, '0C53'), site(0x8b908, '0C53', true)], NO_NHL95_HACKS.goalieWidth)
 const goalieOut95 = numberPart([site(0x8b922, '0C6B'), site(0x8b92c, '0C6B', true)], NO_NHL95_HACKS.goalieOut)
 const goalieLine95 = numberPart([site(0x8301e, 'B27C'), site(0x83026, 'B27C', true)], NO_NHL95_HACKS.goalieLine)
@@ -1992,6 +1997,7 @@ const SETTINGS95: { [K in Nhl95Hack]?: () => Part<Nhl95HackChoices[K]> } = {
   burstEnergy: () => burstEnergy95,
   holdEnergy: () => holdEnergy95,
   goalieHold: () => goalieHold95,
+  diveHold: () => diveHold95,
   goalieWidth: () => goalieWidth95,
   goalieOut: () => goalieOut95,
   goalieLine: () => goalieLine95,
@@ -2081,6 +2087,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     injuryBonus: injury?.bonus,
     injuryCap: injury?.cap,
     goalieHold: goalieHold95.detect(rom),
+    diveHold: diveHold95.detect(rom),
     goalieWidth: goalieWidth95.detect(rom),
     goalieOut: goalieOut95.detect(rom),
     goalieLine: goalieLine95.detect(rom),
@@ -2197,6 +2204,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     ['injuryCap', () => {}, () => {}],
     settingStep('holdEnergy'),
     settingStep('goalieHold'),
+    settingStep('diveHold'),
     settingStep('goalieWidth'),
     settingStep('goalieOut'),
     settingStep('goalieLine'),
@@ -2265,6 +2273,7 @@ export function nhl95HackValueText<K extends Nhl95Hack>(hack: K, choices: Nhl95H
   if (hack === 'injuries') return lower(INJURY_TEXTS[choices.injuries])
   if (hack === 'referees') return lower(REFEREE_TEXTS[choices.referees])
   if (hack === 'goalieHold') return choices.goalieHold === 0 ? 'no whistle' : `${holdSeconds(choices.goalieHold)} seconds`
+  if (hack === 'diveHold') return `${holdSeconds(choices.diveHold)} seconds`
   if (hack === 'speedBurst' && choices.speedBurst === 0) return "the original game's"
   if (hack === 'penaltySeconds') return penaltyTimeText(choices.penaltySeconds)
   if (hack === 'fightSeconds') return fightTimeText(choices.fightSeconds)
@@ -2351,6 +2360,8 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
     c.goalieHold === 0
       ? 'A goalie may hold the puck as long as he likes: there is no whistle for it.'
       : `A goalie may hold the puck ${holdSeconds(c.goalieHold)} seconds before the whistle, ${more(c.goalieHold, N.goalieHold, 'longer', 'shorter')} than the original game's ${holdSeconds(N.goalieHold)}.`,
+  diveHold: (c) =>
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after he gets up before the whistle, ${more(c.diveHold, N.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(N.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (c) =>
     `A goalie you control may go ${more(c.goalieWidth, N.goalieWidth, 'wider', 'less far')} to either side of the net than in the original game (${c.goalieWidth}, where the original has ${N.goalieWidth}).`,
   goalieOut: (c) =>
@@ -2432,7 +2443,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
   },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap'] },
-  { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
+  { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },
   { id: 'lines', title: 'Edit Lines', hacks: ['anyPosition'] },
   { id: 'sound', title: 'Sound', hacks: ['organResume'] },

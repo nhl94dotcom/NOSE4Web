@@ -80,6 +80,7 @@ export type SnesHack =
   | 'noIcing'
   | 'threeStars'
   | 'goalieHold'
+  | 'diveHold'
   | 'goalieWidth'
   | 'goalieOut'
   | 'goalieLine'
@@ -363,6 +364,7 @@ export const SNES_HACKS: SnesHack[] = [
   'noIcing',
   'threeStars',
   'goalieHold',
+  'diveHold',
   'goalieWidth',
   'goalieOut',
   'goalieLine',
@@ -435,6 +437,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   noIcing: 'No icing',
   threeStars: 'Three stars',
   goalieHold: 'Goalie hold time',
+  diveHold: 'Goalie hold after a dive catch',
   goalieWidth: 'Goalie range to each side',
   goalieOut: 'Goalie range up the ice',
   goalieLine: 'Goalie whistle line',
@@ -566,8 +569,8 @@ const FOURTH_OVERTIME = 99 * 60
 // The hacks whose new code holds an amount: energy (0 to $1000) a skater
 // loses. 0 is off. The recommended amounts are Match Viewer's, from measured
 // shifts: a burst's cost for a knockdown, half that for a hold; up to a quarter of full energy.
-export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime' | 'threeStars' | 'goalieHold' | 'goalieWidth' | 'goalieOut' | 'goalieLine' | 'speedBurst' | 'turnRate' | 'puckFriction'
-export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime', 'threeStars', 'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'speedBurst', 'turnRate', 'puckFriction']
+export type SnesAmount = 'hitEnergy' | 'holdEnergy' | 'injuryBonus' | 'penaltyTime' | 'fighting' | 'injuries' | 'referees' | 'seasonShootout' | 'threeOnThree' | 'fightTime' | 'threeStars' | 'goalieHold' | 'diveHold' | 'goalieWidth' | 'goalieOut' | 'goalieLine' | 'speedBurst' | 'turnRate' | 'puckFriction'
+export const SNES_AMOUNTS: SnesAmount[] = ['hitEnergy', 'holdEnergy', 'injuryBonus', 'penaltyTime', 'fighting', 'injuries', 'referees', 'seasonShootout', 'threeOnThree', 'fightTime', 'threeStars', 'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'speedBurst', 'turnRate', 'puckFriction']
 // The amount that is the original game, the hack off: none, but 60 seconds for each penalty minute.
 // Fighting's amount is its bonus to the fighting ratings, which can be 0 with the fights in: off is -1.
 // The injuries choice's amount: 0 the original game.
@@ -606,6 +609,8 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
       return SNES_STAR_TEXTS[value]?.toLowerCase() ?? String(value)
     case 'goalieHold':
       return value === 0 ? 'no whistle' : `${holdSeconds(value)} seconds`
+    case 'diveHold':
+      return `${holdSeconds(value)} seconds`
     case 'goalieWidth':
     case 'goalieOut':
     case 'goalieLine':
@@ -619,11 +624,13 @@ export function snesAmountText(hack: SnesAmount, value: number): string {
 // The goalie settings' original game (see goalieEnv): hold 140 frames, range 48 to each side and 228 from centre,
 // whistle line 187 from centre. The line is at most 210, as a computer goalie with the puck is always 211 or more out.
 export const SNES_GOALIE_HOLD = 140
+// A catch in a dive: 5 frames, counted once the goalie is up.
+export const SNES_DIVE_HOLD = 5
 export const SNES_GOALIE_WIDTH = 48
 export const SNES_GOALIE_OUT = 228
 export const SNES_GOALIE_LINE = 187
 export const SNES_GOALIE_LINE_MOST = 210
-export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0, threeStars: 0, goalieHold: SNES_GOALIE_HOLD, goalieWidth: SNES_GOALIE_WIDTH, goalieOut: SNES_GOALIE_OUT, goalieLine: SNES_GOALIE_LINE, speedBurst: 0, turnRate: 0x70, puckFriction: 9 }
+export const SNES_AMOUNT_OFF: Record<SnesAmount, number> = { hitEnergy: 0, holdEnergy: 0, injuryBonus: 0, penaltyTime: 60, fighting: -1, injuries: 0, referees: 2, seasonShootout: 0, threeOnThree: 0, fightTime: 0, threeStars: 0, goalieHold: SNES_GOALIE_HOLD, diveHold: SNES_DIVE_HOLD, goalieWidth: SNES_GOALIE_WIDTH, goalieOut: SNES_GOALIE_OUT, goalieLine: SNES_GOALIE_LINE, speedBurst: 0, turnRate: 0x70, puckFriction: 9 }
 export const RECOMMENDED_SNES_HIT_ENERGY = 204
 export const RECOMMENDED_SNES_HOLD_ENERGY = 102
 // Energy lost only to hits, as on the Genesis: skating and bursts cost nothing, a knockdown a third of full energy, a hold half that.
@@ -633,7 +640,7 @@ export const SNES_HITS_ONLY = { hitEnergy: 1365, holdEnergy: 683 } as const
 // and 1.23, +5 at +23% and 1.29, +6 at +27% and 1.35, +7 at +32% and 1.41, +8 at +37% and 1.47, +19 at +87%
 // and 2.11; indicative only, as the recordings had no SNES injuries.
 export const RECOMMENDED_SNES_INJURY_BONUS = 6
-export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], goalieWidth: [0, 124], goalieOut: [0, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST], speedBurst: [0, 95], turnRate: [1, 225], puckFriction: [1, 12] }
+export const SNES_AMOUNT_RANGES: Record<SnesAmount, [number, number]> = { hitEnergy: [0, 4096], holdEnergy: [0, 4096], injuryBonus: [0, 20], penaltyTime: [1, 255], fighting: SNES_FIGHT_BONUS_RANGE, injuries: [0, 5], referees: [0, 4], seasonShootout: [0, 2], threeOnThree: [0, 2], fightTime: [0, 2047], threeStars: [0, 2], goalieHold: [0, 3600], diveHold: [1, 3600], goalieWidth: [0, 124], goalieOut: [0, 255], goalieLine: [0, SNES_GOALIE_LINE_MOST], speedBurst: [0, 95], turnRate: [1, 225], puckFriction: [1, 12] }
 const isAmount = (hack: SnesHack): hack is SnesAmount => (SNES_AMOUNTS as SnesHack[]).includes(hack)
 // Where the code keeps its amount, and the position or flail operand it ends with.
 const HIT_AMOUNT_AT = 38
@@ -3628,6 +3635,9 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 //   For no whistle (0), as the Genesis's skips a person's goalie's count, .15's lda / sec / sbc becomes jsl to code
 //   that leaves a person's goalie's count (playerpad,x >= 0) alone while it is above 5: the whistle line (which sets
 //   it to 0 first) and a catch in a dive are still whistled, and the computer's goalie counts as before.
+// - The dive catch (diveHold): puckglue's lda #5 after cmp #SPAgdive / bne becomes the frames wanted. With no
+//   whistle (the hook above), a person's goalie's count above 5 is left alone, so a dive hold over 5 is never
+//   whistled for him either; the computer's goalie counts it down.
 // - The whistle line: just before, a goalie holding the puck nearer centre ice than 187 (lda Ypos,x / cmp #187 /
 //   bpl / cmp #-187 / bmi, else stz temp5,x) is whistled at once. Only a person's goalie gets there, as the
 //   computer's is always in his crease (211 or more out) when he reaches it; hence the line's top, 210.
@@ -3646,6 +3656,7 @@ interface GoalieEnv {
   temp5: number
   d7: number
   holdValue: number
+  diveValue: number
   holdSite: number
   line: number
   widthSite: number
@@ -3654,8 +3665,8 @@ interface GoalieEnv {
 function goalieEnv(rom: Uint8Array): GoalieEnv | null {
   // assgoalie .5: ldy playerpad,x / bpl / lda Xpos,x / cmp #-53.
   const pad = findCodeAll(rom, 'bc(....)10..bd(....)c9cbff')
-  // puckglue: ldy a2 / lda #140 / sta temp5,y / lda SPA,y / cmp #SPAgdive / bne / lda #5.
-  const hold = findCodeAll(rom, 'a491a9....99....b9....c9....d006a90500')
+  // puckglue: ldy a2 / lda #140 / sta temp5,y / lda SPA,y / cmp #SPAgdive / bne / lda #5 (the dive's, diveHold).
+  const hold = findCodeAll(rom, 'a491a9....99....b9....c9....d006a9....')
   // The whistle line, its stz temp5,x, .15 (either way) and, after the whistle, the think timer's sbc d7.
   const line = findCodeAll(rom, 'bd....c9....10..c9....30..9e(....)80..a9ffff9d....80..6b............9d....10..a9....85..22......bd....f0..4c....bd....38e5(..)')
   // .2's box, either way, before .4's jsl check4bench.
@@ -3663,7 +3674,7 @@ function goalieEnv(rom: Uint8Array): GoalieEnv | null {
   if ([pad, hold, line, box].some((found) => found.length !== 1)) return null
   const [playerpad, xpos] = pad[0].groups
   const [temp5, d7] = line[0].groups
-  return { playerpad, xpos, temp5, d7, holdValue: hold[0].at + 3, holdSite: line[0].at + 27, line: line[0].at, widthSite: box[0].at, outSite: box[0].at + 25 }
+  return { playerpad, xpos, temp5, d7, holdValue: hold[0].at + 3, diveValue: hold[0].at + 17, holdSite: line[0].at + 27, line: line[0].at, widthSite: box[0].at, outSite: box[0].at + 25 }
 }
 const goalieHoldOriginal = (env: GoalieEnv) => bytesOf('BD', word(env.temp5), '38 E5', env.d7)
 const goalieHoldCode = (env: GoalieEnv) =>
@@ -3723,6 +3734,16 @@ function goalieHoldPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   return value === 0 ? [frames, ...far] : [frames, ...far.map((place) => ({ ...place, hacked: place.original! }))]
 }
 
+function diveHoldPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
+  const env = goalieEnv(rom)
+  if (!env) return null
+  const now = readU16(rom, env.diveValue)
+  if (now < 1 || now > 0x7fff) return null
+  // Turned on without a number (as when every hack is chosen): half a second, unless the ROM has its own already.
+  const value = amount ?? (now !== SNES_DIVE_HOLD ? now : 30)
+  return [{ at: env.diveValue, original: bytesOf(word(SNES_DIVE_HOLD)), hacked: bytesOf(word(value)), amount: value }]
+}
+
 function goalieWidthPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const env = goalieEnv(rom)
   if (!env) return null
@@ -3761,6 +3782,7 @@ function goalieLinePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 
 const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   goalieHold: (rom, _source, amount) => goalieHoldPlaces(rom, amount),
+  diveHold: (rom, _source, amount) => diveHoldPlaces(rom, amount),
   goalieWidth: (rom, _source, amount) => goalieWidthPlaces(rom, amount),
   goalieOut: (rom, _source, amount) => goalieOutPlaces(rom, amount),
   goalieLine: (rom, _source, amount) => goalieLinePlaces(rom, amount),
@@ -4947,7 +4969,7 @@ const SNES_PAGE_ORDER: SnesHack[] = [
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
   'realTime', 'noIcing',
-  'goalieHold', 'goalieWidth', 'goalieOut', 'goalieLine',
+  'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine',
   'speedBurst', 'turnRate', 'puckFriction',
 ]
 

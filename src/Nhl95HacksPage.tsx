@@ -56,6 +56,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   injuryBonus: 'Each knockdown a skater takes makes a later injury a little likelier.',
   injuryCap: 'The most the knockdowns above can add to the injury risk.',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up.',
   goalieWidth: 'How far a goalie you control goes to each side without the puck.',
   goalieOut: 'How far up the ice a goalie you control comes without the puck.',
   goalieLine: 'The line a goalie you control is whistled past.',
@@ -114,7 +115,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = ['referees']
+const NOT_YET: Nhl95Hack[] = ['referees', 'diveHold']
 
 const OT3_MORE = (
   <p className="note">
@@ -529,6 +530,14 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       whistle at all; a goalie the game controls still gives the puck up by himself.
     </>
   ),
+  diveHold: () => (
+    <>
+      How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original game
+      allows only {holdSeconds(N.diveHold)} seconds, so you must pass or drop the puck at exactly the right moment to keep play
+      going; a longer time gives you a chance. Every goalie, the computer's too. With no whistle in the goalie hold time
+      above, a goalie you control is not whistled for it at all.
+    </>
+  ),
   goalieWidth: (_, stock) => <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. {stock}</>,
   goalieOut: (_, stock) => (
     <>
@@ -594,6 +603,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
 // The words a number is shown with.
 const UNITS: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices) => string>> = {
   goalieHold: () => 'seconds',
+  diveHold: () => 'seconds',
   penaltySeconds: () => 'seconds in the box for each penalty minute',
   fightSeconds: (c) => `seconds in the box for each fighter (${c.fightSeconds === 0 ? 'off' : clockTime(c.fightSeconds)})`,
   fourthPeriodOvertime: (c) => `seconds of overtime (${c.fourthPeriodOvertime === 0 ? 'off' : clockTime(c.fourthPeriodOvertime)})`,
@@ -706,7 +716,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
             label={label}
             value={wanted[hack]}
             range={NHL95_HACK_RANGES[hack]}
-            perUnit={hack === 'goalieHold' ? 60 : 1}
+            perUnit={hack === 'goalieHold' || hack === 'diveHold' ? 60 : 1}
             fresh={project.bytes}
             disabled={unknown(hack) || noCap(hack)}
             onChange={(value) => set({ [hack]: value })}

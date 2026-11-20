@@ -2,7 +2,7 @@ import { clockTime, penaltyLengths } from './penaltytime'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from './hackgroups'
 import { HACK_PARTS, HACK_TITLES, holdSeconds, NO_HACKS, type HackChoices, type HackState, fewerSkaterLinesText } from './hacks'
 import { snesCodeInPlace } from './snes'
-import { detectSnesHacks, SNES_GOALIE_HOLD, SNES_GOALIE_LINE, SNES_GOALIE_OUT, SNES_GOALIE_WIDTH, SNES_AMOUNT_OFF, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesAmount, type SnesHack } from './sneshacks'
+import { detectSnesHacks, SNES_DIVE_HOLD, SNES_GOALIE_HOLD, SNES_GOALIE_LINE, SNES_GOALIE_OUT, SNES_GOALIE_WIDTH, SNES_AMOUNT_OFF, SNES_HACK_TITLES, snesHackInPlaceOnly, type SnesAmount, type SnesHack } from './sneshacks'
 import type { RomProject } from './rom'
 import { snesScoreLogo, snesScoreLogosSupported } from './snesscorelogos'
 import { genesisScoreLogo, hasGenesisScoreLogos } from './genesisscorelogos'
@@ -98,6 +98,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     c.goalieHold === 0
       ? 'A goalie may hold the puck as long as he likes: there is no whistle for it.'
       : `A goalie may hold the puck ${holdSeconds(c.goalieHold)} seconds before the whistle, ${more(c.goalieHold, NO_HACKS.goalieHold, 'longer', 'shorter')} than the original game's ${holdSeconds(NO_HACKS.goalieHold)}.`,
+  diveHold: (c) =>
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after he gets up before the whistle, ${more(c.diveHold, NO_HACKS.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(NO_HACKS.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (c) =>
     `A goalie you control may go ${more(c.goalieWidth, NO_HACKS.goalieWidth, 'wider', 'less far')} to either side of the net than in the original game (${c.goalieWidth}, where the original has ${NO_HACKS.goalieWidth}).`,
   goalieOut: (c) =>
@@ -183,6 +185,7 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   bonuses: 'Turns the hot and cold swings in player ratings on or off.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle.',
   goalieWidth: 'How far a goalie you control may go to either side of the net.',
   goalieOut: 'How far out of his net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
@@ -292,6 +295,7 @@ const SNES: Record<SnesHack, string> = {
   fourthPeriodOvertime: 'Adds a period length to the main menu whose regular-season games get 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
   threeStars: 'The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and shots faced, goals against and shutouts for goalies.',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle.',
   goalieWidth: 'How far a goalie you control may go to either side of the net.',
   goalieOut: 'How far out of his net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
@@ -304,8 +308,10 @@ const SNES: Record<SnesHack, string> = {
 const SNES_GOALIE_SHEET: Partial<Record<SnesHack, (amounts: Record<SnesAmount, number>) => string>> = {
   goalieHold: (a) =>
     a.goalieHold === 0
-      ? 'A goalie you control is never whistled for holding the puck (a catch in a dive still is); the computer\'s goalie is as before.'
+      ? `A goalie you control is never whistled for holding the puck${a.diveHold > SNES_DIVE_HOLD ? '' : ' (a catch in a dive still is)'}; the computer's goalie is as before.`
       : `A goalie may hold the puck ${holdSeconds(a.goalieHold)} seconds before the whistle, ${more(a.goalieHold, SNES_GOALIE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_GOALIE_HOLD)}.`,
+  diveHold: (a) =>
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(a.diveHold)} seconds after he gets up before the whistle, ${more(a.diveHold, SNES_DIVE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_DIVE_HOLD)}.${a.goalieHold === 0 && a.diveHold > SNES_DIVE_HOLD ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (a) =>
     `A goalie you control may go ${more(a.goalieWidth, SNES_GOALIE_WIDTH, 'wider', 'less far')} to either side of the net than in the original game before he is skated back (${a.goalieWidth}, where the original has ${SNES_GOALIE_WIDTH}).`,
   goalieOut: (a) =>

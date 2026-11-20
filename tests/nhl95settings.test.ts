@@ -111,6 +111,7 @@ const IN_PLACE: { name: string; set: Partial<Nhl95HackChoices>; bytes: [number, 
   { name: "a burst's energy", set: { burstEnergy: 0 }, bytes: [[0xaa96, '0000']] },
   { name: 'goalie hold time', set: { goalieHold: 300 }, bytes: [[0x7bb46, '012c'], [0x830fa, '9f6b']] },
   { name: 'no goalie hold whistle', set: { goalieHold: 0 }, bytes: [[0x7bb46, '008c'], [0x830fa, '6002']] },
+  { name: 'goalie hold after a dive catch', set: { diveHold: 30 }, bytes: [[0x7bb56, '001e']] },
   { name: 'goalie range to each side', set: { goalieWidth: 50 }, bytes: [[0x8b8ea, '0032'], [0x8b908, 'ffce']] },
   { name: 'goalie range up the ice', set: { goalieOut: 200 }, bytes: [[0x8b922, '00c8'], [0x8b92c, 'ff38']] },
   { name: 'goalie whistle line', set: { goalieLine: 150 }, bytes: [[0x8301e, '0096'], [0x83026, 'ff6a']] },
@@ -474,6 +475,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
       injuryBonus: 5,
       injuryCap: 25,
       goalieHold: 200,
+      diveHold: 45,
       goalieWidth: 40,
       goalieOut: 220,
       goalieLine: 160,
@@ -505,7 +507,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
     const TESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Tested in the game by the NHL94 Match Viewer project.'
     const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
-    const notYet: string[] = ['referees']
+    const notYet: string[] = ['referees', 'diveHold']
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
       for (const hack of section.hacks.filter((hack) => hack !== 'fightingArcade' && hack !== 'fightingOff')) {

@@ -1026,6 +1026,16 @@ export function HacksPage({ project, name, onChange }: Props) {
           </>,
         )}
         {hack(
+          'diveHold',
+          <>{number('diveHold', 60)} seconds</>,
+          <>
+            How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original
+            game allows only {holdSeconds(NO_HACKS.diveHold)} seconds, so you must pass or drop the puck at exactly the right
+            moment to keep play going; a longer time gives you a chance. Every goalie, the computer's too. With no whistle
+            in the goalie hold time above, a goalie you control is not whistled for it at all. Not yet tested in the game.
+          </>,
+        )}
+        {hack(
           'goalieWidth',
           number('goalieWidth'),
           <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,

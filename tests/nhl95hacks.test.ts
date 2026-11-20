@@ -634,6 +634,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       injuryBonus: 10,
       injuryCap: 50,
       goalieHold: 0,
+      diveHold: 60,
       goalieWidth: 30,
       goalieOut: 200,
       goalieLine: 150,
