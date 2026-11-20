@@ -3532,10 +3532,16 @@ interface StarWeights {
   shotsAgainst: number
   shutout: number
 }
+// A shot faced weighs less than on the Genesis (Match Viewer, 2026-11-20): with the Genesis's 4000 (4500), at about 30
+// shots a team, a goalie was first star in all 28 SNES games played and took 2 of the 3 stars (the original: 9 of 20
+// and 11 of 60). At 1500 (1700) a goalie's 30-shot game with 2 against is worth about a skater's two goals, 3
+// against about one, and a shutout still leads.
 const STAR_WEIGHTS: StarWeights[] = [
-  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 4000, shutout: 16000 },
-  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 4500, shutout: 20800 },
+  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 1500, shutout: 16000 },
+  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1700, shutout: 20800 },
 ]
+// NOSE4Web's first version (19 November 2026), the Genesis's weights: recognised, and brought up to date.
+const FIRST_STAR_WEIGHTS: StarWeights[] = STAR_WEIGHTS.map((w, i) => ({ ...w, shotsAgainst: [4000, 4500][i] }))
 function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const found = findCodeAll(rom, STARS17)
   if (found.length !== 1) return null
@@ -3605,7 +3611,9 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
       bytesOf('A5', d0 + 2, '0A 85', d0 + 2, 'A5', d0, '0A A5', d0 + 2, '69 0000 85', d0 + 2, 'A5', d0, '29 FF7F 85', d0, '6B'),
     ])
   const codes = STAR_WEIGHTS.map(codeFor)
+  const firstCodes = FIRST_STAR_WEIGHTS.map(codeFor)
   let room = -1
+  let first = -1
   // No amount (or 0, taking it out): the choice the ROM holds.
   const asked = amount === 1 || amount === 2
   let choice = asked ? amount : 1
@@ -3613,7 +3621,8 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
     room = loRomOffset(rom[site + 3], readU16(rom, site + 1))
     if (!asked) {
       const which = codes.findIndex((code) => same(rom, room, code))
-      choice = which >= 0 ? which + 1 : 1
+      first = which >= 0 ? -1 : firstCodes.findIndex((code) => same(rom, room, code))
+      choice = which >= 0 ? which + 1 : first >= 0 ? first + 1 : 1
     }
   } else {
     for (const bank of [0x9b, 0x80, loRomBank(site, 0x80)]) {
@@ -3625,7 +3634,7 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   if (room < 0) return null
   return [
     { at: site, original, hacked: bytesOf('22', word(loRomAddress(room)), loRomBank(room, 0x80), '6B') },
-    { at: room, original: unused(codes[0].length), hacked: codes[choice - 1], amount: choice },
+    { at: room, original: unused(codes[0].length), hacked: first >= 0 ? firstCodes[first] : codes[choice - 1], amount: choice, ...(first >= 0 ? { earlier: true } : {}) },
   ]
 }
 
@@ -3840,16 +3849,21 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // 24 back (lda Penaltytimer / sec / sbc d7 / sta / bpl / adc #$0018 / sta / lda #$0020 / tsb sflags3), and
   // that tick also counts attack-zone time, power-play time and time on ice; real time adds 60 ($3C). NOSE4Web's
   // first version left it at 24 (a minor ended 48 seconds of the clock in): recognised, and brought up to date
-  // when the hacks are next applied. The penalty shot's limit is 1000 frames (pstimer), not clock seconds, and
-  // is shown nowhere, so it stays.
+  // when the hacks are next applied. The penalty shot's limit is 1000 frames (SetupPenaltyShot: lda #1 / sta
+  // PenShotActive / lda #1000 / sta pstimer / jsl / rtl), 16.7 real seconds; the Genesis's counts in game time, so
+  // there real time makes it 2.5 times longer, and so it does here: 2500 frames (puckfaceoff2 jmp's to it; whether
+  // the shootouts' attempts go through it too is for Match Viewer to confirm). A ROM from before either change (clock only, 19-20 November 2026) is recognised.
   realTime: (rom) => {
     const found = findCodeAll(rom, 'ad....f0..ad(....)38e9....8d(....)b0').filter(({ groups }) => groups[0] === groups[1])
     const box = findCodeAll(rom, 'ad(....)38e5..8d(....)10..69..008d(....)a92000').filter(({ groups }) => groups[0] === groups[1] && groups[1] === groups[2])
-    if (found.length !== 2 || box.length !== 1) return null
+    const shot = findCodeAll(rom, 'a901008d....a9....8d....22......6b')
+    if (found.length !== 2 || box.length !== 1 || shot.length !== 1) return null
     const clock = found.map(({ at }) => ({ at: at + 10, original: hexBytes('AA0A'), hacked: hexBytes('4404') }))
-    const boxAt = box[0].at + 12
-    const first = clock.every((place) => holds(rom, place, 'hacked')) && rom[boxAt] === 0x18
-    return [...clock, first ? { at: boxAt, original: hexBytes('1800'), hacked: hexBytes('1800'), earlier: true } : { at: boxAt, original: hexBytes('1800'), hacked: hexBytes('3C00') }]
+    const clockIn = clock.every((place) => holds(rom, place, 'hacked'))
+    // Each added later: where the clock is in and it is not, an earlier version.
+    const later = (at: number, original: string, hacked: string): Placed =>
+      clockIn && same(rom, at, hexBytes(original)) ? { at, original: hexBytes(original), hacked: hexBytes(original), earlier: true } : { at, original: hexBytes(original), hacked: hexBytes(hacked) }
+    return [...clock, later(box[0].at + 12, '1800', '3C00'), later(shot[0].at + 7, 'E803', 'C409')]
   },
   threeOnThree: (rom, _source, amount) => threeOnThreePlaces(rom, amount),
   // A shootout for a tied regular-season game, the game's own (PlayShootout), from PeriodOver: after one

@@ -30,8 +30,8 @@ interface Game {
   checks: number[]
 }
 const WEIGHTS = [
-  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 4000, shutout: 16000 },
-  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 4500, shutout: 20800 },
+  { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: 11000, shotsAgainst: 1500, shutout: 16000 },
+  { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: 11000, shotsAgainst: 1700, shutout: 20800 },
 ]
 
 // The score the Genesis option's formula gives player x (0-51).
@@ -205,6 +205,26 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES three stars', () => {
       expect(on[site]).toBe(0x22)
       expect(on[site + 4]).toBe(0x6b)
       expect(detectSnesHacks(on).amounts?.threeStars).toBe(choice)
+    }
+  })
+
+  it("NOSE4Web's first version (the Genesis's 4000 / 4500 a shot faced) is recognised and brought up to date", () => {
+    const rom = open('NHL94.smc')
+    for (const [choice, now, then] of [[1, 'dc05', 'a00f'], [2, 'a406', '9411']] as const) {
+      const on = applySnesHacks(rom, {}, false, { threeStars: choice })
+      const room = relocatedSnesHack(on.bytes, 'threeStars')![1].at
+      const first = on.bytes.slice()
+      const code = Buffer.from(first.subarray(room, room + 400)).toString('hex')
+      const at = code.indexOf(`daa2${now}22`)
+      expect(at % 2).toBe(0)
+      expect(code.indexOf(`daa2${now}22`, at + 2)).toBe(-1)
+      first.set(Buffer.from(then, 'hex'), room + at / 2 + 2)
+      const read = detectSnesHacks(first)
+      expect(read.unknown).not.toContain('threeStars')
+      expect(read.amounts?.threeStars).toBe(choice)
+      expect(read.vaultVersions).toContain('threeStars')
+      expect(Buffer.compare(applySnesHacks({ ...on, bytes: first }, { threeStars: true }, true).bytes, on.bytes)).toBe(0)
+      expect(Buffer.compare(buildRom(applySnesHacks({ ...on, bytes: first }, {}, false, { threeStars: 0 })), buildRom(rom))).toBe(0)
     }
   })
 

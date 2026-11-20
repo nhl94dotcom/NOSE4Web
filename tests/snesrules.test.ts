@@ -31,8 +31,11 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES real-time clock and no ici
     const BOX = 0xf3f66
     const rom = open('NHL94.smc')
     expect(hex(rom.bytes, BOX - 1, 6)).toBe('6918008d2216')
+    const SHOT = 0xfb062
+    expect(hex(rom.bytes, SHOT - 1, 4)).toBe('a9e8038d')
     const on = applySnesHacks(rom, { realTime: true })
     expect(hex(on.bytes, BOX, 2)).toBe('3c00')
+    expect(hex(on.bytes, SHOT, 2)).toBe('c409')
     expect(detectSnesHacks(on.bytes).vaultVersions ?? []).not.toContain('realTime')
     // The first version: the clock only.
     const first = rom.bytes.slice()
@@ -44,6 +47,11 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES real-time clock and no ici
     const updated = applySnesHacks({ ...rom, bytes: first }, { realTime: true }, true)
     expect(Buffer.compare(updated.bytes, on.bytes)).toBe(0)
     expect(Buffer.compare(applySnesHacks({ ...rom, bytes: first }, { realTime: false }).bytes, rom.bytes)).toBe(0)
+    // The version with the box but not the penalty shot's limit.
+    const second = on.bytes.slice()
+    second.set([0xe8, 0x03], SHOT)
+    expect(detectSnesHacks(second).vaultVersions).toContain('realTime')
+    expect(Buffer.compare(applySnesHacks({ ...rom, bytes: second }, { realTime: true }, true).bytes, on.bytes)).toBe(0)
     // Another number in the box's place is not ours.
     const odd = on.bytes.slice()
     odd[BOX] = 0x20
