@@ -1453,7 +1453,7 @@ NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The te
 setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
 aebaeb9).
 
-### Fight momentum and blocked shots (`fightMomentum`, `blockedShots`; added 2026-11-20, not yet tested in the game)
+### Fight momentum and blocked shots (`fightMomentum`, `blockedShots`; added 2026-11-20; fight momentum and the counts tested in the game by MV 2026-11-20)
 
 NHL 94's two options (section 9's fight momentum, section 17's blocked shots) in NHL '95, the same bytes in
 NHL_95, W18 and W18p (tests `tests/nhl95momentum.test.ts`, `tests/nhl95blocks.test.ts` assert the hook sites, every
@@ -2506,7 +2506,11 @@ The commissioner's definition (shots only, a skater not a goalie, the team that 
 - Player Stats: the time on ice hack's five places (`TOI_HOOKS`) with a pages block (`GP_CODES`, all from one
   source: `GV`, `BLK`, `TOI` flags; with `BLK` 0 it is the giveaway pages byte for byte). Pages: 5-6 Giveaways /
   Takeaways (with giveaways), then Blocked Shots, then Time On Ice; the blocks page's GetStatColumn column is its page
-  number, reading the count byte.
+  number, reading the count byte. The headings: on the blocks page the SOG column's is `' BLK    '` (length `$A`), its
+  spaces over the PIM column's, which HEAD skips (as Time On Ice's `'     TOI'` does). The first version's `' BLK'`
+  left the page before's heading there (TK, TOI or PIM; MV 2026-11-20): its four codes stay in `GP_CODES` after the
+  current ones, recognised, and replaced whenever the hacks are applied (`blockedShotsOutdated` offers it on the page).
+  NHL '95's are the same, translated (`nhl95BlockedShotsOutdated`, put in again when blocked shots is asked for on).
 
 RAM: counts `$FFE890`-`$FFE8CF` (a byte a roster place, pnum, 32 a team, home first, to 255); team totals at team
 struct `+$2236` (`$FFE904`, `$FFEC68`). Match Viewer found `$FFE000`-`$FFFEBF` unwritten in recorded games apart from
@@ -2553,7 +2557,11 @@ Three options, as giveaways are split: `blockedShots` (the counts), `blockedShot
   `$40:5600`. Not yet confirmed unwritten by Match Viewer.
 - Game Stats: the giveaways row's code made general (`statRowPlaces`, which gives giveaways' block byte for byte):
   the same places, the row `Blocked Shots` with source `$0010, totals, $FFFF`. So `EXCLUDES` holds it with
-  `giveawaysShown`; `detect` reads the other one off, not unknown.
+  `giveawaysShown`; `detect` reads the other one off, not unknown. A single-number row (kind `$x0`) is read at
+  DisplayStats `.t1xx` (`lda [a0] / clc / adc a2 / tay / lda $0000,y / sta d0 / jsl PushNumber / jmp .7`), not at `.5`
+  as the a/b rows are, so that `tay / lda $0000,y` is also a jsl to the row's read code (a2 = 0 home, 2 visitors).
+  The first version (87d2c57) missed it, so the row showed whatever low RAM held (65535, or 0 on SA-1; MV
+  2026-11-20): recognised as an earlier version (`earlier` places, `VAULT_VERSION_NOTE`), put in again on request.
 - Player Stats: a page chained on what the four places call (the game's code, the time on ice page's, the giveaway
   pages' or McMarkis's), the block starting with a note (`N4WB`, then the places' bytes inverted, so that the code in
   it is not found by the other pages' patterns). Original layout: column 6, or 8 after the giveaway pages; with the

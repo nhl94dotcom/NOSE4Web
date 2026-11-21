@@ -3264,12 +3264,19 @@ function blockedShotsPlaces(rom: Uint8Array): Placed[] | null {
 
 // Game Stats gets a row more, "Blocked Shots": each team's total, as the game's single-number rows (kind $10, shown
 // with penalties on or off), in the same places as the giveaways' row (statRowPlaces), so not with it.
-function blockedShotsShownPlaces(rom: Uint8Array): Placed[] | null {
+// A single-number row's number is read at DisplayStats .t1xx (lda [a0] / clc / adc a2 / tay / lda $0000,y / sta d0 /
+// jsl PushNumber / jmp .7), not at .5 as the giveaways' a/b row's are, so that read goes to the same code too. The
+// first version (87d2c57) left it alone, so the row showed what low RAM held there: recognised, to be put in again.
+function blockedShotsShownPlaces(rom: Uint8Array, first = false): Placed[] | null {
   const ram = blkRam(rom)
   const shown = gtShownEnv(rom)
   if (!ram || !shown) return null
   const totals = (ram.at + BLK_TOTALS) & 0xffff
-  return statRowPlaces(rom, shown, BLK_ROW_NAME, ram.bank, totals, 4, bytesOf(word(0x10), word(totals), 'FFFF'))
+  const places = statRowPlaces(rom, shown, BLK_ROW_NAME, ram.bank, totals, 4, bytesOf(word(0x10), word(totals), 'FFFF'))
+  if (!places || first) return places
+  const single = findCodeAll(rom, 'a7..1865..' + '........' + '85..22......4c....')
+  if (single.length !== 1) return null
+  return [...places, { at: single[0].at + 5, original: hexBytes('A8B90000'), hacked: places[0].hacked }]
 }
 
 // ------------------------------------------------- blocked shots in Player Stats
@@ -4422,7 +4429,12 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   giveawaysShown: (rom) => giveawayShownPlaces(rom),
   giveawayPages: (rom) => giveawayPagesPlaces(rom),
   blockedShots: (rom) => blockedShotsPlaces(rom),
-  blockedShotsShown: (rom) => blockedShotsShownPlaces(rom),
+  blockedShotsShown: (rom) => {
+    const places = blockedShotsShownPlaces(rom)
+    if (!places || places.every((place) => holds(rom, place, 'hacked'))) return places
+    const first = blockedShotsShownPlaces(rom, true)
+    return first && first.every((place) => holds(rom, place, 'hacked')) ? first.map((place) => ({ ...place, earlier: true })) : places
+  },
   blockedShotPages: (rom) => blkPagePlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),

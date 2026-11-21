@@ -12,6 +12,7 @@ import {
   NHL95_HACK_SECTIONS,
   NHL95_HACK_TITLES,
   NO_NHL95_HACKS,
+  nhl95BlockedShotsOutdated,
   nhl95GiveawaysOutdated,
   nhl95ShootoutOutdated,
   nhl95HackSheet,
@@ -118,7 +119,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = ['referees', 'fightMomentum', 'blockedShots']
+const NOT_YET: Nhl95Hack[] = ['referees', 'blockedShots']
 
 const OT3_MORE = (
   <p className="note">
@@ -705,6 +706,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
     ),
     // An earlier version of a hack: on, and put in again as the current one.
     giveaways: nhl95GiveawaysOutdated(project.bytes) && putInCurrent,
+    blockedShots: nhl95BlockedShotsOutdated(project.bytes) && putInCurrent,
     seasonShootout: nhl95ShootoutOutdated(project.bytes) && putInCurrent,
     seasonShootoutNow: nhl95ShootoutOutdated(project.bytes) && putInCurrent,
     holdEnergy: <p>{button(`Use the recommended ${RECOMMENDED_HOLD_ENERGY}`, { holdEnergy: RECOMMENDED_HOLD_ENERGY })}</p>,

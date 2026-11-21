@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { applyHacks, detectHacks, NO_HACKS, type HackChoices } from '../src/core/hacks'
+import { applyHacks, blockedShotsOutdated, detectHacks, NO_HACKS, playerStatsPageCodes, type HackChoices } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -49,7 +49,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('blocked shots (Genesis)', () =>
     PAGE_SITES.forEach((at, i) => expect(u32(on, at + 2)).toBe(pages + 4 * i))
     expect(hex(on, pages + 0x14 + 10, 4)).toBe('0c400005')
     expect(pageText(on)).toContain('[  Blocked Shots    ')
-    expect(pageText(on)).toContain(' BLK')
+    // BLK, then spaces over the next column's heading (the page before's TK, PIM or TOI), as Time On Ice's does.
+    expect(pageText(on)).toContain('\x00\x0a BLK    ')
     expect(pageText(on)).not.toContain('Giveaways')
     expect(detectHacks(on)).toEqual({ choices: { ...NO_HACKS, blockedShots: true }, unknown: [] })
     // Off: the game, byte for byte.
@@ -84,6 +85,32 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('blocked shots (Genesis)', () =>
           expect(detectHacks(kept)).toEqual({ choices: { ...choices, giveaways: false, blockedShots: true }, unknown: [] })
           expect(u32(kept, 0xfde5e + 2)).toBe(u32(kept, 0x153ca + 2) + 8)
         }
+      }
+    }
+  })
+
+  it('replaces the first version of its pages, whose heading left the next column’s, in any mix', () => {
+    const rom = open('nhl94.bin')
+    const codes = playerStatsPageCodes()
+    for (const giveaways of [false, true]) {
+      for (const timeOnIce of [false, true]) {
+        const choices = { ...NO_HACKS, giveaways, timeOnIce, blockedShots: true }
+        const on = applyHacks(rom, choices).bytes
+        const [now, first] = codes.filter((c) => c.gv === giveaways && c.blk && c.toi === timeOnIce)
+        expect(first.code.length).toBe(now.code.length - 4)
+        const pages = u32(on, PAGE_SITES[0] + 2)
+        expect(Buffer.compare(on.subarray(pages, pages + now.code.length), now.code)).toBe(0)
+        // As 77b70a2 made it: the first version's code where the pages are, the room after it free.
+        const earlier = on.slice()
+        earlier.set(first.code, pages)
+        earlier.fill(0xff, pages + first.code.length, pages + now.code.length)
+        expect(detectHacks(earlier)).toEqual({ choices, unknown: [] })
+        expect([blockedShotsOutdated(on), blockedShotsOutdated(earlier)]).toEqual([false, true])
+        const again = applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), choices)
+        expect(pageText(again.bytes)).toContain('\x00\x0a BLK    ')
+        expect(detectHacks(again.bytes)).toEqual({ choices, unknown: [] })
+        const off = applyHacks(openRom(buildRom({ ...rom, bytes: earlier })), NO_HACKS)
+        expect(Buffer.compare(buildRom(off), buildRom(grown(rom, off.bytes.length)))).toBe(0)
       }
     }
   })

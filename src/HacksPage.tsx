@@ -6,6 +6,7 @@ import { FIGHT_TEXTS, type FightChoice } from './core/fight'
 import type { SeasonTies } from './core/hacks'
 import {
   applyHacks,
+  blockedShotsOutdated,
   giveawaysOutdated,
   shootoutOutdated,
   baseWeightForYear,
@@ -540,7 +541,10 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
         {hack(
           'blockedShots',
-          onOff('blockedShots'),
+          <>
+            {onOff('blockedShots')}
+            {blockedShotsOutdated(project.bytes) && putInCurrent}
+          </>,
           "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Not yet tested in the game.",
         )}
         {hack(
@@ -754,7 +758,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             With fighting on: the team whose player wins a fight gets a lift, +2 Agility and +2 Speed for its skaters
             (not the goalie) for 90 seconds of play, on top of any crowd boost. The 90 seconds run only while the clock
             does, and carry over an intermission; another fight gives the lift to its winner's team and starts them
-            again. Not yet tested in the game.
+            again. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(

@@ -14,6 +14,12 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
 const far = (b: Uint8Array, at: number) => ((b[at + 3] & 0x7f) << 15) | ((b[at + 1] | (b[at + 2] << 8)) & 0x7fff)
 const latin = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('latin1')
+// Where DisplayStats .t1xx's tay / lda $0000,y is (the hex is even-aligned: a byte is two characters).
+const singleRead = (b: Uint8Array) => {
+  const found = [...hex(b, 0, b.length).matchAll(/a7..1865..a8b9000085..22......4c..../g)].filter((m) => m.index % 2 === 0)
+  expect(found.length).toBe(1)
+  return found[0].index / 2 + 5
+}
 const offChoices = () => Object.fromEntries(SNES_HACKS.map((hack) => [hack, false])) as SnesHackChoices
 
 // The original game's places (file offsets): puckbody's lda puckz / cmp #8, StartGame_go's second jsl LoadTeamLines.
@@ -91,6 +97,30 @@ describe('SNES blocked shots', () => {
     // The row, as the game's single-number rows: kind $10, the totals, no second number.
     expect(latin(reopened.bytes, 0, reopened.bytes.length)).toContain('\x0f\x00Blocked Shots')
     expect(latin(reopened.bytes, 0, reopened.bytes.length)).toContain('  Player         G  A Pt   BLK')
+    // The single-number rows' read (DisplayStats .t1xx: lda [a0] / clc / adc a2 / tay / lda $0000,y / sta d0 / jsl
+    // PushNumber / jmp) goes to the same code as the a/b rows' two reads at .5.
+    const single = singleRead(rom.bytes)
+    expect(hex(rom.bytes, single, 4)).toBe('a8b90000')
+    const reads = [...hex(reopened.bytes, 0, reopened.bytes.length).matchAll(/a7..e6..e6..1865..(22......)85..22......a7..85..a9/g)]
+    expect(reads.length).toBe(1)
+    expect(hex(reopened.bytes, single, 4)).toBe(reads[0][1])
+    // The first version (87d2c57) left that read alone: it reads as on, and gets it when put in again.
+    const first = reopened.bytes.slice()
+    first.set([0xa8, 0xb9, 0x00, 0x00], single)
+    const firstState = detectSnesHacks(first)
+    expect(firstState.choices.blockedShotsShown).toBe(true)
+    expect(firstState.unknown).toEqual(before.unknown)
+    expect(firstState.vaultVersions).toContain('blockedShotsShown')
+    // Put in again (its code may go to other free room, as the page is in by then): all three reads to one code.
+    const upgraded = openRom(buildRom(applySnesHacks({ ...reopened, bytes: first }, { blockedShotsShown: true }, true)))
+    const upState = detectSnesHacks(upgraded.bytes)
+    expect(upState.choices.blockedShots && upState.choices.blockedShotsShown && upState.choices.blockedShotPages).toBe(true)
+    expect(upState.vaultVersions ?? []).not.toContain('blockedShotsShown')
+    expect(upState.unknown).toEqual(before.unknown)
+    const upReads = [...hex(upgraded.bytes, 0, upgraded.bytes.length).matchAll(/a7..e6..e6..1865..(22......)85..22......a7..85..a9/g)]
+    expect(hex(upgraded.bytes, single, 4)).toBe(upReads[0][1])
+    expect(Buffer.compare(buildRom(applySnesHacks(upgraded, { blockedShots: false, blockedShotsShown: false, blockedShotPages: false })), buildRom(rom))).toBe(0)
+    expect(Buffer.compare(buildRom(applySnesHacks({ ...reopened, bytes: first }, { blockedShots: false, blockedShotsShown: false, blockedShotPages: false })), buildRom(rom))).toBe(0)
     // With giveaways' row asked for too: one or the other.
     expect(() => applySnesHacks(reopened, { giveaways: true, giveawaysShown: true })).toThrow(/cannot both be on/)
     const swapped = applySnesHacks(reopened, { giveaways: true, giveawaysShown: true, blockedShotsShown: false })

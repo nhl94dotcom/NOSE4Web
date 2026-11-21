@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_SECTIONS, NHL95_HACK_TITLES, nhl95HackSheet, NO_NHL95_HACKS, Nhl95HackError } from '../src/core/nhl95hacks'
+import { applyNhl95Hacks, detectNhl95Hacks, NHL95_HACK_SECTIONS, NHL95_HACK_TITLES, nhl95BlockedShotsOutdated, nhl95HackSheet, nhl95PlayerStatsPageCodes, NO_NHL95_HACKS, Nhl95HackError } from '../src/core/nhl95hacks'
 import { buildRom, openRom } from '../src/core/rom'
 import { expectSameBytes } from './samebytes'
 
@@ -91,6 +91,31 @@ describe.skipIf(names.length === 0)("blocked shots in each NHL '95 ROM", () => {
         const code = target(together.bytes, 0x7bca8)
         expect(target(together.bytes, 0x922c2) === code + 8).toBe(!giveaways)
         expectSameBytes(applyNhl95Hacks(together, { blockedShots: false }).bytes, without.bytes)
+      }
+    }
+    // The first version of the pages (b174169), whose heading ' BLK' left the next column's: replaced when put in again.
+    const codes = nhl95PlayerStatsPageCodes()
+    const heading = Buffer.from('000a20424c4b20202020', 'hex')
+    for (const giveaways of [false, true]) {
+      for (const timeOnIce of [false, true]) {
+        const choices = { ...BODY, giveaways, timeOnIce, blockedShots: true }
+        const on = applyNhl95Hacks(rom, choices)
+        const [now, first] = codes.filter((c) => c.gv === giveaways && c.blk && c.toi === timeOnIce)
+        expect(first.code.length).toBe(now.code.length - 4)
+        const at = Buffer.from(on.bytes).indexOf(Buffer.from(now.code))
+        expect(at).toBeGreaterThan(0)
+        expect(Buffer.from(now.code).indexOf(heading)).toBeGreaterThan(0)
+        const earlier = on.bytes.slice()
+        earlier.set(first.code, at)
+        earlier.fill(0xff, at + first.code.length, at + now.code.length)
+        const reopened = { ...on, bytes: earlier }
+        expect(detectNhl95Hacks(earlier)).toEqual({ choices: { ...base, ...choices }, unknown: [] })
+        expect([nhl95BlockedShotsOutdated(on.bytes), nhl95BlockedShotsOutdated(earlier)]).toEqual([false, true])
+        // Left as it is when nothing is asked of it.
+        expect(applyNhl95Hacks(reopened, {}).bytes).toBe(earlier)
+        const again = applyNhl95Hacks(reopened, { blockedShots: true })
+        expect(Buffer.from(again.bytes).indexOf(Buffer.from(now.code))).toBeGreaterThan(0)
+        expect(detectNhl95Hacks(again.bytes)).toEqual({ choices: { ...base, ...choices }, unknown: [] })
       }
     }
     // Giveaways out with blocked shots kept: the row is put in for blocked shots.
