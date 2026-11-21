@@ -129,7 +129,6 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
       {problem && <p className="error">{problem}</p>}
       {result && after && (
         <>
-          <p>{tradeSummary(project, live[0], live[1])}</p>
           <table className="left">
             <thead>
               <tr>
@@ -184,9 +183,6 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
               {labels[entry.team]} would then be {entry.over} bytes too large for its place in the ROM.
             </p>
           ))}
-          <p>
-            <button onClick={make}>Make this trade</button>
-          </p>
         </>
       )}
       <p>
@@ -303,7 +299,20 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
           )
         })}
       </div>
-
+      {/* While players are ticked, what the trade does and its button stay in view at the bottom of the window. */}
+      {picked > 0 && (
+        <div className="ticked-tools">
+          {result ? (
+            <p>
+              <b>{tradeSummary(project, live[0], live[1])}</b> <button onClick={make}>Make this trade</button>
+            </p>
+          ) : (
+            <p>
+              <b>This trade cannot be made.</b> <span className="note">The reason is under What it would do, at the top.</span>
+            </p>
+          )}
+        </div>
+      )}
     </main>
   )
 }

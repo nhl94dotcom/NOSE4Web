@@ -192,13 +192,13 @@ export function HelpPage() {
           digits and common punctuation can be used, since that is all the game's font contains.
         </li>
         <li>
-          <b>Forwards</b> and <b>Goalie bytes</b>: the game decides who plays where by roster order, not by each
+          <b>Forwards</b> and <b>Goalies (1 for each)</b>: the game decides who plays where by roster order, not by each
           player's own position. The first players on the roster are the goalies, the next ones the forwards, and
           the rest the defencemen; the line under these boxes says how many of each the team has now, and each row's{' '}
           <b>Pos</b> column shows where that player ends up.
           <ul>
             <li>
-              <b>Goalie bytes</b> set how many goalies: four boxes, one for each goalie. Put 1 in a box for each
+              <b>Goalies (1 for each)</b> sets how many goalies: four boxes, one for each goalie. Put 1 in a box for each
               goalie, from the left, and 0 in the rest: 1 1 0 0 is two goalies, 1 1 1 0 three. The original rosters
               have other numbers there, such as 13 6 0 0, but the game only checks whether each box is 0, so 13 6 0
               0 plays exactly like 1 1 0 0.
@@ -1208,7 +1208,7 @@ export function HelpPage() {
       <ul>
         <li>
           On a team's page: <strong>Reset names</strong>, <strong>Reset roster</strong> (the players, their order
-          and attributes, and the forwards and goalie bytes), <strong>Reset lines</strong>,{' '}
+          and attributes, and the counts of forwards and goalies), <strong>Reset lines</strong>,{' '}
           <strong>Reset home colours</strong> and <strong>Reset away colours</strong>.
         </li>
         <li>
@@ -1392,16 +1392,6 @@ export function HelpPage() {
           are, the more even the league. Teams more than one standard deviation from the average are marked. The
           original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
         </li>
-        <li>
-          <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
-          and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
-          sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
-        </li>
-        <li>
-          <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
-          lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
-          back.
-        </li>
       </ul>
 
       <h3 id="help-trade">Trades and free agents</h3>
@@ -1469,6 +1459,23 @@ export function HelpPage() {
         Ratings have seven steps, which the game shows as ranges such as 81-98, so "raise by 1" moves a player up
         one range. Hand, fighting and the goalie values the game does not use are not offered.
       </p>
+
+      <p>The same page also has three changes for every team at once:</p>
+      <ul>
+        <li>
+          <b>Overall shown</b> sets each team's shown overall to its roster's average.
+        </li>
+        <li>
+          <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
+          and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
+          sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
+        </li>
+        <li>
+          <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
+          lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
+          back.
+        </li>
+      </ul>
 
       <h3 id="help-hacks">Hacks</h3>
       <p>
@@ -2500,7 +2507,7 @@ export function HelpPage() {
           penalties and line changes, and the play modes the game can start in.
         </li>
         <li>
-          <b>As in NHL 94</b> (checked by the NHL94 Match Viewer project): the goalie bytes and forward count split the roster the same
+          <b>As in NHL 94</b> (checked by the NHL94 Match Viewer project): the goalie boxes and forward count split the roster the same
           way, and only whether a goalie box is 0 matters; the six team ratings do the same jobs; and new playoffs
           freeze with a Team 1 that is in none of the playoff draws, which Check ROM looks for. One difference: a
           season remembers each team's forward and defence counts from when it started, so a change to them only

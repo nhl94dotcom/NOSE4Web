@@ -649,7 +649,7 @@ export function TeamEditor(props: Props) {
             <NumberField min={0} max={15} value={team.forwards} onValue={(n) => onChange(setForwards(team, n))} />
           </label>
           <label title="One box for each goalie: 1 makes that roster spot a goalie, 0 leaves it out. Fill from the left: 1 1 0 0 is two goalies.">
-            Goalie bytes
+            Goalies (1 for each)
             <span>
               {team.goalieNibbles.map((value, i) => (
                 <NumberField key={i} min={0} max={15} value={value} onValue={(n) => changeRoster(setGoalieNibble(team, i, n))} />
@@ -658,14 +658,10 @@ export function TeamEditor(props: Props) {
           </label>
         </div>
         <p className="note">
-          The game splits the roster by order, not by each player's own position (the Pos column on the Roster tab): the first {goalies} on the roster{' '}
-          {goalies === 1 ? 'is the goalie' : 'are goalies'}, the next {team.forwards} {team.forwards === 1 ? 'is a forward' : 'are forwards'}, and the other{' '}
-          {Math.max(0, team.players.length - goalies - team.forwards)} defencemen. <b>Goalie bytes</b> set how many
-          goalies: put 1 in a box for each goalie, from the left, and 0 in the rest (1 1 0 0 is two goalies). The
-          original rosters have other numbers there, such as 13 6 0 0, but the game only checks whether a box is 0,
-          so 13 6 0 0 plays exactly like 1 1 0 0. <b>Forwards</b> sets how many of the skaters
-          after them are forwards. The <b>Pos</b> column in the tables below shows where each player ends up. To make a
-          player a forward or a defenceman, move him into that part of the roster.
+          {team.players.length} players: {goalies} {goalies === 1 ? 'goalie' : 'goalies'}, {team.forwards}{' '}
+          {team.forwards === 1 ? 'forward' : 'forwards'} and {team.defense} defence. The game goes by roster order, not
+          by each player's own position: first the goalies (a 1 in each goalie box, from the left), then the forwards,
+          then the defence. To change a player's position, move him on the Roster tab.
         </p>
         <div className="fields">
           {(props.teamRatingList ?? TEAM_RATINGS).map((rating, i) => (
@@ -703,11 +699,6 @@ export function TeamEditor(props: Props) {
           Defensive Awareness: they only decide the other playoff games the game plays out on its own. Home, Away, Power
           play and Penalty kill nudge a few of each player's ratings in those situations, by less than half a point; see
           Help.
-        </p>
-        <p className="note">
-          {team.players.length} players: {goalies} goalies, {team.forwards} forwards, {team.defense} defence. The
-          first skaters after the goalies are the forwards. The roster's first players are the goalies, one for each
-          goalie box up to the last that is not zero.
         </p>
       </section>
 
@@ -845,7 +836,7 @@ export function TeamEditor(props: Props) {
           <RosterCardPanel game={game} onMake={props.onRosterCard} />
           <p>
             {reset('roster', 'roster')}{' '}
-            <span className="note">The players, their order and attributes, and the forwards and goalie bytes.</span>
+            <span className="note">The players, their order and attributes, and the counts of forwards and goalies.</span>
           </p>
           <p>
             <label>

@@ -804,7 +804,8 @@ test.describe('with the NHL 94 ROM', () => {
     await matchup.screenshot({ path: 'test-results/shots/league-matchup.png' })
     await balance.screenshot({ path: 'test-results/shots/league-balance.png' })
 
-    // Home and away: the original game's differ by team; one pair for every team, and Undo takes it back.
+    // Home and away, on Bulk changes: the original game's differ by team; one pair for every team, and Undo takes it back.
+    await entry(page, 'Bulk changes').click()
     const homeAway = page.locator('#home-away')
     await expect(homeAway.getByText('Every team has the same pair.')).toHaveCount(0)
     await page.getByLabel('Home rating for every team').selectOption('1')
