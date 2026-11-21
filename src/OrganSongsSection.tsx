@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   defaultPartChoices,
   GAME_INSTRUMENTS,
@@ -61,6 +61,17 @@ import { snesMusicSound } from './snesplayer'
 interface Props {
   project: RomProject
   onChange: (project: RomProject) => void
+}
+
+// The game music sections: a MIDI file read and not yet put in, kept by the app while other pages show, so that it
+// comes back with the section and a download can say it is not in (PendingChanges.tsx).
+export interface HeldMusic {
+  title: string
+  held: unknown
+}
+interface MusicProps extends Props {
+  kept?: HeldMusic | null
+  onKeep?: (music: HeldMusic | null) => void
 }
 
 // Who uses each song: the teams that have it in a slot, by their initials, and whether Random picks from it.
@@ -222,12 +233,14 @@ export function OrganSongsSection({ project, onChange }: Props) {
 
 // The Genesis game's other music, NHL 94's or NHL '95's: the title, end of period and scouting report pieces. Listen
 // to them, export them as MIDI, or replace one with a MIDI file, each of its parts on a game instrument chosen for it.
-export function GameMusicSection({ project, onChange }: Props) {
+export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps) {
   const player = useSongPlayer<number>()
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
-  const [pending, setPending] = useState<{ number: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, PartChoice> } | null>(null)
+  type Pending = { number: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, PartChoice> }
+  const [pending, setPending] = useState<Pending | null>(() => (kept?.held as Pending | undefined) ?? null)
+  useEffect(() => onKeep?.(pending ? { title: pending.title, held: pending } : null), [onKeep, pending])
   const nhl95 = project.game.edition === 95
   if (project.game.platform !== 'genesis' || !(nhl95 ? nhl95SongsSupported : genesisSongsSupported)(project.bytes)) return null
   const list = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
@@ -556,12 +569,12 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
 
 // The SNES game's other music: the title, menu and playoff pieces. Listen to them, export them as MIDI, or replace
 // one with a MIDI file, each of its parts on one of the game's instruments chosen for it.
-export function SnesGameMusicSection({ project, onChange }: Props) {
+export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicProps) {
   const player = useSongPlayer<number>()
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   // A MIDI file read for a piece, waiting for its parts' instruments to be chosen.
-  const [pending, setPending] = useState<{
+  type Pending = {
     index: number
     title: string
     notes: MidiNote[]
@@ -571,7 +584,9 @@ export function SnesGameMusicSection({ project, onChange }: Props) {
     parts: MusicPart[]
     choices: Map<number, SnesPartChoice>
     own: SnesOwnMidi | null
-  } | null>(null)
+  }
+  const [pending, setPending] = useState<Pending | null>(() => (kept?.held as Pending | undefined) ?? null)
+  useEffect(() => onKeep?.(pending ? { title: pending.title, held: pending } : null), [onKeep, pending])
   if (project.game.platform !== 'snes') return null
   const pieces = SNES_GAME_MUSIC.map((piece, index) => {
     const pointer = snesMusicPointer(project.bytes, index)

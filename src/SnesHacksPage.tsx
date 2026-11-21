@@ -3,7 +3,9 @@ import { HitsTable } from './HitsTable'
 import { snesCodeInPlace } from './core/snes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { rebase, type HackDraft } from './hackdraft'
+import { PendingBar } from './PendingChanges'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { HackShortcuts } from './HackShortcuts'
@@ -92,6 +94,9 @@ interface Props {
   // The ROM's name, for the Discord post.
   name: string
   onChange: (project: RomProject) => void
+  // Choices made here earlier and not applied, kept by the app while other pages were shown (PendingChanges.tsx).
+  kept?: HackDraft | null
+  onKeep?: (draft: HackDraft | null) => void
 }
 
 const ABOUT: Record<SnesHack, ReactNode> = {
@@ -288,14 +293,26 @@ function whyNotHere(project: RomProject, hack: SnesHack): string {
 
 const sameChoices = (a: SnesHackChoices, b: SnesHackChoices) => SNES_HACKS.every((hack) => a[hack] === b[hack])
 
-export function SnesHacksPage({ project, name, onChange }: Props) {
+export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const state = useMemo(() => detectSnesHacks(project.bytes), [project.bytes])
   const notHere = (hack: SnesHack) => whyNotHere(project, hack)
   const notOfferedHacks = Object.keys(state.notOffered ?? {}) as SnesHack[]
   // The choices being made, which start again from the ROM whenever it changes.
   const hadAmounts: Record<SnesAmount, number> = state.amounts ?? SNES_AMOUNT_OFF
-  const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
+  // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
+  const [draft, setDraft] = useState(() => ({
+    rom: project.bytes,
+    choices: rebase(state.choices, kept?.base, kept?.wanted),
+    amounts: rebase(hadAmounts, kept?.baseAmounts, kept?.amounts),
+  }))
+  if (draft.rom !== project.bytes) {
+    const before = detectSnesHacks(draft.rom)
+    setDraft({
+      rom: project.bytes,
+      choices: rebase(state.choices, before.choices, draft.choices),
+      amounts: rebase(hadAmounts, before.amounts ?? SNES_AMOUNT_OFF, draft.amounts),
+    })
+  }
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const wantedAmounts = draft.rom === project.bytes ? draft.amounts : hadAmounts
   const setAmount = (hack: SnesAmount, value: number) => {
@@ -312,6 +329,15 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
   const [notCopied, setNotCopied] = useState<string[]>([])
   const changed = SNES_HACKS.filter((hack) => wanted[hack] !== state.choices[hack] || (isAmount(hack) && wantedAmounts[hack] !== hadAmounts[hack]))
 
+  useEffect(
+    () => onKeep?.(changed.length > 0 ? { base: state.choices, wanted, baseAmounts: hadAmounts, amounts: wantedAmounts, count: changed.length } : null),
+    [onKeep, changed.length, state.choices, wanted, hadAmounts, wantedAmounts],
+  )
+  const setBackAll = () => {
+    setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
+    setNotCopied([])
+  }
+
   function apply() {
     try {
       onChange(applySnesHacks(project, wanted, false, wantedAmounts))
@@ -327,8 +353,9 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
       <h2>Hacks</h2>
       <p className="notice">
         <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the very bottom of the page.
-        Nothing in the ROM changes until you do. The list just above Apply shows exactly what will change, and Undo
-        takes it all back.
+        Nothing in the ROM changes until you do. While choices are waiting, a bar along the bottom of the window says how
+        many, with its own Apply. They are kept if you look at other pages, which say so, and Download asks first. The
+        list just above Apply shows exactly what will change, and Undo takes it all back.
       </p>
       <p className="note">
         Changes to the SNES game itself. They come from the community's patches for the game,{' '}
@@ -582,10 +609,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
           </button>{' '}
           <button
             disabled={changed.length === 0}
-            onClick={() => {
-              setDraft({ rom: project.bytes, choices: state.choices, amounts: hadAmounts })
-              setNotCopied([])
-            }}
+            onClick={setBackAll}
           >
             Set back to what the ROM has
           </button>{' '}
@@ -638,6 +662,7 @@ export function SnesHacksPage({ project, name, onChange }: Props) {
         )}
         {error && <p className="error">{error}</p>}
       </section>
+      <PendingBar count={changed.length} onApply={apply} onSetBack={setBackAll} />
     </main>
   )
 }

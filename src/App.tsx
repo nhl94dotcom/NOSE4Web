@@ -50,13 +50,15 @@ import { MenuPictureSection } from './MenuPictureSection'
 import { MoveTeamsSection } from './MoveTeamsSection'
 import { AnnouncerSection } from './AnnouncerSection'
 import { ScoutingSection } from './ScoutingSection'
-import { GameMusicSection, OrganSongsSection, SnesGameMusicSection, SnesOrganSongsSection } from './OrganSongsSection'
+import { GameMusicSection, OrganSongsSection, SnesGameMusicSection, SnesOrganSongsSection, type HeldMusic } from './OrganSongsSection'
 import { SplashScreenSection } from './SplashScreenSection'
 import { SnesTeamSongsSection, TeamSongsSection } from './TeamSongsSection'
 import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
+import { applyHackDraft, changesText, type HackDraft } from './hackdraft'
+import { MusicPendingNotice, PendingNotice } from './PendingChanges'
 import './App.css'
 import { useCollapsibleSections } from './useCollapsibleSections'
 import { useSectionTabs } from './useSectionTabs'
@@ -113,6 +115,10 @@ export default function App() {
   // new project object, so a different object means there is unsaved work.
   const [saved, setSaved] = useState<RomProject | null>(null)
   const unsaved = project !== saved
+  // Choices on the Hacks page not applied yet, kept while other pages show (PendingChanges.tsx).
+  const [hackDraft, setHackDraft] = useState<HackDraft | null>(null)
+  // A MIDI file read on Game settings and not put in yet, kept the same way.
+  const [heldMusic, setHeldMusic] = useState<HeldMusic | null>(null)
   // Names the downloaded ROM and starts the name of every spreadsheet file.
   const [name, setName] = useState('')
   const [selected, setSelected] = useState(0)
@@ -148,11 +154,11 @@ export default function App() {
 
   // Browsers show their own wording for this; the page can only ask for the warning.
   useEffect(() => {
-    if (!unsaved) return
+    if (!unsaved && !hackDraft && !heldMusic) return
     const warn = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [unsaved])
+  }, [unsaved, hackDraft, heldMusic])
 
   // Ctrl+Z and Ctrl+Y, except in a text box, where they undo typing as usual.
   useEffect(() => {
@@ -231,6 +237,8 @@ export default function App() {
 
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
     reset(opened)
+    setHackDraft(null)
+    setHeldMusic(null)
     setSaved(hasUnsavedWork ? null : opened)
     setName(openedName)
     setSelected(0)
@@ -240,6 +248,8 @@ export default function App() {
   async function handleFile(file: File | undefined) {
     if (!file) return
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
+    if (!unsaved && hackDraft && !window.confirm(`The Hacks page has ${changesText(hackDraft.count)} not applied yet. Open another ROM and lose them?`)) return
+    if (!unsaved && !hackDraft && heldMusic && !window.confirm(`The music "${heldMusic.title}" is loaded on Game settings but not put in yet. Open another ROM and lose it?`)) return
     try {
       start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen|smc|sfc)$/i, ''), false)
     } catch (e) {
@@ -273,12 +283,36 @@ export default function App() {
     }
   }
 
+  // With hack choices not applied yet: put them in first, then download, or stop.
   function handleDownload(asPatch: boolean) {
     if (!project) return
+    if (
+      heldMusic &&
+      !window.confirm(
+        `The music "${heldMusic.title}" is loaded on Game settings but not put in yet, so it would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
+          'OK: download without it.\nCancel: do not download yet (go to Game settings and press Put it in, or Cancel there).',
+      )
+    )
+      return
+    let out = project
+    if (hackDraft) {
+      const ask =
+        `The Hacks page has ${changesText(hackDraft.count)} not applied yet, so they would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
+        'OK: apply them now, then download.\nCancel: do not download yet (go to Hacks to look at them, apply them or set them back).'
+      if (!window.confirm(ask)) return
+      try {
+        out = applyHackDraft(project, hackDraft)
+      } catch (e) {
+        setError(`The hack changes could not be applied, so nothing was downloaded: ${e instanceof Error ? e.message : String(e)}`)
+        return
+      }
+      change(out)
+      setHackDraft(null)
+    }
     try {
-      if (asPatch) download(buildPatch(project), `${name || 'rom'}.ips`, 'application/octet-stream')
-      else download(buildRom(project), `${name || 'rom'}.${project.game.platform === 'snes' ? 'smc' : 'bin'}`, 'application/octet-stream')
-      setSaved(project)
+      if (asPatch) download(buildPatch(out), `${name || 'rom'}.ips`, 'application/octet-stream')
+      else download(buildRom(out), `${name || 'rom'}.${out.game.platform === 'snes' ? 'smc' : 'bin'}`, 'application/octet-stream')
+      setSaved(out)
       setError('')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -411,9 +445,9 @@ export default function App() {
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
-            <GameMusicSection project={current} onChange={change} />
+            {current.game.platform === 'genesis' && <GameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
-            <SnesGameMusicSection project={current} onChange={change} />
+            {current.game.platform === 'snes' && <SnesGameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
             {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>
         )
@@ -457,8 +491,12 @@ export default function App() {
       case IMPORT_TEAM:
         return <ImportTeamPage project={current} onChange={change} />
       case HACKS:
-        if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} name={name || 'rom'} onChange={change} />
-        return current.game.platform === 'snes' ? <SnesHacksPage project={current} name={name || 'rom'} onChange={change} /> : <HacksPage project={current} name={name || 'rom'} onChange={change} />
+        if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} name={name || 'rom'} onChange={change} kept={hackDraft} onKeep={setHackDraft} />
+        return current.game.platform === 'snes' ? (
+          <SnesHacksPage project={current} name={name || 'rom'} onChange={change} kept={hackDraft} onKeep={setHackDraft} />
+        ) : (
+          <HacksPage project={current} name={name || 'rom'} onChange={change} kept={hackDraft} onKeep={setHackDraft} />
+        )
       case HELP:
         return <HelpPage />
       default:
@@ -648,6 +686,8 @@ export default function App() {
         </button>
       </header>
       {error && <p className="error">{error}</p>}
+      {hackDraft && selected !== HACKS && <PendingNotice count={hackDraft.count} onGo={() => go(HACKS)} />}
+      {heldMusic && selected !== SETTINGS && <MusicPendingNotice title={heldMusic.title} onGo={() => go(SETTINGS)} />}
       <div className="body">
         {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
         <nav className={navOpen ? 'open' : ''}>

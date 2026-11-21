@@ -982,3 +982,25 @@ main > [data-tab-hidden] {
 .column-order li button {
   padding: 0 0.4rem;
 }
+
+/* Choices on a Hacks page not applied yet (PendingChanges.tsx): along the bottom of the window. */
+.pending-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 1rem 0 0;
+  padding: 0.6rem 1rem;
+  border-top: 3px solid #bf8700;
+  background: var(--page);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.pending-bar .pending-buttons {
+  white-space: nowrap;
+}
+
+/* The same, on the other pages: under the header. */
+.pending-notice {
+  max-width: none;
+  margin: 0.5rem 1rem;
+}

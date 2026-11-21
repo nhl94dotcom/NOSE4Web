@@ -1,4 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { rebase, type HackDraft } from './hackdraft'
+import { PendingBar } from './PendingChanges'
 import { HackShortcuts } from './HackShortcuts'
 import { NumberBox } from './NumberBox'
 import { WEIGHT_BASES } from './core/attributes'
@@ -30,6 +32,9 @@ interface Props {
   project: RomProject
   name: string
   onChange: (project: RomProject) => void
+  // Choices made here earlier and not applied, kept by the app while other pages were shown (PendingChanges.tsx).
+  kept?: HackDraft | null
+  onKeep?: (draft: HackDraft | null) => void
 }
 
 const SUMMARIES: Record<Nhl95Hack, string> = {
@@ -633,17 +638,20 @@ const UNITS: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices) => string>> = {
 const isNumber = (hack: Nhl95Hack): hack is Nhl95NumberHack => hack in NHL95_HACK_RANGES
 const isChoice = (hack: Nhl95Hack): hack is Nhl95ChoiceHack => hack in NHL95_HACK_CHOICES
 
-export function Nhl95HacksPage({ project, name, onChange }: Props) {
+export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const state = useMemo(() => detectNhl95Hacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
-  const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices })
+  // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
+  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: rebase(state.choices, kept?.base, kept?.wanted) }))
+  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: rebase(state.choices, detectNhl95Hacks(draft.rom).choices, draft.choices) })
   const wanted: Nhl95HackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [year, setYear] = useState('')
   const suggested = /^\d{4}$/.test(year.trim()) ? baseWeightForYear(Number(year)) : null
   const changes = nhl95HackStateChanges(state, { choices: wanted, unknown: state.unknown })
+  useEffect(() => onKeep?.(changes.length > 0 ? { base: state.choices, wanted, count: changes.length } : null), [onKeep, changes.length, state.choices, wanted])
+  const setBackAll = () => setDraft({ rom: project.bytes, choices: state.choices })
   const unknown = (hack: Nhl95Hack) => state.unknown.includes(hack)
   // The most knockdowns add is kept only with a risk from them (with none, nothing of it is written).
   const noCap = (hack: Nhl95Hack) => hack === 'injuryCap' && wanted.injuryBonus === 0
@@ -800,7 +808,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
       <h2>Hacks</h2>
       <p className="notice">
         <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the bottom of the page.
-        Nothing in the ROM changes until you do, and Undo takes it all back.
+        Nothing in the ROM changes until you do. While choices are waiting, a bar along the bottom of the window says how
+        many, with its own Apply. They are kept if you look at other pages, which say so, and Download asks first. Undo
+        takes it all back.
       </p>
       <p className="note">
         Fixes, settings and new options for NHL '95, most of them from the NHL94 Match Viewer project. Many are NHL
@@ -846,6 +856,9 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
           <button disabled={changes.length === 0} onClick={apply}>
             Apply
           </button>{' '}
+          <button disabled={changes.length === 0} onClick={setBackAll}>
+            Set back to what the ROM has
+          </button>{' '}
           <span className="note">{notice}</span>
         </p>
         {changes.length > 0 && (
@@ -863,6 +876,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
         )}
         {error && <p className="error">{error}</p>}
       </section>
+      <PendingBar count={changes.length} onApply={apply} onSetBack={setBackAll} />
     </main>
   )
 }

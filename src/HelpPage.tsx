@@ -1439,7 +1439,11 @@ export function HelpPage() {
         (built in with his permission), guides posted on the NHL94 forums, and the NHL94 Match Viewer project, which
         found most of the fixes and tested every hack marked as tested in the game. The page shows what the ROM has
         now, which for a league ROM is often several hacks already. Set what you want and press <b>Apply</b>. Nothing
-        changes until you do, the box above the button lists exactly what will, and one Undo takes it all back.
+        changes until you do, the box above the button lists exactly what will, and one Undo takes it all back. While
+        choices are waiting, a bar along the bottom of the window says how many, with its own <b>Apply</b>. You can go to
+        other pages first: the choices are kept, every other page shows a reminder with a way back, and{' '}
+        <b>Download ROM</b> or <b>Download patch</b> asks whether to apply them first. The same goes for a MIDI file
+        loaded for the game music and not yet put in: other pages remind you, and a download asks first.
       </p>
       <p>
         The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for the game's bugs,{' '}

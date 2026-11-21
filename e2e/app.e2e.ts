@@ -401,6 +401,50 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText('Nothing is set to change.')).toBeVisible()
   })
 
+  test('keeps hack choices not applied while other pages show, says so, and asks before a download', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Hacks').click()
+    const main = page.locator('main')
+    const bar = main.locator('.pending-bar')
+    await expect(bar).toBeHidden()
+    await main.locator('#hacks-looks').getByLabel('Head bleeding').selectOption('on')
+    await expect(bar).toContainText('1 change not applied yet.')
+    // Another page: allowed, and it says the choice is still waiting.
+    await entry(page, 'Teams').click()
+    const notice = page.locator('.pending-notice')
+    await expect(notice).toContainText('The Hacks page has 1 change not applied yet.')
+    await entry(page, 'Help').click()
+    await expect(notice).toBeVisible()
+    // Back on the Hacks page the choice is as it was left.
+    await notice.getByRole('button', { name: 'Go to Hacks' }).click()
+    await expect(main.locator('#hacks-looks').getByLabel('Head bleeding')).toHaveValue('on')
+    await expect(bar).toContainText('1 change not applied yet.')
+    // A download asks first: Cancel downloads nothing and keeps the choice.
+    let asked = ''
+    page.once('dialog', (dialog) => {
+      asked = dialog.message()
+      void dialog.dismiss()
+    })
+    await page.getByRole('button', { name: 'Download ROM' }).click()
+    expect(asked).toContain('1 change not applied yet')
+    await expect(bar).toBeVisible()
+    // OK applies it, then downloads the ROM with it in (head bleeding grows it to 2 MB).
+    page.once('dialog', (dialog) => void dialog.accept())
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(readFileSync(await download.path()).length).toBe(2 * 1048576)
+    await expect(bar).toBeHidden()
+    await expect(main.locator('#hacks-looks').getByLabel('Head bleeding')).toHaveValue('on')
+    await expect(page.getByText('Not downloaded yet')).toBeHidden()
+    // The bar's own Apply and Set back.
+    await main.locator('#hacks-looks').getByLabel('Head bleeding').selectOption('off')
+    await bar.getByRole('button', { name: 'Set back' }).click()
+    await expect(main.locator('#hacks-looks').getByLabel('Head bleeding')).toHaveValue('on')
+    await main.locator('#hacks-looks').getByLabel('Head bleeding').selectOption('off')
+    await bar.getByRole('button', { name: 'Apply them' }).click()
+    await expect(bar).toBeHidden()
+    await expect(main.getByText('Nothing is set to change.')).toBeVisible()
+  })
+
   test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
     await openRom(page)
     await team(page, 'Anaheim Mighty Ducks').click()

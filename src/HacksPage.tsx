@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HitsTable } from './HitsTable'
 import { WEIGHT_BASES } from './core/attributes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
@@ -54,6 +54,8 @@ import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { NumberBox } from './NumberBox'
 import { HackShortcuts } from './HackShortcuts'
+import { rebase, type HackDraft } from './hackdraft'
+import { PendingBar } from './PendingChanges'
 import { genesisHackSheet, genesisHackSummary, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
 interface Props {
@@ -61,6 +63,9 @@ interface Props {
   // The ROM's name, for the Discord post.
   name: string
   onChange: (project: RomProject) => void
+  // Choices made here earlier and not applied, kept by the app while other pages were shown (PendingChanges.tsx).
+  kept?: HackDraft | null
+  onKeep?: (draft: HackDraft | null) => void
 }
 
 
@@ -108,11 +113,12 @@ const BONUS_EFFECTS: Record<Bonuses, { ice: string; lines: string; more: string 
 
 type NumberKey = keyof typeof HACK_RANGES
 
-export function HacksPage({ project, name, onChange }: Props) {
+export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const state = useMemo(() => detectHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
-  const [draft, setDraft] = useState({ rom: project.bytes, choices: state.choices })
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: state.choices })
+  // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
+  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: rebase(state.choices, kept?.base, kept?.wanted) }))
+  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: rebase(state.choices, detectHacks(draft.rom).choices, draft.choices) })
   const wanted = draft.rom === project.bytes ? draft.choices : state.choices
   const [year, setYear] = useState('')
   // Counts the times the choices were set back, so that the number boxes show them afresh.
@@ -136,6 +142,7 @@ export function HacksPage({ project, name, onChange }: Props) {
   }
   const unknown = (key: keyof HackChoices) => state.unknown.includes(HACK_PARTS[key])
   const changes = hackChanges(state.choices, wanted, state.unknown)
+  useEffect(() => onKeep?.(changes.length > 0 ? { base: state.choices, wanted, count: changes.length } : null), [onKeep, changes.length, state.choices, wanted])
   const rescaled = !unknown('wideRatings') && wanted.wideRatings !== state.choices.wideRatings
   const reweighed = !unknown('baseWeight') && wanted.baseWeight !== state.choices.baseWeight
   const suggested = /^\d{4}$/.test(year.trim()) ? baseWeightForYear(Number(year)) : null
@@ -194,6 +201,12 @@ export function HacksPage({ project, name, onChange }: Props) {
     </select>
   )
 
+  function setBackAll() {
+    set(state.choices)
+    setSetBack(setBack + 1)
+    setNotCopied([])
+  }
+
   function apply() {
     try {
       onChange(applyHacks(project, wanted))
@@ -209,8 +222,9 @@ export function HacksPage({ project, name, onChange }: Props) {
       <h2>Hacks</h2>
       <p className="notice">
         <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the very bottom of the page.
-        Nothing in the ROM changes until you do. The list just above Apply shows exactly what will change, and Undo
-        takes it all back.
+        Nothing in the ROM changes until you do. While choices are waiting, a bar along the bottom of the window says how
+        many, with its own Apply. They are kept if you look at other pages, which say so, and Download asks first. The
+        list just above Apply shows exactly what will change, and Undo takes it all back.
       </p>
       <p className="note">
         Changes to the game itself: bug fixes, extra statistics, finer ratings, rules, and how it plays. They come
@@ -1349,12 +1363,7 @@ export function HacksPage({ project, name, onChange }: Props) {
           <button disabled={changes.length === 0} onClick={apply}>
             Apply
           </button>{' '}
-          <button disabled={sameHacks(wanted, state.choices)} onClick={() => {
-              set(state.choices)
-              setSetBack(setBack + 1)
-              setNotCopied([])
-            }}
-          >
+          <button disabled={sameHacks(wanted, state.choices)} onClick={setBackAll}>
             Set back to what the ROM has
           </button>{' '}
           <CopyHacksButton
@@ -1385,7 +1394,7 @@ export function HacksPage({ project, name, onChange }: Props) {
         )}
         {error && <p className="error">{error}</p>}
       </section>
-
-          </main>
+      <PendingBar count={changes.length} onApply={apply} onSetBack={setBackAll} />
+    </main>
   )
 }
