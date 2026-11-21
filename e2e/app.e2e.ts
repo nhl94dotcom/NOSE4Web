@@ -2854,7 +2854,7 @@ test.describe('with the SNES game', () => {
     await page.screenshot({ path: 'test-results/shots/snes-rink.png', fullPage: true })
     await entry(page, 'Hacks').click()
     await page.getByLabel('Hot and cold bug fix').selectOption('on')
-    await page.getByRole('button', { name: 'Apply' }).click()
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
     await expect(page.getByText('Done: 1 change to the game.')).toBeVisible()
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     expect(download.suggestedFilename()).toMatch(/\.smc$/)
@@ -3225,7 +3225,7 @@ test.describe("with the NHL '95 ROM", () => {
     await expect(start).toBeEnabled()
     await expect(start).toHaveValue('on')
     await start.selectOption('arcade')
-    await page.getByRole('button', { name: 'Apply' }).click()
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
     await expect(page.getByText(/Done: 2 changes/)).toBeVisible()
     await expect(start).toHaveValue('arcade')
     // Fighting off puts it back to On, and greys it out.
