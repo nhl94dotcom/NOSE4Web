@@ -9,7 +9,7 @@ const SECTIONS: [string, [string, string][]][] = [
   ['Getting started', [['start', 'Getting started'], ['narrow', 'On a phone or tablet'], ['space', 'Space in the ROM'], ['reset', 'Resetting changes'], ['download', 'Downloading your work'], ['trouble', 'If something goes wrong']]],
   ['Teams', [['teams', 'Teams'], ['players', 'Players and goalies'], ['ratinguse', 'What the ratings do in play'], ['arrows', 'Moving with the keyboard'], ['copy', 'Copy and paste'], ['make', 'Making up attributes'], ['keys', 'Quick edit keys'], ['lines', 'Lines'], ['colours', 'Team colours'], ['pictures', 'Logos and banners'], ['genesis-score-logos', 'Score logos (Genesis)'], ['genesis-blood', 'Head bleeding (Genesis)'], ['photos', 'Player photos']]],
   ['Game', [['settings', 'Game settings'], ['midi', 'Preparing a MIDI file for an organ song'], ['hacks', 'Hacks'], ['rink', 'Rink colours']]],
-  ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['byname', 'Matching teams by name']]],
+  ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['realseason', 'Real NHL season'], ['byname', 'Matching teams by name']]],
   ['Files', [['csv', 'Spreadsheet files'], ['picturefiles', 'Picture files'], ['project', 'Project file']]],
   ['Review', [['check', 'Check ROM'], ['rules', "Your league's rules"], ['changes', 'Changes and seasons'], ['compare', 'Compare ROMs']]],
   ['The games and ROMs', [['roms', 'Supported ROMs and limits'], ['snes', 'The SNES game'], ['nhl95', "NHL '95"]]],
@@ -44,7 +44,7 @@ export function HelpPage() {
         <li>
           Pick a page from the list on the left. It is in groups: <b>Game</b> (Teams, Game settings, Hacks and Rink
           colours), <b>League administration</b> (the League page, Trade, Bulk changes, Import a
-          team and New season), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
+          team, Real NHL season and New season), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
           Compare ROMs), then the Features list, everything the editor can do in one list, and Help.
         </li>
         <li>
@@ -1830,6 +1830,44 @@ export function HelpPage() {
           letters in the score box, so will this one, and a ROM without score logos leaves this one's alone.
         </li>
         <li>A bigger roster needs more room; the bytes free at the top of the page show whether it fits.</li>
+      </ul>
+
+      <h3 id="help-realseason">Real NHL season</h3>
+      <p>
+        Fills teams with the players of a real NHL season, any from 1967-68 on, with ratings worked out from that
+        season's stats. For NHL 94, the SNES game and NHL '95; not for NHL 94: EVO, whose attributes mean other things.
+      </p>
+      <ul>
+        <li>
+          <b>The players:</b> each team gets the goalies, forwards and defencemen with the most games for it (2, 15 and 8
+          to begin with, as the original game has). A player traded during the season goes to the team he played the
+          most games for. Names are written as the game can show them: no accents, a hyphen as a space, and a first
+          initial for a name longer than 19 letters. Teammates who wore the same number at different times that season
+          each get one: the one with more games keeps it, and the other takes the next free number.
+        </li>
+        <li>
+          <b>The ratings:</b> each stat is turned into where the player stands among that season's players of his
+          kind, so any era is rated alike. The ratings are then given out in the same proportions as the original NHL
+          94's. The weights were set so that 1992-93, the season EA rated the original game from, gives back EA's
+          ratings within one step for about nine players in ten (all but one in a hundred for Offensive Awareness, Shot
+          Accuracy, Roughness and Aggression). Speed, Agility and Checking are the least sure, as no stat measures them.
+          Weight, shooting hand and glove hand are the player's own; fighting comes from penalty minutes and size.
+        </li>
+        <li>
+          <b>Where each team goes:</b> to the ROM's team of the same name or franchise (the Atlanta Flames where the
+          Calgary Flames are), and the rest to the teams left over, not the All-Star teams. Change any of them, or
+          choose Keep as it is.
+        </li>
+        <li>
+          <b>What else changes:</b> lines are built afresh, and the Offence and Defence ratings follow the team's goals
+          for and against, using the values the ROM's teams already had. With <b>Use that season's team names</b>, the
+          place, initials and nickname come too; logos, colours and the arena stay, to change on each team's page.
+        </li>
+        <li>
+          If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,
+          the skaters with the fewest games are left out, and the page says how many.
+        </li>
+        <li>Undo takes it all back. The stats come from the NHL's public stats service.</li>
       </ul>
 
       <h3 id="help-byname">Matching teams by name</h3>

@@ -43,7 +43,7 @@ async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
   await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(17)
+  await expect(pageEntries(page)).toHaveCount(18)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -1544,6 +1544,36 @@ test.describe('with the NHL 94 ROM', () => {
     expect(download.suggestedFilename()).toBe('nhl94.bin')
   })
 
+  test('fills the teams from a real NHL season', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Real NHL season').click()
+    const main = page.locator('main')
+    // The season the original game was rated from comes first; each team goes to its franchise's place.
+    await expect(main.getByLabel('Season', { exact: true })).toHaveValue('19921993')
+    await expect(main.getByLabel('Season team for Dallas Stars').locator('option:checked')).toHaveText('Minnesota North Stars')
+    await expect(main.getByLabel('Season team for Anaheim Mighty Ducks').locator('option:checked')).toHaveText('Keep as it is')
+    await main.getByLabel('Season team to show').selectOption({ label: 'Pittsburgh Penguins' })
+    await expect(main.locator('table.season-players')).toContainText('Mario Lemieux')
+    await main.getByRole('button', { name: 'Bring in 24 teams from 1992-93' }).click()
+    await expect(main.getByText('24 teams from 1992-93 brought in.')).toBeVisible()
+    await page.screenshot({ path: 'test-results/shots/real-season.png', fullPage: true })
+
+    // The Stars are the North Stars again, with that season's players; the ROM still downloads.
+    await team(page, 'Minnesota North Stars').click()
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Jon Casey')
+    await team(page, 'Pittsburgh Penguins').click()
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Tom Barrasso')
+    const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+    expect(download.suggestedFilename()).toBe('nhl94.bin')
+
+    // Undo takes it all back; another season places its teams by franchise too.
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await team(page, 'Dallas Stars').click()
+    await entry(page, 'Real NHL season').click()
+    await main.getByLabel('Season', { exact: true }).selectOption('19791980')
+    await expect(main.getByLabel('Season team for Calgary Flames').locator('option:checked')).toHaveText('Atlanta Flames')
+  })
+
   test('writes a change report for the league', async ({ page }) => {
     await openRom(page)
     await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
@@ -1584,7 +1614,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(17)
+  await expect(pageEntries(page)).toHaveCount(18)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2464,7 +2494,7 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(17)
+  await expect(pageEntries(page)).toHaveCount(18)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -2934,7 +2964,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(17)
+  await expect(pageEntries(page)).toHaveCount(18)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 

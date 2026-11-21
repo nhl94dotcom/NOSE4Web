@@ -66,6 +66,7 @@ import { useSectionTabs } from './useSectionTabs'
 
 // The biggest pages, which most visits never open, load when first opened, so the editor starts sooner.
 const HelpPage = lazy(() => import('./HelpPage').then((m) => ({ default: m.HelpPage })))
+const RealSeasonPage = lazy(() => import('./RealSeasonPage').then((m) => ({ default: m.RealSeasonPage })))
 const FeaturesPage = lazy(() => import('./FeaturesPage').then((m) => ({ default: m.FeaturesPage })))
 const HacksPage = lazy(() => import('./HacksPage').then((m) => ({ default: m.HacksPage })))
 const SnesHacksPage = lazy(() => import('./SnesHacksPage').then((m) => ({ default: m.SnesHacksPage })))
@@ -93,6 +94,7 @@ const CHANGES = -13
 const HACKS = -14
 const NEW_SEASON = -15
 const FEATURES = -16
+const REAL_SEASON = -17
 // The pages that keep work not done yet (pagedrafts.ts).
 const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
@@ -511,6 +513,8 @@ export default function App() {
         return <ChangesPage project={current} opened={asOpenedRaw} name={name || 'rom'} onGoToNewSeason={() => setSelected(NEW_SEASON)} />
       case NEW_SEASON:
         return <NewSeasonPage project={current} opened={asOpenedRaw} name={name || 'rom'} onChange={change} onNameChange={setName} />
+      case REAL_SEASON:
+        return <RealSeasonPage project={current} onChange={change} />
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
@@ -651,6 +655,7 @@ export default function App() {
     [CHANGES]: 'Changes',
     [HACKS]: 'Hacks',
     [NEW_SEASON]: 'New season',
+    [REAL_SEASON]: 'Real NHL season',
   }
   const pageName = selected >= 0 ? teamNames[selected] : PAGE_NAMES[selected]
 
@@ -738,6 +743,7 @@ export default function App() {
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
+          {entry(REAL_SEASON, 'Real NHL season')}
           {entry(NEW_SEASON, 'New season')}
           <div className="group">Files</div>
           {entry(CSV, 'Spreadsheet files')}

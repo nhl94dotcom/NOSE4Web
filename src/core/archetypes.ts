@@ -150,7 +150,7 @@ const clamp = (share: number) => Math.max(0, Math.min(1, share))
 const steps = (share: number, top: number) => Math.round(clamp(share) * top)
 
 // Fighting 0 to 7 and a shooting hand, as a handed/fighting value of that kind.
-function handedFighting(kind: AttributeKind, fighting: number, right: boolean): number {
+export function handedFighting(kind: AttributeKind, fighting: number, right: boolean): number {
   const odd = kind === 'handedFighting93' ? !right : right
   return fighting * 2 + (odd ? 1 : 0)
 }
