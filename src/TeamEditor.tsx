@@ -4,7 +4,7 @@ import { readClipboard, writeClipboard } from './clipboard'
 import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
-import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, SKATER_ARCHETYPES, type Make } from './core/archetypes'
+import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, RANDOM_LEVEL, randomLevel, SKATER_ARCHETYPES, type Make } from './core/archetypes'
 import { randomName } from './core/randomnames'
 import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteConversionNote, pasteLines, pastePlayers } from './core/clipboard'
 import type { PlayerPhoto } from './core/playerphotos'
@@ -137,7 +137,8 @@ export function TeamEditor(props: Props) {
   const tickedGoalies = ticked.filter((index) => index < goalies).length
   const tickedSkaters = ticked.length - tickedGoalies
   function makeTicked(random: boolean) {
-    const chosen = LEVELS.find((l) => l.value === level) ?? LEVELS[3]
+    // With a random level, each player gets his own.
+    const levelFor = () => (level === RANDOM_LEVEL ? randomLevel() : (LEVELS.find((l) => l.value === level) ?? LEVELS[3]))
     const makeFor = (isGoalie: boolean): Make =>
       random
         ? { random: true }
@@ -149,7 +150,7 @@ export function TeamEditor(props: Props) {
         ? {
             ...player,
             name: withNames ? randomName(taken) : player.name,
-            attributes: madeAttributes(game, index < goalies, player.attributes, makeFor(index < goalies), chosen),
+            attributes: madeAttributes(game, index < goalies, player.attributes, makeFor(index < goalies), levelFor()),
           }
         : player,
     )
@@ -764,6 +765,7 @@ export function TeamEditor(props: Props) {
                 {l.label}
               </option>
             ))}
+            <option value={RANDOM_LEVEL}>Random</option>
           </select>{' '}
           <button disabled={ticked.length === 0} onClick={() => makeTicked(false)}>
             Make
@@ -777,7 +779,8 @@ export function TeamEditor(props: Props) {
         </p>
         <p className="note">
           Make gives each ticked player the attributes of that kind of player at that level, a little different each
-          time. Random gives attributes at random around the level, and a random shooting or glove hand. With random
+          time. Random gives attributes at random around the level, and a random shooting or glove hand. With the level
+          Random, each player gets a level of his own, from Weak to Superstar. With random
           names, each also gets a made-up first and last name. Numbers stay. Undo puts it all back.
         </p>
         <p className="note" hidden={narrow}>

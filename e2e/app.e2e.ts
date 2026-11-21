@@ -206,6 +206,8 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText('2 players: new attributes, at random. Undo puts the old ones back.')).toBeVisible()
     expect(Number(await overall(goalie).textContent())).toBeLessThan(70)
     // With random names, each gets a made-up first and last name, not the old one.
+    // A level of Random is on the list too, for a player wholly at random.
+    await main.getByLabel('Level of player').selectOption({ label: 'Random' })
     await main.getByLabel('with random names').check()
     await main.getByRole('button', { name: 'Make', exact: true }).click()
     await expect(main.getByText('2 players: new names and attributes. Undo puts the old ones back.')).toBeVisible()

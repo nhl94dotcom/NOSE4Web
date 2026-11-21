@@ -30,6 +30,19 @@ export const LEVELS: Level[] = [
   { value: 'weak', label: 'Weak', share: 0.31, goalieShare: 0.33 },
 ]
 
+// A level anywhere from Weak to Superstar, for a player made wholly at random.
+export const RANDOM_LEVEL = 'random'
+export function randomLevel(random: () => number = Math.random): Level {
+  const [top, bottom] = [LEVELS[0], LEVELS[LEVELS.length - 1]]
+  const at = random()
+  return {
+    value: RANDOM_LEVEL,
+    label: 'Random',
+    share: bottom.share + at * (top.share - bottom.share),
+    goalieShare: bottom.goalieShare + at * (top.goalieShare - bottom.goalieShare),
+  }
+}
+
 // How often he takes penalties (Agr), as a share of its range. Kept to the lower half: the original game wraps
 // Aggression round above that (ratinguse.ts), so a high value would not mean more penalties there.
 const DISCIPLINE = { low: 0.17, mid: 0.33, high: 0.5 }

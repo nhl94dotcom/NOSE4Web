@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { attributeText, shootsRight } from '../src/core/attributes'
-import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, SKATER_ARCHETYPES } from '../src/core/archetypes'
+import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, randomLevel, SKATER_ARCHETYPES } from '../src/core/archetypes'
 import { NHL94, NHL94_EVO, NHL94_SNES, NHL95, type GameConfig } from '../src/core/games'
 import { overallRating } from '../src/core/rating'
 import { NAME_COUNT, randomName } from '../src/core/randomnames'
@@ -96,5 +96,19 @@ describe('made-up names', () => {
       expect(name.length).toBeLessThanOrEqual(18)
     }
     expect(NAME_COUNT).toBeGreaterThan(10000)
+  })
+})
+
+describe('a random level', () => {
+  it('runs from Weak to Superstar, a level of its own for each player', () => {
+    const [low, high] = [randomLevel(() => 0), randomLevel(() => 1)]
+    expect(low.share).toBeCloseTo(LEVELS.at(-1)!.share)
+    expect(high.share).toBeCloseTo(LEVELS[0].share)
+    expect(high.goalieShare).toBeCloseTo(LEVELS[0].goalieShare)
+    const random = steady(3)
+    const overalls = Array.from({ length: 60 }, () =>
+      overallRating(madeAttributes(NHL94, false, skater(NHL94), { random: true }, randomLevel(random), random), false, NHL94),
+    )
+    expect(Math.max(...overalls) - Math.min(...overalls)).toBeGreaterThan(30)
   })
 })

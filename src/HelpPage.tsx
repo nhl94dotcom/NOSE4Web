@@ -513,7 +513,8 @@ export function HelpPage() {
         offensive or stay-at-home defenceman) or of goalie (all-round, quick, positional, rebound control), and a level
         from Superstar to Weak, then press <b>Make</b>. Each player gets that kind's strengths at that level, a little
         different each time, so two snipers are not the same. <b>Random</b> gives attributes at random around the
-        level instead, with a random shooting or glove hand.
+        level instead, with a random shooting or glove hand. Choose <b>Random</b> as the level, and each player
+        gets a level of his own anywhere from Weak to Superstar; with Random too, he is wholly random.
       </p>
       <ul>
         <li>Jersey numbers and photos stay, and so do names unless you ask for new ones (below). Make keeps each player's shooting and glove hand. Undo puts the old attributes back.</li>
