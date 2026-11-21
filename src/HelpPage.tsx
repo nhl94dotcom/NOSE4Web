@@ -5,59 +5,36 @@ import { GOALIE_RATING_USES, SKATER_RATING_USES, SNES_GOALIE_RATING_USES, SNES_S
 import { MAX_SECONDS } from './core/settings'
 import { CSV_TABLES } from './core/tables'
 
-const SECTIONS = [
-  ['start', 'Getting started'],
-  ['narrow', 'On a phone or tablet'],
-  ['space', 'Space in the ROM'],
-  ['teams', 'Teams'],
-  ['players', 'Players and goalies'],
-  ['ratinguse', 'What the ratings do in play'],
-  ['arrows', 'Moving with the keyboard'],
-  ['copy', 'Copy and paste'],
-  ['make', 'Making up attributes'],
-  ['keys', 'Quick edit keys'],
-  ['lines', 'Lines'],
-  ['colours', 'Team colours'],
-  ['pictures', 'Logos and banners'],
-  ['genesis-score-logos', 'Score logos (Genesis)'],
-  ['genesis-blood', 'Head bleeding (Genesis)'],
-  ['photos', 'Player photos'],
-  ['picturefiles', 'Picture files'],
-  ['rink', 'Rink colours'],
-  ['settings', 'Game settings'],
-  ['midi', 'Preparing a MIDI file for an organ song'],
-  ['byname', 'Matching teams by name'],
-  ['reset', 'Resetting changes'],
-  ['csv', 'Spreadsheet files'],
-  ['project', 'Project files'],
-  ['league', 'The league at a glance'],
-  ['trade', 'Trades and free agents'],
-  ['bulk', 'Bulk changes'],
-  ['hacks', 'Hacks'],
-  ['importteam', 'Importing a team'],
-  ['check', 'Checking a ROM'],
-  ['rules', "Your league's rules"],
-  ['changes', 'Changes and seasons'],
-  ['compare', 'Comparing two ROMs'],
-  ['download', 'Downloading your work'],
-  ['roms', 'Supported ROMs and limits'],
-  ['snes', 'The SNES game'],
-  ['nhl95', "NHL '95"],
-  ['trouble', 'If something goes wrong'],
-  ['credit', 'Credit'],
+const SECTIONS: [string, [string, string][]][] = [
+  ['Getting started', [['start', 'Getting started'], ['narrow', 'On a phone or tablet'], ['space', 'Space in the ROM'], ['reset', 'Resetting changes'], ['download', 'Downloading your work'], ['trouble', 'If something goes wrong']]],
+  ['Teams', [['teams', 'Teams'], ['players', 'Players and goalies'], ['ratinguse', 'What the ratings do in play'], ['arrows', 'Moving with the keyboard'], ['copy', 'Copy and paste'], ['make', 'Making up attributes'], ['keys', 'Quick edit keys'], ['lines', 'Lines'], ['colours', 'Team colours'], ['pictures', 'Logos and banners'], ['genesis-score-logos', 'Score logos (Genesis)'], ['genesis-blood', 'Head bleeding (Genesis)'], ['photos', 'Player photos']]],
+  ['Game', [['settings', 'Game settings'], ['midi', 'Preparing a MIDI file for an organ song'], ['hacks', 'Hacks'], ['rink', 'Rink colours']]],
+  ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['byname', 'Matching teams by name']]],
+  ['Files', [['csv', 'Spreadsheet files'], ['picturefiles', 'Picture files'], ['project', 'Project file']]],
+  ['Review', [['check', 'Check ROM'], ['rules', "Your league's rules"], ['changes', 'Changes and seasons'], ['compare', 'Compare ROMs']]],
+  ['The games and ROMs', [['roms', 'Supported ROMs and limits'], ['snes', 'The SNES game'], ['nhl95', "NHL '95"]]],
+  ['Credit', [['credit', 'Credit']]],
 ]
 
 export function HelpPage() {
   return (
     <main className="team help" data-no-tabs>
       <h2>How to use NOSE4Web</h2>
-      <ul className="contents">
-        {SECTIONS.map(([id, title]) => (
-          <li key={id}>
-            <a href={`#help-${id}`}>{title}</a>
-          </li>
+      {/* The contents, in the groups of the list of pages on the left. */}
+      <div className="contents">
+        {SECTIONS.map(([group, sections]) => (
+          <div key={group}>
+            <b>{group}</b>
+            <ul>
+              {sections.map(([id, title]) => (
+                <li key={id}>
+                  <a href={`#help-${id}`}>{title}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
 
       <h3 id="help-start">Getting started</h3>
       <ol>
@@ -183,6 +160,80 @@ export function HelpPage() {
         over you are, and shortening a few names or removing a player makes it fit. The original game has room for
         every team at 26 players (the most it allows) with names of about 11 letters on average.
       </p>
+
+      <h3 id="help-reset">Resetting changes</h3>
+      <p>
+        Reset buttons put one thing back to how it is in the ROM you opened and leave everything else you have
+        done alone. A button is greyed out while its part is unchanged, so the buttons also show at a glance what
+        you have altered.
+      </p>
+      <ul>
+        <li>
+          On a team's page: <strong>Reset names</strong>, <strong>Reset roster</strong> (the players, their order
+          and attributes, and the counts of forwards and goalies), <strong>Reset lines</strong>,{' '}
+          <strong>Reset home colours</strong> and <strong>Reset away colours</strong>.
+        </li>
+        <li>
+          Under each logo and banner: <strong>Reset picture</strong>. Below them,{' '}
+          <strong>Reset banner colours</strong>.
+        </li>
+        <li>
+          At the top of a team's page: <strong>Reset whole team</strong>, which does all of the above for that
+          team and no other.
+        </li>
+        <li>On the Rink colours page, one button each for the ice and the arena.</li>
+        <li>On the Game settings page, one button for each section.</li>
+      </ul>
+      <p>
+        "The ROM you opened" means the file as you opened it, even if you have downloaded your work since. A reset
+        is an edit like any other, so Undo brings your changes back.
+      </p>
+      <p>
+        Some things to know. Resetting a roster does not reset the lines, which name players by their place on the
+        roster, so reset both if you changed both. If you moved a player to another team, resetting one of the two
+        rosters leaves him on both teams or on neither; reset both rosters to put him back. A picture that several
+        teams share is reset for all of them. Resetting a roster can need more room than is free if other teams
+        have grown; the bytes free at the top will say so. Giving rosters or pictures more room is not something a reset
+        undoes.
+      </p>
+
+      <h3 id="help-download">Downloading your work</h3>
+      <ul>
+        <li>
+          <b>Download ROM</b> saves the complete edited ROM as a .bin file (Genesis) or .smc file (SNES), ready for an emulator or flash cartridge.
+        </li>
+        <li>
+          <b>Download patch</b> saves an IPS file holding only your changes. Someone with the same ROM you opened can
+          apply it with any IPS patching tool to get your version, which lets you share your work without sharing the
+          ROM. The patch only fits that exact starting ROM.
+        </li>
+      </ul>
+      <p>Both use the Name box for the file name.</p>
+
+      <h3 id="help-trouble">If something goes wrong</h3>
+      <ul>
+        <li>
+          <b>"This game is not supported yet"</b>: the editor does not recognise the ROM (the message shows the
+          code it found).
+        </li>
+        <li>
+          <b>"The team data is not stored as one continuous run"</b> or <b>"does not have the expected layout"</b>:
+          the ROM has been rearranged in a way the editor cannot safely write back.
+        </li>
+        <li>
+          <b>The download buttons are greyed out</b>: the team data is over the limit. Shorten some names, remove a
+          player, or add roster space.
+        </li>
+        <li>
+          <b>The edited ROM misbehaves in the game</b>: look at <b>Check ROM</b> first, then the lines of any team
+          whose roster you changed. If it still fails, open your original ROM again and repeat the changes
+          a few at a time to find the one responsible.
+        </li>
+        <li>
+          <b>A paste does nothing or reports the wrong contents</b>: copy again, and allow clipboard access if the
+          browser asks.
+        </li>
+      </ul>
 
       <h3 id="help-teams">Teams</h3>
       <p>The top of a team's page has:</p>
@@ -756,6 +807,7 @@ export function HelpPage() {
         In the original game the two All Stars teams share one centre-ice logo, so changing it for one changes it
         for both. Logos and banners are not part of the spreadsheet files.
       </p>
+
       <h3 id="help-genesis-score-logos">Score logos (Genesis)</h3>
       <p>
         During play the game shows each team's three letters in the score box. <b>Add score logos for every team</b>,
@@ -769,6 +821,7 @@ export function HelpPage() {
         game back as it was. In the original game, adding them makes the ROM 2 MB. ROMs with a different score box,
         such as EVO, do not offer them.
       </p>
+
       <h3 id="help-genesis-blood">Head bleeding (Genesis)</h3>
       <p>
         In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took the blood
@@ -778,6 +831,7 @@ export function HelpPage() {
         original game it makes the ROM 2 MB. Like every hack it goes in when you press Apply, and turning it off puts
         the game back as it was. ROMs with different player graphics, such as EVO, do not offer it.
       </p>
+
       <h3 id="help-photos">Player photos</h3>
       <p>
         On the Genesis, <b>Player photos</b>, below the logos, lists the team's featured players. The team setup screen shows the
@@ -851,61 +905,6 @@ export function HelpPage() {
         both, over another team's. It is a quick way to start a new team from one that looks similar. On the SNES it
         copies the home and away colours with the name banner colours, and the team logo, centre ice logo and score
         logo; a centre ice logo that other teams share in the ROM changes for them too, as when it is replaced.
-      </p>
-
-      <h3 id="help-picturefiles">Picture files</h3>
-      <p>
-        <b>Picture files</b> handles every team's logos, banners and player photos at once, as the spreadsheet
-        files do the rest.
-        <b> Export all pictures</b> saves them as PNG files in one zip, named with the Name box at the top.
-        <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for.
-      </p>
-      <ul>
-        <li>
-          Each file's name says what it is: <code>03_Buffalo_Sabres_menu_logo.png</code>. The number is the team's
-          place in the list and the ending is the picture: <code>rink_logo</code>, <code>menu_logo</code>,{' '}
-          <code>menu_banner</code>, <code>visitor_banner</code> or <code>game_banner</code>. The team name in the
-          middle is only there for you, so renaming a team does not send its pictures astray.
-        </li>
-        <li>
-          A file that shows what the editor already has is skipped. So you can export, edit a few pictures, and
-          import the whole zip again: only the ones you changed are replaced, and the page lists them.
-        </li>
-        <li>
-          To carry artwork to another ROM, such as next season's, export from one and import into the other. Teams
-          are matched by their place in the list.
-        </li>
-        <li>A picture several teams share is in the zip once, under the first of those teams.</li>
-        <li>
-          Player photos are in the zip too, in a <code>photos</code> folder with a folder for each team, such as{' '}
-          <code>photos/02_Boston_Bruins/Cam_Neely.png</code>: one file for each player with a photo of his own.
-          Each goes back to the player of its name on that team, wherever he now is on the roster, so a set of
-          photos carries to next season's ROM. A photo may be any size, as when imported on the team page. On the
-          Genesis a player who is not among the featured players is added to them. On the SNES, Picture files
-          holds the team logos, the centre ice logos (named <code>centre_ice</code>) and, where the ROM has them, the
-          score logos (<code>score_logo</code>), as <code>02_Boston_Bruins_logo.png</code> and the like, alongside
-          the photos.
-        </li>
-        <li>
-          Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
-          order. Each file then goes to the team named in it, wherever that team is in this ROM, and a file whose
-          team is not here is left out. Unticked, files go by their number.
-        </li>
-        <li>
-          Pictures are fitted to the colours they are allowed, as when imported one at a time. A centre-ice logo
-          uses the team's home colours, so import the team colours first if they are changing too.
-        </li>
-        <li>
-          If the ROM has no room for some of them, the rest still go in and the page says which did not. Give the
-          logos and banners more room on any team's page, then import again.
-        </li>
-      </ul>
-
-      <h3 id="help-rink">Rink colours</h3>
-      <p>
-        <b>Rink colours</b>, below the teams, has 16 colours for the ice and 16 for the arena around it. They are
-        shared by every rink in the game. Use the list above the picture to preview different parts of the rink and
-        the pause menu.
       </p>
 
       <h3 id="help-settings">Game settings</h3>
@@ -1141,345 +1140,6 @@ export function HelpPage() {
         <li>
           <b>Try it:</b> <b>Play</b> gives a rough idea in the browser (the console's organ sounds different), and
           the downloaded ROM in an emulator gives the real thing.
-        </li>
-      </ul>
-
-      <h3 id="help-byname">Matching teams by name</h3>
-      <p>
-        Spreadsheet files, picture files and project files all say which team each thing belongs to by the team's
-        place in the list. That is right when the files go back into the ROM they came from, or into one with the
-        teams in the same order. Where a ROM lists the same teams in another order, tick{' '}
-        <b>Match teams by name</b> on the page you are importing from, and each thing goes to the team of the same
-        name wherever it is.
-      </p>
-      <ul>
-        <li>
-          <b>Spreadsheet files:</b> rows of the teams, players and lines tables are matched, by the Team name
-          column, or by Location and Name in the teams table. The team number in a row is then ignored, and the
-          Team column can even be left out. Because the name is what finds the team, this is not the way to rename
-          one. If any row names a team the ROM does not have, nothing is imported and every such row is listed.
-          Playoff draws already name their teams.
-        </li>
-        <li>
-          <b>Picture files:</b> each file goes by the team name in the middle of its name. One whose team is not
-          in the ROM is left out and listed, and the rest go in.
-        </li>
-        <li>
-          <b>Project files:</b> every team has to find a team of its name, or nothing is opened. Playoff draws and
-          league rules follow the teams.
-        </li>
-      </ul>
-      <p>
-        Names have to agree exactly, apart from capitals in spreadsheets. Where two teams share a name, as leagues
-        of different years can, the number is used to tell them apart.
-      </p>
-
-      <h3 id="help-reset">Resetting changes</h3>
-      <p>
-        Reset buttons put one thing back to how it is in the ROM you opened and leave everything else you have
-        done alone. A button is greyed out while its part is unchanged, so the buttons also show at a glance what
-        you have altered.
-      </p>
-      <ul>
-        <li>
-          On a team's page: <strong>Reset names</strong>, <strong>Reset roster</strong> (the players, their order
-          and attributes, and the counts of forwards and goalies), <strong>Reset lines</strong>,{' '}
-          <strong>Reset home colours</strong> and <strong>Reset away colours</strong>.
-        </li>
-        <li>
-          Under each logo and banner: <strong>Reset picture</strong>. Below them,{' '}
-          <strong>Reset banner colours</strong>.
-        </li>
-        <li>
-          At the top of a team's page: <strong>Reset whole team</strong>, which does all of the above for that
-          team and no other.
-        </li>
-        <li>On the Rink colours page, one button each for the ice and the arena.</li>
-        <li>On the Game settings page, one button for each section.</li>
-      </ul>
-      <p>
-        "The ROM you opened" means the file as you opened it, even if you have downloaded your work since. A reset
-        is an edit like any other, so Undo brings your changes back.
-      </p>
-      <p>
-        Some things to know. Resetting a roster does not reset the lines, which name players by their place on the
-        roster, so reset both if you changed both. If you moved a player to another team, resetting one of the two
-        rosters leaves him on both teams or on neither; reset both rosters to put him back. A picture that several
-        teams share is reset for all of them. Resetting a roster can need more room than is free if other teams
-        have grown; the bytes free at the top will say so. Giving rosters or pictures more room is not something a reset
-        undoes.
-      </p>
-
-      <h3 id="help-csv">Spreadsheet files</h3>
-      <p>
-        <b>Spreadsheet files</b> exports everything in the editor as {CSV_TABLES.length} tables that Excel and
-        similar programs can open, and imports them again. Every table covers every team. There are two forms, holding
-        the same tables:
-      </p>
-      <ul>
-        <li>
-          <b>An Excel workbook</b>: one .xlsx file named after the <b>Name</b> at the top of the page, with a sheet for
-          each table. Keep the sheet names as they are. Sheets with other names, such as your own notes, are ignored.
-        </li>
-        <li>
-          <b>CSV files</b>: one file for each table, each starting with the Name, for example{' '}
-          <i>My_League_Season_10_players.csv</i>.
-        </li>
-      </ul>
-      <table className="left">
-        <tbody>
-          {CSV_TABLES.map((table) => (
-            <tr key={table.id}>
-              <td>{table.id}</td>
-              <td className="wrap">{table.description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p>To use the CSV files:</p>
-      <ol>
-        <li>
-          Click <b>Export all {CSV_TABLES.length} files</b>, or <b>Export</b> beside one file. Your browser may ask
-          once for permission to download several files.
-        </li>
-        <li>Edit the files and save them, keeping the CSV file type and the ending of each file's name.</li>
-        <li>
-          Click <b>Import files…</b> and choose one file or several together. They are applied in the right order
-          whatever order you pick them in.
-        </li>
-      </ol>
-      <ul>
-        <li>
-          Tick <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
-          list the teams by name. Each row keeps its team number, so such a file imports just the same. To put the
-          teams in that order in the ROM itself, use <b>Move teams</b> on the Bulk changes page.
-        </li>
-        <li>
-          An import is all or nothing. If any row in any chosen file is wrong, nothing changes, and each problem is
-          listed with its file and spreadsheet row number.
-        </li>
-        <li>
-          In the players file, a team's whole roster is replaced by the rows listed for it. You can keep the rows in
-          any order: the <b>Position</b> column (G, F or D) and the <b>Order</b> column decide the roster order, and
-          the goalie, forward and defence counts are set from what you list. Attributes are the stored values, 0 to
-          15.
-        </li>
-        <li>In the teams file, only the columns present are changed, and an empty cell keeps the current value.</li>
-        <li>
-          In the songs file, each team has a row and each of its six organ songs a column, holding the song's number,
-          or 0 for Random. The songlist file says which song each number is: on the Genesis these are the forum
-          list's numbers, 1 to 72 (in NHL '95 its own songs, 1 to 36); on the SNES they number the songs the ROM's song tables hold, so export the two
-          files together, and again after putting a song in from a MIDI file. An empty cell keeps the song the team
-          has. A league ROM whose song table has no room for its last teams gets the table moved to free space when
-          one of them is given songs, as on the team page. Importing the songlist file changes nothing.
-        </li>
-        <li>
-          Colours are written like <i>#24ffff</i> and are matched to the nearest colour the console can show.
-        </li>
-        <li>Importing a workbook follows the same rules, and problems are listed by sheet and row.</li>
-        <li>
-          Lines, playoff draws and menu choices are written by name. Where two share a name, a number is used
-          instead, written like <i>#12</i> for a roster position.
-        </li>
-        <li>Columns the editor does not know, such as your own notes, are ignored. So are Team name, Overall and League value.</li>
-        <li>Importing a set changes the Name box to that set's name.</li>
-      </ul>
-      <p>
-        To build a ROM for a new season: open the base ROM, add roster space if the button is offered, import that
-        season's files in one go, check the free space, and download.
-      </p>
-
-      <h3 id="help-project">Project files</h3>
-      <p>
-        A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
-        pictures you replaced (the splash screen and main menu background included), the organ songs you made from
-        MIDI files, your free agents, and where you moved teams. Work the editor keeps only in the ROM itself (player
-        photos, score logos, and on the SNES banner and photo colours) goes in as a patch of the
-        finished ROM, made only for the copy of the ROM you opened. <b>Save project file</b> on the Project file page downloads it,
-        named with the Name box at the top.
-      </p>
-      <p>Use one to:</p>
-      <ul>
-        <li>move your work to another computer or browser, where you open the ROM and then the project;</li>
-        <li>keep a copy of a season as it stood, to come back to;</li>
-        <li>pass your changes to someone who has the ROM themselves, without sending the ROM.</li>
-      </ul>
-      <p>
-        <b>Open a project file</b> lays the project over the ROM as you opened it, replacing whatever you have done
-        in the editor since; Undo brings that back. Any roster or picture room you had made is made again first. The
-        ROM has to be the same kind the project was made with, with the same number of teams, but it need not be the
-        very same file. Opened over the same copy, everything comes back exactly as it was. Opened over a different
-        copy, the project's teams, colours and settings replace that copy's, and the pictures you had replaced are
-        replaced there too, while pictures you had left alone stay as that copy has them; the work kept only in the
-        ROM itself stays as that copy has it, and the page says so.
-      </p>
-      <p>
-        Tick <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,
-        for a ROM that lists the same teams in another order. Playoff draws, league rules and anything else that
-        points at a team go with it. Every team in the project has to find a team of its name, or nothing is
-        opened and the page says which did not.
-      </p>
-      <p>
-        If something in the file does not fit the ROM, the rest still opens and the page says what was left out. A
-        project file is not a ROM and cannot be played; download the ROM or a patch for that.
-      </p>
-
-      <h3 id="help-league">The league at a glance</h3>
-      <p>
-        The <b>League</b> page looks across every team.
-      </p>
-      <ul>
-        <li>
-          <b>Find a player</b> searches all rosters as you type. Part of a name is enough, and several words can be
-          in any order. Click a team in the results to go to it, or choose a team under <b>Move to</b> to move a
-          skater there, as on the team pages: he goes after its last forward or defenceman, and both teams' lines are
-          kept in step. Goalies move by copying and pasting on the team pages.
-        </li>
-        <li>
-          <b>How the teams compare</b> is a table of overall ratings, as the game shows them, averaged for each
-          team. <b>First line</b> is the five skaters on the NLC line, the one that plays when line changes are
-          off, and <b>Its goalie</b> is that line's goalie; for a league that plays without line changes these two
-          numbers are the team. The rest cover the whole roster. Click a heading to sort by it. Numbers well above
-          or below the league average are coloured, to pick out stacked and thin teams. <b>Overall</b> is the team's
-          overall from its page: every skater on the Sc1, Sc2 and Chk lines once, and the NLC goalie. For a league that plays
-          with line changes, <b>Show every line</b> adds a column for each of the other lines (the scoring and
-          checking lines, and the power play and penalty kill units), each the average of its five skaters; point
-          at a number to see its forwards and its defence pair apart.
-        </li>
-        <li>
-          <b>Strength</b> (Genesis): how strong a team should play, from the NHL94 Match Viewer project's study of
-          the Classic leagues' results. It is 71% the average league value of the team's four best forwards, 15% its
-          three best defencemen and 14% its best goalie, so on the same 0–99 scale as the league value (see{' '}
-          <b>LV</b> under the team pages). Built only on the best players, it does not depend on how the lines are
-          set. It predicts how strong a team plays far better than the game's Overall, so it is the better measure
-          of whether a league is balanced. <b>League balance</b> can be measured by it too. It is for the Genesis
-          game with its own ratings; SNES team results vary too much from season to season to build one.
-        </li>
-        <li>
-          <b>Two teams side by side</b> puts any two teams' ratings next to each other: the overall, every line,
-          the starting goalie, the forwards, the defence and the best goalie, with the higher of each marked and the
-          difference between them. Use it to preview a playoff series, or to see what a trade did to two teams.
-        </li>
-        <li>
-          <b>League balance</b> ranks the teams by one rating (the overall, the first line for a league without line
-          changes, or all the skaters), with each team's distance from the league average drawn as a bar. Above it
-          are the average, how far the best team is above the weakest, and the standard deviation: the smaller these
-          are, the more even the league. Teams more than one standard deviation from the average are marked. The
-          original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
-        </li>
-      </ul>
-
-      <h3 id="help-trade">Trades and free agents</h3>
-      <p>
-        The <b>Trade</b> page exchanges players between two sides. Choose a team for each, tick the players each
-        gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
-        its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
-        which makes it a plain move. Each player is listed with all his attributes, as on his team's page, so you
-        can weigh one against another; untick <b>Show attributes</b> for a shorter list. On a narrow window the two
-        sides sit one above the other.
-      </p>
-      <ul>
-        <li>Skaters keep their role: a forward arrives among the other team's forwards, a defenceman at the end.</li>
-        <li>
-          Goalies change places one for one, each taking the other's spot on the roster, because the game needs a
-          team's goalies to stay where they are. A goalie cannot be traded for a skater.
-        </li>
-        <li>
-          A team has to keep at least 5 players and can hold 26. Two full rosters can still trade one for one.
-        </li>
-        <li>
-          Where a player who leaves was on his team's lines, another player is put in his place and the page says
-          how many positions that touched, so you can look the lines over.
-        </li>
-        <li>One Undo takes back one trade.</li>
-      </ul>
-      <p>
-        For a quick release or signing there is no need to leave a team's page: tick players and press{' '}
-        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b> (shown while there are free agents). To sign a goalie, tick the goalie he
-        is to replace first.
-      </p>
-      <p>
-        <b>Free agents</b> are players you are holding on no team. Choose Free agents as one side to release a
-        player to them or to sign one from them; a goalie can be swapped with a free-agent goalie. They are part of
-        your work, kept in this browser and in a project file, but they are <b>not in the ROM</b>: a downloaded ROM
-        has only the players on teams, and Check ROM reminds you when some are waiting.
-      </p>
-      <p>
-        They do have a sheet in the spreadsheet files, <b>freeagents</b>, with the same columns as the players
-        sheet less the team. That sheet is the whole list: importing it replaces the free agents you had, so add
-        rows to bring players in and delete rows to drop them. It is a way to prepare a draft pool in Excel and
-        then sign players from it on the Trade page.
-      </p>
-
-      <h3 id="help-bulk">Bulk changes</h3>
-      <p>
-        <b>Bulk changes</b> alters one attribute for many players at once: raise or lower it by a number of steps,
-        set it, cap it, or give it a floor. Choose skaters, forwards, defencemen or goalies, on every team or one,
-        and optionally only players within a range of overall rating.
-      </p>
-      <p>
-        The page lists everyone who would change, with the attribute and overall rating before and after, and
-        nothing happens until you press <b>Apply</b>. Players already at the end of a range are left out, since
-        they would not change. One Undo takes the whole change back.
-      </p>
-      <p>
-        For weight there is one more choice, <b>Convert from another era's weights</b>. ROMs can be set up so that
-        the lightest weight stands for anything from 102 to 152 pounds, to suit the year they represent. If
-        players' weights were set for a different base from this ROM's, as when a roster comes in by spreadsheet
-        from an older season, choose the base they were set for and each player is moved to the weight here
-        nearest the pounds he had. Weights go in steps of 8 pounds, so the nearest can be up to 4 pounds out.
-        Import a team does this by itself when the two ROMs differ.
-      </p>
-      <p>
-        Ratings have seven steps, which the game shows as ranges such as 81-98, so "raise by 1" moves a player up
-        one range. Hand, fighting and the goalie values the game does not use are not offered.
-      </p>
-
-      <p>The same page also has four changes for every team at once:</p>
-      <ul>
-        <li>
-          <b>Overall shown</b> sets each team's shown overall to its roster's average.
-        </li>
-        <li>
-          <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
-          and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
-          sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
-        </li>
-        <li>
-          <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
-          lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
-          back.
-        </li>
-        <li>
-          <b>Move teams</b>: changes the order of the teams, in the Game Setup menu, the team list and the
-          spreadsheet files. Use the arrows or <b>Move to</b> beside a team, or{' '}
-          <b>Put the first teams in alphabetical order</b> to sort the league's own teams (those the menu offers, up
-          to the last playoff team) by name, leaving the All-Star teams and any others after them. Everything about a
-          team moves with it: players, lines, names and colours, logos, banners, player photos, organ songs and score
-          logos, and the rest. The playoff draws, the main menu's starting teams, the start of the season and the
-          league rules' exempt teams follow their teams too, and a project file saved afterwards remembers the move.
-          The Reset buttons and Changes still compare each team with itself as opened, and Changes lists the moves;
-          Compare ROMs matches teams by name when two ROMs list them in different orders, as last season's and this
-          season's may.
-          <ul>
-            <li>
-              Spreadsheet, picture and project files made before the move name teams by their old numbers: import
-              them with <b>Match teams by name</b> ticked (see below).
-            </li>
-            <li>
-              A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
-              with it start as the last one instead. Check ROM says if the draws need changing.
-            </li>
-            <li>
-              An emulator's battery save remembers things by team position (saved lines, and on the Genesis crowd
-              records), so start a new save file after downloading.
-            </li>
-            <li>
-              Not offered for NHL 94: EVO, which builds its own menus and playoffs, nor for ROMs whose logos,
-              banners, photos or songs the editor cannot follow; the page says why. On the original SNES game, if
-              replaced logos have already used up their room, the move may not fit, and the page says so.
-            </li>
-          </ul>
         </li>
       </ul>
 
@@ -1972,7 +1632,173 @@ export function HelpPage() {
         here each can be chosen by itself. Whatever you choose, play a game on the hacked ROM before a league does.
       </p>
 
-      <h3 id="help-importteam">Importing a team</h3>
+      <h3 id="help-rink">Rink colours</h3>
+      <p>
+        <b>Rink colours</b>, below the teams, has 16 colours for the ice and 16 for the arena around it. They are
+        shared by every rink in the game. Use the list above the picture to preview different parts of the rink and
+        the pause menu.
+      </p>
+
+      <h3 id="help-league">League</h3>
+      <p>
+        The <b>League</b> page looks across every team.
+      </p>
+      <ul>
+        <li>
+          <b>Find a player</b> searches all rosters as you type. Part of a name is enough, and several words can be
+          in any order. Click a team in the results to go to it, or choose a team under <b>Move to</b> to move a
+          skater there, as on the team pages: he goes after its last forward or defenceman, and both teams' lines are
+          kept in step. Goalies move by copying and pasting on the team pages.
+        </li>
+        <li>
+          <b>How the teams compare</b> is a table of overall ratings, as the game shows them, averaged for each
+          team. <b>First line</b> is the five skaters on the NLC line, the one that plays when line changes are
+          off, and <b>Its goalie</b> is that line's goalie; for a league that plays without line changes these two
+          numbers are the team. The rest cover the whole roster. Click a heading to sort by it. Numbers well above
+          or below the league average are coloured, to pick out stacked and thin teams. <b>Overall</b> is the team's
+          overall from its page: every skater on the Sc1, Sc2 and Chk lines once, and the NLC goalie. For a league that plays
+          with line changes, <b>Show every line</b> adds a column for each of the other lines (the scoring and
+          checking lines, and the power play and penalty kill units), each the average of its five skaters; point
+          at a number to see its forwards and its defence pair apart.
+        </li>
+        <li>
+          <b>Strength</b> (Genesis): how strong a team should play, from the NHL94 Match Viewer project's study of
+          the Classic leagues' results. It is 71% the average league value of the team's four best forwards, 15% its
+          three best defencemen and 14% its best goalie, so on the same 0–99 scale as the league value (see{' '}
+          <b>LV</b> under the team pages). Built only on the best players, it does not depend on how the lines are
+          set. It predicts how strong a team plays far better than the game's Overall, so it is the better measure
+          of whether a league is balanced. <b>League balance</b> can be measured by it too. It is for the Genesis
+          game with its own ratings; SNES team results vary too much from season to season to build one.
+        </li>
+        <li>
+          <b>Two teams side by side</b> puts any two teams' ratings next to each other: the overall, every line,
+          the starting goalie, the forwards, the defence and the best goalie, with the higher of each marked and the
+          difference between them. Use it to preview a playoff series, or to see what a trade did to two teams.
+        </li>
+        <li>
+          <b>League balance</b> ranks the teams by one rating (the overall, the first line for a league without line
+          changes, or all the skaters), with each team's distance from the league average drawn as a bar. Above it
+          are the average, how far the best team is above the weakest, and the standard deviation: the smaller these
+          are, the more even the league. Teams more than one standard deviation from the average are marked. The
+          original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
+        </li>
+      </ul>
+
+      <h3 id="help-trade">Trade and free agents</h3>
+      <p>
+        The <b>Trade</b> page exchanges players between two sides. Choose a team for each, tick the players each
+        gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
+        its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
+        which makes it a plain move. Each player is listed with all his attributes, as on his team's page, so you
+        can weigh one against another; untick <b>Show attributes</b> for a shorter list. On a narrow window the two
+        sides sit one above the other.
+      </p>
+      <ul>
+        <li>Skaters keep their role: a forward arrives among the other team's forwards, a defenceman at the end.</li>
+        <li>
+          Goalies change places one for one, each taking the other's spot on the roster, because the game needs a
+          team's goalies to stay where they are. A goalie cannot be traded for a skater.
+        </li>
+        <li>
+          A team has to keep at least 5 players and can hold 26. Two full rosters can still trade one for one.
+        </li>
+        <li>
+          Where a player who leaves was on his team's lines, another player is put in his place and the page says
+          how many positions that touched, so you can look the lines over.
+        </li>
+        <li>One Undo takes back one trade.</li>
+      </ul>
+      <p>
+        For a quick release or signing there is no need to leave a team's page: tick players and press{' '}
+        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b> (shown while there are free agents). To sign a goalie, tick the goalie he
+        is to replace first.
+      </p>
+      <p>
+        <b>Free agents</b> are players you are holding on no team. Choose Free agents as one side to release a
+        player to them or to sign one from them; a goalie can be swapped with a free-agent goalie. They are part of
+        your work, kept in this browser and in a project file, but they are <b>not in the ROM</b>: a downloaded ROM
+        has only the players on teams, and Check ROM reminds you when some are waiting.
+      </p>
+      <p>
+        They do have a sheet in the spreadsheet files, <b>freeagents</b>, with the same columns as the players
+        sheet less the team. That sheet is the whole list: importing it replaces the free agents you had, so add
+        rows to bring players in and delete rows to drop them. It is a way to prepare a draft pool in Excel and
+        then sign players from it on the Trade page.
+      </p>
+
+      <h3 id="help-bulk">Bulk changes</h3>
+      <p>
+        <b>Bulk changes</b> alters one attribute for many players at once: raise or lower it by a number of steps,
+        set it, cap it, or give it a floor. Choose skaters, forwards, defencemen or goalies, on every team or one,
+        and optionally only players within a range of overall rating.
+      </p>
+      <p>
+        The page lists everyone who would change, with the attribute and overall rating before and after, and
+        nothing happens until you press <b>Apply</b>. Players already at the end of a range are left out, since
+        they would not change. One Undo takes the whole change back.
+      </p>
+      <p>
+        For weight there is one more choice, <b>Convert from another era's weights</b>. ROMs can be set up so that
+        the lightest weight stands for anything from 102 to 152 pounds, to suit the year they represent. If
+        players' weights were set for a different base from this ROM's, as when a roster comes in by spreadsheet
+        from an older season, choose the base they were set for and each player is moved to the weight here
+        nearest the pounds he had. Weights go in steps of 8 pounds, so the nearest can be up to 4 pounds out.
+        Import a team does this by itself when the two ROMs differ.
+      </p>
+      <p>
+        Ratings have seven steps, which the game shows as ranges such as 81-98, so "raise by 1" moves a player up
+        one range. Hand, fighting and the goalie values the game does not use are not offered.
+      </p>
+
+      <p>The same page also has four changes for every team at once:</p>
+      <ul>
+        <li>
+          <b>Overall shown</b> sets each team's shown overall to its roster's average.
+        </li>
+        <li>
+          <b>Home and away</b> shows how the teams' Home and Away ratings differ (the home team adds its Home rating,
+          and the away team takes its Away rating off, five of each player's ratings as he comes on the ice), and
+          sets one pair for every team: the same advantage in every game, or 0 and 0 for none. Undo takes it back.
+        </li>
+        <li>
+          <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
+          lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
+          back.
+        </li>
+        <li>
+          <b>Move teams</b>: changes the order of the teams, in the Game Setup menu, the team list and the
+          spreadsheet files. Use the arrows or <b>Move to</b> beside a team, or{' '}
+          <b>Put the first teams in alphabetical order</b> to sort the league's own teams (those the menu offers, up
+          to the last playoff team) by name, leaving the All-Star teams and any others after them. Everything about a
+          team moves with it: players, lines, names and colours, logos, banners, player photos, organ songs and score
+          logos, and the rest. The playoff draws, the main menu's starting teams, the start of the season and the
+          league rules' exempt teams follow their teams too, and a project file saved afterwards remembers the move.
+          The Reset buttons and Changes still compare each team with itself as opened, and Changes lists the moves;
+          Compare ROMs matches teams by name when two ROMs list them in different orders, as last season's and this
+          season's may.
+          <ul>
+            <li>
+              Spreadsheet, picture and project files made before the move name teams by their old numbers: import
+              them with <b>Match teams by name</b> ticked (see below).
+            </li>
+            <li>
+              A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
+              with it start as the last one instead. Check ROM says if the draws need changing.
+            </li>
+            <li>
+              An emulator's battery save remembers things by team position (saved lines, and on the Genesis crowd
+              records), so start a new save file after downloading.
+            </li>
+            <li>
+              Not offered for NHL 94: EVO, which builds its own menus and playoffs, nor for ROMs whose logos,
+              banners, photos or songs the editor cannot follow; the page says why. On the original SNES game, if
+              replaced logos have already used up their room, the move may not fit, and the page says so.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3 id="help-importteam">Import a team</h3>
       <p>
         <b>Import a team</b> brings one team in from another ROM to replace a team in the editor. Use it when an
         owner sends back their own edited ROM, or to carry a team over from an earlier season. Choose the other
@@ -2004,7 +1830,199 @@ export function HelpPage() {
         <li>A bigger roster needs more room; the bytes free at the top of the page show whether it fits.</li>
       </ul>
 
-      <h3 id="help-check">Checking a ROM</h3>
+      <h3 id="help-byname">Matching teams by name</h3>
+      <p>
+        Spreadsheet files, picture files and project files all say which team each thing belongs to by the team's
+        place in the list. That is right when the files go back into the ROM they came from, or into one with the
+        teams in the same order. Where a ROM lists the same teams in another order, tick{' '}
+        <b>Match teams by name</b> on the page you are importing from, and each thing goes to the team of the same
+        name wherever it is.
+      </p>
+      <ul>
+        <li>
+          <b>Spreadsheet files:</b> rows of the teams, players and lines tables are matched, by the Team name
+          column, or by Location and Name in the teams table. The team number in a row is then ignored, and the
+          Team column can even be left out. Because the name is what finds the team, this is not the way to rename
+          one. If any row names a team the ROM does not have, nothing is imported and every such row is listed.
+          Playoff draws already name their teams.
+        </li>
+        <li>
+          <b>Picture files:</b> each file goes by the team name in the middle of its name. One whose team is not
+          in the ROM is left out and listed, and the rest go in.
+        </li>
+        <li>
+          <b>Project files:</b> every team has to find a team of its name, or nothing is opened. Playoff draws and
+          league rules follow the teams.
+        </li>
+      </ul>
+      <p>
+        Names have to agree exactly, apart from capitals in spreadsheets. Where two teams share a name, as leagues
+        of different years can, the number is used to tell them apart.
+      </p>
+
+      <h3 id="help-csv">Spreadsheet files</h3>
+      <p>
+        <b>Spreadsheet files</b> exports everything in the editor as {CSV_TABLES.length} tables that Excel and
+        similar programs can open, and imports them again. Every table covers every team. There are two forms, holding
+        the same tables:
+      </p>
+      <ul>
+        <li>
+          <b>An Excel workbook</b>: one .xlsx file named after the <b>Name</b> at the top of the page, with a sheet for
+          each table. Keep the sheet names as they are. Sheets with other names, such as your own notes, are ignored.
+        </li>
+        <li>
+          <b>CSV files</b>: one file for each table, each starting with the Name, for example{' '}
+          <i>My_League_Season_10_players.csv</i>.
+        </li>
+      </ul>
+      <table className="left">
+        <tbody>
+          {CSV_TABLES.map((table) => (
+            <tr key={table.id}>
+              <td>{table.id}</td>
+              <td className="wrap">{table.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p>To use the CSV files:</p>
+      <ol>
+        <li>
+          Click <b>Export all {CSV_TABLES.length} files</b>, or <b>Export</b> beside one file. Your browser may ask
+          once for permission to download several files.
+        </li>
+        <li>Edit the files and save them, keeping the CSV file type and the ending of each file's name.</li>
+        <li>
+          Click <b>Import files…</b> and choose one file or several together. They are applied in the right order
+          whatever order you pick them in.
+        </li>
+      </ol>
+      <ul>
+        <li>
+          Tick <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
+          list the teams by name. Each row keeps its team number, so such a file imports just the same. To put the
+          teams in that order in the ROM itself, use <b>Move teams</b> on the Bulk changes page.
+        </li>
+        <li>
+          An import is all or nothing. If any row in any chosen file is wrong, nothing changes, and each problem is
+          listed with its file and spreadsheet row number.
+        </li>
+        <li>
+          In the players file, a team's whole roster is replaced by the rows listed for it. You can keep the rows in
+          any order: the <b>Position</b> column (G, F or D) and the <b>Order</b> column decide the roster order, and
+          the goalie, forward and defence counts are set from what you list. Attributes are the stored values, 0 to
+          15.
+        </li>
+        <li>In the teams file, only the columns present are changed, and an empty cell keeps the current value.</li>
+        <li>
+          In the songs file, each team has a row and each of its six organ songs a column, holding the song's number,
+          or 0 for Random. The songlist file says which song each number is: on the Genesis these are the forum
+          list's numbers, 1 to 72 (in NHL '95 its own songs, 1 to 36); on the SNES they number the songs the ROM's song tables hold, so export the two
+          files together, and again after putting a song in from a MIDI file. An empty cell keeps the song the team
+          has. A league ROM whose song table has no room for its last teams gets the table moved to free space when
+          one of them is given songs, as on the team page. Importing the songlist file changes nothing.
+        </li>
+        <li>
+          Colours are written like <i>#24ffff</i> and are matched to the nearest colour the console can show.
+        </li>
+        <li>Importing a workbook follows the same rules, and problems are listed by sheet and row.</li>
+        <li>
+          Lines, playoff draws and menu choices are written by name. Where two share a name, a number is used
+          instead, written like <i>#12</i> for a roster position.
+        </li>
+        <li>Columns the editor does not know, such as your own notes, are ignored. So are Team name, Overall and League value.</li>
+        <li>Importing a set changes the Name box to that set's name.</li>
+      </ul>
+      <p>
+        To build a ROM for a new season: open the base ROM, add roster space if the button is offered, import that
+        season's files in one go, check the free space, and download.
+      </p>
+
+      <h3 id="help-picturefiles">Picture files</h3>
+      <p>
+        <b>Picture files</b> handles every team's logos, banners and player photos at once, as the spreadsheet
+        files do the rest.
+        <b> Export all pictures</b> saves them as PNG files in one zip, named with the Name box at the top.
+        <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for.
+      </p>
+      <ul>
+        <li>
+          Each file's name says what it is: <code>03_Buffalo_Sabres_menu_logo.png</code>. The number is the team's
+          place in the list and the ending is the picture: <code>rink_logo</code>, <code>menu_logo</code>,{' '}
+          <code>menu_banner</code>, <code>visitor_banner</code> or <code>game_banner</code>. The team name in the
+          middle is only there for you, so renaming a team does not send its pictures astray.
+        </li>
+        <li>
+          A file that shows what the editor already has is skipped. So you can export, edit a few pictures, and
+          import the whole zip again: only the ones you changed are replaced, and the page lists them.
+        </li>
+        <li>
+          To carry artwork to another ROM, such as next season's, export from one and import into the other. Teams
+          are matched by their place in the list.
+        </li>
+        <li>A picture several teams share is in the zip once, under the first of those teams.</li>
+        <li>
+          Player photos are in the zip too, in a <code>photos</code> folder with a folder for each team, such as{' '}
+          <code>photos/02_Boston_Bruins/Cam_Neely.png</code>: one file for each player with a photo of his own.
+          Each goes back to the player of its name on that team, wherever he now is on the roster, so a set of
+          photos carries to next season's ROM. A photo may be any size, as when imported on the team page. On the
+          Genesis a player who is not among the featured players is added to them. On the SNES, Picture files
+          holds the team logos, the centre ice logos (named <code>centre_ice</code>) and, where the ROM has them, the
+          score logos (<code>score_logo</code>), as <code>02_Boston_Bruins_logo.png</code> and the like, alongside
+          the photos.
+        </li>
+        <li>
+          Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
+          order. Each file then goes to the team named in it, wherever that team is in this ROM, and a file whose
+          team is not here is left out. Unticked, files go by their number.
+        </li>
+        <li>
+          Pictures are fitted to the colours they are allowed, as when imported one at a time. A centre-ice logo
+          uses the team's home colours, so import the team colours first if they are changing too.
+        </li>
+        <li>
+          If the ROM has no room for some of them, the rest still go in and the page says which did not. Give the
+          logos and banners more room on any team's page, then import again.
+        </li>
+      </ul>
+
+      <h3 id="help-project">Project file</h3>
+      <p>
+        A <b>project file</b> holds all your work without the ROM: every team, the colours, the game settings, the
+        pictures you replaced (the splash screen and main menu background included), the organ songs you made from
+        MIDI files, your free agents, and where you moved teams. Work the editor keeps only in the ROM itself (player
+        photos, score logos, and on the SNES banner and photo colours) goes in as a patch of the
+        finished ROM, made only for the copy of the ROM you opened. <b>Save project file</b> on the Project file page downloads it,
+        named with the Name box at the top.
+      </p>
+      <p>Use one to:</p>
+      <ul>
+        <li>move your work to another computer or browser, where you open the ROM and then the project;</li>
+        <li>keep a copy of a season as it stood, to come back to;</li>
+        <li>pass your changes to someone who has the ROM themselves, without sending the ROM.</li>
+      </ul>
+      <p>
+        <b>Open a project file</b> lays the project over the ROM as you opened it, replacing whatever you have done
+        in the editor since; Undo brings that back. Any roster or picture room you had made is made again first. The
+        ROM has to be the same kind the project was made with, with the same number of teams, but it need not be the
+        very same file. Opened over the same copy, everything comes back exactly as it was. Opened over a different
+        copy, the project's teams, colours and settings replace that copy's, and the pictures you had replaced are
+        replaced there too, while pictures you had left alone stay as that copy has them; the work kept only in the
+        ROM itself stays as that copy has it, and the page says so.
+      </p>
+      <p>
+        Tick <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,
+        for a ROM that lists the same teams in another order. Playoff draws, league rules and anything else that
+        points at a team go with it. Every team in the project has to find a team of its name, or nothing is
+        opened and the page says which did not.
+      </p>
+      <p>
+        If something in the file does not fit the ROM, the rest still opens and the page says what was left out. A
+        project file is not a ROM and cannot be played; download the ROM or a patch for that.
+      </p>
+
+      <h3 id="help-check">Check ROM</h3>
       <p>
         <b>Check ROM</b> looks over everything in the editor and lists what it finds in two groups. It updates as you
         work, and a number beside its name in the list on the left counts the first group.
@@ -2115,7 +2133,7 @@ export function HelpPage() {
         list reads as a record of the off-season.
       </p>
 
-      <h3 id="help-compare">Comparing two ROMs</h3>
+      <h3 id="help-compare">Compare ROMs</h3>
       <p>
         <b>Compare ROMs</b> describes how what is in the editor differs from another ROM you choose, such as last
         season's. The other ROM is only read. Teams are matched by their place in the list, and players by name, so
@@ -2136,19 +2154,6 @@ export function HelpPage() {
         a menu logo's or an SNES team logo's own colours); colours a picture shares with the team are among the
         team's colours. The Changes page lists a logo or banner you have drawn or imported the same way, since the ROM was opened.
       </p>
-
-      <h3 id="help-download">Downloading your work</h3>
-      <ul>
-        <li>
-          <b>Download ROM</b> saves the complete edited ROM as a .bin file (Genesis) or .smc file (SNES), ready for an emulator or flash cartridge.
-        </li>
-        <li>
-          <b>Download patch</b> saves an IPS file holding only your changes. Someone with the same ROM you opened can
-          apply it with any IPS patching tool to get your version, which lets you share your work without sharing the
-          ROM. The patch only fits that exact starting ROM.
-        </li>
-      </ul>
-      <p>Both use the Name box for the file name.</p>
 
       <h3 id="help-roms">Supported ROMs and limits</h3>
       <p>
@@ -2576,31 +2581,6 @@ export function HelpPage() {
         <li>
           <b>Not offered for NHL '95</b>: NHL 94's hacks, player photos, score logos,
           the splash screen and menu picture, moving teams, and the opening text, which were all made for NHL 94's code.
-        </li>
-      </ul>
-
-      <h3 id="help-trouble">If something goes wrong</h3>
-      <ul>
-        <li>
-          <b>"This game is not supported yet"</b>: the editor does not recognise the ROM (the message shows the
-          code it found).
-        </li>
-        <li>
-          <b>"The team data is not stored as one continuous run"</b> or <b>"does not have the expected layout"</b>:
-          the ROM has been rearranged in a way the editor cannot safely write back.
-        </li>
-        <li>
-          <b>The download buttons are greyed out</b>: the team data is over the limit. Shorten some names, remove a
-          player, or add roster space.
-        </li>
-        <li>
-          <b>The edited ROM misbehaves in the game</b>: look at <b>Check ROM</b> first, then the lines of any team
-          whose roster you changed. If it still fails, open your original ROM again and repeat the changes
-          a few at a time to find the one responsible.
-        </li>
-        <li>
-          <b>A paste does nothing or reports the wrong contents</b>: copy again, and allow clipboard access if the
-          browser asks.
         </li>
       </ul>
 

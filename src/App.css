@@ -338,6 +338,13 @@ table.left th {
 .help .contents {
   columns: 2;
 }
+.help .contents > div {
+  break-inside: avoid;
+  margin-bottom: 0.6rem;
+}
+.help .contents ul {
+  margin: 0.2rem 0 0;
+}
 
 .help kbd {
   padding: 0 0.3rem;
