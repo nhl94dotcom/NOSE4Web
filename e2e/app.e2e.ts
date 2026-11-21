@@ -182,6 +182,34 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/team.png', fullPage: true })
   })
 
+  test('makes up attributes for ticked players, by archetype and level or at random', async ({ page }) => {
+    await openRom(page)
+    const main = page.locator('main')
+    const skater = rows(page, 'Skaters').last()
+    const goalie = rows(page, 'Goalies').first()
+    const overall = (row: Locator) => row.locator('td').nth(5)
+    const [name, before] = [await nameOf(skater).inputValue(), await overall(skater).textContent()]
+    // With only skaters ticked, only the kinds of skater are offered.
+    await tick(skater)
+    await expect(main.getByLabel('Kind of goalie')).toBeHidden()
+    await main.getByLabel('Kind of skater').selectOption({ label: 'Sniper' })
+    await main.getByLabel('Level of player').selectOption({ label: 'Superstar' })
+    await main.getByRole('button', { name: 'Make', exact: true }).click()
+    await expect(main.getByText(`${name}: new attributes. Undo puts the old ones back.`)).toBeVisible()
+    expect(Number(await overall(skater).textContent())).toBeGreaterThan(85)
+    await expect(nameOf(skater)).toHaveValue(name)
+    // A goalie ticked too: each gets his own kind, and Random works for both.
+    await tick(goalie)
+    await expect(main.getByLabel('Kind of goalie')).toBeVisible()
+    await main.getByLabel('Level of player').selectOption({ label: 'Weak' })
+    await main.getByRole('button', { name: 'Random', exact: true }).click()
+    await expect(main.getByText('2 players: new attributes, at random. Undo puts the old ones back.')).toBeVisible()
+    expect(Number(await overall(goalie).textContent())).toBeLessThan(70)
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(overall(skater)).toHaveText(before!)
+  })
+
   test('folds a section by its heading, and keeps it folded on another team', async ({ page }) => {
     await openRom(page)
     const heading = page.getByRole('heading', { name: 'Goalies', exact: true })

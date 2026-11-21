@@ -4,6 +4,7 @@ import { readClipboard, writeClipboard } from './clipboard'
 import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
+import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, SKATER_ARCHETYPES, type Make } from './core/archetypes'
 import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteConversionNote, pasteLines, pastePlayers } from './core/clipboard'
 import type { PlayerPhoto } from './core/playerphotos'
 import { colorFormat } from './core/color'
@@ -127,6 +128,25 @@ export function TeamEditor(props: Props) {
   const [openCards, setOpenCards] = useState<number[]>([])
   const [moveTo, setMoveTo] = useState(otherTeams[0]?.index ?? 0)
   const [signing, setSigning] = useState(0)
+  // Making up attributes for the ticked players (archetypes.ts).
+  const [skaterKind, setSkaterKind] = useState(SKATER_ARCHETYPES[0].value)
+  const [goalieKind, setGoalieKind] = useState(GOALIE_ARCHETYPES[0].value)
+  const [level, setLevel] = useState('average')
+  const tickedGoalies = ticked.filter((index) => index < goalies).length
+  const tickedSkaters = ticked.length - tickedGoalies
+  function makeTicked(random: boolean) {
+    const chosen = LEVELS.find((l) => l.value === level) ?? LEVELS[3]
+    const makeFor = (isGoalie: boolean): Make =>
+      random
+        ? { random: true }
+        : { archetype: (isGoalie ? GOALIE_ARCHETYPES : SKATER_ARCHETYPES).find((a) => a.value === (isGoalie ? goalieKind : skaterKind))! }
+    const players = team.players.map((player, index) =>
+      ticked.includes(index) ? { ...player, attributes: madeAttributes(game, index < goalies, player.attributes, makeFor(index < goalies), chosen) } : player,
+    )
+    onChange({ ...team, players })
+    const who = ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`
+    setNotice(`${who}: new attributes${random ? ', at random' : ''}. Undo puts the old ones back.`)
+  }
 
   function releaseTicked() {
     const count = ticked.length
@@ -707,6 +727,45 @@ export function TeamEditor(props: Props) {
             Paste attributes only
           </button>{' '}
           <span className="note">{notice || 'Tick players to copy them, or to choose which ones a paste replaces.'}</span>
+        </p>
+        <p>
+          Make up attributes for the ticked players:{' '}
+          {(tickedSkaters > 0 || ticked.length === 0) && (
+            <select className="wide" aria-label="Kind of skater" value={skaterKind} onChange={(e) => setSkaterKind(e.target.value)}>
+              {SKATER_ARCHETYPES.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          )}{' '}
+          {tickedGoalies > 0 && (
+            <select className="wide" aria-label="Kind of goalie" value={goalieKind} onChange={(e) => setGoalieKind(e.target.value)}>
+              {GOALIE_ARCHETYPES.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label} goalie
+                </option>
+              ))}
+            </select>
+          )}{' '}
+          <select aria-label="Level of player" value={level} onChange={(e) => setLevel(e.target.value)}>
+            {LEVELS.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.label}
+              </option>
+            ))}
+          </select>{' '}
+          <button disabled={ticked.length === 0} onClick={() => makeTicked(false)}>
+            Make
+          </button>{' '}
+          <button disabled={ticked.length === 0} onClick={() => makeTicked(true)}>
+            Random
+          </button>
+        </p>
+        <p className="note">
+          Make gives each ticked player the attributes of that kind of player at that level, a little different each
+          time. Random gives attributes at random around the level, and a random shooting or glove hand. Names and
+          numbers stay. Undo puts the old attributes back.
         </p>
         <p className="note" hidden={narrow}>
           In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down

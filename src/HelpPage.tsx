@@ -506,6 +506,31 @@ export function HelpPage() {
         <li>The first time you paste, your browser may ask permission to read the clipboard. Copying between tabs needs it.</li>
       </ul>
 
+      <h3 id="help-make">Making up attributes</h3>
+      <p>
+        To fill a roster or make rookies, tick players and use <b>Make up attributes for the ticked players</b>. Choose
+        a kind of skater (all-round, sniper, playmaker, speedster, power forward, two-way forward, grinder, enforcer,
+        offensive or stay-at-home defenceman) or of goalie (all-round, quick, positional, rebound control), and a level
+        from Superstar to Weak, then press <b>Make</b>. Each player gets that kind's strengths at that level, a little
+        different each time, so two snipers are not the same. <b>Random</b> gives attributes at random around the
+        level instead, with a random shooting or glove hand.
+      </p>
+      <ul>
+        <li>Names, jersey numbers and photos stay, and Make keeps each player's shooting and glove hand. Undo puts the old attributes back.</li>
+        <li>
+          The levels are set against the original game's players: an all-round Superstar comes out at about 95 overall,
+          Average at about 60 and Weak at about 45. Enforcers come out lower, as they are made for fighting and hitting
+          rather than scoring.
+        </li>
+        <li>Snipers shoot rather than pass, and playmakers the other way round, through Roughness, which the game uses for that.</li>
+        <li>
+          Aggression, how often a player takes penalties, follows the kind of player, not the level: low for snipers,
+          higher for grinders and enforcers. It stays in the lower half of its range, where the original game does
+          not wrap it round.
+        </li>
+        <li>To make a new player, press Add player, tick the new row, and make it.</li>
+      </ul>
+
       <h3 id="help-keys">Quick edit keys</h3>
       <p>
         Tick <b>Quick edit keys</b>, tick one or more players, and use the top row of the keyboard to change them all
