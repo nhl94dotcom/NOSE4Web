@@ -507,7 +507,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(sections.map((s) => s.id)).toEqual([...NHL95_HACK_SECTIONS.map((s) => s.id), 'apply'])
     const TESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Tested in the game by the NHL94 Match Viewer project.'
     const UNTESTED = 'The same option as in NHL 94; it works on the WN95HL&#x27;s ROMs too. Not yet tested in the game.'
-    const notYet: string[] = ['referees']
+    const notYet: string[] = ['referees', 'fightMomentum', 'blockedShots']
     for (const section of NHL95_HACK_SECTIONS) {
       const shown = sections.find((s) => s.id === section.id)!.html
       for (const hack of section.hacks.filter((hack) => hack !== 'fightingArcade' && hack !== 'fightingOff')) {

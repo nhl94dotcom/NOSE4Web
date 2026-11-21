@@ -36,9 +36,11 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   bodychecks: "Counts each player's checks and shows them in Player Stats as Chk, where penalty minutes were.",
   timeOnIce: 'A Time On Ice page in Player Stats, from the time on ice the game counts but never shows.',
   giveaways: "Counts each player's giveaways and takeaways, with Player Stats pages and a Game Stats row for them.",
+  blockedShots: "Counts each skater's blocked shots, with a Player Stats page for them. Needs Skaters block the puck.",
   realTime: 'The game, penalty and shootout clocks count true seconds.',
   penaltySeconds: 'How long each penalty minute keeps a player in the box, for leagues that play shorter periods.',
   fightSeconds: 'How long a fight keeps each fighter in the box.',
+  fightMomentum: 'The team whose player wins a fight gets +2 Agility and +2 Speed for 90 seconds.',
   noIcing: 'Icing is never called.',
   hybridIcing: 'Icing decided as the puck crosses the goal line, by who is nearer the end-zone faceoff dots.',
   delayedCalls: 'While one team has a penalty pending, the other can be called too.',
@@ -116,7 +118,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = ['referees']
+const NOT_YET: Nhl95Hack[] = ['referees', 'fightMomentum', 'blockedShots']
 
 const OT3_MORE = (
   <p className="note">
@@ -414,6 +416,16 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       counted.
     </>
   ),
+  blockedShots: () => (
+    <>
+      Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick
+      stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked
+      Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a
+      Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for
+      one more row. The counts start again each game. In the original NHL '95 pucks pass through skaters, so this
+      needs Skaters block the puck (under How the game plays) on.
+    </>
+  ),
   realTime: () => (
     <>
       The original game's clock runs two and a half times as fast as a real one. This makes the game clock, the penalty
@@ -432,6 +444,13 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       For leagues that play with fighting: how long a fight keeps each fighter in the box, in game-clock seconds, in
       place of its five minutes and whatever Penalty time makes of them ({c.fightSeconds === 0 ? 'now off' : `now ${clockTime(c.fightSeconds)}`}).
       0 is off, as in the original. The fight still counts as 5 penalty minutes, and both fighters get the same time.
+    </>
+  ),
+  fightMomentum: () => (
+    <>
+      With fighting on: the team whose player wins a fight gets a lift, +2 Agility and +2 Speed for its skaters (not
+      the goalie) for 90 seconds of play. The 90 seconds run only while the clock does, and carry over an
+      intermission; another fight gives the lift to its winner's team and starts them again. Needs Fighting.
     </>
   ),
   noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM that already has the forum's version (TheTome's) shows as On.</>,
@@ -638,8 +657,10 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
     // The two 3 on 3 choices exclude each other.
     if (change.threeOnThree) others.threeOnThreeAll = false
     if (change.threeOnThreeAll) others.threeOnThree = false
-    // Without fighting, its setting at power-on goes back to On.
-    if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false })
+    // Without fighting, its setting at power-on goes back to On, and there are no fights to win.
+    if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false, fightMomentum: false })
+    // Without the body fix no shot hits a skater's body, so there are no blocks to count.
+    if (change.bodyBlockFix === false) others.blockedShots = false
     // Without the injury risk from knockdowns its most is not kept: it goes back to what the ROM then reads.
     if (change.injuryBonus === 0) others.injuryCap = N.injuryCap
     setDraft({ rom: project.bytes, choices: { ...wanted, ...others, ...change } })
@@ -748,7 +769,7 @@ export function Nhl95HacksPage({ project, name, onChange }: Props) {
     return (
       <select
         aria-label={label}
-        disabled={unknown(hack) || (hack === 'fightingOff' && !wanted.fighting)}
+        disabled={unknown(hack) || ((hack === 'fightingOff' || hack === 'fightMomentum') && !wanted.fighting) || (hack === 'blockedShots' && !wanted.bodyBlockFix)}
         value={hack === 'fightingOff' ? (wanted.fightingOff ? 'off' : wanted.fightingArcade ? 'arcade' : 'on') : wanted[hack] ? 'on' : 'off'}
         onChange={(e) => {
           if (hack === 'fightingOff') set({ fightingOff: e.target.value === 'off', fightingArcade: e.target.value === 'arcade' })

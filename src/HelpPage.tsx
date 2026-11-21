@@ -2480,8 +2480,8 @@ export function HelpPage() {
           94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness is tested in
-          the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness, Fight momentum
+          and Blocked shots is tested in the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
           fixes, faceoffs on the dots, counting stick deflections as shots, the one-timer open net fix, the five-hole blind spot fix,
           the <b>rocket pass fix</b>, the runaway speed fix, the computer goalie pull fix, the pulled-goalie sniping fix
@@ -2497,7 +2497,11 @@ export function HelpPage() {
           the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
           <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
           are not offered: NHL '95 works out and shows ratings differently. <b>Referee strictness</b>, NHL 94's five
-          levels, from very lenient (about half the calls) to very strict (about twice). Not yet tested in the game.
+          levels, from very lenient (about half the calls) to very strict (about twice). Not yet tested in the game.{' '}
+          <b>Fight momentum</b>, with fighting: the team whose player wins a fight gets +2 Agility and +2 Speed for its
+          skaters for 90 seconds of play. <b>Blocked shots</b>: each skater's blocked shots counted, with a Player Stats
+          page and (with giveaways off) a Game Stats row; it needs Skaters block the puck, as pucks pass through skaters
+          in the original NHL '95. Both not yet tested in the game.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved

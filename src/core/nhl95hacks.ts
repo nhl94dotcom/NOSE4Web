@@ -83,10 +83,12 @@ export interface Nhl95HackChoices {
   bodychecks: 'off' | 'on'
   timeOnIce: boolean
   giveaways: boolean
+  blockedShots: boolean
   // Rules.
   realTime: boolean
   penaltySeconds: number
   fightSeconds: number
+  fightMomentum: boolean
   noIcing: boolean
   hybridIcing: boolean
   delayedCalls: boolean
@@ -127,14 +129,15 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 // place the second-assist fix calls from, as in NHL 94; fighting, whose code
 // has a place of its own, goes in before the others claim free space, and
 // before the extra period length, which sets its count in fighting's copy of
-// the Game Setup choices; giveaways before the time on ice, whose Player Stats
-// page their pages take in.
+// the Game Setup choices; giveaways and blocked shots before the time on ice,
+// whose Player Stats page their pages take in; fight momentum after fighting,
+// whose code its winner hook goes into.
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
   'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'anyPosition',
-  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
+  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'fightMomentum', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
-  'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'timeOnIce',
+  'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'blockedShots', 'timeOnIce',
   'baseWeight', 'hotColdRange', 'clutchTime',
 ]
 export const NO_NHL95_HACKS: Nhl95HackChoices = {
@@ -177,9 +180,11 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   bodychecks: 'off',
   timeOnIce: false,
   giveaways: false,
+  blockedShots: false,
   realTime: false,
   penaltySeconds: 60,
   fightSeconds: 0,
+  fightMomentum: false,
   noIcing: false,
   hybridIcing: false,
   delayedCalls: false,
@@ -273,9 +278,11 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   bodychecks: 'Bodycheck statistics',
   timeOnIce: 'Time on ice in Player Stats',
   giveaways: 'Giveaways and takeaways',
+  blockedShots: 'Blocked shots',
   realTime: 'Real-time clock',
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
+  fightMomentum: 'Fight momentum',
   noIcing: 'No icing',
   hybridIcing: 'Hybrid icing',
   delayedCalls: 'Calls during a delayed penalty',
@@ -1092,7 +1099,10 @@ function fightMode(rom: Uint8Array): FightStart | null | undefined {
   // The fixed code, built once: all of it as the ROM's but the start setting's word, which says which it is.
   const code = fightCode(rom)
   const word = FIGHT_START_AT - FIGHT95_AT
-  if (!code.every((byte, i) => i === word || i === word + 1 || rom[FIGHT95_AT + i] === byte)) return undefined
+  // Fight momentum's jsr in place of the knockout's move.w #$FFFF,$44(a3) is not the patch's own: skipped here.
+  const winner = momentumWinnerHooked(rom) ? FIGHT95_WINNER_AT - FIGHT95_AT : -1
+  const skip = (i: number) => i === word || i === word + 1 || (i >= winner && i < winner + MOMENTUM_WINNER95.length)
+  if (!code.every((byte, i) => skip(i) || rom[FIGHT95_AT + i] === byte)) return undefined
   const start = (rom[FIGHT_START_AT] << 8) | rom[FIGHT_START_AT + 1]
   return FIGHT_STARTS.find((s) => s === start)
 }
@@ -1116,6 +1126,126 @@ function applyFight(rom: Uint8Array, on: boolean, start: FightStart) {
   }
   rom.set(fightCode(rom, true, start), FIGHT95_AT)
   for (const h of FIGHT_HOOKS) rom.set(h.patched, h.at)
+}
+
+// ---------------------------------------------------------- fight momentum
+// NHL 94's (hacks.ts, fightMomentum) with fighting: the team whose fighter
+// wins a fight gets +2 Agility and +2 Speed for its skaters (not the goalie)
+// for 90 seconds of the game clock. NHL '95's playeracc has no crowd boost
+// (NHL 94's +2 at $10C02 / $10C86 is gone), so the two go where it reads the
+// ratings: add.b legstr(a3),d2 / asr.w #1,d2 at $8C0C2 (the agility, before
+// it is halved: +2 Agility is +1 to the acceleration term, as NHL 94's crowd
+// boost) and clr.w d2 / move.b legspd(a3),d2 at $8C120 (the speed, kept at
+// most 31: past it the MaxSpeed index, (speed / 2) x 4 masked with $3F,
+// wraps to the slowest; 30 and 31 are the same speed, so no one is slowed).
+// Each becomes a jsr to code doing the same, and 2 more for a skater of the
+// boosted team while the timer runs and the clock runs (gmode $BEF0 bit 0
+// clear). The winner: in Vancecookcobxin's fight engine (nhl95fightdata.ts)
+// the knockout, where the punched fighter's health goes below 0, finds the
+// puncher (a3) in the penalty list to mark him Fighting *, then does
+// move.w #$FFFF,$44(a3) at $1E0980 (FIGHT95_WINNER_AT, the twin of NHL 94's
+// .FightFall move): the only place a fight gets its winner. That becomes a
+// jsr that keeps the winner's team bit (pflags $62 bit 6, $00 home / $40
+// visitors) at $FFF750, sets the timer at $FFF752 to 90 and does the move.
+// fightMode skips those 6 bytes when they are this jsr. updatepentime's jsr
+// updatePPTeamTime at $89578 runs once a game second and never while the
+// clock is stopped, so a jsr there counts the timer down and jumps on to it.
+// StartGame's clr.w (gsp).w / clr.w (ChkCnt).w at $9CA8 (after giveaways'
+// $9CA0) also clears both words. A second fight hands the boost to its
+// winner's team and starts the 90 seconds again; the timer carries over
+// intermissions. RAM $FFF750-$FFF753, between the injury counts ($FFF700-
+// $FFF73F) and the organ's $FFF800, in the range Match Viewer found unused
+// ($FFDC84-$FFFC03). The same bytes in NHL_95, W18 and W18p.
+const FIGHT95_WINNER_AT = 0x1e0980
+const MOMENTUM_WINNER95 = hex('377C FFFF 0044')
+const MOMENTUM_AGILITY95: Hook = { at: 0x8c0c2, original: hex('D42B 0068 E242') }
+const MOMENTUM_SPEED95: Hook = { at: 0x8c120, original: hex('4242 142B 0069') }
+const MOMENTUM_TICK_AT95 = 0x89578
+const MOMENTUM_CLEAR95: Hook = { at: 0x9ca8, original: hex('4278 C020 4278 C028') }
+const MOMENTUM_AROUND95 = [
+  { at: 0x8c0be, bytes: hex('0642 0060') }, // addi.w #$60,d2
+  { at: 0x8c0c8, bytes: hex('C1C2 C3C2') }, // muls.w d2,d0 / muls.w d2,d1
+  { at: 0x8c11c, bytes: hex('303C 1000') }, // move.w #$1000,d0
+  { at: 0x8c126, bytes: hex('31C2 BB14 E24A') }, // move.w d2,(TempRawSpd).w / lsr.w #1,d2
+  { at: 0x8956c, bytes: hex('08F8 0006 BEF6 4EB9 0008 AB7E') }, // bset #sf3icetime,(sflags3).w / jsr chkatop
+  { at: 0x8957e, bytes: hex('347C C288') }, // movea.w #tmstruct,a2
+]
+const MOMENTUM_ENTRIES95 = { agility: 0x34, speed: 0x44, tick: 0x5e, clear: 0x6e, winner: 0x80 }
+const momentumCode95 = (tickTarget: number) =>
+  hex(
+    [
+      // +0, on: Z set when a3 gets the boost (d3 kept): the timer running, the clock too, a skater, the team's bit.
+      '48E7 1000 4A78 F752 6720 0838 0000 BEF0 6618 4A6B 0034 6712 162B 0062 0203 0040 B638 F750 4CDF 0008 4E75',
+      '4CDF 0008 023C 00FB 4E75',
+      // +$34, agility: add.b legstr(a3),d2 / bsr.w +0 / bne.s / addq.b #2,d2 / asr.w #1,d2
+      'D42B 0068 6100 FFC6 6602 5402 E242 4E75',
+      // +$44, speed: clr.w d2 / move.b legspd(a3),d2 / bsr.w +0 / bne.s / addq.b #2,d2, at most 31
+      '4242 142B 0069 6100 FFB4 660C 5402 B43C 001F 6F04 143C 001F 4E75',
+      // +$5E, tick, then on to updatePPTeamTime
+      `4A78 F752 6704 5378 F752 4EF9 ${tickTarget.toString(16).padStart(8, '0')}`,
+      // +$6E, cleared at the game's start, after StartGame's own two
+      '4278 C020 4278 C028 4278 F750 4278 F752 4E75',
+      // +$80, the winner a3
+      '11EB 0062 F750 0238 0040 F750 31FC 005A F752 377C FFFF 0044 4E75',
+    ].join(' '),
+  )
+const MOMENTUM_LENGTH95 = 0x9a
+// Where the momentum code is (from the tick's jsr), if it is there.
+function momentumBase95(rom: Uint8Array): number | null {
+  if (readU16(rom, MOMENTUM_TICK_AT95) !== OP_JSR) return null
+  const base = readU32(rom, MOMENTUM_TICK_AT95 + 2) - MOMENTUM_ENTRIES95.tick
+  if (base < 0 || base + MOMENTUM_LENGTH95 > rom.length) return null
+  const tickTarget = readU32(rom, base + MOMENTUM_ENTRIES95.tick + 12)
+  return matches(rom, base, momentumCode95(tickTarget)) ? base : null
+}
+// Whether the knockout's move is momentum's jsr.
+function momentumWinnerHooked(rom: Uint8Array): boolean {
+  if (rom.length < FIGHT95_WINNER_AT + 6 || readU16(rom, FIGHT95_WINNER_AT) !== OP_JSR) return false
+  const base = momentumBase95(rom)
+  return base !== null && readU32(rom, FIGHT95_WINNER_AT + 2) === base + MOMENTUM_ENTRIES95.winner
+}
+const momentumOriginal95 = (rom: Uint8Array) =>
+  readU16(rom, MOMENTUM_TICK_AT95) === OP_JSR &&
+  [MOMENTUM_AGILITY95, MOMENTUM_SPEED95, MOMENTUM_CLEAR95].every((h) => matches(rom, h.at, h.original)) &&
+  momentumBase95(rom) === null
+const fightMomentum95: Part<boolean> = {
+  detect(rom) {
+    if (!MOMENTUM_AROUND95.every((each) => matches(rom, each.at, each.bytes))) return undefined
+    const base = momentumBase95(rom)
+    if (base === null) return momentumOriginal95(rom) ? false : undefined
+    const hooks = (
+      [
+        [MOMENTUM_AGILITY95, MOMENTUM_ENTRIES95.agility],
+        [MOMENTUM_SPEED95, MOMENTUM_ENTRIES95.speed],
+        [MOMENTUM_CLEAR95, MOMENTUM_ENTRIES95.clear],
+      ] as const
+    ).every(([hook, entry]) => hookTarget(rom, hook) === base + entry)
+    return hooks && momentumWinnerHooked(rom) ? true : undefined
+  },
+  remove(rom) {
+    const base = momentumBase95(rom)
+    if (base === null) return
+    const tickTarget = readU32(rom, base + MOMENTUM_ENTRIES95.tick + 12)
+    if (momentumWinnerHooked(rom)) rom.set(MOMENTUM_WINNER95, FIGHT95_WINNER_AT)
+    for (const h of [MOMENTUM_AGILITY95, MOMENTUM_SPEED95, MOMENTUM_CLEAR95]) if (hookTarget(rom, h) !== null) rom.set(h.original, h.at)
+    writeU32(rom, MOMENTUM_TICK_AT95 + 2, tickTarget)
+    erase(rom, base, MOMENTUM_LENGTH95)
+  },
+  // After fighting, whose code the winner hook goes into.
+  apply(work, value) {
+    if (!value) return
+    const fights = fightMode(work.rom)
+    if (fights === null || fights === undefined || !matches(work.rom, FIGHT95_WINNER_AT, MOMENTUM_WINNER95)) throw new Error('Fight momentum needs Fighting on.')
+    if (!momentumOriginal95(work.rom)) throw new Error("Fight momentum needs the game's skating and penalty clock code as the original game has it.")
+    const tickTarget = readU32(work.rom, MOMENTUM_TICK_AT95 + 2)
+    const base = placeCode(work, momentumCode95(tickTarget))
+    writeHook(work.rom, MOMENTUM_AGILITY95, base + MOMENTUM_ENTRIES95.agility)
+    writeHook(work.rom, MOMENTUM_SPEED95, base + MOMENTUM_ENTRIES95.speed)
+    writeHook(work.rom, MOMENTUM_CLEAR95, base + MOMENTUM_ENTRIES95.clear)
+    writeU32(work.rom, MOMENTUM_TICK_AT95 + 2, base + MOMENTUM_ENTRIES95.tick)
+    writeU16(work.rom, FIGHT95_WINNER_AT, OP_JSR)
+    writeU32(work.rom, FIGHT95_WINNER_AT + 2, base + MOMENTUM_ENTRIES95.winner)
+  },
 }
 
 // ------------------------------------------------------ NHL 94's settings
@@ -1876,9 +2006,14 @@ export function nhl95GiveawaysOutdated(rom: Uint8Array): boolean {
   const found = gtIn95(rom)
   return found !== null && found.version !== 0
 }
-// Player Stats pages (game stats only): Giveaways and Takeaways past Penalty Minutes (or Checks For), then Time On Ice
-// when it is on too, at the time on ice's five places (entries +0 col, +4 title, +8 head, +C get, +10 row).
-const GP_CODES95 = [false, true].map((toi) => ({
+// Player Stats pages (game stats only): Giveaways and Takeaways past Penalty Minutes (or Checks For), then Blocked
+// Shots (blockedShots), then Time On Ice, each when it is on, at the time on ice's five places (entries +0 col, +4
+// title, +8 head, +C get, +10 row). The pages with blocked shots are NHL 94's (hacks.ts GP_CODES) with the same
+// NHL '95 addresses as the giveaway-only ones (which they are, byte for byte, translated so), and the counts at
+// $FFEA90.
+const GP_CODES95: { gv: boolean; blk: boolean; toi: boolean; code: Uint8Array }[] = [false, true].map((toi) => ({
+  gv: true,
+  blk: false,
   toi,
   code: hex(
     toi
@@ -1886,13 +2021,19 @@ const GP_CODES95 = [false, true].map((toi) => ({
       : '6000 0012 6000 0030 6000 006E 6000 00B0 6000 00E4 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0009 26E8 3038 D276 0C40 0005 6D0C 43FA 0116 5B40 4EF9 0007 CB38 43F9 0009 2B04 5240 4EB9 0007 CB38 0C78 0004 D276 6614 4A47 6610 5378 AC40 43FA 00DC 7000 4EF9 0007 CB38 4E75 0C78 0005 D276 6D38 0C43 0003 6D32 2F09 43FA 00C2 0C43 0004 6604 43FA 00BE 31FC 8000 AC44 3038 D276 5540 B043 6606 31FC C000 AC44 4EB9 0007 C6E6 225F D2D1 4E75 4EF9 0007 C6E6 3400 302F 0004 2F57 0002 548F 0C41 0005 6D22 327C EA10 0C41 0006 6604 43E9 0040 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D276 6D40 0C45 0003 6D3A 4240 1014 3205 5441 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC 8000 AC44 3005 5440 B078 D276 6606 31FC C000 AC44 4EB9 0007 C822 43FA 000C 4E75 7204 4EF9 0007 D154 0002 0004 005D 0006 2020 4756 0006 2020 544B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 2020',
   ),
 }))
+GP_CODES95.push(
+  { gv: false, blk: true, toi: false, code: hex('6000 0012 6000 0030 6000 006E 6000 0088 6000 00A2 0C40 FFFF 6D14 4A47 6608 0C40 0005 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0009 26E8 3038 D276 0C40 0005 6D0C 43FA 00FE 5B40 4EF9 0007 CB38 43F9 0009 2B04 5240 4EB9 0007 CB38 0C78 0004 D276 6614 4A47 6610 5378 AC40 43FA 00CA 7000 4EF9 0007 CB38 4E75 0C78 0005 D276 6D10 0C43 0003 6D0A 0C78 0005 D276 6700 0046 4EF9 0007 C6E6 3400 302F 0004 2F57 0002 548F 0C41 0005 6D08 0C41 0005 6700 0044 B042 4E75 0C78 0005 D276 6D10 0C45 0003 6D0A 0C78 0005 D276 6700 0040 7204 4EF9 0007 D154 0C43 0003 6614 31FC C000 AC44 2F09 43FA 0056 4EB9 0007 C6E6 225F D2D1 4E75 327C EA90 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7205 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC C000 AC44 4EB9 0007 C822 43FA 0006 7A04 4E75 0002 0004 005D 0006 2042 4C4B 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 2020') },
+  { gv: false, blk: true, toi: true, code: hex('6000 0012 6000 0030 6000 006E 6000 00AE 6000 00E8 0C40 FFFF 6D14 4A47 6608 0C40 0006 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0009 26E8 3038 D276 0C40 0005 6D0C 43FA 0182 5B40 4EF9 0007 CB38 43F9 0009 2B04 5240 4EB9 0007 CB38 0C78 0004 D276 6614 4A47 6610 5378 AC40 43FA 0144 7000 4EF9 0007 CB38 4E75 0C78 0005 D276 6D36 0C43 0003 6D30 0C78 0006 D276 670A 0C78 0005 D276 6700 00B8 0C43 0003 6614 31FC C000 AC44 2F09 43FA 010C 4EB9 0007 C6E6 225F D2D1 4E75 4EF9 0007 C6E6 3400 302F 0004 2F57 0002 548F 0C41 0005 6D28 0C41 0006 6708 0C41 0005 6700 0092 3400 D442 0642 0138 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D276 6D44 0C45 0003 6D3E 0C78 0006 D276 670A 0C78 0005 D276 6700 006C 4240 1014 7206 4EB9 0009 2A24 3002 4EB9 0007 D0BC 5678 AC40 31FC C000 AC44 4EB9 0007 C822 43FA 006E 7A04 4E75 7204 4EF9 0007 D154 0C43 0003 6614 31FC C000 AC44 2F09 43FA 0060 4EB9 0007 C6E6 225F D2D1 4E75 327C EA90 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7205 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC C000 AC44 4EB9 0007 C822 43FA 0006 7A04 4E75 0002 0004 005D 000A 2020 2020 2054 4F49 0006 2042 4C4B 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020') },
+  { gv: true, blk: true, toi: false, code: hex('6000 0012 6000 0030 6000 006E 6000 00BA 6000 00F6 0C40 FFFF 6D14 4A47 6608 0C40 0007 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0009 26E8 3038 D276 0C40 0005 6D0C 43FA 0198 5B40 4EF9 0007 CB38 43F9 0009 2B04 5240 4EB9 0007 CB38 0C78 0004 D276 6614 4A47 6610 5378 AC40 43FA 0158 7000 4EF9 0007 CB38 4E75 0C78 0005 D276 6D42 0C43 0003 6D3C 0C78 0007 D276 6700 00D4 2F09 43FA 0134 0C43 0004 6604 43FA 0130 31FC 8000 AC44 3038 D276 5540 B043 6606 31FC C000 AC44 4EB9 0007 C6E6 225F D2D1 4E75 4EF9 0007 C6E6 3400 302F 0004 2F57 0002 548F 0C41 0005 6D2A 0C41 0007 6700 00A0 327C EA10 0C41 0006 6604 43E9 0040 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 B042 4E75 0C78 0005 D276 6D4A 0C45 0003 6D44 0C78 0007 D276 6700 007A 4240 1014 3205 5441 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC 8000 AC44 3005 5440 B078 D276 6606 31FC C000 AC44 4EB9 0007 C822 43FA 006C 4E75 7204 4EF9 0007 D154 0C43 0003 6614 31FC C000 AC44 2F09 43FA 0062 4EB9 0007 C6E6 225F D2D1 4E75 327C EA90 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7207 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC C000 AC44 4EB9 0007 C822 43FA 0006 7A04 4E75 0002 0004 005D 0006 2020 4756 0006 2020 544B 0006 2042 4C4B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 2020') },
+  { gv: true, blk: true, toi: true, code: hex('6000 0012 6000 0030 6000 006E 6000 00E0 6000 013C 0C40 FFFF 6D14 4A47 6608 0C40 0008 6E0A 4E75 0C40 0004 6E02 4E75 588F 4EF9 0009 26E8 3038 D276 0C40 0005 6D0C 43FA 021C 5B40 4EF9 0007 CB38 43F9 0009 2B04 5240 4EB9 0007 CB38 0C78 0004 D276 6614 4A47 6610 5378 AC40 43FA 01D2 7000 4EF9 0007 CB38 4E75 0C78 0005 D276 6D68 0C43 0003 6D62 0C78 0008 D276 673C 0C78 0007 D276 6700 0146 2F09 43FA 01A6 0C43 0004 6604 43FA 01A2 31FC 8000 AC44 3038 D276 5540 B043 6606 31FC C000 AC44 4EB9 0007 C6E6 225F D2D1 4E75 0C43 0003 6614 31FC C000 AC44 2F09 43FA 0174 4EB9 0007 C6E6 225F D2D1 4E75 4EF9 0007 C6E6 3400 302F 0004 2F57 0002 548F 0C41 0005 6D4A 0C41 0008 672A 0C41 0007 6700 00EE 327C EA10 0C41 0006 6604 43E9 0040 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 3400 D442 0642 0138 3432 2000 0C42 176F 6304 343C 176F 588F 4E75 B042 4E75 0C78 0005 D276 6D7E 0C45 0003 6D78 0C78 0008 D276 6744 0C78 0007 D276 6700 00A6 4240 1014 3205 5441 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC 8000 AC44 3005 5440 B078 D276 6606 31FC C000 AC44 4EB9 0007 C822 43FA 0098 4E75 4240 1014 7208 4EB9 0009 2A24 3002 4EB9 0007 D0BC 5678 AC40 31FC C000 AC44 4EB9 0007 C822 43FA 006E 7A04 4E75 7204 4EF9 0007 D154 0C43 0003 6614 31FC C000 AC44 2F09 43FA 006C 4EB9 0007 C6E6 225F D2D1 4E75 327C EA90 B4FC C288 6704 43E9 0020 4242 1431 0000 588F 4E75 4240 1014 7207 4EB9 0009 2A24 3002 7204 4EB9 0007 D154 31FC C000 AC44 4EB9 0007 C822 43FA 0006 7A04 4E75 0002 0004 005D 0006 2020 4756 0006 2020 544B 000A 2020 2020 2054 4F49 0006 2042 4C4B 0016 5B20 2020 2047 6976 6561 7761 7973 2020 2020 205D 0016 5B20 2020 2054 616B 6561 7761 7973 2020 2020 205D 0016 5B20 2042 6C6F 636B 6564 2053 686F 7473 2020 205D 0016 5B20 2020 2054 696D 6520 4F6E 2049 6365 2020 2020') },
+)
 const GP_ENTRIES95: Record<ToiKey, number> = { col: 0, title: 4, head: 8, get: 0xc, row: 0x10 }
-function gpPages95(rom: Uint8Array): { base: number; toi: boolean; length: number } | null {
+function gpPages95(rom: Uint8Array): { base: number; gv: boolean; blk: boolean; toi: boolean; length: number } | null {
   const base = hookTarget(rom, TOI_HOOKS95.col)
   if (base === null) return null
-  for (const { toi, code } of GP_CODES95) {
-    if (!matches(rom, base, code)) continue
-    if (TOI_KEYS95.every((key) => hookTarget(rom, TOI_HOOKS95[key]) === base + GP_ENTRIES95[key])) return { base, toi, length: code.length }
+  for (const { gv, blk, toi, code } of GP_CODES95) {
+    if (base + code.length > rom.length || !matches(rom, base, code)) continue
+    if (TOI_KEYS95.every((key) => hookTarget(rom, TOI_HOOKS95[key]) === base + GP_ENTRIES95[key])) return { base, gv, blk, toi, length: code.length }
   }
   return null
 }
@@ -1902,17 +2043,22 @@ function removePages95(rom: Uint8Array): void {
   erase(rom, found.base, found.length)
   for (const key of TOI_KEYS95) rom.set(TOI_HOOKS95[key].original, TOI_HOOKS95[key].at)
 }
-// With giveaways on, the pages, where the five places are as the original game has them.
-function applyPages95(work: Work, toi: boolean): void {
+// With giveaways or blocked shots on, the pages, where the five places are as the original game has them.
+function applyPages95(work: Work, pages: { gv: boolean; blk: boolean; toi: boolean }): void {
   if (!TOI_KEYS95.every((key) => matches(work.rom, TOI_HOOKS95[key].at, TOI_HOOKS95[key].original))) return
-  const base = placeCode(work, GP_CODES95[toi ? 1 : 0].code)
+  const { code } = GP_CODES95.find((c) => c.gv === pages.gv && c.blk === pages.blk && c.toi === pages.toi)!
+  const base = placeCode(work, code)
   for (const key of TOI_KEYS95) writeHook(work.rom, TOI_HOOKS95[key], base + GP_ENTRIES95[key])
 }
 const giveaways95: Part<boolean> = {
   detect(rom) {
     if (gtIn95(rom) !== null) return true
-    if (gpPages95(rom)) return undefined
-    const original = GT_HOOKS95.every((hook) => matches(rom, hook.at, hook.original)) && GT_LIMITS95.every((l) => readU16(rom, l.at) === l.original)
+    if (gpPages95(rom)?.gv) return undefined
+    // The Game Stats places (GT_HOOKS95 6 and 7, and the scroll limits) may hold blocked shots' row.
+    const row = blkIn95(rom)?.rows === true
+    const original =
+      GT_HOOKS95.every((hook, i) => matches(rom, hook.at, hook.original) || (row && GT_TABLE_HOOKS95.includes(i))) &&
+      (row || GT_LIMITS95.every((l) => readU16(rom, l.at) === l.original))
     return original && gtCode95(rom) !== null ? false : undefined
   },
   remove(rom) {
@@ -1933,8 +2079,8 @@ const giveaways95: Part<boolean> = {
 const timeOnIce95: Part<boolean> = {
   detect(rom) {
     const pages = gpPages95(rom)
-    // The giveaway pages without the counting code: left alone, as giveaways are.
-    if (pages) return gtIn95(rom) !== null ? pages.toi : undefined
+    // The giveaway or blocked shots pages without their counting code: left alone, as those are.
+    if (pages) return (pages.gv && gtIn95(rom) === null) || (pages.blk && blkIn95(rom) === null) ? undefined : pages.toi
     const states = toiParts95.map(({ part }) => part.detect(rom))
     if (states.every((state) => state === false)) return false
     return states.every((state) => state === true) ? true : undefined
@@ -1945,6 +2091,97 @@ const timeOnIce95: Part<boolean> = {
   },
   apply(work, value) {
     for (const { part } of toiParts95) part.apply(work, value)
+  },
+}
+
+// Blocked shots: NHL 94's (hacks.ts, blockedShots, BLK_CODE) with NHL '95's addresses. Each skater's blocked shots:
+// a shot of the other team's that his body stops, while sf2shot (sflags2 $BEF4 bit 4, set by doshot, cleared by
+// a2touchpuck, wallcoll and ChkShotStat) still stands, the shooter (shotplayer $BAD6, the spot doshot keeps as it sets
+// sf2shot; SortCords $AC62) on the other team; not in a highlight (gmode $BEF0 bit 4) or a shootout (gmode2 $BF00 bit
+// 0), not a goalie (position $34). The hook: puckbody's first instruction, btst #pf3onetimer,pflags3(a2) at $7BCA8,
+// whose code repeats that test and returns its flags, and in between puckbody's own test for .hit (Zpos $18 above 8,
+// or d0's low four bits 0). Retail NHL '95 never reaches puckbody: the skater body test's y check is a move where a cmp
+// belongs (bodyBlockFix, above), so pucks pass through skaters and this counts nothing; it needs that fix on. The
+// counts, a byte a roster place (pnum $66, 32 a team, home first, to 255), at $FFEA90-$FFEACF, just past giveaways'
+// takeaways ($FFEA50-$FFEA8F); each team's total a word at team struct + $287C (home $FFEB04, visitors $FFEE6A),
+// past giveaways' +$2878 / +$287A. Cleared at each game's start: StartGame's .noso jsr restoreteams ($9CB0, after
+// fight momentum's $9CA8); the code clears, then jumps to restoreteams. Game Stats gets a Blocked Shots row with the
+// teams' totals only with giveaways off (the table takes one more row at most, and Give/Takeaways takes it), at the
+// same places and scroll limits as giveaways' row (GT_HOOKS95 6 and 7, GT_LIMITS95); Player Stats a Blocked Shots page
+// (GP_CODES95). The same bytes in NHL_95, W18 and W18p.
+const BLK_CODE95 = hex(
+  '6000 000E 6000 00A6 6000 00C4 6000 00C8 082A 0003 0064 6702 4E75 48E7 6080 0C6B 0008 0018 6E08 3200 0241 000F 6672 0838 0004 BEF4 676A 0838 0004 BEF0 6662 0838 0000 BF00 665A 4A6A 0034 6754 3238 BAD6 0C41 000B 624A EF49 41F8 AC62 D0C1 1428 0062 122A 0062 B302 0802 0006 6732 4241 122A 0066 0C41 0020 6426 41F8 EB04 082A 0006 0062 6708 0641 0020 41F8 EE6A 5250 41F8 EA90 0C30 00FF 1000 6704 5230 1000 4CDF 0106 082A 0003 0064 4E75 48E7 8080 41F8 EA90 700F 4298 51C8 FFFC 4278 EB04 4278 EE6A 4CDF 0101 4EF9 0008 3D3E 7C0F 43FA FFFC 4E75 3C3C 000B 43FA FFFA 4E75',
+)
+// The Game Stats tables' lea (pc) extension words in BLK_CODE95.
+const BLK_TABLE_A95 = 0xd2
+const BLK_TABLE_B95 = 0xdc
+const BLK_HOOKS95: [Hook, number][] = [
+  [{ at: 0x7bca8, original: hex('082A 0003 0064') }, 0],
+  [{ at: 0x9cb0, original: hex('4EB9 0008 3D3E') }, 4],
+]
+// The Game Stats places, by their place in GT_HOOKS95, and BLK_CODE95's entries for them.
+const GT_TABLE_HOOKS95 = [6, 7]
+const BLK_TABLE_ENTRIES95 = [8, 0xc]
+const BLK_ROW95 = Uint8Array.from([...hex('0010'), ...ascii('Blocked Shots '), ...hex('287C FFFF')])
+// The code, with the ROM's two tables and the row after each.
+function blkCode95(rom: Uint8Array): Uint8Array | null {
+  const withPen = gtTable95(rom, 0x9240e, 15)
+  const noPen = gtTable95(rom, 0x924fc, 11)
+  if (!withPen || !noPen) return null
+  const code = new Uint8Array(BLK_CODE95.length + withPen.length + noPen.length + 2 * BLK_ROW95.length)
+  code.set(BLK_CODE95)
+  let at = BLK_CODE95.length
+  const tableA = at
+  code.set(withPen, at)
+  code.set(BLK_ROW95, (at += withPen.length))
+  const tableB = (at += BLK_ROW95.length)
+  code.set(noPen, at)
+  code.set(BLK_ROW95, at + noPen.length)
+  writeU16(code, BLK_TABLE_A95, tableA - BLK_TABLE_A95)
+  writeU16(code, BLK_TABLE_B95, tableB - BLK_TABLE_B95)
+  return code
+}
+// Where the code is, how long, and whether it has the Game Stats row.
+function blkIn95(rom: Uint8Array): { base: number; length: number; rows: boolean } | null {
+  const base = hookTarget(rom, BLK_HOOKS95[0][0])
+  if (base === null) return null
+  const code = blkCode95(rom)
+  if (!code || base + code.length > rom.length || !matches(rom, base, code)) return null
+  if (!BLK_HOOKS95.every(([hook, entry]) => hookTarget(rom, hook) === base + entry)) return null
+  const tables = GT_TABLE_HOOKS95.map((i, n) => hookTarget(rom, GT_HOOKS95[i]) === base + BLK_TABLE_ENTRIES95[n])
+  if (tables[0] !== tables[1]) return null
+  const rows = tables[0]
+  if (rows && !GT_LIMITS95.every((l) => readU16(rom, l.at) === l.hacked)) return null
+  return { base, length: code.length, rows }
+}
+const blockedShots95: Part<boolean> = {
+  detect(rom) {
+    if (blkIn95(rom)) return true
+    if (gpPages95(rom)?.blk) return undefined
+    // Only where giveaways' code is known (in or out): their places and RAM are next to these.
+    if (giveaways95.detect(rom) === undefined) return undefined
+    return BLK_HOOKS95.every(([hook]) => matches(rom, hook.at, hook.original)) && blkCode95(rom) !== null ? false : undefined
+  },
+  remove(rom) {
+    removePages95(rom)
+    const found = blkIn95(rom)
+    if (!found) return
+    erase(rom, found.base, found.length)
+    for (const [hook] of BLK_HOOKS95) rom.set(hook.original, hook.at)
+    if (!found.rows) return
+    for (const i of GT_TABLE_HOOKS95) rom.set(GT_HOOKS95[i].original, GT_HOOKS95[i].at)
+    for (const l of GT_LIMITS95) writeU16(rom, l.at, l.original)
+  },
+  // After giveaways: its Game Stats row, when it is in, keeps the table's last place.
+  apply(work, value) {
+    if (!value) return
+    const base = placeCode(work, blkCode95(work.rom)!)
+    for (const [hook, entry] of BLK_HOOKS95) writeHook(work.rom, hook, base + entry)
+    const free =
+      GT_TABLE_HOOKS95.every((i) => matches(work.rom, GT_HOOKS95[i].at, GT_HOOKS95[i].original)) && GT_LIMITS95.every((l) => readU16(work.rom, l.at) === l.original)
+    if (!free) return
+    GT_TABLE_HOOKS95.forEach((i, n) => writeHook(work.rom, GT_HOOKS95[i], base + BLK_TABLE_ENTRIES95[n]))
+    for (const l of GT_LIMITS95) writeU16(work.rom, l.at, l.hacked)
   },
 }
 
@@ -2105,9 +2342,11 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     bodychecks: bodychecks95.detect(rom),
     timeOnIce: timeOnIce95.detect(rom),
     giveaways: giveaways95.detect(rom),
+    blockedShots: blockedShots95.detect(rom),
     realTime: realTime95.detect(rom),
     penaltySeconds: penaltySeconds95.detect(rom),
     fightSeconds: fightSeconds95.detect(rom),
+    fightMomentum: fightMomentum95.detect(rom),
     noIcing: noIcing95.detect(rom),
     hybridIcing: hybridIcing95().detect(rom),
     delayedCalls: delayedCalls95.detect(rom),
@@ -2181,6 +2420,9 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if (want.threeOnThree && want.threeOnThreeAll) throw new Nhl95HackError('Only one of the two 3 on 3 overtime choices can be on.')
   if ((want.fightingOff || want.fightingArcade) && !want.fighting) throw new Nhl95HackError('The Fighting setting at power-on needs Fighting on.')
   if (want.fightingOff && want.fightingArcade) throw new Nhl95HackError('The Fighting setting at power-on is one of Off, On and On - Arcade Mode.')
+  if (want.fightMomentum && !want.fighting) throw new Nhl95HackError('Fight momentum needs Fighting on.')
+  // Without the body fix no puck ever reaches a skater's body, so there would be nothing to count.
+  if (want.blockedShots && !want.bodyBlockFix) throw new Nhl95HackError('Blocked shots needs Skaters block the puck on: without it pucks pass through skaters.')
   const work = { rom: project.bytes.slice() }
   const settingStep = <K extends Nhl95Hack>(hack: K): [Nhl95Hack, () => void, () => void] => [hack, () => setting95(hack).remove(work.rom), () => setting95(hack).apply(work, want[hack])]
   // Every known hack comes out, then those wanted go in, as for NHL 94.
@@ -2225,6 +2467,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     settingStep('realTime'),
     settingStep('penaltySeconds'),
     settingStep('fightSeconds'),
+    ['fightMomentum', () => fightMomentum95.remove(work.rom), () => fightMomentum95.apply(work, want.fightMomentum)],
     settingStep('noIcing'),
     settingStep('hybridIcing'),
     settingStep('delayedCalls'),
@@ -2255,11 +2498,18 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     settingStep('puckFriction'),
     settingStep('choppyIce'),
     ['giveaways', () => giveaways95.remove(work.rom), () => giveaways95.apply(work, want.giveaways)],
-    // With giveaways on, their Player Stats pages take the time on ice page in too.
+    // After giveaways, whose Game Stats row it leaves be.
+    ['blockedShots', () => blockedShots95.remove(work.rom), () => blockedShots95.apply(work, want.blockedShots)],
+    // With giveaways or blocked shots on, their Player Stats pages take the time on ice page in too.
     [
       'timeOnIce',
       () => timeOnIce95.remove(work.rom),
-      () => (want.giveaways && !unknown.includes('giveaways') ? applyPages95(work, want.timeOnIce) : timeOnIce95.apply(work, want.timeOnIce)),
+      () => {
+        const gv = want.giveaways && !unknown.includes('giveaways')
+        const blk = want.blockedShots && !unknown.includes('blockedShots')
+        if (gv || blk) applyPages95(work, { gv, blk, toi: want.timeOnIce })
+        else timeOnIce95.apply(work, want.timeOnIce)
+      },
     ],
     settingStep('baseWeight'),
     settingStep('hotColdRange'),
@@ -2356,6 +2606,9 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   bodychecks: "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
   timeOnIce: "Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player's time on ice.",
   giveaways: "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
+  blockedShots: (c) =>
+    `Each skater's blocked shots (shots by the other team that hit his body) are counted and shown on a Player Stats page of their own${c.giveaways ? '' : ", and Game Stats shows each team's as Blocked Shots"}.`,
+  fightMomentum: "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
   realTime: 'The clocks count real seconds, so a period lasts as long as it says.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < N.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
@@ -2471,7 +2724,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
-  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'threeStars'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars'] },
   { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
   { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'snipingFix'] },
   {
@@ -2482,7 +2735,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
       'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees',
     ],
   },
-  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds', 'fightMomentum'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },

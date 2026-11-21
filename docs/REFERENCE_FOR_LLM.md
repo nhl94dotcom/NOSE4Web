@@ -247,7 +247,9 @@ routine use `d2`, which neither caller has live (`FIGHT_FIX`, `nhl95hacks.ts`):
 - Hooks patched and the block equals the **unfixed** patch (`fightUnfixed`, i.e. a ROM made with the patch's own
   IPS): reads as **on, start On**. When the hacks are next applied with fighting on, it is re-applied with the
   fix (`applyNhl95Hacks` pushes `fighting` into the change list).
-- Otherwise the block must equal the fixed code except the start word; the start word must be 0, 1 or 2.
+- Otherwise the block must equal the fixed code except the start word; the start word must be 0, 1 or 2. The 6
+  bytes at `$1E0980` (the knockout's `move.w #$FFFF,$44(a3)`, `FIGHT95_WINNER_AT`) are skipped too when they are
+  fight momentum's jsr to its code (`momentumWinnerHooked`; section 11).
 
 ### Interactions
 
@@ -1036,7 +1038,10 @@ Freed room in the middle is tagged `NOSEFREE` + start address (`releaseSpace`).
 | `$FFEA00`-`$FFEA8F` | giveaways/takeaways: `$FFEA00`-`$FFEA05` carrier's and forcer's spots and places, counts at `$FFEA10` and `$FFEA50` (the code clears 32 longs from `$FFEA10`) | tested | giveaways comment, `GT_BODY95`; section 11 |
 | `$FFEB00`-`$FFEB03`, `$FFEE66`-`$FFEE69` | giveaways' team totals ("team struct +$2878 / +$287A"; the code uses `lea ($EB00).w` and `lea ($EE66).w` and clears a long at each) (inferred from the code bytes) | tested | `GT_BODY95` |
 | `$FFF000`-`$FFF6CF` | season shootout: mark `$FFF000`, team structs `$FFF002`-`$FFF6CD`, ScoreSumbytes `$FFF6CE` | tested | section 8 |
+| `$FFEA90`-`$FFEACF` | blocked shots: a byte a roster place, 32 a team, home first (the code clears 16 longs) | not yet tested | comment above `BLK_CODE95`; section 11 |
+| `$FFEB04`-`$FFEB05`, `$FFEE6A`-`$FFEE6B` | blocked shots' team totals ("team struct +$287C"; `lea ($EB04).w` / `lea ($EE6A).w`) | not yet tested | `BLK_CODE95` |
 | `$FFF700`-`$FFF73F` | knockdown counts for the injury risk: a byte a player, 32 a team (cleared each game: 64 bytes) | tested | comment above `COUNT_OF_A2_95`, `GAME_CODE95`; section 11 |
+| `$FFF750`-`$FFF753` | fight momentum: the winner's team bit (byte `$FFF750`, `$00` / `$40`), the timer word `$FFF752` (game seconds left) | not yet tested | comment above `FIGHT95_WINNER_AT`; section 11 |
 | `$FFF800`-`$FFF815` | organ after a pause: kept song slot (22 bytes) | tested | comment above `ORGAN_SAVE_HOOK` |
 | `$FFDC84`-`$FFFC03` | the whole range Match Viewer found unused (retail and W18) that these sit in | | same comments |
 
@@ -1046,7 +1051,7 @@ slot arrays from SndSeqPtr `$FFFDFE` to SndSeqState `$FFFE7E` (section 9, organ)
 
 ### All of it now tested
 
-Every RAM range above is used by an option that is now tested in the game by the NHL94 Match Viewer project:
+Every RAM range above but fight momentum's and blocked shots' (section 11, added 2026-11-20) is used by an option that is now tested in the game by the NHL94 Match Viewer project:
 NHL 94's settings and Any skater at any position are documented in section 11 (`Nhl95HacksPage.tsx`: every setting
 outside `NOT_YET` ends with `SETTING_TESTED`). Any skater at any position uses no RAM. Clutch time (section 11,
 Ratings; not yet tested in the game) only reads game RAM and writes the players' working ratings.
@@ -1058,9 +1063,9 @@ Ratings; not yet tested in the game) only reads game RAM and writes the players'
 NHL 94's statistics, rules, energy, goalie and skating settings, in NHL '95. Each option's plain-words text is in
 `NHL95_HACK_TEXTS` (`nhl95hacks.ts`; a function of the choices for a setting) and the longer note in
 `SETTING_MORE` / `MORE` (`Nhl95HacksPage.tsx`). Page sections (`NHL95_HACK_SECTIONS`): Statistics (`bodychecks`,
-`timeOnIce`, `giveaways`, `threeStars`, with the assist fixes of section 9), the rules list (`shootoutInjuries`,
+`timeOnIce`, `giveaways`, `blockedShots`, `threeStars`, with the assist fixes of section 9), the rules list (`shootoutInjuries`,
 `fourthPeriodOvertime`, `penaltySeconds`, `realTime`, `noIcing`, `hybridIcing`, `delayedCalls`,
-`bCheckPenaltiesOff`, `injuries`, with section 8's options), Fighting (`fightSeconds`, with section 5's), Energy and
+`bCheckPenaltiesOff`, `injuries`, with section 8's options), Fighting (`fightSeconds`, `fightMomentum`, with section 5's), Energy and
 injury risk, Goalies, Skating and the puck, and Edit Lines (`anyPosition`: "Edit Lines lists every skater for every
 position, so a defenceman can play forward or a forward defence.").
 
@@ -1417,10 +1422,66 @@ W18.bin: clutch +3 at the 2:00 tick on all 12 players, awareness only at a rebui
 tick skips awareness too, as NHL 94's), about +2 on NHL '95's five re-boosted ratings at a rebuild; hot/cold range 4
 gives -4..3 and 0 all zeros; base weight 144 shows +4 lb, plays frame for frame as the original). The clock hook and
 the AttributeCalc jump shift play slightly (NHL '95 steps by vertical blanks since its last step), with no slowdown.
-`NOT_YET` in `Nhl95HacksPage.tsx` is empty; a new option not yet played goes there. Every other setting ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
+`NOT_YET` in `Nhl95HacksPage.tsx` holds the options not yet played (`referees`, `fightMomentum`, `blockedShots` as
+of 2026-11-20); a new option not yet played goes there, and in the test's `notYet` list. Every other setting ends with `SETTING_TESTED` ("The same option as in NHL 94; it works on the WN95HL's ROMs too. Tested in the game by the
 NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The test "shows every option ... each
 setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
 aebaeb9).
+
+### Fight momentum and blocked shots (`fightMomentum`, `blockedShots`; added 2026-11-20, not yet tested in the game)
+
+NHL 94's two options (section 9's fight momentum, section 17's blocked shots) in NHL '95, the same bytes in
+NHL_95, W18 and W18p (tests `tests/nhl95momentum.test.ts`, `tests/nhl95blocks.test.ts` assert the hook sites, every
+byte of the code and each branch target). Texts: "The team whose player wins a fight gets +2 Agility and +2 Speed for
+its skaters for 90 seconds of play." and "Each skater's blocked shots (shots by the other team that hit his body) are
+counted and shown on a Player Stats page of their own, and Game Stats shows each team's as Blocked Shots" (the last
+part only with giveaways off).
+
+**Fight momentum** (`momentumCode95`, `$9A` bytes; needs `fighting`: `applyNhl95Hacks` refuses it without, and the
+page turns it off with fighting):
+
+| Place | Original | Hooked | Code entry |
+|---|---|---|---|
+| playeracc's agility: `add.b legstr(a3),d2 / asr.w #1,d2` `$8C0C2` (around `$8C0BE` `0642 0060`, `$8C0C8` `C1C2 C3C2`) | `D42B 0068 E242` | jsr | +`$34`: the same, `addq.b #2,d2` before the asr when boosted |
+| playeracc's speed: `clr.w d2 / move.b legspd(a3),d2` `$8C120` (around `$8C11C` `303C 1000`, `$8C126` `31C2 BB14 E24A`) | `4242 142B 0069` | jsr | +`$44`: the same, +2 when boosted, at most `$1F` |
+| updatepentime's `jsr updatePPTeamTime` `$89578` (around `$8956C`, `$8957E`) | `4EB9 0008 ABB4` | jsr +`$5E` | count `$FFF752` down, `jmp` the original target |
+| StartGame's `clr.w (gsp).w / clr.w (ChkCnt).w` `$9CA8` | `4278 C020 4278 C028` | jsr + nop | +`$6E`: the same, then clears `$FFF750` / `$FFF752` |
+| the fight engine's knockout `move.w #$FFFF,$44(a3)` `$1E0980` (a3 the winner, just after it marks him Fighting * in the penalty list) | `377C FFFF 0044` | jsr | +`$80`: team bit to `$FFF750`, 90 to `$FFF752`, the move |
+
+The test at +0 (Z set = boosted): timer not 0, the clock running (gmode `$BEF0` bit 0 clear), not a goalie (`$34`),
+pflags `$62` bit 6 = the stored bit. NHL '95's playeracc has no crowd boost (NHL 94 adds 2 to both where its
+crowd meter is full; '95 took it out), so the +2 goes where the ratings are read. Speed: the MaxSpeed index is
+`(speed >> 1) x 4 & $3F`, so 32 would wrap to the slowest; 30 and 31 are the same step, so the cap of 31 slows no one.
+updatepentime returns before the jsr while the clock is stopped, so the 90 are game-clock seconds (`$18` frames each
+in the original; `realTime` changes that). Detecting: the momentum code at the tick's jsr target (with the target it
+jumps on to) and all five places to it: on; the five places original and no code: off; else unknown.
+
+**Blocked shots** (`BLK_CODE95`, `$CE` bytes and the two tables; needs `bodyBlockFix`: in retail NHL '95 the body test
+never reaches puckbody, so nothing could be counted; `applyNhl95Hacks` refuses it without, and the page turns it off
+with the fix):
+
+| Place | Original | Code entry |
+|---|---|---|
+| puckbody's `btst #pf3onetimer,pflags3(a2)` `$7BCA8` | `082A 0003 0064` | +0 (`bra.w` +`$10`): the count, the btst's flags returned |
+| StartGame's `.noso` `jsr restoreteams` `$9CB0` | `4EB9 0008 3D3E` | +4: clear, `jmp $83D3E` |
+| DisplayStats' tables `$922C2`, `$922D0` (giveaways' places 6, 7), scroll limits `$92120` / `$9212E` `$70`/`$30` -> `$80`/`$40` | as giveaways' | +8, +`$C`: copies of the ROM's tables with the row `0010` "Blocked Shots " `287C FFFF`; only with giveaways off |
+
+The count: the hit as puckbody's `.hit` takes it (Zpos `$18` above 8, or d0's low four bits 0), sf2shot (sflags2
+`$BEF4` bit 4) set, not gmhl (gmode bit 4), not a shootout (gmode2 `$BF00` bit 0), a2 not a goalie, the shooter
+(shotplayer `$BAD6`, spots 0-11, struct `$AC62 + spot << 7`) on the other team; then the team total (`$FFEB04` home,
+`$FFEE6A` visitors) and the skater's byte (`$FFEA90 + pnum`, visitors +`$20`, to 255). Player Stats: `GP_CODES95` now
+has six blocks (`gv`, `blk`, `toi`): the four with the Blocked Shots page are NHL 94's `GP_CODES` translated with the
+same address map that turns NHL 94's two giveaway-only blocks into NHL '95's byte for byte (`$954C` -> `$926E8`,
+`$D5AC` -> `$D276`, `$B028` / `$B02C` -> `$AC40` / `$AC44`, the print and sort routines, TOI `+$136` -> `+$138`,
+`$E810` -> `$EA10`, `$E890` -> `$EA90`, `$C6CE` -> `$C288`). Pages: Giveaways and Takeaways (if on), Blocked Shots
+(BLK), Time On Ice (if on). Detecting as NHL 94's (`blkIn95`, `blockedShots95`); giveaways' detection accepts its
+Game Stats places holding the blocks' row.
+
+For Match Viewer: the boost only while the clock runs and only for the winner's skaters; the timer down one a game
+second and carrying over an intermission; a second fight handing it on. A block: a skater's body stopping the other
+team's shot in flight (not a goalie, not a stick, not his own team's shot); the Player Stats page and the Game Stats
+row (giveaways off). As in NHL 94, a low puck whose distance squared has low bits set does not reach `.hit` (no
+bounce, no block), and a high fast puck that knocks a skater down counts.
 
 ## 12. NHL 94 Genesis: game music (title, end of period, scouting report)
 
@@ -2485,6 +2546,7 @@ line; check there.
 | Any skater at any position | `nhl95hacks.ts` (`SWITCHES.anyPosition`), `anyposition.ts` | Yes | **Yes (11)** |
 | NHL 94's settings: three stars, bodychecks, time on ice, giveaways, real-time clock, penalty time, fighting penalty time, no icing, hybrid icing, delayed calls, B-checks, injuries, shootout injuries, extra period length, energy and injury risk (9), goalie (5), skating/puck (4) | `nhl95hacks.ts`, `hacks.ts` (`HACK_RANGES`) | Yes | **Yes (11)** |
 | Game music (title, end of period, scouting report): play, export, replace from MIDI | `nhl95music.ts` (`NHL95_GAME_MUSIC`, `readNhl95Music`, `nhl95MusicFromMidi`, `withNhl95Music`), `genesismusic.ts` | No (not yet) | **Yes (13)** |
+| Fight momentum (with fighting), blocked shots (with the body fix) | `nhl95hacks.ts` (`momentumCode95`, `BLK_CODE95`, `GP_CODES95`) | No (not yet) | **Yes (11)** |
 
 ### NHL 94 Genesis
 
