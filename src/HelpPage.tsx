@@ -911,8 +911,9 @@ export function HelpPage() {
       <h3 id="help-settings">Game settings</h3>
       <p>
         The page's tabs are <b>Menu and clock</b>, <b>Playoff draws</b>, <b>Screen text</b> (the matchup text, the
-        credits and the rule messages), <b>Pictures</b> (the announcer, the splash screen and the menu picture),{' '}
-        <b>Music</b> (organ songs and game music) and <b>Move teams</b>. Each game shows only the ones it has.
+        credits and the rule messages), <b>Pictures</b> (the announcer, the splash screen and the menu picture){' '}
+        and <b>Music</b> (organ songs and game music). Each game shows only the ones it has. Moving the teams into
+        another order is on the Bulk changes page.
       </p>
       <ul>
         <li>
@@ -1088,37 +1089,6 @@ export function HelpPage() {
           Every team that had the old song gets the new one. Tested in the game by the NHL94 Match Viewer project, on
           the original game and McMarkis's 32-team builds.
         </li>
-        <li>
-          <b>Move teams</b>: changes the order of the teams, in the Game Setup menu, the team list and the
-          spreadsheet files. Use the arrows or <b>Move to</b> beside a team, or{' '}
-          <b>Put the first teams in alphabetical order</b> to sort the league's own teams (those the menu offers, up
-          to the last playoff team) by name, leaving the All-Star teams and any others after them. Everything about a
-          team moves with it: players, lines, names and colours, logos, banners, player photos, organ songs and score
-          logos, and the rest. The playoff draws, the main menu's starting teams, the start of the season and the
-          league rules' exempt teams follow their teams too, and a project file saved afterwards remembers the move.
-          The Reset buttons and Changes still compare each team with itself as opened, and Changes lists the moves;
-          Compare ROMs matches teams by name when two ROMs list them in different orders, as last season's and this
-          season's may.
-          <ul>
-            <li>
-              Spreadsheet, picture and project files made before the move name teams by their old numbers: import
-              them with <b>Match teams by name</b> ticked (see below).
-            </li>
-            <li>
-              A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
-              with it start as the last one instead. Check ROM says if the draws need changing.
-            </li>
-            <li>
-              An emulator's battery save remembers things by team position (saved lines, and on the Genesis crowd
-              records), so start a new save file after downloading.
-            </li>
-            <li>
-              Not offered for NHL 94: EVO, which builds its own menus and playoffs, nor for ROMs whose logos,
-              banners, photos or songs the editor cannot follow; the page says why. On the original SNES game, if
-              replaced logos have already used up their room, the move may not fit, and the page says so.
-            </li>
-          </ul>
-        </li>
       </ul>
 
       <h4 id="help-midi">Preparing a MIDI file for an organ song</h4>
@@ -1282,7 +1252,7 @@ export function HelpPage() {
         <li>
           Tick <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
           list the teams by name. Each row keeps its team number, so such a file imports just the same. To put the
-          teams in that order in the ROM itself, use <b>Move teams</b> on the Game settings page.
+          teams in that order in the ROM itself, use <b>Move teams</b> on the Bulk changes page.
         </li>
         <li>
           An import is all or nothing. If any row in any chosen file is wrong, nothing changes, and each problem is
@@ -1465,7 +1435,7 @@ export function HelpPage() {
         one range. Hand, fighting and the goalie values the game does not use are not offered.
       </p>
 
-      <p>The same page also has three changes for every team at once:</p>
+      <p>The same page also has four changes for every team at once:</p>
       <ul>
         <li>
           <b>Overall shown</b> sets each team's shown overall to its roster's average.
@@ -1479,6 +1449,37 @@ export function HelpPage() {
           <b>Lines for every team</b> builds every team's lines from the players' ratings, as a team page's Build all
           lines does (see Lines), or only each team's broken lines, and lists the teams that have any. Undo takes it
           back.
+        </li>
+        <li>
+          <b>Move teams</b>: changes the order of the teams, in the Game Setup menu, the team list and the
+          spreadsheet files. Use the arrows or <b>Move to</b> beside a team, or{' '}
+          <b>Put the first teams in alphabetical order</b> to sort the league's own teams (those the menu offers, up
+          to the last playoff team) by name, leaving the All-Star teams and any others after them. Everything about a
+          team moves with it: players, lines, names and colours, logos, banners, player photos, organ songs and score
+          logos, and the rest. The playoff draws, the main menu's starting teams, the start of the season and the
+          league rules' exempt teams follow their teams too, and a project file saved afterwards remembers the move.
+          The Reset buttons and Changes still compare each team with itself as opened, and Changes lists the moves;
+          Compare ROMs matches teams by name when two ROMs list them in different orders, as last season's and this
+          season's may.
+          <ul>
+            <li>
+              Spreadsheet, picture and project files made before the move name teams by their old numbers: import
+              them with <b>Match teams by name</b> ticked (see below).
+            </li>
+            <li>
+              A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
+              with it start as the last one instead. Check ROM says if the draws need changing.
+            </li>
+            <li>
+              An emulator's battery save remembers things by team position (saved lines, and on the Genesis crowd
+              records), so start a new save file after downloading.
+            </li>
+            <li>
+              Not offered for NHL 94: EVO, which builds its own menus and playoffs, nor for ROMs whose logos,
+              banners, photos or songs the editor cannot follow; the page says why. On the original SNES game, if
+              replaced logos have already used up their room, the move may not fit, and the page says so.
+            </li>
+          </ul>
         </li>
       </ul>
 

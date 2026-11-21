@@ -148,8 +148,8 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(tab('Menu and clock')).toHaveAttribute('aria-selected', 'true')
     await expect(section('Clock')).toBeVisible()
     await expect(section('Playoff draws')).toBeHidden()
-    // Its sections in groups, Move teams last.
-    await expect(tabs.getByRole('tab')).toHaveText(['Menu and clock', 'Playoff draws', 'Screen text', 'Pictures', 'Music', 'Move teams', 'All'])
+    // Its sections in groups.
+    await expect(tabs.getByRole('tab')).toHaveText(['Menu and clock', 'Playoff draws', 'Screen text', 'Pictures', 'Music', 'All'])
     await tab('Screen text').click()
     for (const name of ["Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages']) await expect(section(name)).toBeVisible()
     await expect(section('Clock')).toBeHidden()
@@ -1028,7 +1028,7 @@ test.describe('with the NHL 94 ROM', () => {
 
   test('moves teams, with the menu choices and the team list following', async ({ page }) => {
     await openRom(page)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Bulk changes').click()
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Move teams' }) })
     // The original game's teams are in alphabetical order already.
     const sort = section.getByRole('button', { name: 'Put the first 26 teams in alphabetical order' })
@@ -1051,7 +1051,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(teamList(page).locator('option:checked')).toHaveText('Boston Bruins')
     await page.getByRole('button', { name: 'Redo', exact: true }).click()
     await expect(teamList(page).locator('option:checked')).toHaveText('Boston Bruins')
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Bulk changes').click()
     // Sorting puts it back, and so does putting back the ROM's order.
     await sort.click()
     await expect(section.getByText('The first 26 teams are now in alphabetical order.', { exact: false })).toBeVisible()
@@ -1459,12 +1459,12 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel('Teams to change').selectOption({ label: 'Anaheim Mighty Ducks' })
     const movable = before.filter((v) => Number(v) < 6).length
     await expect(main.getByRole('button', { name: `Apply to ${movable} players` })).toBeVisible()
-    await expect(main.locator('tbody tr')).toHaveCount(movable)
+    await expect(main.locator('table').first().locator('tbody tr')).toHaveCount(movable)
     await page.screenshot({ path: 'test-results/shots/bulk.png', fullPage: true })
 
     // Narrowing to forwards shows fewer; a cap nobody is above shows none.
     await main.getByLabel('Players to change').selectOption({ label: 'Forwards' })
-    expect(await main.locator('tbody tr').count()).toBeLessThan(movable)
+    expect(await main.locator('table').first().locator('tbody tr').count()).toBeLessThan(movable)
     await main.getByLabel('Players to change').selectOption({ label: 'All skaters' })
     await main.getByLabel('Kind of change').selectOption({ label: 'Cap at (lower anyone above)' })
     await main.getByLabel('Value to use').selectOption({ index: 6 })
@@ -2921,7 +2921,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture', 'Organ songs', 'Game music', 'Move teams'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture', 'Organ songs', 'Game music'])
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.locator('tbody tr')).toHaveCount(3)
     const menuMusic = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Menu music' }).getByRole('button', { name: 'Export MIDI' }))

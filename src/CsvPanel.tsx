@@ -144,7 +144,7 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
           </label>
           <span className="note">
             {order === 'name'
-              ? "The teams, players and lines tables list the teams by name. Each row keeps its team number, so the file imports just the same. To put the teams in this order in the ROM itself, use Move teams on the Game settings page."
+              ? "The teams, players and lines tables list the teams by name. Each row keeps its team number, so the file imports just the same. To put the teams in this order in the ROM itself, use Move teams on the Bulk changes page."
               : 'The teams, players and lines tables list the teams in the order the ROM has them, as the Game Setup menu does.'}
           </span>
         </p>

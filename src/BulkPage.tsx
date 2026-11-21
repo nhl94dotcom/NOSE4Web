@@ -5,6 +5,7 @@ import type { RomProject } from './core/rom'
 import { rosterAverage } from './core/shownrating'
 import { teamLabels } from './core/team'
 import { HomeAway, LineBuilder } from './EveryTeamSections'
+import { MoveTeamsSection } from './MoveTeamsSection'
 import { NumberField } from './NumberField'
 import { BULK_START, bulkSetup, people, type BulkForm, type BulkKept } from './pagedrafts'
 import { useAttributeOrder } from './useColumnOrder'
@@ -56,7 +57,7 @@ export function BulkPage({ project, onChange, kept, onKeep }: Props) {
       <h2>Bulk changes</h2>
       <p className="note">
         Changes many players, or every team, at once: one attribute for many players here, and below it each
-        team's shown overall, one Home and Away pair for every team, and every team's lines. Nothing happens until you press Apply, and the list below
+        team's shown overall, one Home and Away pair for every team, every team's lines, and the order of the teams. Nothing happens until you press Apply, and the list below
         shows exactly who would change. Values stop at the ends of the attribute's range.
       </p>
       <div className="fields">
@@ -221,6 +222,7 @@ export function BulkPage({ project, onChange, kept, onKeep }: Props) {
       )}
       <HomeAway project={project} names={labels} onChange={onChange} />
       <LineBuilder project={project} names={labels} onChange={onChange} />
+      {project.game.edition !== 95 && <MoveTeamsSection project={project} onChange={onChange} />}
     </main>
   )
 }

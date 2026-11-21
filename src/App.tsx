@@ -48,7 +48,6 @@ import { SettingsEditor } from './SettingsEditor'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { MenuPictureSection } from './MenuPictureSection'
-import { MoveTeamsSection } from './MoveTeamsSection'
 import { AnnouncerSection } from './AnnouncerSection'
 import { ScoutingSection } from './ScoutingSection'
 import { GameMusicSection, OrganSongsSection, SnesGameMusicSection, SnesOrganSongsSection, type HeldMusic } from './OrganSongsSection'
@@ -468,7 +467,6 @@ export default function App() {
             {current.game.platform === 'genesis' && <GameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesGameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
-            {current.game.edition !== 95 && <MoveTeamsSection project={current} onChange={change} />}
           </SettingsEditor>
         )
       case CSV:
