@@ -152,7 +152,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(changedElsewhere).toEqual([])
         // The hacks still go in, none of their new code into the teams' room (the bank also holds the Player Stats
         // code, which the bodychecks shown change in place).
-        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !detectSnesHacks(reopened.bytes).unknown.includes(hack) && !detectSnesHacks(reopened.bytes).notOffered?.[hack]).map((hack) => [hack, true]))
+        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'fightOnce' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !detectSnesHacks(reopened.bytes).unknown.includes(hack) && !detectSnesHacks(reopened.bytes).notOffered?.[hack]).map((hack) => [hack, true]))
         const hacked = applySnesHacks(reopened, hacks)
         const roomOf = (rom: Uint8Array) => [rom.subarray(layout.start, layout.end), rom.subarray(overflow.start, overflow.end)]
         expect(roomOf(hacked.bytes)).toEqual(roomOf(reopened.bytes))
@@ -380,7 +380,7 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
       const before = detectSnesHacks(project.bytes)
       // Every hack is found, wherever the ROM's code is, but NOSE4Web's fighting, which the rebuilt builds have their own of.
       expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['fighting'])
-      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !before.unknown.includes(hack) && !before.notOffered?.[hack]).map((hack) => [hack, true]))
+      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'fightOnce' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !before.unknown.includes(hack) && !before.notOffered?.[hack]).map((hack) => [hack, true]))
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
       // The 30-second periods offer a fourth period length on the menu.
@@ -460,7 +460,7 @@ describe.skipIf(!existsSync(path(STOCK)))('an SNES ROM laid out differently from
     expect(project.teams.every((team) => team.palette.length === 0)).toBe(true)
     // The hacks are found by the code around them; those that need to know where the game's variables are cannot
     // be put in, as that is read from the colour loader changed here.
-    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting', 'threeOnThree', 'creaseIcing', 'hybridIcing', 'shootoutInjuries', 'fightMomentum', 'oneTimerFix', 'shotFix', 'giveaways', 'giveawaysShown', 'giveawayPages', 'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'organResume'])
+    expect(detectSnesHacks(moved).unknown).toEqual(['defenceControl', 'noGoalPosts', 'faceoffFix', 'extraAttackerFix', 'bodychecks', 'bodychecksShown', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie', 'injuryBonus', 'fighting', 'threeOnThree', 'creaseIcing', 'hybridIcing', 'shootoutInjuries', 'fightMomentum', 'fightOnce', 'oneTimerFix', 'shotFix', 'giveaways', 'giveawaysShown', 'giveawayPages', 'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'organResume'])
     expect(() => applySnesHacks(project, { noGoalPosts: true })).toThrow(/other code/)
     expect(detectSnesHacks(applySnesHacks(project, { skipEaIntro: true }).bytes).choices.skipEaIntro).toBe(true)
     expectSameBytes(buildRom(project), moved)

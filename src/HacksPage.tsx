@@ -180,7 +180,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const suspect = (choices: HackChoices) =>
     choices.wideRatings && choices.bonuses === 'linesMatchPlayers' && !(state.choices.wideRatings && state.choices.bonuses === 'linesMatchPlayers')
   const set = (change: Partial<HackChoices>) => {
-    // Ron Barr picks one way or the other, not both; no fight momentum without fighting (nhl94Rules).
+    // Ron Barr picks one way or the other, not both; no fight momentum or one fight a game without fighting (nhl94Rules).
     const next = { ...wanted, ...change }
     setDraft({ rom: project.bytes, choices: nhl94Rules(state.choices, next, change) })
     setNotice(suspect(next) ? `The bonuses were set back to the original game's, since "Edit Lines matches players" is not offered with 0 to 15 ratings.` : '')
@@ -946,6 +946,22 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             (not the goalie) for 90 seconds of play, on top of any crowd boost. The 90 seconds run only while the clock
             does, and carry over an intermission; another fight gives the lift to its winner's team and starts them
             again. Tested in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'fightOnce',
+          <select
+            aria-label={HACK_TITLES.fightOnce}
+            disabled={unknown('fightOnce') || (wanted.fighting === 'none' && !wanted.fightOnce)}
+            value={wanted.fightOnce ? 'on' : 'off'}
+            onChange={(e) => set({ fightOnce: e.target.value === 'on' })}
+          >
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>,
+          <>
+            With fighting on: a player who has fought cannot fight again that game. A hard hit with him stays a hit.
+            Not yet tested in the game.
           </>,
         )}
       </section>

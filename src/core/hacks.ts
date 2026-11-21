@@ -24,7 +24,7 @@
 import { fightTimeText, penaltyTimeText } from './penaltytime'
 import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
-import { FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
+import { FIGHT_ONCE_MARK_AT, FIGHT_ONCE_TEST_AT, FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
 import { clockwiseKept, clockwiseState, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
@@ -150,6 +150,8 @@ export interface HackChoices {
   injuries: Injuries
   // With fighting, the fight winner's team gets +2 Agility and +2 Speed for 90 seconds of play.
   fightMomentum: boolean
+  // With fighting, a player who has fought cannot fight again that game.
+  fightOnce: boolean
   // How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.
   referees: Referees
   // The range of each player's hot and cold values: from -n to n - 1.
@@ -280,6 +282,7 @@ export type HackPart =
   | 'injuries'
   | 'referees'
   | 'fightMomentum'
+  | 'fightOnce'
   | 'hotColdRange'
   | 'noIcing'
   | 'hybridIcing'
@@ -371,6 +374,7 @@ export const NO_HACKS: HackChoices = {
   injuries: 'original',
   referees: 'original',
   fightMomentum: false,
+  fightOnce: false,
   hotColdRange: 9,
   noIcing: false,
   hybridIcing: false,
@@ -2540,6 +2544,83 @@ const fightMomentum: Part<boolean> = {
   },
 }
 
+// --------------------------------------------------------- one fight a game
+// With chaos's fighting, a player who has fought cannot start another fight
+// that game. checkfight (in the fight block) tests its exits, then pushes
+// d0-d4/a0-a3 and loads the puck (movea.l #puckx,a0 at FIGHT_ONCE_TEST_AT)
+// for its faceoff test, then runs ChkFightValue both ways; at .cwd
+// (FIGHT_ONCE_MARK_AT, addi.w #$3E8,(crowdlevel).w) the fight is on. The
+// movea becomes a jsr to code that, when a2 or a3 has fought, drops its return
+// and jumps to checkfight's .exit ($2003BA: the movem pop and rts), so no
+// fight, no fighting majors and no instigator; the hit and any penalty called
+// for it stay. Otherwise it does the movea. The addi becomes a jsr that marks
+// a3 and a2, then does the addi. The marks: a bit a roster place, roster
+// index $66(aN), the home team's in $FFF754-$FFF757, the visitors' (pflags
+// $62 bit 6 set) in $FFF758-$FFF75B, past fight momentum's $FFF750-$FFF753.
+// Cleared at each game's start: StartGame's jsr at $77D8 (jsr $F6E8A in the
+// original game) goes to code that clears them and jumps on to its target.
+// Not $77B8 to $77CC: giveaways, fight momentum and blocked shots hook those.
+const ONCE_CLEAR_AT = 0x77d8
+const ONCE_TEST = bytes('207C FFFF B74A') // movea.l #puckx,a0
+const ONCE_MARK = bytes('0678 03E8 B89C') // addi.w #$3E8,(crowdlevel).w
+const ONCE_ENTRIES = { test: 0, mark: 0x20, clear: 0x52 }
+const ONCE_LENGTH = 0x60
+const onceCode = (clearTarget: number) =>
+  bytes(
+    [
+      // +0 test: a3, then a2; neither has fought: the movea; one has: on to .exit
+      '204B 6130 0110 6610 204A 6128 0110 6608 207C FFFF B74A 4E75',
+      '588F 4EF9 0020 03BA',
+      // +$20 mark: a3 and a2, then the addi
+      '204B 6110 01D0 204A 610A 01D0 0678 03E8 B89C 4E75',
+      // +$34 a0 = the player: d0 = his bit (roster index, +32 for the visitors), a0 = its byte
+      '7000 1028 0066 0828 0006 0062 6704 0640 0020 3200 E649 41F8 F754 D0C1 4E75',
+      // +$52 clear at the game's start, then on to the jsr's own target
+      `42B8 F754 42B8 F758 4EF9 ${clearTarget.toString(16).padStart(8, '0')}`,
+    ].join(' '),
+  )
+// Where the one fight code is, from StartGame's jsr, if it is there.
+const onceBase = (rom: Uint8Array): number | null => {
+  if (readU16(rom, ONCE_CLEAR_AT) !== OP_JSR) return null
+  const base = readU32(rom, ONCE_CLEAR_AT + 2) - ONCE_ENTRIES.clear
+  if (base < 0 || base + ONCE_LENGTH > rom.length) return null
+  return is(rom, base, onceCode(readU32(rom, base + ONCE_LENGTH - 4))) ? base : null
+}
+const onceHooked = (rom: Uint8Array, at: number, target: number) => at + 6 <= rom.length && readU16(rom, at) === OP_JSR && readU32(rom, at + 2) === target
+const fightOnce: Part<boolean> = {
+  detect(rom) {
+    const base = onceBase(rom)
+    if (base === null) {
+      const plain = rom.length < FIGHT_ONCE_MARK_AT + 6 || fightState(rom) === 'none' || (is(rom, FIGHT_ONCE_TEST_AT, ONCE_TEST) && is(rom, FIGHT_ONCE_MARK_AT, ONCE_MARK))
+      return readU16(rom, ONCE_CLEAR_AT) === OP_JSR && plain ? false : undefined
+    }
+    return onceHooked(rom, FIGHT_ONCE_TEST_AT, base + ONCE_ENTRIES.test) && onceHooked(rom, FIGHT_ONCE_MARK_AT, base + ONCE_ENTRIES.mark) ? true : undefined
+  },
+  remove(rom) {
+    const base = onceBase(rom)
+    if (base === null) return
+    if (onceHooked(rom, FIGHT_ONCE_TEST_AT, base + ONCE_ENTRIES.test)) rom.set(ONCE_TEST, FIGHT_ONCE_TEST_AT)
+    if (onceHooked(rom, FIGHT_ONCE_MARK_AT, base + ONCE_ENTRIES.mark)) rom.set(ONCE_MARK, FIGHT_ONCE_MARK_AT)
+    writeU32(rom, ONCE_CLEAR_AT + 2, readU32(rom, base + ONCE_LENGTH - 4))
+    erase(rom, base, ONCE_LENGTH)
+  },
+  // After fighting, whose code its two hooks go into. Without fighting there are no fights: nothing to do.
+  apply(work, value) {
+    if (!value) return
+    const fights = fightState(work.rom)
+    if (fights === 'none' || fights === undefined) return
+    if (!is(work.rom, FIGHT_ONCE_TEST_AT, ONCE_TEST) || !is(work.rom, FIGHT_ONCE_MARK_AT, ONCE_MARK) || readU16(work.rom, ONCE_CLEAR_AT) !== OP_JSR) {
+      throw new HackError("One fight a game needs the fighting code and the game's start as NOSE4Web puts them in, and this ROM has them changed.")
+    }
+    const base = place(work, onceCode(readU32(work.rom, ONCE_CLEAR_AT + 2)))
+    writeU32(work.rom, ONCE_CLEAR_AT + 2, base + ONCE_ENTRIES.clear)
+    for (const [at, entry] of [[FIGHT_ONCE_TEST_AT, ONCE_ENTRIES.test], [FIGHT_ONCE_MARK_AT, ONCE_ENTRIES.mark]]) {
+      writeU16(work.rom, at, OP_JSR)
+      writeU32(work.rom, at + 2, base + entry)
+    }
+  },
+}
+
 // ------------------------------------------------------- hot and cold range
 // Create_HotCold_Table fills each player's 16 hot and cold values with
 // randomd0s of move.w #9,d0 at $F70AC: each from -n to n - 1, so -9 to 8 in
@@ -3765,6 +3846,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     injuries: found('injuries', injuries.detect(rom), NO_HACKS.injuries),
     referees: found('referees', referees.detect(rom), NO_HACKS.referees),
     fightMomentum: found('fightMomentum', fightMomentum.detect(rom), NO_HACKS.fightMomentum),
+    fightOnce: found('fightOnce', fightOnce.detect(rom), NO_HACKS.fightOnce),
     hotColdRange: found('hotColdRange', hotColdRange.detect(rom), NO_HACKS.hotColdRange),
     noIcing: found('noIcing', noIcing.detect(rom), NO_HACKS.noIcing),
     hybridIcing: found('hybridIcing', hybridIcing.detect(rom), NO_HACKS.hybridIcing),
@@ -3951,6 +4033,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
     // After fighting, whose code its winner hook goes into.
     ['fightMomentum', () => fightMomentum.remove(work.rom), () => fightMomentum.apply(work, wanted.fightMomentum)],
+    // After fighting, whose code its two hooks go into.
+    ['fightOnce', () => fightOnce.remove(work.rom), () => fightOnce.apply(work, wanted.fightOnce)],
   ]
   // An earlier version of a hack that is being kept is not touched either.
   if (wanted.bodychecks === 'earlier' && choices.bodychecks !== 'earlier') throw new HackError('This ROM does not have the earlier bodycheck statistics to keep.')
@@ -4187,6 +4271,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   injuries: 'Injuries',
   referees: 'Referee strictness',
   fightMomentum: 'Fight momentum',
+  fightOnce: 'One fight a game',
   hotColdRange: 'Hot and cold range',
   noIcing: 'No icing',
   hybridIcing: 'Hybrid icing',
@@ -4273,6 +4358,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   injuries: 'injuries',
   referees: 'referees',
   fightMomentum: 'fightMomentum',
+  fightOnce: 'fightOnce',
   hotColdRange: 'hotColdRange',
   noIcing: 'noIcing',
   hybridIcing: 'hybridIcing',

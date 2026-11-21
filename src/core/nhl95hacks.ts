@@ -89,6 +89,7 @@ export interface Nhl95HackChoices {
   penaltySeconds: number
   fightSeconds: number
   fightMomentum: boolean
+  fightOnce: boolean
   noIcing: boolean
   hybridIcing: boolean
   delayedCalls: boolean
@@ -135,7 +136,7 @@ export type Nhl95Hack = keyof Nhl95HackChoices
 export const NHL95_HACKS: Nhl95Hack[] = [
   'fighting', 'fightingOff', 'fightingArcade', 'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'comebackFix', 'rocketFix', 'openNetFix', 'blindRingFix', 'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'threeOnThree', 'threeOnThreeAll', 'runawayFix', 'goaliePullFix', 'snipingFix', 'penaltyShotTableFix', 'penaltyShotFixes', 'organResume', 'passFix', 'ppPkFix', 'faceoffFix', 'awarenessFix', 'centreDefenceFix', 'stickShots',
   'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'anyPosition',
-  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'fightMomentum', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
+  'threeStars', 'bodychecks', 'realTime', 'penaltySeconds', 'fightSeconds', 'fightMomentum', 'fightOnce', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees', 'shootoutInjuries', 'fourthPeriodOvertime',
   'stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'injuryBonus', 'injuryCap', 'holdEnergy',
   'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay', 'speedBurst', 'turnRate', 'puckFriction', 'choppyIce', 'giveaways', 'blockedShots', 'timeOnIce',
   'baseWeight', 'hotColdRange', 'clutchTime',
@@ -185,6 +186,7 @@ export const NO_NHL95_HACKS: Nhl95HackChoices = {
   penaltySeconds: 60,
   fightSeconds: 0,
   fightMomentum: false,
+  fightOnce: false,
   noIcing: false,
   hybridIcing: false,
   delayedCalls: false,
@@ -283,6 +285,7 @@ export const NHL95_HACK_TITLES: Record<Nhl95Hack, string> = {
   penaltySeconds: 'Penalty time',
   fightSeconds: 'Fighting penalty time',
   fightMomentum: 'Fight momentum',
+  fightOnce: 'One fight a game',
   noIcing: 'No icing',
   hybridIcing: 'Hybrid icing',
   delayedCalls: 'Calls during a delayed penalty',
@@ -1101,7 +1104,9 @@ function fightMode(rom: Uint8Array): FightStart | null | undefined {
   const word = FIGHT_START_AT - FIGHT95_AT
   // Fight momentum's jsr in place of the knockout's move.w #$FFFF,$44(a3) is not the patch's own: skipped here.
   const winner = momentumWinnerHooked(rom) ? FIGHT95_WINNER_AT - FIGHT95_AT : -1
-  const skip = (i: number) => i === word || i === word + 1 || (i >= winner && i < winner + MOMENTUM_WINNER95.length)
+  // And one fight a game's jsrs in place of its two.
+  const once = onceHookedPlaces95(rom).map((site) => site.at - FIGHT95_AT)
+  const skip = (i: number) => i === word || i === word + 1 || (i >= winner && i < winner + MOMENTUM_WINNER95.length) || once.some((at) => i >= at && i < at + 6)
   if (!code.every((byte, i) => skip(i) || rom[FIGHT95_AT + i] === byte)) return undefined
   const start = (rom[FIGHT_START_AT] << 8) | rom[FIGHT_START_AT + 1]
   return FIGHT_STARTS.find((s) => s === start)
@@ -1245,6 +1250,97 @@ const fightMomentum95: Part<boolean> = {
     writeU32(work.rom, MOMENTUM_TICK_AT95 + 2, base + MOMENTUM_ENTRIES95.tick)
     writeU16(work.rom, FIGHT95_WINNER_AT, OP_JSR)
     writeU32(work.rom, FIGHT95_WINNER_AT + 2, base + MOMENTUM_ENTRIES95.winner)
+  },
+}
+
+// --------------------------------------------------------- one fight a game
+// NHL 94's (hacks.ts, fightOnce) with fighting: a player who has fought cannot
+// start another fight that game. In Vancecookcobxin's fight engine the hook
+// at $7AC92 jsrs $1E02DA, which pushes every register and, for a pair in the
+// player records ($FFAC62, $80 each), copies it to a4 / a5 and calls the check
+// at $1E031E. Its exit tests all go to the rts at $1E04C0, the last the puck at
+// a faceoff ($1E03A0); then moveq #0,d0 / bsr.w $1E04D2 (FIGHT95_ONCE_TEST_AT)
+// starts the willingness test, run both ways; at $1E03E8 the fight is on, and
+// its addi.w #$3E8,(crowdlevel).w at $1E03EC (FIGHT95_ONCE_MARK_AT) is the
+// next place with room for a jsr. The first becomes a jsr to code that, when
+// a4 or a5 has fought, drops its return and returns from the check (no fight,
+// no fighting majors; the hit and any penalty for it stay), else does the
+// moveq and jumps on to $1E04D2; the second a jsr that marks a4 and a5, then
+// does the addi. The marks: a bit a roster place, roster index $66(aN), the
+// home team's in $FFF754-$FFF757, the visitors' (pflags $62 bit 6 set) in
+// $FFF758-$FFF75B, past fight momentum's $FFF750-$FFF753 and before the organ's
+// $FFF800. Cleared at each game's start: StartGame's jsr at $9CB6 (jsr $67938
+// in the original game) goes to code that clears them and jumps on to its
+// target ($9CA0 to $9CB0 are giveaways', momentum's and blocked shots').
+// fightMode skips the two places when they are these jsrs.
+const FIGHT95_ONCE_TEST_AT = 0x1e03a4
+const FIGHT95_ONCE_MARK_AT = 0x1e03ec
+const ONCE_CLEAR_AT95 = 0x9cb6
+const ONCE_TEST95 = hex('7000 6100 012A') // moveq #0,d0 / bsr.w $1E04D2
+const ONCE_MARK95 = hex('0678 03E8 B4B4') // addi.w #$3E8,(crowdlevel).w
+const ONCE_ENTRIES95 = { test: 0, mark: 0x1c, clear: 0x4e }
+const ONCE_LENGTH95 = 0x5c
+const onceCode95 = (clearTarget: number) =>
+  hex(
+    [
+      // +0 test: a4, then a5; neither has fought: the moveq, on to $1E04D2; one has: out of the check
+      '204C 612C 0110 6610 204D 6124 0110 6608 7000 4EF9 001E 04D2',
+      '588F 4E75',
+      // +$1C mark: a4 and a5, then the addi
+      '204C 6110 01D0 204D 610A 01D0 0678 03E8 B4B4 4E75',
+      // +$30 a0 = the player: d0 = his bit (roster index, +32 for the visitors), a0 = its byte
+      '7000 1028 0066 0828 0006 0062 6704 0640 0020 3200 E649 41F8 F754 D0C1 4E75',
+      // +$4E clear at the game's start, then on to the jsr's own target
+      `42B8 F754 42B8 F758 4EF9 ${clearTarget.toString(16).padStart(8, '0')}`,
+    ].join(' '),
+  )
+function onceBase95(rom: Uint8Array): number | null {
+  if (readU16(rom, ONCE_CLEAR_AT95) !== OP_JSR) return null
+  const base = readU32(rom, ONCE_CLEAR_AT95 + 2) - ONCE_ENTRIES95.clear
+  if (base < 0 || base + ONCE_LENGTH95 > rom.length) return null
+  return matches(rom, base, onceCode95(readU32(rom, base + ONCE_LENGTH95 - 4))) ? base : null
+}
+const onceHooked95 = (rom: Uint8Array, at: number, target: number) => at + 6 <= rom.length && readU16(rom, at) === OP_JSR && readU32(rom, at + 2) === target
+const ONCE_SITES95 = [
+  { at: FIGHT95_ONCE_TEST_AT, entry: ONCE_ENTRIES95.test, original: ONCE_TEST95 },
+  { at: FIGHT95_ONCE_MARK_AT, entry: ONCE_ENTRIES95.mark, original: ONCE_MARK95 },
+]
+// The fight block's places the one fight code hooks, where they are its jsrs.
+function onceHookedPlaces95(rom: Uint8Array): typeof ONCE_SITES95 {
+  const base = onceBase95(rom)
+  return base === null ? [] : ONCE_SITES95.filter((site) => onceHooked95(rom, site.at, base + site.entry))
+}
+const fightOnce95: Part<boolean> = {
+  detect(rom) {
+    const base = onceBase95(rom)
+    if (base === null) {
+      const fights = fightMode(rom)
+      const plain = fights === null || ONCE_SITES95.every((site) => matches(rom, site.at, site.original))
+      return readU16(rom, ONCE_CLEAR_AT95) === OP_JSR && fights !== undefined && plain ? false : undefined
+    }
+    return onceHookedPlaces95(rom).length === ONCE_SITES95.length ? true : undefined
+  },
+  remove(rom) {
+    const base = onceBase95(rom)
+    if (base === null) return
+    for (const site of onceHookedPlaces95(rom)) rom.set(site.original, site.at)
+    writeU32(rom, ONCE_CLEAR_AT95 + 2, readU32(rom, base + ONCE_LENGTH95 - 4))
+    erase(rom, base, ONCE_LENGTH95)
+  },
+  // After fighting, whose code its two hooks go into.
+  apply(work, value) {
+    if (!value) return
+    const fights = fightMode(work.rom)
+    if (fights === null || fights === undefined) throw new Error('One fight a game needs Fighting on.')
+    if (!ONCE_SITES95.every((site) => matches(work.rom, site.at, site.original)) || readU16(work.rom, ONCE_CLEAR_AT95) !== OP_JSR) {
+      throw new Error("One fight a game needs the fighting code and the game's start as NOSE4Web puts them in.")
+    }
+    const base = placeCode(work, onceCode95(readU32(work.rom, ONCE_CLEAR_AT95 + 2)))
+    writeU32(work.rom, ONCE_CLEAR_AT95 + 2, base + ONCE_ENTRIES95.clear)
+    for (const site of ONCE_SITES95) {
+      writeU16(work.rom, site.at, OP_JSR)
+      writeU32(work.rom, site.at + 2, base + site.entry)
+    }
   },
 }
 
@@ -2366,6 +2462,7 @@ export function detectNhl95Hacks(rom: Uint8Array): Nhl95HackState {
     penaltySeconds: penaltySeconds95.detect(rom),
     fightSeconds: fightSeconds95.detect(rom),
     fightMomentum: fightMomentum95.detect(rom),
+    fightOnce: fightOnce95.detect(rom),
     noIcing: noIcing95.detect(rom),
     hybridIcing: hybridIcing95().detect(rom),
     delayedCalls: delayedCalls95.detect(rom),
@@ -2442,6 +2539,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if ((want.fightingOff || want.fightingArcade) && !want.fighting) throw new Nhl95HackError('The Fighting setting at power-on needs Fighting on.')
   if (want.fightingOff && want.fightingArcade) throw new Nhl95HackError('The Fighting setting at power-on is one of Off, On and On - Arcade Mode.')
   if (want.fightMomentum && !want.fighting) throw new Nhl95HackError('Fight momentum needs Fighting on.')
+  if (want.fightOnce && !want.fighting) throw new Nhl95HackError('One fight a game needs Fighting on.')
   // Without the body fix no puck ever reaches a skater's body, so there would be nothing to count.
   if (want.blockedShots && !want.bodyBlockFix) throw new Nhl95HackError('Blocked shots needs Skaters block the puck on: without it pucks pass through skaters.')
   const work = { rom: project.bytes.slice() }
@@ -2489,6 +2587,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     settingStep('penaltySeconds'),
     settingStep('fightSeconds'),
     ['fightMomentum', () => fightMomentum95.remove(work.rom), () => fightMomentum95.apply(work, want.fightMomentum)],
+    ['fightOnce', () => fightOnce95.remove(work.rom), () => fightOnce95.apply(work, want.fightOnce)],
     settingStep('noIcing'),
     settingStep('hybridIcing'),
     settingStep('delayedCalls'),
@@ -2630,6 +2729,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   blockedShots: (c) =>
     `Each skater's blocked shots (shots by the other team that hit his body) are counted and shown on a Player Stats page of their own${c.giveaways ? '' : ", and Game Stats shows each team's as Blocked Shots"}.`,
   fightMomentum: "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
+  fightOnce: 'A player who has fought cannot fight again that game. A hard hit with him stays a hit.',
   realTime: 'The clocks count real seconds, so a period lasts as long as it says.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < N.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,
@@ -2765,7 +2865,7 @@ export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[
       'penaltySeconds', 'realTime', 'delayedCalls', 'bCheckPenaltiesOff', 'referees', 'noIcing', 'hybridIcing',
     ],
   },
-  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds', 'fightMomentum'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds', 'fightMomentum', 'fightOnce'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus', 'injuryCap'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },

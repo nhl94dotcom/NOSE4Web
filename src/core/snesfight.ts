@@ -37,6 +37,9 @@ interface FightVersion {
   pairing: readonly number[]
   // F_fightfall's lda #$FFFF / sta temp3,y, which the fight momentum hack (sneshacks.ts) hooks: not compared.
   momentum: number
+  // checkfight's faceoff test, the first 6 bytes where its fight is on and FightGameStart's sta.l fightinjany, which
+  // one fight a game (sneshacks.ts) hooks: not compared.
+  once: { at: number; length: number }[]
 }
 // F_fightfall: lda #$3C / sta Pencntdwn / lda #$FFFF / sta temp3,y / lda.l Fcrowd; its 6 bytes from the lda #$FFFF.
 const MOMENTUM_SITE = 'a93c008d....a9ffff99....af'
@@ -44,6 +47,18 @@ const momentumIn = (block: Uint8Array) => {
   const found = findCodeAll(block, MOMENTUM_SITE)
   return found.length === 1 ? found[0].at + 6 : -1
 }
+// checkfight's lda asscur+puckobj / cmp #$1B (then bne / rtl), its stz ChkCnt / ldy #$16 after bit #pffight / bne /
+// jmp out, and FightGameStart's sta.l fightinjany after the loop clearing fightinj.
+const ONCE_SITES: [string, number, number][] = [
+  ['ad....c91b00d0016b', 0, 6],
+  ['bd....890004d0034c....9c....a0', 11, 6],
+  ['9f......caca10..8f......af......6b', 8, 4],
+]
+const onceIn = (block: Uint8Array) =>
+  ONCE_SITES.flatMap(([pattern, offset, length]) => {
+    const found = findCodeAll(block, pattern)
+    return found.length === 1 ? [{ at: found[0].at + offset, length }] : []
+  })
 const versionOf = (data: typeof SNES_FIGHT | typeof SNES_FIGHT_UNPAIRED | typeof SNES_FIGHT_EARLIER): FightVersion => ({
   changes: data.changes.map((c) => ({ at: c.at, original: decode(c.original), patched: decode(c.patched) })),
   block: decode(data.block),
@@ -52,6 +67,7 @@ const versionOf = (data: typeof SNES_FIGHT | typeof SNES_FIGHT_UNPAIRED | typeof
   bonus: data.bonus,
   pairing: 'pairing' in data ? data.pairing : [],
   momentum: momentumIn(decode(data.block)),
+  once: onceIn(decode(data.block)),
 })
 const CURRENT = versionOf(SNES_FIGHT)
 const UNPAIRED = versionOf(SNES_FIGHT_UNPAIRED)
@@ -114,7 +130,8 @@ export function snesFightState(rom: Uint8Array, ignore: number[] = []): SnesFigh
     if (version !== CURRENT && !CHANGES.every((c) => version.changes.some((e) => e.at === c.at) || same(rom, c.at, c.original))) continue
     const at = bankAt(bank)
     const bonus = rom[at + version.bonus[0]] | (rom[at + version.bonus[0] + 1] << 8)
-    const skip = (i: number) => version.pairing.some((p) => i === p || i === p + 1) || (version.momentum >= 0 && i >= version.momentum && i < version.momentum + 6)
+    const skip = (i: number) =>
+      version.pairing.some((p) => i === p || i === p + 1) || (version.momentum >= 0 && i >= version.momentum && i < version.momentum + 6) || version.once.some(({ at, length }) => i >= at && i < at + length)
     if (!same(rom, at, blockFor(bank, bonus, version), skip) || !markAt(rom, at + version.block.length)) continue
     return version === CURRENT ? { kind: 'in', bank, bonus } : { kind: 'in', bank, bonus, earlier: true, version: OLDER.indexOf(version) }
   }

@@ -1404,6 +1404,10 @@ export function HelpPage() {
           the game by the NHL94 Match Viewer project.
         </li>
         <li>
+          <b>One fight a game</b> (Genesis and SNES NHL 94, needs fighting on): a player who has fought cannot fight
+          again that game. A hard hit with him stays a hit. Not yet tested in the game.
+        </li>
+        <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
           game. Choose the main menu's starting setting for its new <b>Fighting</b> line: Off, On, or On - Arcade
           Mode (more fights); players can change it on the menu as usual. A fight needs enough hard checks first, and
@@ -2620,7 +2624,8 @@ export function HelpPage() {
           <b>Fight momentum</b>, with fighting: the team whose player wins a fight gets +2 Agility and +2 Speed for its
           skaters for 90 seconds of play. <b>Blocked shots</b>: each skater's blocked shots counted, with a Player Stats
           page and (with giveaways off) a Game Stats row; it needs Skaters block the puck, as pucks pass through skaters
-          in the original NHL '95. Both tested in the game by the NHL94 Match Viewer project.
+          in the original NHL '95. Both tested in the game by the NHL94 Match Viewer project. <b>One fight a game</b>,
+          with fighting: a player who has fought cannot fight again that game. Not yet tested in the game.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved

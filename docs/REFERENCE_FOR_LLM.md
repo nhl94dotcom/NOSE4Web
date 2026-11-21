@@ -852,6 +852,25 @@ the winner operand, then the code), every place found by code:
   while the fights change it comes out and goes back in after them). Detected off, not unknown, without the fights.
   Tests: `tests/snesmomentum.test.ts`.
 
+### One fight a game (`fightOnce`; added 2026-11-21, not yet tested in the game)
+
+All three games, needs fighting on (the pages turn it off with fighting). Text: "A player who has fought cannot fight
+again that game. A hard hit with him stays a hit." Once either player of a would-be fight has fought that game, the
+fight check takes its own way out before the willingness test: no fight, no fighting majors, no instigator; the hit and
+any penalty for it stay. Marks: one bit a roster place (roster index, low 5 bits), home team first, 8 bytes. Places
+from Match Viewer's reading of each fight engine.
+
+| Game | Test (jsr/jsl at) | Mark (where the fight is on) | Clear (each game's start) | RAM |
+|---|---|---|---|---|
+| NHL 94 Genesis (`hacks.ts`, `onceCode`, `$60` bytes) | checkfight's `movea.l #puckx,a0` `$20025E` (`207C FFFF B74A`, just after its movem push): a3, a2 tested, then the movea; fought: `addq.l #4,sp / jmp $2003BA` (.exit) | .cwd's `addi.w #$3E8,(crowdlevel).w` `$20030C` (`0678 03E8 B89C`): marks a3, a2, then the addi | StartGame's `jsr $F6E8A` `$77D8` retargeted: `clr.l $F754 / clr.l $F758`, `jmp` the jsr's own target | `$FFF754`-`$FFF75B` (bit = `$66(aN)`, +32 when pflags `$62` bit 6) |
+| NHL '95 (`nhl95hacks.ts`, `onceCode95`, `$5C` bytes) | `moveq #0,d0 / bsr.w $1E04D2` `$1E03A4` (`7000 6100 012A`): a4, a5 tested; not fought: `moveq #0,d0 / jmp $1E04D2`; fought: `addq.l #4,sp / rts` (out of the check at `$1E031E`) | `addi.w #$3E8,(crowdlevel).w` `$1E03EC` (`0678 03E8 B4B4`, after the fight's `clr.w ChkCnt` at `$1E03E8`) | StartGame's `jsr $67938` `$9CB6` retargeted, as on NHL 94 | `$FFF754`-`$FFF75B` |
+| SNES (`sneshacks.ts`, `fightOncePlaces`, `foCode`) | the puck-at-faceoff `lda asscur+puckobj / cmp #$1B` (`ad....c91b00`, then `d0016b` in NOSE4Web's 1 MB fights, `b0..af......f0..c90200` before McMarkis's OptFights split) becomes `jsl` + 2 nop: X and Y tested; fought: `lda #$1B / cmp #$1B` (Z and C set, out either way); else the lda / cmp | after `bit #pffight / bne / jmp out` (`bd....890004d0034c....`): NOSE4Web's `stz ChkCnt / ldy #$16` (6 bytes) or McMarkis's `lda #0 / sta.l ChkCnt` (7) becomes `jsl` + nops: marks X and the direct page's a2 (`$91`), then the bytes | FightGameStart's `sta.l fightinjany` (A = 0, after the fightinj loop) becomes `jsl`: the store, then 4 `sta.l` to the marks | `$7E:FEC0`-`$FEC7` (LoROM builds), `$40:5840`-`$5847` (SA-1); bit = `pnum,x` & `$1F`, objects `$0C` up +32 |
+
+The 1 MB SNES places are in NOSE4Web's fight block: `snesFightState` skips them (`once` in `snesfight.ts`), and the
+option comes out and goes back in while the fights change (`FIGHT_HOOKERS`, with fight momentum). Genesis 94: `fight.ts`
+`SKIPPED` holds `$20025E` and `$20030C`; NHL '95: `fightMode` skips them when they are the option's jsrs. With or
+without fight momentum (separate hooks). Tests: `tests/fightonce.test.ts`.
+
 ### Referee strictness (`referees`; added 2026-11-19; Genesis NHL 94 tested in the game by Match Viewer 2026-11-19)
 
 Match Viewer, 40 computer games a level (5-minute periods, penalties on except offsides, line changes off): calls a
@@ -1067,6 +1086,7 @@ Freed room in the middle is tagged `NOSEFREE` + start address (`releaseSpace`).
 | `$FFEB04`-`$FFEB05`, `$FFEE6A`-`$FFEE6B` | blocked shots' team totals ("team struct +$287C"; `lea ($EB04).w` / `lea ($EE6A).w`) | MV-tested 2026-11-20 | `BLK_CODE95` |
 | `$FFF700`-`$FFF73F` | knockdown counts for the injury risk: a byte a player, 32 a team (cleared each game: 64 bytes) | tested | comment above `COUNT_OF_A2_95`, `GAME_CODE95`; section 11 |
 | `$FFF750`-`$FFF753` | fight momentum: the winner's team bit (byte `$FFF750`, `$00` / `$40`), the timer word `$FFF752` (game seconds left) | MV-tested 2026-11-20 | comment above `FIGHT95_WINNER_AT`; section 11 |
+| `$FFF754`-`$FFF75B` | one fight a game: a bit a roster place, home `$FFF754`-`$FFF757`, visitors `$FFF758`-`$FFF75B` (cleared each game) | not yet tested | comment above `FIGHT95_ONCE_TEST_AT`; section 9 |
 | `$FFF800`-`$FFF815` | organ after a pause: kept song slot (22 bytes) | tested | comment above `ORGAN_SAVE_HOOK` |
 | `$FFDC84`-`$FFFC03` | the whole range Match Viewer found unused (retail and W18) that these sit in | | same comments |
 

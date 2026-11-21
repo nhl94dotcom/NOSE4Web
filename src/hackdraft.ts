@@ -38,10 +38,10 @@ function carried(base: object | undefined, wanted: object | undefined): Record<s
 
 // The rules each page's own choosing keeps, for choices laid on a ROM that has changed underneath them.
 // NHL 94: Ron Barr picks one way or the other; smozROM's "Edit Lines matches players" with 0 to 15 ratings is not
-// made; no fight momentum without fighting.
+// made; no fight momentum or one fight a game without fighting.
 export function nhl94Rules(now: HackChoices, next: HackChoices, change: Partial<HackChoices>): HackChoices {
   const out = { ...next, ...(change.barrPick ? { barrCoin: false } : change.barrCoin ? { barrPick: false } : {}) }
-  if (out.fighting === 'none') out.fightMomentum = false
+  if (out.fighting === 'none') Object.assign(out, { fightMomentum: false, fightOnce: false })
   // Without the injury risk from knockdowns its most is not written, so it stays as the ROM has it.
   if (out.injuryBonus === 0) out.injuryCap = now.injuryCap
   const suspect = out.wideRatings && out.bonuses === 'linesMatchPlayers' && !(now.wideRatings && now.bonuses === 'linesMatchPlayers')
@@ -57,7 +57,7 @@ export function nhl95Rules(change: Partial<Nhl95HackChoices>): Partial<Nhl95Hack
   if (change.threeOnThree) others.threeOnThreeAll = false
   if (change.threeOnThreeAll) others.threeOnThree = false
   // Without fighting, its setting at power-on goes back to On, and there are no fights to win.
-  if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false, fightMomentum: false })
+  if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false, fightMomentum: false, fightOnce: false })
   // Without the body fix no shot hits a skater's body, so there are no blocks to count.
   if (change.bodyBlockFix === false) others.blockedShots = false
   // Without the injury risk from knockdowns its most is not kept: it goes back to what the ROM then reads.

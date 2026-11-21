@@ -45,6 +45,10 @@ export const FIGHT_TEXTS: Record<FightChoice, string> = {
 const DEFAULT_AT = 0x200ae4
 // In chkhit's .FightFall, where a fight has its winner (a0) and loser (a3): move.w #$FFFF,$44(a0).
 export const FIGHT_WINNER_AT = 0x2007e4
+// In checkfight, just after its movem.l d0-d4/a0-a3,-(sp): movea.l #puckx,a0; and at .cwd, where a fight is on:
+// addi.w #$3E8,(crowdlevel).w. One fight a game (hacks.ts, fightOnce) makes each a jsr.
+export const FIGHT_ONCE_TEST_AT = 0x20025e
+export const FIGHT_ONCE_MARK_AT = 0x20030c
 // The menu's pointers, as above, and where the patch has Fighting's caption and choices.
 const CAPTIONS_AT = 0xf807c
 const CHOICES_AT = 0x209638
@@ -95,6 +99,9 @@ const SKIPPED: [number, number][] = [
   [DEFAULT_AT, DEFAULT_AT + 2],
   // .FightFall's move.w #$FFFF,$44(a0), which fight momentum (hacks.ts) makes a jsr.
   [FIGHT_WINNER_AT, FIGHT_WINNER_AT + 6],
+  // checkfight's two places that one fight a game (hacks.ts) makes jsrs.
+  [FIGHT_ONCE_TEST_AT, FIGHT_ONCE_TEST_AT + 6],
+  [FIGHT_ONCE_MARK_AT, FIGHT_ONCE_MARK_AT + 6],
   // The patch's own copy of HotList ($208916, GetHot pointed at it): the bottom goalie's stick fix
   // (hacks.ts goalieBladeFix) changes frames 407-412 and 428-430 in it.
   [0x208916 + 2 * 407, 0x208916 + 2 * 413],

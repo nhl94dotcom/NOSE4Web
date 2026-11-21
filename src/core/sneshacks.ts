@@ -63,6 +63,7 @@ export type SnesHack =
   | 'shootoutInjuries'
   | 'fightTime'
   | 'fightMomentum'
+  | 'fightOnce'
   | 'oneTimerFix'
   | 'shotFix'
   | 'lockedChangeFix'
@@ -352,6 +353,7 @@ export const SNES_HACKS: SnesHack[] = [
   'shootoutInjuries',
   'fightTime',
   'fightMomentum',
+  'fightOnce',
   'oneTimerFix',
   'shotFix',
   'lockedChangeFix',
@@ -430,6 +432,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   shootoutInjuries: 'The injured sit out the shootout',
   fightTime: 'Fighting penalty time',
   fightMomentum: 'Fight momentum',
+  fightOnce: 'One fight a game',
   oneTimerFix: 'One-timer that never fires fix',
   shotFix: 'Shot that never fires fix',
   lockedChangeFix: 'B button while checking or bursting fix',
@@ -477,8 +480,9 @@ export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on:
     if (!on && hack === needed) next[needer] = false
   }
   for (const pair of EXCLUDES) if (on && pair.includes(hack)) next[pair[0] === hack ? pair[1] : pair[0]] = false
-  // Fight momentum goes with fighting: off with NOSE4Web's fights (McMarkis's builds have their own, never changed here).
-  if (hack === 'fighting' && !on) next.fightMomentum = false
+  // Fight momentum and one fight a game go with fighting: off with NOSE4Web's fights (McMarkis's builds have their own,
+  // never changed here).
+  if (hack === 'fighting' && !on) Object.assign(next, { fightMomentum: false, fightOnce: false })
   return next
 }
 
@@ -1466,6 +1470,138 @@ function fightMomentumPlaces(rom: Uint8Array): Placed[] | null {
     { at: speedSite, original: bytesOf('22', env.getpde, 'BD', word(env.legspd)), hacked: jsl(speedAt, 3) },
     { at: tickSite, original: bytesOf('22', env.ppTime), hacked: jsl(tickAt, 0) },
     { at: clearSite, original: bytesOf('22', env.initScores), hacked: jsl(clearAt, 0) },
+    { at: base, original: unused(code.length), hacked: code },
+  ]
+}
+
+// ----------------------------------------------------------- one fight a game
+// As on the Genesis (hacks.ts, fightOnce): a player who has fought cannot
+// start another fight that game. The fight check (McMarkis's checkfight, in
+// NOSE4Web's 1 MB fights (snesfight.ts) and his 2 MB and SA-1 builds alike;
+// X the one player, Y and the direct page's a2 ($91) the other) makes its exit
+// tests, the last the puck at a faceoff (lda asscur+puckobj / cmp #$1B, then
+// bne on in NOSE4Web's fights, bcs out to its rtl before the OptFights split
+// in McMarkis's builds). That lda / cmp becomes jsl / nops to code that, when
+// X or Y has fought, returns with A = $1B compared with $1B (Z and C set: out
+// in either), else does the two as they were. Where the fight is on (after
+// the two willingness tests, both players' pffight: bit #$0400 / bne / jmp
+// out, then stz ChkCnt / ldy #$16 in NOSE4Web's fights, lda #0 / sta.l ChkCnt
+// in McMarkis's builds, both ways of a fight starting) the next instruction or
+// two become jsl / nops to code that marks X and a2, then does them. So no
+// fight and no fighting majors; the hit and any penalty for it stay. The
+// marks: a bit a roster place (pnum,x, the low byte), the home team's (objects
+// below $0C) in the first 4 bytes, the visitors' in the next 4: $7E:FEC0-$FEC7
+// (past the blocked shots' $FE40-$FE77, the fights' fightinj $FE80-$FEB5, and
+// before the organ's $FF00), or $40:5840-$5847 in the SA-1 builds (BW-RAM, past
+// the shootout's copy of fightinj at $40:5800). Cleared at each game's start
+// in FightGameStart (from StartGame_go, so in a shootout too): its sta.l
+// fightinjany (A is 0 there) becomes a jsl to code that does it and clears
+// the marks. Only with fights: NOSE4Web's, or McMarkis's builds' own.
+const FO_RAM = [
+  { shift: 0, bank: 0x7e, at: 0xfec0 },
+  { shift: 0x6000, bank: 0x40, at: 0x5840 },
+]
+// The puck at a faceoff: lda asscur+puckobj / cmp #$1B, then NOSE4Web's bne / rtl or McMarkis's bcs / lda.l OptFights.
+const FO_TESTS = ['ad....c91b00d0016b', 'ad....c91b00b0..af......f0..c90200']
+// lda pflags,x / bit #pffight / bne / jmp out: what follows is the fight.
+const FO_FIGHT = 'bd....890004d0034c....'
+// FightGameStart: the loops clearing fightinj (with McMarkis's whistle counts before it), then sta.l fightinjany.
+const FO_CLEARS = ['9f......caca10..8f......af......6b', '9f......9f......caca10..8f......6b']
+const FO_CLEAR_AT = [8, 12]
+// The direct page's a2, the other player, where the fight is on.
+const FO_A2 = 0x91
+
+interface FoEnv {
+  clear: Uint8Array
+  faceoff: number
+  fight: Uint8Array
+}
+
+function foCode(s: number, ram: (typeof FO_RAM)[number], env: FoEnv, base: number) {
+  const L = (offset: number) => bytesOf(word((ram.at + offset) & 0xffff), ram.bank)
+  const clear = bytesOf(env.clear, '8F', L(0), '8F', L(2), '8F', L(4), '8F', L(6), '6B')
+  // X = the player: A = his bit's mask, X = its byte (Y kept).
+  const locate = asm65([
+    bytesOf('BD', word(0x12a3 + s), '29 1F00 E0 0C00'),
+    { branch: BCC, to: 'h' },
+    '09 2000',
+    { label: 'h' },
+    '48 4A 4A 4A AA 68 29 0700 5A A8 A9 0100',
+    { label: 'l' },
+    '88',
+    { branch: BMI, to: 'm' },
+    '0A',
+    { branch: BRA, to: 'l' },
+    { label: 'm' },
+    '7A 60',
+  ])
+  const sizes = (loc: number[]) => {
+    const test = asm65([
+      bytesOf('DA 20', loc, '3F', L(0)),
+      { branch: BNE, to: 'f' },
+      bytesOf('BB 20', loc, '3F', L(0)),
+      { branch: BNE, to: 'f' },
+      bytesOf('FA AD', word(env.faceoff), 'C9 1B00 6B'),
+      { label: 'f' },
+      'FA A9 1B00 C9 1B00 6B',
+    ])
+    const mark = bytesOf('DA 20', loc, 'E2 20 1F', L(0), '9F', L(0), 'C2 20 A6', FO_A2, '20', loc, 'E2 20 1F', L(0), '9F', L(0), 'C2 20 FA', env.fight, '6B')
+    return { test, mark }
+  }
+  const probe = sizes([0, 0])
+  const testAt = clear.length
+  const markAt = testAt + probe.test.length
+  const locateAt = markAt + probe.mark.length
+  const { test, mark } = sizes(word(loRomAddress(base + locateAt)))
+  return { code: bytesOf(clear, test, mark, locate), testAt, markAt }
+}
+
+function fightOncePlaces(rom: Uint8Array): Placed[] | null {
+  const s = shift(rom)
+  const ram = FO_RAM.find((layout) => layout.shift === s)
+  if (s === null || !ram) return null
+  // Each place as the fights have it, or with the jsl / nops there.
+  const tests = FO_TESTS.flatMap((pattern) => [...findCodeAll(rom, pattern), ...findCodeAll(rom, '22......eaea' + pattern.slice(12))])
+  const clears = FO_CLEARS.flatMap((pattern, i) => [...findCodeAll(rom, pattern), ...findCodeAll(rom, pattern.slice(0, 2 * FO_CLEAR_AT[i]) + '22' + pattern.slice(2 * FO_CLEAR_AT[i] + 2)) ].map((found) => ({ ...found, at: found.at + FO_CLEAR_AT[i] })))
+  if (tests.length !== 1 || clears.length !== 1) return null
+  const testSite = tests[0].at
+  // The fight, a little after the test, in the same check.
+  const fights = findCodeAll(rom, FO_FIGHT).filter(({ at }) => at > testSite && at - testSite < 0x180)
+  if (fights.length !== 1) return null
+  const fightSite = fights[0].at + 11
+  const clearSite = clears[0].at
+  // The check's a2 in the direct page: ldy $91 at its start.
+  if (!rom.subarray(Math.max(0, testSite - 0x60), testSite).some((byte, i, near) => byte === 0xa4 && near[i + 1] === FO_A2)) return null
+  // Not in yet: the places' bytes; in, the code's copy of them (jsl / nops at each place).
+  const fightLength = (first: number) => (first === 0x9c ? 6 : first === 0xa9 ? 7 : 0)
+  let base: number
+  let env: FoEnv
+  const probeEnv = (length: number): FoEnv => ({ clear: new Uint8Array(4), faceoff: 0, fight: new Uint8Array(length) })
+  if (rom[clearSite] === 0x22) {
+    base = callTarget(rom, clearSite)
+    if (base < 0 || rom[testSite] !== 0x22 || rom[fightSite] !== 0x22) return null
+    const clear = rom.slice(base, base + 4)
+    const markAt = callTarget(rom, fightSite) - base
+    const testAt = callTarget(rom, testSite) - base
+    if (clear[0] !== 0x8f || testAt !== 21 || markAt <= testAt || base + markAt + 40 > rom.length) return null
+    // The mark's own copy of the place's bytes: after its 34 bytes of marking.
+    const length = fightLength(rom[base + markAt + 34])
+    if (!length) return null
+    env = { clear, faceoff: readU16(rom, base + testAt + 22), fight: rom.slice(base + markAt + 34, base + markAt + 34 + length) }
+  } else {
+    if (rom[clearSite] !== 0x8f || rom[testSite] !== 0xad) return null
+    const length = fightLength(rom[fightSite])
+    if (!length) return null
+    env = { clear: rom.slice(clearSite, clearSite + 4), faceoff: readU16(rom, testSite + 1), fight: rom.slice(fightSite, fightSite + length) }
+    base = farRoom(rom, clearSite, env.clear, foCode(s, ram, probeEnv(length), 0).code.length)
+    if (base < 0) return null
+  }
+  const { code, testAt, markAt } = foCode(s, ram, env, base)
+  const jsl = (offset: number, pad: number) => bytesOf('22', long(base + offset), new Array(pad).fill(0xea))
+  return [
+    { at: testSite, original: bytesOf('AD', word(env.faceoff), 'C9 1B00'), hacked: jsl(testAt, 2) },
+    { at: fightSite, original: env.fight, hacked: jsl(markAt, env.fight.length - 4) },
+    { at: clearSite, original: env.clear, hacked: jsl(0, 0) },
     { at: base, original: unused(code.length), hacked: code },
   ]
 }
@@ -4444,6 +4580,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   clutchTime: (rom) => clutchTimePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
   fightMomentum: (rom) => fightMomentumPlaces(rom),
+  fightOnce: (rom) => fightOncePlaces(rom),
   threeStars: (rom, _source, amount) => threeStarsPlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -5486,7 +5623,7 @@ function detect(rom: Uint8Array): SnesHackState {
   // Without NOSE4Web's fights there is no fight for the momentum: off, not some other code.
   // (With the injury risk in, the fights' shared place holds its hook.)
   const noFights = fight?.kind === 'none' || snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none'
-  if (inPlace && noFights && unknown.includes('fightMomentum')) unknown.splice(unknown.indexOf('fightMomentum'), 1)
+  for (const hack of FIGHT_HOOKERS) if (inPlace && noFights && unknown.includes(hack)) unknown.splice(unknown.indexOf(hack), 1)
   // Game Stats' added row is the giveaways' or the blocked shots': with one in, the other is off.
   if (choices.giveawaysShown && unknown.includes('blockedShotsShown')) unknown.splice(unknown.indexOf('blockedShotsShown'), 1)
   if (choices.blockedShotsShown && unknown.includes('giveawaysShown')) unknown.splice(unknown.indexOf('giveawaysShown'), 1)
@@ -5516,6 +5653,9 @@ function detect(rom: Uint8Array): SnesHackState {
   }
   return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
+
+// The hacks that hook NOSE4Web's fights (on the 1 MB game): out while the fights change, then back in.
+const FIGHT_HOOKERS: SnesHack[] = ['fightMomentum', 'fightOnce']
 
 // The Player Stats pages the blocked shots page is chained on.
 const BLK_CHAINED: SnesHack[] = ['giveawayPages', 'timeOnIceShown']
@@ -5565,19 +5705,25 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
     const rest = applySnesHacks(out, { ...wanted, blockedShotPages: false }, updateVault, amounts)
     return wanted.blockedShotPages === false ? rest : applySnesHacks(rest, { blockedShotPages: true })
   }
-  // Fight momentum hooks NOSE4Web's fights: it needs them on, and comes out while they change, then goes back in.
+  // Fight momentum and one fight a game hook NOSE4Web's fights: they need them on, and come out while they change,
+  // then go back in.
   const inPlace = snesCodeInPlace(project.bytes)
-  const momentum = wanted.fightMomentum ?? choices.fightMomentum
-  if (momentum && inPlace && !(wanted.fighting ?? choices.fighting)) throw new SnesHackError(`${SNES_HACK_TITLES.fightMomentum} needs fighting on.`)
+  for (const hack of FIGHT_HOOKERS) {
+    if ((wanted[hack] ?? choices[hack]) && inPlace && !(wanted.fighting ?? choices.fighting)) throw new SnesHackError(`${SNES_HACK_TITLES[hack]} needs fighting on.`)
+  }
   // The fights come out first, so that hacks whose places they hook (the injury risk) can go in, and go in last.
   const fightWanted = wanted.fighting
   const bonus = amounts.fighting !== undefined && amounts.fighting !== SNES_AMOUNT_OFF.fighting ? amounts.fighting : undefined
   const fightChanges = fightWanted !== undefined && (fightWanted !== choices.fighting || fightUpgrade || (fightWanted && bonus !== undefined && bonus !== had?.fighting))
   if (fightChanges && unknown.includes('fighting')) throw new SnesHackError(`${SNES_HACK_TITLES.fighting} cannot be changed: ${snesFightBlocked(project.bytes) ?? 'this ROM has other code in its place.'}`)
-  if (fightChanges && inPlace && (choices.fightMomentum || wanted.fightMomentum) && !unknown.includes('fightMomentum')) {
-    const out = choices.fightMomentum ? applySnesHacks(project, { fightMomentum: false }) : project
-    const rest = applySnesHacks(out, { ...wanted, fightMomentum: false }, updateVault, amounts)
-    return momentum ? applySnesHacks(rest, { fightMomentum: true }) : rest
+  const hookers = FIGHT_HOOKERS.filter((hack) => (choices[hack] || wanted[hack]) && !unknown.includes(hack))
+  if (fightChanges && inPlace && hookers.length > 0) {
+    const allOff = (hacks: SnesHack[]) => Object.fromEntries(hacks.map((hack) => [hack, false])) as Partial<SnesHackChoices>
+    const on = hookers.filter((hack) => choices[hack])
+    const out = on.length > 0 ? applySnesHacks(project, allOff(on)) : project
+    const rest = applySnesHacks(out, { ...wanted, ...allOff(hookers) }, updateVault, amounts)
+    const back = hookers.filter((hack) => wanted[hack] ?? choices[hack])
+    return back.length > 0 ? applySnesHacks(rest, Object.fromEntries(back.map((hack) => [hack, true]))) : rest
   }
   let rom = project.bytes.slice()
   if (fightChanges && !fightWanted) {
@@ -5677,7 +5823,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'postsFix', 'nhlShootout', 'choppyIce', 'clutchTime',
-  'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'fightMomentum',
+  'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'fightMomentum', 'fightOnce',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
   'realTime', 'noIcing',

@@ -28,7 +28,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
   { id: 'ratings', title: 'Ratings', hacks: ['wideRatings', 'baseWeight', 'bonuses', 'hotColdRange', 'clutchTime'] },
   // Ties and overtime first, then the clock and penalties, then icing.
   { id: 'rules', title: 'Rules', hacks: ['seasonTies', 'nhlShootout', 'shootoutInjuries', 'threeOnThree', 'fourthPeriodOvertime', 'penaltySeconds', 'realTime', 'delayedCalls', 'bCheckPenaltiesOff', 'referees', 'noIcing', 'hybridIcing'] },
-  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightSeconds', 'fightMomentum'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightSeconds', 'fightMomentum', 'fightOnce'] },
   {
     id: 'energy',
     title: 'Energy and injury risk',
@@ -58,7 +58,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
       'noIcing', 'creaseIcing', 'hybridIcing', 'noGoalPosts',
     ],
   },
-  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightTime', 'fightMomentum'] },
+  { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightTime', 'fightMomentum', 'fightOnce'] },
   { id: 'energy', title: 'Energy and injury risk', hacks: ['noSkatingDrain', 'freeBurst', 'energySpeed', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goaliePoke', 'manualPullGoalie', 'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },

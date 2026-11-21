@@ -385,7 +385,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
       for (const hack of SNES_HACKS) {
         if (state.unknown.includes(hack) || state.notOffered?.[hack] || hack === 'fighting') continue
         // Blocked shots' Game Stats row goes where giveaways' does; fight momentum needs the fights.
-        if (['showMaxBoost', 'seasonOvertime', 'barrCoin', 'blockedShotsShown', 'fightMomentum'].includes(hack)) continue
+        if (['showMaxBoost', 'seasonOvertime', 'barrCoin', 'blockedShotsShown', 'fightMomentum', 'fightOnce'].includes(hack)) continue
         others[hack] = true
       }
       const all = applySnesHacks(rom, others)

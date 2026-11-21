@@ -47,6 +47,7 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   penaltySeconds: 'How long each penalty minute keeps a player in the box, for leagues that play shorter periods.',
   fightSeconds: 'How long a fight keeps each fighter in the box.',
   fightMomentum: 'The team whose player wins a fight gets +2 Agility and +2 Speed for 90 seconds.',
+  fightOnce: 'A player who has fought cannot fight again that game.',
   noIcing: 'Icing is never called.',
   hybridIcing: 'Icing decided as the puck crosses the goal line, by who is nearer the end-zone faceoff dots.',
   delayedCalls: 'While one team has a penalty pending, the other can be called too.',
@@ -124,7 +125,7 @@ const FROM_94 = `The same fix as in NHL 94; it works on the WN95HL's ROMs too. $
 const SETTING_TESTED = `The same option as in NHL 94; it works on the WN95HL's ROMs too. ${TESTED}`
 const UNTESTED = "The same option as in NHL 94; it works on the WN95HL's ROMs too. Not yet tested in the game."
 // Those not played yet.
-const NOT_YET: Nhl95Hack[] = ['referees']
+const NOT_YET: Nhl95Hack[] = ['referees', 'fightOnce']
 
 const OT3_MORE = (
   <p className="note">
@@ -459,6 +460,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       intermission; another fight gives the lift to its winner's team and starts them again. Needs Fighting.
     </>
   ),
+  fightOnce: () => <>With fighting on: a player who has fought cannot fight again that game. A hard hit with him stays a hit. Needs Fighting.</>,
   noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM that already has the forum's version (TheTome's) shows as On.</>,
   hybridIcing: () => (
     <>
@@ -770,7 +772,7 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
     return (
       <select
         aria-label={label}
-        disabled={unknown(hack) || ((hack === 'fightingOff' || hack === 'fightMomentum') && !wanted.fighting) || (hack === 'blockedShots' && !wanted.bodyBlockFix)}
+        disabled={unknown(hack) || ((hack === 'fightingOff' || hack === 'fightMomentum' || hack === 'fightOnce') && !wanted.fighting) || (hack === 'blockedShots' && !wanted.bodyBlockFix)}
         value={hack === 'fightingOff' ? (wanted.fightingOff ? 'off' : wanted.fightingArcade ? 'arcade' : 'on') : wanted[hack] ? 'on' : 'off'}
         onChange={(e) => {
           if (hack === 'fightingOff') set({ fightingOff: e.target.value === 'off', fightingArcade: e.target.value === 'arcade' })
