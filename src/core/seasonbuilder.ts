@@ -203,7 +203,7 @@ interface Rated {
   values: Record<string, number>
 }
 
-// A player's whole season, over every team he played for.
+// A player's whole season, over every team they played for.
 const playerKey = (p: { first: string; last: string; born: number | null }) => `${p.first}|${p.last}|${p.born ?? ''}`
 
 function sumSkaters(list: SeasonSkater[]): SeasonSkater {
@@ -388,7 +388,7 @@ export interface BuiltTeam {
 // Each season team's roster, with its players rated against every player chosen in the league that season.
 export function buildSeasonRosters(game: GameConfig, season: Season, options: SeasonOptions = DEFAULT_SEASON_OPTIONS): BuiltTeam[] {
   const year = Number(season.season.slice(0, 4))
-  // Each player goes to the team he played the most games for.
+  // Each player goes to the team they played the most games for.
   const skaterTeams = new Map<string, { team: number; gp: number; parts: SeasonSkater[] }>()
   const goalieTeams = new Map<string, { team: number; gp: number; parts: SeasonGoalie[] }>()
   season.teams.forEach((team, t) => {
@@ -580,9 +580,10 @@ export function applySeason(project: RomProject, season: Season, placement: (num
       current = grown
       continue
     }
-    const slot = [...slots].sort((a, b) => rosters.get(b)!.length - rosters.get(a)!.length)[0]
+    const skatersOf = (slot: number) => rosters.get(slot)!.filter((p) => !p.isGoalie)
+    const slot = [...slots].sort((a, b) => skatersOf(b).length - skatersOf(a).length)[0]
     const players = rosters.get(slot)!
-    const skaters = players.filter((p) => !p.isGoalie)
+    const skaters = skatersOf(slot)
     if (skaters.length <= MIN_SKATERS) throw new Error('These rosters do not fit in the ROM. Choose fewer players a team.')
     const fewest = skaters.reduce((a, b) => (b.games < a.games ? b : a))
     rosters.set(slot, players.filter((p) => p !== fewest))

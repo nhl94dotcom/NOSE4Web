@@ -386,7 +386,7 @@ function ppPkFixed(project: RomProject): boolean | null {
 // has only one team by it (the Mighty Ducks of Anaheim in one, the Anaheim Mighty Ducks in the other). Each team
 // here is matched at most once.
 export function teamsByName(project: RomProject, other: RomProject): { from: number; to: number }[] {
-  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+  const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '')
   const full = (p: RomProject) => p.teams.map((t) => plain(teamDisplayName(t)))
   const nick = (p: RomProject) => p.teams.map((t) => plain(t.names[2] ?? ''))
   const [ourFull, theirFull, ourNick, theirNick] = [full(project), full(other), nick(project), nick(other)]

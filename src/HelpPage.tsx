@@ -1405,7 +1405,7 @@ export function HelpPage() {
         </li>
         <li>
           <b>One fight a game</b> (Genesis and SNES NHL 94, needs fighting on): a player who has fought cannot fight
-          again that game. A hard hit with him stays a hit. Not yet tested in the game.
+          again that game. A hard hit with that player stays a hit. Not yet tested in the game.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
@@ -1695,7 +1695,7 @@ export function HelpPage() {
         The <b>Trade</b> page exchanges players between two sides. Choose a team for each, select the players each
         gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
         its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
-        which makes it a plain move. Each player is listed with all his attributes, as on his team's page, so you
+        which makes it a plain move. Each player is listed with all their attributes, as on their team's page, so you
         can weigh one against another; turn off <b>Show attributes</b> for a shorter list. On a narrow window the two
         sides sit one above the other.
       </p>
@@ -1853,14 +1853,14 @@ export function HelpPage() {
       <ul>
         <li>
           <b>The players:</b> each team gets the goalies, forwards and defencemen with the most games for it (2, 15 and 8
-          to begin with, as the original game has). A player traded during the season goes to the team he played the
+          to begin with, as the original game has). A player traded during the season goes to the team they played the
           most games for. Names are written as the game can show them: no accents, a hyphen as a space, and a first
           initial for a name longer than 19 letters. Teammates who wore the same number at different times that season
           each get one: the one with more games keeps it, and the other takes the next free number.
         </li>
         <li>
-          <b>The ratings:</b> each stat is turned into where the player stands among that season's players of his
-          kind, so any era is rated alike. The ratings are then given out in the same proportions as the original NHL
+          <b>The ratings:</b> each stat is turned into where the player stands among that season's players of the
+          same kind, so any era is rated alike. The ratings are then given out in the same proportions as the original NHL
           94's. The weights were set so that 1992-93, the season EA rated the original game from, gives back EA's
           ratings within one step for about nine players in ten (all but one in a hundred for Offensive Awareness, Shot
           Accuracy, Roughness and Aggression). Speed, Agility and Checking are the least sure, as no stat measures them.

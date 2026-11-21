@@ -960,7 +960,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             <option value="on">On</option>
           </select>,
           <>
-            With fighting on: a player who has fought cannot fight again that game. A hard hit with him stays a hit.
+            With fighting on: a player who has fought cannot fight again that game. A hard hit with that player stays a hit.
             Not yet tested in the game.
           </>,
         )}

@@ -2729,7 +2729,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   blockedShots: (c) =>
     `Each skater's blocked shots (shots by the other team that hit his body) are counted and shown on a Player Stats page of their own${c.giveaways ? '' : ", and Game Stats shows each team's as Blocked Shots"}.`,
   fightMomentum: "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
-  fightOnce: 'A player who has fought cannot fight again that game. A hard hit with him stays a hit.',
+  fightOnce: 'A player who has fought cannot fight again that game. A hard hit with that player stays a hit.',
   realTime: 'The clocks count real seconds, so a period lasts as long as it says.',
   penaltySeconds: (c) =>
     `Penalties last ${c.penaltySeconds < N.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The penalty minutes in the statistics are as before.`,

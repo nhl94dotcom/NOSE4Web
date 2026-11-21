@@ -116,7 +116,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
         ? 'A hit that would injure still draws the penalty, but nobody is hurt: the player lies on the ice for about ten seconds and then skates on.'
         : `Every injury keeps the player out for the ${c.injuries === 'game' ? 'rest of the game' : 'rest of the period'}, whoever made the hit.`,
   fightMomentum: () => "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters (not the goalie) for 90 seconds of play.",
-  fightOnce: () => 'A player who has fought cannot fight again that game. A hard hit with him stays a hit.',
+  fightOnce: () => 'A player who has fought cannot fight again that game. A hard hit with that player stays a hit.',
   referees: (c) =>
     c.referees === 'veryLenient' || c.referees === 'lenient'
       ? `The referee is more lenient: holding, hooking, tripping, charging, roughing and goalie interference are called ${c.referees === 'veryLenient' ? 'about half' : 'about three quarters'} as often.`
@@ -295,7 +295,7 @@ const SNES: Record<SnesHack, string> = {
   threeOnThree: "Overtime is 3 on 3, each team's goalie and its line's LW, C and RD; a power play adds a skater (4 on 3, 5 on 3).",
   fightTime: 'A fight keeps each fighter in the box for a set time, whatever its minutes; the statistics still show its usual penalty minutes.',
   fightMomentum: 'The team whose player wins a fight gets +1 Agility and +1 Speed (of 0-15) for its skaters for 90 seconds of play.',
-  fightOnce: 'A player who has fought cannot fight again that game. A hard hit with him stays a hit.',
+  fightOnce: 'A player who has fought cannot fight again that game. A hard hit with that player stays a hit.',
   penaltyTime: 'Each penalty minute keeps a player in the box for a set number of seconds, for leagues that play shorter periods; the statistics still show the usual minutes.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
   energySpeed: 'With line changes on, a tired skater slows all the way to the slowest speed there is as his energy runs out, as on the Genesis, where the original SNES game keeps more than half his speed.',

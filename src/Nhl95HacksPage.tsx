@@ -460,7 +460,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       intermission; another fight gives the lift to its winner's team and starts them again. Needs Fighting.
     </>
   ),
-  fightOnce: () => <>With fighting on: a player who has fought cannot fight again that game. A hard hit with him stays a hit. Needs Fighting.</>,
+  fightOnce: () => <>With fighting on: a player who has fought cannot fight again that game. A hard hit with that player stays a hit. Needs Fighting.</>,
   noIcing: () => <>Icing is never called: the puck plays on, and the goalie plays it as any loose puck. A ROM that already has the forum's version (TheTome's) shows as On.</>,
   hybridIcing: () => (
     <>

@@ -85,7 +85,7 @@ describe('a real season', () => {
     expect(a.players.filter((p) => p.isGoalie).map((p) => p.player.name)).toEqual(['Gord OneAAA', 'Gord TwoAAA'])
     expect(a.players.filter((p) => !p.isGoalie && p.forward)).toHaveLength(15)
     expect(a.players.filter((p) => !p.isGoalie && !p.forward)).toHaveLength(8)
-    // The traded man is on the team he played most for, and only there.
+    // The traded player is on the team they played most for, and only there.
     expect(b.players.some((p) => p.player.name === 'Moved Man')).toBe(true)
     expect(a.players.some((p) => p.player.name === 'Moved Man')).toBe(false)
     // The star's offence and the enforcer's aggression stand out; ratings stay 0 to 6, overall at most 100.

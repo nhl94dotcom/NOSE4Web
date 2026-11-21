@@ -249,7 +249,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
           )}
           <p className="note">
             Speed, Agility and Checking are the least sure: no stat measures them, so they come from what goes with them
-            (games, points, shots, age, size). Change any player on his team's page afterwards. Stats: the NHL's public
+            (games, points, shots, age, size). Change any player on their team's page afterwards. Stats: the NHL's public
             stats service.
           </p>
         </>

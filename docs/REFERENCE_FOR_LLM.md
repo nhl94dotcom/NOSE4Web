@@ -855,7 +855,7 @@ the winner operand, then the code), every place found by code:
 ### One fight a game (`fightOnce`; added 2026-11-21, not yet tested in the game)
 
 All three games, needs fighting on (the pages turn it off with fighting). Text: "A player who has fought cannot fight
-again that game. A hard hit with him stays a hit." Once either player of a would-be fight has fought that game, the
+again that game. A hard hit with that player stays a hit." Once either player of a would-be fight has fought that game, the
 fight check takes its own way out before the willingness test: no fight, no fighting majors, no instigator; the hit and
 any penalty for it stay. Marks: one bit a roster place (roster index, low 5 bits), home team first, 8 bytes. Places
 from Match Viewer's reading of each fight engine.
