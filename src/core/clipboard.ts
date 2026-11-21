@@ -156,7 +156,7 @@ export function copyLines(team: Team, indexes: number[]): string {
 // the same order. Positions the target team does not have are refused.
 export function pasteLines(team: Team, indexes: number[], text: string): Team {
   const copied = readRows('lines', text)
-  if (indexes.length === 0) throw new Error('Tick the lines to paste over first.')
+  if (indexes.length === 0) throw new Error('Select the lines to paste over first.')
   const highest = Math.max(...copied.flat())
   if (highest > team.players.length) {
     throw new Error(`A copied line uses roster position ${highest}, but this team has ${team.players.length} players.`)
@@ -175,7 +175,7 @@ export function copyDraws(draws: number[][], indexes: number[]): string {
 
 export function pasteDraws(draws: number[][], indexes: number[], text: string, teamCount: number): number[][] {
   const copied = readRows('draws', text)
-  if (indexes.length === 0) throw new Error('Tick the draws to paste over first.')
+  if (indexes.length === 0) throw new Error('Select the draws to paste over first.')
   const highest = Math.max(...copied.flat())
   if (highest >= teamCount) {
     throw new Error(`A copied draw uses team ${highest + 1}, but this ROM has ${teamCount} teams.`)

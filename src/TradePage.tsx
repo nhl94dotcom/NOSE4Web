@@ -119,13 +119,13 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
     <main className="team help">
       <h2>Trade</h2>
       <p className="note">
-        Choose two sides, tick the players each gives up, and see what the trade would do before making it. Either
+        Choose two sides, select the players each gives up, and see what the trade would do before making it. Either
         side can give nothing, which makes it a straight move. Skaters keep their role as forward or defenceman.
         Goalies change places one for one. <b>Free agents</b> are players you are holding on no team: release a
         player to them, or sign one from them, by choosing Free agents as one side.
       </p>
       <h3>What it would do</h3>
-      {picked === 0 && <p className="note">{notice || 'Tick the players each side gives up.'}</p>}
+      {picked === 0 && <p className="note">{notice || 'Select the players each side gives up.'}</p>}
       {problem && <p className="error">{problem}</p>}
       {result && after && (
         <>
@@ -229,7 +229,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
               </p>
               {rows.length === 0 ? (
                 <p className="note">
-                  There are no free agents. To release a player, choose his team as the other side, tick him, and
+                  There are no free agents. To release a player, choose his team as the other side, select him, and
                   make the trade.
                 </p>
               ) : (
@@ -299,7 +299,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
           )
         })}
       </div>
-      {/* While players are ticked, what the trade does and its button stay in view at the bottom of the window. */}
+      {/* While players are selected, what the trade does and its button stay in view at the bottom of the window. */}
       {picked > 0 && (
         <div className="ticked-tools">
           {result ? (

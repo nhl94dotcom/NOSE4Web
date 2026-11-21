@@ -116,7 +116,7 @@ export function CheckPage({ project, findings, onGoToTeam, onChange }: Props) {
           <summary>
             Teams the rules do not apply to ({rules.exempt.length === 0 ? 'none' : rules.exempt.length})
           </summary>
-          <p className="note">Tick teams to leave out, such as All Stars teams or a pool of spare players.</p>
+          <p className="note">Select teams to leave out, such as All Stars teams or a pool of spare players.</p>
           <p>
             {labels.map((label, team) => (
               <label key={team} className="choice">

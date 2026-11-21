@@ -70,7 +70,7 @@ export function ProjectPage({ project, opened, name, onOpen }: Props) {
           <span className="note">
             {byName
               ? "Each team's work goes to the team with the same name in this ROM, wherever it is in the list (Boston's to Boston). Every team has to find its namesake, or nothing is opened."
-              : "Only needed for a ROM that lists the teams in a different order from the one the project was made on. Normally each team's work goes to the same place in the list; ticked, it goes to the team with the same name instead. Teams moved with Move teams are followed anyway."}
+              : "Only needed for a ROM that lists the teams in a different order from the one the project was made on. Normally each team's work goes to the same place in the list; turned on, it goes to the team with the same name instead. Teams moved with Move teams are followed anyway."}
           </span>
         </p>
         <p className="note">

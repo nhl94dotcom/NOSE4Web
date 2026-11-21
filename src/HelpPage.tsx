@@ -103,7 +103,7 @@ export function HelpPage() {
           adding roster space, opening another ROM, and downloading a patch.
         </li>
         <li>
-          Players are shown as cards in place of a wide table. Each card is one line: the tick-box, the player's
+          Players are shown as cards in place of a wide table. Each card is one line: the checkbox to select him, the player's
           place and position, his name, and a button showing his overall rating. Tap that button to open the card
           and edit his number and every attribute, or to move or delete him. Several cards can be open at once.
         </li>
@@ -402,7 +402,7 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        Tick <b>Show attributes as stored values (0–15)</b> to see and choose the raw numbers kept in the ROM. That
+        Turn on <b>Show attributes as stored values (0–15)</b> to see and choose the raw numbers kept in the ROM. That
         view also allows values the game does not normally use, such as a rating above 99, for experimenting. Such
         values appear in red with a ! in the normal view.
       </p>
@@ -431,7 +431,7 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        On the <b>Roster</b> tab the tables come first. Tick players, and the things you can do with them appear in a
+        On the <b>Roster</b> tab the tables come first. Select players, and the things you can do with them appear in a
         bar along the bottom of the window: copy and paste, move to another team, release, and make up attributes.
         The tools you need less often, the roster card, Reset roster and Quick edit keys, are under{' '}
         <b>More roster tools</b>, below the tables.
@@ -441,7 +441,7 @@ export function HelpPage() {
         every attribute at its lowest. A team can have at most {MAX_ROSTER} players.
       </p>
       <p>
-        To trade a skater, tick them, choose the other team beside <b>Move ticked to</b>, and click it. A forward
+        To trade a skater, select them, choose the other team beside <b>Move selected to</b>, and click it. A forward
         joins the end of the other team's forwards and a defenceman the end of its roster, and both teams' lines are
         kept in step. Goalies cannot be moved this way; copy one and paste over a goalie on the other team.
       </p>
@@ -519,7 +519,7 @@ export function HelpPage() {
         <li>
           In an attribute's list, <b>+</b> and <b>-</b> raise and lower it one step, stopping at the top and bottom
           of its range. Either the main keys or the number pad will do, and the key beside minus counts as plus
-          without Shift. This changes the one box you are in; the Quick edit keys change every ticked player.
+          without Shift. This changes the one box you are in; the Quick edit keys change every selected player.
         </li>
         <li>
           Clicking into a number box, such as a jersey number, selects it, so what you type replaces it. You can empty
@@ -535,22 +535,22 @@ export function HelpPage() {
 
       <h3 id="help-copy">Copy and paste</h3>
       <p>
-        Players, lines and playoff draws each have tick-boxes and <b>Copy ticked</b> and <b>Paste over ticked</b>{' '}
+        Players, lines and playoff draws each have checkboxes to select them, and <b>Copy selected</b> and <b>Paste over selected</b>{' '}
         buttons.
       </p>
       <ol>
-        <li>Tick the rows to copy and click Copy ticked.</li>
+        <li>Select the rows to copy and click Copy selected.</li>
         <li>Go to where they should end up: another team, or another ROM open in a second browser tab.</li>
-        <li>Tick the rows to replace and click Paste over ticked.</li>
+        <li>Select the rows to replace and click Paste over selected.</li>
       </ol>
       <ul>
-        <li>A paste replaces the ticked rows. It does not insert new ones. To bring in an extra player, add a player first and paste over the new row.</li>
-        <li>If you tick more rows than you copied, the copied rows repeat to fill them.</li>
+        <li>A paste replaces the selected rows. It does not insert new ones. To bring in an extra player, add a player first and paste over the new row.</li>
+        <li>If you select more rows than you copied, the copied rows repeat to fill them.</li>
         <li>
           A pasted player brings his photo: his own, or, if he had none, the stand-in the game gives a player without one,
           in place of the photo of the player he replaces. On the Genesis a player with a photo of his own who was not
           among the featured players is added to them. On the SNES the photo is reshaded to the team's own photo
-          colours, so between teams it may look a little different. Players moved with Move ticked to, or traded,
+          colours, so between teams it may look a little different. Players moved with Move selected to, or traded,
           take their photos with them too.
         </li>
         <li>
@@ -566,7 +566,7 @@ export function HelpPage() {
 
       <h3 id="help-make">Making up attributes</h3>
       <p>
-        To fill a roster or make rookies, tick players and use <b>Make up attributes for the ticked players</b>. Choose
+        To fill a roster or make rookies, select players and use <b>Make up attributes</b>, in the bar that appears. Choose
         a kind of skater (all-round, sniper, playmaker, speedster, power forward, two-way forward, grinder, enforcer,
         offensive or stay-at-home defenceman) or of goalie (all-round, quick, positional, rebound control), and a level
         from Superstar to Weak, then press <b>Make</b>. Each player gets that kind's strengths at that level, a little
@@ -577,7 +577,7 @@ export function HelpPage() {
       <ul>
         <li>Jersey numbers and photos stay, and so do names unless you ask for new ones (below). Make keeps each player's shooting and glove hand. Undo puts the old attributes back.</li>
         <li>
-          Tick <b>with random names</b> to give each player a made-up first and last name too, of the kinds found on
+          Turn on <b>with random names</b> to give each player a made-up first and last name too, of the kinds found on
           hockey rosters, and different from everyone else's on the team. They are short and in plain letters, as the
           game's font has no accents, and a longer name takes more room in the ROM.
         </li>
@@ -592,12 +592,12 @@ export function HelpPage() {
           higher for grinders and enforcers. It stays in the lower half of its range, where the original game does
           not wrap it round.
         </li>
-        <li>To make a new player, press Add player, tick the new row, and make it.</li>
+        <li>To make a new player, press Add player, select the new row, and make it.</li>
       </ul>
 
       <h3 id="help-keys">Quick edit keys</h3>
       <p>
-        Tick <b>Quick edit keys</b> (under More roster tools on the Roster tab), tick one or more players, and use the top row of the keyboard to change them all
+        Turn on <b>Quick edit keys</b> (under More roster tools on the Roster tab), select one or more players, and use the top row of the keyboard to change them all
         at once:
       </p>
       <ul>
@@ -632,7 +632,7 @@ export function HelpPage() {
         Both update as you change the lines or the players.
       </p>
       <p>
-        <b>Build ticked</b>, <b>Build all lines</b> and <b>Fix broken lines</b> fill lines from the players' ratings,
+        <b>Build selected</b>, <b>Build all lines</b> and <b>Fix broken lines</b> fill lines from the players' ratings,
         by what each line is for: the best defence pair and forwards on NLC, the best scorers on Sc1, Sc2 and the
         power plays, checkers on Chk, and defensive players on the penalty kill (resting the power play's forwards
         when the roster is deep enough). The best playmaker of the three forwards plays centre. The extra attacker
@@ -895,7 +895,7 @@ export function HelpPage() {
       </p>
       <p>
         <b>Another team's banners</b> gives this team a copy of another team's banners, and their stripe colours
-        unless you untick them, for example to give Anaheim Detroit's. The other team keeps its own. On the SNES,
+        unless you turn them off, for example to give Anaheim Detroit's. The other team keeps its own. On the SNES,
         where a banner is just its colours and the name lettered on it, <b>Use the banner of</b> under the name
         banner colours copies both. The banner names share very little room, so a longer name may not fit until
         others are shortened; the page says so.
@@ -1159,7 +1159,7 @@ export function HelpPage() {
       </p>
       <p>
         Other work set up but not finished is kept the same way: a MIDI file loaded for the game music but not put
-        in, players ticked on <b>Trade</b> but the trade not made, a change set up on <b>Bulk changes</b> but not
+        in, players selected on <b>Trade</b> but the trade not made, a change set up on <b>Bulk changes</b> but not
         applied, and a team chosen on <b>Import a team</b> but not imported. Other pages remind you of it, and a
         download asks whether to go ahead without it.
       </p>
@@ -1202,7 +1202,7 @@ export function HelpPage() {
         <b>Copy this ROM's hacks for Discord</b> copies a Discord post for the league's owners listing every hack
         this ROM has (everything that differs from the original game), each explained in plain words, and shows it
         below the button. Discord allows 2,000 characters a message, so a long list comes as several messages, each
-        with its own copy button. Untick <b>explain each hack</b> for just the names.{' '}
+        with its own copy button. Turn off <b>explain each hack</b> for just the names.{' '}
         <b>Download hack sheet</b> saves a page explaining, in plain words for the owners, what each of those hacks
         means for how the game plays, to open, print or share. If the ROM has score box logos, the post and the sheet
         say so too, under Pictures.
@@ -1682,17 +1682,17 @@ export function HelpPage() {
           changes, or all the skaters), with each team's distance from the league average drawn as a bar. Above it
           are the average, how far the best team is above the weakest, and the standard deviation: the smaller these
           are, the more even the league. Teams more than one standard deviation from the average are marked. The
-          original game's All-Star teams are left out unless you tick <b>Count the All-Star teams</b>.
+          original game's All-Star teams are left out unless you turn on <b>Count the All-Star teams</b>.
         </li>
       </ul>
 
       <h3 id="help-trade">Trade and free agents</h3>
       <p>
-        The <b>Trade</b> page exchanges players between two sides. Choose a team for each, tick the players each
+        The <b>Trade</b> page exchanges players between two sides. Choose a team for each, select the players each
         gives up, and the page shows what the trade would do before you make it: each team's size, the rating of
         its first line and of its skaters, and its best goalie, before and after. Either side can give nothing,
         which makes it a plain move. Each player is listed with all his attributes, as on his team's page, so you
-        can weigh one against another; untick <b>Show attributes</b> for a shorter list. On a narrow window the two
+        can weigh one against another; turn off <b>Show attributes</b> for a shorter list. On a narrow window the two
         sides sit one above the other.
       </p>
       <ul>
@@ -1711,8 +1711,8 @@ export function HelpPage() {
         <li>One Undo takes back one trade.</li>
       </ul>
       <p>
-        For a quick release or signing there is no need to leave a team's page: tick players and press{' '}
-        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b> (shown while there are free agents). To sign a goalie, tick the goalie he
+        For a quick release or signing there is no need to leave a team's page: select players and press{' '}
+        <b>Release selected</b>, or choose a free agent and press <b>Sign</b> (shown while there are free agents). To sign a goalie, select the goalie he
         is to replace first.
       </p>
       <p>
@@ -1781,7 +1781,7 @@ export function HelpPage() {
           <ul>
             <li>
               Spreadsheet, picture and project files made before the move name teams by their old numbers: import
-              them with <b>Match teams by name</b> ticked (see below).
+              them with <b>Match teams by name</b> turned on (see below).
             </li>
             <li>
               A playoff team moved past the league's last one is no longer a playoff team: new playoffs started
@@ -1836,7 +1836,7 @@ export function HelpPage() {
       <p>
         Spreadsheet files, picture files and project files all say which team each thing belongs to by the team's
         place in the list. That is right when the files go back into the ROM they came from, or into one with the
-        teams in the same order. Where a ROM lists the same teams in another order, tick{' '}
+        teams in the same order. Where a ROM lists the same teams in another order, turn on{' '}
         <b>Match teams by name</b> on the page you are importing from, and each thing goes to the team of the same
         name wherever it is.
       </p>
@@ -1902,7 +1902,7 @@ export function HelpPage() {
       </ol>
       <ul>
         <li>
-          Tick <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
+          Turn on <b>List teams in alphabetical order</b> before exporting to have the teams, players and lines tables
           list the teams by name. Each row keeps its team number, so such a file imports just the same. To put the
           teams in that order in the ROM itself, use <b>Move teams</b> on the Bulk changes page.
         </li>
@@ -1975,9 +1975,9 @@ export function HelpPage() {
           the photos.
         </li>
         <li>
-          Tick <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
+          Turn on <b>Match teams by name</b> when the pictures come from a ROM that lists the same teams in another
           order. Each file then goes to the team named in it, wherever that team is in this ROM, and a file whose
-          team is not here is left out. Unticked, files go by their number.
+          team is not here is left out. Turned off, files go by their number.
         </li>
         <li>
           Pictures are fitted to the colours they are allowed, as when imported one at a time. A centre-ice logo
@@ -2014,7 +2014,7 @@ export function HelpPage() {
         ROM itself stays as that copy has it, and the page says so.
       </p>
       <p>
-        Tick <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,
+        Turn on <b>Match teams by name</b> to put each team in the project where this ROM has a team of the same name,
         for a ROM that lists the same teams in another order. Playoff draws, league rules and anything else that
         points at a team go with it. Every team in the project has to find a team of its name, or nothing is
         opened and the page says which did not.
@@ -2099,7 +2099,7 @@ export function HelpPage() {
           are the power play and penalty kill lines, which come on only for those.
         </li>
         <li>
-          <b>Teams the rules do not apply to:</b> tick any to leave out, such as All Stars teams or a team used as
+          <b>Teams the rules do not apply to:</b> select any to leave out, such as All Stars teams or a team used as
           a pool of spare players.
         </li>
       </ul>
@@ -2413,7 +2413,7 @@ export function HelpPage() {
           <b>Name banner colours</b>, are below the logos, with the banner shown as the menus draw it: 2 to 14 fill
           the block in two runs of shades (2 to 7 and 8 to 14), 15 is its frame, and 7 and 8 also colour the stripes
           on the player card's team page. <b>Use the banner of</b> gives a team another team's banner colours, and
-          its banner name unless you untick it.
+          its banner name unless you turn it off.
         </li>
         <li>
           <b>Import a team</b> brings a team's banner name and colours, and its logos: the team logo, the centre ice

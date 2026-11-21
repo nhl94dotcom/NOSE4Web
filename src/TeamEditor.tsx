@@ -139,6 +139,7 @@ export function TeamEditor(props: Props) {
   const tickedGoalies = ticked.filter((index) => index < goalies).length
   const tickedSkaters = ticked.length - tickedGoalies
   function makeTicked(random: boolean) {
+    if (tickedGoalies > 0 && tickedSkaters > 0) return
     // With a random level, each player gets his own.
     const levelFor = () => (level === RANDOM_LEVEL ? randomLevel() : (LEVELS.find((l) => l.value === level) ?? LEVELS[3]))
     const makeFor = (isGoalie: boolean): Make =>
@@ -699,7 +700,7 @@ export function TeamEditor(props: Props) {
         </p>
       </section>
 
-      {/* The Roster tab: how the tables show, the tables, then what to do with ticked players; rarer tools below. */}
+      {/* The Roster tab: how the tables show, the tables, then what to do with selected players; rarer tools below. */}
       <div data-tab="Roster">
         <p>
           <label>
@@ -732,18 +733,18 @@ export function TeamEditor(props: Props) {
       {ticked.length > 0 && (
           <div className="ticked-tools" data-tab="Roster">
             <p>
-              <b>{ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`} ticked.</b>{' '}
+              <b>{ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`} selected.</b>{' '}
               {notice && <span className="note">{notice}</span>}
             </p>
             <p>
-              <button onClick={() => void copyTicked()}>Copy ticked</button>{' '}
-              <button onClick={() => void pasteOverTicked(false)}>Paste over ticked</button>{' '}
+              <button onClick={() => void copyTicked()}>Copy selected</button>{' '}
+              <button onClick={() => void pasteOverTicked(false)}>Paste over selected</button>{' '}
               <button onClick={() => void pasteOverTicked(true)}>Paste attributes only</button>{' '}
-              <button onClick={() => setTicked([])}>Untick all</button>
+              <button onClick={() => setTicked([])}>Clear selection</button>
             </p>
             <p>
               <button disabled={otherTeams.length === 0} onClick={moveTicked}>
-                Move ticked to
+                Move selected to
               </button>{' '}
               <select className="wide" aria-label="Team to move players to" value={moveTo} onChange={(e) => setMoveTo(Number(e.target.value))}>
                 {otherTeams.map((other) => (
@@ -752,45 +753,51 @@ export function TeamEditor(props: Props) {
                   </option>
                 ))}
               </select>{' '}
-              <button onClick={releaseTicked}>Release ticked</button>
+              <button onClick={releaseTicked}>Release selected</button>
             </p>
-            <p>
-              Make up attributes:{' '}
-              {tickedSkaters > 0 && (
-                <select className="wide" aria-label="Kind of skater" value={skaterKind} onChange={(e) => setSkaterKind(e.target.value)}>
-                  {SKATER_ARCHETYPES.map((a) => (
-                    <option key={a.value} value={a.value}>
-                      {a.label}
+            {tickedGoalies > 0 && tickedSkaters > 0 ? (
+              <p className="note">To make up attributes, select only goalies or only skaters.</p>
+            ) : (
+              <>
+              <p>
+                Make up attributes:{' '}
+                {tickedSkaters > 0 && (
+                  <select className="wide" aria-label="Kind of skater" value={skaterKind} onChange={(e) => setSkaterKind(e.target.value)}>
+                    {SKATER_ARCHETYPES.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                )}{' '}
+                {tickedGoalies > 0 && (
+                  <select className="wide" aria-label="Kind of goalie" value={goalieKind} onChange={(e) => setGoalieKind(e.target.value)}>
+                    {GOALIE_ARCHETYPES.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label} goalie
+                      </option>
+                    ))}
+                  </select>
+                )}{' '}
+                <select aria-label="Level of player" value={level} onChange={(e) => setLevel(e.target.value)}>
+                  {LEVELS.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
                     </option>
                   ))}
-                </select>
-              )}{' '}
-              {tickedGoalies > 0 && (
-                <select className="wide" aria-label="Kind of goalie" value={goalieKind} onChange={(e) => setGoalieKind(e.target.value)}>
-                  {GOALIE_ARCHETYPES.map((a) => (
-                    <option key={a.value} value={a.value}>
-                      {a.label} goalie
-                    </option>
-                  ))}
-                </select>
-              )}{' '}
-              <select aria-label="Level of player" value={level} onChange={(e) => setLevel(e.target.value)}>
-                {LEVELS.map((l) => (
-                  <option key={l.value} value={l.value}>
-                    {l.label}
-                  </option>
-                ))}
-                <option value={RANDOM_LEVEL}>Random</option>
-              </select>{' '}
-              <button onClick={() => makeTicked(false)}>Make</button> <button onClick={() => makeTicked(true)}>Random</button>{' '}
-              <label>
-                <input type="checkbox" checked={withNames} onChange={(e) => setWithNames(e.target.checked)} /> with random names
-              </label>
-            </p>
-            <p className="note">
-              Make gives that kind of player at that level, a little different each time; Random gives attributes at
-              random around the level. The level Random gives each player a level of his own. Undo puts it all back.
-            </p>
+                  <option value={RANDOM_LEVEL}>Random</option>
+                </select>{' '}
+                <button onClick={() => makeTicked(false)}>Make</button> <button onClick={() => makeTicked(true)}>Random</button>{' '}
+                <label>
+                  <input type="checkbox" checked={withNames} onChange={(e) => setWithNames(e.target.checked)} /> with random names
+                </label>
+              </p>
+              <p className="note">
+                Make gives that kind of player at that level, a little different each time; Random gives attributes at
+                random around the level. The level Random gives each player a level of his own. Undo puts it all back.
+              </p>
+              </>
+            )}
           </div>
       )}
       <div data-tab="Roster">
@@ -800,7 +807,7 @@ export function TeamEditor(props: Props) {
           </button>{' '}
           <span className="note">
             {ticked.length === 0 &&
-              (notice || 'Tick players to copy and paste them, move them to another team, release them, or make up new attributes for them.')}
+              (notice || 'Select players to copy and paste them, move them to another team, release them, or make up new attributes for them.')}
           </span>
         </p>
         {props.freeAgents.length > 0 && (
@@ -819,7 +826,7 @@ export function TeamEditor(props: Props) {
               ))}
             </select>{' '}
             <span className="note">
-              A free agent joins this team. To sign a goalie, tick the goalie he replaces. Released players wait as
+              A free agent joins this team. To sign a goalie, select the goalie he replaces. Released players wait as
               free agents, off every team and out of the ROM.
             </span>
           </p>
@@ -839,7 +846,7 @@ export function TeamEditor(props: Props) {
           </p>
           {quickKeys && (
             <p className="note">
-              With players ticked, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
+              With players selected, the keys {QUICK_EDIT_KEY_LABELS.slice(0, 13).join(' ')} and Backspace each raise one
               attribute, in the game's order from {game.playerAttributeLabels[0]} to {game.playerAttributeLabels[13]}. Hold Shift
               to lower it. The {QUICK_EDIT_JERSEY_LABEL} keys change the jersey number. Hover a column heading to see its key.
             </p>
@@ -875,15 +882,15 @@ export function TeamEditor(props: Props) {
           {reset('lines', 'lines')}
         </p>
         <p>
-          Ticked lines:{' '}
+          Selected lines:{' '}
           <button disabled={tickedLines.length === 0} onClick={() => void copyTickedLines()}>
-            Copy ticked
+            Copy selected
           </button>{' '}
           <button disabled={tickedLines.length === 0} onClick={() => void pasteOverTickedLines()}>
-            Paste over ticked
+            Paste over selected
           </button>{' '}
-          <button title="Each ticked line's skaters picked from the players' ratings, by what the line is for" disabled={tickedLines.length === 0} onClick={() => build(tickedLines)}>
-            Build ticked
+          <button title="Each selected line's skaters picked from the players' ratings, by what the line is for" disabled={tickedLines.length === 0} onClick={() => build(tickedLines)}>
+            Build selected
           </button>{' '}
           <span className="note">
             {lineNotice || 'Lines are copied as roster positions, so they suit a team with the same roster order.'}

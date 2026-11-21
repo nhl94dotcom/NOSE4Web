@@ -153,7 +153,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           <span className="note">
             {byName
               ? 'Each file goes to the team named in it, wherever that team is in this ROM. A file whose team is not here is left out.'
-              : 'Each file goes to the team at the number in its name. Tick this for pictures from a ROM that lists the same teams in another order.'}
+              : 'Each file goes to the team at the number in its name. Turn this on for pictures from a ROM that lists the same teams in another order.'}
           </span>
         </p>
         <p className="note">

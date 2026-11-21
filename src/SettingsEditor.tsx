@@ -270,10 +270,10 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
           </p>
           <p>
             <button disabled={ticked.length === 0} onClick={() => void copyTicked()}>
-              Copy ticked
+              Copy selected
             </button>{' '}
             <button disabled={ticked.length === 0} onClick={() => void pasteOverTicked()}>
-              Paste over ticked
+              Paste over selected
             </button>{' '}
             {canFillDraws && (
               <>

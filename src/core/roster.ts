@@ -85,7 +85,7 @@ export function transferPlayers(teams: Team[], from: number, indexes: number[], 
   let source = teams[from]
   let target = teams[to]
   if (from === to) throw new Error('Choose a different team to move the players to.')
-  if (indexes.length === 0) throw new Error('Tick the players to move first.')
+  if (indexes.length === 0) throw new Error('Select the players to move first.')
   const goalies = goalieCount(source)
   if (indexes.some((i) => i < goalies)) {
     throw new Error('Goalies cannot be moved this way. Copy the goalie and paste over one on the other team.')

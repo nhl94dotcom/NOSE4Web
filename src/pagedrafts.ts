@@ -120,7 +120,7 @@ export function workLeft(project: RomProject, work: PageWork): WorkLeft[] {
   }
   if (work.trade) {
     const picked = keptSides(project, work.trade).reduce((sum, side) => sum + side.picks.length, 0)
-    if (picked > 0) left.push({ page: 'trade', text: `Trade has ${people(picked)} ticked, but the trade is not made.`, button: 'Make this trade' })
+    if (picked > 0) left.push({ page: 'trade', text: `Trade has ${people(picked)} selected, but the trade is not made.`, button: 'Make this trade' })
   }
   const kept = work.importTeam
   if (kept?.dirty && Object.values(kept.parts).some(Boolean)) {

@@ -82,7 +82,7 @@ function exchange(team: Team, out: FreeAgent[], incoming: FreeAgent[]): Team {
 // Either side may give nothing. Says why not, if it cannot be done.
 export function trade(project: RomProject, a: TradeSide, b: TradeSide): RomProject {
   if (a.team === b.team) throw new Error('Choose two different sides to trade between.')
-  if (a.picks.length + b.picks.length === 0) throw new Error('Tick the players to trade first.')
+  if (a.picks.length + b.picks.length === 0) throw new Error('Select the players to trade first.')
   const [fromA, fromB] = [leaving(project, a), leaving(project, b)]
 
   const teams = project.teams.slice()

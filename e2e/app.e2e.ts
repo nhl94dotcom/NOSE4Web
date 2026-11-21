@@ -130,8 +130,8 @@ test.describe('with the NHL 94 ROM', () => {
     // The roster's tools, between its sections and Lines, go with the roster.
     await expect(page.getByText('Show attributes as stored values')).toBeHidden()
     await expect(page.getByRole('button', { name: 'Add player' })).toBeHidden()
-    // Only the lines' Copy ticked is left (a hidden button is not one on the page).
-    await expect(page.getByRole('button', { name: 'Copy ticked' })).toHaveCount(1)
+    // Only the lines' Copy selected is left (a hidden button is not one on the page).
+    await expect(page.getByRole('button', { name: 'Copy selected' })).toHaveCount(1)
     // The teams share their tab.
     await team(page, 'Boston Bruins').click()
     await expect(tab('Lines')).toHaveAttribute('aria-selected', 'true')
@@ -202,14 +202,14 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/team.png', fullPage: true })
   })
 
-  test('makes up attributes for ticked players, by archetype and level or at random', async ({ page }) => {
+  test('makes up attributes for selected players, by archetype and level or at random', async ({ page }) => {
     await openRom(page)
     const main = page.locator('main')
     const skater = rows(page, 'Skaters').last()
     const goalie = rows(page, 'Goalies').first()
     const overall = (row: Locator) => row.locator('td').nth(5)
     const [name, before] = [await nameOf(skater).inputValue(), await overall(skater).textContent()]
-    // With only skaters ticked, only the kinds of skater are offered.
+    // With only skaters selected, only the kinds of skater are offered.
     await tick(skater)
     await expect(main.getByLabel('Kind of goalie')).toBeHidden()
     await main.getByLabel('Kind of skater').selectOption({ label: 'Sniper' })
@@ -218,19 +218,26 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText(`${name}: new attributes. Undo puts the old ones back.`)).toBeVisible()
     expect(Number(await overall(skater).textContent())).toBeGreaterThan(85)
     await expect(nameOf(skater)).toHaveValue(name)
-    // A goalie ticked too: each gets his own kind, and Random works for both.
+    // A goalie selected too: goalies and skaters cannot be made up together.
     await tick(goalie)
+    await expect(main.getByText('To make up attributes, select only goalies or only skaters.')).toBeVisible()
+    await expect(main.getByRole('button', { name: 'Random', exact: true })).toHaveCount(0)
+    // The goalie alone: only the kinds of goalie are offered.
+    await skater.locator('input[type=checkbox]').uncheck()
+    await expect(main.getByLabel('Kind of skater')).toBeHidden()
     await expect(main.getByLabel('Kind of goalie')).toBeVisible()
     await main.getByLabel('Level of player').selectOption({ label: 'Weak' })
     await main.getByRole('button', { name: 'Random', exact: true }).click()
-    await expect(main.getByText('2 players: new attributes, at random. Undo puts the old ones back.')).toBeVisible()
+    await expect(main.getByText('Guy Hebert: new attributes, at random. Undo puts the old ones back.')).toBeVisible()
     expect(Number(await overall(goalie).textContent())).toBeLessThan(70)
-    // With random names, each gets a made-up first and last name, not the old one.
+    // With random names, a made-up first and last name, not the old one.
     // A level of Random is on the list too, for a player wholly at random.
+    await goalie.locator('input[type=checkbox]').uncheck()
+    await tick(skater)
     await main.getByLabel('Level of player').selectOption({ label: 'Random' })
     await main.getByLabel('with random names').check()
     await main.getByRole('button', { name: 'Make', exact: true }).click()
-    await expect(main.getByText('2 players: new names and attributes. Undo puts the old ones back.')).toBeVisible()
+    await expect(main.getByText(/^[A-Z][a-z]+ [A-Z][A-Za-z]+: new names and attributes\. Undo puts the old ones back\.$/)).toBeVisible()
     await expect(nameOf(skater)).not.toHaveValue(name)
     await expect(nameOf(skater)).toHaveValue(/^[A-Z][a-z]+ [A-Z][A-Za-z]+$/)
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Undo' }).click()
@@ -238,14 +245,14 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(overall(skater)).toHaveText(before!)
   })
 
-  test('shows the bar for ticked players with the Skaters folded', async ({ page }) => {
+  test('shows the bar for selected players with the Skaters folded', async ({ page }) => {
     await openRom(page)
     const skaters = page.getByRole('heading', { name: 'Skaters', exact: true })
     await skaters.click()
     await expect(skaters).toHaveAttribute('aria-expanded', 'false')
     await tick(rows(page, 'Goalies').first())
     await expect(page.locator('.ticked-tools')).toBeVisible()
-    await expect(page.locator('.ticked-tools')).toContainText('Guy Hebert ticked.')
+    await expect(page.locator('.ticked-tools')).toContainText('Guy Hebert selected.')
     await skaters.click()
   })
 
@@ -523,7 +530,7 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Bulk changes').click()
     const notice = page.locator('.pending-notice')
     await expect(notice).toHaveCount(1)
-    await expect(notice).toContainText('Trade has 1 player ticked, but the trade is not made.')
+    await expect(notice).toContainText('Trade has 1 player selected, but the trade is not made.')
     // A Bulk changes form left as it starts is not work; one changed is.
     await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
     await entry(page, 'Help').click()
@@ -536,7 +543,7 @@ test.describe('with the NHL 94 ROM', () => {
       void dialog.dismiss()
     })
     await page.getByRole('button', { name: 'Download ROM' }).click()
-    expect(asked).toContain('Trade has 1 player ticked')
+    expect(asked).toContain('Trade has 1 player selected')
     expect(asked).toContain('Bulk changes has a change')
     // Back on Trade, the tick is as it was left; made, its notice goes.
     await notice.getByRole('button', { name: 'Go to Trade' }).click()
@@ -737,13 +744,13 @@ test.describe('with the NHL 94 ROM', () => {
     const source = rows(page, 'Skaters').first()
     const copiedName = await nameOf(source).inputValue()
     await tick(source)
-    await page.getByRole('button', { name: 'Copy ticked' }).first().click()
+    await page.getByRole('button', { name: 'Copy selected' }).first().click()
     await expect(page.getByText(`Copied ${copiedName}.`)).toBeVisible()
 
     await team(page, 'Anaheim Mighty Ducks').click()
     const target = rows(page, 'Skaters').nth(2)
     await tick(target)
-    await page.getByRole('button', { name: 'Paste over ticked' }).first().click()
+    await page.getByRole('button', { name: 'Paste over selected' }).first().click()
     await expect(page.getByText('Pasted 1 player, with his photo.')).toBeVisible()
     await expect(nameOf(target)).toHaveValue(copiedName)
   })
@@ -756,7 +763,7 @@ test.describe('with the NHL 94 ROM', () => {
     const movedName = await nameOf(source).inputValue()
     await tick(source)
     await page.getByLabel('Team to move players to').selectOption({ label: 'Anaheim Mighty Ducks' })
-    await page.getByRole('button', { name: 'Move ticked to' }).click()
+    await page.getByRole('button', { name: 'Move selected to' }).click()
     await expect(page.getByText('Moved 1 player to Anaheim Mighty Ducks.')).toBeVisible()
     await expect(rows(page, 'Skaters')).toHaveCount(22)
 
@@ -863,7 +870,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByRole('button', { name: 'Fix broken lines' })).toBeDisabled()
   })
 
-  test('changes ticked players with quick edit keys', async ({ page }) => {
+  test('changes selected players with quick edit keys', async ({ page }) => {
     await openRom(page)
     const row = rows(page, 'Skaters').first()
     // The key 1 raises the game's second attribute, wherever its column is shown.
@@ -1038,10 +1045,10 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(drawRows.nth(1))).not.toEqual(first)
 
     await tick(drawRows.nth(0))
-    await draws.getByRole('button', { name: 'Copy ticked' }).click()
+    await draws.getByRole('button', { name: 'Copy selected' }).click()
     await drawRows.nth(0).locator('input[type=checkbox]').uncheck()
     await tick(drawRows.nth(1))
-    await draws.getByRole('button', { name: 'Paste over ticked' }).click()
+    await draws.getByRole('button', { name: 'Paste over selected' }).click()
     await expect(draws.getByText('Pasted.')).toBeVisible()
     expect(await values(drawRows.nth(1))).toEqual(first)
   })
@@ -1188,7 +1195,7 @@ test.describe('with the NHL 94 ROM', () => {
     const copied = [await values(lineRows().nth(0)), await values(lineRows().nth(1))]
     await tick(lineRows().nth(0))
     await tick(lineRows().nth(1))
-    await lines().getByRole('button', { name: 'Copy ticked' }).click()
+    await lines().getByRole('button', { name: 'Copy selected' }).click()
     await expect(lines().getByText('Copied 2 lines.')).toBeVisible()
 
     await team(page, 'Boston Bruins').click()
@@ -1196,7 +1203,7 @@ test.describe('with the NHL 94 ROM', () => {
     expect(await values(lineRows().nth(4))).not.toEqual(copied[0])
     await tick(lineRows().nth(4))
     await tick(lineRows().nth(5))
-    await lines().getByRole('button', { name: 'Paste over ticked' }).click()
+    await lines().getByRole('button', { name: 'Paste over selected' }).click()
     await expect(lines().getByText('Pasted.')).toBeVisible()
     expect([await values(lineRows().nth(4)), await values(lineRows().nth(5))]).toEqual(copied)
     expect(await values(lineRows().nth(6))).toEqual(untouched)
@@ -1204,11 +1211,11 @@ test.describe('with the NHL 94 ROM', () => {
     // A line naming a player further down than a team's roster goes is refused.
     const last = String(await rows(page, 'Skaters').count() + await rows(page, 'Goalies').count())
     await lineRows().nth(4).locator('select').nth(1).selectOption(last)
-    await lines().getByRole('button', { name: 'Copy ticked' }).click()
+    await lines().getByRole('button', { name: 'Copy selected' }).click()
     await team(page, 'Anaheim Mighty Ducks').click()
     const before = await values(lineRows().nth(2))
     await tick(lineRows().nth(2))
-    await lines().getByRole('button', { name: 'Paste over ticked' }).click()
+    await lines().getByRole('button', { name: 'Paste over selected' }).click()
     await expect(lines().getByText(`A copied line uses roster position ${last}, but this team has`)).toBeVisible()
     expect(await values(lineRows().nth(2))).toEqual(before)
   })
@@ -1224,7 +1231,7 @@ test.describe('with the NHL 94 ROM', () => {
     const copiedName = await nameOf(source).inputValue()
     const copiedAttributes = await attributes(source)
     await tick(source)
-    await page.getByRole('button', { name: 'Copy ticked' }).first().click()
+    await page.getByRole('button', { name: 'Copy selected' }).first().click()
 
     await team(page, 'Anaheim Mighty Ducks').click()
     const skaters = rows(page, 'Skaters')
@@ -1237,7 +1244,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await tick(skaters.nth(5))
     await tick(skaters.nth(6))
-    await paste('Paste over ticked')
+    await paste('Paste over selected')
     await expect(page.getByText('Pasted 1 player, with his photo, repeating them to fill the rows.')).toBeVisible()
     for (const row of [3, 5, 6]) await expect(nameOf(skaters.nth(row))).toHaveValue(copiedName)
 
@@ -1246,7 +1253,7 @@ test.describe('with the NHL 94 ROM', () => {
     const goalieName = await nameOf(goalie).inputValue()
     for (const row of [3, 5, 6]) await skaters.nth(row).locator('input[type=checkbox]').uncheck()
     await tick(goalie)
-    await paste('Paste over ticked')
+    await paste('Paste over selected')
     await expect(nameOf(goalie)).toHaveValue(goalieName)
     await expect(page.getByText(/goalie/i).first()).toBeVisible()
   })
@@ -1261,11 +1268,11 @@ test.describe('with the NHL 94 ROM', () => {
     const source = rows(page, 'Skaters').first()
     const copiedName = await nameOf(source).inputValue()
     await tick(source)
-    await page.getByRole('button', { name: 'Copy ticked' }).first().click()
+    await page.getByRole('button', { name: 'Copy selected' }).first().click()
     await team(page, 'Anaheim Mighty Ducks').click()
     const target = rows(page, 'Skaters').nth(2)
     await tick(target)
-    await page.getByRole('button', { name: 'Paste over ticked' }).first().click()
+    await page.getByRole('button', { name: 'Paste over selected' }).first().click()
     await expect(nameOf(target)).toHaveValue(copiedName)
   })
 
@@ -1544,7 +1551,7 @@ test.describe('with the NHL 94 ROM', () => {
     const moved = await nameOf(rows(page, 'Skaters').first()).inputValue()
     await tick(rows(page, 'Skaters').first())
     await page.getByLabel('Team to move players to').selectOption({ label: 'Anaheim Mighty Ducks' })
-    await page.getByRole('button', { name: 'Move ticked to' }).click()
+    await page.getByRole('button', { name: 'Move selected to' }).click()
     await page.locator('input.rom-name').fill('Season_10')
 
     await entry(page, 'Compare ROMs').click()
@@ -1765,7 +1772,7 @@ test.describe('with the NHL 94 ROM', () => {
     // The page starts on the team just looked at.
     await expect(main.getByLabel('First side of the trade')).toHaveValue('0')
     await main.getByLabel('Second side of the trade').selectOption({ label: 'Boston Bruins' })
-    await expect(main.getByText('Tick the players each side gives up.')).toBeVisible()
+    await expect(main.getByText('Select the players each side gives up.')).toBeVisible()
     // Every player is listed with his attributes, goalies apart from skaters, and the list can be shortened.
     const boston = main.locator('.trade > section').nth(1)
     await expect(boston.locator('table')).toHaveCount(2)
@@ -2042,7 +2049,7 @@ test.describe('with the NHL 94 ROM', () => {
     const skater = rows(page, 'Skaters').nth(3)
     const released = await nameOf(skater).inputValue()
     await tick(skater)
-    await page.getByRole('button', { name: 'Release ticked' }).click()
+    await page.getByRole('button', { name: 'Release selected' }).click()
     await expect(page.getByText('Released 1 player to the free agents.')).toBeVisible()
     await expect(rows(page, 'Skaters')).toHaveCount(15)
     await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
@@ -2057,7 +2064,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     // A goalie cannot simply be released: he has to change places with another.
     await tick(rows(page, 'Goalies').first())
-    await page.getByRole('button', { name: 'Release ticked' }).click()
+    await page.getByRole('button', { name: 'Release selected' }).click()
     await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
 
     // The roster as a picture.

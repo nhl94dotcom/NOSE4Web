@@ -94,7 +94,7 @@ describe.skipIf(!hasRom)('trading players', () => {
   it('says why a trade cannot be made', () => {
     const project = roomy()
     expect(() => trade(project, { team: BOSTON, picks: [5] }, { team: BOSTON, picks: [6] })).toThrow('Choose two different sides')
-    expect(() => trade(project, { team: BOSTON, picks: [] }, { team: MONTREAL, picks: [] })).toThrow('Tick the players to trade first.')
+    expect(() => trade(project, { team: BOSTON, picks: [] }, { team: MONTREAL, picks: [] })).toThrow('Select the players to trade first.')
     const skaters = project.teams[ANAHEIM].players.map((_, i) => i).slice(2)
     expect(() => trade(project, { team: ANAHEIM, picks: skaters.slice(0, 14) }, { team: BOSTON, picks: [] })).toThrow(/would have \d+ players, and a team needs at least 5/)
   })

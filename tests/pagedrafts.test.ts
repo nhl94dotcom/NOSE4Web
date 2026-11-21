@@ -39,7 +39,7 @@ describe('work kept on Bulk changes, Trade and Import a team', () => {
       { team: BOSTON, picks: [first, first + 1] },
       { team: ANAHEIM, picks: [] },
     ])
-    expect(workLeft(project, { ...NO_PAGE_WORK, trade: kept })[0].text).toBe('Trade has 2 players ticked, but the trade is not made.')
+    expect(workLeft(project, { ...NO_PAGE_WORK, trade: kept })[0].text).toBe('Trade has 2 players selected, but the trade is not made.')
     // Another page takes Boston's first skater off the roster: the others move up a place.
     const players = project.teams[BOSTON].players.filter((_, i) => i !== first)
     const changed = { ...project, teams: project.teams.map((t, i) => (i === BOSTON ? { ...t, players } : t)) }
