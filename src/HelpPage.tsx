@@ -1533,9 +1533,10 @@ export function HelpPage() {
           read save states (McMarkis's builds count their own).
         </li>
         <li>
-          <b>Blocked shots</b> (Genesis): counts each skater's blocked shots, a shot by the other team that hits his
-          body, and shows them on a Blocked Shots page in Player Stats. Game Stats shows each team's total too when
-          giveaways and takeaways are off. Not yet tested in the game.
+          <b>Blocked shots</b> (Genesis and SNES): counts each skater's blocked shots, a shot by the other team that hits
+          his body, and shows them on a Blocked Shots page in Player Stats. Game Stats shows each team's total too when
+          giveaways and takeaways are off. On the SNES the counts, the Game Stats row and the Player Stats page are
+          three options. Not yet tested in the game.
         </li>
         <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
@@ -1672,8 +1673,9 @@ export function HelpPage() {
           builds and NOSE4Web's own fighting. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Fight momentum</b> (Genesis NHL 94, needs fighting on): the team whose player wins a fight gets +2
+          <b>Fight momentum</b> (Genesis and SNES NHL 94, needs fighting on): the team whose player wins a fight gets +2
           Agility and +2 Speed for its skaters, not the goalie, for 90 seconds of play, on top of any crowd boost.
+          On the SNES it is +1 of each, on its smaller rating scale, with NOSE4Web's fights or McMarkis's builds' own.
           The time runs only with the clock and carries over an intermission; another fight hands it on. Not yet
           tested in the game.
         </li>

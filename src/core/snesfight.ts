@@ -17,7 +17,7 @@
 // After the block a mark, 'N4WF', the ROM's length before and its header's
 // ROM size, so that taking the fights out gives the ROM back as it was.
 
-import { grownSnesRom, SNES_GROWN_SIZE, snesCodeInPlace } from './snes'
+import { findCodeAll, grownSnesRom, SNES_GROWN_SIZE, snesCodeInPlace } from './snes'
 import { SNES_FIGHT, SNES_FIGHT_EARLIER, SNES_FIGHT_UNPAIRED } from './snesfightdata'
 
 export const SNES_FIGHT_BONUS_DEFAULT = 2
@@ -35,6 +35,14 @@ interface FightVersion {
   bonus: readonly number[]
   // The pairing's box times, which syncFightPairing (sneshacks.ts) sets: not compared.
   pairing: readonly number[]
+  // F_fightfall's lda #$FFFF / sta temp3,y, which the fight momentum hack (sneshacks.ts) hooks: not compared.
+  momentum: number
+}
+// F_fightfall: lda #$3C / sta Pencntdwn / lda #$FFFF / sta temp3,y / lda.l Fcrowd; its 6 bytes from the lda #$FFFF.
+const MOMENTUM_SITE = 'a93c008d....a9ffff99....af'
+const momentumIn = (block: Uint8Array) => {
+  const found = findCodeAll(block, MOMENTUM_SITE)
+  return found.length === 1 ? found[0].at + 6 : -1
 }
 const versionOf = (data: typeof SNES_FIGHT | typeof SNES_FIGHT_UNPAIRED | typeof SNES_FIGHT_EARLIER): FightVersion => ({
   changes: data.changes.map((c) => ({ at: c.at, original: decode(c.original), patched: decode(c.patched) })),
@@ -43,6 +51,7 @@ const versionOf = (data: typeof SNES_FIGHT | typeof SNES_FIGHT_UNPAIRED | typeof
   relocBlock: new Set<number>(data.relocBlock),
   bonus: data.bonus,
   pairing: 'pairing' in data ? data.pairing : [],
+  momentum: momentumIn(decode(data.block)),
 })
 const CURRENT = versionOf(SNES_FIGHT)
 const UNPAIRED = versionOf(SNES_FIGHT_UNPAIRED)
@@ -105,7 +114,7 @@ export function snesFightState(rom: Uint8Array, ignore: number[] = []): SnesFigh
     if (version !== CURRENT && !CHANGES.every((c) => version.changes.some((e) => e.at === c.at) || same(rom, c.at, c.original))) continue
     const at = bankAt(bank)
     const bonus = rom[at + version.bonus[0]] | (rom[at + version.bonus[0] + 1] << 8)
-    const skip = (i: number) => version.pairing.some((p) => i === p || i === p + 1)
+    const skip = (i: number) => version.pairing.some((p) => i === p || i === p + 1) || (version.momentum >= 0 && i >= version.momentum && i < version.momentum + 6)
     if (!same(rom, at, blockFor(bank, bonus, version), skip) || !markAt(rom, at + version.block.length)) continue
     return version === CURRENT ? { kind: 'in', bank, bonus } : { kind: 'in', bank, bonus, earlier: true, version: OLDER.indexOf(version) }
   }

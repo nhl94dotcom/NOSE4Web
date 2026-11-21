@@ -62,6 +62,7 @@ export type SnesHack =
   | 'hybridIcing'
   | 'shootoutInjuries'
   | 'fightTime'
+  | 'fightMomentum'
   | 'oneTimerFix'
   | 'shotFix'
   | 'lockedChangeFix'
@@ -76,6 +77,9 @@ export type SnesHack =
   | 'giveaways'
   | 'giveawaysShown'
   | 'giveawayPages'
+  | 'blockedShots'
+  | 'blockedShotsShown'
+  | 'blockedShotPages'
   | 'organResume'
   | 'realTime'
   | 'noIcing'
@@ -347,6 +351,7 @@ export const SNES_HACKS: SnesHack[] = [
   'hybridIcing',
   'shootoutInjuries',
   'fightTime',
+  'fightMomentum',
   'oneTimerFix',
   'shotFix',
   'lockedChangeFix',
@@ -361,6 +366,9 @@ export const SNES_HACKS: SnesHack[] = [
   'giveaways',
   'giveawaysShown',
   'giveawayPages',
+  'blockedShots',
+  'blockedShotsShown',
+  'blockedShotPages',
   'organResume',
   'realTime',
   'noIcing',
@@ -421,6 +429,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   hybridIcing: 'Hybrid icing',
   shootoutInjuries: 'The injured sit out the shootout',
   fightTime: 'Fighting penalty time',
+  fightMomentum: 'Fight momentum',
   oneTimerFix: 'One-timer that never fires fix',
   shotFix: 'Shot that never fires fix',
   lockedChangeFix: 'B button while checking or bursting fix',
@@ -435,6 +444,9 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   giveaways: 'Giveaways and takeaways for each player',
   giveawaysShown: 'Giveaways and takeaways in Game Stats',
   giveawayPages: 'Giveaways and takeaways in Player Stats',
+  blockedShots: 'Blocked shots for each player',
+  blockedShotsShown: 'Blocked shots in Game Stats',
+  blockedShotPages: 'Blocked shots in Player Stats',
   organResume: 'Organ music after a pause',
   realTime: 'Real-time clock',
   noIcing: 'No icing',
@@ -453,8 +465,9 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
 // on, and two that cannot both be.
 // Energy taking all of a skater's speed needs skating to cost nothing: goalies never go to the bench, so the
 // drain would slow them more than the original game does (Match Viewer).
-const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways', giveawayPages: 'giveaways' }
-const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout'], ['barrPick', 'barrCoin']]
+const NEEDS: Partial<Record<SnesHack, SnesHack>> = { forwardsAndDefence: 'extraAttackerFix', fourthPeriodOvertime: 'thirtySecondPeriods', energySpeed: 'noSkatingDrain', bodychecksShown: 'bodychecks', timeOnIceShown: 'timeOnIce', giveawaysShown: 'giveaways', giveawayPages: 'giveaways', blockedShotsShown: 'blockedShots', blockedShotPages: 'blockedShots' }
+// Game Stats has one row added by each, at the same places.
+const EXCLUDES: [SnesHack, SnesHack][] = [['showMaxBoost', 'hotColdFix'], ['seasonOvertime', 'seasonShootout'], ['barrPick', 'barrCoin'], ['giveawaysShown', 'blockedShotsShown']]
 
 // `choices` with `hack` just set to `on`, and the hacks that go with it set to match.
 export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on: boolean): SnesHackChoices {
@@ -464,6 +477,8 @@ export function withSnesHackChoice(choices: SnesHackChoices, hack: SnesHack, on:
     if (!on && hack === needed) next[needer] = false
   }
   for (const pair of EXCLUDES) if (on && pair.includes(hack)) next[pair[0] === hack ? pair[1] : pair[0]] = false
+  // Fight momentum goes with fighting: off with NOSE4Web's fights (McMarkis's builds have their own, never changed here).
+  if (hack === 'fighting' && !on) next.fightMomentum = false
   return next
 }
 
@@ -1300,6 +1315,159 @@ function syncFightPairing(rom: Uint8Array): void {
   const seconds = Math.min(0x7ff, fight > 0 ? fight : 5 * perMinute)
   rom.set(bytesOf(word(seconds | 0x2000)), pairs[0].at + 3)
   rom.set(bytesOf(word(seconds)), times[0].at + 4)
+}
+
+// ------------------------------------------------------------- fight momentum
+// As on the Genesis (hacks.ts, fightMomentum): the team whose player wins a
+// fight gets a lift for 90 seconds of the game clock, +1 Agility and +1 Speed
+// (of 0-15; the Genesis's +2 of 0-30, halved as clutch time halves its) for its
+// skaters, not the goalie. The SNES has no crowd boost; playeracc, which
+// moves every player, reads the two ratings, and the lift goes there:
+// - The winner: F_fightfall (X lost to Y) is the only place a fight gets its
+//   winner. In NOSE4Web's fights (snesfight.ts) its lda #$FFFF / sta temp3,y
+//   ("the winner is done too") becomes jsl / nops to code that keeps the
+//   winner's team (objects $0C up the visitors) and 90 for the timer, then
+//   does the two; in McMarkis's 2 MB and SA-1 builds, whose fights keep the
+//   winner in the direct page ($89), its ldx $89 / lda #$FFFF (before sta
+//   temp3,x) does the same with X. snesfight.ts skips the place in its block.
+// - The timer: updatepentime's jsl updatePPTeamTime, on its tick, once a second
+//   of the clock and never while it is stopped (the box's own second, which
+//   real time keeps in step), counts it down, then jml updatePPTeamTime.
+// - The lift: playeracc's acceleration factor ($20 - weight / 8 plus 1.5 x leg
+//   strength: clc / adc legstr,x / sta d2 / lda legstr,x / lsr / adc d2 / sta
+//   d2) has its first 6 bytes become jsl / bra over the rest, to code that does
+//   it with the leg strength one more; its top speed's jsl getpde / lda
+//   legspd,x becomes jsl / nops to code that does them, the speed one more, at
+//   most 15 (past 15 the MaxSpeed table, 16 entries, would be overrun). One
+//   more while the timer runs, the clock runs (gmclock 0), for a skater
+//   (position not 0) of the stored team.
+// - Cleared each game: StartGame_go's jsl InitScores (in a shootout too, so no
+//   lift there).
+// RAM: the team (0 home, 1 visitors) and the timer, words at $7E:FDF8, after
+// giveaways' counts and before the season shootout's copy of fightinj ($FE00),
+// or in the SA-1 builds at $40:55E8 (BW-RAM, after giveaways'). A second fight
+// hands the lift on and starts the 90 seconds again; the timer carries over
+// an intermission. Only with fights: NOSE4Web's, or McMarkis's builds' own.
+const FM_RAM = [
+  { shift: 0, bank: 0x7e, at: 0xfdf8 },
+  { shift: 0x6000, bank: 0x40, at: 0x55e8 },
+]
+const FM_SECONDS = 90
+// F_fightfall's place in NOSE4Web's fights: lda #$3C / sta Pencntdwn / lda #$FFFF / sta temp3,y / lda.l Fcrowd.
+const SNES_FM_NOSE_FALL = 'a93c008d....a9ffff99....af'
+const FM_NOSE_AT = 6
+
+interface FmEnv {
+  // The block's first bytes: getpde, updatePPTeamTime and InitScores (3 bytes each), then legspd and temp3 (or the
+  // direct page of McMarkis's winner).
+  getpde: Uint8Array
+  ppTime: Uint8Array
+  initScores: Uint8Array
+  legspd: number
+  winner: number
+}
+const FM_HEADER = 3 + 3 + 3 + 2 + 2
+
+function fmCode(s: number, ram: (typeof FM_RAM)[number], legstr: number, d2: number, mc: boolean, env: FmEnv, base: number) {
+  const L = (offset: number) => bytesOf(word((ram.at + offset) & 0xffff), ram.bank)
+  const W = (address: number) => word(address + s)
+  const [gmclock, position] = [0x15d6, 0x0f43]
+  const header = bytesOf(env.getpde, env.ppTime, env.initScores, word(env.legspd), word(env.winner))
+  // A = the rating, X the player: A + 1 while his team has the lift (RTS, in this bank).
+  const lift = asm65([
+    bytesOf('48 AF', L(2)),
+    { branch: BEQ, to: 'n' },
+    bytesOf('AD', W(gmclock)),
+    { branch: BNE, to: 'n' },
+    bytesOf('BD', W(position)),
+    { branch: BEQ, to: 'n' },
+    bytesOf('E00C00 A90000 2A CF', L(0)),
+    { branch: BNE, to: 'n' },
+    '68 1A 60',
+    { label: 'n' },
+    '68 60',
+  ])
+  const liftAt = word(loRomAddress(base + FM_HEADER))
+  const factor = bytesOf('85', d2, 'BD', word(legstr), '20', liftAt, '48 18 65', d2, '85', d2, '68 4A 65', d2, '85', d2, '6B')
+  const speed = asm65([bytesOf('22', env.getpde, 'BD', word(env.legspd), '20', liftAt, 'C91000'), { branch: BCC, to: 'r' }, 'A90F00', { label: 'r' }, '6B'])
+  const tick = asm65([bytesOf('AF', L(2)), { branch: BEQ, to: 'g' }, bytesOf('3A 8F', L(2)), { label: 'g' }, bytesOf('5C', env.ppTime)])
+  const clear = bytesOf('A90000 8F', L(0), '8F', L(2), '5C', env.initScores)
+  // The winner's team, then 90 seconds; then the place's own lda #$FFFF (and NOSE4Web's sta temp3,y).
+  const fall = bytesOf(
+    mc ? bytesOf('A6', env.winner, 'E00C00') : 'C00C00',
+    'A90000 2A 8F', L(0), 'A9', word(FM_SECONDS), '8F', L(2), 'A9FFFF',
+    mc ? [] : bytesOf('99', word(env.winner)),
+    '6B',
+  )
+  const parts = [header, lift, factor, speed, tick, clear, fall]
+  const offsets: number[] = []
+  let at = 0
+  for (const part of parts) {
+    offsets.push(at)
+    at += part.length
+  }
+  const [, , factorAt, speedAt, tickAt, clearAt, fallAt] = offsets
+  return { code: bytesOf(...parts), factorAt, speedAt, tickAt, clearAt, fallAt }
+}
+
+function fightMomentumPlaces(rom: Uint8Array): Placed[] | null {
+  const s = shift(rom)
+  const ram = FM_RAM.find((layout) => layout.shift === s)
+  if (s === null || !ram) return null
+  // The winner: NOSE4Web's fights, or McMarkis's (cpy #$40 / bcc .find / ldx $89 / lda #$FFFF / sta temp3,x / lda pfteam,x); or the jsl there.
+  const nose = [...findCodeAll(rom, SNES_FM_NOSE_FALL), ...findCodeAll(rom, 'a93c008d....22......eaeaaf')]
+  const mcFall = [...findCodeAll(rom, 'c8c8c0400090..a6..a9ffff9d....bd'), ...findCodeAll(rom, 'c8c8c0400090..22......ea9d....bd')]
+  if (nose.length + mcFall.length !== 1) return null
+  const mc = mcFall.length === 1
+  const fallSite = mc ? mcFall[0].at + 7 : nose[0].at + FM_NOSE_AT
+  const fallLength = mc ? 5 : 6
+  // playeracc: lda weight,x / lsr x3 / eor #$FFFF / inc / clc / adc #$20, then clc / adc legstr,x / sta d2 / lda legstr,x /
+  // lsr / adc d2 / sta d2; or the hack's jsl / bra.
+  const factors = [
+    ...findCodeAll(rom, 'bd....4a4a4a49ffff1a18692000' + '187d(....)85(..)bd(....)4a65(..)85(..)'),
+    ...findCodeAll(rom, 'bd....4a4a4a49ffff1a18692000' + '22......8008bd(....)4a65(..)85(..)'),
+  ]
+  // jsl getpde / lda legspd,x / pha / lda.l OptLine / cmp #2; or the hack's jsl / nops.
+  const speeds = [...findCodeAll(rom, '22......bd....48af......c90200'), ...findCodeAll(rom, '22......eaeaea48af......c90200')]
+  // updatepentime: lda #$20 / tsb sflags3 / jsl chkatop / jsl updatePPTeamTime / stz a2.
+  const ticks = findCodeAll(rom, 'a920000c....22......22......64..')
+  // StartGame_go: lda #gmoffs / tsb gmode / (4 bytes) / jsl restoreteams / jsl InitScores / lda #replaystart>>16.
+  const starts = findCodeAll(rom, 'a9....0c....' + '........' + '22......22......a9..00')
+  if (factors.length !== 1 || speeds.length !== 1 || ticks.length !== 1 || starts.length !== 1) return null
+  const factorSite = factors[0].at + 14
+  const plainFactor = rom[factorSite] === 0x18
+  const [legstr, d2] = factors[0].groups
+  if (plainFactor && (factors[0].groups[2] !== legstr || factors[0].groups[3] !== d2 || factors[0].groups[4] !== d2)) return null
+  if (!plainFactor && factors[0].groups[2] !== d2) return null
+  if (legstr !== 0x12e3 + s) return null
+  const speedSite = speeds[0].at
+  const tickSite = ticks[0].at + 10
+  const clearSite = starts[0].at + 14
+  const probe = fmCode(s, ram, legstr, d2, mc, { getpde: new Uint8Array(3), ppTime: new Uint8Array(3), initScores: new Uint8Array(3), legspd: 0, winner: 0 }, 0)
+  let base: number
+  let env: FmEnv
+  if (!plainFactor) {
+    base = callTarget(rom, factorSite) - probe.factorAt
+    if (base < 0 || base + probe.code.length > rom.length) return null
+    env = { getpde: rom.slice(base, base + 3), ppTime: rom.slice(base + 3, base + 6), initScores: rom.slice(base + 6, base + 9), legspd: readU16(rom, base + 9), winner: readU16(rom, base + 11) }
+  } else {
+    if (rom[speedSite + 4] !== 0xbd) return null
+    const winner = mc ? rom[fallSite + 1] : readU16(rom, fallSite + 4)
+    env = { getpde: rom.slice(speedSite + 1, speedSite + 4), ppTime: rom.slice(tickSite + 1, tickSite + 4), initScores: rom.slice(clearSite + 1, clearSite + 4), legspd: readU16(rom, speedSite + 5), winner }
+    base = farRoom(rom, factorSite, hexBytes('18'), probe.code.length)
+    if (base < 0) return null
+  }
+  if (env.legspd !== 0x1303 + s) return null
+  const { code, factorAt, speedAt, tickAt, clearAt, fallAt } = fmCode(s, ram, legstr, d2, mc, env, base)
+  const jsl = (offset: number, pad: number) => bytesOf('22', long(base + offset), new Array(pad).fill(0xea))
+  return [
+    { at: fallSite, original: mc ? bytesOf('A6', env.winner, 'A9FFFF') : bytesOf('A9FFFF 99', word(env.winner)), hacked: jsl(fallAt, fallLength - 4) },
+    { at: factorSite, original: bytesOf('18 7D', word(legstr), '85', d2), hacked: bytesOf(jsl(factorAt, 0), '80 08') },
+    { at: speedSite, original: bytesOf('22', env.getpde, 'BD', word(env.legspd)), hacked: jsl(speedAt, 3) },
+    { at: tickSite, original: bytesOf('22', env.ppTime), hacked: jsl(tickAt, 0) },
+    { at: clearSite, original: bytesOf('22', env.initScores), hacked: jsl(clearAt, 0) },
+    { at: base, original: unused(code.length), hacked: code },
+  ]
 }
 
 // ------------------------------------------------------------- open net shot
@@ -2370,8 +2538,13 @@ function giveawayShownPlaces(rom: Uint8Array): Placed[] | null {
   const env = gtEnv(rom)
   const shown = gtShownEnv(rom)
   if (!env || !shown) return null
-  const { ram } = env
-  const totals = (ram.at + GT_TOTALS) & 0xffff
+  const totals = (env.ram.at + GT_TOTALS) & 0xffff
+  return statRowPlaces(rom, shown, GT_ROW_NAME, env.ram.bank, totals, 8, bytesOf(word(0x11), word(totals), word(totals + 4)))
+}
+
+// A row more in Game Stats (giveaways', or blocked shots'): its name, the bank of the numbers it reads, from `totals`
+// for `size` bytes, and its TeamStatSources entry (kind, home, visitors).
+function statRowPlaces(rom: Uint8Array, shown: GtShownEnv, name: string, bank: number, totals: number, size: number, entry: Uint8Array): Placed[] | null {
   const readOriginal = hexBytes('A8B90000')
   const isIn = !same(rom, shown.read[0], readOriginal)
   const n = shown.names
@@ -2388,7 +2561,7 @@ function giveawayShownPlaces(rom: Uint8Array): Placed[] | null {
   }
   const rowsOn = rom[shown.counts[0]] - (isIn ? 1 : 0)
   const rowsOff = rom[shown.counts[1]] - (isIn ? 1 : 0)
-  const row = bytesOf(word(2 + GT_ROW_NAME.length), new TextEncoder().encode(GT_ROW_NAME))
+  const row = bytesOf(word(2 + name.length), new TextEncoder().encode(name))
   const namesOn = stringList(rom, loRomOffset(own[0], readU16(own, 1)), rowsOn)
   const namesOff = stringList(rom, loRomOffset(own[3], readU16(own, 4)), rowsOff)
   const sourcesAt = loRomOffset(own[6], readU16(own, 7))
@@ -2402,13 +2575,13 @@ function giveawayShownPlaces(rom: Uint8Array): Placed[] | null {
   const readCode = asm65([
     bytesOf('A8 C0', word(totals)),
     { branch: BCC, to: 'n' },
-    bytesOf('C0', word(totals + 8)),
+    bytesOf('C0', word(totals + size)),
     { branch: BCS, to: 'n' },
-    bytesOf('DA BB BF', word(0), ram.bank, 'FA 6B'),
+    bytesOf('DA BB BF', word(0), bank, 'FA 6B'),
     { label: 'n' },
     bytesOf('B90000 6B'),
   ])
-  const sources = bytesOf(rom.slice(sourcesAt, sourcesEnd), word(0x11), word(totals), word(totals + 4), 'FFFF FFFF FFFF')
+  const sources = bytesOf(rom.slice(sourcesAt, sourcesEnd), entry, 'FFFF FFFF FFFF')
   const length = GT_SHOWN_HEADER + readCode.length + namesOn.length + namesOff.length + 2 * row.length + sources.length
   if (!isIn) {
     base = farRoom(rom, shown.read[0], readOriginal, length)
@@ -2952,6 +3125,428 @@ function withGoalieColumn(rom: Uint8Array, places: Placed[] | null): Placed[] | 
   for (const place of places) if (!place.hacked.every((b) => b === 0xff)) work.set(place.hacked, place.at)
   const goalies = goaliePlaces(work)
   return goalies && [...places, ...goalies]
+}
+
+// ------------------------------------------------------------------ blocked shots
+// As on the Genesis (hacks.ts, blockedShots): each skater's blocked shots, a
+// shot by the other team that hits his body while it is still a shot (nothing
+// has touched it since it left the stick). puckbody, the puck at a skater's
+// body (checkpuckcoll_ccx calls it for skaters only; goalies have their own
+// check), goes on to .t2 (jsl a2touchpuck, which clears sf2shot, so a shot
+// counts once) when the puck is 8 or more up or d0 (the distance squared) & $F
+// is 0. Its first lda puckz / cmp #8 becomes jsl / nops to code that makes the
+// same test and, on a hit, counts a block where sf2shot (sflags $1000, set by
+// doshot) is set, not in a highlight (gmode $0010) or a shootout
+// (shootoutmode), the skater is no goalie, and shotplayer (doshot's stx: the
+// shooter's object) is a player of the other team (objects $0C up are the
+// visitors); then the lda / cmp again, for the bpl after. StartGame_go's second
+// jsl LoadTeamLines clears the counts, but not in a shootout (PlayShootout
+// runs StartGame_go), so the season shootout keeps them. The counts: a byte a
+// roster place, to 255 (26 a team, the visitors $1A on), then each team's
+// total, a word (home, visitors): $7E:FE40, between the season shootout's copy
+// of fightinj ($FE00-$FE33) and the fights' own ($FE80 up), or in the SA-1
+// builds $40:5600 (BW-RAM, past giveaways' $40:5500-$55E7). Found by the code
+// around them, so it goes into every build.
+const BLK_RAM = [
+  { shift: 0, bank: 0x7e, at: 0xfe40 },
+  { shift: 0x6000, bank: 0x40, at: 0x5600 },
+]
+const BLK_TOTALS = 0x34
+const BLK_SIZE = BLK_TOTALS + 4
+const BLK_ROW_NAME = 'Blocked Shots'
+
+function blkRam(rom: Uint8Array) {
+  const s = shift(rom)
+  return s === null ? undefined : BLK_RAM.find((layout) => layout.shift === s)
+}
+
+// The counting code, and the clear (jml LoadTeamLines last).
+function blkCode(s: number, ram: (typeof BLK_RAM)[number], puckz: number, d0: number, sflags: number, shotplayer: number, loadLines: Uint8Array) {
+  const L = (offset: number) => bytesOf(word((ram.at + offset) & 0xffff), ram.bank)
+  const W = (address: number) => word(address + s)
+  const [gmode, shootoutmode, position, pnum] = [0x15d4, 0x1d81, 0x0f43, 0x12a3]
+  const count = asm65([
+    bytesOf('AD', word(puckz), 'C90800'),
+    { branch: BPL, to: 'hit' },
+    bytesOf('A5', d0, '290F00'),
+    { branch: BNE, to: 'out' },
+    { label: 'hit' },
+    bytesOf('AD', word(sflags), '290010'),
+    { branch: BEQ, to: 'out' },
+    bytesOf('AD', W(gmode), '291000'),
+    { branch: BNE, to: 'out' },
+    bytesOf('AD', W(shootoutmode), '29FF00'),
+    { branch: BNE, to: 'out' },
+    bytesOf('B9', W(position)),
+    { branch: BEQ, to: 'out' },
+    // X: 1 for a visitor (Y $0C up); the shooter a player, of the other team (C from his cmp, plus X, odd).
+    'DA A20000 C00C00',
+    { branch: BCC, to: 'h' },
+    'E8',
+    { label: 'h' },
+    bytesOf('AD', word(shotplayer), 'C91800'),
+    { branch: BCS, to: 'x' },
+    'C90C00 8A 690000 290100',
+    { branch: BEQ, to: 'x' },
+    // His roster place's byte (the visitors' $1A on: adc #$19 with the carry set), at most 255; then his team's word.
+    bytesOf('B9', W(pnum), '29FF00 C91A00'),
+    { branch: BCS, to: 'x' },
+    'C00C00',
+    { branch: BCC, to: 'v' },
+    '691900',
+    { label: 'v' },
+    bytesOf('AA BF', L(0), '29FF00 C9FF00'),
+    { branch: BCS, to: 'x' },
+    bytesOf('1A E220 9F', L(0), 'C220 A20000 C00C00'),
+    { branch: BCC, to: 't' },
+    'E8 E8',
+    { label: 't' },
+    bytesOf('BF', L(BLK_TOTALS), '1A 9F', L(BLK_TOTALS)),
+    { label: 'x' },
+    'FA',
+    { label: 'out' },
+    bytesOf('AD', word(puckz), 'C90800 6B'),
+  ])
+  const clear = asm65([
+    bytesOf('48 AD', W(shootoutmode), '29FF00'),
+    { branch: BNE, to: 'go' },
+    bytesOf('DA A90000 A2', word(BLK_SIZE - 2)),
+    { label: 'loop' },
+    bytesOf('9F', L(0), 'CA CA'),
+    { branch: BPL, to: 'loop' },
+    'FA',
+    { label: 'go' },
+    bytesOf('68 5C', loadLines),
+  ])
+  return { code: bytesOf(count, clear), clearAt: count.length }
+}
+
+function blockedShotsPlaces(rom: Uint8Array): Placed[] | null {
+  const ram = blkRam(rom)
+  if (!ram) return null
+  const s = ram.shift
+  // puckbody: lda puckz / cmp #8 / bpl .t2 / lda d0 / and #$F / beq .t2 / jmp .3 / .t2: jsl a2touchpuck; or the hack's jsl / nops.
+  const plain = findCodeAll(rom, 'ad....c90800100aa5(..)290f00f0034c....22')
+  const hooked = findCodeAll(rom, '22......eaea100aa5(..)290f00f0034c....22')
+  // StartGame_go: lda #2 / sta a2 / jsl LoadTeamLines / pla / sta a2 / lda.l OptGoalie.
+  const lines = findCodeAll(rom, 'a9020085..22......6885..af')
+  // doshot: lda #sfssdir / trb sflags / sta pfalock,x / stx shotplayer / cpx puckc / beq / jmp / lda #1 / sta 1,s / lda #sf2shot / tsb sflags.
+  const shots = findCodeAll(rom, 'a9....1c(....)9d....8e(....)ec....f0034c....a901008301a900100c(....)')
+  if (plain.length + hooked.length !== 1 || lines.length !== 1 || shots.length !== 1) return null
+  const [sflags, shotplayer, sflags2] = shots[0].groups
+  if (sflags !== 0x15d8 + s || sflags2 !== sflags || shotplayer !== 0x0d29 + s) return null
+  const found = plain[0] ?? hooked[0]
+  const site = found.at
+  const d0 = found.groups[0]
+  const puckz = 0x0df9 + s
+  const original = bytesOf('AD', word(puckz), 'C90800')
+  if (plain.length === 1 && !same(rom, site, original)) return null
+  const linesSite = lines[0].at + 5
+  const probe = blkCode(s, ram, puckz, d0, sflags, shotplayer, new Uint8Array(3))
+  let room: number
+  let loadLines: Uint8Array
+  if (hooked.length === 1) {
+    room = loRomOffset(rom[site + 3], readU16(rom, site + 1))
+    if (room < 0 || room + probe.code.length > rom.length) return null
+    loadLines = rom.slice(room + probe.code.length - 3, room + probe.code.length)
+  } else {
+    room = farRoom(rom, site, original, probe.code.length)
+    if (room < 0) return null
+    loadLines = rom.slice(linesSite + 1, linesSite + 4)
+  }
+  const { code, clearAt } = blkCode(s, ram, puckz, d0, sflags, shotplayer, loadLines)
+  return [
+    { at: site, original, hacked: bytesOf('22', long(room), 'EAEA') },
+    { at: linesSite, original: bytesOf('22', loadLines), hacked: bytesOf('22', long(room + clearAt)) },
+    { at: room, original: unused(code.length), hacked: code },
+  ]
+}
+
+// Game Stats gets a row more, "Blocked Shots": each team's total, as the game's single-number rows (kind $10, shown
+// with penalties on or off), in the same places as the giveaways' row (statRowPlaces), so not with it.
+function blockedShotsShownPlaces(rom: Uint8Array): Placed[] | null {
+  const ram = blkRam(rom)
+  const shown = gtShownEnv(rom)
+  if (!ram || !shown) return null
+  const totals = (ram.at + BLK_TOTALS) & 0xffff
+  return statRowPlaces(rom, shown, BLK_ROW_NAME, ram.bank, totals, 4, bytesOf(word(0x10), word(totals), 'FFFF'))
+}
+
+// ------------------------------------------------- blocked shots in Player Stats
+// A sort column more, "Blocks", each skater's row his name, G, A and Pts (the
+// game's own row code, copied, as the other pages do) and his blocked shots
+// (BLK), sorted by them. It goes after the giveaway and takeaway pages, if
+// they are in, and before the time on ice page, if it is in, so in the
+// original game's layout column 6 (8 with the giveaway pages) and the time on
+// ice page one on; in McMarkis's 2 MB and SA-1 builds after the last page. It
+// is chained on whatever the four Player Stats places call (the game's code,
+// the time on ice page's, the giveaway pages' or McMarkis's): DrawStatsList_rows'
+// jsl .3, SortPlayerStats' jsl AdvanceStringPtr, ComparePlayerStats' compare
+// and DrawStatsList's header; its column is its own, those before it go on
+// as before, and those after it (the time on ice page) are called with the
+// column one less (statcolumn, d0 or A, put back after). PlayerStatsScreen_right's
+// last column is one more, and the title before it gets its "]" (Penalties',
+// Takeaways', or McMarkis's last, shortened as the giveaway pages shorten it).
+// The block starts with a note of what the places held, so it comes out to
+// them, and the other pages are found and changed with it taken out first.
+const BLK_TITLES = ['[  Blocks   ', '[  Blocks  ]']
+const BLK_HEADER = '  Player         G  A Pt   BLK'
+const BLK_MAGIC = 'N4WB'
+// The note: the mark, the row's and title's calls, the compare's 11 bytes and the header's 10, the last column, and the
+// title given its "]": its place (3 bytes, $FFFFFF none) and its 12 letters. All but the mark inverted (eor $FF), so
+// that the code kept in it is not found as the game's.
+const BLK_NOTE = 4 + 4 + 4 + 11 + 10 + 1 + 3 + 12
+const flipped = (bytes: Uint8Array) => bytes.map((byte) => byte ^ 0xff)
+
+interface BlkSites {
+  mc: boolean
+  statcolumn: number
+  rowSite: number
+  titleSite: number
+  cmpSite: number
+  headerSite: number
+  rightSite: number
+}
+
+function blkPageSites(rom: Uint8Array): BlkSites | null {
+  const mc = only(rom, CLEAR_PLAYER_CHECKS) >= 0
+  if (!mc && ownIceTime(rom)) return null
+  const rows = findCodeAll(rom, 'ad(....)f00622......800422')
+  if (rows.length !== 1) return null
+  const statcolumn = rows[0].groups[0]
+  const column = hexOf(Uint8Array.from(word(statcolumn)))
+  const rights = findCodeAll(rom, 'ad' + column + 'c9..0030034c')
+  const titles = findCodeAll(rom, 'a9..0085..a9....85..22......22......ae')
+  const drawList = 'ad' + column + 'f0..a5..48a5..48'
+  // McMarkis's: cmp #6 / bcc / jsl (his compare, or a chained one) / beq / jmp .7 / jmp .6. The game's: cmp #5 / bne /
+  // jmp .t1x / jmp .6, or the time on ice or giveaway pages' jsl / bcs / jmp / nops.
+  const compares = mc
+    ? findCodeAll(rom, 'c90600900922......f0034c....4c....').map(({ at }) => ({ at: at + 5 }))
+    : [...findCodeAll(rom, 'c90500d0034c....4c....'), ...findCodeAll(rom, '22......b0..4c....eaea')]
+  const headers = mc
+    ? findCodeAll(rom, drawList + '22......22......6885')
+    : [...findCodeAll(rom, drawList + 'a9..0085..a9....85..22......6885'), ...findCodeAll(rom, drawList + '22......eaeaeaeaeaea22......6885')]
+  if ([rights, titles, compares, headers].some((found) => found.length !== 1)) return null
+  return { mc, statcolumn, rowSite: rows[0].at + 5, titleSite: titles[0].at + 10, cmpSite: compares[0].at, headerSite: headers[0].at + 11, rightSite: rights[0].at + 4 }
+}
+
+const callTarget = (rom: Uint8Array, at: number) => loRomOffset(rom[at + 3], readU16(rom, at + 1))
+
+// The page's note, if it is in.
+function blkPagesNote(rom: Uint8Array, sites: BlkSites): Uint8Array | null {
+  if (rom[sites.rowSite] !== 0x22) return null
+  const base = callTarget(rom, sites.rowSite) - BLK_NOTE
+  return base >= 0 && same(rom, base, new TextEncoder().encode(BLK_MAGIC)) ? rom.slice(base, base + BLK_NOTE) : null
+}
+
+// The ROM without the blocked shots page's places (its block left), or the ROM itself if it is not in.
+function withoutBlkPages(rom: Uint8Array): Uint8Array {
+  const sites = blkPageSites(rom)
+  const note = sites && blkPagesNote(rom, sites)
+  if (!sites || !note) return rom
+  const kept = flipped(note)
+  const out = rom.slice()
+  out.set(kept.subarray(4, 8), sites.rowSite)
+  out.set(kept.subarray(8, 12), sites.titleSite)
+  out.set(kept.subarray(12, 23), sites.cmpSite)
+  out.set(kept.subarray(23, 33), sites.headerSite)
+  out[sites.rightSite] = kept[33]
+  const titleAt = kept[34] | (kept[35] << 8) | (kept[36] << 16)
+  if (titleAt !== 0xffffff) out.set(kept.subarray(37, 49), titleAt)
+  return out
+}
+
+function blkPagePlaces(rom: Uint8Array): Placed[] | null {
+  const sites = blkPageSites(rom)
+  const ram = blkRam(rom)
+  if (!sites || !ram) return null
+  const note = blkPagesNote(rom, sites)
+  const base = note ? callTarget(rom, sites.rowSite) - BLK_NOTE : -1
+  // The ROM as it is without the page: what the places hold then is what it chains on.
+  const plain = note ? withoutBlkPages(rom) : rom
+  const { mc, statcolumn, rowSite, titleSite, cmpSite, headerSite, rightSite } = sites
+  const text = (s: string) => new TextEncoder().encode(s)
+  const last = plain[rightSite]
+  // Its column, whether a page comes after it, the title given its "]" and its new letters, and the game's row code.
+  let column: number
+  let after = false
+  let titleAt = -1
+  let title = new Uint8Array(12)
+  let head: Uint8Array
+  let tail: Uint8Array
+  let a1: number
+  let headerPrefix: Uint8Array
+  // The original game's layout: its compare's ending and its header, and statstemp.
+  let gameCmp: { bcs: number; eight: number; statstemp: Uint8Array } | null = null
+  let gameHeader: { bank: number; address: number } | null = null
+  if (mc) {
+    const env = mcPageEnv(plain)
+    if (!env) return null
+    column = env.last + 1
+    a1 = env.a1
+    headerPrefix = hexBytes('23009F0109')
+    // The giveaway pages, in: their row code (lda statcolumn / cmp #first / bcs / jml his) and their Takeaways title.
+    let row = callTarget(plain, rowSite)
+    const pages = row >= MC_NOTE && same(plain, row, bytesOf('AD', word(statcolumn), 'C9')) && plain[row + 6] === 0xb0 && plain[row + 8] === 0x5c
+    if (pages) {
+      const takeaways = findCodeAll(plain, '0e00' + hexOf(text('[Takeaways  ')))
+      if (takeaways.length !== 1) return null
+      titleAt = takeaways[0].at + 2
+      title = text('[Takeaways ]')
+      row = callTarget(plain, row + 8)
+    } else {
+      const titles = findCodeAll(plain, 'a9(..)0085..a9(....)85..22......22......ae')[0]
+      const lastTitle = loRomOffset(titles.groups[0], titles.groups[1]) + 14 * env.last
+      if (lastTitle < 0 || readU16(plain, lastTitle) !== 14) return null
+      const shortened = MC_LAST_TITLES[new TextDecoder().decode(plain.slice(lastTitle + 2, lastTitle + 14))]
+      if (!shortened) return null
+      titleAt = lastTitle + 2
+      title = text(shortened)
+    }
+    // His .3: lda statcolumn / cmp #6 / bcc / jml his rows, then the game's row.
+    if (row < 0 || !same(plain, row, bytesOf('AD', word(statcolumn), 'C90600 9004 5C'))) return null
+    const game = row + 12
+    if (!same(plain, game, hexBytes('5AA5A948A9FFFF22'))) return null
+    head = plain.slice(game, game + 171)
+    tail = plain.slice(game + 247, game + 259)
+  } else {
+    // The giveaway pages, in: the ROM without them (the time on ice page as its own hack has it, if it is in).
+    const pages = giveawayPagesIn(plain)
+    let pre = plain
+    if (pages) {
+      pre = plain.slice()
+      for (const place of pages.places) if (place.original) pre.set(place.original, place.at)
+    }
+    const parts = statPageParts(pre)
+    if (!parts || parts.rightSite !== rightSite) return null
+    if (pages ? last !== 7 && last !== 8 : last !== 5 && last !== 6) return null
+    after = pages ? last === 8 : last === 6
+    column = pages ? 8 : 6
+    if (!after) titleAt = pages ? (pages.toiToggle[1]?.at ?? 11) - 11 : parts.penaltiesEnd - 11
+    if (titleAt >= 0) title = bytesOf(plain.slice(titleAt, titleAt + 11), text(']'))
+    ;({ head, tail, a1, headerPrefix } = parts)
+    gameCmp = { bcs: parts.bcs, eight: parts.eight, statstemp: parts.statstemp }
+    gameHeader = { bank: parts.headerBank, address: parts.headerAddress }
+  }
+  // The title given its "]" ends in a space (McMarkis's are checked by their letters above).
+  if (!mc && titleAt >= 0 && plain[titleAt + 11] !== 0x20) return null
+  const setPal = head.slice(8, 11), printx = head.slice(15, 17), toStatsPage = head.slice(24, 27), d0 = head[18], pushWrap = head.slice(164, 167)
+  const d1 = 0xa9
+  if (head[163] !== 0x22 || head[167] !== 0x22 || tail[0] !== 0xa9 || tail[11] !== 0x6b) return null
+  const sc = word(statcolumn)
+  const call = (site: number) => plain.slice(site + 1, site + 4)
+  const cmpPlain = !mc && plain[cmpSite] === 0xc9
+  const headerPlain = !mc && plain[headerSite] === 0xa9
+  if (after && (cmpPlain || headerPlain)) return null
+  const blk = bytesOf(word(ram.at & 0xffff), ram.bank)
+  // The page's column, or before it (on to what was there); with a page after it, past it (that one called with the
+  // column one less, put back after).
+  const choose = (dec: Uint8Array, inc: Uint8Array, previous: Uint8Array): Asm65 =>
+    after ? [{ branch: BCC, to: 'p' }, { branch: BEQ, to: 'o' }, dec, bytesOf('22', previous), inc, '6B', { label: 'p' }] : [{ branch: BEQ, to: 'o' }]
+  const row = asm65([
+    bytesOf('AD', sc, 'C9', word(column)),
+    ...choose(bytesOf('CE', sc), bytesOf('EE', sc), call(rowSite)),
+    bytesOf('5C', call(rowSite)),
+    { label: 'o' },
+    head,
+    bytesOf('A9', word(column), '22', setPal, 'A91D00 8D', printx, 'DA BF', blk, '29FF00 85', d0, 'FA A90200 85', d1, '22', pushWrap, '22', toStatsPage),
+    tail,
+  ])
+  const titleCode = (titleText: number) =>
+    asm65([
+      bytesOf('A5', d0, 'C9', word(column)),
+      ...choose(bytesOf('C6', d0), bytesOf('E6', d0), call(titleSite)),
+      bytesOf('5C', call(titleSite)),
+      { label: 'o' },
+      bytesOf('A9', word(loRomAddress(titleText)), '85', a1, 'A9', loRomBank(titleText, 0x80), '00 85', a1 + 2, '6B'),
+    ])
+  // The later player's count more than the earlier's: swap (X and Y the two, X kept).
+  const counts = bytesOf('DA BF', blk, '29FF00 85', d0, 'BB BF', blk, '29FF00 FA C5', d0)
+  const compare = mc
+    ? asm65([
+        bytesOf('C9', word(column)),
+        { branch: BEQ, to: 'o' },
+        bytesOf('5C', call(cmpSite)),
+        { label: 'o' },
+        counts,
+        { branch: BEQ, to: 'z' },
+        { branch: BCC, to: 'z' },
+        'A90100 6B',
+        { label: 'z' },
+        'A90000 6B',
+      ])
+    : asm65([
+        bytesOf('C9', word(column)),
+        ...(after ? ([{ branch: BCC, to: 'p' }, { branch: BEQ, to: 'o' }, '3A', { label: 'p' }] as Asm65) : ([{ branch: BEQ, to: 'o' }] as Asm65)),
+        // On to what was there: the game's (cmp #5: sec, its own compare; else no swap), or the pages' code.
+        ...(cmpPlain ? (['C90500', { branch: BNE, to: 'n' }, '38 6B', { label: 'n' }, bytesOf('9C', gameCmp!.statstemp, '18 6B')] as Asm65) : [bytesOf('5C', call(cmpSite))]),
+        { label: 'o' },
+        counts,
+        { branch: BEQ, to: 'z' },
+        { branch: BCC, to: 'z' },
+        bytesOf('A90100 8D', gameCmp!.statstemp, '18 6B'),
+        { label: 'z' },
+        bytesOf('9C', gameCmp!.statstemp, '18 6B'),
+      ])
+  const ours = (at: number) => bytesOf('A9', loRomBank(at, 0x80), '00 85', a1 + 2, 'A9', word(loRomAddress(at)), '85', a1)
+  const headerCode = (headerText: number) =>
+    mc
+      ? asm65([bytesOf('22', call(headerSite), 'AD', sc, 'C9', word(column)), { branch: BNE, to: 'r' }, ours(headerText), { label: 'r' }, '6B'])
+      : asm65([
+          bytesOf('AD', sc, 'C9', word(column)),
+          ...choose(bytesOf('CE', sc), bytesOf('EE', sc), call(headerSite)),
+          headerPlain ? bytesOf('A9', gameHeader!.bank, '00 85', a1 + 2, 'A9', word(gameHeader!.address), '85', a1, '6B') : bytesOf('5C', call(headerSite)),
+          { label: 'o' },
+          ours(headerText),
+          '6B',
+        ])
+  const noteBytes = bytesOf(
+    text(BLK_MAGIC),
+    flipped(
+      bytesOf(
+        plain.slice(rowSite, rowSite + 4),
+        plain.slice(titleSite, titleSite + 4),
+        plain.slice(cmpSite, cmpSite + 11),
+        plain.slice(headerSite, headerSite + 10),
+        last,
+        titleAt >= 0 ? [titleAt & 0xff, (titleAt >> 8) & 0xff, titleAt >> 16] : [0xff, 0xff, 0xff],
+        // (None: $FF, which the inverting makes 0, so that the block holds no run of $FF taken for free room.)
+        titleAt >= 0 ? plain.slice(titleAt, titleAt + 12) : unused(12),
+      ),
+    ),
+  )
+  const build = (room: number) => {
+    const at = { row: room + BLK_NOTE, title: 0, compare: 0, header: 0, titleText: 0, headerText: 0 }
+    at.title = at.row + row.length
+    at.compare = at.title + titleCode(room).length
+    at.header = at.compare + compare.length
+    at.titleText = at.header + headerCode(room).length
+    at.headerText = at.titleText + 14
+    const block = bytesOf(noteBytes, row, titleCode(at.titleText), compare, headerCode(at.headerText), word(14), text(BLK_TITLES[after ? 1 : 0]), headerPrefix, text(BLK_HEADER))
+    return { block, at }
+  }
+  let room = base
+  if (room < 0) {
+    const length = build(0).block.length
+    for (const bank of [0x9b, 0x80, 0xa0, loRomBank(rowSite, 0x80)]) {
+      const start = (bank & 0x7f) << 15
+      if (start < plain.length) room = roomInBank(plain, start, length)
+      if (room >= 0) break
+    }
+    if (room < 0) return null
+  }
+  const { block, at } = build(room)
+  const jsl = (to: number) => bytesOf('22', long(to))
+  const place = (site: number, hacked: Uint8Array): Placed => ({ at: site, original: plain.slice(site, site + hacked.length), hacked })
+  return [
+    place(rowSite, jsl(at.row)),
+    place(titleSite, jsl(at.title)),
+    place(cmpSite, mc ? jsl(at.compare) : bytesOf(jsl(at.compare), 'B0', gameCmp!.bcs, '4C', word(gameCmp!.eight), 'EAEA')),
+    place(headerSite, mc ? jsl(at.header) : bytesOf(jsl(at.header), 'EAEAEAEAEAEA')),
+    place(rightSite, Uint8Array.of(last + 1)),
+    ...(titleAt >= 0 ? [place(titleAt, title)] : []),
+    { at: room, original: unused(block.length), hacked: block },
+  ]
 }
 
 // ------------------------------------------------------------ NHL shootout
@@ -3826,6 +4421,9 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   giveaways: (rom) => giveawayPlaces(rom),
   giveawaysShown: (rom) => giveawayShownPlaces(rom),
   giveawayPages: (rom) => giveawayPagesPlaces(rom),
+  blockedShots: (rom) => blockedShotsPlaces(rom),
+  blockedShotsShown: (rom) => blockedShotsShownPlaces(rom),
+  blockedShotPages: (rom) => blkPagePlaces(rom),
   nhlShootout: (rom) => nhlShootoutPlaces(rom),
   choppyIce: (rom) => choppyIcePlaces(rom),
   speedBurst: (rom, _source, amount) => speedBurstPlaces(rom, amount),
@@ -3833,6 +4431,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   puckFriction: (rom, _source, amount) => puckFrictionPlaces(rom, amount),
   clutchTime: (rom) => clutchTimePlaces(rom),
   fightTime: (rom, _source, amount) => fightTimePlaces(rom, amount),
+  fightMomentum: (rom) => fightMomentumPlaces(rom),
   threeStars: (rom, _source, amount) => threeStarsPlaces(rom, amount),
   creaseIcing: (rom) => {
     const found = icingEnv(rom)
@@ -4840,6 +5439,8 @@ function detect(rom: Uint8Array): SnesHackState {
   const fightPlain = snesFightState(rom)
   const fightShared = fightPlain === undefined && rom[SNES_FIGHT_SHARED_SITE] === 0x5c ? snesFightState(rom, [SNES_FIGHT_SHARED_SITE]) : undefined
   const fight = fightPlain ?? (fightShared?.kind === 'in' ? fightShared : undefined)
+  // The other Player Stats pages, with the blocked shots page (chained on them) taken out.
+  const pageRom = withoutBlkPages(rom)
   const choices = Object.fromEntries(
     SNES_HACKS.map((hack) => {
       // The fights are a block of their own (snesfight.ts), not places as the other hacks are.
@@ -4847,9 +5448,10 @@ function detect(rom: Uint8Array): SnesHackState {
         if (fight === undefined) unknown.push(hack)
         return [hack, fight?.kind === 'in']
       }
-      const places = placesOf(rom, hack, null, inPlace)
-      if (places && places.every((place) => holds(rom, place, 'original'))) return [hack, false]
-      if (places && places.every((place) => holds(rom, place, 'hacked'))) {
+      const r = BLK_CHAINED.includes(hack) ? pageRom : rom
+      const places = placesOf(r, hack, null, inPlace)
+      if (places && places.every((place) => holds(r, place, 'original'))) return [hack, false]
+      if (places && places.every((place) => holds(r, place, 'hacked'))) {
         if (places.some((place) => place.earlier)) vaultVersions.push(hack)
         return [hack, true]
       }
@@ -4869,6 +5471,13 @@ function detect(rom: Uint8Array): SnesHackState {
   // And the other way round: the shootout's hooks take the places overtime until a goal is found by.
   if (choices.seasonShootout && unknown.includes('seasonOvertime')) unknown.splice(unknown.indexOf('seasonOvertime'), 1)
   if (fight === undefined && choices.injuryBonus && snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none') unknown.splice(unknown.indexOf('fighting'), 1)
+  // Without NOSE4Web's fights there is no fight for the momentum: off, not some other code.
+  // (With the injury risk in, the fights' shared place holds its hook.)
+  const noFights = fight?.kind === 'none' || snesFightState(rom, [SNES_FIGHT_SHARED_SITE])?.kind === 'none'
+  if (inPlace && noFights && unknown.includes('fightMomentum')) unknown.splice(unknown.indexOf('fightMomentum'), 1)
+  // Game Stats' added row is the giveaways' or the blocked shots': with one in, the other is off.
+  if (choices.giveawaysShown && unknown.includes('blockedShotsShown')) unknown.splice(unknown.indexOf('blockedShotsShown'), 1)
+  if (choices.blockedShotsShown && unknown.includes('giveawaysShown')) unknown.splice(unknown.indexOf('giveawaysShown'), 1)
   const amounts = Object.fromEntries(
     SNES_AMOUNTS.map((hack) => [hack, !choices[hack] ? SNES_AMOUNT_OFF[hack] : hack === 'fighting' ? (fight as { bonus: number }).bonus : amountIn(rom, hack)]),
   ) as Record<SnesAmount, number>
@@ -4895,6 +5504,9 @@ function detect(rom: Uint8Array): SnesHackState {
   }
   return { choices, unknown, vaultVersions, amounts, ...(Object.keys(notOffered).length ? { notOffered } : {}) }
 }
+
+// The Player Stats pages the blocked shots page is chained on.
+const BLK_CHAINED: SnesHack[] = ['giveawayPages', 'timeOnIceShown']
 
 const placedSite = (site: Site): Placed => ({ at: loRomOffset(site.at >> 16, site.at & 0xffff), original: hexBytes(site.original), hacked: hexBytes(site.hacked) })
 
@@ -4935,11 +5547,26 @@ export function applySnesHacks(project: RomProject, wanted: Partial<SnesHackChoi
   }
   const problem = clash({ ...choices, ...Object.fromEntries(Object.entries(wanted).filter(([, value]) => value !== undefined)) })
   if (problem) throw new SnesHackError(problem)
+  // The blocked shots page is chained on the other Player Stats pages: out while they change, then back in.
+  if (choices.blockedShotPages && !unknown.includes('blockedShotPages') && BLK_CHAINED.some((hack) => wanted[hack] !== undefined && wanted[hack] !== choices[hack])) {
+    const out = applySnesHacks(project, { blockedShotPages: false })
+    const rest = applySnesHacks(out, { ...wanted, blockedShotPages: false }, updateVault, amounts)
+    return wanted.blockedShotPages === false ? rest : applySnesHacks(rest, { blockedShotPages: true })
+  }
+  // Fight momentum hooks NOSE4Web's fights: it needs them on, and comes out while they change, then goes back in.
+  const inPlace = snesCodeInPlace(project.bytes)
+  const momentum = wanted.fightMomentum ?? choices.fightMomentum
+  if (momentum && inPlace && !(wanted.fighting ?? choices.fighting)) throw new SnesHackError(`${SNES_HACK_TITLES.fightMomentum} needs fighting on.`)
   // The fights come out first, so that hacks whose places they hook (the injury risk) can go in, and go in last.
   const fightWanted = wanted.fighting
   const bonus = amounts.fighting !== undefined && amounts.fighting !== SNES_AMOUNT_OFF.fighting ? amounts.fighting : undefined
   const fightChanges = fightWanted !== undefined && (fightWanted !== choices.fighting || fightUpgrade || (fightWanted && bonus !== undefined && bonus !== had?.fighting))
   if (fightChanges && unknown.includes('fighting')) throw new SnesHackError(`${SNES_HACK_TITLES.fighting} cannot be changed: ${snesFightBlocked(project.bytes) ?? 'this ROM has other code in its place.'}`)
+  if (fightChanges && inPlace && (choices.fightMomentum || wanted.fightMomentum) && !unknown.includes('fightMomentum')) {
+    const out = choices.fightMomentum ? applySnesHacks(project, { fightMomentum: false }) : project
+    const rest = applySnesHacks(out, { ...wanted, fightMomentum: false }, updateVault, amounts)
+    return momentum ? applySnesHacks(rest, { fightMomentum: true }) : rest
+  }
   let rom = project.bytes.slice()
   if (fightChanges && !fightWanted) {
     // The injured out of the shootout reads fightinj where the fights have it: out with it first, then in again
@@ -5038,6 +5665,7 @@ export function withRecommendedSnesFixes(choices: SnesHackChoices, unknown: Snes
 // The order the Hacks page has them in.
 const SNES_PAGE_ORDER: SnesHack[] = [
   'hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'stickShots', 'timeOnIce', 'timeOnIceShown', 'postsFix', 'nhlShootout', 'choppyIce', 'clutchTime',
+  'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'fightMomentum',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
   'realTime', 'noIcing',

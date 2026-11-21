@@ -16,7 +16,7 @@ How to use it:
 Detailed feature sections are added one feature and one game at a time. Today there are thirteen. NHL '95: fighting (5),
 organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
 pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
-NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). NHL 94 Genesis: blocked shots (17). Everything else is listed
+NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). NHL 94 Genesis and SNES: blocked shots (17). Everything else is listed
 in section 18 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
@@ -826,6 +826,31 @@ any crowd boost (which is global, and always on unless `crowdFix`). One code blo
 - RAM `$FFF750-$FFF753`: Match Viewer found `$FFE000-$FFFEBF` never written apart from NOSE4Web's blocks. A second
   fight hands the boost on and restarts it; the timer carries over intermissions. Without fighting nothing goes in.
   Tests: `tests/fightmomentum.test.ts`.
+
+SNES (`sneshacks.ts`, `fightMomentumPlaces`, `fmCode`; added 2026-11-20, not yet tested in the game): +1 Agility and +1
+Speed (the SNES rates 0-15, so the Genesis's +2 halved, as clutch time halves its). The SNES has no crowd boost; the
+lift goes where playeracc reads the two ratings. One block (header: getpde, updatePPTeamTime, InitScores, legspd and
+the winner operand, then the code), every place found by code:
+- **Winner:** F_fightfall (X lost to Y; McMarkis's fights.asm, which NOSE4Web's fights are built from). NOSE4Web's
+  fights (1 MB game, `snesfight.ts`): `lda #$FFFF / sta temp3,y` after `lda #$3C / sta Pencntdwn` (block offset found
+  by `a93c008d....a9ffff99....af`; `snesFightState` skips those 6 bytes) becomes `jsl` + 2 nop: `cpy #$0C / lda #0 /
+  rol` (0 home, 1 visitors), team and timer (90) stored, then the lda / sta. McMarkis's 2 MB and SA-1 builds (their
+  own fights, winner in direct page `$89`): `ldx $89 / lda #$FFFF` before `sta temp3,x`
+  (`c8c8c0400090..a6..a9ffff9d....bd`) becomes `jsl` + nop doing the same with X.
+- **Timer:** updatepentime's `jsl updatePPTeamTime` after `lda #$20 / tsb sflags3 / jsl chkatop` (the box's second,
+  only while the clock runs and no penalty shot is on; real time keeps it at 60 frames) becomes `jsl` to a countdown,
+  then `jml updatePPTeamTime`.
+- **Lift:** playeracc's factor (`clc / adc legstr,x / sta d2 / lda legstr,x / lsr / adc d2 / sta d2`, after `adc
+  #$20`): its first 6 bytes become `jsl` / `bra +8`, code doing the same with legstr + 1. Its top speed's `jsl getpde
+  / lda legspd,x` (before `pha / lda.l OptLine / cmp #2`) becomes `jsl` + 3 nop: the same, legspd + 1, at most 15
+  (MaxSpeed has 16 entries). The +1 (a `jsr` in the block) only while the timer is not 0, gmclock (`$15D6`) is 0, the
+  player is not a goalie (position) and his object's team (`cpx #$0C`) is the stored one.
+- **Clear:** StartGame_go's `jsl InitScores` (also in a shootout: no lift there).
+- RAM: team and timer words at `$7E:FDF8` (after giveaways' `$FD10-$FDF7`, before the shootout's fightinj copy at
+  `$FE00`), SA-1 builds `$40:55E8` (after giveaways' `$40:5500-$55E7`). Not yet confirmed unwritten by Match Viewer.
+- In-place ROMs need NOSE4Web's fighting on (`applySnesHacks` refuses otherwise; turning fighting off turns it off;
+  while the fights change it comes out and goes back in after them). Detected off, not unknown, without the fights.
+  Tests: `tests/snesmomentum.test.ts`.
 
 ### Referee strictness (`referees`; added 2026-11-19; Genesis NHL 94 tested in the game by Match Viewer 2026-11-19)
 
@@ -2446,7 +2471,7 @@ Viewer on 2026-11-18 on every system, with both marks, the goalie's stick and th
 added cycles shift play slightly on identical inputs (the game steps from the beam position); there is no slowdown,
 and the SA-1 doesn't drift. NHL '95's version is in section 11.
 
-## 17. NHL 94 Genesis: blocked shots
+## 17. NHL 94 Genesis and NHL '94 SNES: blocked shots
 
 ### What it does (for the player)
 
@@ -2511,9 +2536,38 @@ Giveaways (Game Stats row, shared pages), time on ice (shared pages), bodychecks
   `.hit` and so are no block. Kept as the game has it; to check in play.
 - A high fast puck at a skater makes him fall (FallDown): counted as a block.
 
+### SNES (`sneshacks.ts`: `blockedShotsPlaces`, `blockedShotsShownPlaces`, `blkPagePlaces`; added 2026-11-20)
+
+Three options, as giveaways are split: `blockedShots` (the counts), `blockedShotsShown` (Game Stats row) and
+`blockedShotPages` (Player Stats page), the last two needing the first. Every place found by code, in every build.
+- Counting: puckbody's first `lda puckz / cmp #8` (`ad....c90800100aa5..290f00f0034c....22`; checkpuckcoll_ccx
+  calls puckbody for skaters only) becomes `jsl` + 2 nop. The code repeats puckbody's hit test (puckz >= 8, or d0 & $F
+  = 0, as `.t2` is reached), then counts where sf2shot (sflags `$15D8` & `$1000`, doshot's `tsb`; a2touchpuck,
+  wallcoll and ChkShotStat clear it) is set, gmode `$15D4` & `$0010` (highlight) and shootoutmode `$1D81` are 0, the
+  skater's position is not 0, and shotplayer (`$0D29`, doshot's `stx`; checked against doshot's code) is an object
+  below `$18` on the other side of `$0C`. Last it does `lda puckz / cmp #8 / rtl` again for puckbody's `bpl`.
+- Clear: StartGame_go's second `jsl LoadTeamLines` (`a9020085..22......6885..af`), skipped when shootoutmode is set
+  (PlayShootout runs StartGame_go; the season shootout keeps the counts).
+- RAM: a byte a roster place (pnum; visitors `+$1A`), to 255, then team totals words at `+$34` / `+$36`: `$7E:FE40`
+  (between the season shootout's fightinj copy `$FE00-$FE33` and NOSE4Web's / McMarkis's fightinj `$FE80`), SA-1
+  `$40:5600`. Not yet confirmed unwritten by Match Viewer.
+- Game Stats: the giveaways row's code made general (`statRowPlaces`, which gives giveaways' block byte for byte):
+  the same places, the row `Blocked Shots` with source `$0010, totals, $FFFF`. So `EXCLUDES` holds it with
+  `giveawaysShown`; `detect` reads the other one off, not unknown.
+- Player Stats: a page chained on what the four places call (the game's code, the time on ice page's, the giveaway
+  pages' or McMarkis's), the block starting with a note (`N4WB`, then the places' bytes inverted, so that the code in
+  it is not found by the other pages' patterns). Original layout: column 6, or 8 after the giveaway pages; with the
+  time on ice page after it, that page is called with statcolumn / d0 / A one less (`dec` / `jsl` / `inc`), so the
+  order is GV, TK, BLK, TOI. McMarkis's builds: after the last page (his, or the giveaway pages'). The plain compare
+  is emulated (`cmp #5` sets carry, else no swap); McMarkis's returns Z clear to swap. The title before it gets "]"
+  (Penalties', Takeaways', or McMarkis's last shortened by `MC_LAST_TITLES`). `detect` and `applySnesHacks` read and
+  change the giveaway and time on ice pages with the page taken out (`withoutBlkPages`, `BLK_CHAINED`), putting it
+  back after.
+
 ### Files and tests
 
 `src/core/hacks.ts`, `HacksPage.tsx`, `HelpPage.tsx`, `hacksheet.ts`, `hackgroups.ts`; `tests/blockedshots.test.ts`.
+SNES: `src/core/sneshacks.ts`, `SnesHacksPage.tsx`; `tests/snesblocks.test.ts`.
 
 ### Status
 
@@ -2577,6 +2631,8 @@ line; check there.
 | Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
 | Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
+| Blocked shots: counts, Game Stats row, Player Stats page (`blockedShots`, `blockedShotsShown`, `blockedShotPages`; added 2026-11-20, not yet tested in the game) | `sneshacks.ts` (`blockedShotsPlaces`, `blockedShotsShownPlaces`, `blkPagePlaces`) | **Yes (17)** |
+| Fight momentum (`fightMomentum`; added 2026-11-20, not yet tested in the game): with NOSE4Web's fights or McMarkis's builds' own | `sneshacks.ts` (`fightMomentumPlaces`, `fmCode`), `snesfight.ts` (momentum site skipped) | **Yes (9, Fight momentum)** |
 | Computer centres' defence: the SNES code is right at both ends, no option | (none) | **Yes (9)** |
 | Open net shot fix (tested in the game 2026-11-19: 37 open-net computer shots replayed, aim 0 -> 8, over the bar 1 -> 0, goals 12 -> 14): shotdiradj (`$9E:DFF7`, aims computer shots only) does `ldx a3 / stz d0` at `$9E:E094` (`A6 95 64 A5`) before its sightline test, so an open net gets aim 0 (high middle); jsl to `A6 95 A9 0800 85 A5 6B` sets 8 | `sneshacks.ts` (`openNetPlaces`), `tests/snesopennet.test.ts` | Yes (here) |
 | Real-time clock (`realTime`, added 2026-11-19; MV-tested 2026-11-20: minors 119-120 clock seconds, power-play time and time on ice in clock seconds, penalty shots and the shootout start at 2500): Gameloop (`$9F:85B4`) and the highlights' copy (SaveRegsStartHL2, `$9F:9051`) take `sec / sbc #$0AAA` from gameclock+2 each frame (24 frames a game second); real time makes both `#$0444` (60 frames). Box time is in game-clock seconds, so it follows; the penalty shot's 1000-frame pstimer is left as is. Found by pattern `ad....f0..ad....38e9....8d....b0..ce....` (exactly 2) | `sneshacks.ts` (`RELOCATED.realTime`), `tests/snesrules.test.ts` | Yes (here) Also (2026-11-20, from MV play): updatepentime's own penalty second, `adc #$0018` reloading Penaltytimer (retail file `0xF3F66`; pattern `ad(....)38e5..8d(....)10..69..008d(....)a92000`, same address thrice), becomes `$3C`; the same tick counts attack-zone, power-play and time-on-ice seconds. A ROM with only the clock bytes (the first version) reads on as an earlier version and is updated. And the penalty shot limit: SetupPenaltyShot's `lda #1000 / sta pstimer` (retail file `0xFB062`, pattern `a901008d....a9....8d....22......6b`) becomes 2500, as the Genesis's game-time limit grows 2.5x. Each later place, missing where the clock is in, reads as an earlier version. |
