@@ -100,6 +100,27 @@ interface Props {
   onKeep?: (draft: HackDraft | null) => void
 }
 
+// Whether the hacks whose texts were written before every text said so are tested in the game, by Match
+// Viewer's notes of 21 November 2026 (true: tested; false: not yet). The text gets the line to match.
+const TESTED_SNES: Partial<Record<SnesHack, boolean>> = {
+  yButtonFix: true,
+  penaltyShotFixes: true,
+  faceoffFix: true,
+  holdEnergy: true,
+  noInterference: true,
+  hotColdFix: false,
+  ppPkFix: false,
+  defenceControl: false,
+  oneMinutePenalties: false,
+  thirtySecondPeriods: false,
+  noPenaltyShots: false,
+  noGoalPosts: false,
+  skipEaIntro: false,
+  skipPucksIntro: false,
+}
+const testedLine = (tested: boolean | undefined) =>
+  tested === undefined ? '' : tested ? ' Tested in the game by the NHL94 Match Viewer project.' : ' Not yet tested in the game.'
+
 const ABOUT: Record<SnesHack, ReactNode> = {
   hotColdFix: (
     <>
@@ -552,7 +573,10 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                 </p>
                 <details className="more">
                   <summary>More about it</summary>
-                  <p className="note">{ABOUT[hack]}</p>
+                  <p className="note">
+                    {ABOUT[hack]}
+                    {testedLine(TESTED_SNES[hack])}
+                  </p>
                 </details>
                 {state.vaultVersions?.includes(hack) && (
                   <p className="note">

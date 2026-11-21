@@ -357,8 +357,7 @@ export function TeamEditor(props: Props) {
     return quickKeys ? `${title} [${QUICK_EDIT_KEY_LABELS[index]}]` : title
   }
 
-  // `extra` goes at the end of the section: the tools for ticked players, which stay in view while it scrolls.
-  function roster(title: string, isGoalies: boolean, from: number, to: number, extra?: ReactNode) {
+  function roster(title: string, isGoalies: boolean, from: number, to: number) {
     const labels = isGoalies ? game.goalieAttributeLabels : game.playerAttributeLabels
     const names = isGoalies ? game.goalieAttributeNames : game.playerAttributeNames
     const kinds = isGoalies ? game.goalieAttributeKinds : game.playerAttributeKinds
@@ -537,7 +536,6 @@ export function TeamEditor(props: Props) {
               )
             })}
           </div>
-          {extra}
         </section>
       )
     }
@@ -583,7 +581,6 @@ export function TeamEditor(props: Props) {
             </tbody>
           </table>
         </div>
-        {extra}
       </section>
     )
   }
@@ -730,13 +727,10 @@ export function TeamEditor(props: Props) {
         <ColumnOrderButton game={game} />
       </div>
       {roster('Goalies', true, 0, goalies)}
-      {roster(
-        'Skaters',
-        false,
-        goalies,
-        team.players.length,
-        ticked.length > 0 && (
-          <div className="ticked-tools">
+      {roster('Skaters', false, goalies, team.players.length)}
+      {/* Here, not in the Skaters section, so that folding a section never hides it. */}
+      {ticked.length > 0 && (
+          <div className="ticked-tools" data-tab="Roster">
             <p>
               <b>{ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`} ticked.</b>{' '}
               {notice && <span className="note">{notice}</span>}
@@ -798,7 +792,6 @@ export function TeamEditor(props: Props) {
               random around the level. The level Random gives each player a level of his own. Undo puts it all back.
             </p>
           </div>
-        ),
       )}
       <div data-tab="Roster">
         <p>

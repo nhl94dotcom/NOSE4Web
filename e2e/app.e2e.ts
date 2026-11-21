@@ -229,6 +229,17 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(overall(skater)).toHaveText(before!)
   })
 
+  test('shows the bar for ticked players with the Skaters folded', async ({ page }) => {
+    await openRom(page)
+    const skaters = page.getByRole('heading', { name: 'Skaters', exact: true })
+    await skaters.click()
+    await expect(skaters).toHaveAttribute('aria-expanded', 'false')
+    await tick(rows(page, 'Goalies').first())
+    await expect(page.locator('.ticked-tools')).toBeVisible()
+    await expect(page.locator('.ticked-tools')).toContainText('Guy Hebert ticked.')
+    await skaters.click()
+  })
+
   test('folds a section by its heading, and keeps it folded on another team', async ({ page }) => {
     await openRom(page)
     const heading = page.getByRole('heading', { name: 'Goalies', exact: true })

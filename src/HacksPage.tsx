@@ -88,6 +88,44 @@ const RECOMMENDED_KEYS = new Set<keyof HackChoices>([
   'threeStars',
 ])
 
+// Whether the hacks whose texts were written before every text said so are tested in the game, by Match
+// Viewer's notes of 21 November 2026 (true: tested; false: not yet). The text gets the line to match.
+const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
+  secondAssist: true,
+  passFix: true,
+  runawayFix: true,
+  faceoffFix: true,
+  penaltyShotTableFix: true,
+  penaltyShotFixes: true,
+  goaliePullFix: true,
+  blindRingFix: true,
+  holdEnergy: true,
+  injuryCap: true,
+  bodychecks: true,
+  checkFix: false,
+  weightFix: false,
+  aggressionFix: false,
+  ppPkFix: false,
+  comebackFix: false,
+  threeStars: false,
+  realTime: false,
+  goalieHold: false,
+  goalieWidth: false,
+  goalieOut: false,
+  goalieLine: false,
+  speedBurst: false,
+  turnRate: false,
+  wideRatings: false,
+  baseWeight: false,
+  bonuses: false,
+  stamina: false,
+  energyDrain: false,
+  energyRecovery: false,
+  plusMinus: false,
+}
+const testedLine = (tested: boolean | undefined) =>
+  tested === undefined ? '' : tested ? ' Tested in the game by the NHL94 Match Viewer project.' : ' Not yet tested in the game.'
+
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 // What each choice of bonuses means where it shows: in play, and in the
 // ratings on the Edit Lines screen.
@@ -193,7 +231,10 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
       </p>
       <details className="more">
         <summary>More about it</summary>
-        <p className="note">{about}</p>
+        <p className="note">
+          {about}
+          {testedLine(TESTED_94[key])}
+        </p>
       </details>
     </div>
   )
