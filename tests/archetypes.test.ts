@@ -3,6 +3,7 @@ import { attributeText, shootsRight } from '../src/core/attributes'
 import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, SKATER_ARCHETYPES } from '../src/core/archetypes'
 import { NHL94, NHL94_EVO, NHL94_SNES, NHL95, type GameConfig } from '../src/core/games'
 import { overallRating } from '../src/core/rating'
+import { NAME_COUNT, randomName } from '../src/core/randomnames'
 
 // A steady "random" for tests: the same numbers each run.
 function steady(seed = 1) {
@@ -80,5 +81,20 @@ describe('made-up attributes', () => {
     const goalie = [3, 3, 3, 3, 3, 3, 9, 1, 8, 7, 3, 3, 3, 3]
     const made = madeAttributes(NHL94_EVO, true, goalie, { random: true }, star, steady())
     expect([made[6], made[7], made[8], made[9]]).toEqual([9, 1, 8, 7])
+  })
+})
+
+describe('made-up names', () => {
+  it('are a first and last name in plain letters, short, and never one already taken', () => {
+    const taken = new Set(['Mike Roy'])
+    const random = steady(7)
+    const made = Array.from({ length: 200 }, () => randomName(taken, random))
+    expect(new Set(made).size).toBe(200)
+    expect(made).not.toContain('Mike Roy')
+    for (const name of made) {
+      expect(name).toMatch(/^[A-Z][a-z]+ [A-Z][A-Za-z]+$/)
+      expect(name.length).toBeLessThanOrEqual(18)
+    }
+    expect(NAME_COUNT).toBeGreaterThan(10000)
   })
 })

@@ -5,6 +5,7 @@ import { rosterAverage, shownRatingMost } from './core/shownrating'
 import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
 import { hex } from './core/bytes'
 import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, SKATER_ARCHETYPES, type Make } from './core/archetypes'
+import { randomName } from './core/randomnames'
 import { copiedPhotos, copiedPlayerCount, copyLines, copyPlayers, pasteConversionNote, pasteLines, pastePlayers } from './core/clipboard'
 import type { PlayerPhoto } from './core/playerphotos'
 import { colorFormat } from './core/color'
@@ -132,6 +133,7 @@ export function TeamEditor(props: Props) {
   const [skaterKind, setSkaterKind] = useState(SKATER_ARCHETYPES[0].value)
   const [goalieKind, setGoalieKind] = useState(GOALIE_ARCHETYPES[0].value)
   const [level, setLevel] = useState('average')
+  const [withNames, setWithNames] = useState(false)
   const tickedGoalies = ticked.filter((index) => index < goalies).length
   const tickedSkaters = ticked.length - tickedGoalies
   function makeTicked(random: boolean) {
@@ -140,12 +142,20 @@ export function TeamEditor(props: Props) {
       random
         ? { random: true }
         : { archetype: (isGoalie ? GOALIE_ARCHETYPES : SKATER_ARCHETYPES).find((a) => a.value === (isGoalie ? goalieKind : skaterKind))! }
+    // New names are kept apart from the rest of the roster's, and from each other.
+    const taken = new Set(team.players.map((player) => player.name))
     const players = team.players.map((player, index) =>
-      ticked.includes(index) ? { ...player, attributes: madeAttributes(game, index < goalies, player.attributes, makeFor(index < goalies), chosen) } : player,
+      ticked.includes(index)
+        ? {
+            ...player,
+            name: withNames ? randomName(taken) : player.name,
+            attributes: madeAttributes(game, index < goalies, player.attributes, makeFor(index < goalies), chosen),
+          }
+        : player,
     )
     onChange({ ...team, players })
-    const who = ticked.length === 1 ? team.players[ticked[0]].name : `${ticked.length} players`
-    setNotice(`${who}: new attributes${random ? ', at random' : ''}. Undo puts the old ones back.`)
+    const who = ticked.length === 1 ? (withNames ? players[ticked[0]].name : team.players[ticked[0]].name) : `${ticked.length} players`
+    setNotice(`${who}: new ${withNames ? 'names and ' : ''}attributes${random ? ', at random' : ''}. Undo puts the old ones back.`)
   }
 
   function releaseTicked() {
@@ -760,12 +770,15 @@ export function TeamEditor(props: Props) {
           </button>{' '}
           <button disabled={ticked.length === 0} onClick={() => makeTicked(true)}>
             Random
-          </button>
+          </button>{' '}
+          <label>
+            <input type="checkbox" checked={withNames} onChange={(e) => setWithNames(e.target.checked)} /> with random names
+          </label>
         </p>
         <p className="note">
           Make gives each ticked player the attributes of that kind of player at that level, a little different each
-          time. Random gives attributes at random around the level, and a random shooting or glove hand. Names and
-          numbers stay. Undo puts the old attributes back.
+          time. Random gives attributes at random around the level, and a random shooting or glove hand. With random
+          names, each also gets a made-up first and last name. Numbers stay. Undo puts it all back.
         </p>
         <p className="note" hidden={narrow}>
           In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down

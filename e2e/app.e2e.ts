@@ -205,8 +205,14 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByRole('button', { name: 'Random', exact: true }).click()
     await expect(main.getByText('2 players: new attributes, at random. Undo puts the old ones back.')).toBeVisible()
     expect(Number(await overall(goalie).textContent())).toBeLessThan(70)
-    await page.getByRole('button', { name: 'Undo' }).click()
-    await page.getByRole('button', { name: 'Undo' }).click()
+    // With random names, each gets a made-up first and last name, not the old one.
+    await main.getByLabel('with random names').check()
+    await main.getByRole('button', { name: 'Make', exact: true }).click()
+    await expect(main.getByText('2 players: new names and attributes. Undo puts the old ones back.')).toBeVisible()
+    await expect(nameOf(skater)).not.toHaveValue(name)
+    await expect(nameOf(skater)).toHaveValue(/^[A-Z][a-z]+ [A-Z][A-Za-z]+$/)
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(nameOf(skater)).toHaveValue(name)
     await expect(overall(skater)).toHaveText(before!)
   })
 

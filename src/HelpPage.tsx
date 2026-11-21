@@ -516,7 +516,12 @@ export function HelpPage() {
         level instead, with a random shooting or glove hand.
       </p>
       <ul>
-        <li>Names, jersey numbers and photos stay, and Make keeps each player's shooting and glove hand. Undo puts the old attributes back.</li>
+        <li>Jersey numbers and photos stay, and so do names unless you ask for new ones (below). Make keeps each player's shooting and glove hand. Undo puts the old attributes back.</li>
+        <li>
+          Tick <b>with random names</b> to give each player a made-up first and last name too, of the kinds found on
+          hockey rosters, and different from everyone else's on the team. They are short and in plain letters, as the
+          game's font has no accents, and a longer name takes more room in the ROM.
+        </li>
         <li>
           The levels are set against the original game's players: an all-round Superstar comes out at about 95 overall,
           Average at about 60 and Weak at about 45. Enforcers come out lower, as they are made for fighting and hitting
