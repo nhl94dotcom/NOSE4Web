@@ -4,7 +4,7 @@ import { snesCodeInPlace } from './core/snes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
 import { SNES_HACK_GROUPS } from './core/hackgroups'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { rebase, type HackDraft } from './hackdraft'
+import { layOnSnes, snesAmountsFor, type HackDraft } from './hackdraft'
 import { PendingBar } from './PendingChanges'
 import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
@@ -300,18 +300,14 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
   // The choices being made, which start again from the ROM whenever it changes.
   const hadAmounts: Record<SnesAmount, number> = state.amounts ?? SNES_AMOUNT_OFF
   // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
-  const [draft, setDraft] = useState(() => ({
-    rom: project.bytes,
-    choices: rebase(state.choices, kept?.base, kept?.wanted),
-    amounts: rebase(hadAmounts, kept?.baseAmounts, kept?.amounts),
-  }))
+  // (After this page's Apply, or once the app has applied them or found nothing left, they start again from the ROM.)
+  const [draft, setDraft] = useState(() => ({ rom: project.bytes, ...layOnSnes(state.choices, hadAmounts, kept) }))
   if (draft.rom !== project.bytes) {
     const before = detectSnesHacks(draft.rom)
-    setDraft({
-      rom: project.bytes,
-      choices: rebase(state.choices, before.choices, draft.choices),
-      amounts: rebase(hadAmounts, before.amounts ?? SNES_AMOUNT_OFF, draft.amounts),
-    })
+    const laid = kept
+      ? layOnSnes(state.choices, hadAmounts, { base: before.choices, wanted: draft.choices, baseAmounts: before.amounts ?? SNES_AMOUNT_OFF, amounts: draft.amounts })
+      : { choices: state.choices, amounts: hadAmounts }
+    setDraft({ rom: project.bytes, ...laid })
   }
   const wanted: SnesHackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const wantedAmounts = draft.rom === project.bytes ? draft.amounts : hadAmounts
@@ -340,7 +336,10 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
 
   function apply() {
     try {
-      onChange(applySnesHacks(project, wanted, false, wantedAmounts))
+      const next = applySnesHacks(project, wanted, false, wantedAmounts)
+      onChange(next)
+      const now = detectSnesHacks(next.bytes)
+      setDraft({ rom: next.bytes, choices: now.choices, amounts: now.amounts ?? SNES_AMOUNT_OFF })
       setNotice(`Done: ${changed.length === 1 ? '1 change' : `${changed.length} changes`} to the game. Undo puts it back.`)
       setError('')
     } catch (e) {
@@ -370,7 +369,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
         onRecommended={
           !sameChoices(withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks), wanted) &&
           (() => {
-            setDraft({ rom: project.bytes, choices: withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks), amounts: wantedAmounts })
+            const choices = withRecommendedSnesFixes(wanted, state.unknown, notOfferedHacks)
+            setDraft({ rom: project.bytes, choices, amounts: snesAmountsFor(choices, wantedAmounts) })
             setNotice('')
             setError('')
           })
@@ -521,7 +521,9 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                     disabled={unknown || (hack === 'fightMomentum' && snesCodeInPlace(project.bytes) && !wanted.fighting && !wanted.fightMomentum)}
                     value={wanted[hack] ? 'on' : 'off'}
                     onChange={(e) => {
-                      setDraft({ rom: project.bytes, choices: withSnesHackChoice(wanted, hack, e.target.value === 'on'), amounts: wantedAmounts })
+                      const choices = withSnesHackChoice(wanted, hack, e.target.value === 'on')
+                      // An amount hack this turns off goes to its off amount, so Apply does not put it back.
+                      setDraft({ rom: project.bytes, choices, amounts: snesAmountsFor(choices, wantedAmounts) })
                       setNotice('')
                       setError('')
                     }}

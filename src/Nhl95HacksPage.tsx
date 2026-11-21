@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { rebase, type HackDraft } from './hackdraft'
+import { layOnNhl95, nhl95Rules, type HackDraft } from './hackdraft'
 import { PendingBar } from './PendingChanges'
 import { HackShortcuts } from './HackShortcuts'
 import { NumberBox } from './NumberBox'
@@ -642,8 +642,10 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
   const state = useMemo(() => detectNhl95Hacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
-  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: rebase(state.choices, kept?.base, kept?.wanted) }))
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: rebase(state.choices, detectNhl95Hacks(draft.rom).choices, draft.choices) })
+  // (After this page's Apply, or once the app has applied them or found nothing left, they start again from the ROM.)
+  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: layOnNhl95(state.choices, kept) }))
+  if (draft.rom !== project.bytes)
+    setDraft({ rom: project.bytes, choices: kept ? layOnNhl95(state.choices, { base: detectNhl95Hacks(draft.rom).choices, wanted: draft.choices }) : state.choices })
   const wanted: Nhl95HackChoices = draft.rom === project.bytes ? draft.choices : state.choices
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -659,19 +661,8 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
   const set = (change: Partial<Nhl95HackChoices>) => {
     setNotice('')
     setError('')
-    const others: Partial<Nhl95HackChoices> = {}
-    // The three ways of settling a tie exclude each other: one on turns the others off.
-    const ties = ['seasonOvertime', 'seasonShootout', 'seasonShootoutNow'] as const
-    for (const tie of ties) if (change[tie]) for (const other of ties) if (other !== tie) others[other] = false
-    // The two 3 on 3 choices exclude each other.
-    if (change.threeOnThree) others.threeOnThreeAll = false
-    if (change.threeOnThreeAll) others.threeOnThree = false
-    // Without fighting, its setting at power-on goes back to On, and there are no fights to win.
-    if (change.fighting === false) Object.assign(others, { fightingOff: false, fightingArcade: false, fightMomentum: false })
-    // Without the body fix no shot hits a skater's body, so there are no blocks to count.
-    if (change.bodyBlockFix === false) others.blockedShots = false
-    // Without the injury risk from knockdowns its most is not kept: it goes back to what the ROM then reads.
-    if (change.injuryBonus === 0) others.injuryCap = N.injuryCap
+    // What one choice turns off with it (ties, 3 on 3, fighting, the body fix, the injury risk): nhl95Rules.
+    const others = nhl95Rules(change)
     setDraft({ rom: project.bytes, choices: { ...wanted, ...others, ...change } })
   }
   // "NHL '95 has 150", with what this ROM has if that is different.
@@ -795,7 +786,9 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
 
   function apply() {
     try {
-      onChange(applyNhl95Hacks(project, wanted))
+      const next = applyNhl95Hacks(project, wanted)
+      onChange(next)
+      setDraft({ rom: next.bytes, choices: detectNhl95Hacks(next.bytes).choices })
       setNotice(`Done: ${changes.length === 1 ? '1 change' : `${changes.length} changes`} to the game. Undo puts it back.`)
       setError('')
     } catch (e) {

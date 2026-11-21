@@ -54,7 +54,7 @@ import type { RomProject } from './core/rom'
 import { CopyHacksButton } from './CopyHacksButton'
 import { NumberBox } from './NumberBox'
 import { HackShortcuts } from './HackShortcuts'
-import { rebase, type HackDraft } from './hackdraft'
+import { layOnNhl94, nhl94Rules, type HackDraft } from './hackdraft'
 import { PendingBar } from './PendingChanges'
 import { genesisHackSheet, genesisHackSummary, hackSheetDiscord, hackSheetHtml, pictureItems, withPictures } from './core/hacksheet'
 
@@ -117,8 +117,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const state = useMemo(() => detectHacks(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
-  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: rebase(state.choices, kept?.base, kept?.wanted) }))
-  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: rebase(state.choices, detectHacks(draft.rom).choices, draft.choices) })
+  // (After this page's Apply, or once the app has applied them or found nothing left, they start again from the ROM.)
+  const [draft, setDraft] = useState(() => ({ rom: project.bytes, choices: layOnNhl94(state.choices, kept) }))
+  if (draft.rom !== project.bytes) setDraft({ rom: project.bytes, choices: kept ? layOnNhl94(state.choices, { base: detectHacks(draft.rom).choices, wanted: draft.choices }) : state.choices })
   const wanted = draft.rom === project.bytes ? draft.choices : state.choices
   const [year, setYear] = useState('')
   // Counts the times the choices were set back, so that the number boxes show them afresh.
@@ -133,10 +134,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const suspect = (choices: HackChoices) =>
     choices.wideRatings && choices.bonuses === 'linesMatchPlayers' && !(state.choices.wideRatings && state.choices.bonuses === 'linesMatchPlayers')
   const set = (change: Partial<HackChoices>) => {
-    // Ron Barr picks one way or the other, not both.
-    const barr = change.barrPick ? { barrCoin: false } : change.barrCoin ? { barrPick: false } : {}
-    const next = { ...wanted, ...change, ...barr }
-    setDraft({ rom: project.bytes, choices: suspect(next) ? { ...next, bonuses: 'original' } : next })
+    // Ron Barr picks one way or the other, not both; no fight momentum without fighting (nhl94Rules).
+    const next = { ...wanted, ...change }
+    setDraft({ rom: project.bytes, choices: nhl94Rules(state.choices, next, change) })
     setNotice(suspect(next) ? `The bonuses were set back to the original game's, since "Edit Lines matches players" is not offered with 0 to 15 ratings.` : '')
     setError('')
   }
@@ -209,7 +209,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
 
   function apply() {
     try {
-      onChange(applyHacks(project, wanted))
+      const next = applyHacks(project, wanted)
+      onChange(next)
+      setDraft({ rom: next.bytes, choices: detectHacks(next.bytes).choices })
       setNotice(`Done: ${changes.length === 1 ? '1 change' : `${changes.length} changes`} to the game. Undo puts it back.`)
       setError('')
     } catch (e) {
