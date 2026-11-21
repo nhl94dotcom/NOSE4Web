@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ALL_PARTS, importTeam, type ImportParts } from './core/importteam'
+import { ALL_PARTS, importTeam, importTeams, teamsByName, type ImportParts } from './core/importteam'
 import { openRom, type RomProject } from './core/rom'
 import { teamLabels } from './core/team'
 import type { ImportKept } from './pagedrafts'
@@ -37,6 +37,13 @@ export function ImportTeamPage({ project, onChange, kept: left, onKeep }: Props)
   const [dirty, setDirty] = useState(kept?.dirty ?? false)
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<string[]>([])
+  // Every team at once: the teams left out of the ones matched by name, what comes, and what it brought.
+  const [skipped, setSkipped] = useState<Set<number>>(new Set())
+  const [many, setMany] = useState({ colours: true, pictures: true })
+  // Each note once, with the teams it is for.
+  const [manyNotes, setManyNotes] = useState<{ note: string; teams: string[] }[]>([])
+  // While teams are being brought in: how many are done, of how many.
+  const [working, setWorking] = useState<[number, number] | null>(null)
   useEffect(
     () => onKeep(other ? { fileName: other.fileName, other: other.project, from, to, parts, dirty } : null),
     [other, from, to, parts, dirty, onKeep],
@@ -50,6 +57,8 @@ export function ImportTeamPage({ project, onChange, kept: left, onKeep }: Props)
       setDirty(true)
       setError('')
       setNotes([])
+      setSkipped(new Set())
+      setManyNotes([])
     } catch (e) {
       setOther(null)
       setError(e instanceof Error ? e.message : String(e))
@@ -70,9 +79,118 @@ export function ImportTeamPage({ project, onChange, kept: left, onKeep }: Props)
     }
   }
 
+  // One team at a time, letting the page show how far it has got (each SNES logo is fitted in turn, which takes a
+  // moment); the ROM changes once, at the end, so Undo takes it all back.
+  async function bringInMany(pairs: { from: number; to: number }[]) {
+    if (!other || working) return
+    let next = project
+    const byNote = new Map<string, string[]>()
+    try {
+      for (let i = 0; i < pairs.length; i++) {
+        setWorking([i, pairs.length])
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        const result = importTeams(next, other.project, [pairs[i]], many)
+        next = result.project
+        for (const note of result.notes[0].notes) byNote.set(note, [...(byNote.get(note) ?? []), ours[pairs[i].to]])
+      }
+      onChange(next)
+      setManyNotes([...byNote].map(([note, teams]) => ({ note, teams })))
+      setError('')
+    } catch (e) {
+      setManyNotes([])
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setWorking(null)
+    }
+  }
+
   const theirs = other ? teamLabels(other.project.teams, other.project.game) : []
   const ours = teamLabels(project.teams, project.game)
   const nothingChosen = !Object.values(parts).some(Boolean)
+
+  // Logos and colours for every team the two ROMs share, matched by name: say, the current logos from a league's ROM.
+  function manySection() {
+    if (!other) return null
+    if (other.project.game.platform !== project.game.platform) {
+      return (
+        <>
+          <h3>Every team at once</h3>
+          <p className="note">
+            Logos and colours for every team come only from a ROM for the same console: the Genesis and the SNES keep
+            them in different ways. Picture files can carry them across as PNG pictures instead.
+          </p>
+        </>
+      )
+    }
+    const pairs = teamsByName(project, other.project)
+    const chosen = pairs.filter((p) => !skipped.has(p.to))
+    const unmatched = ours.filter((_, i) => !pairs.some((p) => p.to === i))
+    return (
+      <>
+        <h3>Every team at once</h3>
+        <p className="note">
+          Brings logos and colours in for each team both ROMs have, matched by name: for example, a league ROM's
+          logos for the teams of a real season. Names, rosters and photos stay as they are, and Undo takes it all back.
+        </p>
+        {pairs.length === 0 ? (
+          <p className="note">No team in the other ROM has the name of a team here.</p>
+        ) : (
+          <>
+            <ul className="many-teams">
+              {pairs.map(({ from: f, to: t }) => (
+                <li key={t}>
+                  <label className="choice">
+                    <input
+                      type="checkbox"
+                      checked={!skipped.has(t)}
+                      onChange={(e) => {
+                        const next = new Set(skipped)
+                        if (e.target.checked) next.delete(t)
+                        else next.add(t)
+                        setSkipped(next)
+                      }}
+                    />{' '}
+                    {ours[t]}
+                    {theirs[f] !== ours[t] ? ` (from ${theirs[f]})` : ''}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {unmatched.length > 0 && <p className="note">No match in the other ROM: {unmatched.join(', ')}.</p>}
+            <p>
+              <label className="choice">
+                <input type="checkbox" aria-label="Colours for every team" checked={many.colours} onChange={(e) => setMany({ ...many, colours: e.target.checked })} />{' '}
+                {project.game.platform === 'snes' ? 'Home and away colours, and name banner colours' : 'Home and away colours'}
+              </label>
+              <label className="choice">
+                <input type="checkbox" aria-label="Logos for every team" checked={many.pictures} onChange={(e) => setMany({ ...many, pictures: e.target.checked })} />{' '}
+                {project.game.platform === 'snes' ? 'Logos: team, centre ice and score logos' : 'Logos, banners and banner colours'}
+              </label>
+            </p>
+            <p>
+              <button disabled={working !== null || chosen.length === 0 || (!many.colours && !many.pictures)} onClick={() => void bringInMany(chosen)}>
+                Bring in for {chosen.length} {chosen.length === 1 ? 'team' : 'teams'}
+              </button>{' '}
+              {working && (
+                <span className="note">
+                  Working: {working[0]} of {working[1]} teams done…
+                </span>
+              )}
+            </p>
+            {manyNotes.length > 0 && (
+              <ul>
+                {manyNotes.map((n, i) => (
+                  <li key={i}>
+                    {n.note.replace(/\.$/, '')} ({n.teams.length === chosen.length && n.teams.length > 1 ? `all ${n.teams.length} teams` : n.teams.join(', ')}).
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </>
+    )
+  }
 
   return (
     <main className="team help">
@@ -174,6 +292,7 @@ export function ImportTeamPage({ project, onChange, kept: left, onKeep }: Props)
             The centre-ice logo is drawn with the home colours, so it looks right only if the colours come too. A
             bigger roster needs more room in the ROM; watch the bytes free at the top of the page.
           </p>
+          {manySection()}
         </>
       )}
     </main>

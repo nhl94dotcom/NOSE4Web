@@ -1544,6 +1544,18 @@ test.describe('with the NHL 94 ROM', () => {
     expect(download.suggestedFilename()).toBe('nhl94.bin')
   })
 
+  test('brings logos and colours in for every team at once, matched by name', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Import a team').click()
+    const main = page.locator('main')
+    await main.locator('input[type=file]').setInputFiles(romPath)
+    await expect(main.getByRole('button', { name: 'Bring in for 28 teams' })).toBeVisible()
+    await main.locator('ul.many-teams').getByLabel('Boston Bruins').uncheck()
+    await main.getByRole('button', { name: 'Bring in for 27 teams' }).click()
+    await expect(main.getByText('Home and away colours brought in (all 27 teams).')).toBeVisible()
+    await expect(main.getByRole('button', { name: 'Bring in for 27 teams' })).toBeEnabled()
+  })
+
   test('fills the teams from a real NHL season', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Real NHL season').click()

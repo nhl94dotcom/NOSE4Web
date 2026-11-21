@@ -1807,6 +1807,15 @@ export function HelpPage() {
         ROM, the team to take, the team to replace, and which parts to bring: names, roster and lines, colours,
         and logos and banners.
       </p>
+      <p>
+        <b>Every team at once</b>, lower on the same page, brings logos and colours in for every team both ROMs have,
+        matched by name: the same place and nickname, or else a nickname only one team in each ROM has. Untick any
+        team to leave it out. It is a quick way to give a real season's teams (Real NHL season) the logos of a league
+        ROM that has them. Names, rosters and photos stay as they are, and Undo takes it all back. It works between
+        ROMs for the same console only; between the Genesis and the SNES, Picture files can carry logos across as PNG
+        pictures. Where the logos or banners run out of shared room, the teams after that keep theirs, and the page
+        lists which.
+      </p>
       <ul>
         <li>The roster and lines come together, because lines name players by their place on the roster.</li>
         <li>
@@ -1856,12 +1865,14 @@ export function HelpPage() {
         <li>
           <b>Where each team goes:</b> to the ROM's team of the same name or franchise (the Atlanta Flames where the
           Calgary Flames are), and the rest to the teams left over, not the All-Star teams. Change any of them, or
-          choose Keep as it is.
+          choose Keep as it is. A season with more teams than the ROM has places needs a ROM with more teams (such as
+          a league's 32-team ROM) to bring them all in; the page says when.
         </li>
         <li>
           <b>What else changes:</b> lines are built afresh, and the Offence and Defence ratings follow the team's goals
           for and against, using the values the ROM's teams already had. With <b>Use that season's team names</b>, the
-          place, initials and nickname come too; logos, colours and the arena stay, to change on each team's page.
+          place, initials and nickname come too; logos, colours and the arena stay. To give the teams the logos and
+          colours of a ROM that has them, use <b>Every team at once</b> on the Import a team page.
         </li>
         <li>
           If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,

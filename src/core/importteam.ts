@@ -381,3 +381,51 @@ function ppPkFixed(project: RomProject): boolean | null {
   if (!state) return null
   return state.unknown.includes(HACK_PARTS.ppPkFix) ? null : state.choices.ppPkFix
 }
+
+// The teams two ROMs share, by name: the same place and nickname, or failing that the same nickname where each ROM
+// has only one team by it (the Mighty Ducks of Anaheim in one, the Anaheim Mighty Ducks in the other). Each team
+// here is matched at most once.
+export function teamsByName(project: RomProject, other: RomProject): { from: number; to: number }[] {
+  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+  const full = (p: RomProject) => p.teams.map((t) => plain(teamDisplayName(t)))
+  const nick = (p: RomProject) => p.teams.map((t) => plain(t.names[2] ?? ''))
+  const [ourFull, theirFull, ourNick, theirNick] = [full(project), full(other), nick(project), nick(other)]
+  const pairs: { from: number; to: number }[] = []
+  const usedFrom = new Set<number>()
+  const usedTo = new Set<number>()
+  const add = (from: number, to: number) => {
+    pairs.push({ from, to })
+    usedFrom.add(from)
+    usedTo.add(to)
+  }
+  ourFull.forEach((name, to) => {
+    const from = theirFull.findIndex((n, i) => n !== '' && n === name && !usedFrom.has(i))
+    if (from >= 0) add(from, to)
+  })
+  const once = (list: string[], name: string) => list.filter((n) => n === name).length === 1
+  ourNick.forEach((name, to) => {
+    if (usedTo.has(to) || name === '' || !once(ourNick, name) || !once(theirNick, name)) return
+    const from = theirNick.indexOf(name)
+    if (!usedFrom.has(from)) add(from, to)
+  })
+  return pairs.sort((a, b) => a.to - b.to)
+}
+
+export interface TeamsResult {
+  project: RomProject
+  // For each team, what was brought in and what was not.
+  notes: { team: number; notes: string[] }[]
+}
+
+// Brings colours and pictures (logos, banners, banner colours) in for many teams at once, each from its team in the
+// other ROM. Names, rosters and photos stay as they are.
+export function importTeams(project: RomProject, other: RomProject, pairs: { from: number; to: number }[], parts: Pick<ImportParts, 'colours' | 'pictures'>): TeamsResult {
+  let next = project
+  const notes: TeamsResult['notes'] = []
+  for (const { from, to } of pairs) {
+    const result = importTeam(next, other, from, to, { names: false, roster: false, photos: false, colours: parts.colours, pictures: parts.pictures })
+    next = result.project
+    notes.push({ team: to, notes: result.notes })
+  }
+  return { project: next, notes }
+}

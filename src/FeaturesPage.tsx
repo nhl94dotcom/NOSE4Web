@@ -105,6 +105,7 @@ export function FeaturesPage() {
           shown overall, its home and away ratings, its lines and its place in the order of teams.
         </li>
         <li>Import a team from another ROM: its names, roster, colours, logos and photos.</li>
+        <li>Logos and colours for every team at once from another ROM, matched by team name.</li>
         <li>Real NHL season: every team's players from any season since 1967-68, rated from that season's stats.</li>
         <li>New season: a starting point, so that Changes can list what has changed since.</li>
       </ul>

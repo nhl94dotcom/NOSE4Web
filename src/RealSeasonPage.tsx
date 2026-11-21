@@ -75,6 +75,8 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const built = useMemo(() => (season ? buildSeasonRosters(project.game, season, options) : []), [season, options, project.game])
   const ours = teamLabels(project.teams, project.game)
   const placed = placement.filter((s) => s !== null).length
+  // The ROM's teams a season's team can go to without being chosen by hand: all but its All-Star teams.
+  const places = project.teams.filter((t) => !/all.?stars?/i.test(t.names.join(' '))).length
 
   if (!supported) {
     return (
@@ -181,6 +183,13 @@ export function RealSeasonPage({ project, onChange }: Props) {
               ))}
             </tbody>
           </table>
+          {season.teams.length > places && (
+            <p className="note">
+              {season.season} has {season.teams.length} teams, and this ROM has places for {places}, not counting its
+              All-Star teams. To bring them all in, open a ROM with {season.teams.length} or more team places, such as a
+              league's 32-team ROM.
+            </p>
+          )}
           {season.teams.some((_, s) => !placement.includes(s)) && (
             <p className="note">
               Not brought in:{' '}

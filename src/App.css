@@ -1058,3 +1058,15 @@ main > [data-tab-hidden] {
     columns: 1;
   }
 }
+
+/* Import a team's list of teams matched by name, in columns where there is room. */
+.many-teams {
+  columns: 3;
+  list-style: none;
+  padding-left: 0;
+}
+@media (max-width: 700px) {
+  .many-teams {
+    columns: 1;
+  }
+}
