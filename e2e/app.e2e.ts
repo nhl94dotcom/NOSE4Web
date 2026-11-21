@@ -43,7 +43,7 @@ async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
   await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(16)
+  await expect(pageEntries(page)).toHaveCount(17)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -79,6 +79,15 @@ test.describe('without a ROM', () => {
 
     await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByRole('button', { name: 'How to use it' })).toBeVisible()
+    // The features list, before a ROM is open too, with each game's hacks folded away.
+    await page.getByRole('button', { name: 'Features list' }).click()
+    await expect(page.getByRole('heading', { name: 'Features list' })).toBeVisible()
+    for (const game of ['NHL 94 \\(Genesis\\)', "NHL '94 \\(SNES\\)", "NHL '95 \\(Genesis\\)"])
+      await expect(page.getByText(new RegExp(`^${game}: \\d+ hacks$`))).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Fixes' }).first()).toBeHidden()
+    await page.getByText(/^NHL 94 \(Genesis\): \d+ hacks$/).click()
+    await expect(page.getByRole('heading', { name: 'Fixes' }).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Back' }).click()
   })
 
   test('explains when a file is not a ROM', async ({ page }) => {
@@ -1568,7 +1577,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(16)
+  await expect(pageEntries(page)).toHaveCount(17)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2448,7 +2457,7 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(16)
+  await expect(pageEntries(page)).toHaveCount(17)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -2918,7 +2927,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(16)
+  await expect(pageEntries(page)).toHaveCount(17)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 

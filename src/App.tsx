@@ -66,6 +66,7 @@ import { useSectionTabs } from './useSectionTabs'
 
 // The biggest pages, which most visits never open, load when first opened, so the editor starts sooner.
 const HelpPage = lazy(() => import('./HelpPage').then((m) => ({ default: m.HelpPage })))
+const FeaturesPage = lazy(() => import('./FeaturesPage').then((m) => ({ default: m.FeaturesPage })))
 const HacksPage = lazy(() => import('./HacksPage').then((m) => ({ default: m.HacksPage })))
 const SnesHacksPage = lazy(() => import('./SnesHacksPage').then((m) => ({ default: m.SnesHacksPage })))
 const Nhl95HacksPage = lazy(() => import('./Nhl95HacksPage').then((m) => ({ default: m.Nhl95HacksPage })))
@@ -91,6 +92,7 @@ const PROJECT = -12
 const CHANGES = -13
 const HACKS = -14
 const NEW_SEASON = -15
+const FEATURES = -16
 // The pages that keep work not done yet (pagedrafts.ts).
 const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
@@ -150,7 +152,7 @@ export default function App() {
   // The teams' pages share their tab; each other page has its own.
   useSectionTabs(selected >= 0 ? 'team' : String(selected))
   // Whether the help is showing before any ROM has been opened.
-  const [welcomeHelp, setWelcomeHelp] = useState(false)
+  const [welcomeHelp, setWelcomeHelp] = useState<'help' | 'features' | null>(null)
   // Work stored by an earlier visit, offered on the welcome screen.
   const [earlier, setEarlier] = useState<Session | null>(null)
 
@@ -363,12 +365,12 @@ export default function App() {
         <header>
           <strong>NOSE4Web</strong>
           {picker}
-          <button onClick={() => setWelcomeHelp(false)}>Back</button>
+          <button onClick={() => setWelcomeHelp(null)}>Back</button>
         </header>
         {error && <p className="error">{error}</p>}
         <div className="body">
           <Suspense fallback={loading}>
-            <HelpPage />
+            {welcomeHelp === 'features' ? <FeaturesPage /> : <HelpPage />}
           </Suspense>
         </div>
       </div>
@@ -381,7 +383,8 @@ export default function App() {
         <h1>NOSE4Web</h1>
         <p>An editor for NHL 94 and NHL '95 on the Sega Genesis, and NHL '94 on the SNES: rosters, lines, colours and game settings.</p>
         <p>
-          {picker} <button onClick={() => setWelcomeHelp(true)}>How to use it</button>
+          {picker} <button onClick={() => setWelcomeHelp('help')}>How to use it</button>{' '}
+          <button onClick={() => setWelcomeHelp('features')}>Features list</button>
         </p>
         {earlier && (
           <p>
@@ -521,6 +524,8 @@ export default function App() {
         )
       case HELP:
         return <HelpPage />
+      case FEATURES:
+        return <FeaturesPage />
       default:
         return (
           <TeamEditor
@@ -634,6 +639,7 @@ export default function App() {
     [SETTINGS]: 'Game settings',
     [CSV]: 'Spreadsheet files',
     [HELP]: 'Help',
+    [FEATURES]: 'Features list',
     [CHECK]: 'Check ROM',
     [COMPARE]: 'Compare ROMs',
     [LEAGUE]: 'League',
@@ -741,6 +747,7 @@ export default function App() {
           {entry(CHECK, problems > 0 ? `Check ROM (${problems})` : 'Check ROM')}
           {entry(CHANGES, changes > 0 ? `Changes (${changes})` : 'Changes')}
           {entry(COMPARE, 'Compare ROMs')}
+          {entry(FEATURES, 'Features list')}
           {entry(HELP, 'Help')}
         </nav>
         <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>

@@ -1048,3 +1048,13 @@ main > [data-tab-hidden] {
   cursor: pointer;
   color: var(--accent);
 }
+
+/* The Features list's hacks, in columns where there is room. */
+.features-hacks {
+  columns: 2;
+}
+@media (max-width: 700px) {
+  .features-hacks {
+    columns: 1;
+  }
+}
