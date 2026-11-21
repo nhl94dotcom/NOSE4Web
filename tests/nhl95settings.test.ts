@@ -555,7 +555,8 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(post).toContain('- **Injuries**: never: a hit is only a fall')
     const sheet = nhl95HackSheet(on.bytes, 'L')
     expect(sheet.sections.map((s) => s.heading)).toEqual(['Statistics', 'Rules', 'Energy and injury risk', 'Skating and the puck'])
-    expect(sheet.sections.find((s) => s.heading === 'Energy and injury risk')!.items[0].text).toContain('about 3 in 100 more likely')
+    // Injuries comes first in Energy and injury risk, then the risk each knockdown adds.
+    expect(sheet.sections.find((s) => s.heading === 'Energy and injury risk')!.items[1].text).toContain('about 3 in 100 more likely')
   })
 })
 

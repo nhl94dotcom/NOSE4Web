@@ -2745,23 +2745,32 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
 
 // Where each is shown: the page's sections, and the hack sheet's.
 export const NHL95_HACK_SECTIONS: { id: string; title: string; hacks: Nhl95Hack[] }[] = [
-  { id: 'statistics', title: 'Statistics', hacks: ['secondAssist', 'oneTimerAssist', 'regainAssist', 'stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars'] },
-  { id: 'ratings', title: 'Ratings', hacks: ['aggressionFix', 'ppPkFix', 'comebackFix', 'awarenessFix', 'baseWeight', 'hotColdRange', 'clutchTime'] },
-  { id: 'play', title: 'How the game plays', hacks: ['rocketFix', 'openNetFix', 'blindRingFix', 'passFix', 'runawayFix', 'goaliePullFix', 'centreDefenceFix', 'goalieTurnFix', 'shotScatterFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix', 'snipingFix'] },
+  // The sections of NHL 94's pages (hackgroups.ts), in their order.
+  {
+    id: 'fixes',
+    title: 'Fixes',
+    hacks: [
+      'secondAssist', 'oneTimerAssist', 'regainAssist', 'aggressionFix', 'ppPkFix', 'comebackFix', 'openNetFix', 'passFix', 'faceoffFix', 'runawayFix',
+      'penaltyShotTableFix', 'penaltyShotFixes', 'snipingFix', 'goaliePullFix', 'blindRingFix', 'awarenessFix', 'centreDefenceFix', 'goalieTurnFix',
+      'shotScatterFix', 'rocketFix', 'stickReachFix', 'bodyBlockFix', 'lockedChangeFix',
+    ],
+  },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars'] },
+  { id: 'ratings', title: 'Ratings', hacks: ['baseWeight', 'hotColdRange', 'clutchTime'] },
   {
     id: 'rules',
     title: 'Rules',
     hacks: [
-      'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'shootoutInjuries', 'threeOnThree', 'threeOnThreeAll', 'fourthPeriodOvertime', 'faceoffFix', 'penaltyShotTableFix', 'penaltyShotFixes',
-      'penaltySeconds', 'realTime', 'noIcing', 'hybridIcing', 'delayedCalls', 'bCheckPenaltiesOff', 'injuries', 'referees',
+      'seasonOvertime', 'seasonShootout', 'seasonShootoutNow', 'nhlShootout', 'shootoutInjuries', 'threeOnThree', 'threeOnThreeAll', 'fourthPeriodOvertime',
+      'penaltySeconds', 'realTime', 'delayedCalls', 'bCheckPenaltiesOff', 'referees', 'noIcing', 'hybridIcing',
     ],
   },
   { id: 'fighting', title: 'Fighting', hacks: ['fighting', 'fightingOff', 'fightingArcade', 'fightSeconds', 'fightMomentum'] },
-  { id: 'energy', title: 'Energy and injury risk', hacks: ['stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'injuryCap'] },
+  { id: 'energy', title: 'Energy and injury risk', hacks: ['stamina', 'energyDrain', 'energyRecovery', 'noSkatingDrain', 'burstEnergy', 'hitEnergy', 'holdEnergy', 'injuries', 'injuryBonus', 'injuryCap'] },
   { id: 'goalies', title: 'Goalies', hacks: ['goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine', 'goalieDelay'] },
   { id: 'skating', title: 'Skating and the puck', hacks: ['speedBurst', 'turnRate', 'puckFriction', 'choppyIce'] },
-  { id: 'lines', title: 'Edit Lines', hacks: ['anyPosition'] },
-  { id: 'sound', title: 'Sound', hacks: ['organResume'] },
+  { id: 'lines', title: 'Edit Lines and controls', hacks: ['anyPosition'] },
+  { id: 'looks', title: 'Looks and sound', hacks: ['organResume'] },
 ]
 
 // What a ROM has that the original game does not: each hack on, and each setting not at the original's value.

@@ -429,7 +429,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a
       Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for
       one more row. The counts start again each game. In the original NHL '95 pucks pass through skaters, so this
-      needs Skaters block the puck (under How the game plays) on.
+      needs Skaters block the puck (under Fixes) on.
     </>
   ),
   realTime: () => (

@@ -498,6 +498,20 @@ input.seconds[aria-invalid='true'] {
   margin: 0.25rem 0 0;
 }
 
+/* On an option the "Turn on the recommended fixes" button sets. */
+.tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.6rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  vertical-align: middle;
+}
+
 details.rules {
   max-width: 46rem;
   margin: 0.75rem 0;

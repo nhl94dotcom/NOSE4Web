@@ -22,6 +22,7 @@ import {
   snesHacksForDiscord,
   snesHackInPlaceOnly,
   withRecommendedSnesFixes,
+  RECOMMENDED_SNES_FIXES,
   withSnesHackChoice,
   RECOMMENDED_SNES_HIT_ENERGY,
   RECOMMENDED_SNES_HOLD_ENERGY,
@@ -277,6 +278,9 @@ const VAULT_VERSION_NOTE: Partial<Record<SnesHack, string>> = {
 
 const GROUPS = SNES_HACK_GROUPS
 
+// On each option "Turn on the recommended fixes" sets.
+const tag = (hack: SnesHack) => RECOMMENDED_SNES_FIXES.includes(hack) && <span className="tag">Recommended</span>
+
 // Why a hack cannot be changed in this ROM. A hack made for the original game's layout is not offered in a build whose
 // code is elsewhere (McMarkis's SA-1 and 32-team builds), which is not "something else in its place"; those builds
 // have fights of their own.
@@ -394,7 +398,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
               <div className="hack" key={hack}>
                 {hack === 'threeStars' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.threeStars} onChange={(e) => setAmount('threeStars', Number(e.target.value))}>
                       {SNES_STAR_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
@@ -405,7 +410,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : hack === 'threeOnThree' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.threeOnThree} onChange={(e) => setAmount('threeOnThree', Number(e.target.value))}>
                       {SNES_THREE_ON_THREE_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
@@ -416,7 +422,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : hack === 'seasonShootout' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.seasonShootout} onChange={(e) => setAmount('seasonShootout', Number(e.target.value))}>
                       {SNES_SHOOTOUT_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
@@ -427,7 +434,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : hack === 'injuries' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.injuries} onChange={(e) => setAmount('injuries', Number(e.target.value))}>
                       {SNES_INJURY_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
@@ -438,7 +446,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : hack === 'referees' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select aria-label={SNES_HACK_TITLES[hack]} className="wide" disabled={unknown} value={wantedAmounts.referees} onChange={(e) => setAmount('referees', Number(e.target.value))}>
                       {SNES_REFEREE_TEXTS.map((text, choice) => (
                         <option key={choice} value={choice}>
@@ -449,7 +458,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : hack === 'fighting' ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <select
                       aria-label={SNES_HACK_TITLES[hack]}
                       disabled={unknown}
@@ -480,7 +490,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : GOALIE_AMOUNTS.includes(hack) && isAmount(hack) ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <NumberBox
                       label={SNES_HACK_TITLES[hack]}
                       value={wantedAmounts[hack]}
@@ -498,7 +509,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : isAmount(hack) ? (
                   <label>
-                    <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                    <b>{SNES_HACK_TITLES[hack]}</b>
+                    {tag(hack)}{' '}
                     <NumberField
                       className="seconds"
                       aria-label={SNES_HACK_TITLES[hack]}
@@ -515,7 +527,8 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
                   </label>
                 ) : (
                 <label>
-                  <b>{SNES_HACK_TITLES[hack]}</b>{' '}
+                  <b>{SNES_HACK_TITLES[hack]}</b>
+                  {tag(hack)}{' '}
                   <select
                     aria-label={SNES_HACK_TITLES[hack]}
                     disabled={unknown || (hack === 'fightMomentum' && snesCodeInPlace(project.bytes) && !wanted.fighting && !wanted.fightMomentum)}

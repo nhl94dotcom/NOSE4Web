@@ -435,7 +435,7 @@ test.describe('with the NHL 94 ROM', () => {
     await openRom(page)
     await entry(page, 'Hacks').click()
     const main = page.locator('main')
-    // A choice in Looks and screens, written by Apply with the rest.
+    // A choice in Looks and sound, written by Apply with the rest.
     const looks = main.locator('#hacks-looks')
     await looks.getByLabel('Head bleeding').selectOption('on')
     await expect(main.getByText('Head bleeding: Off to On.')).toBeVisible()

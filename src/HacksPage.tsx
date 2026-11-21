@@ -19,6 +19,7 @@ import {
   hacksCopiedFrom,
   hacksForDiscord,
   withRecommendedFixes,
+  RECOMMENDED_FIXES,
   menuLineChanges,
   BCHECK_TEXTS,
   INJURY_TEXTS,
@@ -79,6 +80,13 @@ const PUCK_TEXTS: Record<PuckColours, string> = {
   home: "The home team's",
   away: "The visitors'",
 }
+
+// The options "Turn on the recommended fixes" sets (not those it sets back to the original, such as the legacy weight
+// fix); the three stars follow the ROM's line changes.
+const RECOMMENDED_KEYS = new Set<keyof HackChoices>([
+  ...(Object.keys(RECOMMENDED_FIXES) as (keyof HackChoices)[]).filter((key) => RECOMMENDED_FIXES[key] !== NO_HACKS[key]),
+  'threeStars',
+])
 
 const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
 // What each choice of bonuses means where it shows: in play, and in the
@@ -173,7 +181,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const hack = (key: keyof HackChoices, control: ReactNode, about: ReactNode, beside?: ReactNode) => (
     <div className="hack">
       <label>
-        <b>{HACK_TITLES[key]}</b> {control}
+        <b>{HACK_TITLES[key]}</b>
+        {RECOMMENDED_KEYS.has(key) && <span className="tag">Recommended</span>} {control}
       </label>
       {beside}
       <p className="summary">
@@ -690,44 +699,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           </>,
         )}
         {hack(
-          'fourthPeriodOvertime',
-          number('fourthPeriodOvertime'),
-          <>
-            Lets one ROM play two kinds of regular-season game: the usual ones, and ones with a long overtime of their
-            own, such as 99 minutes, as good as playing until someone scores, so a league that needs both no longer
-            needs a separate ROM. The main menu's Period Length offers three of the game's four lengths, and this adds
-            the fourth. Set that length and its menu text on the Game settings page (the original game's is 30
-            seconds), for example 5:00 and "5 Min, 99 Min OT". A regular-season game played at it then gets this many
-            seconds of overtime (5940 is 99 minutes), and ends at 0:00 if still tied; 0 turns the option off. Games at
-            the other lengths keep the overtime set on the Game settings page, and playoff overtime is unchanged, as
-            long as a period. With 99 minutes, the faceoff song cannot play in the first half of the overtime.
-            McMarkis's "5 Minutes, 99 Min OT" patch, made for any length. Tested in the game by the NHL94 Match Viewer
-            project.
-          </>,
-        )}
-        {hack(
-          'fighting',
-          <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
-            {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {FIGHT_TEXTS[choice]}
-              </option>
-            ))}
-          </select>,
-          <>
-            chaos's fighting patch (version 1.01), which brings NHLPA 93's fights into the game: after enough hard
-            checks, two players with high enough fighting ratings may drop the gloves, and both are given fighting
-            majors. The main menu gets a <b>Fighting</b> line, Off, On or On - Arcade Mode (more fights), whose
-            starting choice is set here; the roster screens show each player's fighting rating from 0 to 100. How fights
-            start and are won is in chaos's forum post, "How fighting works in the NHL94 fighting patch". Fighting
-            uses the fighting half of the H/F column, which a league sets on the team pages: in the original game only
-            a few players rate high enough to start a fight. The ROM grows to 3 MB; Genesis Plus GX, which the leagues
-            use, plays it, and saved records still work. It goes into league ROMs too: the main menu keeps the
-            league's own captions, choices, teams offered and period lengths, with the Fighting line added. It works
-            with head bleeding on or off. Made by chaos with McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches
-            under the MIT licence; its title screen, credits and fighting ratings are left out. Tested in the game by
-            the NHL94 Match Viewer project.
-          </>,
+          'nhlShootout',
+          onOff('nhlShootout'),
+          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up, such as 2-0 after two rounds, where the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'shootoutInjuries',
@@ -741,40 +715,41 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           </>,
         )}
         {hack(
-          'nhlShootout',
-          onOff('nhlShootout'),
-          "Today's NHL shootout: three rounds a side, then sudden death, where the game plays five. And, as in the NHL, it ends as soon as one team cannot catch up, such as 2-0 after two rounds, where the game itself always plays every round. For the season shootout and the main menu's Shootout mode alike. The shooters are chosen as before. Tested in the game by the NHL94 Match Viewer project.",
-        )}
-        {hack(
-          'fightSeconds',
-          <>
-            {number('fightSeconds')} seconds in the box for each fighter ({wanted.fightSeconds === 0 ? 'off' : clockTime(wanted.fightSeconds)})
-          </>,
-          <>
-            An option for leagues that play with fighting (chaos's patch, above): how long a fight keeps each fighter in
-            the box, in seconds of the game clock, in place of what its five minutes and the penalty time below would
-            give. 0 is off, as the original game: a fight is a 5-minute major like any other. Only the time in the box
-            changes: the fight still counts as 5 penalty minutes in the statistics, and the two fighters still go off
-            together with no power play, as both get the same time. An instigator's extra minor is as before. Tested
-            in the game by the NHL94 Match Viewer project.
-          </>,
-        )}
-        {hack(
-          'fightMomentum',
-          <select
-            aria-label={HACK_TITLES.fightMomentum}
-            disabled={unknown('fightMomentum') || (wanted.fighting === 'none' && !wanted.fightMomentum)}
-            value={wanted.fightMomentum ? 'on' : 'off'}
-            onChange={(e) => set({ fightMomentum: e.target.value === 'on' })}
-          >
-            <option value="off">Off</option>
-            <option value="on">On</option>
+          'threeOnThree',
+          <select aria-label={HACK_TITLES.threeOnThree} className="wide" disabled={unknown('threeOnThree')} value={wanted.threeOnThree} onChange={(e) => set({ threeOnThree: e.target.value as ThreeOnThree })}>
+            {(Object.keys(THREE_ON_THREE_TEXTS) as ThreeOnThree[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {THREE_ON_THREE_TEXTS[choice]}
+              </option>
+            ))}
           </select>,
           <>
-            With fighting on: the team whose player wins a fight gets a lift, +2 Agility and +2 Speed for its skaters
-            (not the goalie) for 90 seconds of play, on top of any crowd boost. The 90 seconds run only while the clock
-            does, and carry over an intermission; another fight gives the lift to its winner's team and starts them
-            again. Tested in the game by the NHL94 Match Viewer project.
+            An option, as the NHL plays overtime: each team has its goalie and three skaters, its current line's
+            <b> LW, C and RD</b> (two forwards and a defenceman, a centre for the draws, one player on each side). A
+            penalty gives the other team a skater more, as the NHL does: 4 on 3, and 5 on 3 for a second. When it
+            ends the teams play 4 on 4 until the next whistle, then 3 on 3 again. The lines are not changed, so it
+            works with line changes On or Off, and the players come from whichever line is on. Choose <b>in the
+            regular season</b> to keep the playoffs 5 on 5, as the NHL does. The overtime's length is set as before.
+            A team with three in the box plays two skaters, its C and LW, until one comes out, and the other team then
+            has at most four (4 on 2), as the NHL never gives a team more than a two-skater advantage. A shootout after
+            overtime has not been tried with it yet. Worked out with the NHL94 Match Viewer project. Tested in the game
+            by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'fourthPeriodOvertime',
+          number('fourthPeriodOvertime'),
+          <>
+            Lets one ROM play two kinds of regular-season game: the usual ones, and ones with a long overtime of their
+            own, such as 99 minutes, as good as playing until someone scores, so a league that needs both no longer
+            needs a separate ROM. The main menu's Period Length offers three of the game's four lengths, and this adds
+            the fourth. Set that length and its menu text on the Game settings page (the original game's is 30
+            seconds), for example 5:00 and "5 Min, 99 Min OT". A regular-season game played at it then gets this many
+            seconds of overtime (5940 is 99 minutes), and ends at 0:00 if still tied; 0 turns the option off. Games at
+            the other lengths keep the overtime set on the Game settings page, and playoff overtime is unchanged, as
+            long as a period. With 99 minutes, the faceoff song cannot play in the first half of the overtime.
+            McMarkis's "5 Minutes, 99 Min OT" patch, made for any length. Tested in the game by the NHL94 Match Viewer
+            project.
           </>,
         )}
         {hack(
@@ -801,48 +776,6 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
             2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
             seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
-          </>,
-        )}
-        {hack(
-          'noIcing',
-          onOff('noIcing'),
-          "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, made a little more cleanly here; a ROM with the post's version is recognised. Tested in the game by the NHL94 Match Viewer project.",
-        )}
-        {hack(
-          'hybridIcing',
-          onOff('hybridIcing'),
-          <>
-            An option, the icing rule the NHL has played since 2013. The original game plays the older touch icing: after
-            the puck crosses the goal line, icing is called if a defender touches it first and waved off if an attacker
-            does, which can mean a race into the end boards. With this on it is decided as the puck crosses: if the
-            defending team's nearest skater is as near as or nearer to the end-zone faceoff dots than the icing team's
-            nearest, icing is called there and then; if an attacker is nearer, it is waved off and play goes on. Goalies
-            do not count, and it goes by distance alone, not by how fast each player is going. Everything else is as
-            before: a team short-handed never ices, and a puck that crosses within the width of the crease is not
-            icing. Has no effect with No icing on. Tested in the game by the NHL94 Match Viewer project, with the SNES
-            version of this hack.
-          </>,
-        )}
-        {hack(
-          'threeOnThree',
-          <select aria-label={HACK_TITLES.threeOnThree} className="wide" disabled={unknown('threeOnThree')} value={wanted.threeOnThree} onChange={(e) => set({ threeOnThree: e.target.value as ThreeOnThree })}>
-            {(Object.keys(THREE_ON_THREE_TEXTS) as ThreeOnThree[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {THREE_ON_THREE_TEXTS[choice]}
-              </option>
-            ))}
-          </select>,
-          <>
-            An option, as the NHL plays overtime: each team has its goalie and three skaters, its current line's
-            <b> LW, C and RD</b> (two forwards and a defenceman, a centre for the draws, one player on each side). A
-            penalty gives the other team a skater more, as the NHL does: 4 on 3, and 5 on 3 for a second. When it
-            ends the teams play 4 on 4 until the next whistle, then 3 on 3 again. The lines are not changed, so it
-            works with line changes On or Off, and the players come from whichever line is on. Choose <b>in the
-            regular season</b> to keep the playoffs 5 on 5, as the NHL does. The overtime's length is set as before.
-            A team with three in the box plays two skaters, its C and LW, until one comes out, and the other team then
-            has at most four (4 on 2), as the NHL never gives a team more than a two-skater advantage. A shootout after
-            overtime has not been tried with it yet. Worked out with the NHL94 Match Viewer project. Tested in the game
-            by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -878,28 +811,6 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           </>,
         )}
         {hack(
-          'injuries',
-          <select aria-label={HACK_TITLES.injuries} className="wide" disabled={unknown('injuries')} value={wanted.injuries} onChange={(e) => set({ injuries: e.target.value as Injuries })}>
-            {(Object.keys(INJURY_TEXTS) as Injuries[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {INJURY_TEXTS[choice]}
-              </option>
-            ))}
-          </select>,
-          <>
-            In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
-            checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
-            head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
-            but there is no injury box: the player lies down for about ten seconds and then skates on. <b>Every injury
-            for the period</b> and <b>for the game</b> make every injury last that long, whoever made the hit. With <b>a long fall instead</b> a
-            hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts
-            under 2, then get up and play on: no injury, no injury box and no penalty, and he cannot be knocked down
-            again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
-            post, with the period, penalty and long-fall choices worked out by the NHL94 Match Viewer project. Tested
-            in the game by the NHL94 Match Viewer project.
-          </>,
-        )}
-        {hack(
           'referees',
           <select aria-label={HACK_TITLES.referees} className="wide" disabled={unknown('referees')} value={wanted.referees} onChange={(e) => set({ referees: e.target.value as Referees })}>
             {(Object.keys(REFEREE_TEXTS) as Referees[]).map((choice) => (
@@ -914,6 +825,86 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             the computer's alike. Offsides, icing and the other calls are unchanged, and so is goalie interference on
             EVO v0.4, which has its own goalie interference rule. Tested in the game by the NHL94 Match Viewer
             project.
+          </>,
+        )}
+        {hack(
+          'noIcing',
+          onOff('noIcing'),
+          "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. Some leagues play 2 on 2 this way. From TheTome's forum post, made a little more cleanly here; a ROM with the post's version is recognised. Tested in the game by the NHL94 Match Viewer project.",
+        )}
+        {hack(
+          'hybridIcing',
+          onOff('hybridIcing'),
+          <>
+            An option, the icing rule the NHL has played since 2013. The original game plays the older touch icing: after
+            the puck crosses the goal line, icing is called if a defender touches it first and waved off if an attacker
+            does, which can mean a race into the end boards. With this on it is decided as the puck crosses: if the
+            defending team's nearest skater is as near as or nearer to the end-zone faceoff dots than the icing team's
+            nearest, icing is called there and then; if an attacker is nearer, it is waved off and play goes on. Goalies
+            do not count, and it goes by distance alone, not by how fast each player is going. Everything else is as
+            before: a team short-handed never ices, and a puck that crosses within the width of the crease is not
+            icing. Has no effect with No icing on. Tested in the game by the NHL94 Match Viewer project, with the SNES
+            version of this hack.
+          </>,
+        )}
+      </section>
+
+      <section id="hacks-fighting">
+        <h3>Fighting</h3>
+        {hack(
+          'fighting',
+          <select aria-label={HACK_TITLES.fighting} className="wide" disabled={unknown('fighting')} value={wanted.fighting} onChange={(e) => set({ fighting: e.target.value as FightChoice })}>
+            {(Object.keys(FIGHT_TEXTS) as FightChoice[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {FIGHT_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            chaos's fighting patch (version 1.01), which brings NHLPA 93's fights into the game: after enough hard
+            checks, two players with high enough fighting ratings may drop the gloves, and both are given fighting
+            majors. The main menu gets a <b>Fighting</b> line, Off, On or On - Arcade Mode (more fights), whose
+            starting choice is set here; the roster screens show each player's fighting rating from 0 to 100. How fights
+            start and are won is in chaos's forum post, "How fighting works in the NHL94 fighting patch". Fighting
+            uses the fighting half of the H/F column, which a league sets on the team pages: in the original game only
+            a few players rate high enough to start a fight. The ROM grows to 3 MB; Genesis Plus GX, which the leagues
+            use, plays it, and saved records still work. It goes into league ROMs too: the main menu keeps the
+            league's own captions, choices, teams offered and period lengths, with the Fighting line added. It works
+            with head bleeding on or off. Made by chaos with McMarkis and AbdulBCRT, from github.com/Chaos81/nhl94-patches
+            under the MIT licence; its title screen, credits and fighting ratings are left out. Tested in the game by
+            the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'fightSeconds',
+          <>
+            {number('fightSeconds')} seconds in the box for each fighter ({wanted.fightSeconds === 0 ? 'off' : clockTime(wanted.fightSeconds)})
+          </>,
+          <>
+            An option for leagues that play with fighting (chaos's patch, above): how long a fight keeps each fighter in
+            the box, in seconds of the game clock, in place of what its five minutes and the penalty time below would
+            give. 0 is off, as the original game: a fight is a 5-minute major like any other. Only the time in the box
+            changes: the fight still counts as 5 penalty minutes in the statistics, and the two fighters still go off
+            together with no power play, as both get the same time. An instigator's extra minor is as before. Tested
+            in the game by the NHL94 Match Viewer project.
+          </>,
+        )}
+        {hack(
+          'fightMomentum',
+          <select
+            aria-label={HACK_TITLES.fightMomentum}
+            disabled={unknown('fightMomentum') || (wanted.fighting === 'none' && !wanted.fightMomentum)}
+            value={wanted.fightMomentum ? 'on' : 'off'}
+            onChange={(e) => set({ fightMomentum: e.target.value === 'on' })}
+          >
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>,
+          <>
+            With fighting on: the team whose player wins a fight gets a lift, +2 Agility and +2 Speed for its skaters
+            (not the goalie) for 90 seconds of play, on top of any crowd boost. The 90 seconds run only while the clock
+            does, and carry over an intermission; another fight gives the lift to its winner's team and starts them
+            again. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
       </section>
@@ -1006,6 +997,28 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <button type="button" disabled={unknown('holdEnergy') || wanted.holdEnergy === RECOMMENDED_HOLD_ENERGY} onClick={() => set({ holdEnergy: RECOMMENDED_HOLD_ENERGY })}>
             Use the recommended {RECOMMENDED_HOLD_ENERGY}
           </button>,
+        )}
+        {hack(
+          'injuries',
+          <select aria-label={HACK_TITLES.injuries} className="wide" disabled={unknown('injuries')} value={wanted.injuries} onChange={(e) => set({ injuries: e.target.value as Injuries })}>
+            {(Object.keys(INJURY_TEXTS) as Injuries[]).map((choice) => (
+              <option key={choice} value={choice}>
+                {INJURY_TEXTS[choice]}
+              </option>
+            ))}
+          </select>,
+          <>
+            In the original game a hard hit can injure the player knocked down, for the rest of the period or, when the
+            checker has a high Fighting rating, the rest of the game. With <b>never</b> a hit is only a fall, and the
+            head-bleeding hack below then never shows. With <b>the penalty, but no injury</b> the hit is still called,
+            but there is no injury box: the player lies down for about ten seconds and then skates on. <b>Every injury
+            for the period</b> and <b>for the game</b> make every injury last that long, whoever made the hit. With <b>a long fall instead</b> a
+            hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts
+            under 2, then get up and play on: no injury, no injury box and no penalty, and he cannot be knocked down
+            again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
+            post, with the period, penalty and long-fall choices worked out by the NHL94 Match Viewer project. Tested
+            in the game by the NHL94 Match Viewer project.
+          </>,
         )}
         {hack(
           'injuryBonus',
@@ -1187,7 +1200,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
       </section>
 
       <section id="hacks-looks">
-        <h3>Looks and screens</h3>
+        <h3>Looks and sound</h3>
         {hack(
           'puckColours',
           <select aria-label={HACK_TITLES.puckColours} className="wide" disabled={unknown('puckColours')} value={wanted.puckColours} onChange={(e) => set({ puckColours: e.target.value as PuckColours })}>

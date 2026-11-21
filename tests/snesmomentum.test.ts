@@ -50,8 +50,8 @@ describe('SNES fight momentum', () => {
     const on = { ...offChoices(), fighting: true, fightMomentum: true }
     expect(withSnesHackChoice(on, 'fighting', false).fightMomentum).toBe(false)
     expect(withSnesHackChoice(on, 'fighting', true).fightMomentum).toBe(true)
-    const rules = SNES_HACK_GROUPS.find((group) => group.id === 'rules')!.hacks
-    expect(rules.indexOf('fightMomentum')).toBe(rules.indexOf('fightTime') + 1)
+    const fighting = SNES_HACK_GROUPS.find((group) => group.id === 'fighting')!.hacks
+    expect(fighting.indexOf('fightMomentum')).toBe(fighting.indexOf('fightTime') + 1)
     expect(code(0x8000).length / 2).toBe(13 + 35 + 21 + 19 + 15 + 15 + 25)
   })
 

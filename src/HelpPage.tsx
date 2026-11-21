@@ -825,7 +825,7 @@ export function HelpPage() {
       <h3 id="help-genesis-blood">Head bleeding (Genesis)</h3>
       <p>
         In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took the blood
-        out. <b>Head bleeding</b>, under Looks and screens on the Hacks page, brings it back for a player hurt for the
+        out. <b>Head bleeding</b>, under Looks and sound on the Hacks page, brings it back for a player hurt for the
         game: he falls and lies still as before, now with a little blood that spreads. A player out for the period
         writhes as before, without blood. Only the look changes. The blood uses two of the arena's colours (dark reds in the original game). In the
         original game it makes the ROM 2 MB. Like every hack it goes in when you press Apply, and turning it off puts
@@ -1164,10 +1164,12 @@ export function HelpPage() {
         download asks whether to go ahead without it.
       </p>
       <p>
-        The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for the game's bugs,{' '}
-        <b>Statistics</b>, <b>Ratings</b>, <b>Rules</b>, <b>Energy and injury risk</b>, <b>Goalies</b>,{' '}
-        <b>Skating and the puck</b>, <b>Edit Lines and controls</b>, <b>Looks and screens</b>, and on the Genesis{' '}
-        <b>Legacy hacks</b> kept for league ROMs that have them. The links at the top of the page jump to each.
+        The hacks are in groups, the same in the same order on all three Hacks pages (NHL 94 on the Genesis and the
+        SNES, and NHL '95) and on the hack sheets: <b>Fixes</b> for the game's bugs, <b>Statistics</b>,{' '}
+        <b>Ratings</b>, <b>Rules</b> (ties and overtime first, then the clock and penalties, then icing),{' '}
+        <b>Fighting</b>, <b>Energy and injury risk</b>, <b>Goalies</b>, <b>Skating and the puck</b>,{' '}
+        <b>Edit Lines and controls</b>, <b>Looks and sound</b>, and on the Genesis <b>Legacy hacks</b> kept for league
+        ROMs that have them. The links at the top of the page jump to each, and each option <b>Turn on the recommended fixes</b> sets is marked <b>Recommended</b>.
       </p>
       <p>
         <b>Turn on the recommended fixes</b>, at the top of the page (on the SNES Hacks page too), sets the bug fixes
@@ -1603,7 +1605,7 @@ export function HelpPage() {
           <b>Puck friction</b>: how quickly a loose puck slows down.
         </li>
         <li>
-          <b>Looks and screens</b>: <b>puck colours</b> and <b>net colours</b> (drawn in the crowd's or a team's
+          <b>Looks and sound</b>: <b>puck colours</b> and <b>net colours</b> (drawn in the crowd's or a team's
           colours), <b>the fan in green</b> (his missing arm and leg put back), <b>Clockwise's sprite edit</b> (taped sticks,
           eyes and redrawn nets, with NOSE4Web's tape in the faceoff close-up and the fight frames), <b>Ron Barr's pick every game</b> (he
           names the team that came out hotter before every game, not only when the gap is wide) or <b>by a coin

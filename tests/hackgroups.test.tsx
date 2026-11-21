@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { GENESIS_HACK_GROUPS, SNES_HACK_GROUPS } from '../src/core/hackgroups'
 import { HACK_TITLES, NO_HACKS } from '../src/core/hacks'
+import { NHL95_HACK_SECTIONS } from '../src/core/nhl95hacks'
 import { openRom } from '../src/core/rom'
 import { SNES_HACKS } from '../src/core/sneshacks'
 import { HacksPage } from '../src/HacksPage'
@@ -19,6 +20,11 @@ describe('the Hacks pages and sheets group the hacks one way', () => {
     // The sections both systems have come in the same order.
     const shared = (groups: { id: string }[], other: { id: string }[]) => groups.map((g) => g.id).filter((id) => other.some((o) => o.id === id))
     expect(shared(SNES_HACK_GROUPS, GENESIS_HACK_GROUPS)).toEqual(shared(GENESIS_HACK_GROUPS, SNES_HACK_GROUPS))
+    // NHL '95's page has the same sections, titles and order.
+    expect(shared(NHL95_HACK_SECTIONS, GENESIS_HACK_GROUPS)).toEqual(NHL95_HACK_SECTIONS.map((s) => s.id))
+    expect(shared(NHL95_HACK_SECTIONS, GENESIS_HACK_GROUPS)).toEqual(shared(GENESIS_HACK_GROUPS, NHL95_HACK_SECTIONS))
+    expect(shared(SNES_HACK_GROUPS, GENESIS_HACK_GROUPS)).toEqual(SNES_HACK_GROUPS.map((g) => g.id))
+    for (const group of [...SNES_HACK_GROUPS, ...NHL95_HACK_SECTIONS]) expect(group.title).toBe(GENESIS_HACK_GROUPS.find((g) => g.id === group.id)!.title)
   })
 
   it.skipIf(!existsSync(romPath))('shows the Genesis groups on the page, in order, each hack in its own', () => {
@@ -35,5 +41,11 @@ describe('the Hacks pages and sheets group the hacks one way', () => {
       expect(at.every((i) => i >= 0), `${group.id}: ${shown.filter((_, i) => at[i] < 0).join(', ')}`).toBe(true)
       expect([...at].sort((a, b) => a - b)).toEqual(at)
     }
+    // The options the recommended fixes set are marked (the legacy weight fix, which they turn off, is not).
+    const tagged = (key: keyof typeof NO_HACKS) => html.split(`<b>${HACK_TITLES[key].replace(/'/g, '&#x27;')}</b>`)[1].split('</label>')[0].includes('Recommended')
+    expect(tagged('checkFix')).toBe(true)
+    expect(tagged('bCheckPenaltiesOff')).toBe(true)
+    expect(tagged('weightFix')).toBe(false)
+    expect(tagged('snipingFix')).toBe(false)
   })
 })
