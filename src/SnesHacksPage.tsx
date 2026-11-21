@@ -352,9 +352,9 @@ export function SnesHacksPage({ project, name, onChange, kept, onKeep }: Props) 
       <h2>Hacks</h2>
       <p className="notice">
         <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the very bottom of the page.
-        Nothing in the ROM changes until you do. While choices are waiting, a bar along the bottom of the window says how
-        many, with its own Apply. They are kept if you look at other pages, which say so, and Download asks first. The
-        list just above Apply shows exactly what will change, and Undo takes it all back.
+        Nothing in the ROM changes until you do. The list just above Apply shows exactly what will change, and Undo
+        takes it all back. You can look at other pages before you apply: your choices are kept, a bar along the bottom
+        of this page and a reminder on the others show they are waiting, and a download offers to apply them first.
       </p>
       <p className="note">
         Changes to the SNES game itself. They come from the community's patches for the game,{' '}

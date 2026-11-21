@@ -116,7 +116,7 @@ export function workLeft(project: RomProject, work: PageWork): WorkLeft[] {
   const left: WorkLeft[] = []
   if (work.bulk?.touched) {
     const count = previewBulk(project, bulkSetup(project, work.bulk.form).change).length
-    if (count > 0) left.push({ page: 'bulk', text: `Bulk changes has a change for ${people(count)} set up but not applied.`, button: 'Apply' })
+    if (count > 0) left.push({ page: 'bulk', text: `Bulk changes has a change set up for ${people(count)}, but not applied.`, button: 'Apply' })
   }
   if (work.trade) {
     const picked = keptSides(project, work.trade).reduce((sum, side) => sum + side.picks.length, 0)

@@ -437,10 +437,10 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText('Not downloaded yet')).toBeHidden()
     // The bar's own Apply and Set back.
     await main.locator('#hacks-looks').getByLabel('Head bleeding').selectOption('off')
-    await bar.getByRole('button', { name: 'Set back' }).click()
+    await bar.getByRole('button', { name: 'Set back to the ROM' }).click()
     await expect(main.locator('#hacks-looks').getByLabel('Head bleeding')).toHaveValue('on')
     await main.locator('#hacks-looks').getByLabel('Head bleeding').selectOption('off')
-    await bar.getByRole('button', { name: 'Apply them' }).click()
+    await bar.getByRole('button', { name: 'Apply now' }).click()
     await expect(bar).toBeHidden()
     await expect(main.getByText('Nothing is set to change.')).toBeVisible()
   })
@@ -461,7 +461,7 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
     await entry(page, 'Help').click()
     await expect(notice).toHaveCount(2)
-    await expect(notice.filter({ hasText: /Bulk changes has a change for \d+ players set up but not applied\./ })).toHaveCount(1)
+    await expect(notice.filter({ hasText: /Bulk changes has a change set up for \d+ players, but not applied\./ })).toHaveCount(1)
     // A download asks first: Cancel downloads nothing.
     let asked = ''
     page.once('dialog', (dialog) => {

@@ -801,9 +801,9 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
       <h2>Hacks</h2>
       <p className="notice">
         <b>How this page works:</b> choose the hacks you want, then press <b>Apply</b> at the bottom of the page.
-        Nothing in the ROM changes until you do. While choices are waiting, a bar along the bottom of the window says how
-        many, with its own Apply. They are kept if you look at other pages, which say so, and Download asks first. Undo
-        takes it all back.
+        Nothing in the ROM changes until you do, and Undo takes it all back. You can look at other pages before you
+        apply: your choices are kept, a bar along the bottom of this page and a reminder on the others show they are
+        waiting, and a download offers to apply them first.
       </p>
       <p className="note">
         Fixes, settings and new options for NHL '95, most of them from the NHL94 Match Viewer project. Many are NHL

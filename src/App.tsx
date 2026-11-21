@@ -57,7 +57,7 @@ import { SnesPicturesEditor } from './SnesPicturesEditor'
 import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
-import { applyHackDraft, changesText, draftLeft, type HackDraft } from './hackdraft'
+import { applyHackDraft, changesText, draftLeft, itOrThem, type HackDraft } from './hackdraft'
 import { NO_PAGE_WORK, workLeft, type BulkKept, type ImportKept, type PageWork, type TradeKept } from './pagedrafts'
 import { MusicPendingNotice, PendingNotice, WorkPendingNotice } from './PendingChanges'
 import './App.css'
@@ -261,7 +261,7 @@ export default function App() {
   async function handleFile(file: File | undefined) {
     if (!file) return
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
-    if (!unsaved && liveDraft && !window.confirm(`The Hacks page has ${changesText(liveDraft.count)} not applied yet. Open another ROM and lose them?`)) return
+    if (!unsaved && liveDraft && !window.confirm(`The Hacks page has ${changesText(liveDraft.count)} not applied yet. Open another ROM and lose ${itOrThem(liveDraft.count)}?`)) return
     if (!unsaved && !liveDraft && heldMusic && !window.confirm(`The music "${heldMusic.title}" is loaded on Game settings but not put in yet. Open another ROM and lose it?`)) return
     if (!unsaved && !liveDraft && !heldMusic && leftOnPages.length > 0 && !window.confirm(`Some work is set up but not done:\n${pageWorkText}\n\nOpen another ROM and lose it?`)) return
     try {
@@ -319,8 +319,8 @@ export default function App() {
     let out = project
     if (liveDraft) {
       const ask =
-        `The Hacks page has ${changesText(liveDraft.count)} not applied yet, so they would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
-        'OK: apply them now, then download.\nCancel: do not download yet (go to Hacks to look at them, apply them or set them back).'
+        `The Hacks page has ${changesText(liveDraft.count)} not applied yet, so ${liveDraft.count === 1 ? 'it' : 'they'} would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
+        `OK: apply ${itOrThem(liveDraft.count)} now, then download.\nCancel: do not download yet. The Hacks page shows what is waiting.`
       if (!window.confirm(ask)) return
       try {
         out = applyHackDraft(project, liveDraft)

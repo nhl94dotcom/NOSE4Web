@@ -1439,14 +1439,18 @@ export function HelpPage() {
         (built in with his permission), guides posted on the NHL94 forums, and the NHL94 Match Viewer project, which
         found most of the fixes and tested every hack marked as tested in the game. The page shows what the ROM has
         now, which for a league ROM is often several hacks already. Set what you want and press <b>Apply</b>. Nothing
-        changes until you do, the box above the button lists exactly what will, and one Undo takes it all back. While
-        choices are waiting, a bar along the bottom of the window says how many, with its own <b>Apply</b>. You can go to
-        other pages first: the choices are kept, every other page shows a reminder with a way back, and{' '}
-        <b>Download ROM</b> or <b>Download patch</b> asks whether to apply them first. The same goes for a MIDI file
-        loaded for the game music and not yet put in: other pages remind you, and a download asks first. So does
-        work left on <b>Trade</b>, <b>Bulk changes</b> or <b>Import a team</b>: players ticked but the trade not
-        made, a bulk change set up but not applied, or a team chosen from another ROM but not imported. It is kept
-        too, and is there when you go back.
+        changes until you do, the box above the button lists exactly what will, and one Undo takes it all back.
+      </p>
+      <p>
+        You can look at other pages before you apply. Your choices are kept, a bar along the bottom of the Hacks page
+        shows how many are waiting, with its own Apply, and every other page shows a reminder with a way back.{' '}
+        <b>Download ROM</b> and <b>Download patch</b> offer to apply them first.
+      </p>
+      <p>
+        Other work set up but not finished is kept the same way: a MIDI file loaded for the game music but not put
+        in, players ticked on <b>Trade</b> but the trade not made, a change set up on <b>Bulk changes</b> but not
+        applied, and a team chosen on <b>Import a team</b> but not imported. Other pages remind you of it, and a
+        download asks whether to go ahead without it.
       </p>
       <p>
         The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for the game's bugs,{' '}
@@ -1543,7 +1547,7 @@ export function HelpPage() {
           <b>Blocked shots</b> (Genesis and SNES): counts each skater's blocked shots, a shot by the other team that hits
           his body, and shows them on a Blocked Shots page in Player Stats. Game Stats shows each team's total too when
           giveaways and takeaways are off. On the SNES the counts, the Game Stats row and the Player Stats page are
-          three options. Not yet tested in the game.
+          three options. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
@@ -1683,8 +1687,8 @@ export function HelpPage() {
           <b>Fight momentum</b> (Genesis and SNES NHL 94, needs fighting on): the team whose player wins a fight gets +2
           Agility and +2 Speed for its skaters, not the goalie, for 90 seconds of play, on top of any crowd boost.
           On the SNES it is +1 of each, on its smaller rating scale, with NOSE4Web's fights or McMarkis's builds' own.
-          The time runs only with the clock and carries over an intermission; another fight hands it on. Not yet
-          tested in the game.
+          The time runs only with the clock and carries over an intermission; another fight hands it on. Tested in
+          the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Fighting</b> (Genesis): chaos's fighting patch, version 1.01, which brings NHLPA 93's fights into the
@@ -2489,8 +2493,7 @@ export function HelpPage() {
           94's banner lettering is not offered for NHL '95. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness, Fight momentum
-          and Blocked shots is tested in the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
+          <b>Hacks</b>: NHL '95 has a Hacks page of its own. Every option on it but Referee strictness is tested in the game by the NHL94 Match Viewer project. It has NHL 94's fixes where NHL '95 has the same code: the three
           assist fixes, the Aggression, power play and penalty kill, comeback bonus and computer forwards' awareness
           fixes, faceoffs on the dots, counting stick deflections as shots, the one-timer open net fix, the five-hole blind spot fix,
           the <b>rocket pass fix</b>, the runaway speed fix, the computer goalie pull fix, the pulled-goalie sniping fix
@@ -2510,7 +2513,7 @@ export function HelpPage() {
           <b>Fight momentum</b>, with fighting: the team whose player wins a fight gets +2 Agility and +2 Speed for its
           skaters for 90 seconds of play. <b>Blocked shots</b>: each skater's blocked shots counted, with a Player Stats
           page and (with giveaways off) a Game Stats row; it needs Skaters block the puck, as pucks pass through skaters
-          in the original NHL '95. Both not yet tested in the game.
+          in the original NHL '95. Both tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved

@@ -25,7 +25,7 @@ describe('work kept on Bulk changes, Trade and Import a team', () => {
     expect(workLeft(project, { ...NO_PAGE_WORK, bulk: { form, touched: false } })).toEqual([])
     const [left] = workLeft(project, { ...NO_PAGE_WORK, bulk: { form, touched: true } })
     expect(left.page).toBe('bulk')
-    expect(left.text).toMatch(/Bulk changes has a change for \d+ players set up but not applied\./)
+    expect(left.text).toMatch(/Bulk changes has a change set up for \d+ players, but not applied\./)
     // Set to the most it can be, applied: nobody would change again.
     const most = { ...form, action: 'set' as const, amount: bulkSetup(project, { ...form, action: 'set' }).values.at(-1)!.value }
     const done = applyBulk(project, bulkSetup(project, most).change)

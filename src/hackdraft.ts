@@ -120,3 +120,5 @@ export function draftLeft(project: RomProject, draft: HackDraft | null): boolean
 }
 
 export const changesText = (count: number) => (count === 1 ? '1 change' : `${count} changes`)
+// "it" or "them", to go with changesText.
+export const itOrThem = (count: number) => (count === 1 ? 'it' : 'them')
