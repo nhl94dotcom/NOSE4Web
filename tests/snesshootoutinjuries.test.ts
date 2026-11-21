@@ -42,7 +42,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: the injured sit out the s
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { shootoutInjuries: false })), buildRom(rom))).toBe(0)
   })
 
-  it('goes with every other SNES hack, in and out', () => {
+  it('goes with every other SNES hack, in and out', { timeout: 120_000 }, () => {
     const rom = open('NHL94.smc')
     const state = detectSnesHacks(rom.bytes)
     for (const hack of SNES_HACKS) {

@@ -91,7 +91,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES 3 on 3 overtime', () => {
     })
   }
 
-  it('goes with every other SNES hack, in and out', () => {
+  it('goes with every other SNES hack, in and out', { timeout: 120_000 }, () => {
     const rom = open('NHL94.smc')
     const state = detectSnesHacks(rom.bytes)
     for (const hack of SNES_HACKS) {

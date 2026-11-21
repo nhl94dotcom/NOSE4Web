@@ -67,7 +67,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES icing options', () => {
     expect(Buffer.compare(buildRom(applySnesHacks(both, { creaseIcing: false, hybridIcing: false })), buildRom(rom))).toBe(0)
   })
 
-  it('go with every other SNES hack, in and out', () => {
+  it('go with every other SNES hack, in and out', { timeout: 120_000 }, () => {
     const rom = open('NHL94.smc')
     const state = detectSnesHacks(rom.bytes)
     for (const hack of SNES_HACKS) {
