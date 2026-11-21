@@ -123,13 +123,13 @@ function checkStrips(project: RomProject, labels: string[], findings: Finding[])
         level: 'note',
         where: labels[t],
         team: t,
-        message: `The home strip looks much like the away strip of ${alike.join(', ')}. When they visit, the two teams will be hard to tell apart.`,
+        message: `The home colours look much like the away colours of ${alike.join(', ')}. When they visit, the two teams will be hard to tell apart.`,
       })
     }
     for (const [name, strip] of [['home', mine.home], ['away', mine.away]] as const) {
       const ice = colorRgb(strip[ICE])
       if (apart(mix(strip, BODY), ice) < GHOSTLY && apart(mix(strip, PANTS), ice) < GHOSTLY) {
-        findings.push({ level: 'note', where: labels[t], team: t, message: `The ${name} strip is close to the colour of the ice all over, so the players will be hard to see.` })
+        findings.push({ level: 'note', where: labels[t], team: t, message: `The ${name} colours are close to the colour of the ice all over, so the players will be hard to see.` })
       }
     }
   })

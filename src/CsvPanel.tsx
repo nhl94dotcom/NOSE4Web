@@ -120,8 +120,8 @@ export function CsvPanel({ project, setName, onChange, onSetNameChange }: Props)
       <section>
         <h2>Spreadsheet files</h2>
         <p className="note">
-          Everything in the editor, for every team, as tables you can edit in Excel or a similar program and import
-          again. Use one Excel workbook or a set of CSV files; they hold the same tables. An import replaces what is
+          Your teams, players, lines and settings, as tables you can edit in Excel or a similar program and import
+          again. Pictures and free agents are not included: Picture files and Project file keep those. Use one Excel workbook or a set of CSV files; they hold the same tables. An import replaces what is
           in the editor now, and reaches the ROM when you download it.
         </p>
         {outcome && (

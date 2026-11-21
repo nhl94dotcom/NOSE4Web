@@ -46,7 +46,7 @@ export function ChangesPage({ project, opened, name, onChange, onNameChange }: P
       <h2>Changes</h2>
       <p className="note">
         Everything you have changed, in plain words, kept up to date as you work. Use it to check your own work, or
-        to tell the league what has been done. Logos and banners are not listed.
+        to tell the league what has been done. Logos and banners are listed since the ROM was opened, but not since the season began.
       </p>
       <p>
         <label className="choice">
@@ -98,7 +98,7 @@ export function ChangesPage({ project, opened, name, onChange, onNameChange }: P
           </button>{' '}
           <span className="note">
             {notice ||
-              (season ? `This replaces the starting point of ${season.name}.` : 'The name at the top of the page changes to match. Your league rules carry over.')}
+              (season ? `This replaces the starting point of ${season.name}.` : 'The Name box at the top of the page changes to match. Your league rules carry over.')}
           </span>
         </p>
       </section>

@@ -164,7 +164,7 @@ export function GraphicsEditor({ project, team, onChange, onShowRink }: Props) {
     switch (kind) {
       case 'rinkLogo':
         return (
-          'Drawn with the home colours above, so it can only use those 16.' +
+          'Drawn with the home colours (Colours tab), so it can only use those 16.' +
           (others.length > 0 ? ` Shared with ${others.map((other) => teamDisplayName(project.teams[other])).join(', ')}.` : '')
         )
       case 'menuLogo':
@@ -342,7 +342,7 @@ export function GraphicsEditor({ project, team, onChange, onShowRink }: Props) {
             <h3>Drawing the {pictureTitle(project, drawing).toLowerCase()}</h3>
             <p className="note">
               {drawing === 'rinkLogo'
-                ? 'In the home colours, which are changed above.'
+                ? 'In the home colours, which are changed on the Colours tab.'
                 : drawing === 'menuLogo'
                   ? 'In white, black and nine colours of its own, which you can change below.'
                   : drawing === 'gameBanner' || drawing === 'pauseBanner'

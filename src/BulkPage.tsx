@@ -55,7 +55,7 @@ export function BulkPage({ project, onChange, kept, onKeep }: Props) {
       <h2>Bulk changes</h2>
       <p className="note">
         Changes one attribute for many players at once. Nothing happens until you press Apply, and the list below
-        shows exactly who would change first. Values stop at the ends of the attribute's range.
+        shows exactly who would change. Values stop at the ends of the attribute's range.
       </p>
       <div className="fields">
         <label>

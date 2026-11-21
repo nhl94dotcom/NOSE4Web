@@ -166,7 +166,7 @@ export function SnesPhotosEditor({ project, original, team, onChange }: Props) {
                 </select>
               </p>
               {photo.generic ? (
-                <p className="note">A stand-in picture, shared by {photo.shared} other places with no photo of their own. Importing or drawing gives this player his own.</p>
+                <p className="note">A stand-in picture, shared by {photo.shared} other players with no photo of their own. Importing or drawing gives this player his own.</p>
               ) : (
                 photo.shared > 0 && (
                   <p className="note">

@@ -14,6 +14,7 @@ const SECTIONS = [
   ['ratinguse', 'What the ratings do in play'],
   ['arrows', 'Moving with the keyboard'],
   ['copy', 'Copy and paste'],
+  ['make', 'Making up attributes'],
   ['keys', 'Quick edit keys'],
   ['lines', 'Lines'],
   ['colours', 'Team colours'],
@@ -24,7 +25,7 @@ const SECTIONS = [
   ['picturefiles', 'Picture files'],
   ['rink', 'Rink colours'],
   ['settings', 'Game settings'],
-  ['midi', 'MIDI files for organ songs'],
+  ['midi', 'Preparing a MIDI file for an organ song'],
   ['byname', 'Matching teams by name'],
   ['reset', 'Resetting changes'],
   ['csv', 'Spreadsheet files'],
@@ -167,7 +168,7 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        Neither can be undone except by opening the ROM again. ROMs that already have more room, such as the 30-team
+        Either can be undone with Undo, or by opening the ROM again. ROMs that already have more room, such as the 30-team
         hack, do not show the button and usually have plenty of room already.
       </p>
       <p>
@@ -379,6 +380,12 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
+        On the <b>Roster</b> tab the tables come first. Tick players, and the things you can do with them appear in a
+        bar along the bottom of the window: copy and paste, move to another team, release, and make up attributes.
+        The tools you need less often, the roster card, Reset roster and Quick edit keys, are under{' '}
+        <b>More roster tools</b>, below the tables.
+      </p>
+      <p>
         <b>Add player</b> puts a new defenceman at the bottom of the roster, named with their roster number, with
         every attribute at its lowest. A team can have at most {MAX_ROSTER} players.
       </p>
@@ -539,7 +546,7 @@ export function HelpPage() {
 
       <h3 id="help-keys">Quick edit keys</h3>
       <p>
-        Tick <b>Quick edit keys</b>, tick one or more players, and use the top row of the keyboard to change them all
+        Tick <b>Quick edit keys</b> (under More roster tools on the Roster tab), tick one or more players, and use the top row of the keyboard to change them all
         at once:
       </p>
       <ul>
@@ -1423,7 +1430,7 @@ export function HelpPage() {
       </ul>
       <p>
         For a quick release or signing there is no need to leave a team's page: tick players and press{' '}
-        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b>. To sign a goalie, tick the goalie he
+        <b>Release ticked</b>, or choose a free agent and press <b>Sign</b> (shown while there are free agents). To sign a goalie, tick the goalie he
         is to replace first.
       </p>
       <p>
@@ -2009,9 +2016,9 @@ export function HelpPage() {
       </p>
 
       <p>
-        Check ROM also notes strips that would be hard to tell apart in a game. A visiting team wears its away
-        strip, so a team's home strip is compared with every other team's away strip, by the colour of the jersey
-        and of the pants; and a strip that is close to the colour of the ice all over is noted too. These are notes,
+        Check ROM also notes team colours that would be hard to tell apart in a game. A visiting team wears its away
+        colours, so a team's home colours are compared with every other team's away colours, by the colour of the
+        jersey and of the pants; and colours close to the colour of the ice all over are noted too. These are notes,
         not problems: the game plays the same, but the players are harder to follow.
       </p>
 
@@ -2021,7 +2028,7 @@ export function HelpPage() {
         it.
       </p>
       <p>
-        <b>Roster card (PNG)…</b> first opens its choices, then <b>Make card</b> saves the picture. Goalies and
+        <b>Roster card (PNG)…</b>, under More roster tools on the Roster tab, first opens its choices, then <b>Make card</b> saves the picture. Goalies and
         skaters are listed apart, and each can be sorted by roster order, number, position, name, overall or any
         attribute, and reversed. The ratings can be written as NOSE4Web shows them (63-80 and so on), as the game's
         own ratings from 0 to 6, or as the values stored in the ROM. The overall column can be left out, and the
@@ -2076,7 +2083,7 @@ export function HelpPage() {
         you work. The number beside it in the list counts the changes. It is worked out from where things stand,
         not from what you clicked, so something changed and changed back is not listed, and a renamed player is one
         change however many lines he is on. <b>Download report</b> and <b>Copy report</b> give you the list as text
-        to pass on. Logos and banners are not listed.
+        to pass on. Logos and banners are listed since the ROM was opened, but not since the season began.
       </p>
       <p>
         The list can run from either of two starting points: <b>since this ROM was opened</b>, or{' '}
@@ -2114,13 +2121,13 @@ export function HelpPage() {
         Because players are matched by name, a renamed player reads as one leaving and another arriving in the
         summary. Each team's logos and banners are compared too, a line for each one that differs (its pixels, and
         a menu logo's or an SNES team logo's own colours); colours a picture shares with the team are among the
-        team's colours. The Changes page lists a logo or banner you have drawn or imported the same way.
+        team's colours. The Changes page lists a logo or banner you have drawn or imported the same way, since the ROM was opened.
       </p>
 
       <h3 id="help-download">Downloading your work</h3>
       <ul>
         <li>
-          <b>Download ROM</b> saves the complete edited ROM as a .bin file, ready for an emulator or flash cartridge.
+          <b>Download ROM</b> saves the complete edited ROM as a .bin file (Genesis) or .smc file (SNES), ready for an emulator or flash cartridge.
         </li>
         <li>
           <b>Download patch</b> saves an IPS file holding only your changes. Someone with the same ROM you opened can

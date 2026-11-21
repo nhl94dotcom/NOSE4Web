@@ -233,7 +233,7 @@ describe.skipIf(!hasRom)('a season and its changes', () => {
 })
 
 describe.skipIf(!hasRom)('strips that are hard to tell apart', () => {
-  const strips = (project: RomProject) => checkProject(project).filter((f) => f.message.includes('strip'))
+  const strips = (project: RomProject) => checkProject(project).filter((f) => /(home|away) colours/.test(f.message))
   const dressed = (project: RomProject, team: number, change: (palette: number[]) => number[]): RomProject => ({
     ...project,
     teams: project.teams.map((t, i) => (i === team ? { ...t, palette: change(t.palette) } : t)),
@@ -252,7 +252,7 @@ describe.skipIf(!hasRom)('strips that are hard to tell apart', () => {
     const boston = found.filter((f) => f.team === BOSTON)
     expect(boston).toHaveLength(1)
     expect(boston[0]).toMatchObject({ level: 'note' })
-    expect(boston[0].message).toBe('The home strip looks much like the away strip of Buffalo Sabres. When they visit, the two teams will be hard to tell apart.')
+    expect(boston[0].message).toBe('The home colours look much like the away colours of Buffalo Sabres. When they visit, the two teams will be hard to tell apart.')
     // Any other team it finds is one whose home strip is like Boston's.
     expect(found.every((f) => f.message.includes('Buffalo Sabres'))).toBe(true)
     // The same jersey with different pants is told apart.
@@ -266,7 +266,7 @@ describe.skipIf(!hasRom)('strips that are hard to tell apart', () => {
     const ghost = dressed(project, BOSTON, (palette) => palette.map((word, i) => (i > 0 && i < 16 ? ice : word)))
     const found = strips(ghost).filter((f) => f.message.includes('ice'))
     expect(found).toHaveLength(1)
-    expect(found[0].message).toBe('The home strip is close to the colour of the ice all over, so the players will be hard to see.')
+    expect(found[0].message).toBe('The home colours are close to the colour of the ice all over, so the players will be hard to see.')
     // White jerseys with dark pants, as most away strips are, show up fine.
     const white = dressed(project, BOSTON, (palette) => palette.map((word, i) => ([11, 12, 13].includes(i) ? 0x0eee : [3, 4, 5].includes(i) ? 0x0000 : word)))
     expect(strips(white).filter((f) => f.message.includes('ice'))).toEqual([])

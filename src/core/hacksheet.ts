@@ -183,7 +183,7 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   fightSeconds: 'How long a fight keeps each fighter in the box.',
   seasonTies: 'What happens to a regular-season game still tied: a tie, overtime until a goal, or a shootout.',
   threeStars: 'How the three stars of the game are picked.',
-  bonuses: 'Turns the hot and cold swings in player ratings on or off.',
+  bonuses: 'Whether players are hot or cold each game, and whether Edit Lines shows it truthfully.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
   diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle.',

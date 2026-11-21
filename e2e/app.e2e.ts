@@ -33,6 +33,11 @@ const rows = (page: Page, table: 'Goalies' | 'Skaters') =>
   page.locator('section').filter({ has: page.getByRole('heading', { name: table, exact: true }) }).locator('tbody tr')
 const nameOf = (row: Locator) => row.locator('input.name')
 const tick = (row: Locator) => row.locator('input[type=checkbox]').check()
+// The Roster tab's rarer tools (roster card, reset, quick edit keys) are folded under More roster tools.
+async function moreRosterTools(page: Page) {
+  const more = page.locator('details.more-tools')
+  if (!(await more.evaluate((d) => (d as HTMLDetailsElement).open))) await more.locator('summary').click()
+}
 
 async function openRom(page: Page) {
   await page.goto('/')
@@ -837,6 +842,7 @@ test.describe('with the NHL 94 ROM', () => {
     // The key 1 raises the game's second attribute, wherever its column is shown.
     const agility = row.locator('select.attribute[aria-label^="Agility of "]')
     const before = Number(await agility.inputValue())
+    await moreRosterTools(page)
     await page.getByLabel('Quick edit keys').check()
     await tick(row)
     await page.keyboard.press('Digit1')
@@ -1250,6 +1256,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.keyboard.press('Digit1')
     await expect(agility(row)).toHaveValue(String(before))
 
+    await moreRosterTools(page)
     await page.getByLabel('Quick edit keys').check()
     await page.getByLabel('Quick edit keys').blur()
     const number = Number(await jersey.inputValue())
@@ -1344,6 +1351,7 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Boston Bruins').click()
     await firstName.fill('Left Alone')
     await team(page, 'Anaheim Mighty Ducks').click()
+    await moreRosterTools(page)
 
     for (const what of ['whole team', 'names', 'roster', 'lines', 'home colours', 'away colours']) await expect(reset(what)).toBeDisabled()
     const openedLocation = await location.inputValue()
@@ -1904,6 +1912,7 @@ test.describe('with the NHL 94 ROM', () => {
     for (let i = 0; i < 20; i++) await page.keyboard.press('NumpadAdd')
     await expect(agility(0)).toHaveValue('6')
     // With the quick edit keys on as well, the box in hand is still the only thing changed.
+    await moreRosterTools(page)
     await page.getByLabel('Quick edit keys').check()
     await tick(skaters.nth(4))
     const other = await agility(4).inputValue()
@@ -2001,7 +2010,8 @@ test.describe('with the NHL 94 ROM', () => {
   test('releases and signs free agents from a team\'s page, and saves a roster card', async ({ page }) => {
     await openRom(page)
     await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
-    await expect(page.getByRole('button', { name: 'Sign', exact: true })).toBeDisabled()
+    // With no free agents there is nothing to sign, so the button is not shown.
+    await expect(page.getByRole('button', { name: 'Sign', exact: true })).toHaveCount(0)
     const skater = rows(page, 'Skaters').nth(3)
     const released = await nameOf(skater).inputValue()
     await tick(skater)
@@ -2024,6 +2034,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
 
     // The roster as a picture.
+    await moreRosterTools(page)
     await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
     const card = await downloadFrom(page, page.getByRole('button', { name: 'Make card' }))
     expect(card.suggestedFilename()).toBe('Boston_Bruins_roster.png')
@@ -2065,6 +2076,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     // The roster card: sorted by Speed, the game's 0-6 ratings, no overall, made without an error.
     await team(page, 'Boston Bruins').click()
+    await moreRosterTools(page)
     await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
     const choices = page.getByRole('group', { name: 'Roster card choices' })
     await choices.getByLabel('Sort skaters by', { exact: true }).selectOption({ label: 'Speed, highest first' })
@@ -2082,6 +2094,7 @@ test.describe('with the NHL 94 ROM', () => {
     expect((await headings(skaterTable)).slice(7, 9)).toEqual(['Chk', 'Wgt'])
     await page.reload()
     await openRom(page)
+    await moreRosterTools(page)
     await page.getByRole('button', { name: 'Roster card (PNG)…' }).click()
     await expect(page.getByLabel('Sort skaters by', { exact: true })).toHaveValue('attribute:2')
     await expect(page.getByLabel('Show overall')).not.toBeChecked()

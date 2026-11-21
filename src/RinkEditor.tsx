@@ -39,7 +39,7 @@ export function RinkEditor({ palette, original, onChange, edition }: Props) {
     <main className="team">
       <section data-tab-always>
         <h2>Rink colours</h2>
-        <p className="note">These colours are shared by every team's home rink.</p>
+        <p className="note">Every game is played on this rink, whoever is home.</p>
         <p>
           <select value={view} onChange={(e) => setView(e.target.value)}>
             {views.map((v) => (

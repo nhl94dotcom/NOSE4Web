@@ -63,7 +63,7 @@ export function SnesBannerColoursEditor({ project, original, team, onChange }: P
       setCopied(
         `This team's banner now has ${labels[source]}'s colours${withName ? ` and reads ${name}` : ''}. Undo takes it back.` +
           (short
-            ? ` But the banner names have no room for it: they need ${short} ${short === 1 ? 'letter' : 'letters'} more than this ROM holds, so the game keeps showing the old name until some are shortened (Banner name, above).`
+            ? ` But the banner names have no room for it: they need ${short} ${short === 1 ? 'letter' : 'letters'} more than this ROM holds, so the game keeps showing the old name until some are shortened (Banner name, on the Team tab).`
             : ''),
       )
       setProblem('')

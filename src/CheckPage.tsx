@@ -68,7 +68,7 @@ export function CheckPage({ project, findings, onGoToTeam, onChange }: Props) {
         </summary>
         <p className="note">
           Limits your league keeps to, which the game itself does not care about. Fill in the ones you want and
-          leave the rest empty; every team is then checked against them above. They are kept with your work in this
+          leave the rest empty; the list below checks every team against them. They are kept with your work in this
           browser and in a project file, not in the ROM.
           {project.game.overallIsEstimate &&
             ' This ROM works out overall ratings in its own way, so limits on overall here go by a plain average of each player\'s values.'}

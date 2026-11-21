@@ -1004,3 +1004,26 @@ main > [data-tab-hidden] {
   max-width: none;
   margin: 0.5rem 1rem;
 }
+
+/* The Roster tab: what can be done with the players ticked, shown while some are. */
+.ticked-tools {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--page);
+  border-top: 3px solid var(--accent);
+  padding: 0.2rem 0.8rem;
+  margin: 0.5rem 0 0;
+}
+.ticked-tools p {
+  margin: 0.4rem 0;
+}
+
+/* Rarer tools, folded away under a line that opens them. */
+.more-tools {
+  margin: 1rem 0;
+}
+.more-tools > summary {
+  cursor: pointer;
+  color: var(--accent);
+}

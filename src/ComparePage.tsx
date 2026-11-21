@@ -36,7 +36,7 @@ export function ComparePage({ project, name }: Props) {
       <p className="note">
         Choose another ROM to see how the one in the editor differs from it, for example last season's ROM against
         this season's. The other ROM is only read; the editor keeps what it has. To see what you have changed since
-        opening this ROM, or since the season began, use Changes in the list on the left.
+        opening this ROM, or since the season began, use the Changes page.
       </p>
       <p>
         <label className="button">
