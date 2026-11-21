@@ -1,7 +1,7 @@
 import { CLOCKWISE_GAPS, CLOCKWISE_LENGTHS, CLOCKWISE_ORIGINAL, CLOCKWISE_PATCHED } from './clockwisedata'
 import { fightState } from './fight'
 import { unpackTiles } from './genesisunpack'
-import { FACEOFF_PACKED_TAPE, FACEOFF_TAPE, FIGHT_TAPE, type Tape } from './tapedata'
+import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_TAPE, FACEOFF_TAPE_FIRST, FIGHT_TAPE, type Tape } from './tapedata'
 
 // Clockwise's sprite edit for NHL 94 on the Genesis, Clockwise's IPS patch from the
 // NHL94 forum: touch-ups to the players' sprite tiles (stick tape, eye colour
@@ -155,8 +155,23 @@ interface Touch {
 }
 const hex = (text: string) => Uint8Array.from(text.match(/../g)!, (pair) => parseInt(pair, 16))
 const touches = (tapes: readonly Tape[]): Touch[] => tapes.map(([at, original, patched]) => ({ at, original: hex(original), patched: hex(patched) }))
-let tape: { fight: Touch[]; faceoff: Touch[]; packed: Touch[] } | null = null
-const tapes = () => (tape ??= { fight: touches(FIGHT_TAPE), faceoff: touches(FACEOFF_TAPE), packed: touches(FACEOFF_PACKED_TAPE) })
+interface Tapes {
+  fight: Touch[]
+  faceoff: Touch[]
+  packed: Touch[]
+  // The first faceoff tape's (tapedata.ts), to take out.
+  firstFaceoff: Touch[]
+  firstPacked: Touch[]
+}
+let tape: Tapes | null = null
+const tapes = (): Tapes =>
+  (tape ??= {
+    fight: touches(FIGHT_TAPE),
+    faceoff: touches(FACEOFF_TAPE),
+    packed: touches(FACEOFF_PACKED_TAPE),
+    firstFaceoff: touches(FACEOFF_TAPE_FIRST),
+    firstPacked: touches(FACEOFF_PACKED_TAPE_FIRST),
+  })
 const fits = (rom: Uint8Array, at: number, bytes: Uint8Array) => at >= 0 && at + bytes.length <= rom.length && is(rom, at, bytes)
 
 // Each alone, as Clockwise's records: in where the ROM has the bytes before, out where it has the tape's.
@@ -198,10 +213,11 @@ function faceoffSite(rom: Uint8Array): { tiles: number; packed: boolean } | null
 }
 
 // Packed, the stream's changes go in all together where it has all of EA's bytes, and only if it then
-// unpacks to the taped tiles.
+// unpacks to the taped tiles. The first tape comes out first, where the ROM has it.
 function putFaceoffTape(rom: Uint8Array): void {
   const site = faceoffSite(rom)
   if (!site) return
+  takeOutFirstFaceoffTape(rom, site)
   const { faceoff, packed } = tapes()
   if (!site.packed) return putEach(rom, faceoff, site.tiles)
   if (!packed.every((t) => fits(rom, site.tiles + t.at, t.original))) return
@@ -211,12 +227,24 @@ function putFaceoffTape(rom: Uint8Array): void {
   if (!tiles || !faceoff.every((t) => is(tiles, t.at, t.patched))) rom.set(before, site.tiles)
 }
 
+const takeOutAll = (rom: Uint8Array, list: Touch[], base: number) => {
+  if (list.every((t) => fits(rom, base + t.at, t.patched))) for (const t of list) rom.set(t.original, base + t.at)
+}
+// The first tape out: plain, each record of it in full (as the toe-end tape's records sit inside its blades,
+// it comes out before the toe-end tape does); packed, its stream changes together.
+function takeOutFirstFaceoffTape(rom: Uint8Array, site: { tiles: number; packed: boolean }): void {
+  const { firstFaceoff, firstPacked } = tapes()
+  if (site.packed) takeOutAll(rom, firstPacked, site.tiles)
+  else takeOutEach(rom, firstFaceoff, site.tiles)
+}
+
 function takeOutFaceoffTape(rom: Uint8Array): void {
   const site = faceoffSite(rom)
   if (!site) return
+  takeOutFirstFaceoffTape(rom, site)
   const { faceoff, packed } = tapes()
   if (!site.packed) return takeOutEach(rom, faceoff, site.tiles)
-  if (packed.every((t) => fits(rom, site.tiles + t.at, t.patched))) for (const t of packed) rom.set(t.original, site.tiles + t.at)
+  takeOutAll(rom, packed, site.tiles)
 }
 
 // The fight frames' tape, where the fighting patch is in (it writes the frames at fixed places in the first MB).
@@ -232,6 +260,6 @@ export function takeOutFightTape(rom: Uint8Array): void {
 }
 
 // NOSE4Web's additions, as the editor reads them (for the tests).
-export function clockwiseExtras(): { fight: readonly Touch[]; faceoff: readonly Touch[]; packed: readonly Touch[] } {
+export function clockwiseExtras(): Readonly<Tapes> {
   return tapes()
 }

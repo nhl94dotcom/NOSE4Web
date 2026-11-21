@@ -43,9 +43,63 @@ export const FIGHT_TAPE: Tape[] = [
   [0xa034e, '0eee', '022e'],
 ]
 
-// The faceoff close-up (FaceOffSprites, 179 tiles): the centres' sticks taped. 81 bytes, at
+// The faceoff close-up (FaceOffSprites, 179 tiles): tape on the toe end of each centre's stick. 22 runs, at
 // offsets into its tiles (tile * 32 + byte), as a ROM with them plain has them (the CDL ROMs at $11EA92).
 export const FACEOFF_TAPE: Tape[] = [
+  [0xcfa, '0eee', '0222'],
+  [0xcfe, '0eee', '0222'],
+  [0xd38, 'eeeeee', '22222e'],
+  [0xd3c, 'eeeeee', '22222e'],
+  [0x1135, 'eeeeee', '222222'],
+  [0x1139, 'eeeeee', '222222'],
+  [0x1154, 'ee', '2e'],
+  [0x1158, 'ee', '2e'],
+  [0x12b2, 'eeee', '2222'],
+  [0x12b6, 'eeee', '2222'],
+  [0x12d0, 'eeee', '222e'],
+  [0x12d4, 'eeee', '222e'],
+  [0x13f7, 'ee', '22'],
+  [0x13fb, 'ee', '22'],
+  [0x1414, 'eeeee0', '222220'],
+  [0x1418, 'eeeee0', '222220'],
+  [0x1472, 'eeee', 'e222'],
+  [0x1476, 'eeee', 'e222'],
+  [0x1490, 'eeee', '2222'],
+  [0x1494, 'eeee', '2222'],
+  [0x1608, '0eeeeeeeeeeeee', '02222222222222'],
+  [0x1610, 'ee', '22'],
+]
+
+// The same for the original game, which keeps the tiles packed (EA's bytecode, genesisunpack.ts): where
+// its packed stream (from the anim + 10, after the tile count) changes, so that it unpacks to the tiles with
+// FACEOFF_TAPE's changes. Worked out by re-encoding, at the same length, only the stretches of the stream that
+// make or copy the bytes that change (221 bytes in 19 runs of its 3,794); the rest is EA's as it was. These go
+// in and out together, not each alone, as later parts of the stream copy from earlier ones.
+export const FACEOFF_PACKED_TAPE: Tape[] = [
+  [0x9ad, '21000e5b01fff020001f5950000f86409b80000e803c5a2f20edc7990035ee', '800d5b03fff0001f5950000fc89f000102225a238dc720a8000322222eee5a'],
+  [0x9d0, 'f0827051813600ee81be98fc00f09b3f2300cb21019a9c20020cc8a92002', '00e0a0010eee51c8c0c000e0fa5000f08a402f0ccb00009a9c000cc8a900'],
+  [0xc42, '81159e8030ee5a81cc22e00e', '509f8030225a81cc2200ee21'],
+  [0xc55, 'ee', '2e'],
+  [0xccc, '00eec15a8e20000e821d4400e0854082152200e0ef3f732101889c20020caaa95801899a2002', 'e5438e20000e2203ee222eee5a00e031ff86152200e02c86df610d889c000caaa9000c899a00'],
+  [0xd8e, 'e607812500ee22', 'd8ecf2070ee000'],
+  [0xd96, '0e820940', '00eeee22'],
+  [0xd9d, '3f00811f00e0', '232f02222220'],
+  [0xda8, '9a8084cc2e010bbb200b9a9bbbd0b8a9dbd0dd8a8ddd857c858031ee00', '2b8fcc2f0e0bbb009a9bbbd0b8a9dbd0dd8a8ddd827c888004eeeee222'],
+  [0xdc6, '9d7b5c891f080644', '589c7b5c891f1306'],
+  [0xdcf, '6074411447445802447444d4035677', '446074411447444114447444444756'],
+  [0xddf, '652b050555', '77652b0905'],
+  [0xde5, '505556c00065c00065', '555055565655656550'],
+  [0xe60, '80d9', 'e0fe'],
+  [0xe9c, '88048036000f5800', '5e8336040f2222ff'],
+  [0xea5, 'c17801f11f25010eee48', '7a01f11f25030eee0222'],
+  [0xeb0, '8197', 'e12b'],
+  [0xebc, '8120e2', '00ee81'],
+  [0xec0, '85', '89'],
+]
+
+// NOSE4Web's first faceoff tape (2026-11-20, 15dfee5), which taped the whole blades: recognised so that it
+// comes out and the toe-end tape above goes in its place.
+export const FACEOFF_TAPE_FIRST: Tape[] = [
   [0xcfa, '0eee', '0222'],
   [0xcfe, '0eee', '0222'],
   [0xd38, 'eeeeeeeeeeeeeeee', '2222222222222222'],
@@ -75,12 +129,8 @@ export const FACEOFF_TAPE: Tape[] = [
   [0x1610, 'ee', '22'],
 ]
 
-// The same for the original game, which keeps the tiles packed (EA's bytecode, genesisunpack.ts): where
-// its packed stream (from the anim + 10, after the tile count) changes, so that it unpacks to the tiles with
-// FACEOFF_TAPE's changes. Worked out by re-encoding, at the same length, only the stretches of the stream that
-// make or copy the bytes that change (149 bytes in 29 runs of its 3,794); the rest is EA's as it was. These go
-// in and out together, not each alone, as later parts of the stream copy from earlier ones.
-export const FACEOFF_PACKED_TAPE: Tape[] = [
+// And its packed stream for the original game (149 bytes in 29 runs).
+export const FACEOFF_PACKED_TAPE_FIRST: Tape[] = [
   [0x9c0, '0e', '02'],
   [0x9c2, '3c', '33'],
   [0x9cb, 'ee', '22'],
