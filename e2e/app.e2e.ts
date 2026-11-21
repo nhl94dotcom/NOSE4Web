@@ -43,7 +43,7 @@ async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
   await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(15)
+  await expect(pageEntries(page)).toHaveCount(16)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -145,7 +145,13 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(section('Lines').locator('h2')).toHaveAttribute('aria-expanded', 'true')
     // Each other page has its own, the first to start; the Hacks page's Apply under every tab.
     await entry(page, 'Game settings').click()
-    await expect(tab('Main menu')).toHaveAttribute('aria-selected', 'true')
+    await expect(tab('Menu and clock')).toHaveAttribute('aria-selected', 'true')
+    await expect(section('Clock')).toBeVisible()
+    await expect(section('Playoff draws')).toBeHidden()
+    // Its sections in groups, Move teams last.
+    await expect(tabs.getByRole('tab')).toHaveText(['Menu and clock', 'Playoff draws', 'Screen text', 'Pictures', 'Music', 'Move teams', 'All'])
+    await tab('Screen text').click()
+    for (const name of ["Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages']) await expect(section(name)).toBeVisible()
     await expect(section('Clock')).toBeHidden()
     await entry(page, 'Hacks').click()
     await expect(tab('Fixes')).toHaveAttribute('aria-selected', 'true')
@@ -1551,7 +1557,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(15)
+  await expect(pageEntries(page)).toHaveCount(16)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2126,11 +2132,15 @@ test.describe('with the NHL 94 ROM', () => {
     expect(readFileSync(await report.path(), 'utf8')).toContain('Changes from the ROM as opened to Season_12')
     await page.screenshot({ path: 'test-results/shots/changes.png', fullPage: true })
 
-    // Start the next season: the old one is saved, the name moves on, and the count starts again.
+    // Start the next season, on its own page: the old one is saved, the name moves on, and the count starts again.
+    await main.getByRole('button', { name: 'Go to New season' }).click()
+    await expect(page.getByRole('heading', { name: 'Start a new season' })).toBeVisible()
     await expect(main.getByLabel('Name for the new season')).toHaveValue('Season_13')
     const saved = await downloadFrom(page, main.getByRole('button', { name: 'Start Season_13' }))
     expect(saved.suggestedFilename()).toBe('Season_12_project.json')
     await expect(page.locator('input.rom-name')).toHaveValue('Season_13')
+    await expect(main.getByText('Season_13 has begun.', { exact: false })).toBeVisible()
+    await entry(page, /^Changes/).click()
     await expect(main.getByText('Nothing has changed since the season began.')).toBeVisible()
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await expect(main.getByLabel(/Since Season_13 began/)).toBeChecked()
@@ -2427,7 +2437,7 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(15)
+  await expect(pageEntries(page)).toHaveCount(16)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -2897,7 +2907,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(15)
+  await expect(pageEntries(page)).toHaveCount(16)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 
@@ -2911,7 +2921,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Announcer picture', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Playoff draws', 'Organ songs', 'Game music', 'Move teams'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture', 'Organ songs', 'Game music', 'Move teams'])
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.locator('tbody tr')).toHaveCount(3)
     const menuMusic = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Menu music' }).getByRole('button', { name: 'Export MIDI' }))

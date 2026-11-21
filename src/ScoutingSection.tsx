@@ -32,7 +32,7 @@ export function ScoutingSection({ settings, original, onChange }: Props) {
   const setLine = (i: number, text: string) =>
     onChange({ ...settings, scouting: { ...scouting, lines: scouting.lines.map((line, j) => (j === i ? { ...line, text: text.replace(/[\r\n]+/g, ' ') } : line)) } })
   return (
-    <section id="scouting" data-tab="Matchup text">
+    <section id="scouting" data-tab="Screen text">
       <h2>Ron Barr's matchup screen text</h2>
       <p>
         <ResetButton what="text" changed={settingsPartChanged(settings, original, 'scouting')} onReset={() => onChange(resetSettingsPart(settings, original, 'scouting'))} />{' '}

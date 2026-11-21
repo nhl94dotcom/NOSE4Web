@@ -138,7 +138,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Music">
       <h2>Organ songs</h2>
       {nhl95 ? (
         <p className="note">
@@ -325,7 +325,7 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
   const noteName = (note: number) => `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][note % 12]}${Math.floor(note / 12) - 1}`
 
   return (
-    <section>
+    <section data-tab="Music">
       <h2>Game music</h2>
       <p className="note">
         The game's own music besides the organ. Play gives a rough idea of a piece in the browser, without its drums:
@@ -488,7 +488,7 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Music">
       <h2>Organ songs</h2>
       <p className="note">
         The songs the teams' organ songs and the random songs use. Play plays one on the game's own organ. Export MIDI
@@ -672,7 +672,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
   const valueOf = (choice: SnesPartChoice | undefined) => (typeof choice === 'object' ? `${choice.sample}:${choice.entry}` : String(choice ?? 'out'))
 
   return (
-    <section>
+    <section data-tab="Music">
       <h2>Game music</h2>
       <p className="note">
         The game's own music besides the organ. Play plays a piece on the game's own instruments. Export MIDI saves it

@@ -52,7 +52,7 @@ export function SplashScreenSection({ project, opened, onChange }: Props) {
   }
 
   return (
-    <section>
+    <section data-tab="Pictures">
       <h2>Splash screen</h2>
       <p className="note">
         The second screen the game shows when it starts, after EA Sports: High Score Productions and Mark Lesser

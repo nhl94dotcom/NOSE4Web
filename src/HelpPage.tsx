@@ -66,8 +66,8 @@ export function HelpPage() {
         </li>
         <li>
           Pick a page from the list on the left. It is in groups: <b>Game</b> (Teams, Game settings, Hacks and Rink
-          colours), <b>League administration</b> (the League page, Trade, Bulk changes and Import a
-          team), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
+          colours), <b>League administration</b> (the League page, Trade, Bulk changes, Import a
+          team and New season), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
           Compare ROMs), then Help.
         </li>
         <li>
@@ -909,6 +909,11 @@ export function HelpPage() {
       </p>
 
       <h3 id="help-settings">Game settings</h3>
+      <p>
+        The page's tabs are <b>Menu and clock</b>, <b>Playoff draws</b>, <b>Screen text</b> (the matchup text, the
+        credits and the rule messages), <b>Pictures</b> (the announcer, the splash screen and the menu picture),{' '}
+        <b>Music</b> (organ songs and game music) and <b>Move teams</b>. Each game shows only the ones it has.
+      </p>
       <ul>
         <li>
           <b>Main menu starting choices</b>: what each item on the game's main menu is set to when the game starts:
@@ -2097,9 +2102,9 @@ export function HelpPage() {
         <b>since the season began</b>.
       </p>
       <p>
-        <b>Start a new season</b>, at the foot of the page, marks the teams as they stand as a season's starting
+        <b>Start a new season</b>, on the <b>New season</b> page (under League administration), marks the teams as they stand as a season's starting
         point. It gives the work the new season's name, counting up from the old one, and can first save a project
-        file of the season just ended and let the free agents go. From then on the page can list what has changed
+        file of the season just ended and let the free agents go. From then on the Changes page can list what has changed
         since the season began, however often you close the editor or download the ROM in between, because the
         starting point is kept with your work in this browser and in a project file. It is not in the ROM. Your
         league rules carry over. Starting another season replaces the starting point.

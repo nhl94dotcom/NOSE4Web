@@ -26,13 +26,13 @@ interface Props {
   original: Settings
   teamNames: string[]
   onChange: (settings: Settings) => void
-  // Sections that come right after the main menu's starting choices and the clock (the announcer, the matchup text).
-  first?: ReactNode
-  // More sections for the page, at its end, such as the splash screen.
+  // Sections that start the screen text, before the credits and rule messages (the matchup text).
+  screenText?: ReactNode
+  // More sections for the page, at its end: the pictures, the music and Move teams.
   children?: ReactNode
 }
 
-export function SettingsEditor({ game, settings, original, teamNames, onChange, first, children }: Props) {
+export function SettingsEditor({ game, settings, original, teamNames, onChange, screenText, children }: Props) {
   // Playoff draws ticked for copying and pasting.
   const [ticked, setTicked] = useState<number[]>([])
   const [notice, setNotice] = useState('')
@@ -105,7 +105,8 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
 
   return (
     <main className="team">
-      <section data-tab="Main menu">
+      <p className="note">How the game plays and looks for everyone: menu choices, the clock, text on screen, pictures and music.</p>
+      <section data-tab="Menu and clock">
         <h2>Main menu starting choices</h2>
         <p>
           <ResetButton
@@ -169,7 +170,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
       </section>
 
       {settings.periodLengths.length > 0 && (
-        <section>
+        <section data-tab="Menu and clock">
           <h2>Clock</h2>
           <p className="note">
             Each period length the main menu offers can be any time you like, up to 99:59: type it in seconds (7
@@ -258,52 +259,6 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
         </section>
       )}
 
-      {first}
-
-      {settings.credits && <CreditsSection settings={settings} original={original} onChange={onChange} />}
-
-      {settings.rules.length > 0 && (
-        <section>
-          <h2>Rule messages</h2>
-          <p>
-            <ResetButton
-              what="rule messages"
-              changed={settingsPartChanged(settings, original, 'rules')}
-              onReset={() => onChange(resetSettingsPart(settings, original, 'rules'))}
-            />
-          </p>
-          <table className="left">
-            <thead>
-              <tr>
-                <th>Message</th>
-                <th>Fade-out delay</th>
-                <th>Penalty minutes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {settings.rules.map((rule, i) => (
-                <tr key={rule.offset}>
-                  <td>{textInput(rule, (next) => onChange({ ...settings, rules: replace(settings.rules, i, next) }))}</td>
-                  <td>
-                    {byteInput(rule.delay, (delay) =>
-                      onChange({ ...settings, rules: replace(settings.rules, i, { ...rule, delay }) }),
-                    )}
-                  </td>
-                  <td>
-                    {byteInput(rule.penaltyMinutes, (penaltyMinutes) =>
-                      onChange({ ...settings, rules: replace(settings.rules, i, { ...rule, penaltyMinutes }) }),
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="note">
-            Several messages appear more than once because the game keeps separate copies for different situations.
-          </p>
-        </section>
-      )}
-
       {settings.playoffDraws.length > 0 && (
         <section>
           <h2>Playoff draws</h2>
@@ -385,6 +340,53 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
           </table>
         </section>
       )}
+
+      {screenText}
+
+      {settings.credits && <CreditsSection settings={settings} original={original} onChange={onChange} />}
+
+      {settings.rules.length > 0 && (
+        <section data-tab="Screen text">
+          <h2>Rule messages</h2>
+          <p>
+            <ResetButton
+              what="rule messages"
+              changed={settingsPartChanged(settings, original, 'rules')}
+              onReset={() => onChange(resetSettingsPart(settings, original, 'rules'))}
+            />
+          </p>
+          <table className="left">
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Fade-out delay</th>
+                <th>Penalty minutes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {settings.rules.map((rule, i) => (
+                <tr key={rule.offset}>
+                  <td>{textInput(rule, (next) => onChange({ ...settings, rules: replace(settings.rules, i, next) }))}</td>
+                  <td>
+                    {byteInput(rule.delay, (delay) =>
+                      onChange({ ...settings, rules: replace(settings.rules, i, { ...rule, delay }) }),
+                    )}
+                  </td>
+                  <td>
+                    {byteInput(rule.penaltyMinutes, (penaltyMinutes) =>
+                      onChange({ ...settings, rules: replace(settings.rules, i, { ...rule, penaltyMinutes }) }),
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="note">
+            Several messages appear more than once because the game keeps separate copies for different situations.
+          </p>
+        </section>
+      )}
+
       {children}
     </main>
   )
@@ -405,7 +407,7 @@ function CreditsSection({ settings, original, onChange }: { settings: Settings; 
   const fits = creditsFit(credits)
   const nameless = snes && credits.pages.some((page) => page.length < 2)
   return (
-    <section data-tab="Credits">
+    <section data-tab="Screen text">
       <h2>Title screen credits</h2>
       <p>
         <ResetButton what="credits" changed={settingsPartChanged(settings, original, 'credits')} onReset={() => onChange(resetSettingsPart(settings, original, 'credits'))} />{' '}

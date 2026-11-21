@@ -1,6 +1,7 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { BulkPage } from './BulkPage'
 import { ChangesPage } from './ChangesPage'
+import { NewSeasonPage } from './NewSeasonPage'
 import { CheckPage } from './CheckPage'
 import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
@@ -90,6 +91,7 @@ const TRADE = -11
 const PROJECT = -12
 const CHANGES = -13
 const HACKS = -14
+const NEW_SEASON = -15
 // The pages that keep work not done yet (pagedrafts.ts).
 const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
@@ -457,13 +459,9 @@ export default function App() {
             original={opened.settings}
             teamNames={teamNames}
             onChange={(settings) => change({ ...current, settings })}
-            first={
-              <>
-                {isGenesis94(current.game) || current.game.platform === 'snes' ? <AnnouncerSection project={current} onChange={change} /> : null}
-                <ScoutingSection settings={current.settings} original={opened.settings} onChange={(settings) => change({ ...current, settings })} />
-              </>
-            }
+            screenText={<ScoutingSection settings={current.settings} original={opened.settings} onChange={(settings) => change({ ...current, settings })} />}
           >
+            {(isGenesis94(current.game) || current.game.platform === 'snes') && <AnnouncerSection project={current} onChange={change} />}
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
@@ -509,7 +507,9 @@ export default function App() {
           />
         )
       case CHANGES:
-        return <ChangesPage project={current} opened={asOpenedRaw} name={name || 'rom'} onChange={change} onNameChange={setName} />
+        return <ChangesPage project={current} opened={asOpenedRaw} name={name || 'rom'} onGoToNewSeason={() => setSelected(NEW_SEASON)} />
+      case NEW_SEASON:
+        return <NewSeasonPage project={current} opened={asOpenedRaw} name={name || 'rom'} onChange={change} onNameChange={setName} />
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
@@ -646,6 +646,7 @@ export default function App() {
     [PROJECT]: 'Project file',
     [CHANGES]: 'Changes',
     [HACKS]: 'Hacks',
+    [NEW_SEASON]: 'New season',
   }
   const pageName = selected >= 0 ? teamNames[selected] : PAGE_NAMES[selected]
 
@@ -733,6 +734,7 @@ export default function App() {
           {entry(TRADE, project.freeAgents.length > 0 ? `Trade (${project.freeAgents.length} free)` : 'Trade')}
           {entry(BULK, 'Bulk changes')}
           {entry(IMPORT_TEAM, 'Import a team')}
+          {entry(NEW_SEASON, 'New season')}
           <div className="group">Files</div>
           {entry(CSV, 'Spreadsheet files')}
           {(project.graphicsSupported || snesPictureKinds(project).length > 0 || anyPhotos(project)) && entry(PICTURES, 'Picture files')}
