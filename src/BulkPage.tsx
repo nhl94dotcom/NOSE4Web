@@ -1,69 +1,42 @@
-import { useState } from 'react'
-import {
-  applyBulk,
-  BULK_ACTIONS,
-  BULK_GROUPS,
-  bulkAttributes,
-  bulkValues,
-  previewBulk,
-  type BulkAction,
-  type BulkChange,
-  type BulkGroup,
-} from './core/bulk'
-import { isRating, isWeight, WEIGHT_BASES, weightBase } from './core/attributes'
+import { useEffect, useState } from 'react'
+import { applyBulk, BULK_ACTIONS, BULK_GROUPS, previewBulk } from './core/bulk'
+import { isRating, isWeight } from './core/attributes'
 import type { RomProject } from './core/rom'
 import { rosterAverage } from './core/shownrating'
 import { teamLabels } from './core/team'
 import { NumberField } from './NumberField'
+import { BULK_START, bulkSetup, people, type BulkForm, type BulkKept } from './pagedrafts'
 import { useAttributeOrder } from './useColumnOrder'
 
 const PREVIEW_LIMIT = 300
-const optionalNumber = (text: string) => (text.trim() === '' || Number.isNaN(Number(text)) ? null : Number(text))
 
 interface Props {
   project: RomProject
   onChange: (project: RomProject) => void
+  // The form as it was left, kept while other pages show (pagedrafts.ts).
+  kept: BulkKept | null
+  onKeep: (kept: BulkKept) => void
 }
 
-export function BulkPage({ project, onChange }: Props) {
-  const [group, setGroup] = useState<BulkGroup>('skaters')
-  const [team, setTeam] = useState<number | null>(null)
-  const [attribute, setAttribute] = useState(-1)
-  const [action, setAction] = useState<BulkAction>('raise')
-  const [amount, setAmount] = useState(1)
-  const [atLeast, setAtLeast] = useState('')
-  const [atMost, setAtMost] = useState('')
+export function BulkPage({ project, onChange, kept, onKeep }: Props) {
+  const [form, setForm] = useState<BulkForm>(kept?.form ?? BULK_START)
+  const [touched, setTouched] = useState(kept?.touched ?? false)
   const [notice, setNotice] = useState('')
+  const edit = (part: Partial<BulkForm>) => {
+    setForm({ ...form, ...part })
+    setTouched(true)
+    setNotice('')
+  }
+  const { group, team, atLeast, atMost } = form
 
   // Listed in the order the tables show the columns in.
   const order = useAttributeOrder(project.game, group === 'goalies' ? 'goalies' : 'skaters')
-  const attributes = bulkAttributes(project.game, group).sort((a, b) => order.indexOf(a.index) - order.indexOf(b.index))
-  // Goalies and skaters have different attributes, so the choice may not carry over.
-  const chosen = attributes.find((a) => a.index === attribute) ?? attributes[0]
-  const values = bulkValues(chosen.kind)
-  // Weights can also be moved from the base another ROM was set up with.
-  const ownBase = weightBase(chosen.kind)
-  const usable: BulkAction = action === 'fromBase' && !isWeight(chosen.kind) ? 'raise' : action
-  const steps = usable === 'raise' || usable === 'lower'
-  const bases = WEIGHT_BASES.filter((base) => base !== ownBase)
-  const change: BulkChange = {
-    group,
-    team,
-    attribute: chosen.index,
-    action: usable,
-    amount:
-      usable === 'fromBase'
-        ? (bases.find((base) => base === amount) ?? (ownBase === 140 ? 144 : 140))
-        : steps
-          ? Math.max(1, amount)
-          : (values.find((v) => v.value === amount) ?? values[0]).value,
-    overallAtLeast: optionalNumber(atLeast),
-    overallAtMost: optionalNumber(atMost),
-  }
+  const { attributes, chosen, values, ownBase, usable, steps, bases, change } = bulkSetup(project, form, order)
+  // The attribute chosen is kept by its index, so that it is the same one whatever the order.
+  useEffect(() => onKeep({ form: { ...form, attribute: chosen.index }, touched }), [form, touched, chosen.index, onKeep])
   const effects = previewBulk(project, change)
   const names = teamLabels(project.teams, project.game)
   const text = (value: number) => values.find((v) => v.value === value)?.text ?? String(value)
-  const people = (count: number) => (count === 1 ? '1 player' : `${count} players`)
 
   // Each team's overall shown, set to its roster's average.
   const shownTeams = project.teams.flatMap((t, i) => (t.shownOverall === undefined ? [] : [i]))
@@ -87,7 +60,7 @@ export function BulkPage({ project, onChange }: Props) {
       <div className="fields">
         <label>
           Who
-          <select aria-label="Players to change" value={group} onChange={(e) => setGroup(e.target.value as BulkGroup)}>
+          <select aria-label="Players to change" value={group} onChange={(e) => edit({ group: e.target.value as BulkForm['group'] })}>
             {BULK_GROUPS.map((g) => (
               <option key={g.value} value={g.value}>
                 {g.label}
@@ -97,7 +70,7 @@ export function BulkPage({ project, onChange }: Props) {
         </label>
         <label>
           On
-          <select className="wide" aria-label="Teams to change" value={team ?? ''} onChange={(e) => setTeam(e.target.value === '' ? null : Number(e.target.value))}>
+          <select className="wide" aria-label="Teams to change" value={team ?? ''} onChange={(e) => edit({ team: e.target.value === '' ? null : Number(e.target.value) })}>
             <option value="">Every team</option>
             {names.map((name, i) => (
               <option key={i} value={i}>
@@ -108,7 +81,7 @@ export function BulkPage({ project, onChange }: Props) {
         </label>
         <label>
           Attribute
-          <select className="wide" aria-label="Attribute to change" value={chosen.index} onChange={(e) => setAttribute(Number(e.target.value))}>
+          <select className="wide" aria-label="Attribute to change" value={chosen.index} onChange={(e) => edit({ attribute: Number(e.target.value) })}>
             {attributes.map((a) => (
               <option key={a.index} value={a.index}>
                 {a.name}
@@ -124,10 +97,7 @@ export function BulkPage({ project, onChange }: Props) {
             className="wide"
             aria-label="Kind of change"
             value={usable}
-            onChange={(e) => {
-              setAction(e.target.value as BulkAction)
-              setAmount(1)
-            }}
+            onChange={(e) => edit({ action: e.target.value as BulkForm['action'], amount: 1 })}
           >
             {BULK_ACTIONS.map((a) => (
               <option key={a.value} value={a.value}>
@@ -140,7 +110,7 @@ export function BulkPage({ project, onChange }: Props) {
         <label>
           {usable === 'fromBase' ? 'Set for a base weight of' : steps ? 'Steps' : 'Value'}
           {usable === 'fromBase' ? (
-            <select aria-label="Base weight the players were set for" value={change.amount} onChange={(e) => setAmount(Number(e.target.value))}>
+            <select aria-label="Base weight the players were set for" value={change.amount} onChange={(e) => edit({ amount: Number(e.target.value) })}>
               {bases.map((base) => (
                 <option key={base} value={base}>
                   {base}
@@ -148,9 +118,9 @@ export function BulkPage({ project, onChange }: Props) {
               ))}
             </select>
           ) : steps ? (
-            <NumberField min={1} max={15} value={change.amount} onValue={setAmount} />
+            <NumberField min={1} max={15} value={change.amount} onValue={(amount) => edit({ amount })} />
           ) : (
-            <select aria-label="Value to use" value={change.amount} onChange={(e) => setAmount(Number(e.target.value))}>
+            <select aria-label="Value to use" value={change.amount} onChange={(e) => edit({ amount: Number(e.target.value) })}>
               {values.map((v) => (
                 <option key={v.value} value={v.value}>
                   {v.text}
@@ -161,11 +131,11 @@ export function BulkPage({ project, onChange }: Props) {
         </label>
         <label>
           Only overall at least
-          <input className="num" inputMode="numeric" placeholder="any" value={atLeast} onChange={(e) => setAtLeast(e.target.value)} />
+          <input className="num" inputMode="numeric" placeholder="any" value={atLeast} onChange={(e) => edit({ atLeast: e.target.value })} />
         </label>
         <label>
           and at most
-          <input className="num" inputMode="numeric" placeholder="any" value={atMost} onChange={(e) => setAtMost(e.target.value)} />
+          <input className="num" inputMode="numeric" placeholder="any" value={atMost} onChange={(e) => edit({ atMost: e.target.value })} />
         </label>
       </div>
       <p className="note">
@@ -184,6 +154,7 @@ export function BulkPage({ project, onChange }: Props) {
           disabled={effects.length === 0}
           onClick={() => {
             onChange(applyBulk(project, change))
+            setTouched(false)
             setNotice(`Changed ${people(effects.length)}. Undo puts them back.`)
           }}
         >

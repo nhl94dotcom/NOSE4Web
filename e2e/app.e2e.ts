@@ -445,6 +445,46 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText('Nothing is set to change.')).toBeVisible()
   })
 
+  test('keeps a trade and a bulk change not done while other pages show, says so, and asks before a download', async ({ page }) => {
+    await openRom(page)
+    await team(page, 'Boston Bruins').click()
+    const bruin = await nameOf(rows(page, 'Skaters').first()).inputValue()
+    await entry(page, 'Trade').click()
+    const main = page.locator('main')
+    await main.getByLabel('Second side of the trade').selectOption({ label: 'Free agents (0)' })
+    await main.getByLabel(`${bruin} leaves Boston Bruins`).check()
+    await entry(page, 'Bulk changes').click()
+    const notice = page.locator('.pending-notice')
+    await expect(notice).toHaveCount(1)
+    await expect(notice).toContainText('Trade has 1 player ticked, but the trade is not made.')
+    // A Bulk changes form left as it starts is not work; one changed is.
+    await main.getByLabel('Attribute to change').selectOption({ label: 'Speed' })
+    await entry(page, 'Help').click()
+    await expect(notice).toHaveCount(2)
+    await expect(notice.filter({ hasText: /Bulk changes has a change for \d+ players set up but not applied\./ })).toHaveCount(1)
+    // A download asks first: Cancel downloads nothing.
+    let asked = ''
+    page.once('dialog', (dialog) => {
+      asked = dialog.message()
+      void dialog.dismiss()
+    })
+    await page.getByRole('button', { name: 'Download ROM' }).click()
+    expect(asked).toContain('Trade has 1 player ticked')
+    expect(asked).toContain('Bulk changes has a change')
+    // Back on Trade, the tick is as it was left; made, its notice goes.
+    await notice.getByRole('button', { name: 'Go to Trade' }).click()
+    await expect(main.getByLabel(`${bruin} leaves Boston Bruins`)).toBeChecked()
+    await expect(notice).toHaveCount(1)
+    await main.getByRole('button', { name: 'Make this trade' }).click()
+    await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
+    await notice.getByRole('button', { name: 'Go to Bulk changes' }).click()
+    await expect(main.getByLabel('Attribute to change').locator('option:checked')).toHaveText('Speed')
+    await main.getByRole('button', { name: /^Apply to/ }).click()
+    await expect(notice).toHaveCount(0)
+    await entry(page, 'Help').click()
+    await expect(notice).toHaveCount(0)
+  })
+
   test("replaces a player's photo, chooses who it is for, and adds one", async ({ page }) => {
     await openRom(page)
     await team(page, 'Anaheim Mighty Ducks').click()

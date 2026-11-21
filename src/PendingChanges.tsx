@@ -34,3 +34,13 @@ export function MusicPendingNotice({ title, onGo }: { title: string; onGo: () =>
     </p>
   )
 }
+
+// On every other page while work set up on Bulk changes, Trade or Import a team is not done (pagedrafts.ts).
+export function WorkPendingNotice({ text, button, place, onGo }: { text: string; button: string; place: string; onGo: () => void }) {
+  return (
+    <p className="notice pending-notice" role="status">
+      <b>{text}</b> It is kept while you look at other pages, but it is not in the ROM, or in a download, until you
+      press {button} there. <button onClick={onGo}>Go to {place}</button>
+    </p>
+  )
+}

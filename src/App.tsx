@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { BulkPage } from './BulkPage'
 import { ChangesPage } from './ChangesPage'
 import { CheckPage } from './CheckPage'
@@ -58,7 +58,8 @@ import { SnesRinkEditor } from './SnesRinkEditor'
 import { TeamEditor, type RosterSort } from './TeamEditor'
 import { TradePage } from './TradePage'
 import { applyHackDraft, changesText, draftLeft, type HackDraft } from './hackdraft'
-import { MusicPendingNotice, PendingNotice } from './PendingChanges'
+import { NO_PAGE_WORK, workLeft, type BulkKept, type ImportKept, type PageWork, type TradeKept } from './pagedrafts'
+import { MusicPendingNotice, PendingNotice, WorkPendingNotice } from './PendingChanges'
 import './App.css'
 import { useCollapsibleSections } from './useCollapsibleSections'
 import { useSectionTabs } from './useSectionTabs'
@@ -89,6 +90,8 @@ const TRADE = -11
 const PROJECT = -12
 const CHANGES = -13
 const HACKS = -14
+// The pages that keep work not done yet (pagedrafts.ts).
+const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
 // The teams in the list, in the groups of a ROM with several leagues (name null where it has none).
 function teamGroups(count: number, starts: Map<number, string>): { name: string | null; teams: number[] }[] {
@@ -121,6 +124,13 @@ export default function App() {
   const liveDraft = useMemo(() => (project && hackDraft && draftLeft(project, hackDraft) ? hackDraft : null), [project, hackDraft])
   // A MIDI file read on Game settings and not put in yet, kept the same way.
   const [heldMusic, setHeldMusic] = useState<HeldMusic | null>(null)
+  // Work set up on Bulk changes, Trade and Import a team, kept the same way (pagedrafts.ts).
+  const [pageWork, setPageWork] = useState<PageWork>(NO_PAGE_WORK)
+  const keepBulk = useCallback((bulk: BulkKept) => setPageWork((work) => ({ ...work, bulk })), [])
+  const keepTrade = useCallback((trade: TradeKept) => setPageWork((work) => ({ ...work, trade })), [])
+  const keepImport = useCallback((importTeam: ImportKept | null) => setPageWork((work) => ({ ...work, importTeam })), [])
+  const leftOnPages = useMemo(() => (project ? workLeft(project, pageWork) : []), [project, pageWork])
+  const pageWorkText = leftOnPages.map((left) => `- ${left.text}`).join('\n')
   // Names the downloaded ROM and starts the name of every spreadsheet file.
   const [name, setName] = useState('')
   const [selected, setSelected] = useState(0)
@@ -156,11 +166,11 @@ export default function App() {
 
   // Browsers show their own wording for this; the page can only ask for the warning.
   useEffect(() => {
-    if (!unsaved && !liveDraft && !heldMusic) return
+    if (!unsaved && !liveDraft && !heldMusic && leftOnPages.length === 0) return
     const warn = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [unsaved, liveDraft, heldMusic])
+  }, [unsaved, liveDraft, heldMusic, leftOnPages.length])
 
   // Ctrl+Z and Ctrl+Y, except in a text box, where they undo typing as usual.
   useEffect(() => {
@@ -241,6 +251,7 @@ export default function App() {
     reset(opened)
     setHackDraft(null)
     setHeldMusic(null)
+    setPageWork(NO_PAGE_WORK)
     setSaved(hasUnsavedWork ? null : opened)
     setName(openedName)
     setSelected(0)
@@ -252,6 +263,7 @@ export default function App() {
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
     if (!unsaved && liveDraft && !window.confirm(`The Hacks page has ${changesText(liveDraft.count)} not applied yet. Open another ROM and lose them?`)) return
     if (!unsaved && !liveDraft && heldMusic && !window.confirm(`The music "${heldMusic.title}" is loaded on Game settings but not put in yet. Open another ROM and lose it?`)) return
+    if (!unsaved && !liveDraft && !heldMusic && leftOnPages.length > 0 && !window.confirm(`Some work is set up but not done:\n${pageWorkText}\n\nOpen another ROM and lose it?`)) return
     try {
       start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen|smc|sfc)$/i, ''), false)
     } catch (e) {
@@ -293,6 +305,14 @@ export default function App() {
       !window.confirm(
         `The music "${heldMusic.title}" is loaded on Game settings but not put in yet, so it would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
           'OK: download without it.\nCancel: do not download yet (go to Game settings and press Put it in, or Cancel there).',
+      )
+    )
+      return
+    if (
+      leftOnPages.length > 0 &&
+      !window.confirm(
+        `Some work is set up but not done, so it would not be in the ${asPatch ? 'patch' : 'ROM'}:\n${pageWorkText}\n\n` +
+          'OK: download without it.\nCancel: do not download yet (go to those pages to finish it, or change it back).',
       )
     )
       return
@@ -462,7 +482,7 @@ export default function App() {
       case LEAGUE:
         return <LeaguePage project={current} onGoToTeam={setSelected} onMovePlayers={movePlayers} onChange={change} />
       case BULK:
-        return <BulkPage project={current} onChange={change} />
+        return <BulkPage project={current} onChange={change} kept={pageWork.bulk} onKeep={keepBulk} />
       case TRADE:
         return (
           <TradePage
@@ -472,6 +492,8 @@ export default function App() {
             onRawAttributesChange={setRawAttributes}
             onChange={change}
             onGoToTeam={setSelected}
+            kept={pageWork.trade}
+            onKeep={keepTrade}
           />
         )
       case PROJECT:
@@ -491,7 +513,7 @@ export default function App() {
       case PICTURES:
         return <PicturesPage project={current} setName={name || 'rom'} onChange={change} />
       case IMPORT_TEAM:
-        return <ImportTeamPage project={current} onChange={change} />
+        return <ImportTeamPage project={current} onChange={change} kept={pageWork.importTeam} onKeep={keepImport} />
       case HACKS:
         if (nhl95HacksSupported(current.game)) return <Nhl95HacksPage project={current} name={name || 'rom'} onChange={change} kept={liveDraft} onKeep={setHackDraft} />
         return current.game.platform === 'snes' ? (
@@ -690,6 +712,10 @@ export default function App() {
       {error && <p className="error">{error}</p>}
       {liveDraft && selected !== HACKS && <PendingNotice count={liveDraft.count} onGo={() => go(HACKS)} />}
       {heldMusic && selected !== SETTINGS && <MusicPendingNotice title={heldMusic.title} onGo={() => go(SETTINGS)} />}
+      {leftOnPages.map((left) => {
+        const page = WORK_PAGES[left.page]
+        return page === selected ? null : <WorkPendingNotice key={left.page} text={left.text} button={left.button} place={PAGE_NAMES[page]} onGo={() => go(page)} />
+      })}
       <div className="body">
         {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
         <nav className={navOpen ? 'open' : ''}>

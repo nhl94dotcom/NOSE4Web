@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { attributeText, isRating } from './core/attributes'
 import { hex } from './core/bytes'
 import { playerRole, teamSummaries } from './core/league'
@@ -8,6 +8,7 @@ import type { RomProject } from './core/rom'
 import { overfullTeams, teamLabels, teamSpace } from './core/team'
 import { FREE_AGENTS, linePositionsLost, trade, tradeSummary, type TradeSide } from './core/trade'
 import { ColumnOrderButton } from './ColumnOrder'
+import { keptSides, liveSides, tradeKept, type TradeKept } from './pagedrafts'
 import { useAttributeOrder } from './useColumnOrder'
 
 interface Props {
@@ -19,6 +20,9 @@ interface Props {
   onRawAttributesChange: (raw: boolean) => void
   onChange: (project: RomProject) => void
   onGoToTeam: (team: number) => void
+  // The sides as they were left, kept while other pages show (pagedrafts.ts).
+  kept: TradeKept | null
+  onKeep: (kept: TradeKept) => void
 }
 
 interface Row {
@@ -35,17 +39,24 @@ interface Row {
 
 const one = (value: number | null) => (value === null ? '–' : value.toFixed(1))
 
-export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam }: Props) {
+export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam, kept, onKeep }: Props) {
   const { game } = project
   const [showAttributes, setShowAttributes] = useState(true)
   const orders = { skaters: useAttributeOrder(game, 'skaters'), goalies: useAttributeOrder(game, 'goalies') }
   const storedOnly = !game.playerAttributeKinds.some(isRating)
   const count = project.teams.length
   const first = startTeam >= 0 && startTeam < count ? startTeam : 0
-  const [sides, setSides] = useState<[TradeSide, TradeSide]>([
-    { team: first, picks: [] },
-    { team: first === 0 ? 1 : 0, picks: [] },
-  ])
+  // Kept sides come back while players are still ticked on them; otherwise the page starts on the team just looked at.
+  const [sides, setSides] = useState<[TradeSide, TradeSide]>(() => {
+    const back = kept ? keptSides(project, kept) : null
+    return back && back.some((side) => side.picks.length > 0)
+      ? back
+      : [
+          { team: first, picks: [] },
+          { team: first === 0 ? 1 : 0, picks: [] },
+        ]
+  })
+  useEffect(() => onKeep(tradeKept(project, sides)), [project, sides, onKeep])
   const [notice, setNotice] = useState('')
   const labels = teamLabels(project.teams, project.game)
   const label = (team: number) => (team === FREE_AGENTS ? 'Free agents' : labels[team])
@@ -69,7 +80,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
           const overall = overallRating(player.attributes, role === 'G', project.game)
           return { index, name: player.name, role, jersey: player.jersey, overall, value: valueOf(player.attributes, role), attributes: player.attributes }
         })
-  const live = sides.map((side) => ({ ...side, picks: side.picks.filter((i) => i < rowsOf(side.team).length) })) as [TradeSide, TradeSide]
+  const live = liveSides(project, sides)
 
   const setSide = (which: number, next: TradeSide) => {
     setSides(sides.map((side, i) => (i === which ? next : side)) as [TradeSide, TradeSide])

@@ -1443,7 +1443,10 @@ export function HelpPage() {
         choices are waiting, a bar along the bottom of the window says how many, with its own <b>Apply</b>. You can go to
         other pages first: the choices are kept, every other page shows a reminder with a way back, and{' '}
         <b>Download ROM</b> or <b>Download patch</b> asks whether to apply them first. The same goes for a MIDI file
-        loaded for the game music and not yet put in: other pages remind you, and a download asks first.
+        loaded for the game music and not yet put in: other pages remind you, and a download asks first. So does
+        work left on <b>Trade</b>, <b>Bulk changes</b> or <b>Import a team</b>: players ticked but the trade not
+        made, a bulk change set up but not applied, or a team chosen from another ROM but not imported. It is kept
+        too, and is there when you go back.
       </p>
       <p>
         The hacks are in groups, the same on both systems and on the hack sheets: <b>Fixes</b> for the game's bugs,{' '}

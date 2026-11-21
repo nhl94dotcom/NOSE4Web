@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ALL_PARTS, importTeam, type ImportParts } from './core/importteam'
 import { openRom, type RomProject } from './core/rom'
 import { teamLabels } from './core/team'
+import type { ImportKept } from './pagedrafts'
 
 // `snes` is the label for the SNES game, where it differs.
 const PARTS: { key: keyof ImportParts; label: string; snes?: string }[] = [
@@ -20,21 +21,33 @@ interface Other {
 interface Props {
   project: RomProject
   onChange: (project: RomProject) => void
+  // The other ROM and the choices, kept while other pages show (pagedrafts.ts).
+  kept: ImportKept | null
+  onKeep: (kept: ImportKept | null) => void
 }
 
-export function ImportTeamPage({ project, onChange }: Props) {
-  const [other, setOther] = useState<Other | null>(null)
-  const [from, setFrom] = useState(0)
-  const [to, setTo] = useState(0)
-  const [parts, setParts] = useState(ALL_PARTS)
+export function ImportTeamPage({ project, onChange, kept: left, onKeep }: Props) {
+  // Kept choices come back while the import is not made; once it is, the page starts afresh, as it always did.
+  const kept = left?.dirty ? left : null
+  const [other, setOther] = useState<Other | null>(kept ? { fileName: kept.fileName, project: kept.other } : null)
+  const [from, setFrom] = useState(kept?.from ?? 0)
+  const [to, setTo] = useState(kept && kept.to < project.teams.length ? kept.to : 0)
+  const [parts, setParts] = useState(kept?.parts ?? ALL_PARTS)
+  // Opened or changed since the last import, which is what the reminder on other pages goes by.
+  const [dirty, setDirty] = useState(kept?.dirty ?? false)
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<string[]>([])
+  useEffect(
+    () => onKeep(other ? { fileName: other.fileName, other: other.project, from, to, parts, dirty } : null),
+    [other, from, to, parts, dirty, onKeep],
+  )
 
   async function open(file: File | undefined) {
     if (!file) return
     try {
       setOther({ fileName: file.name, project: openRom(new Uint8Array(await file.arrayBuffer())) })
       setFrom(0)
+      setDirty(true)
       setError('')
       setNotes([])
     } catch (e) {
@@ -48,6 +61,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
     try {
       const result = importTeam(project, other.project, from, to, parts)
       onChange(result.project)
+      setDirty(false)
       setNotes(result.notes)
       setError('')
     } catch (e) {
@@ -100,6 +114,7 @@ export function ImportTeamPage({ project, onChange }: Props) {
                 onChange={(e) => {
                   const next = Number(e.target.value)
                   setFrom(next)
+                  setDirty(true)
                   // The team of the same name here is the likely one to replace;
                   // failing that, the one in the same place.
                   const named = ours.indexOf(theirs[next])
@@ -116,7 +131,10 @@ export function ImportTeamPage({ project, onChange }: Props) {
             </label>
             <label>
               To replace
-              <select className="wide" aria-label="Team to replace" value={to} onChange={(e) => setTo(Number(e.target.value))}>
+              <select className="wide" aria-label="Team to replace" value={to} onChange={(e) => {
+                  setTo(Number(e.target.value))
+                  setDirty(true)
+                }}>
                 {ours.map((name, i) => (
                   <option key={i} value={i}>
                     {name}
@@ -131,7 +149,10 @@ export function ImportTeamPage({ project, onChange }: Props) {
                 <input
                   type="checkbox"
                   checked={parts[part.key] ?? false}
-                  onChange={(e) => setParts({ ...parts, [part.key]: e.target.checked })}
+                  onChange={(e) => {
+                    setParts({ ...parts, [part.key]: e.target.checked })
+                    setDirty(true)
+                  }}
                 />{' '}
                 {project.game.platform === 'snes' ? (part.snes ?? part.label) : part.label}
               </label>
