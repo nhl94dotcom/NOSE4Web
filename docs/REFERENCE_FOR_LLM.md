@@ -807,7 +807,7 @@ NHL '95's team defence mode 1 path (`.cover`) does not reach this code. SNES (NH
 ends are written out separately, `$80`/`$FF80` plus pucky halved for each, both right, so there is no SNES option.
 Tests: `tests/readings.test.ts` (nhl94.bin and the league ROMs), `tests/nhl95hacks.test.ts`.
 
-### Fight momentum (`fightMomentum`; added 2026-11-19, not yet tested in the game)
+### Fight momentum (`fightMomentum`; added 2026-11-19, tested in the game by MV 2026-11-20)
 
 Genesis NHL 94 with chaos's fighting (`hacks.ts`, Rules, after Fighting penalty time; applied after the fight block goes in). The
 fight winner's team gets +2 Agility and +2 Speed for its skaters (not the goalie) for 90 seconds of play, on top of
@@ -827,7 +827,7 @@ any crowd boost (which is global, and always on unless `crowdFix`). One code blo
   fight hands the boost on and restarts it; the timer carries over intermissions. Without fighting nothing goes in.
   Tests: `tests/fightmomentum.test.ts`.
 
-SNES (`sneshacks.ts`, `fightMomentumPlaces`, `fmCode`; added 2026-11-20, not yet tested in the game): +1 Agility and +1
+SNES (`sneshacks.ts`, `fightMomentumPlaces`, `fmCode`; added 2026-11-20, tested in the game by MV 2026-11-20): +1 Agility and +1
 Speed (the SNES rates 0-15, so the Genesis's +2 halved, as clutch time halves its). The SNES has no crowd boost; the
 lift goes where playeracc reads the two ratings. One block (header: getpde, updatePPTeamTime, InitScores, legspd and
 the winner operand, then the code), every place found by code:
@@ -1063,10 +1063,10 @@ Freed room in the middle is tagged `NOSEFREE` + start address (`releaseSpace`).
 | `$FFEA00`-`$FFEA8F` | giveaways/takeaways: `$FFEA00`-`$FFEA05` carrier's and forcer's spots and places, counts at `$FFEA10` and `$FFEA50` (the code clears 32 longs from `$FFEA10`) | tested | giveaways comment, `GT_BODY95`; section 11 |
 | `$FFEB00`-`$FFEB03`, `$FFEE66`-`$FFEE69` | giveaways' team totals ("team struct +$2878 / +$287A"; the code uses `lea ($EB00).w` and `lea ($EE66).w` and clears a long at each) (inferred from the code bytes) | tested | `GT_BODY95` |
 | `$FFF000`-`$FFF6CF` | season shootout: mark `$FFF000`, team structs `$FFF002`-`$FFF6CD`, ScoreSumbytes `$FFF6CE` | tested | section 8 |
-| `$FFEA90`-`$FFEACF` | blocked shots: a byte a roster place, 32 a team, home first (the code clears 16 longs) | not yet tested | comment above `BLK_CODE95`; section 11 |
-| `$FFEB04`-`$FFEB05`, `$FFEE6A`-`$FFEE6B` | blocked shots' team totals ("team struct +$287C"; `lea ($EB04).w` / `lea ($EE6A).w`) | not yet tested | `BLK_CODE95` |
+| `$FFEA90`-`$FFEACF` | blocked shots: a byte a roster place, 32 a team, home first (the code clears 16 longs) | MV-tested 2026-11-20 | comment above `BLK_CODE95`; section 11 |
+| `$FFEB04`-`$FFEB05`, `$FFEE6A`-`$FFEE6B` | blocked shots' team totals ("team struct +$287C"; `lea ($EB04).w` / `lea ($EE6A).w`) | MV-tested 2026-11-20 | `BLK_CODE95` |
 | `$FFF700`-`$FFF73F` | knockdown counts for the injury risk: a byte a player, 32 a team (cleared each game: 64 bytes) | tested | comment above `COUNT_OF_A2_95`, `GAME_CODE95`; section 11 |
-| `$FFF750`-`$FFF753` | fight momentum: the winner's team bit (byte `$FFF750`, `$00` / `$40`), the timer word `$FFF752` (game seconds left) | not yet tested | comment above `FIGHT95_WINNER_AT`; section 11 |
+| `$FFF750`-`$FFF753` | fight momentum: the winner's team bit (byte `$FFF750`, `$00` / `$40`), the timer word `$FFF752` (game seconds left) | MV-tested 2026-11-20 | comment above `FIGHT95_WINNER_AT`; section 11 |
 | `$FFF800`-`$FFF815` | organ after a pause: kept song slot (22 bytes) | tested | comment above `ORGAN_SAVE_HOOK` |
 | `$FFDC84`-`$FFFC03` | the whole range Match Viewer found unused (retail and W18) that these sit in | | same comments |
 
@@ -1453,7 +1453,7 @@ NHL94 Match Viewer project."), and `anyPosition`'s note ends with it too. The te
 setting's note ending as tested" checks it. `delayedCalls` with both places: "Match Viewer's retest passed" (commit
 aebaeb9).
 
-### Fight momentum and blocked shots (`fightMomentum`, `blockedShots`; added 2026-11-20; fight momentum and the counts tested in the game by MV 2026-11-20)
+### Fight momentum and blocked shots (`fightMomentum`, `blockedShots`; added 2026-11-20; both tested in the game by MV 2026-11-20, with the heading fix f07eab7)
 
 NHL 94's two options (section 9's fight momentum, section 17's blocked shots) in NHL '95, the same bytes in
 NHL_95, W18 and W18p (tests `tests/nhl95momentum.test.ts`, `tests/nhl95blocks.test.ts` assert the hook sites, every
@@ -2620,7 +2620,7 @@ line; check there.
 | Game music (title, end of period, scouting report): play, export, replace from MIDI (tested in the game) | `genesismusic.ts` (`GAME_MUSIC`, `gameMusicFromMidi`, `gameMusicToMidi`), `OrganSongsSection.tsx` (`GameMusicSection`) | **Yes (12)** |
 | In-game banner colours: stripes as the in-game banners show them, arena colour B for a missing one | `gamebannercolours.ts`, `GameBannerColours.tsx` | **Yes (15)** |
 | Giveaways and takeaways, the pass at the net | `hacks.ts` (`GT_VERSIONS`, `GT_HOOKS`) | **Yes (16)** |
-| Blocked shots (not yet tested in the game) | `hacks.ts` (`BLK_CODE`, `BLK_HOOKS`, `GP_CODES`) | **Yes (17)** |
+| Blocked shots (tested in the game by MV 2026-11-20) | `hacks.ts` (`BLK_CODE`, `BLK_HOOKS`, `GP_CODES`) | **Yes (17)** |
 | Hacks (fixes, statistics, rules, energy, goalies, skating, ...) | `hacks.ts`, `hackgroups.ts` | No |
 | Computer centres' defence fix (tested in the game) | `hacks.ts` (`centreDefenceFix`) | **Yes (9)** |
 | Goalie turning fix (tested in the game) | `hacks.ts` (`goalieTurnFix`) | **Yes (9)** |
@@ -2639,8 +2639,8 @@ line; check there.
 | Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
 | Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
-| Blocked shots: counts, Game Stats row, Player Stats page (`blockedShots`, `blockedShotsShown`, `blockedShotPages`; added 2026-11-20, not yet tested in the game) | `sneshacks.ts` (`blockedShotsPlaces`, `blockedShotsShownPlaces`, `blkPagePlaces`) | **Yes (17)** |
-| Fight momentum (`fightMomentum`; added 2026-11-20, not yet tested in the game): with NOSE4Web's fights or McMarkis's builds' own | `sneshacks.ts` (`fightMomentumPlaces`, `fmCode`), `snesfight.ts` (momentum site skipped) | **Yes (9, Fight momentum)** |
+| Blocked shots: counts, Game Stats row, Player Stats page (`blockedShots`, `blockedShotsShown`, `blockedShotPages`; added 2026-11-20, tested in the game by MV 2026-11-20) | `sneshacks.ts` (`blockedShotsPlaces`, `blockedShotsShownPlaces`, `blkPagePlaces`) | **Yes (17)** |
+| Fight momentum (`fightMomentum`; added 2026-11-20, tested in the game by MV 2026-11-20): with NOSE4Web's fights or McMarkis's builds' own | `sneshacks.ts` (`fightMomentumPlaces`, `fmCode`), `snesfight.ts` (momentum site skipped) | **Yes (9, Fight momentum)** |
 | Computer centres' defence: the SNES code is right at both ends, no option | (none) | **Yes (9)** |
 | Open net shot fix (tested in the game 2026-11-19: 37 open-net computer shots replayed, aim 0 -> 8, over the bar 1 -> 0, goals 12 -> 14): shotdiradj (`$9E:DFF7`, aims computer shots only) does `ldx a3 / stz d0` at `$9E:E094` (`A6 95 64 A5`) before its sightline test, so an open net gets aim 0 (high middle); jsl to `A6 95 A9 0800 85 A5 6B` sets 8 | `sneshacks.ts` (`openNetPlaces`), `tests/snesopennet.test.ts` | Yes (here) |
 | Real-time clock (`realTime`, added 2026-11-19; MV-tested 2026-11-20: minors 119-120 clock seconds, power-play time and time on ice in clock seconds, penalty shots and the shootout start at 2500): Gameloop (`$9F:85B4`) and the highlights' copy (SaveRegsStartHL2, `$9F:9051`) take `sec / sbc #$0AAA` from gameclock+2 each frame (24 frames a game second); real time makes both `#$0444` (60 frames). Box time is in game-clock seconds, so it follows; the penalty shot's 1000-frame pstimer is left as is. Found by pattern `ad....f0..ad....38e9....8d....b0..ce....` (exactly 2) | `sneshacks.ts` (`RELOCATED.realTime`), `tests/snesrules.test.ts` | Yes (here) Also (2026-11-20, from MV play): updatepentime's own penalty second, `adc #$0018` reloading Penaltytimer (retail file `0xF3F66`; pattern `ad(....)38e5..8d(....)10..69..008d(....)a92000`, same address thrice), becomes `$3C`; the same tick counts attack-zone, power-play and time-on-ice seconds. A ROM with only the clock bytes (the first version) reads on as an earlier version and is updated. And the penalty shot limit: SetupPenaltyShot's `lda #1000 / sta pstimer` (retail file `0xFB062`, pattern `a901008d....a9....8d....22......6b`) becomes 2500, as the Genesis's game-time limit grows 2.5x. Each later place, missing where the clock is in, reads as an earlier version. |

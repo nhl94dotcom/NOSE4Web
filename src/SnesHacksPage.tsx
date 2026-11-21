@@ -221,7 +221,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   blockedShots:
     "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. The counts start at 0 each game and are kept through a season shootout. Blocked shots in Game Stats and in Player Stats show them. Works in every build. Tested in the game by the NHL94 Match Viewer project.",
   blockedShotsShown:
-    "Game Stats gets a row more, Blocked Shots, with each team's total. Not with Giveaways and takeaways in Game Stats, whose row goes in the same place: turning either on turns the other off. It needs the counts, which turn on with it. Not yet tested in the game.",
+    "Game Stats gets a row more, Blocked Shots, with each team's total. Not with Giveaways and takeaways in Game Stats, whose row goes in the same place: turning either on turns the other off. It needs the counts, which turn on with it. Tested in the game by the NHL94 Match Viewer project.",
   blockedShotPages:
     "Adds a Blocks page to Player Stats: the skaters sorted by their blocked shots, each row showing goals, assists, points and blocked shots (BLK). It comes after the Giveaways and Takeaways pages and before Time On Ice, when those are on. In McMarkis's 2 MB and SA-1 builds it comes after their own pages and the giveaway pages, and the page before it has its title shortened a little to make room, as the giveaway pages do. It needs the counts, which turn on with it. Tested in the game by the NHL94 Match Viewer project.",
   timeOnIceShown:

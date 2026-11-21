@@ -545,7 +545,7 @@ export function HacksPage({ project, name, onChange }: Props) {
             {onOff('blockedShots')}
             {blockedShotsOutdated(project.bytes) && putInCurrent}
           </>,
-          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Not yet tested in the game.",
+          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'threeStars',
