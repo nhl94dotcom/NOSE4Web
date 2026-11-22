@@ -4,8 +4,10 @@
 //   node scripts/fetch-seasons.mjs            every season from 1967-68 to the last finished one
 //   node scripts/fetch-seasons.mjs 19871988   just that season
 //
-// Each file: { season, teams: [{ code, location, name, franchise, record, skaters, goalies }] } with players as
-// arrays (see the SKATER and GOALIE lists below), to keep the files small.
+// Each file: { season, teams: [{ code, location, name, franchise, record, special, skaters, goalies }] } with players
+// as arrays (see the SKATER and GOALIE lists below), to keep the files small. special is [power play %, penalty kill %]
+// (null before 1977-78, when the NHL has none); a player's stint is the order of this team among his teams that
+// season (0 the first), so the highest is the team he ended it with.
 import { mkdir, writeFile } from 'node:fs/promises'
 
 const OUT = new URL('../public/seasons/', import.meta.url)
@@ -15,8 +17,8 @@ const now = new Date()
 const LAST = now.getMonth() >= 6 ? now.getFullYear() - 1 : now.getFullYear() - 2
 const NO_SEASON = new Set(['20042005'])
 
-export const SKATER = ['first', 'last', 'pos', 'number', 'shoots', 'inches', 'pounds', 'born', 'gp', 'g', 'a', 'pm', 'pim', 'shots', 'ppg', 'shg']
-export const GOALIE = ['first', 'last', 'number', 'catches', 'inches', 'pounds', 'born', 'gp', 'gs', 'w', 'l', 't', 'ga', 'sa', 'so', 'seconds']
+export const SKATER = ['first', 'last', 'pos', 'number', 'shoots', 'inches', 'pounds', 'born', 'gp', 'g', 'a', 'pm', 'pim', 'shots', 'ppg', 'shg', 'stint']
+export const GOALIE = ['first', 'last', 'number', 'catches', 'inches', 'pounds', 'born', 'gp', 'gs', 'w', 'l', 't', 'ga', 'sa', 'so', 'seconds', 'stint']
 
 // Nicknames of more than one word; any other team's nickname is its last word.
 const LONG_NAMES = ['Maple Leafs', 'Red Wings', 'North Stars', 'Golden Seals', 'Blue Jackets', 'Golden Knights', 'Hockey Club', 'Mammoth']
@@ -47,8 +49,23 @@ function split(fullName) {
 
 const landings = new Map()
 
+// Each player's teams that season, in the order he played for them, by player id.
+async function teamOrder(kind, id) {
+  const order = new Map()
+  for (let start = 0; ; start += 100) {
+    const page = await get(`https://api.nhle.com/stats/rest/en/${kind}/summary?limit=100&start=${start}&sort=playerId&cayenneExp=seasonId=${id}%20and%20gameTypeId=2`)
+    for (const row of page?.data ?? []) order.set(row.playerId, (row.teamAbbrevs ?? '').split(',').map((t) => t.trim()))
+    if (!page || start + 100 >= page.total) return order
+  }
+}
+
 async function season(id, teamCodes) {
   const summary = await get(`https://api.nhle.com/stats/rest/en/team/summary?limit=-1&cayenneExp=seasonId=${id}%20and%20gameTypeId=2`)
+  const [skaterOrder, goalieOrder] = [await teamOrder('skater', id), await teamOrder('goalie', id)]
+  const stint = (order, playerId, code) => {
+    const at = order.get(playerId)?.lastIndexOf(code) ?? -1
+    return at < 0 ? null : at
+  }
   const teams = []
   for (const row of summary.data.sort((a, b) => a.teamFullName.localeCompare(b.teamFullName))) {
     const team = teamCodes.get(row.teamId)
@@ -73,18 +90,19 @@ async function season(id, teamCodes) {
     const skaters = (stats?.skaters ?? []).map((s) => {
       const [number, shoots, inches, pounds, born] = about(s.playerId)
       return [name(s.firstName), name(s.lastName), s.positionCode, number, shoots, inches, pounds, born,
-        s.gamesPlayed, s.goals, s.assists, s.plusMinus ?? null, s.penaltyMinutes, s.shots ?? null, s.powerPlayGoals ?? null, s.shorthandedGoals ?? null]
+        s.gamesPlayed, s.goals, s.assists, s.plusMinus ?? null, s.penaltyMinutes, s.shots ?? null, s.powerPlayGoals ?? null, s.shorthandedGoals ?? null, stint(skaterOrder, s.playerId, team.code)]
     })
     const goalies = (stats?.goalies ?? []).map((g) => {
       const [number, catches, inches, pounds, born] = about(g.playerId)
       return [name(g.firstName), name(g.lastName), number, catches, inches, pounds, born,
-        g.gamesPlayed, g.gamesStarted ?? null, g.wins ?? null, g.losses ?? null, g.ties ?? null, g.goalsAgainst ?? null, g.shotsAgainst ?? null, g.shutouts ?? null, g.timeOnIce ?? null]
+        g.gamesPlayed, g.gamesStarted ?? null, g.wins ?? null, g.losses ?? null, g.ties ?? null, g.goalsAgainst ?? null, g.shotsAgainst ?? null, g.shutouts ?? null, g.timeOnIce ?? null, stint(goalieOrder, g.playerId, team.code)]
     })
     teams.push({
       code: team.code,
       ...split(row.teamFullName),
       franchise: team.franchise,
       record: [row.wins, row.losses, row.ties ?? 0, row.otLosses ?? 0, row.goalsFor, row.goalsAgainst],
+      special: row.powerPlayPct === null || row.penaltyKillPct === null ? null : [row.powerPlayPct, row.penaltyKillPct],
       skaters,
       goalies,
     })

@@ -7,6 +7,7 @@ import {
   DEFAULT_SEASON_OPTIONS,
   defaultPlacement,
   parseSeason,
+  rerateByName,
   seasonBuilderSupported,
   seasonLabel,
   type Season,
@@ -36,6 +37,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const [shown, setShown] = useState(0)
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<string[]>([])
+  const [rerateNotes, setRerateNotes] = useState<string[]>([])
   const supported = seasonBuilderSupported(project.game)
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
         setPlacement(defaultPlacement(project, next, franchises))
         setShown(0)
         setNotes([])
+        setRerateNotes([])
         setError('')
       })
       .catch((e: unknown) => current && setError(e instanceof Error ? e.message : String(e)))
@@ -73,6 +76,8 @@ export function RealSeasonPage({ project, onChange }: Props) {
   }, [chosen, franchises])
 
   const built = useMemo(() => (season ? buildSeasonRosters(project.game, season, options) : []), [season, options, project.game])
+  // The ROM's own players, re-rated where the season has them by name; the same as the button does, to count them.
+  const rerate = useMemo(() => (season ? rerateByName(project, season, built) : null), [project, season, built])
   const ours = teamLabels(project.teams, project.game)
   const placed = placement.filter((s) => s !== null).length
   // The ROM's teams a season's team can go to without being chosen by hand: all but its All-Star teams.
@@ -100,6 +105,12 @@ export function RealSeasonPage({ project, onChange }: Props) {
     }
   }
 
+  function rerateAll() {
+    if (!rerate || rerate.rerated === 0) return
+    onChange(rerate.project)
+    setRerateNotes(rerate.notes)
+  }
+
   const number = (key: 'goalies' | 'forwards' | 'defence', label: string, min: number, max: number) => (
     <label>
       {label}
@@ -123,8 +134,9 @@ export function RealSeasonPage({ project, onChange }: Props) {
       <p className="note">
         Fills teams with the players of a real NHL season, 1967-68 on, rated from that season's stats: where each player
         stands among that season's players, given out in the same proportions as the original NHL 94's ratings. Each
-        team gets the players with the most games for it, newly built lines, and Offence and Defence ratings by its goals
-        for and against. Undo takes it all back.
+        team gets the players with the most games for it, newly built lines, Offence and Defence ratings by its goals
+        for and against, and (from 1977-78) power play and penalty kill ratings by that season's percentages. Undo
+        takes it all back.
       </p>
       <div className="fields">
         <label>
@@ -145,6 +157,15 @@ export function RealSeasonPage({ project, onChange }: Props) {
         <label className="choice">
           <input type="checkbox" checked={options.names} onChange={(e) => setOptions({ ...options, names: e.target.checked })} /> Use that
           season's team names (place, initials and nickname)
+        </label>
+      </p>
+      <p>
+        <label>
+          A player traded during the season goes to{' '}
+          <select aria-label="Traded players go to" value={options.traded} onChange={(e) => setOptions({ ...options, traded: e.target.value as SeasonOptions['traded'] })}>
+            <option value="most">the team they played the most games for</option>
+            <option value="last">the team they ended the season with</option>
+          </select>
         </label>
       </p>
       {error && <p className="error">{error}</p>}
@@ -208,6 +229,25 @@ export function RealSeasonPage({ project, onChange }: Props) {
           {notes.length > 0 && (
             <ul>
               {notes.map((note, i) => (
+                <li key={i}>{note}</li>
+              ))}
+            </ul>
+          )}
+          <h3>Re-rate the players this ROM has</h3>
+          <p className="note">
+            Or keep the ROM's teams and rosters as they are, and give each player found by name in {season.season} the
+            ratings that season gives them (weight and hands too). Players not in it, or with too few games to make their
+            season team's roster above, keep theirs. A name the season has twice is matched by number as well; a first initial and last name, such as J. Giguere, is matched where
+            only one player has it.
+          </p>
+          <p>
+            <button disabled={!rerate || rerate.rerated === 0} onClick={rerateAll}>
+              Re-rate {rerate?.rerated ?? 0} {rerate?.rerated === 1 ? 'player' : 'players'} found in {season.season}
+            </button>
+          </p>
+          {rerateNotes.length > 0 && (
+            <ul>
+              {rerateNotes.map((note, i) => (
                 <li key={i}>{note}</li>
               ))}
             </ul>

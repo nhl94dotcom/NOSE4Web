@@ -1584,6 +1584,13 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Real NHL season').click()
     await main.getByLabel('Season', { exact: true }).selectOption('19791980')
     await expect(main.getByLabel('Season team for Calgary Flames').locator('option:checked')).toHaveText('Atlanta Flames')
+
+    // Or the ROM's own players re-rated by name, the teams as they are.
+    await main.getByLabel('Season', { exact: true }).selectOption('19921993')
+    await expect(main.getByLabel('Traded players go to')).toHaveValue('most')
+    await main.getByRole('button', { name: /^Re-rate \d{3} players found in 1992-93$/ }).click()
+    await expect(main.getByText(/^\d{3} players re-rated from 1992-93\.$/)).toBeVisible()
+    await team(page, 'Dallas Stars').click()
   })
 
   test('writes a change report for the league', async ({ page }) => {

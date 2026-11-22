@@ -1854,7 +1854,7 @@ export function HelpPage() {
         <li>
           <b>The players:</b> each team gets the goalies, forwards and defencemen with the most games for it (2, 15 and 8
           to begin with, as the original game has). A player traded during the season goes to the team they played the
-          most games for. Names are written as the game can show them: no accents, a hyphen as a space, and a first
+          most games for, or, if you choose, the team they ended the season with. Names are written as the game can show them: no accents, a hyphen as a space, and a first
           initial for a name longer than 19 letters. Teammates who wore the same number at different times that season
           each get one: the one with more games keeps it, and the other takes the next free number.
         </li>
@@ -1873,10 +1873,19 @@ export function HelpPage() {
           a league's 32-team ROM) to bring them all in; the page says when.
         </li>
         <li>
-          <b>What else changes:</b> lines are built afresh, and the Offence and Defence ratings follow the team's goals
-          for and against, using the values the ROM's teams already had. With <b>Use that season's team names</b>, the
+          <b>What else changes:</b> lines are built afresh, the Offence and Defence ratings follow the team's goals
+          for and against, and from 1977-78 (the NHL has no figures before) the power play and penalty kill ratings
+          follow that season's percentages, all using the values the ROM's teams already had. With the power play and
+          penalty kill fix in the ROM or not, each goes where the game reads it. With <b>Use that season's team names</b>, the
           place, initials and nickname come too; logos, colours and the arena stay. To give the teams the logos and
           colours of a ROM that has them, use <b>Every team at once</b> on the Import a team page.
+        </li>
+        <li>
+          <b>Re-rate the players this ROM has:</b> keeps the ROM's teams and rosters, and gives each player found by
+          name in the season the ratings that season gives them (weight and hands too). A name the season has twice is
+          matched by number as well, and a first initial and last name where only one player has it. Players not in
+          the season, or with too few games to make their season team's roster, keep their ratings. With the original
+          NHL 94 and 1992-93, about 640 of its 684 players are found; most of the rest are names EA shortened.
         </li>
         <li>
           If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,

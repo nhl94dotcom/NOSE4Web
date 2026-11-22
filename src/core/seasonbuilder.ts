@@ -19,9 +19,10 @@ import { emptyLineSlots } from './lines'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
-import { teamDisplayName, teamSpace, type Player, type Team } from './team'
+import { goalieCount, teamDisplayName, teamSpace, type Player, type Team } from './team'
 import { expandTeamSpace, nextExpansion } from './expand'
-import { setTeamRating, TEAM_RATINGS, teamRatings } from './teamratings'
+import { projectTeamRatings } from './ppfix'
+import { setTeamRating, teamRatings } from './teamratings'
 
 export interface SeasonSkater {
   first: string
@@ -41,6 +42,8 @@ export interface SeasonSkater {
   shots: number | null
   ppg: number | null
   shg: number | null
+  // This team's place among the player's teams that season, in order: 0 the first, the highest the last.
+  stint: number | null
 }
 
 export interface SeasonGoalie {
@@ -60,6 +63,7 @@ export interface SeasonGoalie {
   sa: number | null
   so: number | null
   seconds: number | null
+  stint: number | null
 }
 
 export interface SeasonTeam {
@@ -69,6 +73,8 @@ export interface SeasonTeam {
   franchise: number | null
   // Wins, losses, ties, overtime losses, goals for, goals against.
   record: number[]
+  // Power play and penalty kill, as fractions (0.185 for 18.5 per cent); null before 1977-78, when the NHL has none.
+  special: number[] | null
   // Each with his games for this team only.
   skaters: SeasonSkater[]
   goalies: SeasonGoalie[]
@@ -81,14 +87,14 @@ export interface Season {
 }
 
 // The files keep players as arrays, in these orders (scripts/fetch-seasons.mjs).
-const SKATER_FIELDS = ['first', 'last', 'pos', 'number', 'shoots', 'inches', 'pounds', 'born', 'gp', 'g', 'a', 'pm', 'pim', 'shots', 'ppg', 'shg'] as const
-const GOALIE_FIELDS = ['first', 'last', 'number', 'catches', 'inches', 'pounds', 'born', 'gp', 'gs', 'w', 'l', 't', 'ga', 'sa', 'so', 'seconds'] as const
+const SKATER_FIELDS = ['first', 'last', 'pos', 'number', 'shoots', 'inches', 'pounds', 'born', 'gp', 'g', 'a', 'pm', 'pim', 'shots', 'ppg', 'shg', 'stint'] as const
+const GOALIE_FIELDS = ['first', 'last', 'number', 'catches', 'inches', 'pounds', 'born', 'gp', 'gs', 'w', 'l', 't', 'ga', 'sa', 'so', 'seconds', 'stint'] as const
 
 const fromArray = <T,>(fields: readonly string[], row: unknown[]): T => Object.fromEntries(fields.map((f, i) => [f, row[i] ?? null])) as T
 
 interface SeasonFile {
   season: string
-  teams: { code: string; location: string; name: string; franchise: number | null; record: number[]; skaters: unknown[][]; goalies: unknown[][] }[]
+  teams: { code: string; location: string; name: string; franchise: number | null; record: number[]; special?: number[] | null; skaters: unknown[][]; goalies: unknown[][] }[]
 }
 
 export function parseSeason(file: SeasonFile): Season {
@@ -96,6 +102,7 @@ export function parseSeason(file: SeasonFile): Season {
     season: file.season,
     teams: file.teams.map((t) => ({
       ...t,
+      special: t.special ?? null,
       skaters: t.skaters.map((row) => fromArray<SeasonSkater>(SKATER_FIELDS, row)),
       goalies: t.goalies.map((row) => fromArray<SeasonGoalie>(GOALIE_FIELDS, row)),
     })),
@@ -365,10 +372,12 @@ export interface SeasonOptions {
   defence: number
   // Whether a team takes that season's location, initials and nickname too.
   names: boolean
+  // Where a player traded during the season goes: the team he played the most games for, or the one he ended with.
+  traded: 'most' | 'last'
 }
 
 // The original game's rosters: two goalies, 15 forwards and 8 defencemen for most teams.
-export const DEFAULT_SEASON_OPTIONS: SeasonOptions = { goalies: 2, forwards: 15, defence: 8, names: true }
+export const DEFAULT_SEASON_OPTIONS: SeasonOptions = { goalies: 2, forwards: 15, defence: 8, names: true, traded: 'most' }
 
 export interface BuiltPlayer {
   player: Player
@@ -388,28 +397,29 @@ export interface BuiltTeam {
 // Each season team's roster, with its players rated against every player chosen in the league that season.
 export function buildSeasonRosters(game: GameConfig, season: Season, options: SeasonOptions = DEFAULT_SEASON_OPTIONS): BuiltTeam[] {
   const year = Number(season.season.slice(0, 4))
-  // Each player goes to the team they played the most games for.
-  const skaterTeams = new Map<string, { team: number; gp: number; parts: SeasonSkater[] }>()
-  const goalieTeams = new Map<string, { team: number; gp: number; parts: SeasonGoalie[] }>()
+  // Each player goes to the team they played the most games for, or the one they ended the season with (the
+  // highest stint; most games where the file has no stints).
+  const traded = options.traded ?? 'most'
+  const better = (p: { gp: number; stint: number | null }, was: { gp: number; stint: number | null }) =>
+    traded === 'last' && p.stint !== null && was.stint !== null ? p.stint > was.stint : p.gp > was.gp
+  const skaterTeams = new Map<string, { team: number; gp: number; stint: number | null; parts: SeasonSkater[] }>()
+  const goalieTeams = new Map<string, { team: number; gp: number; stint: number | null; parts: SeasonGoalie[] }>()
+  const place = <T extends { first: string; last: string; born: number | null; gp: number; stint: number | null }>(
+    map: Map<string, { team: number; gp: number; stint: number | null; parts: T[] }>,
+    p: T,
+    t: number,
+  ) => {
+    const k = playerKey(p)
+    const was = map.get(k)
+    if (!was) map.set(k, { team: t, gp: p.gp, stint: p.stint, parts: [p] })
+    else {
+      was.parts.push(p)
+      if (better(p, was)) Object.assign(was, { team: t, gp: p.gp, stint: p.stint })
+    }
+  }
   season.teams.forEach((team, t) => {
-    for (const p of team.skaters) {
-      const k = playerKey(p)
-      const was = skaterTeams.get(k)
-      if (!was) skaterTeams.set(k, { team: t, gp: p.gp, parts: [p] })
-      else {
-        was.parts.push(p)
-        if (p.gp > was.gp) Object.assign(was, { team: t, gp: p.gp })
-      }
-    }
-    for (const p of team.goalies) {
-      const k = playerKey(p)
-      const was = goalieTeams.get(k)
-      if (!was) goalieTeams.set(k, { team: t, gp: p.gp, parts: [p] })
-      else {
-        was.parts.push(p)
-        if (p.gp > was.gp) Object.assign(was, { team: t, gp: p.gp })
-      }
-    }
+    for (const p of team.skaters) place(skaterTeams, p, t)
+    for (const p of team.goalies) place(goalieTeams, p, t)
   })
   // A goalie who also shows as a skater is a goalie.
   for (const k of goalieTeams.keys()) skaterTeams.delete(k)
@@ -427,6 +437,11 @@ export function buildSeasonRosters(game: GameConfig, season: Season, options: Se
     let d = Math.min(options.defence, defence.length)
     f = Math.min(forwards.length, f + Math.max(0, skaterRoom - f - d))
     d = Math.min(defence.length, d + Math.max(0, skaterRoom - f - d))
+    // More than a roster holds: one fewer of whichever kind has the larger share of what was asked for.
+    while (f + d > skaterRoom) {
+      if (d === 0 || (f > 0 && f / Math.max(1, options.forwards) >= d / Math.max(1, options.defence))) f--
+      else d--
+    }
     return { goalies: goalies.sort(byGames).slice(0, options.goalies), forwards: forwards.slice(0, f), defence: defence.slice(0, d) }
   })
 
@@ -592,25 +607,105 @@ export function applySeason(project: RomProject, season: Season, placement: (num
   }
   if (current !== project) notes.push('The ROM was given more roster space, as the Add bytes of roster space button does.')
   if (trimmed > 0) notes.push(`To fit the ROM, ${trimmed} ${trimmed === 1 ? 'skater' : 'skaters'} with the fewest games ${trimmed === 1 ? 'was' : 'were'} left out.`)
-  // Offence and Defence by goals for and against a game, from the values these ROM teams had.
-  for (const [index, stat] of [
-    [0, 4],
-    [1, 5],
-  ] as const) {
-    const better = TEAM_RATINGS[index].higherIsBetter
-    const values = slots.map((slot) => teamRatings(project.teams[slot])[index]).sort((a, b) => (better ? b - a : a - b))
-    const perGame = (slot: number) => {
-      const r = built[placement[slot]!].team.record
-      const gp = r[0] + r[1] + r[2] + r[3]
-      return gp > 0 ? r[stat] / gp : 0
-    }
-    // The most goals for is the best offence; the fewest against, the best defence.
-    const ranked = [...slots].sort((a, b) => (stat === 4 ? perGame(b) - perGame(a) : perGame(a) - perGame(b)))
+  // Team ratings from the season: Offence and Defence by goals for and against a game, the power play and penalty
+  // kill by that season's percentages (from 1977-78; before, they stay as they are). Each is shared out by rank from
+  // the values these ROM teams had, so the ROM keeps its own spread. Which half of the byte is the power play
+  // depends on whether the ROM has the power play and penalty kill fix.
+  const ratings = projectTeamRatings(current)
+  const perGame = (slot: number, stat: number) => {
+    const r = built[placement[slot]!].team.record
+    const gp = r[0] + r[1] + r[2] + r[3]
+    return gp > 0 ? r[stat] / gp : 0
+  }
+  const special = (slot: number, which: number) => built[placement[slot]!].team.special?.[which] ?? null
+  const measures: { label: string; value: (slot: number) => number | null }[] = [
+    { label: 'Offence', value: (slot) => perGame(slot, 4) },
+    { label: 'Defence', value: (slot) => -perGame(slot, 5) },
+    { label: 'Power play', value: (slot) => special(slot, 0) },
+    { label: 'Penalty kill', value: (slot) => special(slot, 1) },
+  ]
+  for (const { label, value } of measures) {
+    const index = ratings.findIndex((r) => r.label === label)
+    if (index < 0) continue
+    const rated = slots.filter((slot) => value(slot) !== null)
+    if (rated.length < 2) continue
+    const better = ratings[index].higherIsBetter
+    // The values these teams had, best first, given to the season's teams best first (higher value, better team).
+    const values = rated.map((slot) => teamRatings(project.teams[slot])[index]).sort((a, b) => (better ? b - a : a - b))
+    const ranked = [...rated].sort((a, b) => value(b)! - value(a)!)
     ranked.forEach((slot, k) => (teams[slot] = setTeamRating(teams[slot], index, values[k])))
   }
+  if (slots.every((slot) => special(slot, 0) === null)) notes.push(`The power play and penalty kill ratings are kept: the NHL's figures for them begin in 1977-78.`)
   const left = built.flatMap((b, s) => (placement.includes(s) ? [] : [`${b.team.location} ${b.team.name}`]))
   notes.push(`${slots.length} ${slots.length === 1 ? 'team' : 'teams'} from ${season.season} brought in.`)
   if (left.length > 0) notes.push(`Not brought in: ${left.join(', ')}.`)
   if (options.names && canName) notes.push("Logos, colours and arena names are kept: change them on each team's page.")
   return { project: { ...current, teams }, notes }
+}
+
+export interface RerateResult {
+  project: RomProject
+  // How many of the ROM's players were found in the season and re-rated, and the names of those that were not.
+  rerated: number
+  missing: string[]
+  notes: string[]
+}
+
+// Re-rates the players a ROM already has from a season's stats, matched by name: each keeps their team, place,
+// name and number, and takes the attributes the season gives them (weight and hands included). A name that the
+// season has more than once is matched by number too, and left alone if that does not settle it; failing the full
+// name, a first initial and last name ("J. Giguere") that only one player of the season has will do. Goalies are
+// matched with goalies only, skaters with skaters. Players not in the season keep their ratings.
+export function rerateByName(project: RomProject, season: Season, built = buildSeasonRosters(project.game, season)): RerateResult {
+  const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+  const initial = (name: string) => {
+    const words = name.trim().split(/\s+/)
+    return words.length < 2 ? null : plain(words[0]).charAt(0) + '|' + plain(words.slice(1).join(' '))
+  }
+  const byName = new Map<string, BuiltPlayer[]>()
+  const byInitial = new Map<string, BuiltPlayer[]>()
+  const add = (map: Map<string, BuiltPlayer[]>, key: string | null, p: BuiltPlayer) => {
+    if (key) map.set(key, [...(map.get(key) ?? []), p])
+  }
+  for (const team of built)
+    for (const p of team.players) {
+      const kind = p.isGoalie ? 'G|' : 'S|'
+      add(byName, kind + plain(p.player.name), p)
+      const key = initial(p.player.name)
+      add(byInitial, key && kind + key, p)
+    }
+  const find = (name: string, jersey: number, goalie: boolean): BuiltPlayer | null => {
+    const kind = goalie ? 'G|' : 'S|'
+    const pick = (list: BuiltPlayer[] | undefined) => {
+      if (!list || list.length === 0) return null
+      if (list.length === 1) return list[0]
+      const same = list.filter((p) => p.player.jersey === jersey)
+      return same.length === 1 ? same[0] : null
+    }
+    const full = pick(byName.get(kind + plain(name)))
+    if (full) return full
+    const key = initial(name)
+    const list = key ? byInitial.get(kind + key) : undefined
+    return list && list.length === 1 ? list[0] : null
+  }
+  let rerated = 0
+  const missing: string[] = []
+  const teams = project.teams.map((team) => {
+    const goalies = goalieCount(team)
+    let changed = false
+    const players = team.players.map((player, i) => {
+      const found = find(player.name, player.jersey, i < goalies)
+      if (!found) {
+        missing.push(player.name)
+        return player
+      }
+      rerated++
+      changed = true
+      return { ...player, attributes: found.player.attributes.slice() }
+    })
+    return changed ? { ...team, players } : team
+  })
+  const notes = [`${rerated} ${rerated === 1 ? 'player' : 'players'} re-rated from ${season.season}.`]
+  if (missing.length > 0) notes.push(`${missing.length} not found in ${season.season} kept their ratings.`)
+  return { project: { ...project, teams }, rerated, missing, notes }
 }
