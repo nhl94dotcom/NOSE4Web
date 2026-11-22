@@ -354,9 +354,18 @@ function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
 // A name as the game can show it: plain letters, spaces, full stops and apostrophes (the letters the original
 // game's names use), and no longer than its longest, 19 letters; a longer one gives only the first initial.
 export const NAME_ROOM = 19
+// The NHL's data writes some names with a small letter where one is capital: Mcrae, O'connell, D'amour, Macdermid.
+// Last names only. Mc and O' or D' always take a capital after them; Mac only in these, as Macoun, Mackey or Machacek do not.
+const MAC_NAMES = new Set(['macdermid', 'mackenzie', 'macdonald', 'macleod', 'maceachern', 'macinnis', 'maclean', 'maclellan', 'macmillan', 'macneil', 'macpherson', 'macdougall', 'macwilliam'])
+// Names the NHL's data spells wrongly.
+const SPELLED: Record<string, string> = { Mcllwain: 'McIlwain' }
+export function nameCase(name: string): string {
+  return (SPELLED[name] ?? name).replace(/\b(Mc|O'|D')([a-z])/g, (_, start: string, letter: string) => start + letter.toUpperCase()).replace(/\bMac([a-z])\w*/g, (word: string, letter: string) => (MAC_NAMES.has(word.toLowerCase()) ? 'Mac' + letter.toUpperCase() + word.slice(4) : word))
+}
 export function gameName(first: string, last: string): string {
-  const clean = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/-/g, ' ').replace(/[^A-Za-z .']/g, '').replace(/\s+/g, ' ').trim()
-  const [f, l] = [clean(first), clean(last)]
+  const clean = (s: string) => (s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/-/g, ' ').replace(/[^A-Za-z .']/g, '').replace(/\s+/g, ' ').trim())
+  // Only the last name: Mackenzie is a first name too (Mackenzie Weegar).
+  const [f, l] = [clean(first), nameCase(clean(last))]
   const full = `${f} ${l}`.trim()
   if (full.length <= NAME_ROOM) return full
   const short = `${f.charAt(0)}. ${l}`
