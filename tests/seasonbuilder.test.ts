@@ -216,7 +216,11 @@ describe.skipIf(!existsSync(romPath))('a real season in the original NHL 94', ()
     const nobody = project.teams[0].players[3].name.replace(/[a-z]/g, 'q')
     const renamed = { ...project, teams: project.teams.map((t, i) => (i === 0 ? { ...t, players: t.players.map((p, j) => (j === 3 ? { ...p, name: nobody } : p)) } : t)) }
     const result = rerateByName(renamed, seasonOf('19921993'))
-    expect(result.rerated).toBeGreaterThan(500)
+    expect(result.rerated).toBeGreaterThan(650)
+    // Those with too few games for a roster too: Cam Neely's 13 games in 1992-93, rated against the regulars.
+    expect(result.missing).not.toContain('Cam Neely')
+    // And EA's shortened names, each listed to check.
+    expect(result.loose).toContainEqual(['Glen Feathrston', 'Glen Featherstone'])
     expect(result.missing).toContain(nobody)
     expect(result.project.teams[0].players[3].attributes).toEqual(project.teams[0].players[3].attributes)
     // Names, numbers and teams stay; the ratings are the season's, close to EA's own for 1992-93.

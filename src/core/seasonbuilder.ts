@@ -196,12 +196,16 @@ function score(weights: Weights, standings: Record<string, number[]>, i: number)
   return total
 }
 
-// A rate per game, drawn toward the group's average for a player with few games.
-function rates(totals: (number | null)[], games: number[], priorGames = 20): (number | null)[] {
+// The group's average per game, or null where none of it has the stat.
+function meanRate(totals: (number | null)[], games: number[]): number | null {
   const sum = totals.reduce<number>((s, v) => s + (v ?? 0), 0)
   const gp = games.reduce((s, v) => s + v, 0)
-  if (totals.every((v) => v === null) || gp === 0) return totals.map(() => null)
-  const mean = sum / gp
+  return totals.every((v) => v === null) || gp === 0 ? null : sum / gp
+}
+
+// A rate per game, drawn toward the group's average (`mean`) for a player with few games.
+function rates(totals: (number | null)[], games: number[], mean: number | null, priorGames = 20): (number | null)[] {
+  if (mean === null) return totals.map(() => null)
   return totals.map((v, i) => (v === null ? null : (v + mean * priorGames) / (games[i] + priorGames)))
 }
 
@@ -244,55 +248,107 @@ function sumGoalies(list: SeasonGoalie[]): SeasonGoalie {
   }))
 }
 
-// Games played, as a standing: any player with 70 per cent of the most games counts as a regular, so a star who
-// missed some (Mario Lemieux's 60 of 84 in 1992-93) is not marked down for it.
-const regular = (gp: number[]) => {
-  const most = Math.max(...gp)
-  return standing(gp.map((g) => Math.min(g, most * 0.7)))
-}
+// Each stat of `players` before it becomes a standing, measured against `pool` (the players they are rated among):
+// per-game rates drawn toward the pool's average, games counted up to 70 per cent of the pool's most, so a star who
+// missed some (Mario Lemieux's 60 of 84 in 1992-93) is not marked down for it. For the pool itself, players is pool.
+type Raw = Record<string, (number | null)[]>
 
-function rateSkaters(players: SeasonSkater[], group: 'F' | 'D', year: number): Rated[] {
-  const gp = players.map((p) => Math.max(1, p.gp))
-  const shpct = players.map((p) => (p.shots === null ? null : (p.g + 3) / (p.shots + 30)))
-  const standings: Record<string, number[]> = {
-    gp: regular(gp),
-    g: standing(rates(players.map((p) => p.g), gp)),
-    a: standing(rates(players.map((p) => p.a), gp)),
-    shots: standing(rates(players.map((p) => p.shots), gp)),
-    shpct: standing(shpct),
-    pim: standing(rates(players.map((p) => p.pim), gp)),
-    pm: standing(rates(players.map((p) => p.pm), gp)),
-    ppg: standing(rates(players.map((p) => p.ppg), gp)),
-    shg: standing(rates(players.map((p) => p.shg), gp)),
-    h: standing(players.map((p) => p.inches)),
-    w: standing(players.map((p) => p.pounds)),
-    age: standing(players.map((p) => (p.born === null ? null : year - p.born))),
+const games = (list: { gp: number }[]) => list.map((p) => Math.max(1, p.gp))
+
+function skaterRaw(players: SeasonSkater[], pool: SeasonSkater[], year: number): Raw {
+  const gp = games(players)
+  const poolGp = games(pool)
+  const most = Math.max(...poolGp)
+  const rate = (stat: (p: SeasonSkater) => number | null) => rates(players.map(stat), gp, meanRate(pool.map(stat), poolGp))
+  return {
+    gp: gp.map((g) => Math.min(g, most * 0.7)),
+    g: rate((p) => p.g),
+    a: rate((p) => p.a),
+    shots: rate((p) => p.shots),
+    shpct: players.map((p) => (p.shots === null ? null : (p.g + 3) / (p.shots + 30))),
+    pim: rate((p) => p.pim),
+    pm: rate((p) => p.pm),
+    ppg: rate((p) => p.ppg),
+    shg: rate((p) => p.shg),
+    h: players.map((p) => p.inches),
+    w: players.map((p) => p.pounds),
+    age: players.map((p) => (p.born === null ? null : year - p.born)),
   }
-  return rateGroup(players.length, WEIGHTS[group], standings)
 }
 
-function rateGoalies(players: SeasonGoalie[], year: number): Rated[] {
-  const gp = players.map((p) => Math.max(1, p.gp))
-  const standings: Record<string, number[]> = {
-    gp: regular(gp),
-    svp: standing(players.map((p) => (p.sa === null || p.ga === null || p.sa === 0 ? null : (p.sa - p.ga + 0.88 * 600) / (p.sa + 600)))),
-    gaa: standing(players.map((p, i) => (p.ga === null ? null : -(p.ga + 3.5 * 20) / ((p.seconds ?? gp[i] * 3600) / 3600 + 20)))),
-    wp: standing(players.map((p) => (p.w === null ? null : (p.w + 4.5) / (p.w + (p.l ?? 0) + (p.t ?? 0) + 10)))),
-    so: standing(players.map((p, i) => (p.so === null ? null : p.so / gp[i]))),
-    h: standing(players.map((p) => p.inches)),
-    w: standing(players.map((p) => p.pounds)),
-    age: standing(players.map((p) => (p.born === null ? null : year - p.born))),
+function goalieRaw(players: SeasonGoalie[], pool: SeasonGoalie[], year: number): Raw {
+  const gp = games(players)
+  const most = Math.max(...games(pool))
+  return {
+    gp: gp.map((g) => Math.min(g, most * 0.7)),
+    svp: players.map((p) => (p.sa === null || p.ga === null || p.sa === 0 ? null : (p.sa - p.ga + 0.88 * 600) / (p.sa + 600))),
+    gaa: players.map((p, i) => (p.ga === null ? null : -(p.ga + 3.5 * 20) / ((p.seconds ?? gp[i] * 3600) / 3600 + 20))),
+    wp: players.map((p) => (p.w === null ? null : (p.w + 4.5) / (p.w + (p.l ?? 0) + (p.t ?? 0) + 10))),
+    so: players.map((p, i) => (p.so === null ? null : p.so / gp[i])),
+    h: players.map((p) => p.inches),
+    w: players.map((p) => p.pounds),
+    age: players.map((p) => (p.born === null ? null : year - p.born)),
   }
-  return rateGroup(players.length, WEIGHTS.G, standings)
 }
 
-function rateGroup(count: number, weights: Record<string, Weights>, standings: Record<string, number[]>): Rated[] {
+const standingsOf = (raw: Raw): Record<string, number[]> => Object.fromEntries(Object.entries(raw).map(([k, list]) => [k, standing(list)]))
+
+// Where a value would stand among the pool's, as standing() places the pool's own.
+function standingAmong(pool: (number | null)[], x: number | null): number {
+  if (x === null || !Number.isFinite(x)) return 0.5
+  const known = pool.filter((v): v is number => v !== null && Number.isFinite(v))
+  if (known.length === 0) return 0.5
+  let below = 0
+  let equal = 0
+  for (const v of known) {
+    if (v < x) below++
+    else if (v === x) equal++
+  }
+  return (below + equal / 2) / known.length
+}
+
+interface RatedGroup {
+  weights: Record<string, Weights>
+  raw: Raw
+  standings: Record<string, number[]>
+  rated: Rated[]
+}
+
+function rateGroup(weights: Record<string, Weights>, raw: Raw): RatedGroup {
+  const standings = standingsOf(raw)
+  const count = Object.values(raw)[0]?.length ?? 0
   const rated: Rated[] = Array.from({ length: count }, () => ({ values: {} }))
   for (const [label, w] of Object.entries(weights)) {
     const values = shareOut(rated.map((_, i) => score(w, standings, i)), w.count)
     values.forEach((v, i) => (rated[i].values[label] = v))
   }
-  return rated
+  return { weights, raw, standings, rated }
+}
+
+const rateSkaters = (players: SeasonSkater[], group: 'F' | 'D', year: number) => rateGroup(WEIGHTS[group], skaterRaw(players, players, year))
+const rateGoalies = (players: SeasonGoalie[], year: number) => rateGroup(WEIGHTS.G, goalieRaw(players, players, year))
+
+// Players outside a rated group, rated against it without changing it: for each attribute, each takes the value of
+// the group's player with the highest score not above theirs (the lowest's, if none).
+function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
+  const count = Object.values(raw)[0]?.length ?? 0
+  const standings = Object.fromEntries(Object.entries(raw).map(([k, list]) => [k, list.map((x) => standingAmong(group.raw[k], x))]))
+  const out: Rated[] = Array.from({ length: count }, () => ({ values: {} }))
+  if (group.rated.length === 0) return out
+  for (const [label, w] of Object.entries(group.weights)) {
+    const scores = group.rated.map((_, i) => score(w, group.standings, i))
+    const order = scores.map((_, i) => i).sort((a, b) => scores[a] - scores[b])
+    out.forEach((r, j) => {
+      const s = score(w, standings, j)
+      let pick = order[0]
+      for (const i of order) {
+        if (scores[i] > s) break
+        pick = i
+      }
+      r.values[label] = group.rated[pick].values[label]
+    })
+  }
+  return out
 }
 
 // A name as the game can show it: plain letters, spaces, full stops and apostrophes (the letters the original
@@ -396,6 +452,17 @@ export interface BuiltTeam {
 
 // Each season team's roster, with its players rated against every player chosen in the league that season.
 export function buildSeasonRosters(game: GameConfig, season: Season, options: SeasonOptions = DEFAULT_SEASON_OPTIONS): BuiltTeam[] {
+  return rateSeason(game, season, options).teams
+}
+
+export interface RatedSeason {
+  teams: BuiltTeam[]
+  // Everyone else who played that season, too few games to make a roster: rated against those who did, so each
+  // gets the value a rostered player with their standing has, and nobody else's rating changes.
+  others: BuiltPlayer[]
+}
+
+export function rateSeason(game: GameConfig, season: Season, options: SeasonOptions = DEFAULT_SEASON_OPTIONS): RatedSeason {
   const year = Number(season.season.slice(0, 4))
   // Each player goes to the team they played the most games for, or the one they ended the season with (the
   // highest stint; most games where the file has no stints).
@@ -448,34 +515,59 @@ export function buildSeasonRosters(game: GameConfig, season: Season, options: Se
   // Rated with their whole seasons, among all the chosen players of their kind.
   const whole = <T extends { first: string; last: string; born: number | null }, S>(p: T, map: Map<string, { parts: S[] }>, sum: (l: S[]) => S) =>
     sum(map.get(playerKey(p))!.parts)
-  const ratedGroup = <T,>(lists: T[][], rate: (all: T[]) => Rated[]) => {
+  const ratedGroup = <T,>(lists: T[][], rate: (all: T[]) => RatedGroup) => {
     const all = lists.flat()
-    const rated = rate(all)
+    const group = rate(all)
     const out = new Map<T, Rated>()
-    all.forEach((p, i) => out.set(p, rated[i]))
-    return out
+    all.forEach((p, i) => out.set(p, group.rated[i]))
+    return { out, group, all }
   }
-  const fRated = ratedGroup(chosen.map((c) => c.forwards), (all) => rateSkaters(all.map((p) => whole(p, skaterTeams, sumSkaters)), 'F', year))
-  const dRated = ratedGroup(chosen.map((c) => c.defence), (all) => rateSkaters(all.map((p) => whole(p, skaterTeams, sumSkaters)), 'D', year))
-  const gRated = ratedGroup(chosen.map((c) => c.goalies), (all) => rateGoalies(all.map((p) => whole(p, goalieTeams, sumGoalies)), year))
+  const fSeasons = (all: SeasonSkater[]) => all.map((p) => whole(p, skaterTeams, sumSkaters))
+  const gSeasons = (all: SeasonGoalie[]) => all.map((p) => whole(p, goalieTeams, sumGoalies))
+  const fAll = ratedGroup(chosen.map((c) => c.forwards), (all) => rateSkaters(fSeasons(all), 'F', year))
+  const dAll = ratedGroup(chosen.map((c) => c.defence), (all) => rateSkaters(fSeasons(all), 'D', year))
+  const gAll = ratedGroup(chosen.map((c) => c.goalies), (all) => rateGoalies(gSeasons(all), year))
+  const [fRated, dRated, gRated] = [fAll.out, dAll.out, gAll.out]
+
+  const skaterPlayer = (p: SeasonSkater, forward: boolean, rated: Rated): BuiltPlayer => ({
+    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, false, rated.values, p.pounds, p.shoots) },
+    isGoalie: false,
+    forward,
+    games: p.gp,
+    line: `${p.pos}, ${p.gp} GP, ${p.g} G, ${p.a} A, ${p.pim} PIM${p.pm === null ? '' : `, ${p.pm > 0 ? '+' : ''}${p.pm}`}`,
+  })
+  const goaliePlayer = (p: SeasonGoalie, rated: Rated): BuiltPlayer => ({
+    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, true, rated.values, p.pounds, p.catches) },
+    isGoalie: true,
+    forward: false,
+    games: p.gp,
+    line: `G, ${p.gp} GP${p.ga !== null && p.seconds ? `, ${((p.ga * 3600) / p.seconds).toFixed(2)} GAA` : ''}${p.sa ? `, ${((p.sa - (p.ga ?? 0)) / p.sa).toFixed(3).replace(/^0/, '')} SV%` : ''}`,
+  })
+
+  // Those who did not make a roster, each with their whole season, rated against the players of their kind who did.
+  const inRosters = new Set([...fAll.all, ...dAll.all, ...gAll.all].map((p) => playerKey(p)))
+  const left = <T extends { first: string; last: string; born: number | null }>(map: Map<string, { team: number; parts: T[] }>, list: (t: SeasonTeam) => T[]) =>
+    [...map.entries()].filter(([k]) => !inRosters.has(k)).map(([, s]) => s.parts.find((p) => list(season.teams[s.team]).includes(p))!)
+  const leftSkaters = left(skaterTeams, (t) => t.skaters)
+  const leftF = leftSkaters.filter((p) => p.pos !== 'D')
+  const leftD = leftSkaters.filter((p) => p.pos === 'D')
+  const leftG = left(goalieTeams, (t) => t.goalies)
+  const against = <T, S>(group: RatedGroup, players: T[], seasons: S[], raw: (players: S[]) => Raw, make: (p: T, rated: Rated) => BuiltPlayer) =>
+    players.length === 0 || group.rated.length === 0 ? [] : rateAgainst(group, raw(seasons)).map((rated, i) => make(players[i], rated))
+  const fPool = fSeasons(fAll.all)
+  const dPool = fSeasons(dAll.all)
+  const gPool = gSeasons(gAll.all)
+  const others = [
+    ...against(fAll.group, leftF, fSeasons(leftF), (list) => skaterRaw(list, fPool, year), (p, r) => skaterPlayer(p, true, r)),
+    ...against(dAll.group, leftD, fSeasons(leftD), (list) => skaterRaw(list, dPool, year), (p, r) => skaterPlayer(p, false, r)),
+    ...against(gAll.group, leftG, gSeasons(leftG), (list) => goalieRaw(list, gPool, year), goaliePlayer),
+  ]
 
   const points = (p: SeasonSkater) => p.g + p.a
-  return season.teams.map((team, t) => {
+  const teams = season.teams.map((team, t) => {
     const c = chosen[t]
-    const skater = (p: SeasonSkater, forward: boolean, rated: Map<SeasonSkater, Rated>): BuiltPlayer => ({
-      player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, false, rated.get(p)!.values, p.pounds, p.shoots) },
-      isGoalie: false,
-      forward,
-      games: p.gp,
-      line: `${p.pos}, ${p.gp} GP, ${p.g} G, ${p.a} A, ${p.pim} PIM${p.pm === null ? '' : `, ${p.pm > 0 ? '+' : ''}${p.pm}`}`,
-    })
-    const goalie = (p: SeasonGoalie): BuiltPlayer => ({
-      player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, true, gRated.get(p)!.values, p.pounds, p.catches) },
-      isGoalie: true,
-      forward: false,
-      games: p.gp,
-      line: `G, ${p.gp} GP${p.ga !== null && p.seconds ? `, ${((p.ga * 3600) / p.seconds).toFixed(2)} GAA` : ''}${p.sa ? `, ${((p.sa - (p.ga ?? 0)) / p.sa).toFixed(3).replace(/^0/, '')} SV%` : ''}`,
-    })
+    const skater = (p: SeasonSkater, forward: boolean, rated: Map<SeasonSkater, Rated>) => skaterPlayer(p, forward, rated.get(p)!)
+    const goalie = (p: SeasonGoalie) => goaliePlayer(p, gRated.get(p)!)
     return {
       team,
       players: ownNumbers([
@@ -485,6 +577,7 @@ export function buildSeasonRosters(game: GameConfig, season: Season, options: Se
       ]),
     }
   })
+  return { teams, others }
 }
 
 // Teammates who wore the same number at different times that season: the one with more games keeps it, the other
@@ -648,15 +741,19 @@ export interface RerateResult {
   // How many of the ROM's players were found in the season and re-rated, and the names of those that were not.
   rerated: number
   missing: string[]
+  // Those matched by something other than the very same name: the ROM's name, then the season's.
+  loose: [string, string][]
   notes: string[]
 }
 
 // Re-rates the players a ROM already has from a season's stats, matched by name: each keeps their team, place,
 // name and number, and takes the attributes the season gives them (weight and hands included). A name that the
 // season has more than once is matched by number too, and left alone if that does not settle it; failing the full
-// name, a first initial and last name ("J. Giguere") that only one player of the season has will do. Goalies are
-// matched with goalies only, skaters with skaters. Players not in the season keep their ratings.
-export function rerateByName(project: RomProject, season: Season, built = buildSeasonRosters(project.game, season)): RerateResult {
+// name, a first initial and last name ("J. Giguere") that only one player of the season has will do, and then a
+// last name shortened by leaving letters out (Feathrston), with the same first name, if only one player fits. Goalies are
+// matched with goalies only, skaters with skaters. Everyone who played that season counts, those with too few games
+// for a roster rated against those with enough (rateSeason). Players not in the season keep their ratings.
+export function rerateByName(project: RomProject, season: Season, rated = rateSeason(project.game, season)): RerateResult {
   const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')
   const initial = (name: string) => {
     const words = name.trim().split(/\s+/)
@@ -667,8 +764,8 @@ export function rerateByName(project: RomProject, season: Season, built = buildS
   const add = (map: Map<string, BuiltPlayer[]>, key: string | null, p: BuiltPlayer) => {
     if (key) map.set(key, [...(map.get(key) ?? []), p])
   }
-  for (const team of built)
-    for (const p of team.players) {
+  const everyone = [...rated.teams.flatMap((t) => t.players), ...rated.others]
+  for (const p of everyone) {
       const kind = p.isGoalie ? 'G|' : 'S|'
       add(byName, kind + plain(p.player.name), p)
       const key = initial(p.player.name)
@@ -686,10 +783,28 @@ export function rerateByName(project: RomProject, season: Season, built = buildS
     if (full) return full
     const key = initial(name)
     const list = key ? byInitial.get(kind + key) : undefined
-    return list && list.length === 1 ? list[0] : null
+    if (list && list.length === 1) return list[0]
+    // A last name the ROM shortened by leaving letters out, as the original game's Feathrston for Featherstone:
+    // the same first name, the same first letter, and only one player of the season it could be.
+    const words = name.trim().split(/\s+/)
+    if (words.length < 2) return null
+    const [first, last] = [plain(words[0]), plain(words.slice(1).join(' '))]
+    const within = (short: string, long: string) => {
+      let at = 0
+      for (const c of long) if (c === short[at]) at++
+      return at === short.length
+    }
+    const shortened = everyone.filter((p) => {
+      if (p.isGoalie !== goalie) return false
+      const their = p.player.name.trim().split(/\s+/)
+      const [f, l] = [plain(their[0]), plain(their.slice(1).join(' '))]
+      return (f === first || (f.length === 1 && f === first[0])) && l !== last && l[0] === last[0] && l.length - last.length <= 3 && within(last, l)
+    })
+    return shortened.length === 1 ? shortened[0] : null
   }
   let rerated = 0
   const missing: string[] = []
+  const loose: [string, string][] = []
   const teams = project.teams.map((team) => {
     const goalies = goalieCount(team)
     let changed = false
@@ -701,11 +816,15 @@ export function rerateByName(project: RomProject, season: Season, built = buildS
       }
       rerated++
       changed = true
+      if (plain(found.player.name) !== plain(player.name)) loose.push([player.name, found.player.name])
       return { ...player, attributes: found.player.attributes.slice() }
     })
     return changed ? { ...team, players } : team
   })
   const notes = [`${rerated} ${rerated === 1 ? 'player' : 'players'} re-rated from ${season.season}.`]
-  if (missing.length > 0) notes.push(`${missing.length} not found in ${season.season} kept their ratings.`)
-  return { project: { ...project, teams }, rerated, missing, notes }
+  // A list of names, the first 30 of them.
+  const some = (names: string[]) => (names.length <= 30 ? names.join(', ') : `${names.slice(0, 30).join(', ')} and ${names.length - 30} more`)
+  if (loose.length > 0) notes.push(`Matched by another form of the name: ${some(loose.map(([ours, theirs]) => `${ours} as ${theirs}`))}.`)
+  if (missing.length > 0) notes.push(`${missing.length} not found in ${season.season} kept their ratings: ${some(missing)}.`)
+  return { project: { ...project, teams }, rerated, missing, loose, notes }
 }

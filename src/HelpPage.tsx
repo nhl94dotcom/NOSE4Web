@@ -1883,9 +1883,11 @@ export function HelpPage() {
         <li>
           <b>Re-rate the players this ROM has:</b> keeps the ROM's teams and rosters, and gives each player found by
           name in the season the ratings that season gives them (weight and hands too). A name the season has twice is
-          matched by number as well, and a first initial and last name where only one player has it. Players not in
-          the season, or with too few games to make their season team's roster, keep their ratings. With the original
-          NHL 94 and 1992-93, about 640 of its 684 players are found; most of the rest are names EA shortened.
+          matched by number as well, and a first initial and last name, or a last name with letters left out (as EA
+          wrote Feathrston), where only one player fits; the page lists each match made that way, to check. Everyone
+          who played counts: a player with too few games for a roster is rated against those who made one, without
+          changing anyone else's ratings. Players not in the season keep theirs. With the original NHL 94 and 1992-93,
+          682 of its 684 players are found.
         </li>
         <li>
           If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,

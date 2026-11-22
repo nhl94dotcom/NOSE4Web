@@ -3,10 +3,10 @@ import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import {
   applySeason,
-  buildSeasonRosters,
   DEFAULT_SEASON_OPTIONS,
   defaultPlacement,
   parseSeason,
+  rateSeason,
   rerateByName,
   seasonBuilderSupported,
   seasonLabel,
@@ -75,9 +75,10 @@ export function RealSeasonPage({ project, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chosen, franchises])
 
-  const built = useMemo(() => (season ? buildSeasonRosters(project.game, season, options) : []), [season, options, project.game])
+  const rated = useMemo(() => (season ? rateSeason(project.game, season, options) : null), [season, options, project.game])
+  const built = useMemo(() => rated?.teams ?? [], [rated])
   // The ROM's own players, re-rated where the season has them by name; the same as the button does, to count them.
-  const rerate = useMemo(() => (season ? rerateByName(project, season, built) : null), [project, season, built])
+  const rerate = useMemo(() => (season && rated ? rerateByName(project, season, rated) : null), [project, season, rated])
   const ours = teamLabels(project.teams, project.game)
   const placed = placement.filter((s) => s !== null).length
   // The ROM's teams a season's team can go to without being chosen by hand: all but its All-Star teams.
@@ -236,9 +237,11 @@ export function RealSeasonPage({ project, onChange }: Props) {
           <h3>Re-rate the players this ROM has</h3>
           <p className="note">
             Or keep the ROM's teams and rosters as they are, and give each player found by name in {season.season} the
-            ratings that season gives them (weight and hands too). Players not in it, or with too few games to make their
-            season team's roster above, keep theirs. A name the season has twice is matched by number as well; a first initial and last name, such as J. Giguere, is matched where
-            only one player has it.
+            ratings that season gives them (weight and hands too). Everyone who played counts: a player with too few games
+            for a roster is rated against those who made one. Players not in the season keep their ratings. A name the
+            season has twice is matched by number as well; a first initial and last name (J. Giguere), or a last name
+            with letters left out (Feathrston), is matched where only one player fits. The list after shows each match
+            made that way, to check.
           </p>
           <p>
             <button disabled={!rerate || rerate.rerated === 0} onClick={rerateAll}>
