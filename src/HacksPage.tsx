@@ -961,7 +961,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           </select>,
           <>
             With fighting on: a player who has fought cannot fight again that game. A hard hit with that player stays a hit.
-            Not yet tested in the game.
+            Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
       </section>
@@ -1083,7 +1083,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             An option, the other half of the community idea: each knockdown a skater takes makes a later injury a little
             more likely, and half of it wears off at each intermission. 0 is the original game. Only the few hits that can
-            injure in the original game are affected (a puck carrier knocked onto his back while facing straight up or down
+            injure in the original game are affected (a puck carrier knocked onto their back while facing straight up or down
             the ice, with the clock running), so injuries stay rare. On such a hit, each knockdown the skater has taken
             this game, this one included, adds this many chances in 160 of an injury, up to the most below.
             Recommended: {RECOMMENDED_INJURY_BONUS} a knockdown, at most {RECOMMENDED_INJURY_CAP}: about 27% more
