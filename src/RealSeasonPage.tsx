@@ -134,7 +134,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
       <h2>Real NHL season</h2>
       <p className="note">
         Fills teams with the players of a real NHL season, 1967-68 on, rated from that season's stats: where each player
-        stands among that season's players, given out in the same proportions as the original NHL 94's ratings. Each
+        stands among that season's players, given out in the same proportions as the original NHL 94's ratings, with no limit on top ratings. Each
         team gets the players with the most games for it, newly built lines, Offence and Defence ratings by its goals
         for and against, and (from 1977-78) power play and penalty kill ratings by that season's percentages. Undo
         takes it all back.

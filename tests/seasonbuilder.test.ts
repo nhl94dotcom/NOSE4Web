@@ -141,6 +141,18 @@ describe('a real season', () => {
     expect(seasonOf('19701971').teams.every((t) => t.special === null)).toBe(true)
   })
 
+  it("gives a season's leader the top value, and has no limit on how many get it", () => {
+    const players = buildSeasonRosters(NHL94, seasonOf('19851986')).flatMap((t) => t.players)
+    const at = (label: string) => NHL94.playerAttributeLabels.indexOf(label)
+    const gretzky = players.find((p) => p.player.name === 'Wayne Gretzky')!
+    // 163 assists: the most, so the top passing, though his standing is only a little above the next player's.
+    expect(gretzky.player.attributes[at('Pas')]).toBe(6)
+    expect(overallRating(gretzky.player.attributes, false, NHL94)).toBeLessThanOrEqual(100)
+    // 2023-24, with 32 teams, has more skaters at the top than the original game's three or four.
+    const recent = buildSeasonRosters(NHL94, seasonOf('20232024')).flatMap((t) => t.players).filter((p) => !p.isGoalie)
+    expect(recent.filter((p) => p.player.attributes[at('End')] === 6).length).toBeGreaterThan(8)
+  })
+
   it('is offered for games with the original attributes', () => {
     expect(seasonBuilderSupported(NHL94)).toBe(true)
   })

@@ -5,7 +5,8 @@
 // his group (forwards, defencemen or goalies): 0 the lowest, 1 the highest. Standing within the season is what lets
 // any era be rated alike: 50 goals meant more in 1998 than in 1982. A player's score for each attribute is a weighted
 // sum of those standings, and the players are then given that attribute's values in the same proportions as the
-// original NHL 94's players have them: the best scores get as many 6s as EA gave out, and so on down.
+// original NHL 94's players have them, the lowest scores the lowest values; and every player whose score reaches
+// what earned the top value in 1992-93 gets it, however many do (TOP_SCORE).
 //
 // The weights were fitted to the original NHL 94, whose ratings EA made from the 1992-93 season: given that season's
 // stats, they give back EA's ratings within one step for 85 to 100 per cent of the players, depending on the
@@ -115,36 +116,40 @@ export const seasonLabel = (id: string) => `${id.slice(0, 4)}-${id.slice(6)}`
 
 type Weights = { c: number; count: number[] } & { [standing: string]: number | number[] }
 
-// Fitted to the original NHL 94 against 1992-93 (see the top of this file). Each entry: a constant, a weight for each
+// Fitted to the original NHL 94 against 1992-93 (see the top of this file), then changed by hand (2026-11-22): a
+// skater's height and weight leave Agility (Weight already slows a heavy player's start in the game), age counts a
+// little against Agility and Speed, and age no longer counts for the skills (OfA, DfA, ShP, StH, ShA, Pas), where
+// EA rated veterans higher. Agility then matches EA's within one step for 91 per cent of the players, not 93.
+// Each entry: a constant, a weight for each
 // standing, and how many of the original game's players have each value of the attribute (0 up).
 const WEIGHTS: Record<'F' | 'D' | 'G', Record<string, Weights>> = {
   F: {
-    Agl: { c: 1.38, gp: 0.5, g: 0.65, a: 0.81, shots: 0.99, shpct: -0.01, pim: -0.08, pm: 0.08, ppg: -0.08, shg: 0.27, h: -0.12, w: -0.4, age: 0.52, count: [0, 29, 100, 96, 87, 24, 2] },
-    Spd: { c: 1.93, gp: 0.52, g: 0.76, a: 0.33, shots: 1.07, shpct: -0.26, pim: -0.24, pm: 0.29, ppg: -0.05, shg: 0.05, h: -0.34, w: -0.23, age: 0.12, count: [0, 18, 106, 115, 83, 12, 4] },
-    OfA: { c: 0.97, gp: 0.16, g: 0.51, a: 1.87, shots: 0.74, shpct: 0.55, pm: 0.11, ppg: 0.05, shg: 0.1, h: -0.1, w: -0.09, age: -0.01, count: [4, 25, 89, 121, 78, 17, 4] },
-    DfA: { c: 0.94, gp: 1.06, g: -0.06, a: 0.76, shots: 0.47, shpct: 0.21, pim: -0.01, pm: -0.03, ppg: -0.14, shg: 0.75, h: 0.26, w: -0.19, age: 0.78, count: [5, 25, 66, 165, 68, 8, 1] },
-    ShP: { c: 1.22, gp: 0.32, g: 0.56, a: 0.53, shots: 0.94, shpct: 0.28, pim: -0.15, pm: -0.03, ppg: 0.16, shg: -0.18, h: -0.24, w: 0.37, age: 0.22, count: [1, 28, 141, 111, 48, 8, 1] },
+    Agl: { c: 1.38, gp: 0.5, g: 0.65, a: 0.81, shots: 0.99, shpct: -0.01, pim: -0.08, pm: 0.08, ppg: -0.08, shg: 0.27, h: 0, w: 0, age: -0.15, count: [0, 29, 100, 96, 87, 24, 2] },
+    Spd: { c: 1.93, gp: 0.52, g: 0.76, a: 0.33, shots: 1.07, shpct: -0.26, pim: -0.24, pm: 0.29, ppg: -0.05, shg: 0.05, h: -0.34, w: -0.23, age: -0.1, count: [0, 18, 106, 115, 83, 12, 4] },
+    OfA: { c: 0.97, gp: 0.16, g: 0.51, a: 1.87, shots: 0.74, shpct: 0.55, pm: 0.11, ppg: 0.05, shg: 0.1, h: -0.1, w: -0.09, age: 0, count: [4, 25, 89, 121, 78, 17, 4] },
+    DfA: { c: 0.94, gp: 1.06, g: -0.06, a: 0.76, shots: 0.47, shpct: 0.21, pim: -0.01, pm: -0.03, ppg: -0.14, shg: 0.75, h: 0.26, w: -0.19, age: 0, count: [5, 25, 66, 165, 68, 8, 1] },
+    ShP: { c: 1.22, gp: 0.32, g: 0.56, a: 0.53, shots: 0.94, shpct: 0.28, pim: -0.15, pm: -0.03, ppg: 0.16, shg: -0.18, h: -0.24, w: 0.37, age: 0, count: [1, 28, 141, 111, 48, 8, 1] },
     Chk: { c: 1.23, gp: 0.37, g: -0.16, a: 0.29, shots: 0.15, shpct: 0.18, pim: 0.6, pm: -0.06, ppg: -0.41, shg: 0.14, h: 0.26, w: 0.3, age: 0.95, count: [0, 41, 133, 113, 45, 6] },
-    StH: { c: 1.31, gp: 0.1, g: 0.47, a: 1.26, shots: 1.0, shpct: 0.13, pim: -0.21, pm: 0.05, ppg: -0.02, h: -0.04, w: -0.13, age: 0.45, count: [0, 24, 117, 109, 67, 19, 2] },
-    ShA: { c: 0.85, gp: 0.19, g: 0.69, a: 0.22, shots: -0.14, shpct: 2.96, pim: 0.03, pm: 0.01, ppg: 0.02, shg: 0.08, h: -0.01, w: 0.02, age: -0.01, count: [6, 36, 81, 121, 63, 27, 4] },
+    StH: { c: 1.31, gp: 0.1, g: 0.47, a: 1.26, shots: 1.0, shpct: 0.13, pim: -0.21, pm: 0.05, ppg: -0.02, h: -0.04, w: -0.13, age: 0, count: [0, 24, 117, 109, 67, 19, 2] },
+    ShA: { c: 0.85, gp: 0.19, g: 0.69, a: 0.22, shots: -0.14, shpct: 2.96, pim: 0.03, pm: 0.01, ppg: 0.02, shg: 0.08, h: -0.01, w: 0.02, age: 0, count: [6, 36, 81, 121, 63, 27, 4] },
     End: { c: 0.85, gp: 1.21, g: 0.46, a: 0.78, shots: 0.76, shpct: 0.26, pim: -0.05, pm: 0.04, ppg: -0.06, shg: 0.4, h: 0.12, w: 0.02, age: 0.62, count: [3, 25, 58, 120, 108, 18, 6] },
     Rgh: { c: 4.17, gp: 0.01, g: 1.78, a: -6.32, shots: 2.94, shpct: -1.09, pim: 0.03, pm: -0.38, ppg: 0.12, shg: 0.09, h: -0.06, w: 0.09, age: -0.25, count: [41, 50, 70, 63, 55, 59] },
-    Pas: { c: 1.14, gp: 0.25, g: 0.16, a: 1.47, shots: 0.64, shpct: 0.14, pim: -0.32, pm: 0.08, ppg: 0.15, shg: 0.16, h: -0.21, w: -0.02, age: 0.55, count: [0, 43, 119, 105, 57, 11, 3] },
+    Pas: { c: 1.14, gp: 0.25, g: 0.16, a: 1.47, shots: 0.64, shpct: 0.14, pim: -0.32, pm: 0.08, ppg: 0.15, shg: 0.16, h: -0.21, w: -0.02, age: 0, count: [0, 43, 119, 105, 57, 11, 3] },
     Agr: { c: 0.66, gp: 0.2, g: -0.12, a: -0.05, shots: 0.04, shpct: 0.12, pim: 3.47, pm: 0.04, ppg: -0.13, shg: -0.01, h: -0.12, w: 0.37, age: -0.06, count: [15, 44, 111, 95, 59, 12, 2] },
     Fgt: { c: 0.9, gp: -0.66, g: 0.07, a: -1.09, shots: -0.24, shpct: 0.16, pim: 2.35, pm: 0.12, ppg: 0.15, shg: -0.15, h: -0.2, w: 1.0, age: 0.47, count: [64, 83, 75, 73, 30, 10, 3] },
   },
   D: {
-    Agl: { c: 1.78, gp: 0.67, g: 0.83, a: 0.72, shots: 0.45, shpct: -0.74, pim: -0.24, pm: 0.12, ppg: -0.09, shg: 0.14, h: 0.05, w: -0.18, age: 0.3, count: [1, 10, 71, 68, 34, 6, 3] },
-    Spd: { c: 1.62, gp: 0.86, g: 0.71, a: 0.45, shots: 0.14, shpct: -0.41, pim: -0.1, pm: 0.18, ppg: 0.12, shg: 0.06, h: 0.03, w: -0.14, age: 0.07, count: [1, 10, 80, 78, 22, 2] },
-    OfA: { c: 0.38, gp: 0.53, g: 0.84, a: 1.63, shots: 0.41, shpct: 0.01, pim: -0.05, pm: 0.23, ppg: 0.07, shg: -0.03, h: -0.05, w: 0.01, age: 0.05, count: [6, 39, 77, 51, 20] },
-    DfA: { c: 1.32, gp: 1.71, g: 0.58, a: 0.65, shots: 0.06, shpct: -0.42, pim: 0.04, pm: 0.33, ppg: -0.01, shg: 0.05, h: 0.1, w: 0.03, age: 0.4, count: [1, 12, 34, 80, 58, 6, 2] },
-    ShP: { c: 0.83, gp: 0.63, g: 1.31, a: 0.31, shots: 0.86, shpct: -0.87, pim: -0.05, pm: 0.43, ppg: 0.09, shg: 0.03, h: 0.21, w: 0.24, age: 0.32, count: [1, 31, 72, 45, 34, 7, 3] },
+    Agl: { c: 1.78, gp: 0.67, g: 0.83, a: 0.72, shots: 0.45, shpct: -0.74, pim: -0.24, pm: 0.12, ppg: -0.09, shg: 0.14, h: 0, w: 0, age: -0.15, count: [1, 10, 71, 68, 34, 6, 3] },
+    Spd: { c: 1.62, gp: 0.86, g: 0.71, a: 0.45, shots: 0.14, shpct: -0.41, pim: -0.1, pm: 0.18, ppg: 0.12, shg: 0.06, h: 0.03, w: -0.14, age: -0.1, count: [1, 10, 80, 78, 22, 2] },
+    OfA: { c: 0.38, gp: 0.53, g: 0.84, a: 1.63, shots: 0.41, shpct: 0.01, pim: -0.05, pm: 0.23, ppg: 0.07, shg: -0.03, h: -0.05, w: 0.01, age: 0, count: [6, 39, 77, 51, 20] },
+    DfA: { c: 1.32, gp: 1.71, g: 0.58, a: 0.65, shots: 0.06, shpct: -0.42, pim: 0.04, pm: 0.33, ppg: -0.01, shg: 0.05, h: 0.1, w: 0.03, age: 0, count: [1, 12, 34, 80, 58, 6, 2] },
+    ShP: { c: 0.83, gp: 0.63, g: 1.31, a: 0.31, shots: 0.86, shpct: -0.87, pim: -0.05, pm: 0.43, ppg: 0.09, shg: 0.03, h: 0.21, w: 0.24, age: 0, count: [1, 31, 72, 45, 34, 7, 3] },
     Chk: { c: 1.62, gp: 0.78, g: 0.32, a: 0.02, shots: 0.15, shpct: -0.34, pim: 0.31, pm: 0.57, ppg: -0.12, shg: -0.01, h: 0.17, w: 0.15, age: 0.48, count: [1, 8, 51, 95, 35, 2, 1] },
-    StH: { c: 1.54, gp: 0.7, g: 0.97, a: 0.59, shots: 0.51, shpct: -0.9, pim: -0.26, pm: 0.26, ppg: -0.12, shg: 0.25, h: 0.01, w: -0.05, age: 0.25, count: [1, 14, 82, 58, 33, 3, 2] },
-    ShA: { c: -0.28, gp: 0.26, g: 1.48, a: -0.15, shots: -0.05, shpct: 1.32, pim: -0.27, pm: 0.23, ppg: -0.09, shg: -0.22, h: 0.08, w: 0.02, age: 0.2, count: [48, 86, 48, 10, 0, 1] },
+    StH: { c: 1.54, gp: 0.7, g: 0.97, a: 0.59, shots: 0.51, shpct: -0.9, pim: -0.26, pm: 0.26, ppg: -0.12, shg: 0.25, h: 0.01, w: -0.05, age: 0, count: [1, 14, 82, 58, 33, 3, 2] },
+    ShA: { c: -0.28, gp: 0.26, g: 1.48, a: -0.15, shots: -0.05, shpct: 1.32, pim: -0.27, pm: 0.23, ppg: -0.09, shg: -0.22, h: 0.08, w: 0.02, age: 0, count: [48, 86, 48, 10, 0, 1] },
     End: { c: 1.01, gp: 1.58, g: 1.0, a: 0.61, shots: 0.22, shpct: -0.47, pim: 0.18, pm: 0.31, ppg: 0.01, shg: -0.1, h: 0.42, w: -0.01, age: 0.48, count: [0, 13, 38, 66, 64, 10, 2] },
     Rgh: { c: 3.42, gp: 0.06, g: 1.52, a: -5.48, shots: 2.44, shpct: -0.94, pim: 0.26, pm: -0.47, ppg: 0.28, shg: 0.35, h: 0.07, w: 0.18, count: [15, 45, 39, 32, 36, 26] },
-    Pas: { c: 1.19, gp: 1.0, g: 0.75, a: 0.9, shots: 0.38, shpct: -0.79, pim: -0.57, pm: 0.41, ppg: -0.01, shg: 0.16, h: 0.14, w: -0.12, age: 0.4, count: [2, 30, 66, 63, 28, 3, 1] },
+    Pas: { c: 1.19, gp: 1.0, g: 0.75, a: 0.9, shots: 0.38, shpct: -0.79, pim: -0.57, pm: 0.41, ppg: -0.01, shg: 0.16, h: 0.14, w: -0.12, age: 0, count: [2, 30, 66, 63, 28, 3, 1] },
     Agr: { c: 1.5, gp: 0.19, g: 0.16, a: -0.17, shots: -0.08, shpct: -0.11, pim: 2.58, ppg: 0.09, shg: -0.02, h: 0.01, w: 0.14, age: 0.04, count: [1, 9, 54, 78, 45, 5, 1] },
     Fgt: { c: 1.78, gp: -0.66, g: 0.13, a: -0.28, shots: -0.14, shpct: -0.19, pim: 1.45, pm: 0.2, ppg: 0.03, shg: -0.04, h: 0.3, w: 0.07, age: 0.22, count: [8, 35, 64, 63, 19, 2, 2] },
   },
@@ -212,6 +217,9 @@ function rates(totals: (number | null)[], games: number[], mean: number | null, 
 interface Rated {
   // By attribute label (and Fgt for fighting, 0 to 7).
   values: Record<string, number>
+  // How far each score is above what the top value needs (Infinity for a leader): the overall cap takes a step
+  // off the least earned first.
+  margin: Record<string, number>
 }
 
 // A player's whole season, over every team they played for.
@@ -314,26 +322,56 @@ interface RatedGroup {
   rated: Rated[]
 }
 
-function rateGroup(weights: Record<string, Weights>, raw: Raw): RatedGroup {
+// The lowest score that earned each attribute's top value in 1992-93 (see shareOut's use in rateGroup).
+const TOP_SCORE: Record<'F' | 'D' | 'G', Record<string, number>> = {
+  F: { Agl: 4.312, Spd: 4.135, OfA: 4.753, DfA: 3.683, ShP: 3.969, Chk: 3.228, StH: 4.08, ShA: 4.723, End: 4.609, Rgh: 3.879, Pas: 3.855, Agr: 4.51, Fgt: 3.916 },
+  D: { Agl: 3.681, Spd: 3.362, OfA: 3.384, DfA: 3.916, ShP: 3.892, Chk: 3.709, StH: 3.734, ShA: 2.312, End: 4.541, Rgh: 3.779, Pas: 3.927, Agr: 4.305, Fgt: 3.362 },
+  G: { Agl: 4.174, Spd: 3.483, OfA: 5.119, DfA: 5.119, PkC: 4.131, StR: 4.147, StL: 3.972, GvR: 4.182, GvL: 4.028 },
+}
+
+// Each attribute's values go out in the original game's proportions, except at the top: every player whose score
+// reaches what earned the top value in 1992-93 gets it, however many do that season, as a season can have more
+// standout players than EA's ratings gave the top value to. And the season's leader in the stat an attribute rests
+// on most (assists for passing, shooting percentage for shot accuracy, penalty minutes for aggression: a weight of
+// at least LEAD_WEIGHT; games are left out, as many players share the most) always gets the top value: Wayne
+// Gretzky's 163 assists in 1985-86 stand only a little above the next player's, as standings go by order.
+const LEAD_WEIGHT = 1.2
+function leaders(w: Weights, raw: Raw): Set<number> {
+  const main = Object.keys(raw)
+    .filter((k) => k !== 'gp' && typeof w[k] === 'number' && (w[k] as number) >= LEAD_WEIGHT)
+    .sort((a, b) => (w[b] as number) - (w[a] as number))[0]
+  if (main === undefined) return new Set()
+  const known = raw[main].filter((v): v is number => v !== null && Number.isFinite(v))
+  if (known.length === 0) return new Set()
+  const best = Math.max(...known)
+  return new Set(raw[main].flatMap((v, i) => (v === best ? [i] : [])))
+}
+
+function rateGroup(weights: Record<string, Weights>, raw: Raw, top: Record<string, number>): RatedGroup {
   const standings = standingsOf(raw)
   const count = Object.values(raw)[0]?.length ?? 0
-  const rated: Rated[] = Array.from({ length: count }, () => ({ values: {} }))
+  const rated: Rated[] = Array.from({ length: count }, () => ({ values: {}, margin: {} }))
   for (const [label, w] of Object.entries(weights)) {
-    const values = shareOut(rated.map((_, i) => score(w, standings, i)), w.count)
-    values.forEach((v, i) => (rated[i].values[label] = v))
+    const scores = rated.map((_, i) => score(w, standings, i))
+    const values = shareOut(scores, w.count)
+    const lead = leaders(w, raw)
+    values.forEach((v, i) => {
+      rated[i].values[label] = scores[i] >= top[label] || lead.has(i) ? w.count.length - 1 : v
+      rated[i].margin[label] = lead.has(i) ? Infinity : scores[i] - top[label]
+    })
   }
   return { weights, raw, standings, rated }
 }
 
-const rateSkaters = (players: SeasonSkater[], group: 'F' | 'D', year: number) => rateGroup(WEIGHTS[group], skaterRaw(players, players, year))
-const rateGoalies = (players: SeasonGoalie[], year: number) => rateGroup(WEIGHTS.G, goalieRaw(players, players, year))
+const rateSkaters = (players: SeasonSkater[], group: 'F' | 'D', year: number) => rateGroup(WEIGHTS[group], skaterRaw(players, players, year), TOP_SCORE[group])
+const rateGoalies = (players: SeasonGoalie[], year: number) => rateGroup(WEIGHTS.G, goalieRaw(players, players, year), TOP_SCORE.G)
 
 // Players outside a rated group, rated against it without changing it: for each attribute, each takes the value of
 // the group's player with the highest score not above theirs (the lowest's, if none).
 function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
   const count = Object.values(raw)[0]?.length ?? 0
   const standings = Object.fromEntries(Object.entries(raw).map(([k, list]) => [k, list.map((x) => standingAmong(group.raw[k], x))]))
-  const out: Rated[] = Array.from({ length: count }, () => ({ values: {} }))
+  const out: Rated[] = Array.from({ length: count }, () => ({ values: {}, margin: {} }))
   if (group.rated.length === 0) return out
   for (const [label, w] of Object.entries(group.weights)) {
     const scores = group.rated.map((_, i) => score(w, group.standings, i))
@@ -346,6 +384,7 @@ function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
         pick = i
       }
       r.values[label] = group.rated[pick].values[label]
+      r.margin[label] = group.rated[pick].margin[label]
     })
   }
   return out
@@ -381,8 +420,8 @@ const jersey = (n: number | null) => {
 // NHL '95's stick handling (0 to 15) for each 0 to 6 rating: the middle of the values that play folds to it.
 const STICK_HANDLING_95 = [0, 1, 4, 7, 10, 13, 15]
 
-function attributes(game: GameConfig, isGoalie: boolean, values: Record<string, number>, pounds: number | null, hand: string | null): number[] {
-  return capped(game, isGoalie, uncapped(game, isGoalie, values, pounds, hand))
+function attributes(game: GameConfig, isGoalie: boolean, rated: Rated, pounds: number | null, hand: string | null): number[] {
+  return capped(game, isGoalie, uncapped(game, isGoalie, rated.values, pounds, hand), rated.margin)
 }
 
 function uncapped(game: GameConfig, isGoalie: boolean, values: Record<string, number>, pounds: number | null, hand: string | null): number[] {
@@ -405,11 +444,12 @@ function uncapped(game: GameConfig, isGoalie: boolean, values: Record<string, nu
 }
 
 // The best overall ratings in the original game: 100 for a skater (Mario Lemieux), 98 for a goalie (Ed Belfour). A
-// player top in everything would come out higher, so his best attributes come down a step at a time to it. Roughness
-// and Aggression are not marks of quality (the first is shooting rather than passing), so they stay.
+// player top in everything would come out higher, so their best attributes come down a step at a time to it, the
+// least earned first (the smallest margin among the highest). Roughness and Aggression are not marks of quality (the
+// first is shooting rather than passing), so they stay.
 const MOST_OVERALL = { skater: 100, goalie: 98 }
 const KEEP = new Set(['Rgh', 'Agr'])
-function capped(game: GameConfig, isGoalie: boolean, values: number[]): number[] {
+function capped(game: GameConfig, isGoalie: boolean, values: number[], margin: Record<string, number> = {}): number[] {
   const kinds = isGoalie ? game.goalieAttributeKinds : game.playerAttributeKinds
   const labels = isGoalie ? game.goalieAttributeLabels : game.playerAttributeLabels
   const most = isGoalie ? MOST_OVERALL.goalie : MOST_OVERALL.skater
@@ -417,7 +457,8 @@ function capped(game: GameConfig, isGoalie: boolean, values: number[]): number[]
   for (let guard = 0; guard < 100 && overallRating(out, isGoalie, game) > most; guard++) {
     let at = -1
     out.forEach((v, i) => {
-      if (isRating(kinds[i]) && !KEEP.has(labels[i]) && v > 0 && (at < 0 || v > out[at])) at = i
+      const less = (margin[labels[i]] ?? 0) < (margin[labels[at]] ?? 0)
+      if (isRating(kinds[i]) && !KEEP.has(labels[i]) && v > 0 && (at < 0 || v > out[at] || (v === out[at] && less))) at = i
     })
     if (at < 0) break
     out[at]--
@@ -539,14 +580,14 @@ export function rateSeason(game: GameConfig, season: Season, options: SeasonOpti
   const [fRated, dRated, gRated] = [fAll.out, dAll.out, gAll.out]
 
   const skaterPlayer = (p: SeasonSkater, forward: boolean, rated: Rated): BuiltPlayer => ({
-    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, false, rated.values, p.pounds, p.shoots) },
+    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, false, rated, p.pounds, p.shoots) },
     isGoalie: false,
     forward,
     games: p.gp,
     line: `${p.pos}, ${p.gp} GP, ${p.g} G, ${p.a} A, ${p.pim} PIM${p.pm === null ? '' : `, ${p.pm > 0 ? '+' : ''}${p.pm}`}`,
   })
   const goaliePlayer = (p: SeasonGoalie, rated: Rated): BuiltPlayer => ({
-    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, true, rated.values, p.pounds, p.catches) },
+    player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, true, rated, p.pounds, p.catches) },
     isGoalie: true,
     forward: false,
     games: p.gp,
