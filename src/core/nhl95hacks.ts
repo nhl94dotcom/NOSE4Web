@@ -2727,7 +2727,7 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   timeOnIce: "Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player's time on ice.",
   giveaways: "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
   blockedShots: (c) =>
-    `Each skater's blocked shots (shots by the other team that hit his body) are counted and shown on a Player Stats page of their own${c.giveaways ? '' : ", and Game Stats shows each team's as Blocked Shots"}.`,
+    `Each skater's blocked shots (shots by the other team that hit their body) are counted and shown on a Player Stats page of their own${c.giveaways ? '' : ", and Game Stats shows each team's as Blocked Shots"}.`,
   fightMomentum: "The team whose player wins a fight gets +2 Agility and +2 Speed for its skaters for 90 seconds of play.",
   fightOnce: 'A player who has fought cannot fight again that game. A hard hit with that player stays a hit.',
   realTime: 'The clocks count real seconds, so a period lasts as long as it says.',
@@ -2766,21 +2766,21 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
       ? 'A speed burst costs no energy.'
       : `A speed burst costs ${c.burstEnergy} energy (${Math.round((c.burstEnergy / 4096) * 100)}% of full), where the original costs ${N.burstEnergy}.`,
   hitEnergy: (c) =>
-    `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
-  holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
+    `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of their energy, so they slow and tire sooner; the original game takes none.`,
+  holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of their energy; the original game takes none.`,
   injuryBonus: (c) =>
     `Each knockdown a skater takes, the hit itself included, makes a hit that can injure that skater about ${chance(c.injuryBonus)} in 100 more likely to (at most about ${chance(c.injuryCap)} in 100 in all), and half of it wears off at each intermission; only the few hits that can injure in the original game are affected.`,
   injuryCap: (c) => `The injury risk knockdowns add is at most about ${chance(c.injuryCap)} in 100 more on a hit that can injure.`,
   goalieHold: (c) =>
     c.goalieHold === 0
-      ? 'A goalie may hold the puck as long as he likes: there is no whistle for it.'
+      ? 'A goalie may hold the puck as long as they like: there is no whistle for it.'
       : `A goalie may hold the puck ${holdSeconds(c.goalieHold)} seconds before the whistle, ${more(c.goalieHold, N.goalieHold, 'longer', 'shorter')} than the original game's ${holdSeconds(N.goalieHold)}.`,
   diveHold: (c) =>
-    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after he gets up before the whistle, ${more(c.diveHold, N.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(N.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after getting up before the whistle, ${more(c.diveHold, N.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(N.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (c) =>
     `A goalie you control may go ${more(c.goalieWidth, N.goalieWidth, 'wider', 'less far')} to either side of the net than in the original game (${c.goalieWidth}, where the original has ${N.goalieWidth}).`,
   goalieOut: (c) =>
-    `A goalie you control may ${more(c.goalieOut, N.goalieOut, 'not come as far out of his net', 'come farther out of his net')} without the puck (to ${c.goalieOut} from centre ice, where the original has ${N.goalieOut}).`,
+    `A goalie you control may ${more(c.goalieOut, N.goalieOut, 'not come as far out of their net', 'come farther out of their net')} without the puck (to ${c.goalieOut} from centre ice, where the original has ${N.goalieOut}).`,
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, N.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${N.goalieLine}).`,
   goalieDelay: (c) =>
@@ -2794,16 +2794,16 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   faceoffFix:
     "Every faceoff is on a dot, as today's NHL rules have it, where the original often holds one where play stopped, between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use their Offensive Awareness, where the original uses their Defensive.',
-  centreDefenceFix: 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
-  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
+  centreDefenceFix: 'A computer centre defending outside their own zone covers between the puck and their net at both ends of the rink.',
+  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through their own net, at either end.',
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
   stickReachFix: "A stick reaches the puck in a circle, as NHL 94 has it, and less far right after a pass, so there are fewer quick steals.",
-  bodyBlockFix: "A puck that hits a skater's body bounces off him, as in NHL 94, so skaters block shots and passes.",
+  bodyBlockFix: "A puck that hits a skater's body bounces off them, as in NHL 94, so skaters block shots and passes.",
   lockedChangeFix: 'B switches to another skater while yours is down, checking or bursting, as in NHL 94, where the press was lost.',
-  stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one he catches does.",
+  stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal, as one they catch does.",
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   runawayFix:
-    'A skater no longer keeps gliding, barely slowing, after getting up from a fall into the boards or when you switch to him as a pass comes.',
+    'A skater no longer keeps gliding, barely slowing, after getting up from a fall into the boards or when you switch to them as a pass comes.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two behind.',
   snipingFix:
     "While a team's goalie is off the ice, its shots are as accurate as the shooter's rating makes them, where the original sends every one from close enough exactly where aimed.",
@@ -2819,14 +2819,14 @@ export const NHL95_HACK_TEXTS: Record<Nhl95Hack, string | ((choices: Nhl95HackCh
   fighting:
     'Players can fight. A hard check between two players with Fighting ratings can start one, more often as a game gets rougher. Both get five minutes. Game Setup gets a Fighting setting: Off, On, or On - Arcade Mode (more fights).',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
-  oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
-  regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before the shot.",
+  regainAssist: 'A player who wins the puck back themselves and passes to the scorer gets their assist.',
   aggressionFix:
     'Aggression works as the rating reads: a higher rating means more penalties, where the original game mixes the values up (a 4 plays like a 1).',
   comebackFix:
     'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
   blindRingFix:
-    'The goalie can stop a loose puck sliding in near his stick, where the original game lets it through untouched, the way some five-hole goals go in.',
+    'The goalie can stop a loose puck sliding in near their stick, where the original game lets it through untouched, the way some five-hole goals go in.',
   nhlShootout:
     "Shootouts follow today's NHL rule: three rounds, then sudden death, over as soon as one team can't catch up, instead of the game's five rounds played out. For Shootout mode and the regular-season shootouts alike.",
   seasonShootout:

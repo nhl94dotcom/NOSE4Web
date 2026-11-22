@@ -98,7 +98,7 @@ describe.skipIf(!hasRom)("a league's own rules", () => {
     const changed = { ...project, teams: project.teams.map((t, i) => (i === BOSTON ? { ...t, lines } : t)) }
     const found = messages(withRules(changed, { oneRotatingLine: true })).filter((m) => m.startsWith('Boston') && m.includes(team.players[centre - 1].name))
     expect(found).toHaveLength(1)
-    expect(found[0]).toMatch(/is on Sc1 and Chk, so with line changes on he plays 2 shifts in 3 and rests less\.$/)
+    expect(found[0]).toMatch(/is on Sc1 and Chk, so with line changes on they play 2 shifts in 3 and rest less\.$/)
     expect(before).toEqual([])
     // Off, nothing said; and it comes back from stored work.
     expect(messages(withRules(changed, {})).filter((m) => m.includes('shifts in'))).toEqual([])

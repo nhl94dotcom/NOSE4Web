@@ -139,7 +139,7 @@ export function checkLeagueRules(project: RomProject): Finding[] {
       }
       for (const [position, labels] of on) {
         if (labels.length > 1) {
-          add(t, `${team.players[position - 1].name || `Player ${position}`} is on ${labels.join(' and ')}, so with line changes on he plays ${labels.length} shifts in ${rotating.length} and rests less.`)
+          add(t, `${team.players[position - 1].name || `Player ${position}`} is on ${labels.join(' and ')}, so with line changes on they play ${labels.length} shifts in ${rotating.length} and rest less.`)
         }
       }
     }

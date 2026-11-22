@@ -85,10 +85,10 @@ export function PhotosEditor({ project, team, onChange }: Props) {
 
   const sharedText = (index: number) => {
     const photo = photos[index]
-    if (photo.generic) return 'The generic picture, shared by every player with no photo of his own. Importing or drawing gives him his own.'
+    if (photo.generic) return 'The generic picture, shared by every player with no photo of their own. Importing or drawing gives this player their own.'
     if (photo.sharedWith.length === 0) return ''
     const others = photo.sharedWith.map((other) => `${teamDisplayName(project.teams[other.team])} ${project.teams[other.team].players[other.slot]?.name ?? ''}`.trim())
-    return `Also shown for ${others.join(', ')}. Importing or drawing gives this player his own.`
+    return `Also shown for ${others.join(', ')}. Importing or drawing gives this player their own.`
   }
 
   return (
@@ -190,7 +190,7 @@ export function PhotosEditor({ project, team, onChange }: Props) {
           onChange={(e) => {
             if (e.target.value === '') return
             const slot = Number(e.target.value)
-            act(() => withPhotoAdded(project, team, slot, slot < goalies), `${playerName(slot)} added, with the generic picture: import or draw his photo above.`)
+            act(() => withPhotoAdded(project, team, slot, slot < goalies), `${playerName(slot)} added, with the generic picture: import or draw their photo above.`)
           }}
         >
           <option value="">Add a photo for…</option>

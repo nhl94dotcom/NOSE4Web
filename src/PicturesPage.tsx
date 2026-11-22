@@ -121,7 +121,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           <span className="note">
             {count(set.length + photos.length, 'picture')} in {setName}_pictures.zip
             {titles.length > 0 && `: ${titles.map((title) => title.toLowerCase()).join(', ')} for each team. One that several teams share is in it once`}
-            {photos.length > 0 && `. ${count(photos.length, 'player photo')} in its photos folder, a folder for each team and a file for each player with a photo of his own, named after him`}
+            {photos.length > 0 && `. ${count(photos.length, 'player photo')} in its photos folder, a folder for each team and a file for each player with a photo of their own, named after them`}
             .
           </span>
         </p>
@@ -162,7 +162,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           the start is the team's place in the list, and the end says which picture. The team name in the middle is
           only for you. Files showing what the editor has already are skipped, so only pictures you changed are
           replaced. Each must be the same size as the picture it replaces. A player photo, in the photos folder,
-          goes to the player of its name on the team of its folder, wherever he is on the roster; it may be any
+          goes to the player of its name on the team of its folder, wherever they are on the roster; it may be any
           size, as when imported on the team page. A Genesis player with no photo in the featured players is
           added to them.
         </p>

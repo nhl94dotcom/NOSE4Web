@@ -675,7 +675,7 @@ export function withSnesAnnouncer(project: RomProject, made: SnesAnnouncerImage)
   if (made.tiles.length > S_MOST_TILES) {
     throw new Error(
       `The picture has ${made.tiles.length - 1} different squares; the screen has room for ${S_MOST_TILES - 1}.` +
-        (made.area === 'whole' ? " In Ron Barr's whole place a picture works as a cut-out, as his is: give it a see-through background, which costs nothing, or a smaller figure." : ''),
+        (made.area === 'whole' ? " In Ron Barr's whole place a picture works as a cut-out, as Ron Barr's is: give it a see-through background, which costs nothing, or a smaller figure." : ''),
     )
   }
   const rect = S_AREAS[made.area ?? 'beside']

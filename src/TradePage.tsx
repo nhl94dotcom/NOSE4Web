@@ -229,7 +229,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
               </p>
               {rows.length === 0 ? (
                 <p className="note">
-                  There are no free agents. To release a player, choose his team as the other side, select him, and
+                  There are no free agents. To release a player, choose their team as the other side, select them, and
                   make the trade.
                 </p>
               ) : (

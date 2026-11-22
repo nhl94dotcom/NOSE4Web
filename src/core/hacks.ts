@@ -3906,7 +3906,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     throw new HackError("Clockwise's sprite edit redraws the nets for their own colours: with it on, keep the nets in the original colours.")
   }
   if (wanted.barrPick && wanted.barrCoin) {
-    throw new HackError("Ron Barr's pick every game and his pick by a coin flip cannot both be on: he picks one way or the other.")
+    throw new HackError("Ron Barr's pick every game and the pick by a coin flip cannot both be on: Ron Barr picks one way or the other.")
   }
   const { unknown, choices } = detectHacks(rom)
   const work: Work = { rom: rom.slice() }

@@ -46,7 +46,7 @@ export function LineBuilder({ project, names, onChange }: { project: RomProject;
       {knowsHands(project.game) && (
         <p>
           <LineOptionsPicker options={options} onChange={setOptions} />{' '}
-          <span className="note">Which side each player goes to by the hand he shoots with, where a line's two wingers or its pair shoot differently.</span>
+          <span className="note">Which side each player goes to by the hand they shoot with, where a line's two wingers or its pair shoot differently.</span>
         </p>
       )}
       <p>
@@ -86,7 +86,7 @@ export function HomeAway({ project, names, onChange }: { project: RomProject; na
     <section id="home-away">
       <h3>Home and away</h3>
       <p className="note">
-        As each player comes on the ice, the home team adds its <b>Home</b> rating to his Offensive and Defensive
+        As each player comes on the ice, the home team adds its <b>Home</b> rating to their Offensive and Defensive
         Awareness, Stickhandling, Shot Accuracy and Passing, and the away team takes its <b>Away</b> rating off the
         same five, by a small amount (less than half a rating point). In the original game they differ by team. Give
         every team the same pair to make the advantage the same in every game, or 0 and 0 to have none.

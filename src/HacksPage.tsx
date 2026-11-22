@@ -136,7 +136,7 @@ const BONUS_EFFECTS: Record<Bonuses, { ice: string; lines: string; more: string 
     more: 'You have to feel who is hot.',
   },
   disabled: {
-    ice: 'no bonuses. Every player plays to his ratings every game.',
+    ice: 'no bonuses. Every player plays to their ratings every game.',
     lines: 'the plain ratings.',
     more: 'This suits a league that wants an even contest.',
   },
@@ -146,7 +146,7 @@ const BONUS_EFFECTS: Record<Bonuses, { ice: string; lines: string; more: string 
     more: 'Nothing misleads you, but nothing tells you who is hot either.',
   },
   playersMatchLines: {
-    ice: 'each player gets the bonuses Edit Lines shows, one for each attribute, so he can be hot in one and cold in another.',
+    ice: 'each player gets the bonuses Edit Lines shows, one for each attribute, so they can be hot in one and cold in another.',
     lines: 'the bonuses the players really have.',
     more: 'What you see is what you get.',
   },
@@ -284,7 +284,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         <a href="https://github.com/nhl94dotcom/smozROM" target="_blank" rel="noreferrer">
           smozROM
         </a>{' '}
-        (built in here with his permission), from members of the NHL94 forums, from the NHL94 Match Viewer project,
+        (built in here with their permission), from members of the NHL94 forums, from the NHL94 Match Viewer project,
         which found many of the game's bugs, and from chaos's fighting patch; each hack's note says whose it is, and
         Help names everyone. The page shows what this ROM has now. Many of the settings under Energy, Goalies and
         Skating are the game's own numbers, in its own units, so change them a little at a time and try the result in
@@ -319,7 +319,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             controls the checker and another when the computer does, and gets the person's way wrong. Pressing C to
             charge and then B to switch away just before the hit hands the check to the computer: the C-then-B check.
             This fix, found by the NHL94 Match Viewer project, judges every check the computer's way: the heavier
-            checker does better, as he should, and switching away gains nothing. Your checks against players your own
+            checker does better, as they should, and switching away gains nothing. Your checks against players your own
             weight or lighter get easier than they were. Leave smozoma's legacy weight bug fix, under Legacy hacks
             below, off with it.
             {state.choices.checkFix === 'all240' &&
@@ -334,12 +334,12 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         {hack(
           'oneTimerAssist',
           onOff('oneTimerAssist'),
-          "Among the recommended fixes. When a shooter's stick touches a pass without catching it and he then one-times the puck in, the original game gives the goal no assist (about 1 one-timer goal in 24). With this fix the passer and the player before him get their assists. Ordinary one-timers are unchanged. It works with or without the second-assist fix. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
+          "Among the recommended fixes. When a shooter's stick touches a pass without catching it and they then one-time the puck in, the original game gives the goal no assist (about 1 one-timer goal in 24). With this fix the passer and the player before them get their assists. Ordinary one-timers are unchanged. It works with or without the second-assist fix. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'regainAssist',
           onOff('regainAssist'),
-          "Among the recommended fixes. When a player loses the puck to an opponent, wins it back himself and passes to a teammate who scores, the original game gives him no assist (about 1 goal in 34). With this fix he gets it. It works with or without the second-assist and one-timer assist fixes. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
+          "Among the recommended fixes. When a player loses the puck to an opponent, wins it back themselves and passes to a teammate who scores, the original game gives them no assist (about 1 goal in 34). With this fix they get it. It works with or without the second-assist and one-timer assist fixes. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'aggressionFix',
@@ -391,11 +391,11 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'repeatCheckFix',
           onOff('repeatCheckFix'),
           <>
-            After a player knocks someone down or makes him wobble, the original game ignores every later hit by the
-            same player on the same man until some other hit lands anywhere on the ice, however long that takes: you
-            can line him up again a minute later and nothing happens. With this fix the same checker is kept off him
-            only while he recovers, about 2 seconds after a knockdown and 1 after a wobble, so he cannot be flattened
-            again as he gets up; after that a check works as any other. Genesis only: the SNES game has no such block.
+            After a player knocks someone down or makes them wobble, the original game ignores every later hit by the
+            same player on the same skater until some other hit lands anywhere on the ice, however long that takes: you
+            can line them up again a minute later and nothing happens. With this fix the same checker is kept off them
+            only while they recover, about 2 seconds after a knockdown and 1 after a wobble, so they cannot be flattened
+            again as they get up; after that a check works as any other. Genesis only: the SNES game has no such block.
             Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
@@ -405,9 +405,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             Now and then in the original game a pass goes nearly twice as fast as the passer's rating allows: the
             rocket pass, mostly to a teammate skating towards the passer from a short way off. And a pass to a
-            teammate skating away close by is sometimes fired at him almost at once. With this fix every pass goes at
+            teammate skating away close by is sometimes fired at them almost at once. With this fix every pass goes at
             the speed its Passing rating sets; how high a pass lifts is unchanged. Passing will feel different to
-            players used to the rocket pass, and a receiver catches more of the passes that used to bounce off his
+            players used to the rocket pass, and a receiver catches more of the passes that used to bounce off their
             stick. Found by the NHL94 Match Viewer project.
           </>,
         )}
@@ -433,11 +433,11 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             Now and then a skater you control shoots off far past top speed and slides out of control for a second or
             two, usually racing back on defence. The game lets a skater glide, barely slowing, when a computer player
             skates onto a pass or a player is knocked into the boards, and three things leave that gliding on: taking
-            over a skater while a pass is coming to him, getting up after a fall into the boards, and a one-timer that
-            misses the puck. Each speed burst then adds to the last, and he runs away. With this fix he skates normally
-            once he is yours, back on his feet, or done with the one-timer. Computer skaters still glide onto passes,
+            over a skater while a pass is coming to them, getting up after a fall into the boards, and a one-timer that
+            misses the puck. Each speed burst then adds to the last, and the skater runs away. With this fix they skate normally
+            once they are yours, back on their feet, or done with the one-timer. Computer skaters still glide onto passes,
             and a one-timer still glides while it is being taken. Taking over a skater with a pass coming, you now
-            steer him onto it yourself. Found by the NHL94 Match Viewer project.
+            steer them onto it yourself. Found by the NHL94 Match Viewer project.
           </>,
         )}
         {hack(
@@ -480,7 +480,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             In the last minute of the third period the computer pulls its goalie for an extra attacker, but only when it
             is exactly two goals behind, never when one goal down, which looks like a slip by the game's makers. With
-            this on it pulls him when one or two goals behind, as a real coach would. This changes how the computer
+            this on it pulls the goalie when one or two goals behind, as a real coach would. This changes how the computer
             plays late in close games. While its goalie is out, the computer's shots within range go exactly where
             they are aimed, as anyone's do with the goalie pulled, unless the pulled-goalie sniping fix is on too.
             Found by the NHL94 Match Viewer project.
@@ -490,9 +490,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'blindRingFix',
           onOff('blindRingFix'),
           <>
-            An option, a matter of taste. When a goalie drops into the butterfly or makes some kick saves, his stick
-            moves aside, leaving a small blind spot just past his blade where a flat puck touches neither his stick nor
-            his body and slides through his legs. With this on, his body stops such a puck as it would anywhere else.
+            An option, a matter of taste. When a goalie drops into the butterfly or makes some kick saves, their stick
+            moves aside, leaving a small blind spot just past their blade where a flat puck touches neither their stick nor
+            their body and slides through their legs. With this on, their body stops such a puck as it would anywhere else.
             A small change: only a few five-hole goals go in this way. From the NHL94 Match Viewer project.
           </>,
         )}
@@ -500,7 +500,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'awarenessFix',
           onOff('awarenessFix'),
           <>
-            Among the recommended fixes. How often a computer skater rethinks what to do is set by his awareness.
+            Among the recommended fixes. How often a computer skater rethinks what to do is set by their awareness.
             Computer skaters use Offensive Awareness when their team has the puck and Defensive when it does not, but
             in the original game computer wingers and centres use Defensive on offence too. Whether that was meant is
             not known. With this on they use Offensive, like the others. A small change: for most players the
@@ -511,10 +511,10 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'centreDefenceFix',
           onOff('centreDefenceFix'),
           <>
-            A computer centre defending outside his own zone is meant to stand between the puck and his net. In the
-            original game, at one end of the rink he goes the wrong way: he drops back as the puck goes up the ice and
-            comes out to meet it as it nears his blue line. Teams change ends each period, so each team has it every
-            other period. With this on he covers the right spot at both ends. Found by chaos. Tested in the game by the
+            A computer centre defending outside their own zone is meant to stand between the puck and their net. In the
+            original game, at one end of the rink they go the wrong way: they drop back as the puck goes up the ice and
+            come out to meet it as it nears their blue line. Teams change ends each period, so each team has it every
+            other period. With this on they cover the right spot at both ends. Found by chaos. Tested in the game by the
             NHL94 Match Viewer project.
           </>,
         )}
@@ -522,9 +522,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'goalieTurnFix',
           onOff('goalieTurnFix'),
           <>
-            A computer goalie turning to follow the puck is meant never to turn round through his own net. At the
-            bottom net the original game misses one case, so when the puck goes right to left behind his goal line he
-            turns the long way, facing into his net for a moment. With this on he turns the short way, as the top
+            A computer goalie turning to follow the puck is meant never to turn round through their own net. At the
+            bottom net the original game misses one case, so when the puck goes right to left behind their goal line they
+            turn the long way, facing into their net for a moment. With this on they turn the short way, as the top
             goalie does. Found by NOSE4Web and the NHL94 Match Viewer project. Tested in the game by the NHL94 Match
             Viewer project.
           </>,
@@ -534,8 +534,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           onOff('goalieBladeFix'),
           <>
             The bottom goalie's stick sits in a slightly different place from the top goalie's, so low shots get past
-            him a little more often: about 3% more goals against a computer goalie. With this on, in his ready stance
-            and glove saves his stick sits where the top goalie's does. Found by NOSE4Web and the NHL94 Match Viewer
+            them a little more often: about 3% more goals against a computer goalie. With this on, in their ready stance
+            and glove saves their stick sits where the top goalie's does. Found by NOSE4Web and the NHL94 Match Viewer
             project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
@@ -567,10 +567,10 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'stickShots',
           onOff('stickShots'),
           <>
-            A hard low shot that the goalie knocks away with his stick is a save, but the original game does not count
-            it as a shot on goal: only a catch or a save with his body counts. So shots along the ice go missing from
+            A hard low shot that the goalie knocks away with their stick is a save, but the original game does not count
+            it as a shot on goal: only a catch or a save with their body counts. So shots along the ice go missing from
             the totals, more so for the team attacking down the screen. With this on, each such shot counts once as a
-            shot on goal for the shooter and his team and against the goalie: about 2 more shots on goal a game. Only the statistics change; play, the crowd and everything else are as before. Found and
+            shot on goal for the shooter and their team and against the goalie: about 2 more shots on goal a game. Only the statistics change; play, the crowd and everything else are as before. Found and
             built by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
         )}
@@ -611,7 +611,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             {onOff('blockedShots')}
             {blockedShotsOutdated(project.bytes) && putInCurrent}
           </>,
-          "Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Tested in the game by the NHL94 Match Viewer project.",
+          "Counts each skater's blocked shots: a shot by the other team that hits their body. Not a goalie's save, a stick stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for one more row. The counts start again each game. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'threeStars',
@@ -683,7 +683,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             Before each game, the game makes every player a little hot or cold: a small bonus or penalty on top of
             the ratings you set, which are not changed. It keeps two sets of these. One is used on the ice, where a
-            player has a single bonus for all his attributes. The other is shown in Edit Lines, with a separate
+            player has a single bonus for all their attributes. The other is shown in Edit Lines, with a separate
             bonus for each attribute. The two do not agree, so in the original game Edit Lines misleads.
             <br />
             <b>With this choice, on the ice:</b> {BONUS_EFFECTS[wanted.bonuses].ice}
@@ -750,7 +750,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             Only with a shootout for tied regular-season games on (above): a skater injured for the game, by a hit or
             in a fight (chaos's patch), takes no shot in it, and the next healthy player on the team's shootout list
-            shoots in his place, even if he was picked on the shootout screen. A period's injury is over by then. If
+            shoots in their place, even if they were picked on the shootout screen. A period's injury is over by then. If
             all five are out, the listed players shoot as before. Shootout mode from the main menu is as it was.
             Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
@@ -843,7 +843,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           </select>,
           <>
             With penalties off, the original game lets your B-check trip a player only after an extra roll of your
-            Checking against his Agility, so many miss; with penalties on there is no such roll. <b>As with penalties on</b>{' '}
+            Checking against their Agility, so many miss; with penalties on there is no such roll. <b>As with penalties on</b>{' '}
             drops the roll, so B-checks trip the same either way. It changes nothing with penalties on, as leagues play.
             A forum post (CoachMac) does this in a way that also gives the computer's B-checks that roll with penalties
             on, so about 3 in 4 of them miss; NOSE4Web's version does not (worked out by the NHL94 Match Viewer
@@ -861,7 +861,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             ))}
           </select>,
           <>
-            How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging,
+            How often the referee calls the penalties that are their judgement: holding, hooking, tripping, charging,
             roughing and goalie interference. A player's Aggression still counts as before, for people's players and
             the computer's alike. Offsides, icing and the other calls are unchanged, and so is goalie interference on
             EVO v0.4, which has its own goalie interference rule. Tested in the game by the NHL94 Match Viewer
@@ -973,7 +973,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'energyDrain',
           number('energyDrain'),
           <>
-            How fast a player tires on the ice with line changes on. A larger number tires him sooner and makes for more
+            How fast a player tires on the ice with line changes on. A larger number tires them sooner and makes for more
             line changes. {stock('energyDrain')} Keep it at 16 or more: below that a player with high endurance gains
             energy instead of losing it, and after a minute or two a fast skater drops to the slowest speed there is.
             For no tiring from skating at all, use Skating costs no
@@ -983,7 +983,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         {hack(
           'energyRecovery',
           number('energyRecovery'),
-          <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock('energyRecovery')}</>,
+          <>How fast a player gets their energy back on the bench. A larger number rests them sooner. {stock('energyRecovery')}</>,
         )}
         {hack(
           'noSkatingDrain',
@@ -1008,7 +1008,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           number('hitEnergy'),
           <>
             An option, from a community idea: a skater knocked down by a check or a poke check loses this much energy, so
-            he is slower, shoots softer and loses puck battles more until he rests on the bench. 0 is the original game,
+            they are slower, shoot softer and lose puck battles more until they rest on the bench. 0 is the original game,
             where a hit costs the skater nothing. Only with line changes On, where energy counts at all. Full energy is{' '}
             {FULL_ENERGY} units: {energyShare(wanted.hitEnergy)}. Recommended: {RECOMMENDED_HIT_ENERGY} (5%), what a burst
             of speed costs, or about 25 seconds of skating: the most-hit players tire noticeably and the computer changes
@@ -1016,9 +1016,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             notice. Up to 4096, all of a skater's energy, for a league that wants hits to wear players down. For energy
             lost only to hits, the button below turns on Skating costs no energy, makes a speed burst cost nothing, and
             sets a knockdown to {HITS_ONLY.hitEnergy} (a third) and a hold to {HITS_ONLY.holdEnergy}: three knockdowns
-            then empty a skater, each one taking about an eighth off an average skater's top speed, and he gets it back
+            then empty a skater, each one taking about an eighth off an average skater's top speed, and they get it back
             on the bench as usual, in about 7 minutes of game time from empty. At no energy every skater is as slow as
-            the slowest, and his shots and checks are weaker too. A knockdown by a puck, a bump that does not knock him
+            the slowest, and their shots and checks are weaker too. A knockdown by a puck, a bump that does not knock them
             down, or a hit after the whistle costs nothing. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.
           </>,
           <button type="button" disabled={unknown('hitEnergy') || wanted.hitEnergy === RECOMMENDED_HIT_ENERGY} onClick={() => set({ hitEnergy: RECOMMENDED_HIT_ENERGY })}>
@@ -1047,7 +1047,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'holdEnergy',
           number('holdEnergy'),
           <>
-            The same for a skater caught by a hold or hook (A without the puck), once each time it catches him in play.{' '}
+            The same for a skater caught by a hold or hook (A without the puck), once each time it catches them in play.{' '}
             {energyShare(wanted.holdEnergy)}. Recommended: {RECOMMENDED_HOLD_ENERGY} (2.5%), half a knockdown's. Only with line
             changes On.
           </>,
@@ -1071,8 +1071,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             but there is no injury box: the player lies down for about ten seconds and then skates on. <b>Every injury
             for the period</b> and <b>for the game</b> make every injury last that long, whoever made the hit. With <b>a long fall instead</b> a
             hit that would injure has the player go down and stay down about 5 seconds, where an ordinary fall lasts
-            under 2, then get up and play on: no injury, no injury box and no penalty, and he cannot be knocked down
-            again while he lies there. It does not go with head bleeding, which would never show. From chaos's forum
+            under 2, then get up and play on: no injury, no injury box and no penalty, and they cannot be knocked down
+            again while they lie there. It does not go with head bleeding, which would never show. From chaos's forum
             post, with the period, penalty and long-fall choices worked out by the NHL94 Match Viewer project. Tested
             in the game by the NHL94 Match Viewer project.
           </>,
@@ -1104,7 +1104,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'injuryCap',
           number('injuryCap'),
           <>
-            The most the knockdowns can add to a hit's chance of injury, however many he has taken: at {wanted.injuryCap}, about{' '}
+            The most the knockdowns can add to a hit's chance of injury, however many the skater has taken: at {wanted.injuryCap}, about{' '}
             {Math.round((wanted.injuryCap / 160) * 100)} in 100 more on a hit that can injure. Used only when the risk above
             is more than 0.
           </>,
@@ -1118,14 +1118,14 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>{number('goalieHold', 60)} seconds</>,
           <>
             How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(NO_HACKS.goalieHold)}{' '}
-            seconds. Put 0 for no whistle at all; a goalie the game controls still gives the puck up by himself.
+            seconds. Put 0 for no whistle at all; a goalie the game controls still gives the puck up by themselves.
           </>,
         )}
         {hack(
           'diveHold',
           <>{number('diveHold', 60)} seconds</>,
           <>
-            How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original
+            How long a goalie who catches the puck in a dive may hold it after they get up, before the whistle. The original
             game allows only {holdSeconds(NO_HACKS.diveHold)} seconds, so you must pass or drop the puck at exactly the right
             moment to keep play going; a longer time gives you a chance. Every goalie, the computer's too. With no whistle
             in the goalie hold time above, a goalie you control is not whistled for it at all. Tested in the game by the NHL94 Match Viewer project.
@@ -1134,14 +1134,14 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         {hack(
           'goalieWidth',
           number('goalieWidth'),
-          <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets him go wider. {stock('goalieWidth')}</>,
+          <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. A larger number lets them go wider. {stock('goalieWidth')}</>,
         )}
         {hack(
           'goalieOut',
           number('goalieOut'),
           <>
-            How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
-            him come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
+            How near centre ice a goalie you control may come without the puck, as their distance from it, so a smaller number lets
+            them come farther out. For scale, the goal line is 268 from centre ice and the blue line about 88. {stock('goalieOut')}
           </>,
         )}
         {hack(
@@ -1149,8 +1149,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           number('goalieLine'),
           <>
             The line a goalie you control may not skate past without a whistle, again as a distance from centre ice, so
-            a smaller number lets him go farther; 170 is about the top of the faceoff circles. Without the puck he is
-            kept within the range above anyway, so in practice this is the line he may carry the puck to.{' '}
+            a smaller number lets them go farther; 170 is about the top of the faceoff circles. Without the puck they are
+            kept within the range above anyway, so in practice this is the line they may carry the puck to.{' '}
             {stock('goalieLine')}
           </>,
         )}
@@ -1158,7 +1158,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'goalieDelay',
           number('goalieDelay'),
           <>
-            How long a player holds B before he takes control of his goalie, in sixtieths of a second: 17, about a
+            How long a player holds B before they take control of their goalie, in sixtieths of a second: 17, about a
             quarter of a second, in the original game, so 12 is a fifth of a second. It is the same for all four
             controllers in 2 on 2, with a 4-Way Play adapter too. From smozoma's forum post. {stock('goalieDelay')} Tested in the game by the NHL94 Match Viewer
             project.
@@ -1181,7 +1181,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'turnRate',
           number('turnRate'),
           <>
-            How quickly a skater stops and turns when he reverses. A larger number stops him sooner; a small one gives
+            How quickly a skater stops and turns when they reverse. A larger number stops them sooner; a small one gives
             a long, sliding stop. {stock('turnRate')}
           </>,
         )}
@@ -1245,8 +1245,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             The game's own Edit Lines lists only forwards for the forward positions and only defencemen for the defence.
             With this on it lists every skater for every position, and picking someone already on the line swaps the two,
-            as the game already does. A player plays the position the line gives him, faceoffs included, with his own
-            ratings. Saved lines keep a defenceman at forward as himself, and lines saved before it was on still load.
+            as the game already does. A player plays the position the line gives them, faceoffs included, with their own
+            ratings. Saved lines keep a defenceman at forward as themselves, and lines saved before it was on still load.
             The same save loaded on a ROM without this keeps its lines too, except that anyone saved out of position is
             replaced by a forward or defenceman as the position needs, never by a skater already on the line.
             NOSE4Web's own line editor offers any skater at any position whatever the ROM has. As McMarkis's SNES hack
@@ -1295,7 +1295,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         {hack(
           'greenFan',
           onOff('greenFan'),
-          "A fan in a green shirt in the stands is missing his arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it. Tested in the game by the NHL94 Match Viewer project.",
+          "A fan in a green shirt in the stands is missing their arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'clockwiseSprites',
@@ -1307,14 +1307,14 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           onOff('barrPick'),
           <>
             An option, from a league member's idea. Before each game every player is rolled a little hot or cold, which
-            changes how he plays that night, and on the matchup screen Ron Barr says "Lately ... has been playing
+            changes how they play that night, and on the matchup screen Ron Barr says "Lately ... has been playing
             well" of the team whose six starters came out hotter in all, but only when the gap is wide, so not every
-            game has the line. With this on he names a team every game: the one whose starters came out hotter, so the
-            team he picks has its starters in better form that night. With a wide gap he still says "extremely"; on an
-            exact tie he picks the visitors. The line adds about 2 seconds to the matchup screen. What he says is the
+            game has the line. With this on Ron Barr names a team every game: the one whose starters came out hotter, so the
+            team picked has its starters in better form that night. With a wide gap the line still says "extremely"; on an
+            exact tie the pick is the visitors. The line adds about 2 seconds to the matchup screen. What Ron Barr says is the
             hotter-team line of Ron Barr's text on the Game settings page, which names the team's city, so a league can
-            make it a pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot and cold range at 0 he
-            always picks the visitors; at 2 or less hot and cold does not change play, so his pick is only luck. On a
+            make it a pick, such as "Ron Barr likes {'{hotter team}'} tonight." With the hot and cold range at 0 the pick
+            is always the visitors; at 2 or less hot and cold does not change play, so the pick is only luck. On a
             league ROM whose Ron Barr text has a line taken out by hand (the Check page says so), put the line back
             first, or a line in the wrong place shows every game. The Genesis game calls both New York teams "New
             York", so when they meet the line does not say which. Not yet tried on EVO, which has a matchup screen of
@@ -1326,10 +1326,10 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           onOff('barrCoin'),
           <>
             An option, instead of the one above: Ron Barr names a team every game by a coin flip, home or visitors
-            alike, whatever the teams' hot and cold rolls. His pick then has nothing to do with their form that night:
-            about half the time he names the team whose starters came out colder. He always says "well", never
+            alike, whatever the teams' hot and cold rolls. The pick then has nothing to do with their form that night:
+            about half the time it is the team whose starters came out colder. The line always says "well", never
             "extremely". Turning one of the two on turns the other off. The same line of Ron Barr's text is used, and
-            the same cautions apply: a league ROM with a line of his text taken out by hand needs it put back, and when
+            the same cautions apply: a league ROM with a line of that text taken out by hand needs it put back, and when
             the two New York teams meet the Genesis game calls both "New York". Tested in the game by the NHL94 Match
             Viewer project.
           </>,
@@ -1349,8 +1349,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             'headBleeding',
             onOff('headBleeding'),
             <>
-              In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from his head; NHL '94 took
-              the blood out. With this on, a player hurt for the game bleeds as he lies there: a little as he lands,
+              In NHLPA '93 a player hurt by a check lies on the ice with blood spreading from their head; NHL '94 took
+              the blood out. With this on, a player hurt for the game bleeds as they lie there: a little as they land,
               more half a second later. A player out for the period lies as before. Only the look changes, not how the
               game plays. The blood uses two of the arena's colours, which are dark reds in the original game. It needs more room, which grows a 1 MB ROM to 2 MB. It works with or without the fighting
               patch. Tested in the game by the NHL94 Match Viewer project.
@@ -1403,7 +1403,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             </ul>
             {rescaled && (
               <p>
-                Every player's ratings will be restated on the new scale, so that each plays as he did:{' '}
+                Every player's ratings will be restated on the new scale, so that each plays as they did:{' '}
                 {wanted.wideRatings ? '0, 1, 2, 3, 4, 5, 6 become 0, 3, 5, 8, 10, 13, 15' : 'each becomes the nearest of 0 to 6'}. Overall
                 ratings will read differently, since the two scales work them out differently.
               </p>
@@ -1411,12 +1411,12 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             {wanted.headBleeding && !state.choices.headBleeding && project.bytes.length < 0x200000 && (
               <p>Head bleeding needs more room in the ROM, which grows it to 2 MB.</p>
             )}
-            {reweighed && <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>}
+            {reweighed && <p>Every player's weight will be moved to the step nearest the pounds they weigh now, which can be up to 4 pounds out.</p>}
             {wanted.checkFix === 'all120' && wanted.weightFix !== 'off' && (
               <p>
                 The weight bug and C-then-B fix and smozoma's legacy weight bug fix should not go together: with the
                 first the bug is already fixed, and the legacy fix would then have every checker do better the lighter
-                he is.
+                they are.
               </p>
             )}
             {wanted.weightFix === 'on' && state.choices.weightFix !== 'on' && (

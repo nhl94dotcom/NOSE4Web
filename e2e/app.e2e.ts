@@ -751,7 +751,7 @@ test.describe('with the NHL 94 ROM', () => {
     const target = rows(page, 'Skaters').nth(2)
     await tick(target)
     await page.getByRole('button', { name: 'Paste over selected' }).first().click()
-    await expect(page.getByText('Pasted 1 player, with his photo.')).toBeVisible()
+    await expect(page.getByText('Pasted 1 player, with their photo.')).toBeVisible()
     await expect(nameOf(target)).toHaveValue(copiedName)
   })
 
@@ -1245,7 +1245,7 @@ test.describe('with the NHL 94 ROM', () => {
     await tick(skaters.nth(5))
     await tick(skaters.nth(6))
     await paste('Paste over selected')
-    await expect(page.getByText('Pasted 1 player, with his photo, repeating them to fill the rows.')).toBeVisible()
+    await expect(page.getByText('Pasted 1 player, with their photo, repeating them to fill the rows.')).toBeVisible()
     for (const row of [3, 5, 6]) await expect(nameOf(skaters.nth(row))).toHaveValue(copiedName)
 
     // A skater cannot be pasted over a goalie.

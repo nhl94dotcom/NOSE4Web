@@ -61,12 +61,12 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   energyRecovery: 'With line changes on, how fast skaters get their energy back on the bench.',
   noSkatingDrain: 'With line changes on, skating costs no energy; hits, holds and bursts still can.',
   burstEnergy: 'With line changes on, how much energy a C-button speed burst costs.',
-  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so he tires sooner.',
+  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so they tire sooner.',
   holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
   injuryBonus: 'Each knockdown a skater takes makes a later injury a little likelier.',
   injuryCap: 'The most the knockdowns above can add to the injury risk.',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
-  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after getting up.',
   goalieWidth: 'How far a goalie you control goes to each side without the puck.',
   goalieOut: 'How far up the ice a goalie you control comes without the puck.',
   goalieLine: 'The line a goalie you control is whistled past.',
@@ -81,18 +81,18 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   fightingOff: 'What the Fighting setting on Game Setup is set to when the game is switched on. Players can still change it.',
   fightingArcade: '',
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
-  runawayFix: 'A skater no longer keeps gliding, barely slowing, after a fall into the boards or when you switch to him.',
+  runawayFix: 'A skater no longer keeps gliding, barely slowing, after a fall into the boards or when you switch to them.',
   goaliePullFix: 'In the last minute the computer pulls its goalie when one or two goals behind, not only when exactly two.',
   snipingFix: "While a team's goalie is off the ice, its shots are only as accurate as the shooter, instead of always going exactly where aimed.",
   penaltyShotTableFix: 'A penalty shot is called for the foul that was committed, not named after a different one.',
   penaltyShotFixes: 'A penalty shot ended by an odd whistle is not taken again, and no "ghost puck" floats through the net and boards.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is credited.',
-  oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
-  regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  oneTimerAssist: "A one-timer goal keeps its assists when the shooter's stick touched the pass before the shot.",
+  regainAssist: 'A player who wins the puck back themselves and passes to the scorer gets their assist.',
   aggressionFix: 'More Aggression always means more penalties; in the original some ratings play like others (a 4 plays like a 1).',
   comebackFix: 'A team tied or behind in the third period gets its small comeback boost late in the period, as meant, not early.',
   openNetFix: 'A one-timer at an open net is aimed at the middle of the net, not just under the crossbar.',
-  blindRingFix: 'The goalie can stop a loose puck sliding in near his stick, where the original lets it through untouched.',
+  blindRingFix: 'The goalie can stop a loose puck sliding in near their stick, where the original lets it through untouched.',
   seasonOvertime: 'A tied regular-season game plays overtime after overtime until a goal, as the playoffs do.',
   seasonShootout: 'A regular-season game still tied after overtime is settled by a shootout.',
   nhlShootout: "Shootouts follow today's NHL rule: three rounds, then sudden death, over once a team can't catch up.",
@@ -102,11 +102,11 @@ const SUMMARIES: Record<Nhl95Hack, string> = {
   ppPkFix: "A team's power play and penalty kill ratings work as set, where the original mixes the two up.",
   faceoffFix: "Every faceoff is on a dot, as today's NHL rules have it, not where play stopped between the dots.",
   awarenessFix: 'Computer wingers and centres on offence use Offensive Awareness, not Defensive.',
-  centreDefenceFix: 'A computer centre defending outside his zone covers the right spot at both ends of the rink.',
-  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through his own net.',
+  centreDefenceFix: 'A computer centre defending outside their zone covers the right spot at both ends of the rink.',
+  goalieTurnFix: 'A computer goalie turning to follow the puck never turns round through their own net.',
   shotScatterFix: 'Shots at the bottom net miss as often as shots at the top net.',
   stickReachFix: 'A stick reaches the puck in a circle, and less far right after a pass.',
-  bodyBlockFix: "A puck that hits a skater's body bounces off him.",
+  bodyBlockFix: "A puck that hits a skater's body bounces off them.",
   lockedChangeFix: 'B switches skaters while yours is down or busy.',
   stickShots: "A hard low shot knocked away by the goalie's stick counts as a shot on goal.",
   anyPosition: 'Edit Lines lists every skater for every position.',
@@ -141,8 +141,8 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   anyPosition: (
     <p className="note">
       The game's Edit Lines lists only forwards for the forward positions and only defencemen for the defence. With
-      this on it lists every skater for every position. A player plays the position the line gives him, with his own
-      ratings. Saved lines keep him there, even on a ROM without this. The team page's lines can then take anyone too.{' '}
+      this on it lists every skater for every position. A player plays the position the line gives them, with their own
+      ratings. Saved lines keep them there, even on a ROM without this. The team page's lines can then take anyone too.{' '}
       {SETTING_TESTED}
     </p>
   ),
@@ -165,7 +165,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   awarenessFix: (
     <p className="note">
-      How quickly a computer skater rethinks what to do depends on his awareness. Computer skaters use Offensive when
+      How quickly a computer skater rethinks what to do depends on their awareness. Computer skaters use Offensive when
       their team has the puck and Defensive when it does not, but in the original game computer wingers and centres use
       Defensive on offence too. Whether that was meant is not known. With this on they use Offensive, like the others.
       A small change. {FROM_94}
@@ -173,18 +173,18 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   centreDefenceFix: (
     <p className="note">
-      A computer centre defending outside his own zone is meant to stand between the puck and his net. In the original
-      game, at one end of the rink he goes the wrong way: he drops back as the puck goes up the ice and comes out as it
-      nears his blue line. Each team has it every other period. With this on he covers the right spot at both ends.
-      In NHL '95 it only matters while the puck is loose: with a man on the puck the centre covers in another way,
+      A computer centre defending outside their own zone is meant to stand between the puck and their net. In the original
+      game, at one end of the rink they go the wrong way: they drop back as the puck goes up the ice and come out as it
+      nears their blue line. Each team has it every other period. With this on they cover the right spot at both ends.
+      In NHL '95 it only matters while the puck is loose: with a player on the puck the centre covers in another way,
       which is right at both ends. Found by chaos. {FROM_94}
     </p>
   ),
   goalieTurnFix: (
     <p className="note">
-      A computer goalie turning to follow the puck is meant never to turn round through his own net. At the bottom net
-      the original game misses one case, so when the puck goes right to left behind his goal line he turns the long
-      way, facing into his net for a moment. With this on he turns the short way, as the top goalie does. Found by
+      A computer goalie turning to follow the puck is meant never to turn round through their own net. At the bottom net
+      the original game misses one case, so when the puck goes right to left behind their goal line they turn the long
+      way, facing into their net for a moment. With this on they turn the short way, as the top goalie does. Found by
       NOSE4Web and the NHL94 Match Viewer project. {FROM_94}
     </p>
   ),
@@ -204,22 +204,22 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   bodyBlockFix: (
     <p className="note">
-      A bug in NHL '95 means a puck never bounces off a skater's body: it passes through him, and only sticks and
+      A bug in NHL '95 means a puck never bounces off a skater's body: it passes through them, and only sticks and
       goalies stop it. With this on skaters block shots and passes, as in NHL 94, so a game has more blocks and a
       few fewer shots on goal. Found by NOSE4Web. {TESTED}
     </p>
   ),
   lockedChangeFix: (
     <p className="note">
-      While your skater is down on the ice, checking or bursting, pressing B usually does nothing until he is free: he
-      is often the one nearest the puck, so the game picks him again. With this on B switches to the next best skater,
+      While your skater is down on the ice, checking or bursting, pressing B usually does nothing until they are free: they
+      are often the one nearest the puck, so the game picks them again. With this on B switches to the next best skater,
       as in NHL 94. Found by a league member and the NHL94 Match Viewer project. {TESTED}
     </p>
   ),
   stickShots: (
     <p className="note">
       A hard low shot that comes off the goalie's stick is a save, but the original game does not count it as a shot on
-      goal: only catches and saves with his body count. With this on it counts, once, for the shooter, his team and
+      goal: only catches and saves with the goalie's body count. With this on it counts, once, for the shooter, their team and
       against the goalie. Only the statistics change. {FROM_94}
     </p>
   ),
@@ -241,17 +241,17 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   runawayFix: (
     <p className="note">
-      Now and then a skater keeps gliding, barely slowing, when he should be slowing down: most often after getting up
-      from a fall into the boards, when it can last a second or two. It can also happen when you switch to him as a pass
-      comes, or after a one-timer. With this on he skates normally. In NHL '95 a speed burst already ends the glide, so
+      Now and then a skater keeps gliding, barely slowing, when they should be slowing down: most often after getting up
+      from a fall into the boards, when it can last a second or two. It can also happen when you switch to them as a pass
+      comes, or after a one-timer. With this on they skate normally. In NHL '95 a speed burst already ends the glide, so
       it never gets as bad as NHL 94's runaway skater. {FROM_94}
     </p>
   ),
   goaliePullFix: (
     <p className="note">
       In the last minute of the third period the computer pulls its goalie for an extra attacker, but only when exactly
-      two goals behind, never when one down. With this on it pulls him when one or two behind, as a real coach would.
-      While he is out the computer's shots go exactly where aimed, unless the pulled-goalie sniping fix is on too.{' '}
+      two goals behind, never when one down. With this on it pulls the goalie when one or two behind, as a real coach would.
+      While the goalie is out the computer's shots go exactly where aimed, unless the pulled-goalie sniping fix is on too.{' '}
       {FROM_94}
     </p>
   ),
@@ -283,7 +283,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       Brings back the fights EA drew for NHL '95 but left out: Vancecookcobxin's fighting patch, with a fix by the NHL94
       Match Viewer project. A hard check can start a fight between two players with Fighting ratings (in
       Handed/Fighting), more often as a game gets rougher. To start one a player needs 71 or more (42 in Arcade Mode),
-      and his opponent 14 or more. They trade punches (C high, B low, A grab) until one goes down, and both get five
+      and their opponent 14 or more. They trade punches (C high, B low, A grab) until one goes down, and both get five
       minutes. Game Setup gets a Fighting setting: Off, On, or On - Arcade Mode, with more fights. The WN95HL's Season 18
       ROM rates no one for fighting, so give players ratings before anyone can fight. {TESTED}
     </p>
@@ -298,14 +298,14 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   oneTimerAssist: (
     <p className="note">
-      When the shooter's stick touched the pass just before his one-timer, the original game counts him as his own
+      When the shooter's stick touched the pass just before their one-timer, the original game counts them as their own
       passer, and the goal gets no assists. With the fix the players who passed get their assists. {FROM_94}
     </p>
   ),
   regainAssist: (
     <p className="note">
       When a player wins the puck straight back from the other team and passes to a teammate who scores, the original
-      game drops him from the goal, so his assist is lost. With the fix he gets it. {FROM_94}
+      game drops them from the goal, so their assist is lost. With the fix they get it. {FROM_94}
     </p>
   ),
   aggressionFix: (
@@ -333,7 +333,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
       When a low loose puck comes near the goalie's stick, the original game leaves it to the stick alone, but the stick
       only stops a puck right at its blade. A puck in between touches nothing and slides on, which is how some five-hole
       goals go in; NHL '95's gap is bigger than NHL 94's. The fix lets the goalie's body play those pucks, stopping or
-      holding them as his ratings allow. An option, not a recommended fix. {FROM_94}
+      holding them as the goalie's ratings allow. An option, not a recommended fix. {FROM_94}
     </p>
   ),
   nhlShootout: (
@@ -367,7 +367,7 @@ const MORE: Partial<Record<Nhl95Hack, ReactNode>> = {
   ),
   rocketFix: (
     <p className="note">
-      The game sets each pass's speed from how long it should take to reach its man, but it works that time out
+      The game sets each pass's speed from how long it should take to reach the receiver, but it works that time out
       wrongly, so some passes go nearly twice as fast as they should and a few far faster: the rocket passes. With the
       fix passes go at their own speed. NHL '95's slow flat pass stays as slow as
       before, and the receiver still waits for it. {FROM_94}
@@ -401,7 +401,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
     <>
       Counts each player's checks while the clock runs and shows them in Player Stats as Chk, where penalty minutes were
       (sorted as Checks For); players' penalty minutes are then not kept. It counts the checks a player gives; unlike
-      NHL 94's version, the checks he takes are not counted.
+      NHL 94's version, the checks they take are not counted.
     </>
   ),
   timeOnIce: () => (
@@ -425,7 +425,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   blockedShots: () => (
     <>
-      Counts each skater's blocked shots: a shot by the other team that hits his body. Not a goalie's save, a stick
+      Counts each skater's blocked shots: a shot by the other team that hits their body. Not a goalie's save, a stick
       stopping the puck, or a shot off a teammate; nothing in highlights or a shootout. Player Stats gets a Blocked
       Shots page (BLK), after Giveaways and Takeaways and before Time On Ice (when those are on). Game Stats gets a
       Blocked Shots row with each team's total, but only with giveaways and takeaways off, as the table has room for
@@ -478,7 +478,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   bCheckPenaltiesOff: () => (
     <>
-      With penalties off, the original game makes your B-check pass an extra test, your Checking against his Agility,
+      With penalties off, the original game makes your B-check pass an extra test, your Checking against their Agility,
       before it trips a player; with penalties on there is none. <b>As with penalties on</b> drops the test, so B-checks
       trip the same either way. A ROM that has the forum's version (CoachMac's) shows it, and can be set back.
     </>
@@ -494,7 +494,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   ),
   referees: () => (
     <>
-      How often the referee calls the penalties that are his judgement: holding, hooking, tripping, charging, roughing
+      How often the referee calls the penalties that are their judgement: holding, hooking, tripping, charging, roughing
       and goalie interference. A player's Aggression still counts as before, for people's players and the computer's
       alike. Offsides, icing and the other calls are unchanged.
     </>
@@ -502,7 +502,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   shootoutInjuries: () => (
     <>
       With one of the shootouts for tied regular-season games on (above): a skater injured for the game, by a hit or in a
-      fight, takes no attempt, and the next healthy player on the team's shootout list shoots in his place. If all five are
+      fight, takes no attempt, and the next healthy player on the team's shootout list shoots in their place. If all five are
       out, the listed players shoot as before. Without a season shootout it does nothing; Shootout mode is as it was.
     </>
   ),
@@ -518,11 +518,11 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   stamina: () => <>With line changes on, players on the ice do not tire, so lines need changing only when you want to.</>,
   energyDrain: (_, stock) => (
     <>
-      How fast a player tires on the ice with line changes on. A larger number tires him sooner. At least 16, as in NHL 94:
-      below that a player with high endurance can get more back than he loses. {stock}
+      How fast a player tires on the ice with line changes on. A larger number tires them sooner. At least 16, as in NHL 94:
+      below that a player with high endurance can get more back than they lose. {stock}
     </>
   ),
-  energyRecovery: (_, stock) => <>How fast a player gets his energy back on the bench. A larger number rests him sooner. {stock}</>,
+  energyRecovery: (_, stock) => <>How fast a player gets their energy back on the bench. A larger number rests them sooner. {stock}</>,
   noSkatingDrain: () => (
     <>
       With line changes on, skating costs no energy. Players then tire only from hits and holds (below) and speed bursts,
@@ -532,14 +532,14 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   burstEnergy: (_, stock) => <>The energy a C-button speed burst costs with line changes on, out of 4096 for a fresh player; 0 for none. {stock}</>,
   hitEnergy: (c) => (
     <>
-      A skater knocked down by a check or a poke check loses this much energy, out of 4096, so he is slower until he rests
+      A skater knocked down by a check or a poke check loses this much energy, out of 4096, so they are slower until they rest
       ({c.hitEnergy === 0 ? 'now none' : `now ${Math.round((c.hitEnergy / 4096) * 1000) / 10}%`}). 0 is the original game. Only with line changes on, and
       nothing after the whistle. Recommended in NHL 94: {RECOMMENDED_HIT_ENERGY} (5%). <b>Energy from hits only</b> turns on Skating costs
       no energy, makes a speed burst cost nothing, and sets a knockdown to {HITS_ONLY.hitEnergy} and a hold to {HITS_ONLY.holdEnergy}.
     </>
   ),
   holdEnergy: () => (
-    <>The same for a skater caught by a hold or hook, once each time it catches him in play. Recommended in NHL 94: {RECOMMENDED_HOLD_ENERGY}, half a knockdown's.</>
+    <>The same for a skater caught by a hold or hook, once each time it catches them in play. Recommended in NHL 94: {RECOMMENDED_HOLD_ENERGY}, half a knockdown's.</>
   ),
   injuryBonus: () => (
     <>
@@ -555,12 +555,12 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   goalieHold: () => (
     <>
       How long a goalie may hold the puck before the whistle. The original game allows {holdSeconds(N.goalieHold)} seconds. 0 for no
-      whistle at all; a goalie the game controls still gives the puck up by himself.
+      whistle at all; a goalie the game controls still gives the puck up on their own.
     </>
   ),
   diveHold: () => (
     <>
-      How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle. The original game
+      How long a goalie who catches the puck in a dive may hold it after getting up, before the whistle. The original game
       allows only {holdSeconds(N.diveHold)} seconds, so you must pass or drop the puck at exactly the right moment to keep play
       going; a longer time gives you a chance. Every goalie, the computer's too. With no whistle in the goalie hold time
       above, a goalie you control is not whistled for it at all.
@@ -569,25 +569,25 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
   goalieWidth: (_, stock) => <>How far a goalie you control may go, without the puck, to either side of the middle of the ice. {stock}</>,
   goalieOut: (_, stock) => (
     <>
-      How near centre ice a goalie you control may come without the puck, as his distance from it, so a smaller number lets
-      him come farther out. For scale, NHL '95's goal line is about 267 from centre ice and its blue line 86. {stock}
+      How near centre ice a goalie you control may come without the puck, as their distance from it, so a smaller number lets
+      them come farther out. For scale, NHL '95's goal line is about 267 from centre ice and its blue line 86. {stock}
     </>
   ),
   goalieLine: (_, stock) => (
     <>
       The line a goalie you control may not skate past without a whistle, as a distance from centre ice, so a smaller number
-      lets him go farther; NHL '95's end-zone faceoff dots are 215 from centre ice. In practice it is the line he may carry
+      lets them go farther; NHL '95's end-zone faceoff dots are 215 from centre ice. In practice it is the line they may carry
       the puck to. {stock}
     </>
   ),
-  goalieDelay: (_, stock) => <>How long a player holds B before he takes control of his goalie; in sixtieths of a second: the original 17 is about a quarter of a second. The same for all four controllers. {stock}</>,
+  goalieDelay: (_, stock) => <>How long a player holds B before they take control of their goalie; in sixtieths of a second: the original 17 is about a quarter of a second. The same for all four controllers. {stock}</>,
   speedBurst: () => (
     <>
       The push the C button gives. 0 for the original game's, which is 32 for a fresh player and less for a tired one. Any
       other number is the push for everybody: 1 as good as takes it away, 16 is half the original's.
     </>
   ),
-  turnRate: (_, stock) => <>How quickly a skater stops and turns when he reverses. A larger number stops him sooner. {stock}</>,
+  turnRate: (_, stock) => <>How quickly a skater stops and turns when they reverse. A larger number stops them sooner. {stock}</>,
   puckFriction: (_, stock) => (
     <>
       How fast the puck slows on the ice. A smaller number slows it faster, and each step is double or half: 6 slows it
@@ -606,8 +606,8 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       A player's weight is one of sixteen steps of 8 pounds, counted up from this. Players have grown heavier over the
       years, so a ROM for another era starts the count elsewhere, to spread its players across the steps: from{' '}
       {c.baseWeight} to {c.baseWeight + 120} pounds as chosen. Only the roster screen, Create Player and the editor show
-      the pounds; in play a player is as heavy as his step. Give a season's year for the weight smozROM suggests for it.
-      Applying a new one moves every player to the step nearest the pounds he weighs now.
+      the pounds; in play a player is as heavy as their step. Give a season's year for the weight smozROM suggests for it.
+      Applying a new one moves every player to the step nearest the pounds they weigh now.
     </>
   ),
   hotColdRange: (_, stock) => (
@@ -615,7 +615,7 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       Before each game every player is made a little hot or cold: anything from minus this number to one less than it, so
       the original 9 gives -9 to 8. A smaller number makes the swings smaller. At 2 or less hot and cold no longer
       change how anyone plays, though the roster screen still shows the small values; 0 makes them all 0, so every player
-      plays to his ratings every game. {stock}
+      plays to their ratings every game. {stock}
     </>
   ),
   clutchTime: () => (
@@ -865,7 +865,7 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
               ))}
             </ul>
             {!unknown('baseWeight') && wanted.baseWeight !== state.choices.baseWeight && (
-              <p>Every player's weight will be moved to the step nearest the pounds he weighs now, which can be up to 4 pounds out.</p>
+              <p>Every player's weight will be moved to the step nearest the pounds they weigh now, which can be up to 4 pounds out.</p>
             )}
           </div>
         )}

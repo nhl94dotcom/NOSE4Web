@@ -90,7 +90,7 @@ export function AnnouncerSection({ project, onChange }: Props) {
           the right that the scouting report's box does not cover, where it is filled and cropped to fit, so a tall
           picture (a person from the waist up) works best; or <b>Ron Barr's whole place</b>,{' '}
           {SNES_ANNOUNCER_AREAS.whole.width} by {SNES_ANNOUNCER_AREAS.whole.height} pixels, where it is fitted in whole
-          in the bottom right, and the box and its text show over it as they do over him. Room there is limited, so
+          in the bottom right, and the box and its text show over it as they do over Ron Barr. Room there is limited, so
           like Ron Barr it has to be a cut-out: a figure on a see-through background (a PNG with transparency). A
           photo that fills the whole space is too detailed. Either way it has up to 15 colours of its own, and the
           desk goes. Text in the box is drawn over the picture, and the longer lines reach into the left of it, so
@@ -100,7 +100,7 @@ export function AnnouncerSection({ project, onChange }: Props) {
         </p>
       ) : (
         <p className="note">
-          The picture of Ron Barr on the pregame matchup screen, where he gives the scouting report:{' '}
+          The picture of Ron Barr on the pregame matchup screen, where they give the scouting report:{' '}
           {ANNOUNCER_WIDTH} by {ANNOUNCER_HEIGHT} pixels with a grey frame. A picture of your own keeps the frame and is
           scaled to fill the {ANNOUNCER_INSIDE.width} by {ANNOUNCER_INSIDE.height} pixels inside it, cropped to fit, so a
           head-and-shoulders photo works best. It has up to {ANNOUNCER_OWN_COLOURS} colours of its own, plus the seven

@@ -35,8 +35,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       ? "This ROM has an earlier version of the fix, which judges every check as if a person controlled the checker, so a light checker still knocks down much heavier players."
       : 'Checks are worked out the same way for everyone, so a heavier checker does better, as in real hockey, and switching away with C then B just before a hit no longer helps.',
   secondAssist: () => 'When two players pass back and forth before a goal, the second assist is now credited.',
-  oneTimerAssist: () => "A one-timer goal keeps its assists when the shooter's stick touched the pass before he shot.",
-  regainAssist: () => 'A player who wins the puck back himself and passes to the scorer gets his assist.',
+  oneTimerAssist: () => "A one-timer goal keeps its assists when the shooter's stick touched the pass before the shot.",
+  regainAssist: () => 'A player who wins the puck back themselves and passes to the scorer gets their assist.',
   aggressionFix: () => 'Penalties rise with the Aggression rating, a 6 taking the most and a 0 the fewest, where in the original game the order is mixed up and some lower ratings take the most.',
   ppPkFix: () => 'The power play and penalty kill ratings work as intended, where the original game reads the two the wrong way round.',
   comebackFix: () => 'A team tied or behind in the third period gets its comeback boost in the second half of the period, as intended, not the first.',
@@ -45,7 +45,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     `Penalties last ${c.penaltySeconds < NO_HACKS.penaltySeconds ? 'less' : 'longer'} than they say: each penalty minute is ${c.penaltySeconds} seconds in the box, so ${penaltyLengths(c.penaltySeconds)}. The statistics still show the usual penalty minutes.`,
   shootoutInjuries: () => 'In the shootout of a tied regular-season game, a skater injured for the game takes no attempt: the next on the list shoots.',
   fightSeconds: (c) => `A fight keeps each fighter in the box ${clockTime(c.fightSeconds)}, whatever its minutes; the statistics still show its usual penalty minutes.`,
-  headBleeding: () => 'A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA 93; only the look changes.',
+  headBleeding: () => 'A player hurt for the game bleeds from the head while lying on the ice, as in NHLPA 93; only the look changes.',
   seasonTies: (c) =>
     c.seasonTies === 'shootoutNow'
       ? 'A regular-season game tied after period 3 goes straight to a shootout, with no overtime, the winners getting one goal more, so it never ends in a tie.'
@@ -55,23 +55,23 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   fighting: (choices) =>
     `Players can fight, as in NHLPA 93 (chaos's fighting patch): the main menu has a Fighting line, starting at ${choices.fighting === 'off' ? 'Off' : choices.fighting === 'arcade' ? 'On - Arcade Mode (more fights)' : 'On'}.`,
   repeatCheckFix: () =>
-    'A player can knock down the same opponent again once he has got up, where in the original game the second check did nothing until some other check had landed.',
+    'A player can knock down the same opponent again once they have got up, where in the original game the second check did nothing until some other check had landed.',
   openNetFix: () => 'A one-timer at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar, where it often sailed over.',
   faceoffFix: () =>
     "Every faceoff is on one of the nine dots, as in today's NHL: at centre after a goal, in the offending team's end after a penalty, and otherwise at a dot near where play stopped.",
-  runawayFix: () => 'A skater no longer shoots off at up to twice top speed after a fall into the boards, a missed one-timer, or being switched to as a pass reaches him.',
+  runawayFix: () => 'A skater no longer shoots off at up to twice top speed after a fall into the boards, a missed one-timer, or being switched to as a pass reaches them.',
   penaltyShotTableFix: () => 'A penalty shot is named and recorded for the foul that caused it.',
   penaltyShotFixes: () => 'A penalty shot stopped by an outside whistle is not taken all over again, and the puck can no longer float through the net.',
   snipingFix: () => 'With your own goalie off the ice (for a delayed penalty or a pull), your shots are no longer always dead on target, just as accurate as any other shot.',
   goaliePullFix: () => 'Late in the third period the computer pulls its goalie when one or two goals behind, not only when exactly two.',
-  blindRingFix: () => "The goalie's body now stops flat pucks that used to slide through his legs.",
+  blindRingFix: () => "The goalie's body now stops flat pucks that used to slide through their legs.",
   awarenessFix: () => "Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.",
-  centreDefenceFix: () => 'A computer centre defending outside his own zone covers between the puck and his net at both ends of the rink.',
-  goalieTurnFix: () => 'A computer goalie turning to follow the puck never turns round through his own net, at either end.',
-  goalieBladeFix: () => "In his ready stance and glove saves the bottom goalie's stick sits where the top goalie's does, so low shots beat him no more often.",
+  centreDefenceFix: () => 'A computer centre defending outside their own zone covers between the puck and their net at both ends of the rink.',
+  goalieTurnFix: () => 'A computer goalie turning to follow the puck never turns round through their own net, at either end.',
+  goalieBladeFix: () => "In their ready stance and glove saves the bottom goalie's stick sits where the top goalie's does, so low shots beat them no more often.",
   shotScatterFix: () => 'Shots at the bottom net miss as often as shots at the top net.',
   crowdFix: () => "The crowd's speed boost comes only while the crowd is loud, so skaters are a little slower in quiet spells.",
-  stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one he catches already does.",
+  stickShots: () => "A hard low shot the goalie's stick knocks away now counts as a shot on goal, as one the goalie catches already does.",
   bodychecks: () => "Each player's bodychecks are counted and shown in Player Stats as Chk, in place of penalty minutes.",
   clutchTime: () => "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: () => "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
@@ -79,8 +79,8 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   giveaways: () => "Each player's giveaways and takeaways are counted and shown on Player Stats pages of their own, and Game Stats shows each team's as Give/Takeaways. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
   blockedShots: (c) =>
     c.giveaways
-      ? "Each skater's blocked shots (the other team's shots his body stops) are counted and shown on a Player Stats page of their own."
-      : "Each skater's blocked shots (the other team's shots his body stops) are counted and shown on a Player Stats page of their own, and Game Stats shows each team's as Blocked Shots.",
+      ? "Each skater's blocked shots (the other team's shots their body stops) are counted and shown on a Player Stats page of their own."
+      : "Each skater's blocked shots (the other team's shots their body stops) are counted and shown on a Player Stats page of their own, and Game Stats shows each team's as Blocked Shots.",
   timeOnIce: () => 'Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player\'s time on ice.',
   plusMinus: () => 'Plus-minus is kept for every player (the game does not show it).',
   threeStars: (c) => `The three stars are chosen by a fuller formula that counts bodychecks, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
@@ -88,7 +88,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   bonuses: (c) =>
     ({
       original: '',
-      disabled: 'No hot and cold: every player plays to his ratings every game.',
+      disabled: 'No hot and cold: every player plays to their ratings every game.',
       hidden: 'Players are still hot or cold each game, but Edit Lines does not show it.',
       playersMatchLines: 'The hot and cold bonuses Edit Lines shows are the ones players really have.',
       linesMatchPlayers: 'Edit Lines shows the hot and cold bonuses players really have.',
@@ -96,14 +96,14 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   baseWeight: (c) => `Player weights are set for another era: the lightest weight stands for ${c.baseWeight} pounds, where the original game has 140.`,
   goalieHold: (c) =>
     c.goalieHold === 0
-      ? 'A goalie may hold the puck as long as he likes: there is no whistle for it.'
+      ? 'A goalie may hold the puck as long as they like: there is no whistle for it.'
       : `A goalie may hold the puck ${holdSeconds(c.goalieHold)} seconds before the whistle, ${more(c.goalieHold, NO_HACKS.goalieHold, 'longer', 'shorter')} than the original game's ${holdSeconds(NO_HACKS.goalieHold)}.`,
   diveHold: (c) =>
-    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after he gets up before the whistle, ${more(c.diveHold, NO_HACKS.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(NO_HACKS.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(c.diveHold)} seconds after getting up before the whistle, ${more(c.diveHold, NO_HACKS.diveHold, 'longer', 'shorter')} than the original game's ${holdSeconds(NO_HACKS.diveHold)}.${c.goalieHold === 0 ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (c) =>
     `A goalie you control may go ${more(c.goalieWidth, NO_HACKS.goalieWidth, 'wider', 'less far')} to either side of the net than in the original game (${c.goalieWidth}, where the original has ${NO_HACKS.goalieWidth}).`,
   goalieOut: (c) =>
-    `A goalie you control may ${more(c.goalieOut, NO_HACKS.goalieOut, 'not come as far out of his net', 'come farther out of his net')} without the puck (to ${c.goalieOut} from centre ice, where the original has ${NO_HACKS.goalieOut}).`,
+    `A goalie you control may ${more(c.goalieOut, NO_HACKS.goalieOut, 'not come as far out of their net', 'come farther out of their net')} without the puck (to ${c.goalieOut} from centre ice, where the original has ${NO_HACKS.goalieOut}).`,
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, NO_HACKS.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${NO_HACKS.goalieLine}).`,
   stamina: () => 'With line changes on, players on the ice never tire, so lines change only when you want them to.',
@@ -131,12 +131,12 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   threeOnThree: (c) =>
     `Overtime is 3 on 3 (each line's LW, C and RD)${c.threeOnThree === 'season' ? ' in the regular season' : ', playoffs included'}; a power play adds a skater.`,
   hitEnergy: (c) =>
-    `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of his energy, so he slows and tires sooner; the original game takes none.`,
+    `With line changes on, a skater knocked down by a check or a poke check loses ${energyText(c.hitEnergy)} of their energy, so they slow and tire sooner; the original game takes none.`,
   injuryBonus: (c) =>
     `Each knockdown a skater takes, the hit itself included, makes an injury more likely (${c.injuryBonus} more chances in 160, up to ${c.injuryCap} in all), and half of it wears off at each intermission. Only the few hits that can injure in the original game are affected.`,
   injuryCap: (c) => `Knockdowns add at most ${c.injuryCap} chances in 160 to the injury risk of a hit that can injure.`,
-  holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of his energy; the original game takes none.`,
-  anyPosition: () => "The game's Edit Lines offers every skater for every position, and keeps such lines when they are saved; a player plays the position the line gives him.",
+  holdEnergy: (c) => `With line changes on, a skater caught by a hold or hook loses ${energyText(c.holdEnergy)} of their energy; the original game takes none.`,
+  anyPosition: () => "The game's Edit Lines offers every skater for every position, and keeps such lines when they are saved; a player plays the position the line gives them.",
   fourthPeriodOvertime: (c) =>
     `The main menu offers an extra period length, and a regular-season game played at it has ${clockText(c.fourthPeriodOvertime)} of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.`,
   introWait: (c) => `The two intro screens are ${c.introWait < NO_HACKS.introWait ? 'shorter' : 'longer'} than in the original game, where each lasts about 5 seconds (a button skips them).`,
@@ -144,7 +144,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     `The puck slows ${c.puckFriction < NO_HACKS.puckFriction ? 'faster' : 'more slowly'} on the ice than in the original game (and so do gliding skaters: a player receiving a pass, or sliding after a fall).`,
   netColours: (c) => `The nets are drawn in the ${c.netColours === 'crowd' ? "crowd's" : c.netColours === 'home' ? "home team's" : c.netColours === 'away' ? "visitors'" : "rink's"} colours.`,
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
-  greenFan: () => 'The fan in green in the stands has his arm and leg back.',
+  greenFan: () => 'The fan in green in the stands has their arm and leg back.',
   clockwiseSprites: () => "The players are drawn with Clockwise's touch-ups: stick tape, eye colour and other small details. NOSE4Web's own, in Clockwise's style, tape the sticks in the faceoff close-up and in the fight frames.",
   organResume: () => 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   barrPick: () => "Ron Barr names the team that came out hotter before every game, not only when one is much hotter.",
@@ -187,15 +187,15 @@ const GENESIS_SUMMARY: Partial<Record<keyof HackChoices, string>> = {
   bonuses: 'Whether players are hot or cold each game, and whether Edit Lines shows it truthfully.',
   baseWeight: 'The weight in pounds a weight rating of 0 stands for (only what the screens show).',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
-  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after getting up, before the whistle.',
   goalieWidth: 'How far a goalie you control may go to either side of the net.',
-  goalieOut: 'How far out of his net a goalie you control may come without the puck.',
+  goalieOut: 'How far out of their net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
   injuries: 'How often hits injure, and how long an injury lasts.',
   referees: 'How often the referee calls holding, hooking, tripping, charging, roughing and goalie interference.',
   hotColdRange: "How far hot and cold can move a player's ratings.",
   threeOnThree: 'Overtime played 3 on 3, as the NHL does, with a skater more for a power play.',
-  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so he tires sooner.',
+  hitEnergy: 'With line changes on, a knocked-down skater loses some energy, so they tire sooner.',
   injuryBonus: 'Each knockdown a skater takes makes the next injury a little likelier.',
   injuryCap: 'The most the knockdowns above can add to the injury risk.',
   holdEnergy: 'With line changes on, a skater held or hooked loses some energy.',
@@ -243,7 +243,7 @@ const SNES: Record<SnesHack, string> = {
     "Every faceoff is on one of the nine dots, as in today's NHL: at centre after a goal, in the offending team's end after a penalty, and otherwise at a dot near where play stopped.",
   awarenessFix: 'Computer forwards on offence react by their Offensive Awareness, like other skaters, not their Defensive.',
   secondAssist: 'When two players pass back and forth before a goal, the second assist is now credited.',
-  stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one he catches already does.",
+  stickShots: "A hard shot the goalie's stick or glove knocks away now counts as a shot on goal, as one the goalie catches already does.",
   bodychecks: "Each player's bodychecks given and taken are counted, for nhl94online.com to read from save states.",
   clutchTime: "In the last 2:00 of a close third period (the score within a goal), everyone on the ice plays half a rating point better.",
   choppyIce: "The puck slows a little more as each period wears on, up to a quarter more by its end, and the ice is fresh again after each intermission.",
@@ -251,7 +251,7 @@ const SNES: Record<SnesHack, string> = {
   giveaways: "Each player's giveaways and takeaways are counted, for the stats pages below and for websites that read save states. A pass at the net counts as a shot, not a giveaway, if the other team picks it up after it reaches the goalie or the goal line.",
   giveawaysShown: "Game Stats shows each team's giveaways and takeaways as Give/Take.",
   giveawayPages: "Player Stats has Giveaways and Takeaways pages (right past Penalties), sorted by each player's giveaways or takeaways, and the Goalies page shows each goalie's giveaways.",
-  blockedShots: "Each skater's blocked shots (the other team's shots his body stops) are counted, for the stats pages below.",
+  blockedShots: "Each skater's blocked shots (the other team's shots their body stops) are counted, for the stats pages below.",
   blockedShotsShown: "Game Stats shows each team's blocked shots as Blocked Shots.",
   blockedShotPages: "Player Stats has a Blocks page (after Giveaways and Takeaways, before Time On Ice), sorted by each skater's blocked shots.",
   timeOnIceShown: 'Player Stats has a Time On Ice page (right past Penalties), sorted by each player\'s time on ice.',
@@ -267,8 +267,8 @@ const SNES: Record<SnesHack, string> = {
   lockedChangeFix: 'Pressing B while your skater is checking or bursting now switches to another skater, where the press was often lost.',
   openNetFix: "A computer player's shot at an open net, with the goalie out of position, is aimed at the middle of the net, not just under the crossbar.",
   lockedDefenceFix: 'L and R take a defenceman even while your skater is checking, bursting, down or otherwise busy, where the press was lost.',
-  shotFix: 'A shooter who gets the puck back during his wind-up, after it was knocked loose, now still shoots.',
-  oneTimerFix: 'A one-timer whose pass comes late no longer leaves the player swinging with the puck and never shooting: he takes the pass and can shoot it.',
+  shotFix: 'A shooter who gets the puck back during their wind-up, after it was knocked loose, now still shoots.',
+  oneTimerFix: 'A one-timer whose pass comes late no longer leaves the player swinging with the puck and never shooting: they take the pass and can shoot it.',
   creaseIcing: 'A puck that crosses the goal line within the width of the crease is not icing, as on the Genesis.',
   hybridIcing: "Hybrid icing, as in today's NHL: icing is decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.",
   noPenaltyShots: 'A foul on a breakaway is an ordinary penalty: there are no penalty shots.',
@@ -282,10 +282,10 @@ const SNES: Record<SnesHack, string> = {
   noIcing: 'Icing is never called.',
   forwardsAndDefence: 'In Edit Lines, any skater can be put at any position: forwards on defence and defencemen up front.',
   showMaxBoost: 'Edit Lines and the team roster show a rating that the hot and cold bug raises to the maximum as 100, the way it plays.',
-  manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts him back, with a beep.',
-  regainAssist: 'A player who wins the puck back himself and passes to the scorer gets his assist.',
-  hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of his energy, so he slows and tires sooner; the original game takes none.',
-  holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of his energy; the original game takes none.',
+  manualPullGoalie: 'During play, pressing L+R pulls your goalie for an extra attacker, or puts them back, with a beep.',
+  regainAssist: 'A player who wins the puck back themselves and passes to the scorer gets their assist.',
+  hitEnergy: 'With line changes on, a skater knocked down by a check or a poke check loses some of their energy, so they slow and tire sooner; the original game takes none.',
+  holdEnergy: 'With line changes on, a skater caught by a hold or hook loses some of their energy; the original game takes none.',
   noSkatingDrain: 'With line changes on, skating costs no energy: players tire only from hits (if set) and speed bursts, and rest on the bench as usual.',
   freeBurst: 'A speed burst costs no energy.',
   seasonOvertime: 'A regular-season game tied after overtime plays more overtime until a goal, as the playoffs do, so it never ends in a tie.',
@@ -298,14 +298,14 @@ const SNES: Record<SnesHack, string> = {
   fightOnce: 'A player who has fought cannot fight again that game. A hard hit with that player stays a hit.',
   penaltyTime: 'Each penalty minute keeps a player in the box for a set number of seconds, for leagues that play shorter periods; the statistics still show the usual minutes.',
   goaliePoke: "A goalie's poke check (X) straight up or down the ice now reaches the puck on the ice and knocks it loose, as one to the side already does.",
-  energySpeed: 'With line changes on, a tired skater slows all the way to the slowest speed there is as his energy runs out, as on the Genesis, where the original SNES game keeps more than half his speed.',
+  energySpeed: 'With line changes on, a tired skater slows all the way to the slowest speed there is as their energy runs out, as on the Genesis, where the original SNES game keeps more than half their speed.',
   injuryBonus: 'Each knockdown a skater takes (up to five, the hit itself included) makes an injury a little more likely, and half wears off at each intermission; only the few hits that can injure in the original game are affected.',
   fourthPeriodOvertime: 'Adds a period length to the main menu whose regular-season games get 99 minutes of overtime; the other lengths keep theirs, and playoff overtime is as long as a period.',
   threeStars: 'The three stars are chosen by a fuller formula: goals, assists, shots and checks for skaters, and shots faced, goals against and shutouts for goalies.',
   goalieHold: 'How long a goalie may hold the puck before the whistle.',
-  diveHold: 'How long a goalie who catches the puck in a dive may hold it after he gets up, before the whistle.',
+  diveHold: 'How long a goalie who catches the puck in a dive may hold it after getting up, before the whistle.',
   goalieWidth: 'How far a goalie you control may go to either side of the net.',
-  goalieOut: 'How far out of his net a goalie you control may come without the puck.',
+  goalieOut: 'How far out of their net a goalie you control may come without the puck.',
   goalieLine: 'How far up the ice a goalie you control may carry the puck before the whistle.',
   speedBurst: 'How much push a speed burst (A without the puck) gives.',
   turnRate: 'How sharply skaters stop and turn.',
@@ -319,11 +319,11 @@ const SNES_GOALIE_SHEET: Partial<Record<SnesHack, (amounts: Record<SnesAmount, n
       ? `A goalie you control is never whistled for holding the puck${a.diveHold > SNES_DIVE_HOLD ? '' : ' (a catch in a dive still is)'}; the computer's goalie is as before.`
       : `A goalie may hold the puck ${holdSeconds(a.goalieHold)} seconds before the whistle, ${more(a.goalieHold, SNES_GOALIE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_GOALIE_HOLD)}.`,
   diveHold: (a) =>
-    `A goalie who catches the puck in a dive may hold it ${holdSeconds(a.diveHold)} seconds after he gets up before the whistle, ${more(a.diveHold, SNES_DIVE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_DIVE_HOLD)}.${a.goalieHold === 0 && a.diveHold > SNES_DIVE_HOLD ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
+    `A goalie who catches the puck in a dive may hold it ${holdSeconds(a.diveHold)} seconds after getting up before the whistle, ${more(a.diveHold, SNES_DIVE_HOLD, 'longer', 'shorter')} than the original game's ${holdSeconds(SNES_DIVE_HOLD)}.${a.goalieHold === 0 && a.diveHold > SNES_DIVE_HOLD ? ' A goalie you control is not whistled for it while there is no hold whistle.' : ''}`,
   goalieWidth: (a) =>
-    `A goalie you control may go ${more(a.goalieWidth, SNES_GOALIE_WIDTH, 'wider', 'less far')} to either side of the net than in the original game before he is skated back (${a.goalieWidth}, where the original has ${SNES_GOALIE_WIDTH}).`,
+    `A goalie you control may go ${more(a.goalieWidth, SNES_GOALIE_WIDTH, 'wider', 'less far')} to either side of the net than in the original game before being skated back (${a.goalieWidth}, where the original has ${SNES_GOALIE_WIDTH}).`,
   goalieOut: (a) =>
-    `A goalie you control may ${more(a.goalieOut, SNES_GOALIE_OUT, 'not come as far out of his net', 'come farther out of his net')} without the puck before he is skated back (to ${a.goalieOut} from centre ice, where the original has ${SNES_GOALIE_OUT}).`,
+    `A goalie you control may ${more(a.goalieOut, SNES_GOALIE_OUT, 'not come as far out of their net', 'come farther out of their net')} without the puck before being skated back (to ${a.goalieOut} from centre ice, where the original has ${SNES_GOALIE_OUT}).`,
   goalieLine: (a) =>
     `A goalie you control may carry the puck ${more(a.goalieLine, SNES_GOALIE_LINE, 'less far', 'farther')} up the ice before the whistle (to ${a.goalieLine} from centre ice, where the original has ${SNES_GOALIE_LINE}).`,
 }
@@ -340,7 +340,7 @@ export function snesHackSheet(rom: Uint8Array, name: string): HackSheet {
   // The energy hacks say how much: units and a share of full energy.
   const textOf = (hack: SnesHack) =>
     (hack === 'hitEnergy' || hack === 'holdEnergy') && amounts
-      ? SNES[hack].replace('some of his energy', `${energyText(amounts[hack])} of his energy`)
+      ? SNES[hack].replace('some of their energy', `${energyText(amounts[hack])} of their energy`)
       : hack === 'seasonShootout' && amounts
         ? `A regular-season game tied ${amounts.seasonShootout === 2 ? 'after period 3 goes straight to a shootout, with no overtime' : 'after overtime is settled by a shootout'}; the winners get one goal more, so it never ends in a tie.`
       : hack === 'injuries' && amounts
@@ -499,7 +499,7 @@ export function pictureItems(project: RomProject): { title: string; text: string
     }
   }
   if (hasGenesisBlood(project)) {
-    items.push({ title: 'Head bleeding', text: "A player hurt for the game bleeds from the head as he lies on the ice, as in NHLPA '93." })
+    items.push({ title: 'Head bleeding', text: "A player hurt for the game bleeds from the head while lying on the ice, as in NHLPA '93." })
   }
   return items
 }

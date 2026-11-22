@@ -143,7 +143,7 @@ export function BulkPage({ project, onChange, kept, onKeep }: Props) {
       </div>
       <p className="note">
         {usable === 'fromBase'
-          ? `For players whose weights were set in a ROM with another base weight, such as a team brought in by spreadsheet. This ROM's weights start at ${ownBase} pounds. Each player is moved to the weight here nearest the pounds he had, which can be up to 4 pounds out.`
+          ? `For players whose weights were set in a ROM with another base weight, such as a team brought in by spreadsheet. This ROM's weights start at ${ownBase} pounds. Each player is moved to the weight here nearest the pounds they had, which can be up to 4 pounds out.`
           : isRating(chosen.kind)
           ? 'A rating has seven steps, shown as the range the game displays for each. One step is one of those.'
           : chosen.kind === 'stickHandling95'

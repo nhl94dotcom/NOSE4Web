@@ -207,7 +207,7 @@ export function TeamEditor(props: Props) {
       const problems = photos && onPasteWithPhotos ? onPasteWithPhotos(pasted, ticked.map((slot, n) => ({ slot, goalie: slot < goalies, photo: photos[n] }))) : (onChange(pasted), [])
       const count = copiedPlayerCount(text)
       const repeated = ticked.length > count ? ', repeating them to fill the rows' : ''
-      const withPhotos = photos?.some((photo) => photo) ? (count === 1 ? ', with his photo' : ', with their photos') : ''
+      const withPhotos = photos?.some((photo) => photo) ? (count === 1 ? ', with their photo' : ', with their photos') : ''
       const left = problems.length > 0 ? ` A photo could not be brought: ${problems[0]}` : ''
       setNotice(`Pasted ${attributesOnly ? 'the attributes of ' : ''}${count === 1 ? '1 player' : `${count} players`}${withPhotos}${repeated}.${left}${pasteConversionNote(text, game)}`)
     } catch (e) {
@@ -298,7 +298,7 @@ export function TeamEditor(props: Props) {
     const title = repeated
       ? `${team.players[current - 1].name} is in two positions on this line. The game plays it a skater short: choose someone else for one of them.`
       : outOfRole
-        ? `${team.players[current - 1].name} is a ${roleWord[playerRole(team, current)]}, not a ${slotRole(slot) === 'defence' ? 'defenceman' : slotRole(slot)}. Only the ROM put him here; the list offers the ${slotRole(slot) === 'goalie' ? 'goalies' : slotRole(slot) === 'defence' ? 'defencemen' : 'forwards'}.`
+        ? `${team.players[current - 1].name} is a ${roleWord[playerRole(team, current)]}, not a ${slotRole(slot) === 'defence' ? 'defenceman' : slotRole(slot)}. Only the ROM put them here; the list offers the ${slotRole(slot) === 'goalie' ? 'goalies' : slotRole(slot) === 'defence' ? 'defencemen' : 'forwards'}.`
         : hiddenRw(l, slot)
           ? "Not shown in the game's Edit Lines, which gives a penalty-kill line four rows: this is the skater who comes on when the team pulls its goalie while short-handed. The extra attacker (EA) comes on only at full strength."
           : undefined
@@ -659,7 +659,7 @@ export function TeamEditor(props: Props) {
           {team.players.length} players: {goalies} {goalies === 1 ? 'goalie' : 'goalies'}, {team.forwards}{' '}
           {team.forwards === 1 ? 'forward' : 'forwards'} and {team.defense} defence. The game goes by roster order, not
           by each player's own position: first the goalies (a 1 in each goalie box, from the left), then the forwards,
-          then the defence. To change a player's position, move him on the Roster tab.
+          then the defence. To change a player's position, move them on the Roster tab.
         </p>
         <div className="fields">
           {(props.teamRatingList ?? TEAM_RATINGS).map((rating, i) => (
@@ -794,7 +794,7 @@ export function TeamEditor(props: Props) {
               </p>
               <p className="note">
                 Make gives that kind of player at that level, a little different each time; Random gives attributes at
-                random around the level. The level Random gives each player a level of his own. Undo puts it all back.
+                random around the level. The level Random gives each player a level of their own. Undo puts it all back.
               </p>
               </>
             )}
@@ -826,7 +826,7 @@ export function TeamEditor(props: Props) {
               ))}
             </select>{' '}
             <span className="note">
-              A free agent joins this team. To sign a goalie, select the goalie he replaces. Released players wait as
+              A free agent joins this team. To sign a goalie, select the goalie they replace. Released players wait as
               free agents, off every team and out of the ROM.
             </span>
           </p>
@@ -898,7 +898,7 @@ export function TeamEditor(props: Props) {
         </p>
         {!fewerSkaters && game.lineLabels.some((label) => PENALTY_KILL_LINES.includes(label)) && (
           <p className="note">
-            On the {PENALTY_KILL_LINES.join(' and ')} lines the game's Edit Lines hides the RW (dashed here). He comes on
+            On the {PENALTY_KILL_LINES.join(' and ')} lines the game's Edit Lines hides the RW (dashed here). That player comes on
             when a short-handed team pulls its goalie; the extra attacker only comes on at full strength.
           </p>
         )}

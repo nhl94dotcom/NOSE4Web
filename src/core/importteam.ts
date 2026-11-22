@@ -156,8 +156,8 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
         return { ...p, attributes: done.values }
       })
       if (hands || stickHandling) team = { ...team, players }
-      if (hands) notes.push("The two games keep the shooting hand the other way round: each player's was turned, so he shoots as he did.")
-      if (stickHandling) notes.push("NHL '95 keeps stick handling in 16 steps and NHL 94 in 7: each player's was restated, so he plays as he did.")
+      if (hands) notes.push("The two games keep the shooting hand the other way round: each player's was turned, so they shoot as they did.")
+      if (stickHandling) notes.push("NHL '95 keeps stick handling in 16 steps and NHL 94 in 7: each player's was restated, so they play as they did.")
     }
     // The two games' 0 to 6 ratings are kept alike, though their screens show them a little differently; the shooting
     // hand and NHL '95's stick handling were converted above.

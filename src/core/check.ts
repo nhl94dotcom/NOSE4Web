@@ -82,7 +82,7 @@ function checkTeam(project: RomProject, team: Team, index: number, where: string
       const first = slots.findIndex((position) => position === slots[slot])
       add(
         'problem',
-        `${name} has ${team.players[slots[slot] - 1].name} at both ${at(first)} and ${at(slot)}. The game plays such a line a skater short, with no penalty, until a line change: one copy of him leaves the ice and no one takes his place.`,
+        `${name} has ${team.players[slots[slot] - 1].name} at both ${at(first)} and ${at(slot)}. The game plays such a line a skater short, with no penalty, until a line change: one copy of that player leaves the ice and no one takes their place.`,
       )
     }
     for (const slot of outOfRoleSlots(team, slots, anyAnywhere)) {

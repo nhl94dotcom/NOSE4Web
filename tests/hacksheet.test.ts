@@ -20,7 +20,7 @@ describe('the hack sheet', () => {
     const items = sheet.sections.flatMap((section) => section.items)
     expect(items.map((item) => item.title).sort()).toEqual(Object.values(HACK_TITLES).sort())
     for (const item of items) expect(item.text.length, item.title).toBeGreaterThan(20)
-    expect(items.find((item) => item.title === 'Goalie hold time')!.text).toMatch(/as long as he likes/)
+    expect(items.find((item) => item.title === 'Goalie hold time')!.text).toMatch(/as long as they like/)
     expect(items.find((item) => item.title === 'Goalie hold after a dive catch')!.text).toMatch(/0\.5 seconds .* not whistled for it/)
     expect(items.find((item) => item.title === 'Energy gained on the bench')!.text).toMatch(/more slowly/)
     expect(items.find((item) => item.title === 'Goalie range up the ice')!.text).toMatch(/farther out/)
