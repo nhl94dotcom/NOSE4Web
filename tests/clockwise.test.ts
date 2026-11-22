@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { clockwiseExtras, clockwiseKept, clockwiseRecords, clockwiseState, faceoffAnim } from '../src/core/clockwise'
+import { clockwiseExtras, clockwiseKept, clockwiseRecords, clockwiseState, faceoffAnim, putClockwise, takeOutClockwise } from '../src/core/clockwise'
 import { detectHacks, hackRom, hacksSupported, NO_HACKS, type HackChoices } from '../src/core/hacks'
 import { fightState } from '../src/core/fight'
 import { unpackTiles } from '../src/core/genesisunpack'
@@ -39,11 +39,11 @@ const tally = (rom: Uint8Array) => {
   }
   return counts
 }
-// Where NOSE4Web's additions are in a ROM: the fight frames' tape, and the faceoff close-up's (in its packed
-// stream, or in its plain tiles).
+// Where NOSE4Web's additions are in a ROM: the untaped frames' tape, the fight frames', and the faceoff close-up's
+// (in its packed stream, or in its plain tiles).
 const extraRanges = (rom: Uint8Array): [number, number][] => {
-  const { fight, faceoff, packed } = clockwiseExtras()
-  const out = fight.map((t): [number, number] => [t.at, t.at + t.original.length])
+  const { sprite, fight, faceoff, packed } = clockwiseExtras()
+  const out = [...sprite, ...fight].map((t): [number, number] => [t.at, t.at + t.original.length])
   const anim = faceoffAnim(rom)
   if (anim !== null) {
     const list = rom[anim + 8] & 0x80 ? packed : faceoff
@@ -116,6 +116,11 @@ describe.skipIf(!existsSync(IPS) || !existsSync(ORIGINAL))("Clockwise's sprite e
     for (const t of clockwiseExtras().packed) {
       expect(ours.subarray(anim + 10 + t.at, anim + 10 + t.at + t.patched.length)).toEqual(t.patched)
       ours.set(t.original, anim + 10 + t.at)
+    }
+    // And in the frames he left untaped.
+    for (const t of clockwiseExtras().sprite) {
+      expect(ours.subarray(t.at, t.at + t.patched.length)).toEqual(t.patched)
+      ours.set(t.original, t.at)
     }
     expectSameBytes(ours, patched)
   })
@@ -263,15 +268,16 @@ const tilesOf = (rom: Uint8Array) => unpackTiles(rom, faceoffAnim(rom)! + 8)!
 const CDL_TILES = 0x11ea92
 
 describe("NOSE4Web's additions to Clockwise's sprite edit: data", () => {
-  it('has the fight frames’ 38 bytes in 28 runs and the faceoff’s 50 in 22 (the first tape’s 81 in 27), each a change, in order', () => {
-    const { fight, faceoff, packed, firstFaceoff, firstPacked } = clockwiseExtras()
+  it('has the untaped frames’ 108 bytes in 96 runs, the fight frames’ 38 in 28 and the faceoff’s 50 in 22 (the first tape’s 81 in 27), each a change, in order', () => {
+    const { sprite, fight, faceoff, packed, firstFaceoff, firstPacked } = clockwiseExtras()
+    expect([sprite.length, tapeChanges(sprite).size]).toEqual([96, 108])
     expect([fight.length, tapeChanges(fight).size]).toEqual([28, 38])
     expect([faceoff.length, tapeChanges(faceoff).size]).toEqual([22, 50])
     expect([firstFaceoff.length, tapeChanges(firstFaceoff).size]).toEqual([27, 81])
     // The toe-end tape only tapes where the first one did.
     const firstChanges = tapeChanges(firstFaceoff)
     for (const at of tapeChanges(faceoff).keys()) expect(firstChanges.has(at)).toBe(true)
-    for (const list of [fight, faceoff, packed, firstFaceoff, firstPacked]) {
+    for (const list of [sprite, fight, faceoff, packed, firstFaceoff, firstPacked]) {
       list.forEach((t, i) => {
         expect(t.patched.length).toBe(t.original.length)
         expect(t.original).not.toEqual(t.patched)
@@ -280,6 +286,11 @@ describe("NOSE4Web's additions to Clockwise's sprite edit: data", () => {
     }
     // The fight frames lie in the fighting patch's frames, past Clockwise's records.
     expect(fight[0].at).toBeGreaterThan(clockwiseRecords().at(-1)!.at)
+    // The untaped frames' tape is in the sprite tiles among Clockwise's records, but in none of them.
+    for (const t of sprite) {
+      expect(t.at).toBeGreaterThanOrEqual(0x5de84)
+      for (const r of clockwiseRecords()) expect(t.at < r.at + r.original.length && r.at < t.at + t.original.length).toBe(false)
+    }
   })
 
   it('unpacks plain tiles as they are, and refuses a stream that comes out short', () => {
@@ -341,9 +352,9 @@ describe.skipIf(!existsSync(ORIGINAL))("NOSE4Web's additions on the original gam
     expect(fightState(together)).toBe('on')
     expect(detectHacks(together)).toEqual({ choices: all, unknown: [] })
     // Against the fighting patch alone: Clockwise's records, the faceoff's stream and the fight frames' tape, as listed.
-    const { fight, packed } = clockwiseExtras()
+    const { sprite, fight, packed } = clockwiseExtras()
     const anim = faceoffAnim(rom)!
-    const expected = new Map([...tapeChanges(fight), ...tapeChanges(packed, anim + 10)])
+    const expected = new Map([...tapeChanges(sprite), ...tapeChanges(fight), ...tapeChanges(packed, anim + 10)])
     for (const r of clockwiseRecords()) r.original.forEach((byte, i) => byte !== r.patched[i] && expected.set(r.at + i, [byte, r.patched[i]]))
     expect(together.length).toBe(fightOnly.length)
     expect(changes(fightOnly, together)).toEqual(expected)
@@ -376,9 +387,9 @@ describe.skipIf(!existsSync(ORIGINAL))("NOSE4Web's additions on the original gam
     const together = hackRom(rom, all)
     // As the editor made it before: Clockwise's records, no tape.
     const earlier = together.slice()
-    const { fight, packed } = clockwiseExtras()
+    const { sprite, fight, packed } = clockwiseExtras()
     const anim = faceoffAnim(rom)!
-    for (const t of fight) earlier.set(t.original, t.at)
+    for (const t of [...sprite, ...fight]) earlier.set(t.original, t.at)
     for (const t of packed) earlier.set(t.original, anim + 10 + t.at)
     expect(tally(earlier)).toEqual({ original: 0, patched: 3498, own: 0 })
     expect(detectHacks(earlier)).toEqual({ choices: all, unknown: [] })
@@ -427,5 +438,32 @@ describe.skipIf(!existsSync(path(CDL)))("NOSE4Web's additions on a league ROM wi
     const off = withChoices(on, { clockwiseSprites: false })
     expectSameBytes(off.subarray(CDL_TILES - 10, CDL_TILES + 179 * 32), same.subarray(CDL_TILES - 10, CDL_TILES + 179 * 32))
     expect(detectHacks(on).unknown).toEqual(detectHacks(rom).unknown)
+  })
+})
+
+// ------------------------------------------------ the untaped frames' tape in league ROMs
+// (NHL 94 EVO, which keeps its own stick colour in these frames, is left out: NOSE4Web's hacks are not offered for it.)
+const spriteNames = leagueNames.filter((name) => hacksSupported(open(name).game))
+describe.skipIf(spriteNames.length === 0)("NOSE4Web's tape in the frames Clockwise left untaped, in league ROMs", () => {
+  it.each(spriteNames)('goes into %s only where the art is the original game’s, and out again', (name) => {
+    const rom = new Uint8Array(readFileSync(path(name)))
+    const { sprite } = clockwiseExtras()
+    const inPlace = clockwiseRecords().filter((r) => is(rom, r.at, r.original) || is(rom, r.at, r.patched)).length * 2 >= clockwiseRecords().length
+    // A tile the league redrew (one of Clockwise's records or one of these with neither its bytes before nor after) is
+    // left alone.
+    const own = new Set<number>()
+    for (const r of clockwiseRecords()) if (!is(rom, r.at, r.original) && !is(rom, r.at, r.patched)) tilesOfRecord(r).forEach((t) => own.add(t))
+    for (const t of sprite) if (!is(rom, t.at, t.original) && !is(rom, t.at, t.patched)) tilesOfRecord(t).forEach((x) => own.add(x))
+    const goesIn = inPlace ? sprite.filter((t) => !tilesOfRecord(t).some((x) => own.has(x)) && is(rom, t.at, t.original)) : []
+    const on = rom.slice()
+    putClockwise(on)
+    for (const t of sprite) {
+      const want = goesIn.includes(t) ? t.patched : rom.subarray(t.at, t.at + t.original.length)
+      expect(on.subarray(t.at, t.at + t.original.length)).toEqual(want)
+    }
+    expect(goesIn.length).toBeGreaterThan(90)
+    // Out: each of them as it was.
+    takeOutClockwise(on)
+    for (const t of sprite) expect(on.subarray(t.at, t.at + t.original.length)).toEqual(rom.subarray(t.at, t.at + t.original.length))
   })
 })

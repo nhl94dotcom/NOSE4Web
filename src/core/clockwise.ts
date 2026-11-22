@@ -1,7 +1,7 @@
 import { CLOCKWISE_GAPS, CLOCKWISE_LENGTHS, CLOCKWISE_ORIGINAL, CLOCKWISE_PATCHED } from './clockwisedata'
 import { fightState } from './fight'
 import { unpackTiles } from './genesisunpack'
-import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_TAPE, FACEOFF_TAPE_FIRST, FIGHT_TAPE, type Tape } from './tapedata'
+import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_TAPE, FACEOFF_TAPE_FIRST, FIGHT_TAPE, SPRITE_TAPE, type Tape } from './tapedata'
 
 // Clockwise's sprite edit for NHL 94 on the Genesis, Clockwise's IPS patch from the
 // NHL94 forum: touch-ups to the players' sprite tiles (stick tape, eye colour
@@ -20,7 +20,8 @@ import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_TAPE, FACEOFF_T
 // touches these bytes.
 //
 // NOSE4Web adds touch-ups of its own in the same style, below: tape in the
-// faceoff close-up, and in chaos's fight frames where the fighting patch is in.
+// frames Clockwise left untaped, in the faceoff close-up, and in chaos's fight
+// frames where the fighting patch is in.
 
 interface SpriteRecord {
   at: number
@@ -127,6 +128,7 @@ export function putClockwise(rom: Uint8Array): Uint8Array | null {
       any = true
     }
   })
+  putSpriteTape(rom)
   putFaceoffTape(rom)
   return any ? kept : null
 }
@@ -138,13 +140,15 @@ export function takeOutClockwise(rom: Uint8Array, had?: Uint8Array): void {
   spriteRecords().forEach((r, i) => {
     if (uses.has(r) && is(rom, r.at, r.patched) && !(had && bit(had, i))) rom.set(r.original, r.at)
   })
+  takeOutSpriteTape(rom)
   takeOutFaceoffTape(rom)
 }
 
 // ---------------------------------------------------- NOSE4Web's additions
 // NOSE4Web's touch-ups in Clockwise's style (tapedata.ts), which go in and out
-// with Clockwise's: tape on the sticks in the faceoff close-up, and in the
-// fight frames of chaos's fighting patch with the eye of the overhand punch.
+// with Clockwise's: tape and eyes in sprite frames he left untaped, tape on the
+// sticks in the faceoff close-up, and in the fight frames of chaos's fighting
+// patch with the eye of the overhand punch.
 // They do not change whether the edit reads on (clockwiseState), so a ROM made
 // before they were added gets them when its hacks are next put in.
 
@@ -156,6 +160,7 @@ interface Touch {
 const hex = (text: string) => Uint8Array.from(text.match(/../g)!, (pair) => parseInt(pair, 16))
 const touches = (tapes: readonly Tape[]): Touch[] => tapes.map(([at, original, patched]) => ({ at, original: hex(original), patched: hex(patched) }))
 interface Tapes {
+  sprite: Touch[]
   fight: Touch[]
   faceoff: Touch[]
   packed: Touch[]
@@ -166,6 +171,7 @@ interface Tapes {
 let tape: Tapes | null = null
 const tapes = (): Tapes =>
   (tape ??= {
+    sprite: touches(SPRITE_TAPE),
     fight: touches(FIGHT_TAPE),
     faceoff: touches(FACEOFF_TAPE),
     packed: touches(FACEOFF_PACKED_TAPE),
@@ -181,6 +187,27 @@ const putEach = (rom: Uint8Array, list: Touch[], base = 0) => {
 const takeOutEach = (rom: Uint8Array, list: Touch[], base = 0) => {
   for (const t of list) if (fits(rom, base + t.at, t.patched)) rom.set(t.original, base + t.at)
 }
+
+// The untaped frames' tape, in the sprite tiles as Clockwise's records are, and like them each alone, leaving
+// alone any tile a league has redrawn (where one of Clockwise's records or one of these has neither its bytes before
+// nor after). And only where the ROM has the sprite tiles where the original game does (at least half of Clockwise's
+// records with his bytes or the original game's), as a ROM with other things there could match a few by chance.
+const tileSpan = (at: number, length: number) => {
+  const first = Math.floor((at - SPRITE_TILES) / 32)
+  const last = Math.floor((at + length - 1 - SPRITE_TILES) / 32)
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i)
+}
+function spriteTapeUsed(rom: Uint8Array): Touch[] {
+  const all = spriteRecords()
+  if (rom.length < end() || all.filter((r) => is(rom, r.at, r.original) || is(rom, r.at, r.patched)).length * 2 < all.length) return []
+  const own = new Set<number>()
+  for (const r of all) if (!is(rom, r.at, r.original) && !is(rom, r.at, r.patched)) for (const tile of tilesOf(r)) own.add(tile)
+  const { sprite } = tapes()
+  for (const t of sprite) if (!fits(rom, t.at, t.original) && !fits(rom, t.at, t.patched)) for (const tile of tileSpan(t.at, t.original.length)) own.add(tile)
+  return sprite.filter((t) => !tileSpan(t.at, t.original.length).some((tile) => own.has(tile)))
+}
+const putSpriteTape = (rom: Uint8Array) => putEach(rom, spriteTapeUsed(rom))
+const takeOutSpriteTape = (rom: Uint8Array) => takeOutEach(rom, spriteTapeUsed(rom))
 
 // FaceOffSprites, found from checkfo, which draws the close-up:
 // movea.l #FaceOffSprites,a2; adda.l 4(a2),a2; add.w d4,d4; move.w 2(a2,d4.w),d5.
