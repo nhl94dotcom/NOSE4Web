@@ -162,7 +162,7 @@ export function TradePage({ project, startTeam, attributeView, onAttributeViewCh
             </tbody>
           </table>
           {live.map((side) => {
-            const lost = linePositionsLost(project, side)
+            const lost = linePositionsLost(project, side, live.find((s) => s !== side))
             return (
               lost > 0 && (
                 <p key={side.team} className="note">

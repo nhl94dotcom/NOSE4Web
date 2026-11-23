@@ -103,12 +103,15 @@ export function trade(project: RomProject, a: TradeSide, b: TradeSide): RomProje
 
 // How many positions on a team's lines are held by players who would leave.
 // Those positions fall to another player, and the lines want a look after.
-export function linePositionsLost(project: RomProject, side: TradeSide): number {
+// `other`, the side trading with it: its goalies take the places of as many of this side's (exchange).
+export function linePositionsLost(project: RomProject, side: TradeSide, other?: TradeSide): number {
   if (side.team === FREE_AGENTS) return 0
   const team = project.teams[side.team]
   const goalies = goalieCount(team)
-  // A goalie's place is taken by the goalie who arrives, so only skaters count.
-  const gone = new Set(side.picks.filter((i) => i >= goalies).map((i) => i + 1))
+  const arriving = other ? leaving(project, other).filter((p) => p.role === 'G').length : 0
+  // Skaters, and the goalies who leave beyond those a goalie arrives for: their line slots go to the first goalie.
+  const goaliesOut = side.picks.filter((i) => i < goalies)
+  const gone = new Set([...side.picks.filter((i) => i >= goalies), ...goaliesOut.slice(arriving)].map((i) => i + 1))
   const empty = emptyLineSlots(project.teams)
   return team.lines.reduce(
     (sum, line, l) => sum + line.slice(0, LINE_SLOTS).filter((position, slot) => gone.has(position) && !empty[l]?.[slot]).length,

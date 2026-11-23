@@ -10,7 +10,7 @@
 // player's stint is the order of this team among their teams that season (0 the first), so the highest is the team
 // they ended it with.
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { conferences } from './conferences.mjs'
+import { conferences, plainName } from './conferences.mjs'
 
 const OUT = new URL('../public/seasons/', import.meta.url)
 const FIRST = 1967
@@ -106,7 +106,7 @@ async function season(id, teamCodes, before) {
       franchise: team.franchise,
       record: [row.wins, row.losses, row.ties ?? 0, row.otLosses ?? 0, row.goalsFor, row.goalsAgainst],
       special: row.powerPlayPct === null || row.penaltyKillPct === null ? null : [row.powerPlayPct, row.penaltyKillPct],
-      conference: sides.get(team.code) ?? sides.get(`name:${plain(row.teamFullName).replace(/ \(\d+\)$/, '')}`) ?? null,
+      conference: sides.get(team.code) ?? sides.get(`name:${plainName(row.teamFullName)}`) ?? null,
       skaters,
       goalies,
     })

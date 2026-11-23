@@ -96,7 +96,7 @@ export function insertGoalie(team: Team, player: Player): Team {
 // them fall to the first goalie, and later players move up one position. A team keeps at least one goalie.
 export function deleteGoalie(team: Team, index: number): Team {
   const goalies = goalieCount(team)
-  if (index >= goalies || goalies <= 1) return team
+  if (index < 0 || index >= goalies || goalies <= 1) return team
   const position = index + 1
   const values = team.goalieNibbles.slice(0, goalies)
   values.splice(index, 1)

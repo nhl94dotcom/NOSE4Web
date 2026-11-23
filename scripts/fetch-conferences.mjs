@@ -3,7 +3,7 @@
 //
 //   node scripts/fetch-conferences.mjs
 import { readFile, writeFile } from 'node:fs/promises'
-import { conferences } from './conferences.mjs'
+import { conferences, plainName } from './conferences.mjs'
 
 const OUT = new URL('../public/seasons/', import.meta.url)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -28,7 +28,7 @@ for (const id of ids) {
   for (const team of data.teams) {
     // Keys in the order fetch-seasons.mjs writes them: conference after special.
     const { skaters, goalies, ...rest } = team
-    const conference = sides.get(team.code) ?? sides.get(`name:${team.location} ${team.name}`) ?? null
+    const conference = sides.get(team.code) ?? sides.get(`name:${plainName(`${team.location} ${team.name}`)}`) ?? null
     if (conference === null) missing.push(team.code)
     Object.keys(team).forEach((k) => delete team[k])
     Object.assign(team, { ...rest, conference, skaters, goalies })

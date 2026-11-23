@@ -6,7 +6,7 @@ import { expandTeamSpace } from '../src/core/expand'
 import { banner, bannerColors, expandPictureSpace, menuLogo, menuPalette, pictureSpace, withBanner, withBannerColors } from '../src/core/graphics'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
-import { addPlayer, transferPlayers } from '../src/core/roster'
+import { addPlayer, deleteGoalie, transferPlayers } from '../src/core/roster'
 import { goalieCount } from '../src/core/team'
 import { FREE_AGENTS, linePositionsLost, trade, tradeSummary } from '../src/core/trade'
 import { expectSameBytes } from './samebytes'
@@ -148,6 +148,18 @@ describe.skipIf(!hasRom)('trading players', () => {
     const four = transferPlayers(teams, MONTREAL, [0], ANAHEIM)
     expect(goalieCount(four[ANAHEIM])).toBe(4)
     expect(() => transferPlayers(four, 2, [0], ANAHEIM)).toThrow('The other team would have more than 4 goalies.')
+  })
+
+  it("counts a goalie's line positions as lost when no goalie comes back, and leaves a roster alone for a goalie not on it", () => {
+    const project = roomy()
+    const boston = project.teams[BOSTON]
+    const starts = boston.lines.filter((line) => line[0] === 1).length
+    expect(starts).toBeGreaterThan(0)
+    const skater = { team: MONTREAL, picks: [goalieCount(project.teams[MONTREAL])] }
+    expect(linePositionsLost(project, { team: BOSTON, picks: [0] }, skater)).toBe(starts)
+    // Goalie for goalie: the one who arrives takes the lines.
+    expect(linePositionsLost(project, { team: BOSTON, picks: [0] }, { team: MONTREAL, picks: [0] })).toBe(0)
+    expect(deleteGoalie(boston, -1)).toBe(boston)
   })
 
   it('keeps every team 1 to 4 goalies', () => {

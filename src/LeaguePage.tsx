@@ -176,19 +176,17 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
                     <select
                       aria-label={`Move ${p.player.name} to`}
                       value=""
-                      disabled={p.role === 'G'}
-                      title={p.role === 'G' ? 'Goalies move by copying and pasting on the team pages.' : undefined}
                       onChange={(e) => {
                         const to = Number(e.target.value)
                         const problem = onMovePlayers(p.team, [p.index], to)
                         setMoved(
                           problem
                             ? { text: problem, failed: true }
-                            : { text: `${p.player.name} moved from ${names[p.team]} to ${names[to]}, after its last ${p.role === 'F' ? 'forward' : 'defenceman'}. Undo takes it back.`, failed: false },
+                            : { text: `${p.player.name} moved from ${names[p.team]} to ${names[to]}, after its last ${p.role === 'G' ? 'goalie' : p.role === 'F' ? 'forward' : 'defenceman'}. Undo takes it back.`, failed: false },
                         )
                       }}
                     >
-                      <option value="">{p.role === 'G' ? 'goalie' : 'team…'}</option>
+                      <option value="">team…</option>
                       {project.teams.map((_, t) =>
                         t === p.team ? null : (
                           <option key={t} value={t}>

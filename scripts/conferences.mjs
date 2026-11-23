@@ -4,6 +4,11 @@
 // takes the one it had the season before (`before`, by team code). By code, and by full name too, as the standings
 // write some codes another way (the Cleveland Barons are CBN there, CLE in the stats). Used by fetch-seasons.mjs and
 // fetch-conferences.mjs, for the season builder's All-Star teams.
+// A team's full name as both sides of the by-name lookup write it: accents dropped (Montréal is Montreal), and
+// a year in brackets left out ("Winnipeg Jets (1979)").
+export const plainName = (text) =>
+  (text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ \(\d+\)$/, '').trim()
+
 export async function conferences(id, get, before = new Map()) {
   const standings = await get(`https://api-web.nhle.com/v1/standings/${Number(id.slice(0, 4)) + 1}-03-01`)
   const out = new Map()
@@ -14,7 +19,7 @@ export async function conferences(id, get, before = new Map()) {
     const side = /Wales|Eastern/.test(conference) ? 'East' : /Campbell|Western/.test(conference) ? 'West' : /^(East|West)$/.test(division) ? division : before.get(code) ?? null
     if (code) out.set(code, side)
     const full = row.teamName?.default
-    if (full) out.set(`name:${full}`, side)
+    if (full) out.set(`name:${plainName(full)}`, side)
   }
   return out
 }

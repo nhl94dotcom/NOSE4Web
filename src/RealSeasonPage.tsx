@@ -76,7 +76,12 @@ export function RealSeasonPage({ project, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chosen, franchises])
 
-  const rated = useMemo(() => (season ? rateSeason(project.game, season, options) : null), [season, options, project.game])
+  // Rated with the options rateSeason reads (allStars only matters when the teams are brought in).
+  const { goalies, forwards, defence, names: useNames, traded } = options
+  const rated = useMemo(
+    () => (season ? rateSeason(project.game, season, { goalies, forwards, defence, names: useNames, traded }) : null),
+    [season, goalies, forwards, defence, useNames, traded, project.game],
+  )
   const built = useMemo(() => rated?.teams ?? [], [rated])
   // The ROM's own players, re-rated where the season has them by name; the same as the button does, to count them.
   const rerate = useMemo(() => (season && rated ? rerateByName(project, season, rated) : null), [project, season, rated])

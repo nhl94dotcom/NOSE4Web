@@ -287,6 +287,13 @@ describe.skipIf(!existsSync(romPath))('a real season in the original NHL 94', ()
     expect(result.notes.some((n) => n.startsWith('The All-Star teams have the best players of 1985-86 by conference'))).toBe(true)
     expect(checkProject(result.project)).toEqual([])
     expect(() => buildRom(result.project)).not.toThrow()
+    // Copies: no Player is on two teams (the photos follow players by the Player itself).
+    const everyone = result.project.teams.flatMap((t) => t.players)
+    expect(new Set(everyone).size).toBe(everyone.length)
+    // A roster holds 26 at most, as the other teams: 3 goalies, 15 forwards and 12 defence asked for.
+    const big = applySeason(project, s86, placement, { ...DEFAULT_SEASON_OPTIONS, goalies: 3, forwards: 15, defence: 12, allStars: true })
+    expect(Math.max(...big.project.teams.map((t) => t.players.length))).toBeLessThanOrEqual(26)
+    expect(big.project.teams[26].players).toHaveLength(26)
   })
 
   it("re-rates the ROM's own players by name, and leaves the rest", () => {
