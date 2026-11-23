@@ -6,6 +6,7 @@ import { NHL94 } from '../src/core/games'
 import { overallRating } from '../src/core/rating'
 import { buildRom, openRom } from '../src/core/rom'
 import {
+  allStarSlots,
   applySeason,
   buildSeasonRosters,
   DEFAULT_SEASON_OPTIONS,
@@ -21,7 +22,7 @@ import {
   type SeasonSkater,
 } from '../src/core/seasonbuilder'
 import { projectTeamRatings } from '../src/core/ppfix'
-import { goalieCount } from '../src/core/team'
+import { goalieCount, teamDisplayName } from '../src/core/team'
 import { teamRatings } from '../src/core/teamratings'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
@@ -71,6 +72,8 @@ describe('a real season', () => {
       for (const team of season.teams) {
         expect(team.goalies.length, `${id} ${team.code}`).toBeGreaterThan(0)
         expect(team.skaters.length, `${id} ${team.code}`).toBeGreaterThanOrEqual(18)
+        // East or West, for the All-Star teams: every team of every season has one.
+        expect(team.conference, `${id} ${team.code}`).toMatch(/^(East|West)$/)
         for (const p of [...team.skaters, ...team.goalies]) expect(`${p.first} ${p.last}`).toMatch(/^[\x20-\x7e]+$/)
       }
     }
@@ -172,6 +175,13 @@ describe('a real season', () => {
     expect(ofa('20152016', 'Mark Giordano')).toBeLessThanOrEqual(4)
   })
 
+  it('starts the goalie with the most games, and of two with as many the better rated', () => {
+    const sj = buildSeasonRosters(NHL94, seasonOf('19921993')).find((t) => t.team.code === 'SJS')!
+    // Arturs Irbe and Jeff Hackett played 36 games each; Irbe stopped .886, Hackett .856.
+    expect(sj.players[0].player.name).toBe('Arturs Irbe')
+    expect(sj.players[1].player.name).toBe('Jeff Hackett')
+  })
+
   it('is offered for games with the original attributes', () => {
     expect(seasonBuilderSupported(NHL94)).toBe(true)
   })
@@ -250,6 +260,33 @@ describe.skipIf(!existsSync(romPath))('a real season in the original NHL 94', ()
     expect(at(old, s80, 'Flames')).toBe('AFM')
     expect(old.filter((s) => s !== null)).toHaveLength(21)
     expect(() => buildRom(applySeason(project, s80, old).project)).not.toThrow()
+  })
+
+  it("fills the All-Star teams with the season's best of each conference when asked, and keeps them otherwise", () => {
+    const project = openRom(new Uint8Array(readFileSync(romPath)))
+    const franchises = JSON.parse(readFileSync(new URL('franchises.json', seasonsDir), 'utf8'))
+    const s86 = seasonOf('19851986')
+    const placement = defaultPlacement(project, s86, franchises)
+    expect(allStarSlots(project, placement).map((a) => [teamDisplayName(project.teams[a.slot]), a.side])).toEqual([
+      [teamDisplayName(project.teams[26]), 'East'],
+      [teamDisplayName(project.teams[27]), 'West'],
+    ])
+    const kept = applySeason(project, s86, placement)
+    expect(kept.project.teams[26]).toEqual(project.teams[26])
+
+    const result = applySeason(project, s86, placement, { ...DEFAULT_SEASON_OPTIONS, allStars: true })
+    const [east, west] = [result.project.teams[26], result.project.teams[27]]
+    const names = (t: (typeof east)) => t.players.map((p) => p.name)
+    // Wales: Lemieux (Pittsburgh), Bourque (Boston); Campbell: Gretzky and Coffey (Edmonton).
+    expect(names(east)).toEqual(expect.arrayContaining(['Mario Lemieux', 'Ray Bourque']))
+    expect(names(west)).toEqual(expect.arrayContaining(['Wayne Gretzky', 'Paul Coffey']))
+    expect(names(east)).not.toContain('Wayne Gretzky')
+    expect(goalieCount(east)).toBe(2)
+    expect(east.players).toHaveLength(25)
+    expect(east.names).toEqual(project.teams[26].names)
+    expect(result.notes.some((n) => n.startsWith('The All-Star teams have the best players of 1985-86 by conference'))).toBe(true)
+    expect(checkProject(result.project)).toEqual([])
+    expect(() => buildRom(result.project)).not.toThrow()
   })
 
   it("re-rates the ROM's own players by name, and leaves the rest", () => {

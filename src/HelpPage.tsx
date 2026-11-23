@@ -1878,6 +1878,12 @@ export function HelpPage() {
           a league's 32-team ROM) to bring them all in; the page says when.
         </li>
         <li>
+          <b>Fill the All-Star teams:</b> the ROM's All-Star teams take that season's best players by overall rating,
+          East and West: the conferences (Wales and Campbell from 1974-75 to 1992-93), or before then the divisions.
+          Each takes as many goalies, forwards and defencemen as the other teams get, with new lines, and keeps its
+          names and team ratings. Left off, they stay as the ROM has them.
+        </li>
+        <li>
           <b>What else changes:</b> lines are built afresh, the Offence and Defence ratings follow the team's goals
           for and against, and from 1977-78 (the NHL has no figures before) the power play and penalty kill ratings
           follow that season's percentages, all using the values the ROM's teams already had. With the power play and

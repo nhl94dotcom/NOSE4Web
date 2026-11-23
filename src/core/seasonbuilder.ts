@@ -76,6 +76,8 @@ export interface SeasonTeam {
   record: number[]
   // Power play and penalty kill, as fractions (0.185 for 18.5 per cent); null before 1977-78, when the NHL has none.
   special: number[] | null
+  // East or West: the conference, or before 1974-75 the division (null where the file has none).
+  conference: 'East' | 'West' | null
   // Each with his games for this team only.
   skaters: SeasonSkater[]
   goalies: SeasonGoalie[]
@@ -95,7 +97,7 @@ const fromArray = <T,>(fields: readonly string[], row: unknown[]): T => Object.f
 
 interface SeasonFile {
   season: string
-  teams: { code: string; location: string; name: string; franchise: number | null; record: number[]; special?: number[] | null; skaters: unknown[][]; goalies: unknown[][] }[]
+  teams: { code: string; location: string; name: string; franchise: number | null; record: number[]; special?: number[] | null; conference?: 'East' | 'West' | null; skaters: unknown[][]; goalies: unknown[][] }[]
 }
 
 export function parseSeason(file: SeasonFile): Season {
@@ -104,6 +106,7 @@ export function parseSeason(file: SeasonFile): Season {
     teams: file.teams.map((t) => ({
       ...t,
       special: t.special ?? null,
+      conference: t.conference ?? null,
       skaters: t.skaters.map((row) => fromArray<SeasonSkater>(SKATER_FIELDS, row)),
       goalies: t.goalies.map((row) => fromArray<SeasonGoalie>(GOALIE_FIELDS, row)),
     })),
@@ -502,6 +505,8 @@ export interface SeasonOptions {
   names: boolean
   // Where a player traded during the season goes: the team he played the most games for, or the one he ended with.
   traded: 'most' | 'last'
+  // Whether the ROM's All-Star teams take the season's best players of each conference (allStarRoster).
+  allStars?: boolean
 }
 
 // The original game's rosters: two goalies, 15 forwards and 8 defencemen for most teams.
@@ -658,10 +663,14 @@ export function rateSeason(game: GameConfig, season: Season, options: SeasonOpti
     const c = chosen[t]
     const skater = (p: SeasonSkater, forward: boolean, rated: Map<SeasonSkater, Rated>) => skaterPlayer(p, forward, rated.get(p)!)
     const goalie = (p: SeasonGoalie) => goaliePlayer(p, gRated.get(p)!)
+    // The goalie with the most games starts; of two with as many, the better rated (Arturs Irbe ahead of Jeff
+    // Hackett, 36 games each for San Jose in 1992-93).
+    const overall = (b: BuiltPlayer) => overallRating(b.player.attributes, true, game)
+    const goalies = c.goalies.map(goalie).sort((a, b) => b.games - a.games || overall(b) - overall(a))
     return {
       team,
       players: ownNumbers([
-        ...c.goalies.map(goalie),
+        ...goalies,
         ...[...c.forwards].sort((a, b) => points(b) - points(a)).map((p) => skater(p, true, fRated)),
         ...[...c.defence].sort((a, b) => points(b) - points(a)).map((p) => skater(p, false, dRated)),
       ]),
@@ -712,13 +721,43 @@ export function defaultPlacement(project: RomProject, season: Season, franchises
       if (slot >= 0) put(slot, s)
     })
   }
-  const allStar = (t: Team) => /all.?stars?/i.test(teamDisplayName(t)) || /all.?stars?/i.test(t.names.join(' '))
   season.teams.forEach((_, s) => {
     if (placed.has(s)) return
-    const slot = project.teams.findIndex((t, i) => placement[i] === null && !allStar(t))
+    const slot = project.teams.findIndex((t, i) => placement[i] === null && !isAllStar(t))
     if (slot >= 0) put(slot, s)
   })
   return placement
+}
+
+const isAllStar = (t: Team) => /all.?stars?/i.test(teamDisplayName(t)) || /all.?stars?/i.test(t.names.join(' '))
+
+// The ROM's All-Star teams that no season team is put in, and the conference each is for: East (or Wales) and West
+// (or Campbell) by its name; failing that, the first East and the next West. Two at most.
+export function allStarSlots(project: RomProject, placement: (number | null)[]): { slot: number; side: 'East' | 'West' }[] {
+  const slots = project.teams.flatMap((t, slot) => (placement[slot] === null && isAllStar(t) ? [slot] : []))
+  const named = (slot: number) => {
+    const text = `${teamDisplayName(project.teams[slot])} ${project.teams[slot].names.join(' ')}`
+    return /east|wales/i.test(text) ? 'East' : /west|campbell/i.test(text) ? 'West' : null
+  }
+  const out: { slot: number; side: 'East' | 'West' }[] = []
+  for (const side of ['East', 'West'] as const) {
+    const slot = slots.find((s) => named(s) === side && !out.some((o) => o.slot === s)) ?? slots.find((s) => named(s) === null && !out.some((o) => o.slot === s))
+    if (slot !== undefined) out.push({ slot, side })
+  }
+  return out
+}
+
+// An All-Star team from the season's teams of one conference: their best goalies, forwards and defencemen by
+// overall rating, as many of each as a team is given.
+function allStarRoster(game: GameConfig, built: BuiltTeam[], side: 'East' | 'West', options: SeasonOptions): BuiltPlayer[] {
+  const pool = built.filter((b) => b.team.conference === side).flatMap((b) => b.players)
+  const best = (list: BuiltPlayer[], n: number) =>
+    [...list].sort((a, b) => overallRating(b.player.attributes, b.isGoalie, game) - overallRating(a.player.attributes, a.isGoalie, game)).slice(0, n)
+  return ownNumbers([
+    ...best(pool.filter((p) => p.isGoalie), options.goalies),
+    ...best(pool.filter((p) => !p.isGoalie && p.forward), options.forwards),
+    ...best(pool.filter((p) => !p.isGoalie && !p.forward), options.defence),
+  ])
 }
 
 // The fewest skaters a team is cut to, to fit the ROM: four lines' worth of forwards and three pairs.
@@ -740,11 +779,25 @@ export function applySeason(project: RomProject, season: Season, placement: (num
   const nameLabels = project.game.teamNameLabels
   const canName = nameLabels[0] === 'Location' && nameLabels[1] === 'Initials' && nameLabels[2] === 'Name'
   const rosters = new Map(slots.map((slot) => [slot, built[placement[slot]!].players]))
+  // The All-Star teams, if asked for: they keep their names and team ratings.
+  const stars = new Set<number>()
+  if (options.allStars) {
+    const free = allStarSlots(project, placement)
+    if (free.length === 0) notes.push('This ROM has no All-Star teams left to fill.')
+    else if (season.teams.every((t) => t.conference === null)) notes.push("The All-Star teams are kept: this season's file has no conferences.")
+    else {
+      for (const { slot, side } of free) {
+        rosters.set(slot, allStarRoster(project.game, built, side, options))
+        stars.add(slot)
+      }
+      notes.push(`The All-Star ${stars.size === 1 ? 'team has' : 'teams have'} the best players of ${season.season} by conference: ${free.map(({ slot, side }) => `${teamDisplayName(project.teams[slot])}, the ${side}`).join('; ')}.`)
+    }
+  }
   const make = (slot: number): Team => {
-    const b = built[placement[slot]!]
+    const b = stars.has(slot) ? null : built[placement[slot]!]
     const players = rosters.get(slot)!
     const goalies = players.filter((p) => p.isGoalie)
-    if (goalies.length === 0) throw new Error(`The ${b.team.location} ${b.team.name} have no goalie that season.`)
+    if (goalies.length === 0) throw new Error(b ? `The ${b.team.location} ${b.team.name} have no goalie that season.` : `${teamDisplayName(project.teams[slot])} would have no goalie.`)
     const forwards = players.filter((p) => !p.isGoalie && p.forward).length
     let team: Team = {
       ...project.teams[slot],
@@ -754,7 +807,7 @@ export function applySeason(project: RomProject, season: Season, placement: (num
       goalieNibbles: [0, 1, 2, 3].map((i) => (i < goalies.length ? 1 : 0)),
     }
     team = { ...team, lines: buildLines(team, project.game, team.lines.map((_, l) => l), empty).lines }
-    if (options.names && canName) {
+    if (b && options.names && canName) {
       const names = team.names.slice()
       names[0] = b.team.location
       names[1] = b.team.code
@@ -764,7 +817,8 @@ export function applySeason(project: RomProject, season: Season, placement: (num
     return team
   }
   const teams = project.teams.slice()
-  for (const slot of slots) teams[slot] = make(slot)
+  const filled = [...slots, ...stars]
+  for (const slot of filled) teams[slot] = make(slot)
 
   // Room in the ROM: made, where the editor can make more; failing that, the skaters with the fewest games left out,
   // one at a time from the biggest rosters.
@@ -779,7 +833,7 @@ export function applySeason(project: RomProject, season: Season, placement: (num
       continue
     }
     const skatersOf = (slot: number) => rosters.get(slot)!.filter((p) => !p.isGoalie)
-    const slot = [...slots].sort((a, b) => skatersOf(b).length - skatersOf(a).length)[0]
+    const slot = [...filled].sort((a, b) => skatersOf(b).length - skatersOf(a).length)[0]
     const players = rosters.get(slot)!
     const skaters = skatersOf(slot)
     if (skaters.length <= MIN_SKATERS) throw new Error('These rosters do not fit in the ROM. Choose fewer players a team.')

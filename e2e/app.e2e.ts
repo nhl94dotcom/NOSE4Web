@@ -1585,6 +1585,14 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel('Season', { exact: true }).selectOption('19791980')
     await expect(main.getByLabel('Season team for Calgary Flames').locator('option:checked')).toHaveText('Atlanta Flames')
 
+    // The All-Star teams, if asked for, with that season's best of each conference.
+    await main.getByLabel("Fill the All-Star teams with that season's best players of each conference").check()
+    await main.getByRole('button', { name: 'Bring in 21 teams from 1979-80' }).click()
+    await expect(main.getByText(/^The All-Star teams have the best players of 1979-80 by conference/)).toBeVisible()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await team(page, 'Dallas Stars').click()
+    await entry(page, 'Real NHL season').click()
+
     // Or the ROM's own players re-rated by name, the teams as they are.
     await main.getByLabel('Season', { exact: true }).selectOption('19921993')
     await expect(main.getByLabel('Traded players go to')).toHaveValue('most')

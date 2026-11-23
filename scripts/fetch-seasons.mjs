@@ -4,11 +4,13 @@
 //   node scripts/fetch-seasons.mjs            every season from 1967-68 to the last finished one
 //   node scripts/fetch-seasons.mjs 19871988   just that season
 //
-// Each file: { season, teams: [{ code, location, name, franchise, record, special, skaters, goalies }] } with players
-// as arrays (see the SKATER and GOALIE lists below), to keep the files small. special is [power play %, penalty kill %]
-// (null before 1977-78, when the NHL has none); a player's stint is the order of this team among his teams that
-// season (0 the first), so the highest is the team he ended it with.
-import { mkdir, writeFile } from 'node:fs/promises'
+// Each file: { season, teams: [{ code, location, name, franchise, record, special, conference, skaters, goalies }] }
+// with players as arrays (see the SKATER and GOALIE lists below), to keep the files small. special is [power play %,
+// penalty kill %] (null before 1977-78, when the NHL has none); conference is East or West (conferences.mjs); a
+// player's stint is the order of this team among their teams that season (0 the first), so the highest is the team
+// they ended it with.
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { conferences } from './conferences.mjs'
 
 const OUT = new URL('../public/seasons/', import.meta.url)
 const FIRST = 1967
@@ -59,7 +61,8 @@ async function teamOrder(kind, id) {
   }
 }
 
-async function season(id, teamCodes) {
+async function season(id, teamCodes, before) {
+  const sides = await conferences(id, get, before)
   const summary = await get(`https://api.nhle.com/stats/rest/en/team/summary?limit=-1&cayenneExp=seasonId=${id}%20and%20gameTypeId=2`)
   const [skaterOrder, goalieOrder] = [await teamOrder('skater', id), await teamOrder('goalie', id)]
   const stint = (order, playerId, code) => {
@@ -103,6 +106,7 @@ async function season(id, teamCodes) {
       franchise: team.franchise,
       record: [row.wins, row.losses, row.ties ?? 0, row.otLosses ?? 0, row.goalsFor, row.goalsAgainst],
       special: row.powerPlayPct === null || row.penaltyKillPct === null ? null : [row.powerPlayPct, row.penaltyKillPct],
+      conference: sides.get(team.code) ?? sides.get(`name:${plain(row.teamFullName).replace(/ \(\d+\)$/, '')}`) ?? null,
       skaters,
       goalies,
     })
@@ -120,9 +124,21 @@ const franchises = {}
 for (const t of list.data) if (t.franchiseId) (franchises[t.franchiseId] ??= []).push(plain(t.fullName).replace(/ [(][0-9]+[)]$/, ''))
 await writeFile(new URL('franchises.json', OUT), JSON.stringify(franchises))
 const done = []
+// The season before's conferences, for 2020-21 (conferences.mjs): from the file, when only one season is fetched.
+const previous = async (id) => {
+  const first = Number(id.slice(0, 4)) - 1
+  try {
+    const data = JSON.parse(await readFile(new URL(`${first}${first + 1}.json`, OUT), 'utf8'))
+    return new Map(data.teams.map((t) => [t.code, t.conference ?? null]))
+  } catch {
+    return new Map()
+  }
+}
+let before = null
 for (const id of wanted) {
   if (NO_SEASON.has(id)) continue
-  const data = await season(id, teamCodes)
+  const data = await season(id, teamCodes, before ?? (await previous(id)))
+  before = new Map(data.teams.map((t) => [t.code, t.conference]))
   await writeFile(new URL(`${id}.json`, OUT), JSON.stringify(data))
   done.push(id)
   console.log(id, data.teams.length, 'teams', data.teams.reduce((n, t) => n + t.skaters.length + t.goalies.length, 0), 'players')

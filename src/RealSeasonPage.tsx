@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import {
+  allStarSlots,
   applySeason,
   DEFAULT_SEASON_OPTIONS,
   defaultPlacement,
@@ -169,6 +170,14 @@ export function RealSeasonPage({ project, onChange }: Props) {
           </select>
         </label>
       </p>
+      {allStarSlots(project, project.teams.map(() => null)).length > 0 && (
+        <p>
+          <label className="choice">
+            <input type="checkbox" checked={options.allStars ?? false} onChange={(e) => setOptions({ ...options, allStars: e.target.checked })} /> Fill
+            the All-Star teams with that season's best players of each conference
+          </label>
+        </p>
+      )}
       {error && <p className="error">{error}</p>}
       {!season && !error && <p className="note">Loading the season…</p>}
       {season && (
