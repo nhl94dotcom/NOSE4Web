@@ -57,7 +57,7 @@ const FIGHTING = [0, 14, 28, 42, 57, 71, 85, 100]
 const STICK_HANDLING_95_STEP = [0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6]
 export const stickHandling95Step = (value: number): number => STICK_HANDLING_95_STEP[value] ?? 0
 
-// Whether a player shoots right, by his handed/fighting value.
+// Whether a player shoots right, by their handed/fighting value.
 export function shootsRight(kind: AttributeKind, value: number): boolean {
   return kind === 'handedFighting93' ? value % 2 === 0 : value % 2 === 1
 }
@@ -118,7 +118,7 @@ export interface AttributeConversion {
   unconverted: number[]
 }
 
-// A player's stored values, from attributes of kinds `from` to kinds `to`, so that he plays as he did.
+// A player's stored values, from attributes of kinds `from` to kinds `to`, so that they play as they did.
 export function convertAttributes(values: number[], from: AttributeKind[], to: AttributeKind[]): AttributeConversion {
   const result: AttributeConversion = { values: [], weights: false, hands: false, stickHandling: false, unconverted: [] }
   values.forEach((value, i) => {

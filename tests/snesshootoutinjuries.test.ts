@@ -31,7 +31,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: the injured sit out the s
       const code = hex(on, target(on, site), 70)
       // tay, then the season shootout's mark ($7E:F0F0).
       expect(code.startsWith('a8aff0f07e29ff00f0')).toBe(true)
-      // The listed player's saved tmpdst ($7E:F100 + $27F, his team's half) tested for $FFFC.
+      // The listed player's saved tmpdst ($7E:F100 + $27F, their team's half) tested for $FFFC.
       expect(code).toContain(`3a0a1869${team}aabf7ff37ec9fcff`)
       // Back to the original: sep #$20 / lda list,y / rtl.
       expect(code).toContain(`e220b9${list}6b`)

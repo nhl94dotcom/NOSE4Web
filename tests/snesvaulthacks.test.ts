@@ -108,7 +108,7 @@ describe.skipIf(!hasRom)('NHL94SNESVault hacks for Edit Lines and the pads', () 
     const lines = team.lines.map((line, l) => (l === 0 ? line.map((v, s) => (s === 1 ? forward : v)) : line))
     const moved = { ...project, teams: project.teams.map((t, i) => (i === 1 ? { ...team, lines } : t)) }
     const notes = (p: typeof project) => checkProject(p).filter((f) => f.team === 1 && /, a forward, at LD/.test(f.message))
-    // The forward may be on the line already; then he is there twice too, which is still a problem.
+    // The forward may be on the line already; then they are there twice too, which is still a problem.
     expect(notes(moved)).toHaveLength(1)
     const hacked = applySnesHacks(moved, { extraAttackerFix: true, forwardsAndDefence: true })
     expect(snesAnyPosition(hacked)).toBe(true)

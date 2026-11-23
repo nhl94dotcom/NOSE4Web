@@ -2,7 +2,7 @@
 // come from the NHL's public stats service, fetched by scripts/fetch-seasons.mjs into public/seasons/.
 //
 // How a rating is worked out. Each stat is first turned into where the player stands among that season's players of
-// his group (forwards, defencemen or goalies): 0 the lowest, 1 the highest. Standing within the season is what lets
+// their group (forwards, defencemen or goalies): 0 the lowest, 1 the highest. Standing within the season is what lets
 // any era be rated alike: 50 goals meant more in 1998 than in 1982. A player's score for each attribute is a weighted
 // sum of those standings, and the players are then given that attribute's values in the same proportions as the
 // original NHL 94's players have them, the lowest scores the lowest values; and every player whose score reaches
@@ -78,7 +78,7 @@ export interface SeasonTeam {
   special: number[] | null
   // East or West: the conference, or before 1974-75 the division (null where the file has none).
   conference: 'East' | 'West' | null
-  // Each with his games for this team only.
+  // Each with their games for this team only.
   skaters: SeasonSkater[]
   goalies: SeasonGoalie[]
 }
@@ -503,7 +503,7 @@ export interface SeasonOptions {
   defence: number
   // Whether a team takes that season's location, initials and nickname too.
   names: boolean
-  // Where a player traded during the season goes: the team he played the most games for, or the one he ended with.
+  // Where a player traded during the season goes: the team they played the most games for, or the one they ended with.
   traded: 'most' | 'last'
   // Whether the ROM's All-Star teams take the season's best players of each conference (allStarRoster).
   allStars?: boolean
@@ -518,7 +518,7 @@ export interface BuiltPlayer {
   forward: boolean
   // Games for this team.
   games: number
-  // His season with this team, for the page to show: "70 GP, 40 G, 109 A" and the like.
+  // Their season with this team, for the page to show: "70 GP, 40 G, 109 A" and the like.
   line: string
 }
 

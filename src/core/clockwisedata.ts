@@ -1,4 +1,4 @@
-// The data of Clockwise's NHL 94 sprite edit (IPS), from the NHL94 forum: his
+// The data of Clockwise's NHL 94 sprite edit (IPS), from the NHL94 forum: their
 // touch-ups to the players' sprite tiles (stick tape, eye colour and other
 // small details). Generated from the IPS against the original game's ROM; the
 // patch's five records in the ROM's header (its title and checksum) are left

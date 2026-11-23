@@ -15,7 +15,7 @@ const H_F = 7
 const STH = 8
 
 describe('players between NHL 94 and NHL 95', () => {
-  it('turns the shooting hand and restates stick handling, so a player plays as he did', () => {
+  it('turns the shooting hand and restates stick handling, so a player plays as they did', () => {
     for (let hf = 0; hf < 16; hf++) {
       for (let sth = 0; sth <= 6; sth++) {
         const values = [3, 3, 3, 3, 3, 3, 3, hf, sth, 3, 3, 3, 3, 3]

@@ -48,7 +48,7 @@ describe.skipIf(!hasRom)('a player twice on a line', () => {
 
   it('is not made by deleting a player', () => {
     const team = open().teams[BOSTON]
-    // Delete each skater in turn: his places fall to the last player, who may be on the line already.
+    // Delete each skater in turn: their places fall to the last player, who may be on the line already.
     for (let i = goalieCount(team); i < team.players.length; i++) {
       const next = deletePlayer(team, i)
       next.lines.forEach((line, l) => {

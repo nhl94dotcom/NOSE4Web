@@ -8,7 +8,7 @@ import { unpackTiles } from '../src/core/genesisunpack'
 import { buildRom, openRom } from '../src/core/rom'
 import { expectSameBytes } from './samebytes'
 
-// Clockwise's sprite edit: NHL 94 at ../nhl94.bin, his IPS beside it, and the league ROMs named in local.json.
+// Clockwise's sprite edit: NHL 94 at ../nhl94.bin, their IPS beside it, and the league ROMs named in local.json.
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
 const local: { league30Rom?: string; otherRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
@@ -84,7 +84,7 @@ describe("Clockwise's sprite edit data", () => {
   })
 })
 
-describe.skipIf(!existsSync(IPS) || !existsSync(ORIGINAL))("Clockwise's sprite edit against his IPS", () => {
+describe.skipIf(!existsSync(IPS) || !existsSync(ORIGINAL))("Clockwise's sprite edit against their IPS", () => {
   it('is the IPS without its header records, against the original game', () => {
     const ips = new Uint8Array(readFileSync(IPS))
     const original = new Uint8Array(readFileSync(ORIGINAL))
@@ -117,7 +117,7 @@ describe.skipIf(!existsSync(IPS) || !existsSync(ORIGINAL))("Clockwise's sprite e
       expect(ours.subarray(anim + 10 + t.at, anim + 10 + t.at + t.patched.length)).toEqual(t.patched)
       ours.set(t.original, anim + 10 + t.at)
     }
-    // And in the frames he left untaped.
+    // And in the frames they left untaped.
     for (const t of clockwiseExtras().sprite) {
       expect(ours.subarray(t.at, t.at + t.patched.length)).toEqual(t.patched)
       ours.set(t.original, t.at)

@@ -136,14 +136,14 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
       )
     }
     // Where the two ROMs are set up for different eras' weights, each player
-    // keeps as near as can be the pounds he weighed.
+    // keeps as near as can be the pounds they weighed.
     const [theirs, ours] = [weightBase(other.game.playerAttributeKinds[0]), weightBase(project.game.playerAttributeKinds[0])]
     if (theirs !== null && ours !== null && theirs !== ours) {
       team = { ...team, players: team.players.map((p) => ({ ...p, attributes: p.attributes.map((v, a) => (a === 0 ? convertWeight(v, theirs, ours) : v)) })) }
       notes.push(`The other ROM's weights start at ${theirs} pounds and this one's at ${ours}. Each player's weight was moved to the nearest here.`)
     }
     // NHL 94 and NHL '95 keep the shooting hand the other way round, and stick handling in 7 steps and 16: each player
-    // comes across as he played (the weights are done above).
+    // comes across as they played (the weights are done above).
     {
       const goalies = goalieCount(team)
       let hands = false
@@ -164,7 +164,7 @@ export function importTeam(project: RomProject, other: RomProject, from: number,
     const ratings = (kinds: AttributeKind[]) =>
       kinds.slice(1).map((kind) => (isRating(kind) || kind === 'stickHandling95' ? 'rating' : isHandedFighting(kind) ? 'handedFighting' : kind)).join()
     // Between the original 0 to 6 ratings and a ROM hacked for 0 to 15, each
-    // rating is restated so that the player plays as he did.
+    // rating is restated so that the player plays as they did.
     const [theirScale, ourScale] = [hackState(other), hackState(project)]
     if (theirScale && ourScale && theirScale.choices.wideRatings !== ourScale.choices.wideRatings && ![...theirScale.unknown, ...ourScale.unknown].includes('ratings')) {
       const restate = ourScale.choices.wideRatings ? widenRating : narrowRating

@@ -45,7 +45,7 @@ export function canDeletePlayer(team: Team, index: number): boolean {
 }
 
 // Removes a skater. Line slots that used them fall to the last player on the
-// roster, or to another skater where he is on that line already, and later
+// roster, or to another skater where the last player is on that line already, and later
 // players move up one position.
 export function deletePlayer(team: Team, index: number): Team {
   if (!canDeletePlayer(team, index)) return team

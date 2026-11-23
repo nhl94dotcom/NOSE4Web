@@ -337,7 +337,7 @@ export function snesGame(table: { offset: number; count: number }, codeInPlace: 
         'colours and the game settings, and put in the hacks on the Hacks page, found where this ROM has the code ' +
         'they change. SNES editing is new, so keep a copy of the file you opened.',
     // ROMs rebuilt with the game's code in new places are McMarkis's builds:
-    // his 32-team ROM (2 MB and SA-1), his 28-team one with the original
+    // their 32-team ROM (2 MB and SA-1), their 28-team one with the original
     // game's rosters (SA-1), and the same with other teams.
     credit: codeInPlace
       ? undefined

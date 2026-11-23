@@ -23,7 +23,7 @@ const nhl95Roms = ['NHL95/NHL_95.bin', ...(local.nhl95Roms ?? [])].filter((name)
 const snesRoms = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 
-// The part each code shares: a0 = the player, d0 = his bit (roster index $66, +32 with pflags $62 bit 6), a0 its byte
+// The part each code shares: a0 = the player, d0 = their bit (roster index $66, +32 with pflags $62 bit 6), a0 its byte
 // from $FFF754; and the clear: both longs, then on to the jsr's own target.
 const LOCATE = '7000102800660828000600626704064000203200e64941f8f754d0c14e75'
 const CLEAR = '42b8f75442b8f7584ef9'

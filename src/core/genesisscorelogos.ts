@@ -9,7 +9,7 @@ import { claimSpace, fullRomReason, releaseSpace } from './space'
 
 // Score box logos for the Genesis game: where it prints a team's three
 // letters in the vertical rink's score box, a small logo, 24 by 16 pixels,
-// the logo in the top 13 rows. The idea is McMarkis's, from his 32-team
+// the logo in the top 13 rows. The idea is McMarkis's, from their 32-team
 // SNES build; the Genesis code is NOSE4Web's own, from the disassembly
 // (abdulahmad/NHL94Genesis: printscores1, printscores1_ps, print, xyVmMap,
 // LoadHomeTeamGfx, SetLCmode2) and Match Viewer's checks in the game:

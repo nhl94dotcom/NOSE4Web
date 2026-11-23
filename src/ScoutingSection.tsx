@@ -18,7 +18,7 @@ interface Props {
   onChange: (settings: Settings) => void
 }
 
-// What Ron Barr says on the pregame matchup screen: each line of his script,
+// What Ron Barr says on the pregame matchup screen: each line of their script,
 // what the game shows it for, the stand-ins it fills in, and a preview.
 export function ScoutingSection({ settings, original, onChange }: Props) {
   const scouting = settings.scouting

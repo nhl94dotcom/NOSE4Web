@@ -138,7 +138,7 @@ function checkStrips(project: RomProject, labels: string[], findings: Finding[])
 // The setup screen shows the cards of a team's first six featured players.
 // One for a place past the end of the roster shows whatever follows the team
 // in the ROM for the card's name and numbers. (Later ones only go
-// unused: the matchup screen finds a player's photo by his place.)
+// unused: the matchup screen finds a player's photo by their place.)
 function checkPhotos(project: RomProject, labels: string[], findings: Finding[]): void {
   // NHL 94's photo lists; NHL '95's are not read.
   if (!isGenesis94(project.game)) return

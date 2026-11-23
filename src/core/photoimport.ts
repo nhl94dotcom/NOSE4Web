@@ -5,7 +5,7 @@ import { goalieCount } from './team'
 
 // A team's player photos brought in from another ROM of the same game, with
 // its roster (a photo is for a place on the roster). A player with a generic
-// picture there gets this ROM's generic picture; one with his own gets a copy
+// picture there gets this ROM's generic picture; one with their own gets a copy
 // of it. On the SNES the team's 16 photo colours come too, which all its
 // photos are drawn in.
 export function importPhotos(project: RomProject, other: RomProject, from: number, to: number, notes: string[]): RomProject {

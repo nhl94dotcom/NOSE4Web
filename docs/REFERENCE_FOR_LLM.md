@@ -10,14 +10,14 @@ editor). It points you at the right files and gives the facts you need to write 
 How to use it:
 
 1. Read sections 1 to 4 (purpose, licence, repo map, conventions). They apply to every game.
-2. Find your feature in the status table (section 18). If "Documented here" says yes, read that feature section.
+2. Find your feature in the status table (section 19). If "Documented here" says yes, read that feature section.
 3. Then read the files and tests the section cites. The code is the authority; this document is a guide to it.
 
 Detailed feature sections are added one feature and one game at a time. Today there are thirteen. NHL '95: fighting (5),
 organ/team songs (6), logos and banners (7), overtime and shootouts (8), fixes ported from NHL 94 and organ after a
 pause (9), a room and RAM map (10), NHL 94's settings and Any skater at any position (11), and its game music (13).
 NHL 94 Genesis: game music (12), in-game banner colours (15). NHL '94 SNES: game music and the real-sample player (14). Both: giveaways and takeaways (16). NHL 94 Genesis and SNES: blocked shots (17). Everything else is listed
-in section 18 with its files only.
+in section 19 with its files only.
 
 Notation: `$XXXXXX` is a ROM offset (file offset in a headerless `.bin`, which is also the 68000 address for
 these 2 MB-or-smaller cartridges); `$FFxxxx` is 68000 RAM. "(inferred)" marks a statement that is my reading,
@@ -2601,7 +2601,99 @@ SNES: `src/core/sneshacks.ts`, `SnesHacksPage.tsx`; `tests/snesblocks.test.ts`.
 
 Not yet tested in the game.
 
-## 18. Feature status
+## 18. All three games: the Real NHL season page (rosters from real seasons)
+
+### What it does (for the player)
+
+The Real NHL season page (`RealSeasonPage.tsx`) fills a ROM's teams with a real NHL season's players, 1967-68 on,
+rated from that season's stats: rosters (the most games for each team), new lines, team names, the Offence and
+Defence ratings from goals for and against, and from 1977-78 the power play and penalty kill ratings. A choice fills
+the All-Star teams with the season's best of each conference. Or it re-rates the players a ROM already has, matched by
+name ("Re-rate the players this ROM has", `rerateByName`). It is offered for games whose players have the original
+game's attributes (`seasonBuilderSupported`; not NHL 94 EVO, whose overall is an estimate).
+
+### Origin and credit
+
+The stats are the NHL's public stats service (api.nhle.com, api-web.nhle.com), fetched by `scripts/fetch-seasons.mjs`
+into `public/seasons/` (one file a season, `index.json`, `franchises.json`); conferences by `scripts/conferences.mjs`
+(also `scripts/fetch-conferences.mjs`, which adds them to the files already there). The rating weights were fitted to
+EA's own ratings of the 1992-93 season (the original NHL 94's), then changed by hand (2026-11-22). Match Viewer
+play-tested the ROMs (2026-11-22/23: 52 computer games).
+
+### Where it lives (`src/core/seasonbuilder.ts`)
+
+- **Season files.** `{ season, teams: [{ code, location, name, franchise, record, special, conference, skaters,
+  goalies }] }`; players as arrays (`SKATER_FIELDS`, `GOALIE_FIELDS`); `record` = W, L, T, OTL, GF, GA; `special` =
+  [PP, PK] fractions or null before 1977-78; `conference` 'East' / 'West' (Eastern / Western from 1993-94, Wales /
+  Campbell 1974-75 to 1992-93, the East and West divisions before; 2020-21 had none, so each team keeps its 2019-20
+  one; standings on 1 March, matched by code or full name: the Cleveland Barons are CBN in the standings, CLE in the
+  stats); a player's `stint` is the team's order among that player's teams that season. `parseSeason` reads one.
+- **Standings, not totals.** Each stat becomes the player's standing among that season's chosen players of the same
+  kind (forwards, defencemen, goalies): 0 lowest, 1 highest (`standing`). Per-game rates are drawn toward the group's
+  average for few games (`rates`, 20 games); games count up to 70 % of the most (`skaterRaw`, `goalieRaw`).
+- **Scores and values.** Each attribute's score is a weighted sum of standings (`WEIGHTS`, per F / D / G; `c` a
+  constant; `count` how many of the original game's players have each value). `shareOut` gives the values in those
+  proportions. Then, at the top (`rateGroup`): every player whose score reaches the lowest score that earned the top
+  value in 1992-93 (`TOP_SCORE`) gets it, however many do; and the season's leader in the attribute's main stat (the
+  largest weight >= `LEAD_WEIGHT` 1.2, games left out; `mainStat`, `leaders`) always gets it (Gretzky's 163 assists in
+  1985-86 = Pas 6).
+- **Hand changes to the fit (2026-11-22).** Agility: height and weight 0 (Weight already slows a heavy player in the
+  game), age -0.15; Speed: age -0.1; age 0 for OfA, DfA, ShP, StH, ShA, Pas.
+- **Defencemen's offence (`offenceAsForward`, 2026-11-22).** EA rated no defenceman above 4 in Offensive Awareness, so
+  `WEIGHTS.D.OfA.count` stops at 4. Each defenceman is also rated against the forwards (`rateAgainst(fAll.group, ...)`):
+  a forward's value above 4 replaces theirs; leading the forwards in the main stat (assists) gives the top value.
+  Results: Orr 6 (six seasons), Karlsson 6 (2015-16, the league's assist leader); Coffey 5 (1983-86), Potvin 5
+  (1978-79), Green 5 (2008-09), Makar 5 (2021-22, 2024-25). 1992-93: none above 4, as EA.
+- **Players outside a group** (too few games to make a roster, or defencemen rated as forwards): `rateAgainst` gives
+  each the value of the group's player with the highest score not above theirs, or the top value if their own score
+  reaches `TOP_SCORE`; never a leader's (margin `Infinity`), as a leader's top value is for their stat, not their score
+  (without that, Giordano got a 6 in 2015-16).
+- **The overall cap (`capped`).** At most 100 for a skater (Lemieux's), 98 for a goalie (Belfour's): the highest
+  attribute comes down a step at a time, ties to the one least above what its value needs (`Rated.margin`); Roughness
+  and Aggression are kept.
+- **Names (`gameName`, `nameCase`).** Plain letters, 19 at most (longer: first initial); Mc / O' / D' plus a capital,
+  Mac only for `MAC_NAMES`; `SPELLED` fixes the NHL's misspellings (Mcllwain).
+- **Rosters (`rateSeason`).** A traded player goes to the team with the most games or the last one (`traded`); each
+  team's goalies, forwards and defencemen with the most games (2 / 15 / 8 by default). The starting goalie: most
+  games, ties to the better overall rating (Irbe ahead of Hackett, San Jose 1992-93; added 2026-11-23). Weight,
+  hands and fighting (penalty minutes and size, `handedFighting`) come from the player.
+- **Placement (`defaultPlacement`).** Same full name, then franchise (`franchises.json`: the Atlanta Flames go where
+  the Calgary Flames are), then nickname; the rest in order to the teams left, never to the All-Star teams
+  (`isAllStar`: "All Star(s)" in the names).
+- **Into the ROM (`applySeason`).** Rosters, `buildLines` for every line, names (`names` option), room made with
+  `expandTeamSpace` or the fewest-games skaters left out (down to 18), then Offence / Defence / PP / PK shared out by
+  rank from the values the placed teams had (`projectTeamRatings`, `setTeamRating`; which half of the PP / PK byte is
+  which follows the PP / PK fix).
+- **All-Star teams (`allStars` option, `allStarSlots`, `allStarRoster`; added 2026-11-23, off by default).** The ROM's
+  All-Star teams with no season team put in them, East by "East" / "Wales" in the names, West by "West" /
+  "Campbell", else the first East and the next West. Each takes the best goalies, forwards and defencemen of that
+  conference's season teams by overall rating, as many as the other teams get (`ownNumbers` for shared numbers), new
+  lines, and keeps its names and team ratings.
+
+### Gotchas
+
+- The season files are public data, committed; re-running the fetch rewrites them all (keys in the order above).
+- `rateAgainst` must never copy a value from a leader (see above).
+- The All-Star players also stay on their real teams (as in the original game's All-Star teams).
+- Computer play doesn't show passing well: in MV's games Gretzky (Pas 6) led Edmonton in goals, not assists; the
+  computer's centres shoot rather than pass.
+- A season with fewer teams than the ROM leaves the rest as they are (1985-86: retail's Anaheim, Florida, Ottawa,
+  San Jose, Tampa Bay).
+
+### Files and tests
+
+`src/core/seasonbuilder.ts`, `src/RealSeasonPage.tsx`, `scripts/fetch-seasons.mjs`, `scripts/conferences.mjs`,
+`scripts/fetch-conferences.mjs`, `public/seasons/`; `tests/seasonbuilder.test.ts` (season files, names, rosters,
+leaders, defencemen's offence, goalie ties, EA's 1992-93 ratings given back, placement, All-Stars, re-rate),
+`e2e/app.e2e.ts` ("fills the teams from a real NHL season").
+
+### Status
+
+Built 2026-11-21 (a8e97f3), ratings changed 2026-11-22 (85c6cef, 65dbf26), All-Stars and goalie ties 2026-11-23
+(b686800). Match Viewer play test 2026-11-22/23: all ROMs play; stars lead scoring; Genesis 1992-93 like retail.
+Open: 30 more SNES games on whether SNES 1992-93 gives up more goals than retail (3.9 a game against 2.7 in 8).
+
+## 19. Feature status
 
 "Game-tested" follows the page texts ("Tested in the game by the NHL94 Match Viewer project" vs. "Not yet tested
 in the game"). For NHL 94 Genesis and SNES, each option on `HacksPage.tsx` / `SnesHacksPage.tsx` carries its own
@@ -2647,6 +2739,7 @@ line; check there.
 | Bottom goalie's stick fix, bottom net shot aim fix (both tested in the game) | `hacks.ts` (`goalieBladeFix`, `shotScatterFix`) | **Yes (9)** |
 | Goalie hold after a dive catch (`diveHold`, added 2026-11-20; MV-tested 2026-11-20 with a goalie on a pad: the whistle comes hold + 1 frames after he gets up, 47 frames after the catch in 94 and 56 in 95): puckglue's `move.w #5,temp5(a2)` after `cmpi.w #SPAgdive,SPA(a2)` (bytes at `$1530C`: `357C 008C 0048 0C6A 02F4 0058 6600 0008 357C 0005 0048`); the 5 is the word at `$1531E` (lead `357C` at `$1531C`), frames counted once the dive animation ends. Every goalie; with `goalieHold` 0 (`$D4C6` `9F6B` -> `6002`) a person's goalie is never counted, so only the computer's is whistled. 1-3600 | `hacks.ts` (`diveHold`), `tests/divehold.test.ts` | Yes (here) |
 | Fighting (chaos, MIT) | `fight.ts`, `fightdata.ts` | No |
+| Real NHL season: rosters and ratings from a real season, All-Star teams, re-rate by name | `seasonbuilder.ts`, `RealSeasonPage.tsx`, `public/seasons/` | **Yes (18)** |
 | Clockwise's sprite edit (`clockwiseSprites`, added 2026-11-20, not yet tested in the game; Looks and sound): Clockwise's IPS from the NHL94 forum, pixels only, 3,498 records in the sprite tiles (`$5DE91`-`$9E0FB`; Spritetiles is `$5DE84`, from addframe2's `addi.l #Spritetiles`), the IPS's five header records (title, checksum) left out. Each record alone: apply writes Clockwise's bytes only where the ROM has the original game's, remove writes the original back only where it has Clockwise's, anything else is the league's own art and stays; and every record in a sprite tile (32 bytes from `$5DE84`) holding such league art is left alone both ways (CDL Season 12's nets have, in tile 3886, a record equal to Clockwise's, which off turned original; MV 2026-11-21). Where a ROM had some of Clockwise's records before it went in (NHL2008, nhl94juiced, capitalism2), apply places a block `NOSECLW1` + one bit per record (set: had it before; 446 bytes) and remove keeps those, then erases the block; no block where none were. hackRom also takes head bleeding out and puts it back last at every apply, so other hacks' code doesn't move past it on the next apply. Detect: on when no record is original and one or more are Clockwise's, otherwise off (undefined only for a ROM too short); hackRom takes it out only when the ROM reads on, so a partly patched ROM keeps its part. League ROMs: GDL Season 4 has it all; CDL family 3,449 original / 1 patched / 48 own art; NHL2008, capitalism2, juiced 122 patched. No overlap with the fighting patch (its frames, frame table and the colours at `$9E6A4` lie elsewhere; tiles stay put), head bleeding (tiles at the ROM's end) or goalieBladeFix (HotList). NOSE4Web's additions in Clockwise's style (added 2026-11-20, worked out by Match Viewer with Clockwise's rule: tape = colours 13/14 to 2 at the blade end; eye = a grey face pixel with 5+ skin neighbours to 2), in and out with it, not part of its detection (a ROM made before them reads on and gets them at the next apply): (1) chaos's fight frames 846-869, 38 bytes in 28 records at the patch's fixed offsets `$9E7B4`-`$A0351`, per record, only while fightState is a choice; a second `clockwiseSprites` step right after `fighting` in hackRom (withoutFight restores the patch's originals, so the tape goes with it); fightState accepts the patch's or the tape's bytes there (`tapedBytes`). (2) The faceoff close-up FaceOffSprites, found from checkfo (`movea.l #anim,a2; adda.l 4(a2),a2; add.w d4,d4; move.w 2(a2,d4.w),d5`, unique; the tiles are loaded by two `movea.l #anim+8,a2` before DecompressGraphicsPlain at `$FB2C` and `$16D00`, never moved): anim +4 long = frames' offset, +8 count word (bit 15 = packed), tiles from +10. The tape is on the toe end of each centre's stick (MV's 22 records, 50 bytes changed). Plain (`$00B3`, CDL family at `$11EA88`): the 22 records at tiles + offset, per record. Packed (`$80B3`, retail `$A78AE`, stream ends exactly at the frames, `$A878A`): 19 changes to the packed stream (221 bytes), all or none, made by re-encoding at the same length only the stretches that make or copy the changed bytes, so the ROM keeps its size and comes back byte for byte; checked after writing by unpacking (`genesisunpack.ts`, a port of DecompressGraphics/DecompressBytecode; retail unpacks to CDL's plain tiles exactly). The first version (15dfee5, whole blades: 81 bytes in 27 records, packed 149 bytes in 29 runs, `FACEOFF_TAPE_FIRST` / `FACEOFF_PACKED_TAPE_FIRST`) is taken out first whenever the tape goes in or out, so older ROMs get the toe-end tape. Data in `tapedata.ts` | `clockwise.ts`, `clockwisedata.ts` (generated), `tapedata.ts`, `genesisunpack.ts`, `tests/clockwise.test.ts` | Yes (here) |
 
 ### NHL '94 SNES
@@ -2659,6 +2752,8 @@ line; check there.
 | Game music (title, menu, playoff): play on the real samples (browser preview, not game-tested), export | `snesmusic.ts` (`SNES_GAME_MUSIC`, `readSnesMusic`, `snesMusicToMidi`), `snesaudio.ts`, `snesplayer.ts` | **Yes (14)** |
 | Giveaways and takeaways, the pass at the net | `sneshacks.ts` (`gtEnv`, `gtCode`, `giveawayPlaces`) | **Yes (16)** |
 | Hacks, fighting (McMarkis) | `sneshacks.ts`, `snesfight.ts`, `snesfightdata.ts` | No |
+| Real NHL season (as on the Genesis) | `seasonbuilder.ts`, `RealSeasonPage.tsx` | **Yes (18)** |
+| Fighting penalty time and McMarkis's fight pairing (`fightTime`; `fightTimePlaces`, `syncFightPairing`): InProgress's `clc / adc d0 / tay` (after `lda a2 / beq / lda #$34`) becomes a jsl to code that, for penalties $2A and $2C, puts the set time ORed with $2000 into d2. McMarkis's FightCoincidental (in his 2 MB and SA-1 builds and NOSE4Web's 1 MB fights) pairs the two fighters' majors only at a box time of exactly 5:00: `lda d2 / cmp #$212C / bne / phx / sty / ldx #$34`, then `and #$07FF / cmp #$012C / beq`. After every apply, `syncFightPairing` rewrites both values to the fight time if it is on, else 5 x the penalty time's seconds a minute, so pairing keeps working (at most 2047 s, the mask). A fighting penalty made shorter in the ROM's penalty table by other means (not something NOSE4Web edits) leaves both at 5:00 and the pairing off: on the SNES World Cup league's SA-1 ROM (2026-11-23) a fighter injured for the game came back after the penalty; Match Viewer is still working on it. In SA-1 builds work RAM is in BW-RAM, bank `$40` (McMarkis's fightinj at `$40:E74E`): search there, not `$7E` | `sneshacks.ts` | Yes (here) |
 | Blocked shots: counts, Game Stats row, Player Stats page (`blockedShots`, `blockedShotsShown`, `blockedShotPages`; added 2026-11-20, tested in the game by MV 2026-11-20) | `sneshacks.ts` (`blockedShotsPlaces`, `blockedShotsShownPlaces`, `blkPagePlaces`) | **Yes (17)** |
 | Fight momentum (`fightMomentum`; added 2026-11-20, tested in the game by MV 2026-11-20): with NOSE4Web's fights or McMarkis's builds' own | `sneshacks.ts` (`fightMomentumPlaces`, `fmCode`), `snesfight.ts` (momentum site skipped) | **Yes (9, Fight momentum)** |
 | Computer centres' defence: the SNES code is right at both ends, no option | (none) | **Yes (9)** |
@@ -2677,9 +2772,9 @@ line; check there.
 - SNES game music **replacement**: not built ("Replacing them is still to come.", `SnesGameMusicSection`). Playing and
   exporting it is built (section 14).
 
-## 19. How to extend this document
+## 20. How to extend this document
 
-Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 18.
+Add one section per feature per game, numbered after the last feature section, and add a "Yes" in section 19.
 Copy this template; cite file and function names for every fact and mark inferences.
 
 ```markdown

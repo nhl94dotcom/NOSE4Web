@@ -149,7 +149,7 @@ describe('a real season', () => {
     const players = buildSeasonRosters(NHL94, seasonOf('19851986')).flatMap((t) => t.players)
     const at = (label: string) => NHL94.playerAttributeLabels.indexOf(label)
     const gretzky = players.find((p) => p.player.name === 'Wayne Gretzky')!
-    // 163 assists: the most, so the top passing, though his standing is only a little above the next player's.
+    // 163 assists: the most, so the top passing, though their standing is only a little above the next player's.
     expect(gretzky.player.attributes[at('Pas')]).toBe(6)
     expect(overallRating(gretzky.player.attributes, false, NHL94)).toBeLessThanOrEqual(100)
     // 2023-24, with 32 teams, has more skaters at the top than the original game's three or four.

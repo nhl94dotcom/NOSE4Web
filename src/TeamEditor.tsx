@@ -63,9 +63,9 @@ interface Props {
   changed: boolean
   onResetAll: () => void
   onChange: (team: Team) => void
-  // A player's own photo, to copy with him, where the ROM's photos can be read.
+  // A player's own photo, to copy with them, where the ROM's photos can be read.
   photoOf?: (index: number) => PlayerPhoto | null
-  // The team after a paste, with each pasted row given its new player's photo (null: he has none).
+  // The team after a paste, with each pasted row given its new player's photo (null: they have none).
   onPasteWithPhotos?: (team: Team, rows: { slot: number; goalie: boolean; photo: PlayerPhoto | null }[]) => string[]
   // Whether attributes show as the numbers stored in the ROM instead of as text.
   rawAttributes: boolean
@@ -140,7 +140,7 @@ export function TeamEditor(props: Props) {
   const tickedSkaters = ticked.length - tickedGoalies
   function makeTicked(random: boolean) {
     if (tickedGoalies > 0 && tickedSkaters > 0) return
-    // With a random level, each player gets his own.
+    // With a random level, each player gets their own.
     const levelFor = () => (level === RANDOM_LEVEL ? randomLevel() : (LEVELS.find((l) => l.value === level) ?? LEVELS[3]))
     const makeFor = (isGoalie: boolean): Make =>
       random
@@ -202,7 +202,7 @@ export function TeamEditor(props: Props) {
     try {
       const text = await readClipboard()
       const pasted = pastePlayers(team, ticked, text, attributesOnly, game)
-      // A whole player brings his photo, where the copy holds photos.
+      // A whole player brings their photo, where the copy holds photos.
       const photos = attributesOnly || !onPasteWithPhotos ? null : copiedPhotos(text, ticked)
       const problems = photos && onPasteWithPhotos ? onPasteWithPhotos(pasted, ticked.map((slot, n) => ({ slot, goalie: slot < goalies, photo: photos[n] }))) : (onChange(pasted), [])
       const count = copiedPlayerCount(text)
@@ -281,7 +281,7 @@ export function TeamEditor(props: Props) {
   const suitsSlot = (t: Team, slot: number, position: number) => suitsSlotFor(t, slot, position, anyPosition)
   // Each position offers only the players it is for: goalies in goal, defence
   // on defence, forwards up front and as the extra attacker (core/lines.ts). One
-  // the ROM already has out of his role is kept, and shown as such.
+  // the ROM already has out of their role is kept, and shown as such.
   const roleWord = { goalie: 'goalie', defence: 'defence', forward: 'forward' }
   // On both systems the penalty-kill lines show four rows in the game's Edit
   // Lines; their RW place is hidden, but it is the skater a short-handed team
@@ -336,9 +336,9 @@ export function TeamEditor(props: Props) {
     onChange({ ...team, players: team.players.map((p, i) => (i === index ? player : p)) })
   }
 
-  // A skater chosen for a position he already holds elsewhere on the line
+  // A skater chosen for a position they already hold elsewhere on the line
   // swaps with whoever was here, so that no one is on a line twice. Where
-  // this position was empty, a free skater takes his old one instead.
+  // this position was empty, a free skater takes their old one instead.
   function setLineSlot(line: number, slot: number, value: number) {
     const old = team.lines[line]
     const other = SKATER_LINE_SLOTS.includes(slot) && value !== 0 ? SKATER_LINE_SLOTS.find((s) => s !== slot && old[s] === value) : undefined

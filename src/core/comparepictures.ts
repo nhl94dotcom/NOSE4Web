@@ -83,7 +83,7 @@ function drawnPictures(project: RomProject, team: number): Map<string, Drawn> | 
 
 // ------------------------------------------------------- photos and score logos
 
-// How each player's own photo looks, by his name: colours where solid, '-' where see-through.
+// How each player's own photo looks, by their name: colours where solid, '-' where see-through.
 function photoLooks(project: RomProject, team: number): { looks: Map<string, string>; featured: string[] } | null {
   const players = project.teams[team].players
   const look = (picture: Picture, palette: number[], format?: ColorFormat) =>

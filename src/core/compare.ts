@@ -41,7 +41,7 @@ function role(team: Team, index: number): keyof typeof ROLE_NAMES {
 const sameStats = (a: Player, b: Player) => a.jersey === b.jersey && a.attributes.every((v, i) => v === b.attributes[i])
 
 // Says how the players differ, and returns where each player who stayed now
-// is on the roster, by where he was.
+// is on the roster, by where they were.
 function comparePlayers(project: RomProject, before: Team, after: Team, changes: string[]): Map<number, number> {
   const { game } = project
   // Pair up players by name, then treat an unpaired pair with identical numbers as a rename.

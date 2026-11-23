@@ -372,13 +372,13 @@ export function withOriginalGenesisAnnouncer(project: RomProject): RomProject {
 // colours go to colour row 2, which nothing else on the screen uses; colour 0
 // is see-through. The map's empty words keep the screen's frame; each other
 // word is a tile number counted from the first tile (0 is blank) with the row
-// and the tile base added. Ron Barr is drawn at his desk in the bottom right.
+// and the tile base added. Ron Barr is drawn at their desk in the bottom right.
 // Nothing else is ever in columns 23 to 31 of rows 12 to 27, so a new picture
 // can fill that rectangle, 72 x 128 pixels, and leave the rest of the map
 // empty. Or it can take Ron Barr's whole place, the bottom right from column
-// 6, 208 x 128: the scouting text's box is on its own layer (BG1) over him
-// (BG2), so it shares none of his tiles and draws over a new picture as it
-// does over him (Match Viewer). His picture is a cut-out, 162 cells from 147
+// 6, 208 x 128: the scouting text's box is on its own layer (BG1) over them
+// (BG2), so it shares none of their tiles and draws over a new picture as it
+// does over them (Match Viewer). Their picture is a cut-out, 162 cells from 147
 // tiles; with room for 152, a picture there has to be one too, its
 // see-through parts costing nothing.
 // It is packed as the original is, put in free space, and the three loaders
@@ -572,7 +572,7 @@ export interface SnesAnnouncerImage {
 
 // The image made into the picture. Beside the box: scaled to cover 72 x 128,
 // centred and cropped. Ron Barr's whole place: scaled to fit 208 x 128 whole,
-// in its bottom right as he is, its see-through pixels (and the rest)
+// in its bottom right as Barr is, its see-through pixels (and the rest)
 // see-through. Its colours cut to the 15 of row 2, colour 0 being see-through.
 export function snesAnnouncerFromImage(
   rgba: Uint8Array | Uint8ClampedArray,

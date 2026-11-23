@@ -96,7 +96,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES goalie settings in the ori
     expect(hex(never, 0xf1ada, 2)).toBe('8c00')
     expect(hex(never, 0xf54a0, 6)).toMatch(/^22......eaea$/)
     const code = never.slice(far(never, 0xf54a0), far(never, 0xf54a0) + 40)
-    // A person's goalie: his count stays above 5, and runs out from 5 or below (the whistle line's 0, a dive's 5).
+    // A person's goalie: their count stays above 5, and runs out from 5 or below (the whistle line's 0, a dive's 5).
     for (const count of [0, 3, 5, 6, 100, 140]) {
       const out = run(code, 0x1234, 0, ram(0, { 0x1083: count, 0xc1: 2 }))
       expect([out.a, out.n]).toEqual(count > 5 ? [count, false] : [(count - 2) & 0xffff, count < 2])

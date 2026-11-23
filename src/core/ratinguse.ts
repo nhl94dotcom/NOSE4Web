@@ -5,7 +5,7 @@
 // give or take a little for being hot or cold.
 
 export const SKATER_RATING_USES: Record<string, string> = {
-  // CCStart: 120 (240 for a checker a person controls), minus 8 x his Weight, plus 8 x the hit man's, halved,
+  // CCStart: 120 (240 for a checker a person controls), minus 8 x their Weight, plus 8 x the hit man's, halved,
   // less the hit's impact; byte arithmetic, so at 240 a man 16 lb or more heavier wraps round (the weight bug).
   Wgt: "how quickly the player speeds up (heavier is slower), collisions, and checks: the heavier the checker than the player they hit, the likelier a knockdown. In the original game a player you control knocks down almost anyone 16 pounds or more heavier than themselves (the weight bug; see Hacks)",
   Agl: 'how quickly the player speeds up and turns',
@@ -16,12 +16,12 @@ export const SKATER_RATING_USES: Record<string, string> = {
   // one-timers 31, backhands x 3/4; then x (20 + ShP / 2) by energy.
   ShP: 'shot speed: a 6 shoots about twice as hard as a 0. At 5 or 6 the player can wind a slapshot up longer, for about an eighth more speed; at 4 only when not cold, at 3 or less never. One-timers always get the shorter windup, and backhands lose a quarter',
   // CCStart: a check needs an impact of 20 or more; after the weight sum, a roll of 0 to that sum less one
-  // knocks down if it is no more than his working Chk / 2 (0-15).
+  // knocks down if it is no more than their working Chk / 2 (0-15).
   Chk: 'how often the player\'s checks knock someone down: after the hit and the weights, a 6 wins the last roll many times as often as a 0. Also whether the player can upend someone (4 or more), and how often a computer player tries to check or goes after the player with the puck',
   // setInjuryType: the checker's fighting byte / 4. 0 the period, 3 the game, 1 or 2 the game only when the
   // injured man's fighting byte has bit 1 set (chkFgtBit1). FallDown .21: only a puck carrier falling back.
   'H/F': "shooting hand, and how long the players they injure are out: at fighting 0 or 14 for the period, at 85 or 100 for the game, and in between for the game only if the injured player's own fighting is 14, 42, 71 or 100. A hit can only injure a player carrying the puck who is knocked onto their back with the clock running, and the harder the hit the likelier",
-  // puckstick's catch limit is 13,000 + 350 x his working value (0-30); FallDown's stumble needs 24 or more, a
+  // puckstick's catch limit is 13,000 + 350 x their working value (0-30); FallDown's stumble needs 24 or more, a
   // roll of 16-31 above the hit's impact, and not a hit into the boards. Steals: Match Viewer's test.
   StH: 'catching passes and loose pucks: the higher it is, the faster a puck the player can stop on their stick rather than have it bounce off, up to about 1.8 times as fast at 6 as at 0 (shots get no help); stumbling rather than falling when hit, only at 5 or more (4 with the power play, home or hot bonuses), a chance that shrinks the harder the hit, and never when knocked into the boards; and, after a steal, how long before either player can touch the puck again. Whether a steal happens barely depends on it',
   // doshot: within 200 pixels of the aim spot, perfect if a roll of 0 to 15 + working ShA is over 14, so
@@ -58,7 +58,7 @@ export const SNES_SKATER_RATING_USES: Record<string, string> = {
   ShP: 'shot speed; unlike on the Genesis, a weak shooter can still take a full slapshot',
   Chk: 'how often the player\'s checks knock someone down, and how often a computer player tries to check, which on the SNES is very often',
   'H/F': 'shooting hand only: the SNES never reads the fighting half',
-  // puckstick: 10,000 + 700 x his working value (0-15), 3,000 more for the man the pass is aimed at; FallDown:
+  // puckstick: 10,000 + 700 x their working value (0-15), 3,000 more for the man the pass is aimed at; FallDown:
   // 12 or more, a roll of 10-25 at least the impact, not with the clock stopped.
   StH: 'catching passes and loose pucks: the higher it is, the faster a puck the player can stop on their stick, up to about twice as fast at 6 as at 0, and the player a pass is aimed at gets a little more (shots get no help); stumbling rather than falling when hit, only at 5 or more (4 when hot or with bonuses), a chance that shrinks the harder the hit, and never after the whistle; and, after a steal, how long before either player can touch the puck again',
   Pas: 'how steady a pass\'s speed is, the speed of a pass to nobody, and how accurately the flip goes',

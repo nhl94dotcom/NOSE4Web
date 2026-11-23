@@ -16,7 +16,7 @@ export interface CopyKinds {
 
 interface CopiedPlayer extends Player {
   goalie: boolean
-  // His own photo, or null for a player with none; left out by copies made
+  // Their own photo, or null for a player with none; left out by copies made
   // before photos came along, or from a ROM whose photos the editor cannot read.
   photo?: PlayerPhoto | null
 }

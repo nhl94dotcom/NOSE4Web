@@ -111,7 +111,7 @@ export interface SnesPhoto {
   sharedWith: { team: number; slot: number }[]
   // One of the game's stand-in pictures for players with no photo of their
   // own, which many places share; a player's own photo is shown in one place
-  // or a few (his team's, and an All Stars team's).
+  // or a few (their team's, and an All Stars team's).
   generic: boolean
 }
 

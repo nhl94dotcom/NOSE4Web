@@ -20,7 +20,7 @@ describe('SNES: B and L / R while the skater is busy', () => {
 })
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: B and L / R while the skater is busy, in the ROM', () => {
-  it("findpc's .4 ($9F:CC51) passes over the pad's own skater while he is locked", () => {
+  it("findpc's .4 ($9F:CC51) passes over the pad's own skater while they are locked", () => {
     const rom = open('NHL94.smc')
     expect(hex(rom.bytes, 0xfcc51, 9)).toBe('bdd4193004c5b5d03c')
     const on = applySnesHacks(rom, { lockedChangeFix: true }).bytes

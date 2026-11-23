@@ -157,7 +157,7 @@ describe.skipIf(!existsSync(GENESIS))('moving teams, Genesis', () => {
     expectMoved(project, reopen(restored), order)
   })
 
-  it('reports no player as having changed teams because his team moved', () => {
+  it('reports no player as having changed teams because their team moved', () => {
     const project = open(GENESIS)
     const moved = withTeamOrder(project, teamMovedTo(28, 1, 9))
     const report = changesSince(moved, project)

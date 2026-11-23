@@ -28,7 +28,7 @@ export interface LeagueRules {
   uniquePlayers: boolean
   uniqueJerseys: boolean
   // For a league with line changes on: no skater on more than one of the lines that take turns (Sc1, Sc2, Chk),
-  // so each rests between his shifts.
+  // so each rests between their shifts.
   oneRotatingLine: boolean
   // Teams the rules do not apply to, such as All Stars teams.
   exempt: number[]

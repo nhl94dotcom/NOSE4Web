@@ -5,7 +5,7 @@ import type { RomProject } from './rom'
 import { goalieCount } from './team'
 
 // The players file the league website takes when a new league is set up (its admin's format, from their
-// "nhl26snes" file): a row for each player, his name in two, his team's initials, position, jersey number,
+// "nhl26snes" file): a row for each player, their name in two, their team's initials, position, jersey number,
 // overall and the 14 ratings in the order the game keeps them. A goalie's ratings go under the same
 // headings, which name both where they differ (ShP-PkC: a skater's ShP, a goalie's PkC).
 export const WEBSITE_HEADINGS = [

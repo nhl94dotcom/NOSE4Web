@@ -1002,7 +1002,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByLabel('RW on line PP1')).not.toHaveClass('hidden-slot')
 
     // Anaheim's first line: left wing offers only forwards, and the centre
-    // chosen for it swaps places with him rather than being on the line twice.
+    // chosen for it swaps places with them rather than being on the line twice.
     await team(page, 'Anaheim Mighty Ducks').click()
     const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
     const nlc = lines.locator('tbody tr').first().locator('select')
@@ -1657,7 +1657,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('select.hidden-slot')).toHaveCount(0)
     // A position the ROM uses cannot be emptied; one it leaves empty can be filled and emptied again.
     await expect(first.nth(4).locator('option', { hasText: 'Empty' })).toHaveCount(0)
-    // A defenceman not at RD already, which would move him.
+    // A defenceman not at RD already, which would move them.
     const rd = await first.nth(2).inputValue()
     const free = await first.nth(1).locator('option').evaluateAll((options, taken) => options.map((o) => (o as HTMLOptionElement).value).filter((v) => v !== '0' && v !== taken), rd)
     await first.nth(1).selectOption(free[0])
@@ -1830,7 +1830,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('First side of the trade')).toHaveValue('0')
     await main.getByLabel('Second side of the trade').selectOption({ label: 'Boston Bruins' })
     await expect(main.getByText('Select the players each side gives up.')).toBeVisible()
-    // Every player is listed with his attributes, goalies apart from skaters, and the list can be shortened.
+    // Every player is listed with their attributes, goalies apart from skaters, and the list can be shortened.
     const boston = main.locator('.trade > section').nth(1)
     await expect(boston.locator('table')).toHaveCount(2)
     await expect(boston.locator('table').first().locator('thead th')).toHaveCount(6 + 14)
@@ -1864,7 +1864,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator(`input.name[value="${duck}"]`)).toHaveCount(0)
     await expect(rows(page, 'Skaters')).toHaveCount(16)
 
-    // Release him to the free agents, then sign him with Boston again.
+    // Release them to the free agents, then sign them with Boston again.
     await entry(page, 'Trade').click()
     await main.getByLabel('Second side of the trade').selectOption({ label: 'Free agents (0)' })
     await expect(main.getByText('There are no free agents.')).toBeVisible()
@@ -2119,7 +2119,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator(`input.name[value="${released}"]`)).toHaveCount(1)
     await expect(entry(page, /^Trade/)).toHaveText('Trade')
 
-    // A goalie cannot simply be released: he has to change places with another.
+    // A goalie cannot simply be released: they have to change places with another.
     await tick(rows(page, 'Goalies').first())
     await page.getByRole('button', { name: 'Release selected' }).click()
     await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
@@ -2501,7 +2501,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(main.getByLabel('Rating scale')).toHaveValue('wide')
     await expect(apply).toBeDisabled()
-    // The hacks are the only changes: every player is as he was, on the new scale.
+    // The hacks are the only changes: every player is as they were, on the new scale.
     await expect(entry(page, /^Changes/)).toHaveText('Changes (3)')
     await entry(page, /^Changes/).click()
     await expect(main.getByRole('heading', { name: 'Hacks', exact: true })).toBeVisible()
@@ -2713,7 +2713,7 @@ test.describe('at different window widths', () => {
     await card.locator('input.name').fill('Phone Edit')
     await card.locator('input.num').fill('77')
     await expect(page.getByLabel('Speed of Phone Edit')).toHaveValue('0')
-    // Moving a player down takes his card with him.
+    // Moving a player down takes their card with them.
     await card.getByRole('button', { name: '↓' }).click()
     await expect(skaters.locator('.card').nth(1).locator('input.name')).toHaveValue('Phone Edit')
 
@@ -3280,7 +3280,7 @@ test.describe('with the SNES game', () => {
     await expect(card.getByText('A stand-in picture')).toBeHidden()
     const picture = () => card.locator('canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())
     const mine = await picture()
-    // Swapped with the first player, his photo moves there.
+    // Swapped with the first player, their photo moves there.
     const first = (await photos.first().locator('strong').textContent())!.replace(/^G /, '')
     await card.getByLabel(`Swap the photo of ${name} with`).selectOption({ label: `G ${first}` })
     await expect(section.getByText(`The photos of ${name} and ${first} swapped.`)).toBeVisible()

@@ -1,4 +1,4 @@
-// A player's own photo carried with him when he is copied and pasted, as an
+// A player's own photo carried with them when they are copied and pasted, as an
 // image, so that it goes to another team (whose SNES photo colours may differ)
 // or to another ROM open in a second tab.
 
@@ -26,7 +26,7 @@ export function playerPhotosSupported(project: RomProject): boolean {
   return project.game.platform === 'snes' ? snesPhotosSupported(project) : photosSupported(project)
 }
 
-// The photo of `team`'s player in `slot`, if he has one of his own; null for
+// The photo of `team`'s player in `slot`, if they have one of their own; null for
 // a stand-in, or none.
 export function playerPhoto(project: RomProject, team: number, slot: number): PlayerPhoto | null {
   if (!playerPhotosSupported(project)) return null
@@ -54,7 +54,7 @@ export function isPlayerPhoto(value: unknown): value is PlayerPhoto {
   )
 }
 
-// Each pasted row given the photo of the player pasted onto it: his own, or,
+// Each pasted row given the photo of the player pasted onto it: their own, or,
 // for one who had none, the stand-in the game gives a player without one.
 export function withPlayerPhotos(project: RomProject, team: number, rows: { slot: number; goalie: boolean; photo: PlayerPhoto | null }[]): { project: RomProject; notes: string[] } {
   if (!playerPhotosSupported(project)) return { project, notes: [] }
@@ -85,7 +85,7 @@ function withOwn(project: RomProject, team: number, slot: number, goalie: boolea
   return withPhoto(next, team, index, photoFromImage(rgba, photo.width, photo.height, photoPalette(next)))
 }
 
-// A row whose new player has no photo of his own does not keep the old one's.
+// A row whose new player has no photo of their own does not keep the old one's.
 function withStandIn(project: RomProject, team: number, slot: number, goalie: boolean): RomProject {
   if (project.game.platform === 'snes') {
     const photos = snesTeamPhotos(project, team)

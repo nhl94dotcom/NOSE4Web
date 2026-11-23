@@ -12,9 +12,9 @@ import { FIGHT_TAPE } from './tapedata'
 // cartridge's $A130F1). Genesis Plus GX, which the leagues use, honours that.
 //
 // NOSE4Web puts in the patch as chaos's own build has it for the original game:
-// his bytes at the 31 places he changes in its first megabyte, his switching
-// code at $1F9A00 and his fighting code from $200100. It leaves out what his
-// build also changes for his own ROM: its title screen, credits, name and
+// their bytes at the 31 places they change in its first megabyte, their switching
+// code at $1F9A00 and their fighting code from $200100. It leaves out what their
+// build also changes for their own ROM: its title screen, credits, name and
 // serial number, and the players' fighting ratings, which a league sets on the
 // team pages (the H/F column). It goes into a ROM with the original game's
 // code at all those places, as every league ROM the editor has seen has.

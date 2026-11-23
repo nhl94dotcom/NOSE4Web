@@ -6,7 +6,7 @@ import { snesPhotoPalette, snesPhotoRgbs, snesPhotosSupported, snesTeamPhotos, w
 import { goalieCount, teamDisplayName } from './team'
 
 // Player photos in a picture set: a folder for each team, a file for each
-// player with a photo of his own, named after him, so that a set comes back
+// player with a photo of their own, named after them, so that a set comes back
 // to the same players however the rosters have been reordered since, and
 // carries to next season's ROM. Players with a generic picture have no file.
 
@@ -45,7 +45,7 @@ export function photoSet(project: RomProject): { name: string; picture: Picture;
 }
 
 // Whether a file of a set is a photo, and whose: the team by its number and
-// name, the player by his.
+// name, the player by theirs.
 export function identifyPhotoFile(fileName: string): { team: number; teamName: string; player: string } | null {
   const match = /(?:^|[\\/])photos[\\/](\d+)_?([^\\/]*)[\\/]([^\\/]+)\.png$/i.exec(fileName)
   return match ? { team: Number(match[1]) - 1, teamName: match[2], player: match[3] } : null

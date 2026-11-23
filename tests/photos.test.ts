@@ -42,10 +42,10 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis player photos', () => {
     expect(teamPhotos(project, 0).every((photo) => photo.generic)).toBe(true)
   })
 
-  it("rewrites a player's own photo where it is, and gives one with a generic picture his own", () => {
+  it("rewrites a player's own photo where it is, and gives one with a generic picture their own", () => {
     const project = stock()
     const picture = drawn((x, y) => (x + y) % 8)
-    // Boston's goalie has a picture of his own, laid out by the shared map.
+    // Boston's goalie has a picture of their own, laid out by the shared map.
     const own = withPhoto(project, 1, 0, picture)
     expect(own.bytes.length).toBe(project.bytes.length)
     expect(changedBytes(project.bytes, own.bytes).length).toBeLessThanOrEqual(36 * 24)

@@ -67,7 +67,7 @@ describe('made-up attributes', () => {
     expect(enforcer[13]).toBeLessThanOrEqual(3)
   })
 
-  it('an archetype keeps his shooting and glove hand; random may change them', () => {
+  it('an archetype keeps their shooting and glove hand; random may change them', () => {
     const lefty = skater(NHL94).map((v, i) => (i === 7 ? 4 : v)) // shoots left
     const made = madeAttributes(NHL94, false, lefty, { archetype: SKATER_ARCHETYPES[1] }, star, steady())
     expect(shootsRight('handedFighting', made[7])).toBe(false)

@@ -6,11 +6,11 @@ import { goalieCount, type Player } from './team'
 // Photos follow their players. The game ties a photo to a place on a team's
 // roster, not to a player, so moving players (a trade, a new order, a player
 // let go or signed) would leave photos on the wrong faces. After every edit,
-// each player who has moved takes his photo along: on the Genesis his entry
-// in the team's featured players, on the SNES his place's photo. A team whose
+// each player who has moved takes their photo along: on the Genesis their entry
+// in the team's featured players, on the SNES their place's photo. A team whose
 // photos the edit itself changed is left as the edit made it.
 //
-// A player is followed by the editor's own record of him, which a move keeps.
+// A player is followed by the editor's own record of them, which a move keeps.
 // An edited player is a new record in the same place, taken for the same man
 // when the old record is gone.
 
@@ -78,7 +78,7 @@ function genesisFollow(before: RomProject, after: RomProject, from: (Place | nul
     const goalies = goalieCount(after.teams[t])
     const kept = [...lists[t], ...incoming[t]]
     const listed = new Set(kept.flatMap((entry) => (entry ? [entry.slot] : [])))
-    // A player who has left keeps his place in the list only while the setup
+    // A player who has left keeps their place in the list only while the setup
     // screen needs it (six in the original game): it goes to a player with no photo in the list, with
     // the generic picture.
     const fewest = setupCardCount(after.bytes)
@@ -117,7 +117,7 @@ function snesFollow(before: RomProject, after: RomProject, from: (Place | null)[
   }
   const uses = new Map<string, number>()
   for (const address of oldRows.flat()) uses.set(key(address), (uses.get(key(address)) ?? 0) + 1)
-  // Where every player has his own (the 32-team builds), the one the empty places share.
+  // Where every player has their own (the 32-team builds), the one the empty places share.
   const anyShared = oldRows.flat().find((address) => uses.get(key(address)) === Math.max(...uses.values()) && Math.max(...uses.values()) > 1) ?? null
   const generic = { goalie: commonest(true) ?? anyShared, skater: commonest(false) ?? anyShared }
   let project = after
@@ -128,7 +128,7 @@ function snesFollow(before: RomProject, after: RomProject, from: (Place | null)[
       if (slot >= team.players.length) return address
       const place = from[t][slot]
       if (place) return oldRows[place.team][place.slot]
-      // A new player: the generic photo his place has, or the generic one for his position.
+      // A new player: the generic photo their place has, or the generic one for their position.
       if ((uses.get(key(address)) ?? 0) > 1) return address
       return (slot < goalies ? generic.goalie : generic.skater) ?? address
     })

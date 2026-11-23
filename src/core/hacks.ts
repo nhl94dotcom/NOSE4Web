@@ -1,8 +1,8 @@
 // Changes to the game's own code: bug fixes, extra statistics, finer ratings.
 //
 // All but the last group are the work of Michael Capewell (smozoma), ported
-// from his hack program smozROM with his permission. The places changed, the
-// code put there and the table of weights by year are his.
+// from their hack program smozROM with their permission. The places changed, the
+// code put there and the table of weights by year are theirs.
 //
 //   smozROM  Copyright 2010 Michael Capewell (smozoma)
 //   https://github.com/nhl94dotcom/smozROM
@@ -73,7 +73,7 @@ export interface HackChoices {
   baseWeight: number
 
   // How the game plays. The numbers are the game's own, as its code holds them.
-  // Makes a player's Aggression in play rise with his rating, where the
+  // Makes a player's Aggression in play rise with their rating, where the
   // original game wraps it round.
   aggressionFix: boolean
   // Reads a team's power play and penalty kill ratings from the halves of
@@ -88,7 +88,7 @@ export interface HackChoices {
   // Aims a one-timer at an open net (the goalie out of the puck's line) at the
   // middle, mid-height, where the original aims it high and it often sails over.
   openNetFix: boolean
-  // Lets a checker hit the same player again once he has got up, where the
+  // Lets a checker hit the same player again once they have got up, where the
   // original ignores the pair until some other pair's check lands.
   repeatCheckFix: boolean
   // chaos's fighting patch (fight.ts): not in the ROM, or in it with the main
@@ -104,17 +104,17 @@ export interface HackChoices {
   penaltyShotFixes: boolean
   // The computer pulls its goalie late when one or two goals behind, not only when exactly two.
   goaliePullFix: boolean
-  // Lets a goalie's body play a loose puck 8 to 14 units from his blade, where nothing touches it in the original.
+  // Lets a goalie's body play a loose puck 8 to 14 units from their blade, where nothing touches it in the original.
   blindRingFix: boolean
   // A shot with the shooter's own goalie off the ice takes the normal accuracy roll, not always exact.
   snipingFix: boolean
   // Computer wingers and centres on offence time their decisions by Offensive Awareness, not Defensive.
   awarenessFix: boolean
-  // A computer centre on defence covers between the puck and his own net at both ends, not mirrored at one.
+  // A computer centre on defence covers between the puck and their own net at both ends, not mirrored at one.
   centreDefenceFix: boolean
-  // A computer goalie turning toward the puck never turns round through his own net, at either end.
+  // A computer goalie turning toward the puck never turns round through their own net, at either end.
   goalieTurnFix: boolean
-  // The bottom goalie's stick blade sits where the top goalie's does, mirrored, as he faces up the screen.
+  // The bottom goalie's stick blade sits where the top goalie's does, mirrored, as they face up the screen.
   goalieBladeFix: boolean
   // Shots at the bottom net scatter up and down the screen as much as shots at the top net.
   shotScatterFix: boolean
@@ -125,11 +125,11 @@ export interface HackChoices {
   checkFix: CheckFix
   // Sixtieths of a second a goalie may hold the puck before the whistle; 0 for no whistle.
   goalieHold: number
-  // Sixtieths of a second a goalie who caught the puck in a dive may hold it after he gets up, before the whistle.
+  // Sixtieths of a second a goalie who caught the puck in a dive may hold it after they get up, before the whistle.
   diveHold: number
   // How far a goalie a person controls may go without the puck to either side of the middle of the ice.
   goalieWidth: number
-  // How near centre ice a goalie may come, as his distance from it: without the puck, then before
+  // How near centre ice a goalie may come, as their distance from it: without the puck, then before
   // the whistle for one a person controls.
   goalieOut: number
   goalieLine: number
@@ -181,7 +181,7 @@ export interface HackChoices {
   seasonTies: SeasonTies
   // Edit Lines lists every skater for every position, and saves such lines.
   anyPosition: boolean
-  // Energy a skater loses when knocked down, and when a hold or hook catches him (0 to $1000 is empty to full): 0 is the original game.
+  // Energy a skater loses when knocked down, and when a hold or hook catches them (0 to $1000 is empty to full): 0 is the original game.
   hitEnergy: number
   holdEnergy: number
   // Impact added to an eligible hit's injury roll for each knockdown the skater has taken (0 is the original game), and the most it adds.
@@ -201,7 +201,7 @@ export interface HackChoices {
   choppyIce: boolean
   // Each player's giveaways and takeaways, counted, and the teams' in Game Stats.
   giveaways: boolean
-  // Each skater's shots blocked (the other team's shots his body stops), and the teams' in Game Stats.
+  // Each skater's shots blocked (the other team's shots their body stops), and the teams' in Game Stats.
   blockedShots: boolean
   // Today's NHL shootout: three rounds, then sudden death, over as soon as it is settled.
   nhlShootout: boolean
@@ -211,7 +211,7 @@ export interface HackChoices {
   puckColours: PuckColours
   // The colours both nets are drawn in, from the same choices.
   netColours: PuckColours
-  // The fan in green in the stands, with his arm and leg back.
+  // The fan in green in the stands, with their arm and leg back.
   greenFan: boolean
   // Clockwise's touch-ups to the player sprites (clockwise.ts).
   clockwiseSprites: boolean
@@ -418,8 +418,8 @@ export const HACK_RANGES = {
   goalieWidth: [0, 124],
   goalieOut: [0, 255],
   goalieLine: [0, 255],
-  // Below 16, a player's endurance bonus (half his endurance, up to 15, while his energy is at least $C00)
-  // can outweigh the loss: his energy climbs past full until a fast skater's speed wraps round to the slowest
+  // Below 16, a player's endurance bonus (half their endurance, up to 15, while their energy is at least $C00)
+  // can outweigh the loss: their energy climbs past full until a fast skater's speed wraps round to the slowest
   // (Match Viewer, in the game: $1000 to $12BE in 2 minutes at 0). Skating that costs nothing is noSkatingDrain.
   energyDrain: [16, 999],
   energyRecovery: [0, 999],
@@ -604,8 +604,8 @@ export interface AssistPlaces {
 const ASSIST_CODE = bytes('B068 001A 6700 0008 3168 001A 001C 4E75')
 
 // a2touchpuck's list update as a routine of its own, with d0 the toucher and
-// a0 his team: not if he is the last toucher already; else with the overwrite
-// flag (tmflast) set he replaces the last toucher, and otherwise the list
+// a0 their team: not if they are the last toucher already; else with the overwrite
+// flag (tmflast) set they replace the last toucher, and otherwise the list
 // moves down; and a second assist who is the new last toucher is cleared.
 // `assist`: with the second-assist fix's check. Without it, Match Viewer's
 // one-timer routine, byte for byte.
@@ -624,7 +624,7 @@ const LIST_UPDATES = [false, true].map((assist) => ({ assist, code: listUpdate(a
 
 // ------------------------------------------------------ one-timer assist fix
 // Found by the NHL94 Match Viewer project. a2touchpuck adds a player to the
-// last-touch list with three checks: not if he is the last touch already;
+// last-touch list with three checks: not if they are the last touch already;
 // tmflast, which replaces the last touch rather than moving the list down;
 // and clearing a second assist who is the new last touch. onetimershot puts
 // the shooter on the list with three plain moves at $F6CE4 instead, so when
@@ -639,8 +639,8 @@ const LIST_UPDATES = [false, true].map((assist) => ({ assist, code: listUpdate(a
 // Match Viewer: 8 of 274 recorded goals. puckglue sets tmflast when the
 // other team takes the puck, and a2touchpuck's "same player as tmtouch1"
 // exit (beq.w .same at $1017A) skips the bclr that clears it, so a player
-// who wins the puck back himself keeps it set, and the teammate he passes to
-// replaces him as the last toucher: his assist is lost. Match Viewer's fix,
+// who wins the puck back themselves keeps it set, and the teammate they pass to
+// replaces them as the last toucher: their assist is lost. Match Viewer's fix,
 // tested in the game: the 8 bytes of cmp.w tmtouch1(a0),d0 / beq.w .same at
 // $10176 become jsr / nop to 20 bytes that make the same compare; for the
 // same player they clear the flag and go on to .same ($101A4, by changing
@@ -1133,7 +1133,7 @@ const holdEnergy = amountPart(HOLD_HOOK, [
 
 // ------------------------------------------------ injury risk from knockdowns
 // The other half of the community idea, from Match Viewer's reading: each
-// knockdown a skater takes raises his chance of being injured by a later
+// knockdown a skater takes raises their chance of being injured by a later
 // hit, a little, up to a cap, and the count halves at every intermission.
 // An injury can only come from the few hits the original game already lets
 // injure (a carrier falling back while facing straight up or down the ice),
@@ -1151,7 +1151,7 @@ const holdEnergy = amountPart(HOLD_HOOK, [
 //   clears the counts first.
 // - Each intermission: PeriodOver's addq #1,gsp / bchg #gmdir,gmode ($17236)
 //   become jsr / nop to code that halves every count, then does them.
-// a0 = the count of player a2: $FFF000, plus 32 for the away team, plus his roster number (d1 used).
+// a0 = the count of player a2: $FFF000, plus 32 for the away team, plus their roster number (d1 used).
 const COUNT_OF_A2: Asm = ['7200 122A 0066 082A 0006 0062', { branch: BEQ, to: 'home' }, '0641 0020', { label: 'home' }, '41F8 F000 D0C1']
 
 // The knockdown hook's code when it counts: the energy part only for an amount; nothing after the whistle.
@@ -1329,7 +1329,7 @@ const injuryRisk: Part<InjuryRisk> = {
 // - EncodeTeamLines ($8928) writes the old block as before (WriteLineData
 //   keeps the playoffs; the editor's exit offers Load by its team byte), with
 //   each slot's nibble where the player fits it (a forward at forward, a
-//   defenceman at defence) and the first forward or defenceman where he
+//   defenceman at defence) and the first forward or defenceman where they
 //   doesn't, so a ROM without the hack loads lines that fit exactly and never
 //   a player who isn't there; then the new block (WriteSRAM,
 //   MakeSRAMChecksum). Its first version wrote only the team byte there.
@@ -1502,7 +1502,7 @@ const INCLUDED = [
   { at: 0x19582, narrow: bytes('130F'), wide: bytes('1B0F') },
 ]
 
-// Where the game adds a player's bonus to his rating on the ice.
+// Where the game adds a player's bonus to their rating on the ice.
 const ON_ICE_HOOK: Hook = { at: 0xf710a, original: bytes('D3FC 0000 01A2 1231 1000') }
 const ON_ICE_DISABLED = bytes('4201 4E71 4E71 4E71 4E71')
 // Takes the bonus for each attribute from where Edit Lines shows it.
@@ -1647,14 +1647,14 @@ export function baseWeightForYear(year: number): number {
 
 // ---------------------------------------------------------------- more fixes
 // Two bugs in setplayer, which works out a player's ratings in play each time
-// he comes on the ice. In play a rating counts five times its value, give or
+// they come on the ice. In play a rating counts five times its value, give or
 // take a little for being hot or cold, so 0 to 30.
 
 // Aggression is then cut to 0 to 15 by keeping only its last four bits, so
 // it wraps round: a 4 plays like a 1, and a 6 or a 3 is the most penalised. The fix
 // keeps it in bounds with the game's own ClampNibble, which the code is
 // followed by, and halves it, so it runs from 0 to 15 with the rating. For
-// goalies the same place holds the glove rating GvL, which lets him make the
+// goalies the same place holds the glove rating GvL, which lets them make the
 // reaching glove save at 11 and over: with the fix that takes about 5.
 //   move.b d3,$73(a3) / andi.b #$F,$73(a3)
 //   becomes  bsr.w ClampNibble / lsr.b #1,d3 / move.b d3,$73(a3)
@@ -1667,7 +1667,7 @@ const aggressionFix = switchPart(0x15d78, bytes('1743 0073 022B 000F 0073'), byt
 const comebackFix = switchPart(0x15b70, bytes('6E00 0026'), bytes('6D00 0026'))
 
 // The rocket pass. passtoa0 aims a pass at where the receiver will be: it
-// solves for the time the puck meets him, in eighths of a second (1 to 24),
+// solves for the time the puck meets them, in eighths of a second (1 to 24),
 // and sets the puck's speed to cover the distance in that time. The division
 // rounds toward zero, so a meeting due in 1.9 eighths is made in 1, at nearly
 // twice the pass's speed; and a time just below 0, the wrong one of the two
@@ -1676,7 +1676,7 @@ const comebackFix = switchPart(0x15b70, bytes('6E00 0026'), bytes('6D00 0026'))
 // in 64ths of a second, from the same division's remainder, and takes a time
 // as below 0 when it is, so it tries the other. What uses the time is changed
 // to match: the receiver's wait and the puck's no-touch time (eighths x 8
-// - 10, now 64ths - 10), where he will be (x t / 2, now / 16) and the speed
+// - 10, now 64ths - 10), where they will be (x t / 2, now / 16) and the speed
 // (/ 120 t, now / 15 t). The lift stays in whole eighths, and the time keeps
 // the game's limits of an eighth and 3 seconds. Replaying the 2,535 targeted
 // passes of 29 recorded games, none then goes more than 1.23 times its pass
@@ -1730,7 +1730,7 @@ const passFix = hookedFix(PASS_HOOK, PASS_CODE, PASS_EDITS)
 // game aims a one-timer itself (shotdiradj, logic94.asm), and computer
 // shooters the same way: where the sightline from the puck through the
 // opposing goalie passes within 22 of the net's middle, just inside the post
-// away from him (2 or 6); with no goalie, the middle at mid-height (8); and
+// away from them (2 or 6); with no goalie, the middle at mid-height (8); and
 // where the sightline misses the net, the goalie having wandered out of the
 // puck's line, high in the middle (0). That is the worst aim at an open net:
 // the target is just under the crossbar and the scatter only goes up, so
@@ -1764,9 +1764,9 @@ function applyFight(work: Work, choice: FightChoice): void {
 // lands, however long that takes (11 such checks in recorded games, none
 // knocked anyone down, against 22% otherwise). FallDown already ignores a
 // target that is falling or stumbling; the pair test is what stops a checker
-// flattening a player again as he gets up. The fix keeps the pair test only
-// while the target is still recovering: a knockdown sets his nopuck byte to
-// 120 and a wobble his nopuckb to 60, each counting down every frame, so the
+// flattening a player again as they get up. The fix keeps the pair test only
+// while the target is still recovering: a knockdown sets their nopuck byte to
+// 120 and a wobble their nopuckb to 60, each counting down every frame, so the
 // pair is ignored while that word is not zero, and a later check counts. (A
 // fall into the bench lasts longer, about 155 frames, but carries the man over
 // the boards out of any checker's reach for all of it: Match Viewer.) The
@@ -1843,18 +1843,18 @@ const faceoffFix: Part<boolean> = {
   },
 }
 
-// Runaway speed. A skater's pfdoff flag (pflags bit 0) makes him slow by
-// 1/512 of his speed a frame instead of 1/64, nearly as little as the puck:
-// the game sets it for a computer skater about to take a pass, so he glides
-// onto it, and for one knocked into the boards or the bench, so he slides. It
-// is meant to be cleared when he touches the puck or is given other work, but
+// Runaway speed. A skater's pfdoff flag (pflags bit 0) makes them slow by
+// 1/512 of their speed a frame instead of 1/64, nearly as little as the puck:
+// the game sets it for a computer skater about to take a pass, so they glide
+// onto it, and for one knocked into the boards or the bench, so they slide. It
+// is meant to be cleared when they touch the puck or are given other work, but
 // three ways leave it on (Match Viewer's GENESIS_MECHANICS 3.4 and its
 // recorded runaways): asspassrec ends for a skater a person has taken over
 // through a branch straight to assexit, past its own exit that clears the
 // flag; getting up from a fall never clears it; and a one-timer that misses
 // the puck never reaches puckstick, which is what clears it for one that
 // hits. A person's skater then barely slows, each speed burst stacks on the
-// last, and he can shoot off at twice top speed. The fix points that branch
+// last, and they can shoot off at twice top speed. The fix points that branch
 // at asspassrec's own exit; makes the end of a fall animation (where the game
 // clears pf3fall) clear pfdoff too, only when a fall is ending; and makes
 // EndOneTimer, which ends every one-timer after the shot or the miss, clear
@@ -1956,7 +1956,7 @@ const penaltyShotFixes: Part<boolean> = {
 // last minute of the third period, for a faceoff out of its own end, when it
 // is behind: d0 = the other team's score less its own; bmi leaves if it
 // leads, then cmp #2 / bne leaves unless it is exactly two behind, though the
-// comment says "exit if behind by more than 2". So it never pulls him when one
+// comment says "exit if behind by more than 2". So it never pulls them when one
 // goal down (found by the Match Viewer project). bgt alone would let a tie
 // through (0 passes the bmi), so both change: ble leaves if leading or tied,
 // and bgt if more than two behind.
@@ -1965,8 +1965,8 @@ const goaliePullFix = switchPart(0xf758, bytes('6B00 5D0A B07C 0002 6600 5D02'),
 // The goalie's blind ring (Match Viewer's GENESIS_SHOOTING). checkpuckcoll
 // hands a puck within a stick's reach (14 units) to puckstick and then skips
 // the body test, but for a goalie and a loose puck puckstick does nothing past
-// 8 units from his blade. So between 8 and 14 nothing touches the puck, and
-// the butterfly and some kick saves put his blade 10 to 13 to the side, his
+// 8 units from their blade. So between 8 and 14 nothing touches the puck, and
+// the butterfly and some kick saves put their blade 10 to 13 to the side, their
 // middle in that ring: five-hole goals. The option sends that case on to the
 // body test (puckgoalie) instead; everything else calls puckstick as before,
 // the "goalie lets it in" mode (gmhl) included. bsr.w puckstick / bra.w .exit
@@ -2032,7 +2032,7 @@ function bothParts(a: Part<boolean>, b: Part<boolean>): Part<boolean> {
 }
 
 // The awareness slip (bug 20). Each job that steers a computer skater
-// reloads the timer for his next decision from his awareness: the offence
+// reloads the timer for their next decision from their awareness: the offence
 // jobs from Offensive Awareness (aioff, $6A), the defence jobs from Defensive
 // (aidef, $6B), but the winger's and the centre's offence jobs (asswingo,
 // asscentero) load aidef. The option makes them load aioff. A small change:
@@ -2041,10 +2041,10 @@ function bothParts(a: Part<boolean>, b: Part<boolean>): Part<boolean> {
 const awarenessFix = bothParts(switchPart(0xd0e1, bytes('6B'), bytes('6A')), switchPart(0xd2d9, bytes('6B'), bytes('6A')))
 
 // The computer centre on defence (asscenterd; moveq #-128,d1 at $D270;
-// chaos's report, forum topic 35236). Outside his own zone he skates to the
-// midpoint of the puck and his own high slot. d2 is pucky turned so that his own end is negative (neg
+// chaos's report, forum topic 35236). Outside their own zone they skate to the
+// midpoint of the puck and their own high slot. d2 is pucky turned so that their own end is negative (neg
 // when pfgoal is clear, shooting at the bottom net), d1 = -128, and with d2 not
-// below -88 (puck out of his zone) add.w (pucky).w,d1 / asr.w #1,d1, then d1 is
+// below -88 (puck out of their zone) add.w (pucky).w,d1 / asr.w #1,d1, then d1 is
 // turned back at .chkgoal. The add takes the raw pucky, not d2: right for the
 // team shooting at the top net, mirrored for the other, which gets
 // (128 - pucky) / 2 where it should get (128 + pucky) / 2, so it backs in as the
@@ -2055,24 +2055,24 @@ const centreDefenceFix = switchPart(0xd27a, bytes('D278 B75E'), bytes('D242 4E71
 
 // A computer goalie turning toward the puck (AdjustFacingDirection, one step of
 // facedir a call; btst d1,#$42 at $DB86; not for a human goalie, pfjoycon).
-// He is meant never to turn through the facings into his own net: when the
-// test runs he takes the step, and if the new facing is in the mask (the top
-// goalie: $83 = 7, 0, 1; the bottom goalie, pfgoal set: $38 = 3, 4, 5) he
-// turns the other way instead. But the test only runs from facings 1 and 6
+// The goalie is meant never to turn through the facings into their own net: when the
+// test runs they take the step, and if the new facing is in the mask (the top
+// goalie: $83 = 7, 0, 1; the bottom goalie, pfgoal set: $38 = 3, 4, 5) they
+// turn the other way instead. But the test only runs from facings 1 and 6
 // ($42). The top goalie needs it from 6 (and has it); the bottom goalie needs
 // it from 2, the mirror of 6; facing 1 never needs it. So with the puck going
-// right to left behind the bottom goal line he turns 2-3-4-5-6, through his
+// right to left behind the bottom goal line they turn 2-3-4-5-6, through their
 // net. $44 (2 and 6) mends it: 2-1-0-7-6 (Match Viewer, in the game; the top
 // goalie's mirror case is 6-5-4-3-2 either way). The SNES is not checked here.
 const goalieTurnFix = switchPart(0xdb86, bytes('033C 0042 6700 0022'), bytes('033C 0044 6700 0022'))
 
 // The goalie's stick blade. Any touch of the goalie is a save (puckgoalie
-// works out save odds from his ratings and the frame, then never uses them):
-// a puck at z 15 or lower inside his body circle, or at z 5 or lower inside
-// 14 of his stick's hot spot (checkpuckcoll .ccx, GetHot). The hot spot is
+// works out save odds from their ratings and the frame, then never uses them):
+// a puck at z 15 or lower inside their body circle, or at z 5 or lower inside
+// 14 of their stick's hot spot (checkpuckcoll .ccx, GetHot). The hot spot is
 // drawn into each frame (HotList, two signed bytes, x then y, for each frame),
 // and the goalie's facing-up frames (the bottom goalie) are not the mirror of
-// his facing-down ones: turned toward a shooter on screen-right, the bottom
+// their facing-down ones: turned toward a shooter on screen-right, the bottom
 // goalie's blade is 4 to that side, the top goalie's 11. This sets the nine
 // facing-up frames (ready, glove right, glove left for up, up-right and
 // up-left: 407-412, 428-430) to (x, -y) of their facing-down partners, a
@@ -2272,7 +2272,7 @@ const goalieHold: Part<number> = {
 }
 
 // A goalie who catches the puck in a dive gets a hold count of only 5, counted
-// once he stands up: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive.
+// once they stand up: puckglue's move.w #5,temp5(a2) after cmpi.w #SPAgdive.
 const diveFrames = numberPart([site(0x1531e, '357C')], NO_HACKS.diveHold)
 // A number the setting cannot hold (such as 0) reads as unknown, so the ROM's other hacks can still change.
 const diveHold: Part<number> = {
@@ -2283,7 +2283,7 @@ const diveHold: Part<number> = {
   },
 }
 
-// Where a goalie may go. Without the puck he is kept in a box in front of his
+// Where a goalie may go. Without the puck they are kept in a box in front of their
 // net; play is whistled if a goalie a person controls crosses a line, with
 // the puck or without it.
 const goalieWidth = numberPart([site(0xb632, '0C53'), site(0xb650, '0C53', true)], NO_HACKS.goalieWidth)
@@ -2315,7 +2315,7 @@ const speedBurst: Part<number> = {
   apply: (work, value) => void (value > 0 && work.rom.set([OP_MOVEQ_D0, value], BURST_AT)),
 }
 
-// How fast a skater loses speed when he reverses, one place for each direction.
+// How fast a skater loses speed when they reverse, one place for each direction.
 const turnRate = numberPart([site(0x10e24, '066B'), site(0x10e32, '046B'), site(0x10e48, '066B'), site(0x10e56, '046B')], NO_HACKS.turnRate)
 
 // The game clock and the penalty shot clock each take a number from a count
@@ -2354,8 +2354,8 @@ const clock: Part<boolean> = {
 // fall that gets up (SPFfallback+1, 6; +2, the lying time; +3, 8; SPFduck,
 // -8; and +17 / +18 / +19 with SPFduck+4), lying 300 ticks (about 5 seconds;
 // an ordinary fall lies 100). Nothing else uses SPAinjuryfall with no
-// injuries; and FallDown skips a player in it, so he is not knocked down
-// again while he lies there. Head bleeding rewrites the same lists for its
+// injuries; and FallDown skips a player in it, so they are not knocked down
+// again while they lie there. Head bleeding rewrites the same lists for its
 // frames, and with no injuries would never show, so the two do not go
 // together.
 
@@ -2573,7 +2573,7 @@ const onceCode = (clearTarget: number) =>
       '588F 4EF9 0020 03BA',
       // +$20 mark: a3 and a2, then the addi
       '204B 6110 01D0 204A 610A 01D0 0678 03E8 B89C 4E75',
-      // +$34 a0 = the player: d0 = his bit (roster index, +32 for the visitors), a0 = its byte
+      // +$34 a0 = the player: d0 = their bit (roster index, +32 for the visitors), a0 = its byte
       '7000 1028 0066 0828 0006 0062 6704 0640 0020 3200 E649 41F8 F754 D0C1 4E75',
       // +$52 clear at the game's start, then on to the jsr's own target
       `42B8 F754 42B8 F758 4EF9 ${clearTarget.toString(16).padStart(8, '0')}`,
@@ -2634,7 +2634,7 @@ const hotColdRange = numberPart([site(0xf70ac, '303C')], NO_HACKS.hotColdRange)
 // ---------------------------------------------------------------- no icing
 // From the forum (TheTome) and the disassembly (Match Viewer): a2touchpuck
 // ends with bset #ifok,(iflags).w; rts at $1023E, arming an icing check when
-// a player sends the puck from his own half. Skipping it leaves no icing
+// a player sends the puck from their own half. Skipping it leaves no icing
 // state, so no call, and the computer goalie plays a loose puck as usual.
 // The forum's bra.s +2 lands on the bset's address word, $BF80, which runs as
 // eor.l d7,d0 before the rts; NOSE4Web's bra.s +4 goes to the rts. Both are
@@ -2718,7 +2718,7 @@ const delayedCalls: Part<boolean> = {
 //   So a power play adds a skater, and the next whistle after it ends brings
 //   the teams back to three; releasepl's player back from the box in between
 //   makes it 4 on 4.
-//   A team has 6 sort objects and each boxed player keeps his, so a team is
+//   A team has 6 sort objects and each boxed player keeps theirs, so a team is
 //   given no more than 6 less its boxed players (all of them), nor fewer than
 //   3: with three in the box it plays its goalie, C and LW, where it would
 //   have been given three skaters and placed only two, losing the centre
@@ -2732,7 +2732,7 @@ const delayedCalls: Part<boolean> = {
 // - The faceoff places players by a row of .apl for the number on the ice;
 //   the 4-player row was made for a team two short (G, LD, RD, C) and would
 //   put the LW back on the left. In overtime every count takes the full row,
-//   each player on his own spot ($FA6E: neg/addq/asl, the row's offset).
+//   each player on their own spot ($FA6E: neg/addq/asl, the row's offset).
 // - GetLowestPen, the power-play clock, takes a power-play team below 6 to
 //   have its own man in the box too (cmpi.w #6,tmap(a3) at $12A50), and at
 //   4 on 3 showed 0:00 (Match Viewer); in overtime it asks the box list
@@ -2962,7 +2962,7 @@ const puckFriction: Part<number> = {
 }
 
 // ------------------------------------------------------------- penalty time
-// penalty94's .Sa, sending a player to the box: ext.w d2 (his penalty's
+// penalty94's .Sa, sending a player to the box: ext.w d2 (their penalty's
 // minutes, from the penalty table); mulu.w #$3C,d2; bset #$D,d2: the box
 // time, in seconds of the game clock, is the minutes times 60. This is the
 // only place minutes become time. The minutes themselves still go into the
@@ -3010,7 +3010,7 @@ const shootoutInjuries: Part<boolean> = {
 
 // ----------------------------------------------------- time on ice in Player Stats
 // The game counts each player's time on ice (a word per roster place at $136
-// of the team struct, a second for each second of the clock he is on the ice)
+// of the team struct, a second for each second of the clock they are on the ice)
 // but never shows it. This adds a Time On Ice page to Player Stats, as
 // McMarkis's SNES builds have one: right past Penalty Minutes (game stats only,
 // not playoff stats), sorted by it, each row G, A, Pts and TOI as m:ss, the
@@ -3369,18 +3369,18 @@ const organResume: Part<boolean> = {
 // who forced it (a stick steal, puckstick's; or a check that knocked the
 // carrier down, FallDown); else a giveaway for the player who lost it (a pass
 // picked off, the puck lost, run into the other team's goalie or poked off by
-// him: goalies get no takeaways, as in Match Viewer's statistics). Not a
+// them: goalies get no takeaways, as in Match Viewer's statistics). Not a
 // shot (doshot forgets the carrier), a faceoff win (sf3fo), a pass between
 // teammates, or a pass the other team's goalie collects (a dump-in: dopass
 // marks the puck passed); nothing in a highlight or a shootout. NOSE4Web's
-// first version (14 November 2026) credited the forcer whatever his team
+// first version (14 November 2026) credited the forcer whatever their team
 // (Match Viewer found goalies given takeaways when their own skater ran the
 // puck into them) and called every puck a goalie collected a dump-in.
 // - The counts, a byte a roster place (32 a team, home first): giveaways at
 //   $FFE810, takeaways at $FFE850; the last carrier's spot on the ice
-//   $FFE800 and his roster place $FFE804 (kept from his pickup: the player
-//   counted, whoever is in his spot by the time the puck is picked up), who
-//   forced the puck loose $FFE802 ($FFFF none) and his roster place $FFE805;
+//   $FFE800 and their roster place $FFE804 (kept from their pickup: the player
+//   counted, whoever is in their spot by the time the puck is picked up), who
+//   forced the puck loose $FFE802 ($FFFF none) and their roster place $FFE805;
 //   each team's totals at its team struct +
 //   $2232 / $2234 (home $FFE900, visitors $FFEC64), in room Match Viewer
 //   found unused in every recorded game, well past smozROM's plus-minus log
@@ -3416,7 +3416,7 @@ const organResume: Part<boolean> = {
 //   reached the line: the net at y $10C, 2 deep, the puck's radius 5); and
 //   a2touchpuck's move.w (a2),(ltx).w /
 //   move.w Ypos(a2),(lty).w ($1013E), on every touch, by a goalie: puckgoalie
-//   (which calls it), and the puck off his stick or his body (puckstick's
+//   (which calls it), and the puck off their stick or their body (puckstick's
 //   deflection, puckbody), which do not go through puckgoalie. NOSE4Web's
 //   version of 18 November 2026 (bfda480) forgot the passer as it released
 //   a pass at the net, so one picked off in the slot was no giveaway; its
@@ -3650,7 +3650,7 @@ const giveaways: Part<boolean> = {
 }
 
 // ------------------------------------------------------------ blocked shots
-// Each skater's blocked shots: a shot of the other team's that his body
+// Each skater's blocked shots: a shot of the other team's that their body
 // stops (the commissioner's definition: shots only, by a skater, not a
 // goalie). puckbody (collide94.asm), reached from the puck's collision check
 // (.chkbody) for skaters only (position 0, a goalie, goes to .chkgoalie),
@@ -4171,7 +4171,7 @@ export const narrowRating = (value: number) => Math.min(6, Math.round(value / 2.
 
 // The project with its ROM hacked as wanted. Where the rating scale or the
 // base weight changes, every player's ratings or weight are restated in the
-// new terms, so that each stays as near as can be to what he was.
+// new terms, so that each stays as near as can be to what they were.
 export function applyHacks(project: RomProject, wanted: HackChoices): RomProject {
   if (!hacksSupported(project.game)) throw new HackError('Hacks cannot be applied to this kind of ROM.')
   const before = detectHacks(project.bytes)

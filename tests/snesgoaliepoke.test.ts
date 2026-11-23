@@ -24,7 +24,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     // d4 = d3 + d4 (the top kept), d3 = 0 (the bottom at the ice); ldx curobj; rts.
     expect(hex(on.bytes, code, 33)).toBe('85b1a691bda311c928e5d012a90600c5ad900285ada5b11865b585b564b1a6e460')
     // assgoalie .22's sta pfalock,x ($14E3) before lda #SPAgpoke becomes a jsr to code after it storing $80, so a
-    // poke straight up the ice (direction 0) locks his facing too.
+    // poke straight up the ice (direction 0) locks their facing too.
     const lockAt = 0xf5599 - 3
     expect(hex(project.bytes, lockAt, 6)).toBe('9de314a928e5')
     expect(on.bytes[lockAt]).toBe(0x20)

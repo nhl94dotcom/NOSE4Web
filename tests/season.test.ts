@@ -43,7 +43,7 @@ describe('season names', () => {
 })
 
 describe('weights between eras', () => {
-  it('keeps a player as near as can be to the pounds he weighed', () => {
+  it('keeps a player as near as can be to the pounds they weighed', () => {
     expect(WEIGHT_BASES[0]).toBe(102)
     expect(WEIGHT_BASES[WEIGHT_BASES.length - 1]).toBe(152)
     expect(weightBase('weight')).toBe(140)

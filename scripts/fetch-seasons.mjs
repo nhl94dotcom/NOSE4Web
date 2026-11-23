@@ -51,7 +51,7 @@ function split(fullName) {
 
 const landings = new Map()
 
-// Each player's teams that season, in the order he played for them, by player id.
+// Each player's teams that season, in the order they played for them, by player id.
 async function teamOrder(kind, id) {
   const order = new Map()
   for (let start = 0; ; start += 100) {

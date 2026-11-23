@@ -14,7 +14,7 @@ const files = (project: RomProject) =>
   photoSet(project).map((entry) => ({ name: entry.name, rgba: pictureToImage(entry.picture, entry.palette, entry.format), width: 48, height: 48 }))
 
 describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis photos in a picture set', () => {
-  it('names a file for each player with a photo of his own, and brings an exported set back unchanged', () => {
+  it('names a file for each player with a photo of their own, and brings an exported set back unchanged', () => {
     const project = open('nhl94.bin')
     const set = photoSet(project)
     expect(set.length).toBeGreaterThan(100)

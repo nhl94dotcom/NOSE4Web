@@ -370,7 +370,7 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   openNetFix: { at: 0x84ed2, original: hex('4240 B87C 002C'), hacked: hex('7008 B87C 002C') },
   // NHL 94's fixes at NHL '95's places (the same code there):
   // - CPgoalie ($83662) pulls a computer goalie in the last minute only when
-  //   exactly two behind (bmi / cmp #2 / bne at $83674); ble / bgt pulls him
+  //   exactly two behind (bmi / cmp #2 / bne at $83674); ble / bgt pulls them
   //   one or two behind, as NHL 94's fix does.
   goaliePullFix: { at: 0x83674, original: hex('6B00 E3E6 B07C 0002 6600 E3DE'), hacked: hex('6F00 E3E6 B07C 0002 6E00 E3DE') },
   // - doshot: within range, a shot by a team whose goalie is off the ice goes
@@ -391,15 +391,15 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
   // - SelectLinePlayer ($952F8), Edit Lines' list for a slot: bgt.w .n / add.w d0,d1 at $95312 lists only forwards for
   //   a forward slot and only defencemen for a defence one, as NHL 94's ($83A4). NOPs list every skater for each.
   //   NHL '95 saves a line's raw player bytes (SaveTeamLines $95A90), so unlike NHL 94 nothing else is needed: a
-  //   defenceman saved at forward loads as himself.
+  //   defenceman saved at forward loads as the same player.
   anyPosition: { at: 0x95312, original: hex('6E00 000C D240'), hacked: hex('4E71 4E71 4E71') },
-  // - asscenterd (the same code as NHL 94's, hacks.ts centreDefenceFix): out of his zone the computer centre
-  //   on defence skates halfway from his slot (moveq #-$7E,d1 at $80E0A) to the puck, but add.w (pucky).w,d1 at
+  // - asscenterd (the same code as NHL 94's, hacks.ts centreDefenceFix): out of their zone the computer centre
+  //   on defence skates halfway from their slot (moveq #-$7E,d1 at $80E0A) to the puck, but add.w (pucky).w,d1 at
   //   $80E14 takes the raw puck y where the end-turned d2 belongs, so at one end the spot is mirrored. add.w d2,d1 /
   //   nop. (The defence mode 1 .cover path, NHL '95's own, does not come here.)
   centreDefenceFix: { at: 0x80e14, original: hex('D278 B376'), hacked: hex('D242 4E71') },
   // - AdjustFacingDirection (the same code as NHL 94's, hacks.ts goalieTurnFix): the test that keeps a computer
-  //   goalie from turning through his own net runs from facings 1 and 6 (btst d1,#$42 at $80444), where the bottom
+  //   goalie from turning through their own net runs from facings 1 and 6 (btst d1,#$42 at $80444), where the bottom
   //   goalie needs 2. #$44 (2 and 6).
   goalieTurnFix: { at: 0x80444, original: hex('033C 0042'), hacked: hex('033C 0044') },
   // - doshot (the same code as NHL 94's, hacks.ts shotScatterFix): a shot that is not exact gets a random
@@ -422,9 +422,9 @@ const SWITCHES: Partial<Record<Nhl95Hack, { at: number; original: Uint8Array; ha
     hacked: hex('B278 DC70 6D00 0014 C1C0 C3C1 D081 B078 DC74'),
   },
   // - chgplayer (B, choosing the pad's skater: NHL '95's own bug; Match Viewer's reading). It skips a locked skater
-  //   (pfalock: down, checking, bursting) except the pad's own: beq.w .2 at $AC0A jumps past the lock test for him.
-  //   Down or busy he is usually nearest the puck, so he is chosen again, and .same does nothing while he is locked:
-  //   the press is lost until he is free. NOPs make the lock test cover him too, as in NHL 94, so B takes the next
+  //   (pfalock: down, checking, bursting) except the pad's own: beq.w .2 at $AC0A jumps past the lock test for them.
+  //   Down or busy, they are usually nearest the puck and so chosen again, and .same does nothing while locked:
+  //   the press is lost until they are free. NOPs make the lock test cover them too, as in NHL 94, so B takes the next
   //   best. (.pass2's copy at $AD08 runs only when the pad has no skater, so it can never be taken; left alone.)
   lockedChangeFix: { at: 0xac0a, original: hex('6700 000C'), hacked: hex('4E71 4E71') },
 }
@@ -547,7 +547,7 @@ function switchState(rom: Uint8Array, hack: Nhl95Hack): boolean | undefined {
 // NHL 94's (hacks.ts, the blind ring). checkpuckcoll hands a low loose puck in
 // a goalie's stick box to puckstick and skips the body test (bsr.w puckstick /
 // bra.w .exit at $7B6B8), but puckstick takes it for a goalie only within 8
-// units of his blade (cmp.l #$40,d0), so between nothing touches the puck.
+// units of their blade (cmp.l #$40,d0), so between nothing touches the puck.
 // NHL '95's box is a square of +-14 ($E; goalies are never in a one-timer),
 // and its distance test compares with the address of ChkStickSqP, not its
 // value ($FFFFDC76 at $7B6A2), so always passes: the dead area runs from 8
@@ -974,7 +974,7 @@ function organState(rom: Uint8Array): boolean | undefined {
 // the flag, the lift in whole eighths (12 at most, cleared with the flag), at
 // NHL '95's puckvz ($B38E). Then the receiver's wait. It is a signed byte,
 // which asspassrec counts down with bpl, so a wait over 127 is taken as over
-// already and the receiver goes back to his own play. The original's wait
+// already and the receiver goes back to their own play. The original's wait
 // passes 127 only on passes over about 2.3 s; with the slow pass's four times
 // and the exact time, from about half a second. Match Viewer played three
 // ways: with no cap fewer slow passes were caught (original game 64 against 75,
@@ -986,7 +986,7 @@ function organState(rom: Uint8Array): boolean | undefined {
 // in the original, and otherwise the exact one, at most 127. The hook takes the 74 bytes from the time's loop to .5 ($84804);
 // after it the wait comes from the code in d0 (.5's move.w d2,d0 / asl.w
 // #3,d0 / subi.w #10,d0 become NOPs), the puck's no-touch time is it less 6
-// as before, and as in NHL 94 where he will be is / 16 (asr.l #4 for #1) and
+// as before, and as in NHL 94 where they will be is / 16 (asr.l #4 for #1) and
 // the speed / 15 t (mulu.w #$F, for #$78).
 const ROCKET_HOOK = {
   at: 0x847ba,
@@ -1002,7 +1002,7 @@ const ROCKET_CODE = Uint8Array.from([
   // The lift, as NHL '95 makes it.
   ...hex('3002 E648 11C0 B38E B07C 000C 6D12 11FC 000C B38E 0838 0001 BF08 6704 4278 B38E'),
   // $78, where both lift paths end: the wait in d0. The original's (eighths x 8 - 10) where that is over 127,
-  // so the receiver gives up as he would there; otherwise the exact one (64ths - 10), at most 127.
+  // so the receiver gives up as they would there; otherwise the exact one (64ths - 10), at most 127.
   ...hex('E741 0441 000A B27C 007F 6E10 3002 0440 000A B07C 007F 6F02 707F 4E75 3001 4E75'),
 ])
 const ROCKET_EDITS = [
@@ -1060,7 +1060,7 @@ const SETUP_ROWS = 8
 const SETUP_LABEL_BYTES = 16
 
 // Match Viewer's fix to the patch: its willingness test builds the opponent's
-// hits term in d1 (-2 x his hits) and then calls the routine at $1E04D2 for
+// hits term in d1 (-2 x their hits) and then calls the routine at $1E04D2 for
 // the 8 or 16 by period length, which loads the period length into d1 and so
 // overwrites it: on 5- and 10-minute periods no fight could ever start, on
 // 20-minute ones hits played no part. That routine uses d2 instead, which
@@ -1147,7 +1147,7 @@ function applyFight(rom: Uint8Array, on: boolean, start: FightStart) {
 // boosted team while the timer runs and the clock runs (gmode $BEF0 bit 0
 // clear). The winner: in Vancecookcobxin's fight engine (nhl95fightdata.ts)
 // the knockout, where the punched fighter's health goes below 0, finds the
-// puncher (a3) in the penalty list to mark him Fighting *, then does
+// puncher (a3) in the penalty list to mark them Fighting *, then does
 // move.w #$FFFF,$44(a3) at $1E0980 (FIGHT95_WINNER_AT, the twin of NHL 94's
 // .FightFall move): the only place a fight gets its winner. That becomes a
 // jsr that keeps the winner's team bit (pflags $62 bit 6, $00 home / $40
@@ -1288,7 +1288,7 @@ const onceCode95 = (clearTarget: number) =>
       '588F 4E75',
       // +$1C mark: a4 and a5, then the addi
       '204C 6110 01D0 204D 610A 01D0 0678 03E8 B4B4 4E75',
-      // +$30 a0 = the player: d0 = his bit (roster index, +32 for the visitors), a0 = its byte
+      // +$30 a0 = the player: d0 = their bit (roster index, +32 for the visitors), a0 = its byte
       '7000 1028 0066 0828 0006 0062 6704 0640 0020 3200 E649 41F8 F754 D0C1 4E75',
       // +$4E clear at the game's start, then on to the jsr's own target
       `42B8 F754 42B8 F758 4EF9 ${clearTarget.toString(16).padStart(8, '0')}`,
@@ -1390,7 +1390,7 @@ const noSkatingDrain95 = switchPart(0x8c1a8, hex('6600'), hex('6000'))
 const burstEnergy95 = numberPart([site(0xaa96, '0440')], NO_NHL95_HACKS.burstEnergy)
 
 // Goalies: the hold count's start, and assgoaliectrl's count down (the computer goalie's, at $7FF5C, is left as in
-// NHL 94); the box a goalie a person controls keeps to without the puck; the line he is whistled past.
+// NHL 94); the box a goalie a person controls keeps to without the puck; the line they are whistled past.
 const holdFrames95 = numberPart([site(0x7bb46, '357C')], NO_NHL95_HACKS.goalieHold)
 const holdCounted95 = switchPart(0x830fa, hex('9F6B'), hex('6002'))
 const goalieHold95: Part<number> = {
@@ -1886,7 +1886,7 @@ const threeStars95: Part<ThreeStars> = {
   apply: (work, value) => work.rom.set(STARS95[value], STARS_AT95),
 }
 // Bodychecks: FallDown's .AddChktoPlayerStats ($7B164), where NHL '95 already adds 1 to the checker's +$11E, goes
-// through code that also adds 1 to his +$104, his penalty minutes, while the clock runs; the penalty's add to them
+// through code that also adds 1 to their +$104, their penalty minutes, while the clock runs; the penalty's add to them
 // ($8941E) goes; Player Stats' PIM heading and Penalty Minutes title become Chk and Checks For.
 const CHECK_HOOK95: Hook = { at: 0x7b164, original: hex('5268 0010 4240 102B 0066 D0C0 5228 011E') }
 const CHECK_CODE95 = hex('5268 0010 4240 102B 0066 D0C0 5228 011E 0839 0000 00FF BEF0 6604 5228 0104 4E75')
@@ -1969,11 +1969,11 @@ const toiParts95 = TOI_KEYS95.map((key) => ({ key, part: hookedFix(TOI_HOOKS95[k
 // not have reached the line: NHL '95's nets are at y $112 and -$112, 6 deep each way and $C wide each way of x 0, so
 // the front is at $10C, and the puck's radius is 5); and a2touchpuck's move.w (a2),(ltx).w / move.w Ypos(a2),(lty).w
 // ($8142C, ltx $BB82, lty $BB84), on every touch, by a goalie (position 0): puckgoalie (which calls it), and the puck
-// off his stick or his body (puckstick's .stdef, puckbody), which do not go through puckgoalie. NHL 94's rule with
+// off their stick or their body (puckstick's .stdef, puckbody), which do not go through puckgoalie. NHL 94's rule with
 // NHL '95's rink: its blue and goal lines (NHL 94's are $58 and $108); the 20 and 40, about the net, as NHL 94's.
 const GT_BODY95_18B = hex(
   '6000 001E 6000 0100 6000 0110 6000 0136 6000 0146 6000 0168 6000 016C 6000 0114 302A 0052 31C0 B3C2 48E7 E0C0 0838 0004 BEF0 6600 0088 0838 0000 BF00 666C 0838 0004 BEF6 6664 3238 EA00 6B5E EF49 41F8 AC62 D0C1 1428 0062 122A 0062 B302 0802 0006 6746 3238 EA02 0C41 FFFF 6732 4A41 6B28 EF49 43F8 AC62 D2C1 4A69 0034 6720 1429 0062 102A 0062 B102 0802 0006 6610 1038 EA05 7402 612A 6010 4A6A 0034 670A 2248 1038 EA04 7400 6118 31EA 0052 EA00 11EA 0066 EA04 31FC FFFF EA02 4CDF 0307 4E75 0240 00FF 0C40 0020 6438 0829 0006 0062 6704 0640 0020 41F8 EA10 4A42 6704 41F8 EA50 0C30 00FF 0000 6704 5230 0000 41F8 EB00 0829 0006 0062 6704 41F8 EE66 5270 2000 4E75 31E8 0052 BAD8 31EA 0052 EA02 11EA 0066 EA05 4E75 50F8 B3C2 31EB 0052 EA02 11EB 0066 EA05 0838 0004 BEF0 4E75 50F8 B3C2 177C 0010 005E 31FC FFFE EA02 4E75 08F8 0004 BEF4 31FC FFFF EA00 31FC FFFF EA02 4E75 4278 C02C 4278 C196 21FC FFFF FFFF EA00 41F8 EA10 701F 4298 51C8 FFFC 42B8 EB00 42B8 EE66 4E75 7C0F 43FA 0000 4E75 3C3C 000B 43FA 0000 4E75 ' +
-    // +$190, the stumble: the hitter is the forcer of the carrier he knocked down; then DropPuck, and on to .hitter.
+    // +$190, the stumble: the hitter is the forcer of the carrier they knocked down; then DropPuck, and on to .hitter.
     '3F00 302A 0052 B078 B3C2 660C 31EB 0052 EA02 11EB 0066 EA05 301F 4EB9 0007 C4F6 588F 4EF9 0007 B426 ' +
     // +$1B8, the goalie's touch: bclr #2,(sflags4).w, then the carrier of a pass ($FFFE) forgotten.
     '08B8 0002 BEFA 0C78 FFFE EA02 6606 31FC FFFF EA00 4E75 ' +
@@ -2210,7 +2210,7 @@ const timeOnIce95: Part<boolean> = {
 }
 
 // Blocked shots: NHL 94's (hacks.ts, blockedShots, BLK_CODE) with NHL '95's addresses. Each skater's blocked shots:
-// a shot of the other team's that his body stops, while sf2shot (sflags2 $BEF4 bit 4, set by doshot, cleared by
+// a shot of the other team's that their body stops, while sf2shot (sflags2 $BEF4 bit 4, set by doshot, cleared by
 // a2touchpuck, wallcoll and ChkShotStat) still stands, the shooter (shotplayer $BAD6, the spot doshot keeps as it sets
 // sf2shot; SortCords $AC62) on the other team; not in a highlight (gmode $BEF0 bit 4) or a shootout (gmode2 $BF00 bit
 // 0), not a goalie (position $34). The hook: puckbody's first instruction, btst #pf3onetimer,pflags3(a2) at $7BCA8,
@@ -2643,7 +2643,7 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
     throw new Nhl95HackError(e instanceof Error ? e.message : String(e))
   }
   // The editor reads a weight by the ROM's base weight (games.ts), so a new one makes it another kind of ROM, and as
-  // in NHL 94 every player's weight moves to the step nearest the pounds he weighed.
+  // in NHL 94 every player's weight moves to the step nearest the pounds they weighed.
   const game = findGame(project.game.productCode, work.rom) ?? project.game
   if (want.baseWeight === choices.baseWeight) return { ...project, bytes: work.rom, game }
   const restate = (player: Player, isGoalie: boolean): Player => {

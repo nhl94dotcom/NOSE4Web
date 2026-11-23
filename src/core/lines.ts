@@ -25,7 +25,7 @@ const DEFENCE_LINE_SLOTS = [1, 2]
 
 // The positions of a line held by a player who is already in an earlier one.
 // The game plays such a line a skater short: when it next works out who should
-// be on the ice, the second copy of him finds no position and leaves it.
+// be on the ice, the second copy of the player finds no position and leaves it.
 export function repeatedLineSlots(line: number[]): number[] {
   const seen = new Set<number>()
   return SKATER_LINE_SLOTS.filter((slot) => {
@@ -39,8 +39,8 @@ export function repeatedLineSlots(line: number[]): number[] {
 
 // A line with each repeated skater replaced by one not on it yet: a defenceman
 // for a defence position and a forward for a forward's, if there is one free.
-// Of a player's positions, he keeps one that is not in `changed` (positions
-// just given him, as when a deleted player's fall to the last on the roster),
+// Of a player's positions, they keep one that is not in `changed` (positions
+// just given them, as when a deleted player's fall to the last on the roster),
 // else the first.
 export function withoutRepeats(team: Team, line: number[], changed: number[] = []): number[] {
   const repeated = SKATER_LINE_SLOTS.filter((slot) => {

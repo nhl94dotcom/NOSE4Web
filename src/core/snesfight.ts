@@ -25,7 +25,7 @@ export const SNES_FIGHT_BONUS_RANGE: [number, number] = [0, 8]
 
 const decode = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0))
 // A version of the patch: the current one, NOSE4Web's second (without McMarkis's pairing of the fighters' majors)
-// and its first (without his fix for a player hurt in a fight either), recognised so that they can be taken out or
+// and its first (without their fix for a player hurt in a fight either), recognised so that they can be taken out or
 // brought up to date.
 interface FightVersion {
   changes: { at: number; original: Uint8Array; patched: Uint8Array }[]

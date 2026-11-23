@@ -6,7 +6,7 @@ import { cardRows, cardValueText, usableSort, type RosterCardOptions } from './c
 import { goalieCount, teamDisplayName, type Team } from './core/team'
 
 // A team's roster as a picture, sized to post in a chat: the team's name
-// over a table of every player with his number, position and ratings.
+// over a table of every player with their number, position and ratings.
 // The options choose each group's order, how ratings are written and whether
 // the overall is shown; the column orders are the editor's (core/columnorder.ts).
 export interface RosterCardLayout extends RosterCardOptions {

@@ -146,7 +146,7 @@ export function takeOutClockwise(rom: Uint8Array, had?: Uint8Array): void {
 
 // ---------------------------------------------------- NOSE4Web's additions
 // NOSE4Web's touch-ups in Clockwise's style (tapedata.ts), which go in and out
-// with Clockwise's: tape and eyes in sprite frames he left untaped, tape on the
+// with Clockwise's: tape and eyes in sprite frames they left untaped, tape on the
 // sticks in the faceoff close-up, and in the fight frames of chaos's fighting
 // patch with the eye of the overhand punch.
 // They do not change whether the edit reads on (clockwiseState), so a ROM made
@@ -191,7 +191,7 @@ const takeOutEach = (rom: Uint8Array, list: Touch[], base = 0) => {
 // The untaped frames' tape, in the sprite tiles as Clockwise's records are, and like them each alone, leaving
 // alone any tile a league has redrawn (where one of Clockwise's records or one of these has neither its bytes before
 // nor after). And only where the ROM has the sprite tiles where the original game does (at least half of Clockwise's
-// records with his bytes or the original game's), as a ROM with other things there could match a few by chance.
+// records with their bytes or the original game's), as a ROM with other things there could match a few by chance.
 const tileSpan = (at: number, length: number) => {
   const first = Math.floor((at - SPRITE_TILES) / 32)
   const last = Math.floor((at + length - 1 - SPRITE_TILES) / 32)

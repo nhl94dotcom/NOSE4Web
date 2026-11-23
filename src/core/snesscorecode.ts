@@ -6,7 +6,7 @@ import { freeSpace, keptBanks, snesLogo } from './snespictures'
 import { blankScoreLogo, SCORE_BLACK, SCORE_FIRST_OWN, SCORE_LOGO, SCORE_LOGO_ROWS, SCORE_RING, withSnesScoreLogo } from './snesscorelogos'
 
 // Score box logos for the original SNES game and ROMs laid out like it,
-// adapted, with McMarkis's permission, from his 32-team build
+// adapted, with McMarkis's permission, from their 32-team build
 // (NHL94SNES-SA1, src/routines/hockey/ScoreLogo.asm). Where the game prints a
 // team's three letters in the score box, and its name in the clock box on a
 // power play, it draws the team's small logo; a team without one keeps its

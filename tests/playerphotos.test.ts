@@ -21,7 +21,7 @@ function paste(project: RomProject, from: number, indexes: number[], to: number,
   return withPlayerPhotos({ ...project, teams: project.teams.map((t, i) => (i === to ? team : t)) }, to, rows)
 }
 
-// A skater on a team other than Anaheim with a photo of his own.
+// A skater on a team other than Anaheim with a photo of their own.
 const find = (project: RomProject) => {
   for (let team = 1; team < project.teams.length; team++) {
     const goalies = goalieCount(project.teams[team])
@@ -32,8 +32,8 @@ const find = (project: RomProject) => {
 }
 
 for (const name of ['nhl94.bin', 'NHL94.smc']) {
-  describe.skipIf(!existsSync(path(name)))(`a player copied with his photo (${name})`, () => {
-    it("brings a player and his photo onto one of Anaheim's rows", () => {
+  describe.skipIf(!existsSync(path(name)))(`a player copied with their photo (${name})`, () => {
+    it("brings a player and their photo onto one of Anaheim's rows", () => {
       const project = open(name)
       const graves = find(project)
       const own = playerPhoto(project, graves.team, graves.slot)
@@ -52,10 +52,10 @@ for (const name of ['nhl94.bin', 'NHL94.smc']) {
       expect(playerPhoto(reopened, graves.team, graves.slot)).toEqual(own)
     })
 
-    it('gives a row a stand-in when its new player has no photo of his own, and leaves photos alone for attributes only', () => {
+    it('gives a row a stand-in when its new player has no photo of their own, and leaves photos alone for attributes only', () => {
       const project = open(name)
       const graves = find(project)
-      // A Rangers skater without a photo of his own, pasted over Graves.
+      // A Rangers skater without a photo of their own, pasted over Graves.
       const goalies = goalieCount(project.teams[graves.team])
       const plain = project.teams[graves.team].players.findIndex((_, slot) => slot >= goalies && !playerPhoto(project, graves.team, slot))
       const result = paste(project, graves.team, [plain], graves.team, [graves.slot])

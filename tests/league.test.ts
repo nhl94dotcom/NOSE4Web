@@ -36,7 +36,7 @@ describe.skipIf(!hasRom)('looking across the league', () => {
     const roy = findPlayers(project, 'roy')
     expect(roy.map((p) => p.player.name)).toContain('Patrick Roy')
     const exact = findPlayers(project, 'ROY patrick')
-    // He is on Montreal and on an All Stars team.
+    // Roy is on Montreal and on an All Stars team.
     expect(exact.map((p) => p.player.name)).toEqual(['Patrick Roy', 'Patrick Roy'])
     expect(exact[0]).toMatchObject({ team: MONTREAL, role: 'G' })
     expect(exact[0].overall).toBe(overallRating(exact[0].player.attributes, true))

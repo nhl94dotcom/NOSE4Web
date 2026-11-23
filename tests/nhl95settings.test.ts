@@ -244,7 +244,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(detectNhl95Hacks(half).unknown).toEqual(['clutchTime'])
   })
 
-  it.each(names)('sets the base weight in %s: the editor reads weights by it, and every player keeps his pounds', (name) => {
+  it.each(names)('sets the base weight in %s: the editor reads weights by it, and every player keeps their pounds', (name) => {
     const rom = open(name)
     const pounds = (project: typeof rom) =>
       project.teams.flatMap((team) => team.players.map((player) => Number(attributeText(project.game.playerAttributeKinds[0], player.attributes[0]))))
@@ -253,7 +253,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(on.game.productCode).toBe(rom.game.productCode)
     expect(on.game.edition).toBe(95)
     expect([on.game.playerAttributeKinds[0], on.game.goalieAttributeKinds[0]]).toEqual(['weight:144', 'weight:144'])
-    // Each weight moves to the step nearest his pounds: at most 4 pounds out, and the lightest no lighter than 144.
+    // Each weight moves to the step nearest their pounds: at most 4 pounds out, and the lightest no lighter than 144.
     const [was, now] = [pounds(rom), pounds(on)]
     now.forEach((weight, i) => expect(Math.abs(weight - Math.max(144, was[i]))).toBeLessThanOrEqual(4))
     // Saved and opened again: the same kind of ROM, the same weights; the website file has the steps, as for NHL 94.

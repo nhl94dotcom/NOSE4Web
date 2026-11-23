@@ -164,7 +164,7 @@ export const FACEOFF_PACKED_TAPE_FIRST: Tape[] = [
 
 // The player sprites' frames that Clockwise's edit left untaped (2026-11-22): tape at the blade's end on the
 // goalies' and skaters' sticks in 34 frames, and the eyes of frames 168, 615 and 627, in the sprite tiles where
-// Clockwise's records are (clockwise.ts; none of these bytes is in one of his records). From the NHL94 Match
+// Clockwise's records are (clockwise.ts; none of these bytes is in one of their records). From the NHL94 Match
 // Viewer project's records, less five frames they left out on a closer look (205, 490, 673, 721, 809). 108
 // bytes in 96 runs; the frames each is in after it.
 export const SPRITE_TAPE: Tape[] = [

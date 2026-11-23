@@ -1,6 +1,6 @@
 // Made-up attributes for a player: an archetype (a sniper, a grinder, a stay-at-home defenceman...) at a level (a
 // superstar to a weak depth player), or random ones at that level. For filling a roster or making rookies; the
-// player keeps his name, number and, unless random, his shooting or glove hand.
+// player keeps their name, number and, unless random, their shooting or glove hand.
 //
 // Each attribute is worked out as a share of its range (0 the lowest, 1 the highest): the level's share, moved up
 // or down by the archetype, give or take a little so that two players of a kind are not the same. It is then put
@@ -43,7 +43,7 @@ export function randomLevel(random: () => number = Math.random): Level {
   }
 }
 
-// How often he takes penalties (Agr), as a share of its range. Kept to the lower half: the original game wraps
+// How often they take penalties (Agr), as a share of its range. Kept to the lower half: the original game wraps
 // Aggression round above that (ratinguse.ts), so a high value would not mean more penalties there.
 const DISCIPLINE = { low: 0.17, mid: 0.33, high: 0.5 }
 
@@ -53,7 +53,7 @@ export interface Archetype {
   // What the archetype adds to the level's share, by column label.
   more: Record<string, number>
   pounds: number
-  // Fighting, 0 to 7 (0 to 100 on the editor's scale): how long the men he injures are out, on the Genesis.
+  // Fighting, 0 to 7 (0 to 100 on the editor's scale): how long the men they injure are out, on the Genesis.
   fighting: number
   discipline: keyof typeof DISCIPLINE
 }
@@ -155,7 +155,7 @@ export function handedFighting(kind: AttributeKind, fighting: number, right: boo
   return fighting * 2 + (odd ? 1 : 0)
 }
 
-// The attributes for one player. `current` is his attributes now, whose hand (and anything the editor does not know
+// The attributes for one player. `current` is their attributes now, whose hand (and anything the editor does not know
 // the meaning of) is kept; `random` gives a number from 0 to 1, as Math.random does.
 export function madeAttributes(
   game: Pick<GameConfig, 'playerAttributeKinds' | 'goalieAttributeKinds' | 'playerAttributeLabels' | 'goalieAttributeLabels'>,

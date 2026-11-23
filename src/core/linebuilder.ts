@@ -42,8 +42,8 @@ const DEFENCE_PENALTY_KILL: Weights = { DfA: 2, Chk: 1.5, Spd: 1, Agl: 1, Wgt: 0
 // The centre of three forwards: the one who sets up the others.
 const CENTRE: Weights = { Pas: 2, StH: 1.5, OfA: 1 }
 
-// Which side of the ice a player goes to by the hand he shoots with: his
-// shooting side (a left shot on the left), his off side (a left shot on the
+// Which side of the ice a player goes to by the hand they shoot with: their
+// shooting side (a left shot on the left), their off side (a left shot on the
 // right, as many players like their wingers), or either.
 export type HandSide = 'shooting' | 'off' | 'either'
 export interface LineBuilderOptions {
@@ -56,9 +56,9 @@ export const HAND_SIDES: { value: HandSide; label: string }[] = [
   { value: 'off', label: 'Off side (left shot on the right)' },
   { value: 'either', label: 'Either side' },
 ]
-// For the defence, what each side does when he turns right around: a skater's
-// hand decides which way he turns on a straight reversal (doplayeracc's
-// noturn0: a left shot clockwise, to his right; a right shot to his left), so
+// For the defence, what each side does when they turn right around: a skater's
+// hand decides which way they turn on a straight reversal (doplayeracc's
+// noturn0: a left shot clockwise, to their right; a right shot to their left), so
 // a left-shot LD and a right-shot RD turn toward the middle, whichever way the
 // team attacks (Match Viewer, from the code of both systems and in play on both:
 // Genesis 19 of 19 and 8 of 8, SNES 7 of 7 and 6 of 6).

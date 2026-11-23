@@ -89,7 +89,7 @@ export interface LineupRatings {
   // The goalie of the first line.
   goalie: number | null
   // The average overall of every skater on the even strength lines (Sc1,
-  // Sc2 and Chk), each counted once however many of them he is on, and of
+  // Sc2 and Chk), each counted once however many of them they are on, and of
   // the first line's goalie, as one more. Where a ROM has no such lines, the
   // first line's skaters and its goalie.
   overall: number | null

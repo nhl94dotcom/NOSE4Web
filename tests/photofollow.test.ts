@@ -23,14 +23,14 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis photos follow their pla
   it('through a trade: the photo goes to the new team, and the old team keeps six', () => {
     const project = stock()
     const before = genesisFaces(project, 1)
-    // A Boston skater with a photo of his own.
+    // A Boston skater with a photo of their own.
     const photo = teamPhotos(project, 1).find((p) => !p.generic && p.slot >= goalieCount(project.teams[1]))!
     const name = project.teams[1].players[photo.slot].name
     const after = withTeams(project, transferPlayers(project.teams, 1, [photo.slot], 2))
     expect(genesisFaces(after, 2).get(name)).toBe(before.get(name))
     expect(genesisFaces(after, 1).has(name)).toBe(false)
     expect(teamPhotos(after, 1).length).toBeGreaterThanOrEqual(6)
-    // Everyone who stayed keeps his face.
+    // Everyone who stayed keeps their face.
     for (const [player, face] of genesisFaces(after, 1)) if (before.has(player)) expect(face).toBe(before.get(player))
     expect(genesisFaces(openRom(buildRom(after)), 2).get(name)).toBe(before.get(name))
   })

@@ -181,7 +181,7 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   skipEaIntro: [{ at: 0x9f8289, original: '2236F49F', hacked: 'EAEAEAEA' }],
   // Ron Barr's pick: ScoutingReport sets hotterteam to the team whose players'
   // hot and cold sum is higher (the home team on a tie), then clears it unless
-  // the two differ by 4 or more (cmp #$0004 / bcs), so his "hotter team" line
+  // the two differ by 4 or more (cmp #$0004 / bcs), so Barr's "hotter team" line
   // comes only in some games. With 0 it comes every game.
   barrPick: [{ at: 0x9d8324, original: 'C90400', hacked: 'C90000' }],
   // Ron Barr's pick by a coin flip: from lda #$0001 / sta hotextreme to the
@@ -192,12 +192,12 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
   barrCoin: [{ at: 0x9d82fe, original: 'A90100 8D431E AD451E 38 ED471E 3002 800D', hacked: '9C431E 22588680 1006 AD9A1C 8D411E 6B EA' }],
   skipPucksIntro: [{ at: 0x9f82c0, original: '2218B19D', hacked: 'EAEAEAEA' }],
   // NHL94SNESVault's ExtraAttackerFix (issue 10), as it has it: in Edit Lines,
-  // picking a line's extra attacker for one of its positions puts him in both
-  // and drops the player he replaced, since the game's own swap checks look at
+  // picking a line's extra attacker for one of its positions puts them in both
+  // and drops the player they replaced, since the game's own swap checks look at
   // neighbouring places only (Match Viewer tested it in the game). Edit Lines'
   // test of the line position (cmp #1) becomes a call to the Vault's code,
   // which finds the player moved among the line's places, the extra attacker's
-  // too, and puts him back, then makes that test. Its code uses the original
+  // too, and puts them back, then makes that test. Its code uses the original
   // game's work memory, so it is offered only in ROMs laid out as the original.
   // The Vault's searches the line's own number of rows and the extra
   // attacker's place after them (lineslots + 1 places from lineslots down),
@@ -230,7 +230,7 @@ const SITES: Partial<Record<SnesHack, Site[]>> = {
     { at: 0x9ffb43, original: free(17), hacked: 'A516 C98000 B003 4CBD9A A96400 8DA500 6B' },
   ],
   // NHL94SNESVault's ManualPullGoalie: during play, L and R together pull a
-  // team's goalie for an extra attacker, or put him back, with a beep. Where
+  // team's goalie for an extra attacker, or put them back, with a beep. Where
   // the game reads whether the goalie is in the net, it first checks the pads:
   // the team's pad (player 1 for home, player 2 for away, or the first of
   // them on it) with L and R pressed turns GoalieInNetHmAw over, unless the
@@ -739,7 +739,7 @@ const SHOOTOUT_STARS_FRAMES = 180
 // goalie and its line's LW, C and RD; a penalty gives the other team a skater
 // more (4 on 3, 5 on 3), 4 on 4 when it ends until the next whistle, then 3 on
 // 3 again; a team with three in the box plays two skaters, as a team has six
-// sort objects and each boxed player keeps his (Match Viewer, on the Genesis).
+// sort objects and each boxed player keeps theirs (Match Viewer, on the Genesis).
 // The SNES has no overtime mark: overtime is gsp 3 or more, and not in a
 // shootout (shootoutmode) or a penalty shot (penshot); for the regular season
 // only, OptPlayMode 0 too. Its places, found by the code around them:
@@ -762,7 +762,7 @@ const SHOOTOUT_STARS_FRAMES = 180
 //   puts both teams back to 6.
 // - puckfaceoff2's row of its formation table for the number on the ice
 //   (lda d4 / negate / adc #6 / asl x3 / sta d4) becomes jsr / nops: in
-//   overtime the full row, each player on his own spot.
+//   overtime the full row, each player on their own spot.
 // - GetLowestPen's power-play team at full strength test (lda tmap,y /
 //   cmp #6, then beq) becomes jsr / nops: in overtime Z is set when that team
 //   has no one in its box list but for coincidental penalties.
@@ -1245,7 +1245,7 @@ function withFarCode(rom: Uint8Array, site: number, original: Uint8Array, pad: n
 // As on the Genesis (hacks.ts, fightSeconds): how long a fight keeps each
 // fighter in the box, in seconds of the game clock. InProgress, sending a
 // player to the box, works out the time into d2 (minutes x 60, ora #$2000),
-// then picks his team's half (.6: clc / adc d0 / tay, then lda tmpdst,y) and
+// then picks their team's half (.6: clc / adc d0 / tay, then lda tmpdst,y) and
 // stores it, keeping the old time's $1000. That clc / adc d0 / tay becomes jsl
 // to code that does it, then for the fighting penalties ($2A, and $2C the
 // winner's, the penalty [a0] as InProgress logs it) puts $2000 and the set
@@ -1305,7 +1305,7 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   ]
 }
 
-// McMarkis's FightCoincidental, in his builds and NOSE4Web's 1 MB fights (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
+// McMarkis's FightCoincidental, in their builds and NOSE4Web's 1 MB fights (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
 // #$012C / beq) pairs two fighters' majors only at 5:00. Set after the hacks go in, from what they make a fight's box
 // time: the fight time if it is on, else 5 minutes at the penalty time (Match Viewer: else, with either, the fighters
 // no longer offset each other). Not a hack of its own: it follows those two.
@@ -1377,7 +1377,7 @@ function fmCode(s: number, ram: (typeof FM_RAM)[number], legstr: number, d2: num
   const W = (address: number) => word(address + s)
   const [gmclock, position] = [0x15d6, 0x0f43]
   const header = bytesOf(env.getpde, env.ppTime, env.initScores, word(env.legspd), word(env.winner))
-  // A = the rating, X the player: A + 1 while his team has the lift (RTS, in this bank).
+  // A = the rating, X the player: A + 1 while their team has the lift (RTS, in this bank).
   const lift = asm65([
     bytesOf('48 AF', L(2)),
     { branch: BEQ, to: 'n' },
@@ -1477,7 +1477,7 @@ function fightMomentumPlaces(rom: Uint8Array): Placed[] | null {
 // ----------------------------------------------------------- one fight a game
 // As on the Genesis (hacks.ts, fightOnce): a player who has fought cannot
 // start another fight that game. The fight check (McMarkis's checkfight, in
-// NOSE4Web's 1 MB fights (snesfight.ts) and his 2 MB and SA-1 builds alike;
+// NOSE4Web's 1 MB fights (snesfight.ts) and their 2 MB and SA-1 builds alike;
 // X the one player, Y and the direct page's a2 ($91) the other) makes its exit
 // tests, the last the puck at a faceoff (lda asscur+puckobj / cmp #$1B, then
 // bne on in NOSE4Web's fights, bcs out to its rtl before the OptFights split
@@ -1520,7 +1520,7 @@ interface FoEnv {
 function foCode(s: number, ram: (typeof FO_RAM)[number], env: FoEnv, base: number) {
   const L = (offset: number) => bytesOf(word((ram.at + offset) & 0xffff), ram.bank)
   const clear = bytesOf(env.clear, '8F', L(0), '8F', L(2), '8F', L(4), '8F', L(6), '6B')
-  // X = the player: A = his bit's mask, X = its byte (Y kept).
+  // X = the player: A = their bit's mask, X = its byte (Y kept).
   const locate = asm65([
     bytesOf('BD', word(0x12a3 + s), '29 1F00 E0 0C00'),
     { branch: BCC, to: 'h' },
@@ -1638,14 +1638,14 @@ function openNetPlaces(rom: Uint8Array): Placed[] | null {
 // ---------------------------------------------------- the one-timer that never fires
 // Found by Match Viewer (SNES_SHOOTING 4.5): a one-timer request starts the
 // receiver's swing (SPAonetimerf or SPAonetimerb), whose first frame holds
-// while asspassrec waits for the puck, keeping him from taking it (nopuck).
+// while asspassrec waits for the puck, keeping them from taking it (nopuck).
 // When the wait ends without a shot (the pass late, someone else touching it,
 // or B pressed), asspassrec's .6 clears the request and leaves the assignment
-// but not the swing; he then takes the puck the ordinary way and carries it
+// but not the swing; they then take the puck the ordinary way and carries it
 // through the rest of the swing, and no shot comes (2 of 1,043 swings in 25
 // computer games). .6's lda #$FFFF / sta passReceiverPlayerNum becomes jsl /
-// nops to code that, when he is still winding up (one of the two swings,
-// SPAnum below $10), sets him gliding (SPAglide, by SetSPAFromA, as
+// nops to code that, when they are still winding up (one of the two swings,
+// SPAnum below $10), sets them gliding (SPAglide, by SetSPAFromA, as
 // puckfaceoff2 does), then does them. Not when onetimer ($1E89) is set: a
 // one-timer that struck (.2xx sets it just before doshot) also leaves by .6,
 // and keeps its follow-through (Match Viewer: the first version cut it short);
@@ -1697,9 +1697,9 @@ function oneTimerPlaces(rom: Uint8Array): Placed[] | null {
 // the shot-mode flag (sfssdir, sflags bit 3) is set, and puckglue clears it
 // (with sfspdir: lda #$000C / trb sflags, at .4) whenever a player takes the
 // puck, even the shooter gathering it again after a steal touch knocked it
-// loose in his wind-up; his swing then plays out and no shot comes. That lda /
+// loose in their wind-up; their swing then plays out and no shot comes. That lda /
 // trb becomes jsl / nops to code that does them, then sets sfssdir again when
-// the new carrier (a2) is still winding up a shot: his animation one of the
+// the new carrier (a2) is still winding up a shot: their animation one of the
 // shots (SPA from SPAshotf up to ShotMode's own bound), not yet at the frame
 // ShotMode shoots at ($18). ShotMode checks the rest as before. A hold or hook
 // (holdcheck) still spoils the shot. Only for a person's shooter (pflags
@@ -1754,19 +1754,19 @@ function shotPlaces(rom: Uint8Array): Placed[] | null {
 // ------------------------------------------- B and L / R while the skater is busy
 // Found by Match Viewer (SNES_MECHANICS 7.3, and a trace: 41 of 905 B presses
 // on defence did nothing). findpc, B's choice of skater, can choose the pad's
-// own skater while he is locked in a check or burst (those animations, and the
-// turns, are let in locked); he is nearest the puck because he just burst or
-// checked at it. Chosen, he pokes, but locked he cannot, so nothing happens.
+// own skater while they are locked in a check or burst (those animations, and the
+// turns, are let in locked); they are nearest the puck because they just burst or
+// checked at it. Chosen, they poke, but locked they cannot, so nothing happens.
 // lockedChangeFix: findpc's .4, lda playerpad,x / bmi .5 (then cmp d4 / bne .8,
 // a skater another pad has), becomes jsl / nop to code that leaves A as d4
 // (taken) for a skater with no pad or the pad's own unlocked one, and anything
 // else (passed over) for another pad's or the pad's own locked one; so B then
 // switches to the next best, as the Genesis does while locked.
 // lockedDefenceFix: doinput tests pfalock before L and R, and a locked skater's
-// branch (.22) takes B, X and A but not L / R, so a press while he is busy,
+// branch (.22) takes B, X and A but not L / R, so a press while they are busy,
 // even down on the ice, is lost. .22's lda d1 / bit #$8000 becomes jsl / nop
 // to code that, when L or R (and not B or X, which go first as before) is
-// pressed and he is not a goalie, calls PadTakeLeftDefense / RightDefense (the
+// pressed and the player is not a goalie, calls PadTakeLeftDefense / RightDefense (the
 // unlocked branch's own) and returns A = 0, so .22 then does nothing more.
 function lockedChangePlaces(rom: Uint8Array): Placed[] | null {
   // .3 / .4: lda pflags,x / and #pf2unav / ora pfalock,x / bne .8 / lda playerpad,x / bmi .5 / cmp d4 / bne .8; or the hack's jsl / nop.
@@ -1836,15 +1836,15 @@ function lockedDefencePlaces(rom: Uint8Array): Placed[] | null {
 }
 
 // ------------------------------------------------------------------ time on ice
-// McMarkis's Player Stats TOI (NHL94SNES-SA1 b8909787, used with his
+// McMarkis's Player Stats TOI (NHL94SNES-SA1 b8909787, used with their
 // permission), brought to the original game's layout. The Genesis counts each
 // player's time on ice: once a second of the game clock (updatepentime's tick,
-// sflags3 $0020) updateplayers adds a second to his word. The SNES kept the
+// sflags3 $0020) updateplayers adds a second to their word. The SNES kept the
 // test of the tick, the pnum check (d0 = pnum x 2) and the loadTeamStruct call,
 // but not the add. That jsl loadTeamStruct becomes jsl to code that makes it,
 // then adds the second to ptoi as McMarkis's builds keep it: $7E:E800, a word
 // per roster player, +$34 for the visitors (players from $0C), at most 99:59;
-// free in the original game (his build is it rebuilt, with these after the
+// free in the original game (their build is it rebuilt, with these after the
 // replay buffer's end at $E676). Cleared at each game's start: StartGame_scout's
 // jsl ScoutingReport (every game passes it; the season shootout, which runs
 // StartGame_go, does not) becomes jsl to code that clears the 104 bytes and goes
@@ -1855,7 +1855,7 @@ const NO_POSTS = "This build does not count shots off the post (only McMarkis's 
 const OWN_ICE_TIME = "This build counts each player's time on ice itself (shown in Player Stats as TOI), so NOSE4Web's is not offered."
 
 function ownIceTime(rom: Uint8Array): boolean {
-  // McMarkis's: updateplayers' jsl loadTeamStruct followed by his jsl PlayerIceTime.
+  // McMarkis's: updateplayers' jsl loadTeamStruct followed by their jsl PlayerIceTime.
   return findCodeAll(rom, 'ad....892000f0..bd....29ff00c98000900309' + '00ff85..c90000' + '30..06..22......22').length > 0
 }
 
@@ -1913,11 +1913,11 @@ function timeOnIcePlaces(rom: Uint8Array): Placed[] | null {
 }
 
 // ------------------------------------------------------ time on ice in Player Stats
-// McMarkis's Player Stats TOI page (NHL94SNES-SA1 b8909787, with his
+// McMarkis's Player Stats TOI page (NHL94SNES-SA1 b8909787, with their
 // permission), for the original game's layout, from the counts timeOnIce
 // keeps: a seventh sort column after Penalties, "[Time On Ice", where each
-// skater's row is his name, G, A and Pts (the game's own row code, copied) and
-// his time as m:ss (PushTime) ending at column 30, as McMarkis's first version
+// skater's row is their name, G, A and Pts (the game's own row code, copied) and
+// their time as m:ss (PushTime) ending at column 30, as McMarkis's first version
 // showed it. Five places: PlayerStatsScreen_right's last column (cmp #5 becomes
 // #6); SortPlayerStats' jsl AdvanceStringPtr (column 6: its own title);
 // ComparePlayerStats' .t2/.t1 (cmp #5 / bne .t1 / jmp .t1x / .t1: jmp .6
@@ -2147,7 +2147,7 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 //   and the speeds halved together to under 256 for an 8-bit multiply. The
 //   mark, as on the Genesis, is the cause, $FFFD at the top's net, $FFFC at the
 //   bottom's (the puck's y is on that side), with the passer kept: a pass to
-//   everything else, the other team's skater picking it up a giveaway. He is
+//   everything else, the other team's skater picking it up a giveaway. The passer is
 //   forgotten once the pass has reached the goal line or the goalie: pucknorm's
 //   jsl ChkOffsides (after hybrid icing's place, its jsl PuckIChk), each frame
 //   of a loose puck, looks at the puck's y first (y $108 or more at the top,
@@ -2156,7 +2156,7 @@ function timeOnIceShownPlaces(rom: Uint8Array): Placed[] | null {
 //   where the puck, set back to where it was, may not have reached the line);
 //   and a2touchpuck's
 //   ldy a2 / cpy #$0018, on every touch, by a goalie: puckgoalie (which calls
-//   it), and the puck off his stick or his body (puckstick's deflection,
+//   it), and the puck off their stick or their body (puckstick's deflection,
 //   puckbody), which do not go through puckgoalie. NOSE4Web's version of 18
 //   November 2026 (bfda480) forgot the passer as it released a pass at the
 //   net, so one picked off in the slot was no giveaway: recognised, and
@@ -2182,9 +2182,9 @@ const GT_GIVE = 4
 const GT_TAKE = GT_GIVE + 0x68
 const GT_TOTALS = GT_TAKE + 0x68
 const GT_SIZE = GT_TOTALS + 8
-// After them, the last carrier's roster place (pnum), kept from his pickup, and the forcer's, kept as he forces it: the
-// players counted, whoever is in their spots on the ice by the time the puck is picked up (a line change while it was
-// loose). Not cleared: each is set with the spot it goes with.
+// After them, the last carrier's roster place (pnum), kept from their pickup, and the forcer's, kept as they force it:
+// the players counted, whoever is in their spots on the ice by the time the puck is picked up (a line change while it
+// was loose). Not cleared: each is set with the spot it goes with.
 const GT_LASTP = GT_SIZE
 const GT_CAUSEP = GT_SIZE + 2
 type GtSite = 'glue' | 'steal' | 'pass' | 'dump' | 'shot' | 'fall' | 'injury' | 'goalie' | 'wide' | 'touch' | 'frame' | 'goal'
@@ -2298,8 +2298,8 @@ function gtCode(
   const L = (offset: number) => bytesOf(word(ram.at + offset), ram.bank)
   const W = (address: number) => word(address + ram.shift)
   const [gmode, sflags3, shootoutmode, position, pnum] = [0x15d4, 0x15dc, 0x1d81, 0x0f43, 0x12a3]
-  // The player's word (his roster place in A, x 2, the visitors' $34 on; x his object, for his team) and his team's
-  // total, one more each. The earlier version read the roster place of x's spot then (lda pnum,x).
+  // The player's word (their roster place in A, x 2, the visitors' $34 on; x their object, for their team) and their
+  // team's total, one more each. The earlier version read the roster place of x's spot then (lda pnum,x).
   const counter = (array: number, totals: number) =>
     asm65([
       bytesOf(earlier ? bytesOf('BD', W(pnum)) : [], '29FF00 C91A00'),
@@ -2356,7 +2356,7 @@ function gtCode(
     bytesOf('FA A4', a2, '6B'),
   ])
   const lastplayer = (from: string) => bytesOf(from, '4A 8D', word(env.lastplayer), '48')
-  // The forcer's roster place too, kept with his spot (X kept).
+  // The forcer's roster place too, kept with their spot (X kept).
   const forcer = (object: number) => (earlier ? [] : bytesOf('DA A6', object, 'BD', W(pnum), '8F', L(GT_CAUSEP), 'FA'))
   const steal = bytesOf(lastplayer('98'), 'A5', a2, '8F', L(2), forcer(a2), '68 6B')
   const pass = bytesOf(lastplayer('8A'), 'A9FEFF 8F', L(2), '68 6B')
@@ -2381,7 +2381,7 @@ function gtCode(
   const before = [give, take, glue, steal, pass, shot, fall, goalie].reduce((sum, part) => sum + part.length, 0)
   const multiply = bytesOf('20', abs(base + before))
   const [puckx, pucky, puckvx, puckvy, pfgoal] = [0x0d71, 0x0dd3, 0x0edf, 0x0eff, 0x14c3]
-  // The pass at the net (X the passer): y and vy toward his net (pfgoal,x nonzero the top; the bottom's negated),
+  // The pass at the net (X the passer): y and vy toward their net (pfgoal,x nonzero the top; the bottom's negated),
   // past the blue line and 20 or more in front of the goal line, moving toward it, pushed: dist = $108 - y, then vy
   // (b), then the x (t) and |vx| (a, in Y) mirrored so vx is not negative. a and b halved together to under 256; then
   // p = a * dist, pushed; past +40 if p > (40 - t) * b, past -40 if p < (-40 - t) * b. Then the swing's own lda puckvx /
@@ -2436,7 +2436,7 @@ function gtCode(
     { branch: BCS, to: 'out4' },
     { label: 'hit' },
     // Marked, the passer kept: $FFFD at the top's net (the puck's y positive), $FFFC at the bottom's. The earlier
-    // version forgot him (carrier and cause $FFFF).
+    // version forgot them (carrier and cause $FFFF).
     ...(version >= GT_NET
       ? [bytesOf('A9FDFF AC', W(pucky)), { branch: BPL, to: 'mark' }, '3A', { label: 'mark' }, bytesOf('8F', L(2))]
       : [bytesOf('A9FFFF 8F', L(0), '8F', L(2))]),
@@ -2447,7 +2447,7 @@ function gtCode(
     { brl: 'out1' },
   ])
   // A goalie's touch, at a2touchpuck (its ldy a2 / cpy #$0018 last, for its bcc), whatever the touch (puckgoalie's, or
-  // the puck off his stick or his body, which do not go through puckgoalie): the passer of a pass at the net forgotten.
+  // the puck off their stick or body, which do not go through puckgoalie): the passer of a pass at the net forgotten.
   const touch = asm65([
     bytesOf('A4', a2, 'C01800'),
     { branch: BCS, to: 'x' },
@@ -2744,9 +2744,9 @@ function statRowPlaces(rom: Uint8Array, shown: GtShownEnv, name: string, bank: n
 
 // ------------------------------------------------- giveaways and takeaways in Player Stats
 // Two sort columns after Penalties (or the checks), as on the Genesis:
-// "[Giveaways ]" (6) and "[Takeaways ]" (7), each skater's row his name, G, A
+// "[Giveaways ]" (6) and "[Takeaways ]" (7), each skater's row their name, G, A
 // and Pts (the game's own row code, copied, as the time on ice page does) and
-// his giveaways (GV) and takeaways (TK) where Sh and PM were, from the counts
+// their giveaways (GV) and takeaways (TK) where Sh and PM were, from the counts
 // (giveaways). Then the time on ice page, when it is on too, as column 8. The
 // time on ice page's five places, with code of their own that shows any mix of
 // the three; the block starts with what the places held without the pages (the
@@ -2985,14 +2985,15 @@ function giveawayPagesPlaces(rom: Uint8Array): Placed[] | null {
 }
 
 // In McMarkis's 2 MB and SA-1 builds, whose Player Stats has pages of its own after Penalties (Checks For and
-// Checks Agst, and in the SA-1 builds Time On Ice; NHL94SNES-SA1, used with his permission): Giveaways and
-// Takeaways after his last page, his code left as it is and called for his pages. His builds go to his own code
-// for columns 6 and up at four places, each chained here: DrawStatsList_rows' jsl .3 (his .3 starts lda statcolumn
-// / cmp #6 / bcc / jml his rows, then the game's row), SortPlayerStats' jsl AdvanceStringPtr (his titles are the
-// game's list made longer), ComparePlayerStats' cmp #6 / bcc / jsl his compare (Z clear to swap) / beq / jmp .7 /
-// jmp .6, and DrawStatsList's jsl his header (a1 set to the column's header). PlayerStatsScreen_right's last column
-// is two more, and his last title ends in "]" (shortened to fit: Checks Agst as his SA-1 builds have it, Checks
-// Agt; Time On Ice as Ice Time). The block's note: the four places as they were, his last column and his last title.
+// Checks Agst, and in the SA-1 builds Time On Ice; NHL94SNES-SA1, used with their permission): Giveaways and
+// Takeaways after their last page, their code left as it is and called for their pages. Their builds go to their
+// own code for columns 6 and up at four places, each chained here: DrawStatsList_rows' jsl .3 (their .3 starts lda
+// statcolumn / cmp #6 / bcc / jml their rows, then the game's row), SortPlayerStats' jsl AdvanceStringPtr (their
+// titles are the game's list made longer), ComparePlayerStats' cmp #6 / bcc / jsl their compare (Z clear to swap) /
+// beq / jmp .7 / jmp .6, and DrawStatsList's jsl their header (a1 set to the column's header).
+// PlayerStatsScreen_right's last column is two more, and their last title ends in "]" (shortened to fit: Checks Agst
+// as their SA-1 builds have it, Checks Agt; Time On Ice as Ice Time). The block's note: the four places as they
+// were, their last column and their last title.
 const MC_NOTE = 4 * 4 + 1 + 12
 const MC_LAST_TITLES: Record<string, string> = { '[Checks Agst': '[Checks Agt]', '[Checks Agt]': '[Checks Agt]', '[Time On Ice': '[ Ice Time ]' }
 
@@ -3049,7 +3050,7 @@ function mcPagesPlaces(rom: Uint8Array): Placed[] | null {
   const last = note ? note[16] : rom[env.rightSite]
   if (last < 6 || last > 12) return null
   const first = last + 1
-  // His last title (a length word of 14, then 12 letters).
+  // Their last title (a length word of 14, then 12 letters).
   const titles = findCodeAll(rom, 'a9(..)0085..a9(....)85..22......22......ae')[0]
   const lastTitle = loRomOffset(titles.groups[0], titles.groups[1]) + 14 * last
   if (readU16(rom, lastTitle) !== 14) return null
@@ -3057,7 +3058,7 @@ function mcPagesPlaces(rom: Uint8Array): Placed[] | null {
   const shortened = MC_LAST_TITLES[new TextDecoder().decode(ownTitle)]
   if (!shortened) return null
   const before = note ?? bytesOf(rom.slice(env.rowSite, env.rowSite + 4), rom.slice(env.titleSite, env.titleSite + 4), rom.slice(env.cmpSite, env.cmpSite + 4), rom.slice(env.headerSite, env.headerSite + 4), last, ownTitle)
-  // The game's row, after his check (lda statcolumn / cmp #6 / bcc / jml, 12 bytes).
+  // The game's row, after their check (lda statcolumn / cmp #6 / bcc / jml, 12 bytes).
   const skater = loRomOffset(before[3], readU16(before, 1))
   if (skater < 0 || !same(rom, skater, bytesOf('AD', word(env.statcolumn), 'C90600 9004 5C'))) return null
   const game = skater + 12
@@ -3083,7 +3084,7 @@ function mcPagesPlaces(rom: Uint8Array): Placed[] | null {
     tail,
   ])
   const words = (array: Uint8Array) => bytesOf('8A 0A AA BF', array, '85', d0, '98 0A AA BF', array, 'C5', d0)
-  // Z clear to swap, as his compare: the later player's count more than the earlier's.
+  // Z clear to swap, as their compare: the later player's count more than the earlier's.
   const compare = asm65([
     bytesOf('C9', word(first)),
     { branch: BCS, to: 'm' },
@@ -3265,7 +3266,7 @@ function withGoalieColumn(rom: Uint8Array, places: Placed[] | null): Placed[] | 
 
 // ------------------------------------------------------------------ blocked shots
 // As on the Genesis (hacks.ts, blockedShots): each skater's blocked shots, a
-// shot by the other team that hits his body while it is still a shot (nothing
+// shot by the other team that hits their body while it is still a shot (nothing
 // has touched it since it left the stick). puckbody, the puck at a skater's
 // body (checkpuckcoll_ccx calls it for skaters only; goalies have their own
 // check), goes on to .t2 (jsl a2touchpuck, which clears sf2shot, so a shot
@@ -3315,7 +3316,7 @@ function blkCode(s: number, ram: (typeof BLK_RAM)[number], puckz: number, d0: nu
     { branch: BNE, to: 'out' },
     bytesOf('B9', W(position)),
     { branch: BEQ, to: 'out' },
-    // X: 1 for a visitor (Y $0C up); the shooter a player, of the other team (C from his cmp, plus X, odd).
+    // X: 1 for a visitor (Y $0C up); the shooter a player, of the other team (C from their cmp, plus X, odd).
     'DA A20000 C00C00',
     { branch: BCC, to: 'h' },
     'E8',
@@ -3324,7 +3325,8 @@ function blkCode(s: number, ram: (typeof BLK_RAM)[number], puckz: number, d0: nu
     { branch: BCS, to: 'x' },
     'C90C00 8A 690000 290100',
     { branch: BEQ, to: 'x' },
-    // His roster place's byte (the visitors' $1A on: adc #$19 with the carry set), at most 255; then his team's word.
+    // Their roster place's byte (the visitors' $1A on: adc #$19 with the carry set), at most 255; then their team's
+    // word.
     bytesOf('B9', W(pnum), '29FF00 C91A00'),
     { branch: BCS, to: 'x' },
     'C00C00',
@@ -3416,8 +3418,8 @@ function blockedShotsShownPlaces(rom: Uint8Array, first = false): Placed[] | nul
 }
 
 // ------------------------------------------------- blocked shots in Player Stats
-// A sort column more, "Blocks", each skater's row his name, G, A and Pts (the
-// game's own row code, copied, as the other pages do) and his blocked shots
+// A sort column more, "Blocks", each skater's row their name, G, A and Pts (the
+// game's own row code, copied, as the other pages do) and their blocked shots
 // (BLK), sorted by them. It goes after the giveaway and takeaway pages, if
 // they are in, and before the time on ice page, if it is in, so in the
 // original game's layout column 6 (8 with the giveaway pages) and the time on
@@ -3461,8 +3463,8 @@ function blkPageSites(rom: Uint8Array): BlkSites | null {
   const rights = findCodeAll(rom, 'ad' + column + 'c9..0030034c')
   const titles = findCodeAll(rom, 'a9..0085..a9....85..22......22......ae')
   const drawList = 'ad' + column + 'f0..a5..48a5..48'
-  // McMarkis's: cmp #6 / bcc / jsl (his compare, or a chained one) / beq / jmp .7 / jmp .6. The game's: cmp #5 / bne /
-  // jmp .t1x / jmp .6, or the time on ice or giveaway pages' jsl / bcs / jmp / nops.
+  // McMarkis's: cmp #6 / bcc / jsl (their compare, or a chained one) / beq / jmp .7 / jmp .6. The game's: cmp #5 /
+  // bne / jmp .t1x / jmp .6, or the time on ice or giveaway pages' jsl / bcs / jmp / nops.
   const compares = mc
     ? findCodeAll(rom, 'c90600900922......f0034c....4c....').map(({ at }) => ({ at: at + 5 }))
     : [...findCodeAll(rom, 'c90500d0034c....4c....'), ...findCodeAll(rom, '22......b0..4c....eaea')]
@@ -3528,7 +3530,8 @@ function blkPagePlaces(rom: Uint8Array): Placed[] | null {
     column = env.last + 1
     a1 = env.a1
     headerPrefix = hexBytes('23009F0109')
-    // The giveaway pages, in: their row code (lda statcolumn / cmp #first / bcs / jml his) and their Takeaways title.
+    // The giveaway pages, in: their row code (lda statcolumn / cmp #first / bcs / jml McMarkis's) and their
+    // Takeaways title.
     let row = callTarget(plain, rowSite)
     const pages = row >= MC_NOTE && same(plain, row, bytesOf('AD', word(statcolumn), 'C9')) && plain[row + 6] === 0xb0 && plain[row + 8] === 0x5c
     if (pages) {
@@ -3546,7 +3549,7 @@ function blkPagePlaces(rom: Uint8Array): Placed[] | null {
       titleAt = lastTitle + 2
       title = text(shortened)
     }
-    // His .3: lda statcolumn / cmp #6 / bcc / jml his rows, then the game's row.
+    // Their .3: lda statcolumn / cmp #6 / bcc / jml their rows, then the game's row.
     if (row < 0 || !same(plain, row, bytesOf('AD', word(statcolumn), 'C90600 9004 5C'))) return null
     const game = row + 12
     if (!same(plain, game, hexBytes('5AA5A948A9FFFF22'))) return null
@@ -3826,7 +3829,7 @@ const CHOPPY_LENGTH = 64
 
 // ------------------------------------------------------------ skating and the puck
 // Stopping and turning, as on the Genesis (hacks.ts, turnRate): stopna, the slowing of a skater who stops or reverses
-// (from dostop, noturn0 and goalieacc), takes ($70 + legstr) x timestep off each axis of his speed: lda #$0070 / clc /
+// (from dostop, noturn0 and goalieacc), takes ($70 + legstr) x timestep off each axis of the speed: lda #$0070 / clc /
 // adc legstr,x / ldx timestep / jsl Mul8U / sta r2 / plx. The $70 becomes the number wanted (the Genesis takes a flat
 // 150 a frame). Mul8U multiplies 8 bits, so the number plus a goalie's doubled leg strength (up to 30) stays under 256.
 export const SNES_TURN_RATE_ORIGINAL = 0x70
@@ -3844,7 +3847,7 @@ function turnRatePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 
 // Speed burst, as on the Genesis (hacks.ts, speedBurst): burst (A without the puck) works its push out from the
 // player's energy after the burst's cost (or $1000 with Auto line changes): lda d0 / ldx #$0233 / jsl Mul16U / ldx a3 /
-// lda r2+2 / sta burstspeed, 35 at full energy, then adds push x the facing's dirtab (200) to his speed. The jsl
+// lda r2+2 / sta burstspeed, 35 at full energy, then adds push x the facing's dirtab (200) to their speed. The jsl
 // Mul16U becomes jsl to code that puts the number wanted in r2+2 instead; the code ends with a jml to Mul16U, never
 // run, which keeps its address for taking the hack out.
 const BURST_SITE = '22......af......f0..a5..38e9....85..22......af......c90200d005a9001085..a5..a23302'
@@ -4029,9 +4032,9 @@ const CLUTCH_TICK_LENGTH = (arrays: number) => 64 + arrays * 12
 // period's injury is over by then (PeriodOver). With all five out, the
 // listed player as before. Outside the season shootout, the original's.
 // McMarkis's 2 MB and SA-1 builds, and NOSE4Web's fights on the 1 MB game with
-// his later fix ($7E:FE80 there), also mark a player hurt in a fight in
-// fightinj (a byte a roster slot, as tmpdst's index / 2), as his major's box
-// time covers his $FFFC until it is served (FightInjuredKeep); StartGame_go
+// their later fix ($7E:FE80 there), also mark a player hurt in a fight in
+// fightinj (a byte a roster slot, as tmpdst's index / 2), as their major's box
+// time covers their $FFFC until it is served (FightInjuredKeep); StartGame_go
 // clears it (FightGameStart). There PlayShootout's jsl StartGame_go becomes jsl
 // to code that, while the mark is set, first copies it to free RAM (Match
 // Viewer: $7E:FE00, or $40:5800 on the SA-1 builds), and the skip passes over
@@ -4088,7 +4091,7 @@ function shootoutInjuryPlaces(rom: Uint8Array, noFight = false): Placed[] | null
   const saved = bytesOf(word(ram.low + 0x1852 - 0x15d3), ram.bank)
   // fightinj, where FightInjuredKeep reads it (lda.l fightinjany / beq / phx / phy / ldx), and PlayShootout's
   // jsl StartGame_go (after its two jsl InitShooters).
-  // (McMarkis's builds: fightinj $E74E; NOSE4Web's 1 MB fights, with his fix brought over: $7E:FE80.)
+  // (McMarkis's builds: fightinj $E74E; NOSE4Web's 1 MB fights, with their fix brought over: $7E:FE80.)
   const keeps = noFight ? [] : findCodeAll(rom, 'af....(..)f0..da5aa23300bf(....)(..)')
   if (keeps.length > 1) return null
   const fightBank = keeps.length === 1 ? keeps[0].groups[2] : -1
@@ -4255,10 +4258,10 @@ const hex8 = (value: number) => value.toString(16).padStart(2, '0')
 // subroutine: the goal margin, then for a skater the overtime winner's bonus and goals x 11000, assists x 10100 and
 // shots x 10; for a goalie (the team's first places) +32000 for 3% or less of the shots going in, and 75000 more for
 // none. That .17 starts stz a2 / lda #2; those 5 bytes become jsl to new code / rtl. The new code scores as the
-// Genesis option does: the margin; a skater the overtime bonus as before, goals, assists, shots and the checks he
+// Genesis option does: the margin; a skater the overtime bonus as before, goals, assists, shots and the checks they
 // gave (NOSE4Web's bodycheck counts at $168E, or the 2 MB builds' own pchf); a goalie who faced a shot, each shot
-// faced (one fewer when his team is behind), half a skater's assist weight, a shutout bonus when neither he nor his
-// team let in a goal, and goals against x -11000. The packing of the score for the comparisons, as .17's .3xx.
+// faced (one fewer when their team is behind), half a skater's assist weight, a shutout bonus when neither they nor
+// their team let in a goal, and goals against x -11000. The packing of the score for the comparisons, as .17's .3xx.
 // Choice 1 has the Genesis weights for line changes off, 2 for line changes on. Found by .17's code.
 export const SNES_STAR_TEXTS = ["The original game's", 'Improved, for line changes off', 'Improved, for line changes on']
 const STARS17 =
@@ -4314,7 +4317,7 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   const term = (load: Uint8Array, weight: number) => bytesOf(byte(load), times(weight), add)
   const codeFor = (w: StarWeights) =>
     asm65([
-      // a2 his team, a1 the other, as .17 sets them; d0 the goal margin, 32 bits.
+      // a2 their team, a1 the other, as .17 sets them; d0 the goal margin, 32 bits.
       bytesOf('64', a2, 'A9 0200 85', a1, 'E0 1A00'),
       { branch: BMI, to: 'team' },
       bytesOf('A9 0200 85', a2, '64', a1),
@@ -4389,7 +4392,7 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 // ------------------------------------------------------------------ goalies
 // As on the Genesis (hacks.ts, goalieHold, goalieWidth, goalieOut, goalieLine), from the SNES code (puckglue,
 // assgoalie, doinput) and Match Viewer's reading (SNES_SHOOTING 5.4):
-// - The hold: puckglue starts a goalie's count when he takes the puck (lda #140 / sta temp5,y; 5 for a catch in a
+// - The hold: puckglue starts a goalie's count when they take the puck (lda #140 / sta temp5,y; 5 for a catch in a
 //   dive), and assgoalie's .15 counts it down by the frames (lda temp5,x / sec / sbc d7 / sta temp5,x / bpl) and
 //   whistles when it runs out, for the computer's goalie and a person's alike. The 140 becomes the frames wanted.
 //   For no whistle (0), as the Genesis's skips a person's goalie's count, .15's lda / sec / sbc becomes jsl to code
@@ -4397,17 +4400,17 @@ function threeStarsPlaces(rom: Uint8Array, amount?: number): Placed[] | null {
 //   it to 0 first) and a catch in a dive are still whistled, and the computer's goalie counts as before.
 // - The dive catch (diveHold): puckglue's lda #5 after cmp #SPAgdive / bne becomes the frames wanted. With no
 //   whistle (the hook above), a person's goalie's count above 5 is left alone, so a dive hold over 5 is never
-//   whistled for him either; the computer's goalie counts it down.
+//   whistled for them either; the computer's goalie counts it down.
 // - The whistle line: just before, a goalie holding the puck nearer centre ice than 187 (lda Ypos,x / cmp #187 /
 //   bpl / cmp #-187 / bmi, else stz temp5,x) is whistled at once. Only a person's goalie gets there, as the
-//   computer's is always in his crease (211 or more out) when he reaches it; hence the line's top, 210.
-// - The range: assgoalie's .2 clears goalieflags bit 1 while he is within 48 of the middle (lda Xpos,x / cmp #-48 /
+//   computer's is always in their crease (211 or more out) when they reach it; hence the line's top, 210.
+// - The range: assgoalie's .2 clears goalieflags bit 1 while they are within 48 of the middle (lda Xpos,x / cmp #-48 /
 //   bmi / cmp #49 / bpl) and 228 or more from centre (sta r0 / cmp #228 / bmi). With the bit set, a person's goalie
-//   without the puck gets no pad control (doinput .13) and .11 skates him back to his net; the Genesis stops him at
-//   its edge instead. The computer's goalie reads the same bit when he picks a save, so the new code changes the
+//   without the puck gets no pad control (doinput .13) and .11 skates them back to their net; the Genesis stops them at
+//   its edge instead. The computer's goalie reads the same bit when they pick a save, so the new code changes the
 //   box only for a person's goalie: the lda / cmp #-48 becomes jsl to code that loads 0 (inside), -49 or 49 for
-//   him by the new width, his x for the computer's, and does the cmp; sta r0 / cmp #228 becomes jsl to code that
-//   compares with the new distance for him, 228 for the computer's. assgoalietopuck's copy of the box is only for
+//   them by the new width, their x for the computer's, and does the cmp; sta r0 / cmp #228 becomes jsl to code that
+//   compares with the new distance for them, 228 for the computer's. assgoalietopuck's copy of the box is only for
 //   the computer's goalie, and stays.
 // Found by the code around them; the SA-1 builds' variables are elsewhere, read from that code.
 interface GoalieEnv {
@@ -4786,7 +4789,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // clock runs the hit can injure), becomes bra for never: the fall and the loose puck stay. setInjuryType's lda
   // #7 / jsl randoma8 / cmp #0 / bne .rtl picks the period (one in 7 the game): bra for every injury for the
   // period, NOPs for the game. The penalty but no injury: FallDown's jsl setInjuryType and the sta InjCntDown that
-  // brings up the injury box 4 seconds later both go; the player lies down, the call stays, and he plays on. A
+  // brings up the injury box 4 seconds later both go; the player lies down, the call stays, and they play on. A
   // long fall instead: the jsl becomes jmp .25, the ordinary fall's end (no injury, box or penalty), and
   // SPAinjury1's two lists, which fall and lie for ever, a back fall that gets up after LONG_FALL ticks lying.
   injuries: (rom, source, amount) => {
@@ -4830,7 +4833,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
       ...lists.map((list, i) => ({ at: list, original: hexBytes(SNES_FALL_LISTS[i].original), hacked: hexBytes(choice === 5 ? SNES_FALL_LISTS[i].longFall : SNES_FALL_LISTS[i].original) })),
     ]
   },
-  // InProgress, sending a player to the box: ldx #$003C / lda d2 (his penalty's minutes) / and #$FF / jsl
+  // InProgress, sending a player to the box: ldx #$003C / lda d2 (their penalty's minutes) / and #$FF / jsl
   // Mul8U / ora #$2000: the box time, in seconds of the game clock, is the minutes times 60, the only place
   // minutes become time, as on the Genesis (hacks.ts). The 60 becomes the seconds wanted for each minute.
   penaltyTime: (rom, _source, amount) => {
@@ -4904,11 +4907,12 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // jsl setpde, then full energy with Auto. The cost becomes 0.
   // McMarkis's 2 MB builds count each team's shots off the post (tmposts, Game Stats' Posts): PostCount, which
   // checkgoal's post branch calls, credits the team of lastplayer, the last player to touch the puck. But lastplayer
-  // holds a player's number (every writer stores it after lsr a), and PostCount takes it as his offset (ldx lastplayer
+  // holds a player's number (every writer stores it after lsr a), and PostCount takes it as an offset (ldx lastplayer
   // / cpx #$0018 / lda pfteam,x), so it read the team of the player at half that number: a shot off the post went to
   // the wrong team most of the time (Match Viewer, from a league game: Finland's three posts all went to the Czechs).
   // The ldx / cpx (6 bytes) becomes a jsl to lda lastplayer / asl a / tax / cpx #$0018 / rtl (the bcs after reads the
-  // carry the cpx left). Since doshot sets lastplayer to the shooter, a shot straight off the post counts for his team.
+  // carry the cpx left). Since doshot sets lastplayer to the shooter, a shot straight off the post counts for their
+  // team.
   postsFix: (rom) => {
     const plain = only(rom, 'ad....d020da' + 'ae....e01800' + 'b016bd....f005a20200')
     const hooked = only(rom, 'ad....d020da' + '22......eaea' + 'b016bd....f005a20200')
@@ -4937,10 +4941,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // |y| a height, from (2/3)|y| - (2/3)|x| to (2/3)|y| + (2/3)|x| (at least 5), so a stick held up or
   // down the ice never reaches a puck on it, and a goalie's X poke straight ahead is useless (Match
   // Viewer). The stick box is centred on the stick spot (GetHot) and its size, the reach, comes from
-  // GetFrameHot, about 2 for every poke frame (Match Viewer). While he is in the poke (SPA = SPAgpoke), the
+  // GetFrameHot, about 2 for every poke frame (Match Viewer). While they are in the poke (SPA = SPAgpoke), the
   // new code makes the reach at least 6, a skater's steal radius, and the bottom of the height the ice,
   // keeping its top, so the poke knocks loose a puck on the ice within 6 units of its tip and still
-  // cannot knock down a raised shot. Nothing else changes: his stance and stick saves are as before,
+  // cannot knock down a raised shot. Nothing else changes: their stance and stick saves are as before,
   // and a poke that reaches the puck knocks it loose, as a sideways one does. sta d3 / ldx curobj after the
   // height becomes jsr / nop. SPA and the poke's animation are read from puckglue and assgoalie.
   // Tied regular-season games, as the Genesis's (hacks.ts): the game decides game over twice at the end of an
@@ -4965,7 +4969,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     if (found < 0 || spa < 0 || poke < 0) return null
     const site = found + 43
     // assgoalie .22 starts the poke: sta facedir,x / sta pfalock,x with A the poke's direction, so straight up
-    // the ice (direction 0) leaves the facing unlocked and the next think stands him up before the poke reaches
+    // the ice (direction 0) leaves the facing unlocked and the next think stands them up before the poke reaches
     // full stretch, in the original game too (Match Viewer). pfalock is only tested for non-zero, so its sta
     // becomes a jsr to code storing $80. Both hooks share one block of new code, in the same bank.
     const lockAt = poke - 3
@@ -5074,8 +5078,8 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // goals). a2touchpuck's "already the last toucher" exit, cmp tmtouch1,y /
   // beq at $9E:C523 in the original game, runs before the overwrite flag
   // (tmflags bit 2) is cleared, so when the last toucher before an opponent
-  // wins the puck back himself the flag stays set, and the teammate he passes
-  // to then overwrites him as the last toucher, and his assist is lost. The
+  // wins the puck back themselves the flag stays set, and the teammate they pass
+  // to then overwrites them as the last toucher, and their assist is lost. The
   // fix calls new code in place of the cmp and beq: the same compare, and on
   // the same player the flag cleared (the list kept) before going on where
   // the beq went, with A reloaded from the direct-page copy the routine
@@ -5273,7 +5277,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
     const places = withNewCode(rom, site, (to) => bytesOf('20', word(to)), bytesOf('A9', flail), build(clocked, value, flail))
     return places && [places[0], { ...places[1], amount: value, earlier: !clocked }]
   },
-  // McMarkis's "5 Minutes, 99 Min OT\" (his Genesis patch), as NOSE4Web's
+  // McMarkis's "5 Minutes, 99 Min OT\" (their Genesis patch), as NOSE4Web's
   // Genesis option has it. ResetClock has, for overtime: lda.l OptPlayMode /
   // bne .1 (playoffs: as long as a period) / lda #300 / sta d0 (the regular
   // season's 5:00, the Clock's overtime). Its first 6 bytes become jmp / nop
@@ -5324,9 +5328,9 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   },
   // Stick deflections (bug 34), as on the Genesis but wider: in puckstick, a
   // puck too fast for the goalie to catch takes .t1x (nopuck 8) to .3, which
-  // plays the sound, has him touch it and deflects it, and never counts the
-  // shot (ChkShotStat). That is a hard shot off his stick, low or high, or
-  // his glove. The fix points .t1x's jmp .3 at new code: for a goalie
+  // plays the sound, has them touch it and deflects it, and never counts the
+  // shot (ChkShotStat). That is a hard shot off their stick, low or high, or
+  // their glove. The fix points .t1x's jmp .3 at new code: for a goalie
   // (position 0) it calls ChkShotStat first, which counts a shot only while
   // the puck is a shot (sf2shot) and the clock runs, and clears sf2shot so it
   // counts once; then it goes on to .3. Y is the player there. Found by the
@@ -5959,8 +5963,8 @@ function penaltyShotFixes(rom: Uint8Array): Placed[] | null {
 
 // The Y button (hook or hold) works for a player locked in an animation, a
 // knocked-down one among them, where the game's other buttons do nothing
-// while he is locked (doinput tests pfalock for them, not before Y). Holdplayer
-// lets a locked player through unless his animation is the speed burst; the
+// while they are locked (doinput tests pfalock for them, not before Y). Holdplayer
+// lets a locked player through unless their animation is the speed burst; the
 // fix makes it leave for any locked animation, as the other buttons do, by
 // turning the branch that skips its rtl into two nops. NHL94SNESVault's
 // YButtonBugFix stops it only where pfalock holds 1 (an ordinary knockdown);

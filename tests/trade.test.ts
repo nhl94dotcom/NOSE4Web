@@ -25,7 +25,7 @@ const lineNames = (project: RomProject, team: number) =>
   project.teams[team].lines.map((line) => line.slice(0, 7).map((position) => project.teams[team].players[position - 1]?.name))
 
 describe.skipIf(!hasRom)('trading players', () => {
-  it('swaps skaters between two teams, each keeping the role he had', () => {
+  it('swaps skaters between two teams, each keeping the role they had', () => {
     const project = roomy()
     const [g, f] = [goalieCount(project.teams[BOSTON]), project.teams[BOSTON].forwards]
     const forward = g // Boston's first forward

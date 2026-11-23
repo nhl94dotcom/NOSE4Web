@@ -18,8 +18,8 @@ export interface Arrival {
   team: string
   role: string
   overall: number
-  // For a player gone from his team, that he is now a free agent; for one new
-  // to a team, that he was one.
+  // For a player gone from their team, that they are now a free agent; for one new
+  // to a team, that they were one.
   freeAgent: boolean
 }
 
@@ -101,7 +101,7 @@ export function changeReport(before: RomProject, after: RomProject): ChangeRepor
   }
 }
 
-// One line of the report for a player new to a team, and for one gone from his.
+// One line of the report for a player new to a team, and for one gone from theirs.
 export const arrivalText = (a: Arrival) => `${a.name}: ${a.team}, ${a.role}, overall ${a.overall}${a.freeAgent ? ', signed from the free agents' : ''}`
 export const departureText = (d: Arrival) => `${d.name}: was with ${d.team}, ${d.role}, overall ${d.overall}${d.freeAgent ? ', now a free agent' : ''}`
 

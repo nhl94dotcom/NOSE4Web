@@ -6,7 +6,7 @@ import { loRomOffset } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 
 // McMarkis's 2 MB builds' PostCount (tmposts): ldx lastplayer / cpx #$0018 becomes a jsl to code that doubles the
-// player's number into his offset first (Match Viewer, 2026-11-21).
+// player's number into their offset first (Match Viewer, 2026-11-21).
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
 const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}

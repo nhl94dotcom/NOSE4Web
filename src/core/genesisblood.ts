@@ -4,12 +4,12 @@ import type { RomProject } from './rom'
 import { claimSpace, fullRomReason, releaseSpace } from './space'
 
 // Head bleeding for the Genesis game, an idea from NHLPA '93: in '93 a player
-// hurt by a check lies on the ice with blood spreading from his head, drawn as
-// small sprite pieces in the arena colours over his lying frames. NHL '94 kept
+// hurt by a check lies on the ice with blood spreading from their head, drawn as
+// small sprite pieces in the arena colours over their lying frames. NHL '94 kept
 // the frames and took the blood out. Here a player hurt for the game bleeds:
-// '94 has him fall and lie still (SPAinjuryfall, which only a game injury keeps;
+// '94 has them fall and lie still (SPAinjuryfall, which only a game injury keeps;
 // a period injury goes on to SPAinjury1), and this gives the lying frame two
-// new versions, a little blood as he lands and more after half a second. A
+// new versions, a little blood as they land and more after half a second. A
 // player out for the period lies as before, without blood.
 //
 // The blood is NOSE4Web's own drawing, after '93's: the same size and place,
@@ -63,7 +63,7 @@ const PIECE = 8
 
 // '#' arena colour 14, 'o' colour 13. Each 8 pixels high, columns of tiles.
 const ART: { x: number; y: number; rows: string[] }[] = [
-  // Lying with his head below: a little, then more.
+  // Lying with their head below: a little, then more.
   {
     x: -8,
     y: 5,
@@ -83,7 +83,7 @@ const ART: { x: number; y: number; rows: string[] }[] = [
       '........................',
     ],
   },
-  // Lying with his head above.
+  // Lying with their head above.
   {
     x: -6,
     y: -16,
@@ -225,7 +225,7 @@ export function bloodAdded(rom0: Uint8Array): Uint8Array {
   const count = frameCount(rom0, table)
   const tiles = ART.map((art) => artTiles(art.rows))
   const tileBytes = tiles.reduce((sum, t) => sum + t.length, 0)
-  // The new frames: the blood first, so that it shows over him, then the lying frame's own pieces.
+  // The new frames: the blood first, so that it shows over them, then the lying frame's own pieces.
   const lyingFrames = [LYING[0], LYING[0], LYING[1], LYING[1]]
   const lists = new Map<number, Uint8Array>()
   // Tile numbers are filled in once the room is known.
