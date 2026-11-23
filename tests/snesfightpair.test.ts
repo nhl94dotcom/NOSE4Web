@@ -58,6 +58,10 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("SNES fights: the fighters' majo
     two[0x55dc] = two[0x55fc] = 2
     const on = applySnesHacks({ ...rom, bytes: two }, { fighting: true })
     expect(pairing(on.bytes)).toEqual([0x2078, 0x78])
+    // Another length follows the list too: 3 minutes, 180 seconds.
+    const three = rom.bytes.slice()
+    three[0x55dc] = three[0x55fc] = 3
+    expect(pairing(applySnesHacks({ ...rom, bytes: three }, { fighting: true }).bytes)).toEqual([0x20b4, 0xb4])
     // Any apply puts it right on a ROM that already has the fights: here one paired at 5:00.
     const at5 = applySnesHacks(rom, { fighting: true }).bytes
     at5[0x55dc] = at5[0x55fc] = 2
