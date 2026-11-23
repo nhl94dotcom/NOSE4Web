@@ -27,8 +27,8 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
     emptySlots: [],
     onResetAll: () => {},
     onChange: () => {},
-    rawAttributes: false,
-    onRawAttributesChange: () => {},
+    attributeView: 'ratings' as const,
+    onAttributeViewChange: () => {},
     quickKeys: false,
     onQuickKeysChange: () => {},
     rosterSort: 'roster' as const,
@@ -38,12 +38,14 @@ it.skipIf(!existsSync(romPath))('renders every team without errors', () => {
   }
   for (const team of project.teams) {
     const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
-    const raw = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} rawAttributes />)
+    const raw = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} attributeView="stored" />)
     expect(html).toContain('title="Stick Handling. In play: catching passes and loose pucks')
     expect(html).toContain('title="Stick Right. In play: nothing: the game looks it up and never uses it."')
     expect(html).toContain('title="Weight (pounds). In play: how quickly the player speeds up')
     expect(raw).toContain('<option value="15">15</option>')
     expect(html).not.toContain('<option value="15">15</option>')
+    // Ratings show as their steps 0-6 by default.
+    if (team.players.length > 0) expect(html).toContain('<option value="6">6</option>')
     expect(html.split('class="name"').length - 1).toBe(team.players.length)
     expect(html).not.toContain('Invalid (')
   }
@@ -64,8 +66,8 @@ it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall, its col
     emptySlots: [],
     onResetAll: () => {},
     onChange: () => {},
-    rawAttributes: false,
-    onRawAttributesChange: () => {},
+    attributeView: 'ratings' as const,
+    onAttributeViewChange: () => {},
     quickKeys: false,
     onQuickKeysChange: () => {},
     rosterSort: 'roster' as const,
@@ -74,7 +76,7 @@ it.skipIf(!existsSync(snesPath))('renders an SNES team with its overall, its col
     onMovePlayers: () => '',
   }
   const team = project.teams[1]
-  const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} />)
+  const html = renderToStaticMarkup(<TeamEditor game={project.game} team={team} original={team} {...rest} attributeView="ranges" />)
   expect(html).toContain('Overall shown')
   expect(html).toContain(`value="${team.shownOverall}"`)
   expect(html).toContain('Home colours')

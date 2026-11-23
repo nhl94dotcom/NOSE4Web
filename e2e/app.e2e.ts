@@ -115,20 +115,20 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(tab('Team')).toHaveAttribute('aria-selected', 'true')
     await expect(section('Team')).toBeVisible()
     await expect(section('Skaters')).toBeHidden()
-    await expect(page.getByText('Show attributes as stored values')).toBeHidden()
+    await expect(page.getByRole('combobox', { name: 'Show attributes as' })).toBeHidden()
     // A tab shows its sections whole: their headings do not fold.
     await expect(section('Team').locator('h2')).not.toHaveAttribute('aria-expanded')
     await tab('Roster').click()
     await expect(section('Team')).toBeHidden()
     for (const name of ['Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
-    await expect(page.getByText('Show attributes as stored values')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Show attributes as' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add player' })).toBeVisible()
     await expect(section('Lines')).toBeHidden()
     await tab('Lines').click()
     await expect(section('Lines')).toBeVisible()
     await expect(section('Skaters')).toBeHidden()
     // The roster's tools, between its sections and Lines, go with the roster.
-    await expect(page.getByText('Show attributes as stored values')).toBeHidden()
+    await expect(page.getByRole('combobox', { name: 'Show attributes as' })).toBeHidden()
     await expect(page.getByRole('button', { name: 'Add player' })).toBeHidden()
     // Only the lines' Copy selected is left (a hidden button is not one on the page).
     await expect(page.getByRole('button', { name: 'Copy selected' })).toHaveCount(1)
@@ -1837,13 +1837,13 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(boston.locator('table').first().locator('thead')).toContainText('GlH')
     await expect(boston.locator('table').last().locator('thead')).toContainText('ShP')
     const cell = boston.locator('table').last().locator('tbody tr').first().locator('td').nth(7)
-    await expect(cell).toHaveText(/^\d+-\d+$|^99$/) // a rating, as the game shows it
-    await main.getByLabel('as stored values (0–15)').check()
-    await expect(cell).toHaveText(/^[0-6]$/)
-    await main.getByLabel('as stored values (0–15)').uncheck()
-    await main.getByLabel('Show attributes').uncheck()
+    await expect(cell).toHaveText(/^[0-6]$/) // a rating, as its step 0-6
+    await main.getByLabel('Show attributes as').selectOption('ranges')
+    await expect(cell).toHaveText(/^\d+-\d+$|^99$/) // as the game shows it
+    await main.getByLabel('Show attributes as').selectOption('ratings')
+    await main.getByLabel('Show attributes', { exact: true }).uncheck()
     await expect(boston.locator('table').first().locator('thead th')).toHaveCount(6)
-    await main.getByLabel('Show attributes').check()
+    await main.getByLabel('Show attributes', { exact: true }).check()
     await main.getByLabel(`${bruin} leaves Boston Bruins`).check()
     await main.getByLabel(`${duck} leaves Anaheim Mighty Ducks`).check()
     await expect(main.getByText(`Anaheim Mighty Ducks give ${duck}; Boston Bruins give ${bruin}.`)).toBeVisible()
@@ -1971,7 +1971,7 @@ test.describe('with the NHL 94 ROM', () => {
     expect([await agility(0).inputValue(), await agility(1).inputValue()]).toEqual(before)
 
     // Showing stored values, typing a number sets it, two digits together as one number.
-    await page.getByLabel('Show attributes as stored values (0–15)').check()
+    await page.getByLabel('Show attributes as').selectOption('stored')
     await agility(1).focus()
     await page.keyboard.press('Digit4')
     await expect(agility(1)).toHaveValue('4')
@@ -1994,8 +1994,11 @@ test.describe('with the NHL 94 ROM', () => {
     for (let i = 0; i < 20; i++) await page.keyboard.press('NumpadAdd')
     await expect(agility(1)).toHaveValue('15') // stored values go to 15
     await expect(agility(0)).toHaveValue(before[0])
-    // Shown as the game's ratings, they stop at the top and bottom of the rating's range.
-    await page.getByLabel('Show attributes as stored values (0–15)').uncheck()
+    // Shown as ratings 0-6, they stop at the top and bottom of the rating's range, and typing a number sets one.
+    await page.getByLabel('Show attributes as').selectOption('ratings')
+    await agility(0).focus()
+    await page.keyboard.press('Digit3')
+    await expect(agility(0)).toHaveValue('3')
     await agility(0).focus()
     for (let i = 0; i < 20; i++) await page.keyboard.press('Minus')
     await expect(agility(0)).toHaveValue('0')

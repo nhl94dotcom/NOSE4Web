@@ -5,6 +5,7 @@ import { NewSeasonPage } from './NewSeasonPage'
 import { CheckPage } from './CheckPage'
 import { ComparePage } from './ComparePage'
 import { CsvPanel } from './CsvPanel'
+import type { AttributeView } from './core/attributes'
 import { checkProject } from './core/check'
 import { expandTeamSpace, nextExpansion } from './core/expand'
 import { isGenesis94, SUPPORTED_GAMES } from './core/games'
@@ -147,7 +148,7 @@ export default function App() {
   const [lastTeam, setLastTeam] = useState(0)
   if (selected >= 0 && selected !== lastTeam) setLastTeam(selected)
   const [error, setError] = useState('')
-  const [rawAttributes, setRawAttributes] = useState(false)
+  const [attributeView, setAttributeView] = useState<AttributeView>('ratings')
   const [quickKeys, setQuickKeys] = useState(false)
   const [rosterSort, setRosterSort] = useState<RosterSort>('roster')
   useCollapsibleSections()
@@ -489,8 +490,8 @@ export default function App() {
           <TradePage
             project={current}
             startTeam={lastTeam}
-            rawAttributes={rawAttributes}
-            onRawAttributesChange={setRawAttributes}
+            attributeView={attributeView}
+            onAttributeViewChange={setAttributeView}
             onChange={change}
             onGoToTeam={setSelected}
             kept={pageWork.trade}
@@ -550,8 +551,8 @@ export default function App() {
               change(made.project)
               return made.notes
             }}
-            rawAttributes={rawAttributes}
-            onRawAttributesChange={setRawAttributes}
+            attributeView={attributeView}
+            onAttributeViewChange={setAttributeView}
             quickKeys={quickKeys}
             onQuickKeysChange={setQuickKeys}
             rosterSort={rosterSort}

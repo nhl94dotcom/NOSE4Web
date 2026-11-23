@@ -56,8 +56,8 @@ export function FeaturesPage() {
         <li>Team names: place, initials, name and stadium, and the SNES banner name.</li>
         <li>Team ratings (offence, defence, power play, penalty kill, home and away) and the overall the game shows.</li>
         <li>
-          Rosters: add, delete and reorder players, and edit every name, number and attribute. Attributes show as
-          the game shows them or as the numbers stored.
+          Rosters: add, delete and reorder players, and edit every name, number and attribute. Ratings show as their
+          steps 0 to 6, as the ranges the game shows, or as the numbers stored.
         </li>
         <li>Sort the roster, find a player by name, and choose the order of the attribute columns.</li>
         <li>Each player's overall rating, and Match Viewer's league value (LV) where the ROM has it.</li>

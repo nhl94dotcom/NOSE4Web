@@ -63,23 +63,35 @@ export function shootsRight(kind: AttributeKind, value: number): boolean {
 }
 export const isHandedFighting = (kind: AttributeKind): boolean => kind === 'handedFighting' || kind === 'handedFighting93'
 
-export function attributeText(kind: AttributeKind, value: number): string | null {
+// How the roster tables and the Trade page show attributes: the ratings as their steps 0-6 (the default), as the
+// ranges the game's screens show (25-29 to 99), or every attribute as the value stored (0-15). Weight, hands and
+// fighting read the same in the first two.
+export type AttributeView = 'ratings' | 'ranges' | 'stored'
+export const ATTRIBUTE_VIEWS: { value: AttributeView; label: string }[] = [
+  { value: 'ratings', label: 'ratings 0-6' },
+  { value: 'ranges', label: "the game's ranges (25-29 to 99)" },
+  { value: 'stored', label: 'stored values (0-15)' },
+]
+
+// The text for a stored value, or null where the game does not expect it. `ranges` false shows the seven-step ratings
+// as their steps, 0 to 6, in place of the ranges the game's screens show.
+export function attributeText(kind: AttributeKind, value: number, ranges = true): string | null {
   if (isWeight(kind)) {
     const base = kind === 'weight' ? ORIGINAL_BASE_WEIGHT : Number(kind.slice('weight:'.length))
     return `${base + value * WEIGHT_STEP}`
   }
   switch (kind) {
     case 'rating':
-      return RATINGS[value] ?? null
     case 'snesRating':
-      return SNES_RATINGS[value] ?? null
+      if (!(value >= 0 && value <= 6)) return null
+      return ranges ? (kind === 'rating' ? RATINGS : SNES_RATINGS)[value] : String(value)
     case 'handedFighting':
     case 'handedFighting93':
       return `${shootsRight(kind, value) ? 'R' : 'L'}/${FIGHTING[value >> 1]}`
     case 'gloveHand':
       return value < 2 ? (value ? 'R' : 'L') : null
     case 'stickHandling95':
-      return value >= 0 && value <= 15 ? `${RATINGS[stickHandling95Step(value)]} (${value})` : null
+      return value >= 0 && value <= 15 ? `${ranges ? RATINGS[stickHandling95Step(value)] : stickHandling95Step(value)} (${value})` : null
     case 'zero':
       return value === 0 ? '0' : null
     case 'value':

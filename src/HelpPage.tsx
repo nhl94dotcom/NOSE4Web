@@ -387,8 +387,8 @@ export function HelpPage() {
           <b>Wgt</b>: weight in pounds, in steps of 8 from 140 to 260.
         </li>
         <li>
-          <b>Ratings</b> such as Agl and Spd: seven levels, shown as the range the game displays for each, from 25-29
-          up to 99.
+          <b>Ratings</b> such as Agl and Spd: seven levels, 0 to 6, the steps the game keeps. <b>Show attributes as</b>
+          the game's ranges shows the range the game displays for each instead, from 25-29 up to 99.
         </li>
         <li>
           <b>H/F</b> (skaters): shooting hand and fighting together, such as R/57. The original game has no
@@ -402,8 +402,8 @@ export function HelpPage() {
         </li>
       </ul>
       <p>
-        Turn on <b>Show attributes as stored values (0–15)</b> to see and choose the raw numbers kept in the ROM. That
-        view also allows values the game does not normally use, such as a rating above 99, for experimenting. Such
+        Choose <b>Show attributes as</b> stored values (0-15) to see and choose the raw numbers kept in the ROM. That
+        view also allows values the game does not normally use, such as a rating above 6, for experimenting. Such
         values appear in red with a ! in the normal view.
       </p>
       <p>
@@ -530,7 +530,7 @@ export function HelpPage() {
         </li>
         <li>
           Where attributes show as stored values, type a number into a list to set it. Two digits typed quickly
-          together count as one number, so 1 then 2 gives 12.
+          together count as one number, so 1 then 2 gives 12. Shown as ratings 0-6, typing 0 to 6 sets a rating.
         </li>
       </ul>
 

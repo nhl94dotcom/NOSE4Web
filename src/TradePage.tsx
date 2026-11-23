@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { attributeText, isRating } from './core/attributes'
+import { ATTRIBUTE_VIEWS, attributeText, isRating, type AttributeView } from './core/attributes'
 import { hex } from './core/bytes'
 import { playerRole, teamSummaries } from './core/league'
 import { hasLeagueValue, leagueValue, LEAGUE_VALUE_TITLE, type Role } from './core/leaguevalue'
@@ -15,9 +15,9 @@ interface Props {
   project: RomProject
   // The team the user was last looking at, to start one side on.
   startTeam: number
-  // Whether attributes show as the numbers stored, as on a team's page.
-  rawAttributes: boolean
-  onRawAttributesChange: (raw: boolean) => void
+  // How attributes show, as on a team's page.
+  attributeView: AttributeView
+  onAttributeViewChange: (view: AttributeView) => void
   onChange: (project: RomProject) => void
   onGoToTeam: (team: number) => void
   // The sides as they were left, kept while other pages show (pagedrafts.ts).
@@ -39,7 +39,8 @@ interface Row {
 
 const one = (value: number | null) => (value === null ? '–' : value.toFixed(1))
 
-export function TradePage({ project, startTeam, rawAttributes, onRawAttributesChange, onChange, onGoToTeam, kept, onKeep }: Props) {
+export function TradePage({ project, startTeam, attributeView, onAttributeViewChange, onChange, onGoToTeam, kept, onKeep }: Props) {
+  const rawAttributes = attributeView === 'stored'
   const { game } = project
   const [showAttributes, setShowAttributes] = useState(true)
   const orders = { skaters: useAttributeOrder(game, 'skaters'), goalies: useAttributeOrder(game, 'goalies') }
@@ -192,8 +193,14 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
         </label>
         {showAttributes && !storedOnly && (
           <label className="choice">
-            <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} /> as
-            stored values (0–15)
+            as{' '}
+            <select aria-label="Show attributes as" value={attributeView} onChange={(e) => onAttributeViewChange(e.target.value as AttributeView)}>
+              {ATTRIBUTE_VIEWS.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
           </label>
         )}
         <span className="note">Hover a column heading for the attribute's full name.</span>
@@ -285,7 +292,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
                             {showValue && <td>{row.value}</td>}
                             {showAttributes &&
                               order.map((a) => (
-                                <td key={a}>{rawAttributes ? row.attributes[a] : (attributeText(kinds[a], row.attributes[a]) ?? `! ${row.attributes[a]}`)}</td>
+                                <td key={a}>{rawAttributes ? row.attributes[a] : (attributeText(kinds[a], row.attributes[a], attributeView === 'ranges') ?? `! ${row.attributes[a]}`)}</td>
                               ))}
                           </tr>
                         ))}

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { snesBannerNameProblem } from './core/snesblockpicture'
 import { readClipboard, writeClipboard } from './clipboard'
 import { rosterAverage, shownRatingMost } from './core/shownrating'
-import { attributeNote, attributeText, isRating, type AttributeKind } from './core/attributes'
+import { ATTRIBUTE_VIEWS, attributeNote, attributeText, isRating, type AttributeKind, type AttributeView } from './core/attributes'
 import { hex } from './core/bytes'
 import { GOALIE_ARCHETYPES, LEVELS, madeAttributes, RANDOM_LEVEL, randomLevel, SKATER_ARCHETYPES, type Make } from './core/archetypes'
 import { randomName } from './core/randomnames'
@@ -67,9 +67,9 @@ interface Props {
   photoOf?: (index: number) => PlayerPhoto | null
   // The team after a paste, with each pasted row given its new player's photo (null: they have none).
   onPasteWithPhotos?: (team: Team, rows: { slot: number; goalie: boolean; photo: PlayerPhoto | null }[]) => string[]
-  // Whether attributes show as the numbers stored in the ROM instead of as text.
-  rawAttributes: boolean
-  onRawAttributesChange: (raw: boolean) => void
+  // How attributes show: ratings 0-6, the game's ranges, or the values stored in the ROM.
+  attributeView: AttributeView
+  onAttributeViewChange: (view: AttributeView) => void
   // Whether keyboard keys adjust the ticked players' attributes.
   quickKeys: boolean
   onQuickKeysChange: (on: boolean) => void
@@ -111,7 +111,9 @@ const ROSTER_SORTS: { value: RosterSort; label: string }[] = [
 ]
 
 export function TeamEditor(props: Props) {
-  const { game, team, onChange, rawAttributes, onRawAttributesChange, quickKeys, onQuickKeysChange } = props
+  const { game, team, onChange, attributeView, onAttributeViewChange, quickKeys, onQuickKeysChange } = props
+  const rawAttributes = attributeView === 'stored'
+  const ranges = attributeView === 'ranges'
   const { rosterSort: chosenSort, onRosterSortChange, otherTeams, onMovePlayers, footer, header, original, emptySlots, photoOf, onPasteWithPhotos, anyPosition = false } = props
   const goalies = goalieCount(team)
   const ratings = teamRatings(team)
@@ -429,7 +431,7 @@ export function TeamEditor(props: Props) {
     const attributeBox = (index: number, a: number) => {
       const player = team.players[index]
       const value = player.attributes[a]
-      const allowed = (v: number) => v >= 0 && v <= 15 && (rawAttributes || attributeText(kinds[a], v) !== null)
+      const allowed = (v: number) => v >= 0 && v <= 15 && (rawAttributes || attributeText(kinds[a], v, ranges) !== null)
       const set = (next: number) => setPlayer(index, { ...player, attributes: player.attributes.map((v, i) => (i === a ? next : v)) })
       return (
         <select
@@ -447,8 +449,8 @@ export function TeamEditor(props: Props) {
               if (allowed(next)) set(next)
               return
             }
-            // Where the stored values are showing (NHL '95's stick handling shows its own), typing one sets it.
-            if (!rawAttributes && kinds[a] !== 'value' && kinds[a] !== 'stickHandling95') return
+            // Where the stored values are showing (NHL '95's stick handling shows its own, ratings 0-6 theirs), typing one sets it.
+            if (!rawAttributes && kinds[a] !== 'value' && kinds[a] !== 'stickHandling95' && (ranges || !isRating(kinds[a]))) return
             const typed = typedValue(e, allowed)
             if (typed === null) return
             e.preventDefault()
@@ -456,7 +458,7 @@ export function TeamEditor(props: Props) {
           }}
         >
           {ATTRIBUTE_VALUES.map((v) => {
-            const text = attributeText(kinds[a], v)
+            const text = attributeText(kinds[a], v, ranges)
             // As text, values the game does not expect are only offered if already in use.
             if (!rawAttributes && text === null && v !== value) return null
             return (
@@ -719,8 +721,14 @@ export function TeamEditor(props: Props) {
           </label>{' '}
           {!storedOnly && (
             <label>
-              <input type="checkbox" checked={rawAttributes} onChange={(e) => onRawAttributesChange(e.target.checked)} />{' '}
-              Show attributes as stored values (0–15)
+              Show attributes as{' '}
+              <select aria-label="Show attributes as" value={attributeView} onChange={(e) => onAttributeViewChange(e.target.value as AttributeView)}>
+                {ATTRIBUTE_VIEWS.map((v) => (
+                  <option key={v.value} value={v.value}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
             </label>
           )}{' '}
           {!plainView && <span className="note">This changes only what is shown, not the roster.</span>}
@@ -854,7 +862,7 @@ export function TeamEditor(props: Props) {
           <p className="note" hidden={narrow}>
             In the tables, the arrow keys and Enter move from box to box, as in a spreadsheet. Hold Alt with the down
             arrow to open a list. In an attribute's list, + and - raise and lower it
-            {storedOnly || rawAttributes ? ', and typing a number sets it' : ''}.
+            {storedOnly || rawAttributes ? ', and typing a number sets it' : !ranges ? ', and typing a number sets a rating' : ''}.
           </p>
         </details>
       </div>
