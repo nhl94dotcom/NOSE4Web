@@ -108,16 +108,19 @@ export function deleteGoalie(team: Team, index: number): Team {
   }
 }
 
-// Moves skaters from one team to another, as in a trade. They keep their role
-// as forward or defenceman, and both teams' lines are kept in step.
+// Moves players from one team to another, as in a trade. Skaters keep their role as forward or defenceman, goalies
+// go after the other team's goalies, and both teams' lines are kept in step. Each team keeps 1 to MAX_GOALIES
+// goalies and MIN_ROSTER to MAX_ROSTER players.
 export function transferPlayers(teams: Team[], from: number, indexes: number[], to: number): Team[] {
   let source = teams[from]
   let target = teams[to]
   if (from === to) throw new Error('Choose a different team to move the players to.')
   if (indexes.length === 0) throw new Error('Select the players to move first.')
   const goalies = goalieCount(source)
-  if (indexes.some((i) => i < goalies)) {
-    throw new Error('Goalies cannot be moved this way. Copy the goalie and paste over one on the other team.')
+  const goaliesMoving = indexes.filter((i) => i < goalies).length
+  if (goalies - goaliesMoving < 1) throw new Error('A team needs at least one goalie, so that many cannot leave.')
+  if (goalieCount(target) + goaliesMoving > MAX_GOALIES) {
+    throw new Error(`The other team would have more than ${MAX_GOALIES} goalies.`)
   }
   if (source.players.length - indexes.length < MIN_ROSTER) {
     throw new Error(`A team needs at least ${MIN_ROSTER} players, so that many cannot leave.`)
@@ -126,10 +129,11 @@ export function transferPlayers(teams: Team[], from: number, indexes: number[], 
     throw new Error(`The other team would have more than ${MAX_ROSTER} players.`)
   }
 
+  // Goalies go after the other team's goalies (insertGoalie); skaters keep their role.
   const ordered = [...indexes].sort((a, b) => a - b)
-  const moving = ordered.map((i) => ({ player: source.players[i], forward: i - goalies < source.forwards }))
-  for (const i of ordered.reverse()) source = deletePlayer(source, i)
-  for (const { player, forward } of moving) target = insertSkater(target, player, forward)
+  const moving = ordered.map((i) => ({ player: source.players[i], goalie: i < goalies, forward: i - goalies < source.forwards }))
+  for (const i of ordered.reverse()) source = i < goalies ? deleteGoalie(source, i) : deletePlayer(source, i)
+  for (const { player, goalie, forward } of moving) target = goalie ? insertGoalie(target, player) : insertSkater(target, player, forward)
   return teams.map((team, i) => (i === from ? source : i === to ? target : team))
 }
 

@@ -441,9 +441,10 @@ export function HelpPage() {
         every attribute at its lowest. A team can have at most {MAX_ROSTER} players.
       </p>
       <p>
-        To trade a skater, select them, choose the other team beside <b>Move selected to</b>, and click it. A forward
-        joins the end of the other team's forwards and a defenceman the end of its roster, and both teams' lines are
-        kept in step. Goalies cannot be moved this way; copy one and paste over a goalie on the other team.
+        To move players, select them, choose the other team beside <b>Move selected to</b>, and click it. A forward
+        joins the end of the other team's forwards, a defenceman the end of its roster and a goalie the end of its
+        goalies, and both teams' lines are kept in step: where a goalie who left was on the lines, the team's first
+        goalie takes their place. Each team keeps 1 to 4 goalies.
       </p>
       <p>
         <b>Show in order of</b> lists the players by first name, last name, jersey number or overall rating, and <b>Find</b> shows

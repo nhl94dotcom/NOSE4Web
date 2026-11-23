@@ -6,7 +6,7 @@ import { expandTeamSpace } from '../src/core/expand'
 import { banner, bannerColors, expandPictureSpace, menuLogo, menuPalette, pictureSpace, withBanner, withBannerColors } from '../src/core/graphics'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
-import { addPlayer } from '../src/core/roster'
+import { addPlayer, transferPlayers } from '../src/core/roster'
 import { goalieCount } from '../src/core/team'
 import { FREE_AGENTS, linePositionsLost, trade, tradeSummary } from '../src/core/trade'
 import { expectSameBytes } from './samebytes'
@@ -124,6 +124,30 @@ describe.skipIf(!hasRom)('trading players', () => {
     expect(goalieCount(again.teams[MONTREAL])).toBe(goalieCount(m))
     expect(again.teams[MONTREAL].players[goalieCount(montreal)].name).toBe(starter)
     expect(checkProject(after).filter((f) => f.level === 'problem')).toEqual([])
+  })
+
+  it('moves a goalie to another team with Move selected to, within the goalie limits', () => {
+    const project = roomy()
+    const [boston, ducks] = [project.teams[BOSTON], project.teams[ANAHEIM]]
+    const [starter, backup] = [boston.players[0].name, boston.players[1].name]
+    const skater = boston.players[goalieCount(boston)].name
+    const teams = transferPlayers(project.teams, BOSTON, [0, goalieCount(boston)], ANAHEIM)
+    const [b, m] = [teams[BOSTON], teams[ANAHEIM]]
+    expect(goalieCount(b)).toBe(goalieCount(boston) - 1)
+    expect(b.players[0].name).toBe(backup)
+    expect(goalieCount(m)).toBe(goalieCount(ducks) + 1)
+    expect(m.players[goalieCount(ducks)].name).toBe(starter)
+    expect(m.players.map((p) => p.name)).toContain(skater)
+    expect(m.players).toHaveLength(ducks.players.length + 2)
+    // Boston's lines: the backup where the starter was.
+    const before = lineNames(project, BOSTON)
+    lineNames({ ...project, teams }, BOSTON).forEach((line, l) => expect(line[0]).toBe(before[l][0] === starter ? backup : before[l][0]))
+    expect(goalieCount(openRom(buildRom({ ...project, teams })).teams[ANAHEIM])).toBe(goalieCount(m))
+    // Not the last goalie, nor a fifth.
+    expect(() => transferPlayers(teams, BOSTON, [0], ANAHEIM)).toThrow('A team needs at least one goalie, so that many cannot leave.')
+    const four = transferPlayers(teams, MONTREAL, [0], ANAHEIM)
+    expect(goalieCount(four[ANAHEIM])).toBe(4)
+    expect(() => transferPlayers(four, 2, [0], ANAHEIM)).toThrow('The other team would have more than 4 goalies.')
   })
 
   it('keeps every team 1 to 4 goalies', () => {
