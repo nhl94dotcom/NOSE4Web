@@ -13,6 +13,7 @@ import {
   gameName,
   NAME_ROOM,
   parseSeason,
+  rateSeason,
   rerateByName,
   seasonBuilderSupported,
   type Season,
@@ -151,6 +152,24 @@ describe('a real season', () => {
     // 2023-24, with 32 teams, has more skaters at the top than the original game's three or four.
     const recent = buildSeasonRosters(NHL94, seasonOf('20232024')).flatMap((t) => t.players).filter((p) => !p.isGoalie)
     expect(recent.filter((p) => p.player.attributes[at('End')] === 6).length).toBeGreaterThan(8)
+  })
+
+  it("rates a defenceman's offence among the forwards above EA's 4, and nobody else takes a leader's top value", () => {
+    const at = NHL94.playerAttributeLabels.indexOf('OfA')
+    const ofa = (id: string, name: string) => {
+      const rated = rateSeason(NHL94, seasonOf(id))
+      const p = [...rated.teams.flatMap((t) => t.players), ...rated.others].find((x) => x.player.name === name)!
+      return p.player.attributes[at]
+    }
+    // 102 assists in 1970-71, more than any forward: the top value. Paul Coffey's 138 points in 1985-86 earn a
+    // forward a 5.
+    expect(ofa('19701971', 'Bobby Orr')).toBe(6)
+    expect(ofa('19851986', 'Paul Coffey')).toBe(5)
+    // As EA rated them: no defenceman above 4 in 1992-93.
+    const d = buildSeasonRosters(NHL94, seasonOf('19921993')).flatMap((t) => t.players).filter((p) => !p.isGoalie && !p.forward)
+    expect(Math.max(...d.map((p) => p.player.attributes[at]))).toBe(4)
+    // 21 goals and 35 assists in 2015-16: rated among the forwards next to their assists leader, but not given that leader's 6.
+    expect(ofa('20152016', 'Mark Giordano')).toBeLessThanOrEqual(4)
   })
 
   it('is offered for games with the original attributes', () => {

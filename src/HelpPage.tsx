@@ -1862,8 +1862,10 @@ export function HelpPage() {
           <b>The ratings:</b> each stat is turned into where the player stands among that season's players of the
           same kind, so any era is rated alike. The ratings are then given out in the same proportions as the original NHL
           94's, except that every player who scores as high as a top rating needed in 1992-93 gets it, however many do,
-          and the season's leader in the stat a rating rests on most (assists for passing, for example) always gets it. A
-          player's size does not lower their Agility (Weight already does that in the game), age counts a little
+          and the season's leader in the stat a rating rests on most (assists for passing, for example) always gets it.
+          EA rated no defenceman above 4 in Offensive Awareness, so a defenceman whose season would earn a forward more
+          gets the forward's rating: Paul Coffey a 5 in 1985-86, and Bobby Orr, with more assists than any forward in
+          1970-71, a 6. A player's size does not lower their Agility (Weight already does that in the game), age counts a little
           against Agility and Speed, and age does not count for skills such as passing. The weights were set so that 1992-93, the season EA rated the original game from, gives back EA's
           ratings within one step for about nine players in ten (all but one in a hundred for Offensive Awareness, Shot
           Accuracy, Roughness and Aggression). Speed, Agility and Checking are the least sure, as no stat measures them.

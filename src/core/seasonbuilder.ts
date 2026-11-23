@@ -320,6 +320,7 @@ interface RatedGroup {
   raw: Raw
   standings: Record<string, number[]>
   rated: Rated[]
+  top: Record<string, number>
 }
 
 // The lowest score that earned each attribute's top value in 1992-93 (see shareOut's use in rateGroup).
@@ -336,15 +337,29 @@ const TOP_SCORE: Record<'F' | 'D' | 'G', Record<string, number>> = {
 // at least LEAD_WEIGHT; games are left out, as many players share the most) always gets the top value: Wayne
 // Gretzky's 163 assists in 1985-86 stand only a little above the next player's, as standings go by order.
 const LEAD_WEIGHT = 1.2
-function leaders(w: Weights, raw: Raw): Set<number> {
-  const main = Object.keys(raw)
+const mainStat = (w: Weights, raw: Raw): string | undefined =>
+  Object.keys(raw)
     .filter((k) => k !== 'gp' && typeof w[k] === 'number' && (w[k] as number) >= LEAD_WEIGHT)
     .sort((a, b) => (w[b] as number) - (w[a] as number))[0]
-  if (main === undefined) return new Set()
-  const known = raw[main].filter((v): v is number => v !== null && Number.isFinite(v))
-  if (known.length === 0) return new Set()
-  const best = Math.max(...known)
-  return new Set(raw[main].flatMap((v, i) => (v === best ? [i] : [])))
+const best = (list: (number | null)[]): number | null => {
+  const known = list.filter((v): v is number => v !== null && Number.isFinite(v))
+  return known.length === 0 ? null : Math.max(...known)
+}
+function leaders(w: Weights, raw: Raw): Set<number> {
+  const main = mainStat(w, raw)
+  const most = main === undefined ? null : best(raw[main])
+  if (main === undefined || most === null) return new Set()
+  return new Set(raw[main].flatMap((v, i) => (v === most ? [i] : [])))
+}
+
+// EA rated no defenceman above 4 in Offensive Awareness, so the defencemen's own scale stops there. A defenceman
+// whose season, rated among the forwards, would earn a forward more than that gets the forward's value: Paul Coffey's
+// 138 points in 1985-86 a 5. One who leads the forwards too in the stat it rests on most (assists) gets the top
+// value, as their leader does: Bobby Orr's 102 assists in 1970-71 a 6. In 1992-93 none comes out above 4.
+function offenceAsForward(own: Rated, asForward: Rated, leads: boolean): Rated {
+  const value = leads ? WEIGHTS.F.OfA.count.length - 1 : asForward.values.OfA
+  if (value <= WEIGHTS.D.OfA.count.length - 1 || value <= own.values.OfA) return own
+  return { values: { ...own.values, OfA: value }, margin: { ...own.margin, OfA: leads ? Infinity : asForward.margin.OfA } }
 }
 
 function rateGroup(weights: Record<string, Weights>, raw: Raw, top: Record<string, number>): RatedGroup {
@@ -360,14 +375,15 @@ function rateGroup(weights: Record<string, Weights>, raw: Raw, top: Record<strin
       rated[i].margin[label] = lead.has(i) ? Infinity : scores[i] - top[label]
     })
   }
-  return { weights, raw, standings, rated }
+  return { weights, raw, standings, rated, top }
 }
 
 const rateSkaters = (players: SeasonSkater[], group: 'F' | 'D', year: number) => rateGroup(WEIGHTS[group], skaterRaw(players, players, year), TOP_SCORE[group])
 const rateGoalies = (players: SeasonGoalie[], year: number) => rateGroup(WEIGHTS.G, goalieRaw(players, players, year), TOP_SCORE.G)
 
 // Players outside a rated group, rated against it without changing it: for each attribute, each takes the value of
-// the group's player with the highest score not above theirs (the lowest's, if none).
+// the group's player with the highest score not above theirs (the lowest's, if none), or the top value if their
+// score reaches what it needs. Never a leader's: a leader has the top value for their stat, not their score.
 function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
   const count = Object.values(raw)[0]?.length ?? 0
   const standings = Object.fromEntries(Object.entries(raw).map(([k, list]) => [k, list.map((x) => standingAmong(group.raw[k], x))]))
@@ -378,8 +394,14 @@ function rateAgainst(group: RatedGroup, raw: Raw): Rated[] {
     const order = scores.map((_, i) => i).sort((a, b) => scores[a] - scores[b])
     out.forEach((r, j) => {
       const s = score(w, standings, j)
-      let pick = order[0]
-      for (const i of order) {
+      if (s >= group.top[label]) {
+        r.values[label] = w.count.length - 1
+        r.margin[label] = s - group.top[label]
+        return
+      }
+      const plain = order.filter((i) => group.rated[i].margin[label] !== Infinity)
+      let pick = plain[0] ?? order[0]
+      for (const i of plain) {
         if (scores[i] > s) break
         pick = i
       }
@@ -577,7 +599,23 @@ export function rateSeason(game: GameConfig, season: Season, options: SeasonOpti
   const fAll = ratedGroup(chosen.map((c) => c.forwards), (all) => rateSkaters(fSeasons(all), 'F', year))
   const dAll = ratedGroup(chosen.map((c) => c.defence), (all) => rateSkaters(fSeasons(all), 'D', year))
   const gAll = ratedGroup(chosen.map((c) => c.goalies), (all) => rateGoalies(gSeasons(all), year))
-  const [fRated, dRated, gRated] = [fAll.out, dAll.out, gAll.out]
+  const fPool = fSeasons(fAll.all)
+  const dPool = fSeasons(dAll.all)
+  const gPool = gSeasons(gAll.all)
+  // Defencemen's offence measured among the forwards too (offenceAsForward).
+  const forwardOffence = (seasons: SeasonSkater[], rated: Rated[]): Rated[] => {
+    if (fAll.group.rated.length === 0) return rated
+    const raw = skaterRaw(seasons, fPool, year)
+    const asForward = rateAgainst(fAll.group, raw)
+    const main = mainStat(WEIGHTS.F.OfA, raw)
+    const most = main === undefined ? null : best(fAll.group.raw[main])
+    return rated.map((r, i) => {
+      const v = main === undefined ? null : raw[main][i]
+      return offenceAsForward(r, asForward[i], most !== null && v !== null && v >= most)
+    })
+  }
+  const dLifted = forwardOffence(dPool, dAll.all.map((p) => dAll.out.get(p)!))
+  const [fRated, dRated, gRated] = [fAll.out, new Map(dAll.all.map((p, i) => [p, dLifted[i]])), gAll.out]
 
   const skaterPlayer = (p: SeasonSkater, forward: boolean, rated: Rated): BuiltPlayer => ({
     player: { name: gameName(p.first, p.last), jersey: jersey(p.number), attributes: attributes(game, false, rated, p.pounds, p.shoots) },
@@ -604,12 +642,14 @@ export function rateSeason(game: GameConfig, season: Season, options: SeasonOpti
   const leftG = left(goalieTeams, (t) => t.goalies)
   const against = <T, S>(group: RatedGroup, players: T[], seasons: S[], raw: (players: S[]) => Raw, make: (p: T, rated: Rated) => BuiltPlayer) =>
     players.length === 0 || group.rated.length === 0 ? [] : rateAgainst(group, raw(seasons)).map((rated, i) => make(players[i], rated))
-  const fPool = fSeasons(fAll.all)
-  const dPool = fSeasons(dAll.all)
-  const gPool = gSeasons(gAll.all)
   const others = [
     ...against(fAll.group, leftF, fSeasons(leftF), (list) => skaterRaw(list, fPool, year), (p, r) => skaterPlayer(p, true, r)),
-    ...against(dAll.group, leftD, fSeasons(leftD), (list) => skaterRaw(list, dPool, year), (p, r) => skaterPlayer(p, false, r)),
+    ...(() => {
+      const seasons = fSeasons(leftD)
+      if (leftD.length === 0 || dAll.group.rated.length === 0) return []
+      const lifted = forwardOffence(seasons, rateAgainst(dAll.group, skaterRaw(seasons, dPool, year)))
+      return lifted.map((r, i) => skaterPlayer(leftD[i], false, r))
+    })(),
     ...against(gAll.group, leftG, gSeasons(leftG), (list) => goalieRaw(list, gPool, year), goaliePlayer),
   ]
 
