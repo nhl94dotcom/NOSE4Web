@@ -49,6 +49,23 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("SNES fights: the fighters' majo
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom({ ...rom, bytes: on })), { fighting: false })), buildRom(rom))).toBe(0)
   })
 
+  it("pairs at the fight's minutes in the ROM's penalty list, where they are not 5 (the SNES World Cup league's 2)", () => {
+    const rom = open('NHL94.smc')
+    // Penaltylist's Fighting ($2A) and Fighting * ($2C) entries: the minutes, then $28.
+    expect(hex(rom.bytes, 0x55dc, 2)).toBe('0528')
+    expect(hex(rom.bytes, 0x55fc, 2)).toBe('0528')
+    const two = rom.bytes.slice()
+    two[0x55dc] = two[0x55fc] = 2
+    const on = applySnesHacks({ ...rom, bytes: two }, { fighting: true })
+    expect(pairing(on.bytes)).toEqual([0x2078, 0x78])
+    // Any apply puts it right on a ROM that already has the fights: here one paired at 5:00.
+    const at5 = applySnesHacks(rom, { fighting: true }).bytes
+    at5[0x55dc] = at5[0x55fc] = 2
+    expect(pairing(applySnesHacks({ ...rom, bytes: at5 }, {}).bytes)).toEqual([0x2078, 0x78])
+    // The fight time, when it is on, still wins.
+    expect(pairing(applySnesHacks({ ...rom, bytes: two }, { fighting: true }, false, { fightTime: 180 }).bytes)).toEqual([0x20b4, 0xb4])
+  })
+
   it('pairs at the fight time, or 5 minutes at the penalty time', () => {
     const rom = open('NHL94.smc')
     const timed = applySnesHacks(rom, { fighting: true }, false, { fightTime: 120 })

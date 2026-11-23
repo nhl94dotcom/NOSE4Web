@@ -1305,10 +1305,23 @@ function fightTimePlaces(rom: Uint8Array, amount?: number): Placed[] | null {
   ]
 }
 
-// McMarkis's FightCoincidental, in their builds and NOSE4Web's 1 MB fights (lda d2 / cmp #$212C / bne / phx / sty / ldx #$34, then and #$07FF / cmp
-// #$012C / beq) pairs two fighters' majors only at 5:00. Set after the hacks go in, from what they make a fight's box
-// time: the fight time if it is on, else 5 minutes at the penalty time (Match Viewer: else, with either, the fighters
-// no longer offset each other). Not a hack of its own: it follows those two.
+// A fight's minutes, as the ROM's penalty list has them: Penaltylist's entry for penalty $2A, whose first byte is the
+// minutes (then $28, the name's length + 2, 0, "Fighting", $04). 5 in the original game and McMarkis's builds; a ROM
+// can have fewer (the SNES World Cup league's 2, 2026-11-23, set outside NOSE4Web, which left FightCoincidental
+// looking for 5:00 and so pairing nothing: a fighter hurt for the game came out of the box and played; Match Viewer).
+// 5 where the entry is not found.
+const FIGHT_ENTRY = '..280a00' + [...'Fighting'].map((c) => c.charCodeAt(0).toString(16)).join('') + '04'
+function fightMinutes(rom: Uint8Array): number {
+  const entry = findCodeAll(rom, FIGHT_ENTRY)
+  const minutes = entry.length > 0 ? rom[entry[0].at] : 5
+  return minutes >= 1 && minutes <= 30 ? minutes : 5
+}
+
+// FightCoincidental, in McMarkis's builds and NOSE4Web's 1 MB fights (lda d2 / cmp #$212C / bne / phx / sty /
+// ldx #$34, then and #$07FF / cmp #$012C / beq), pairs two fighters' majors only at 5:00. Set after the hacks go in,
+// from what they make a fight's box time: the fight time if it is on, else the fight's minutes (fightMinutes) at the
+// penalty time (Match Viewer: else, with either, the fighters no longer offset each other). Not a hack of its own: it
+// follows those two.
 function syncFightPairing(rom: Uint8Array): void {
   const pairs = findCodeAll(rom, 'a5..c9....d0..da84..a23400')
   if (pairs.length !== 1) return
@@ -1316,7 +1329,7 @@ function syncFightPairing(rom: Uint8Array): void {
   if (times.length !== 1) return
   const fight = amountIn(rom, 'fightTime')
   const perMinute = amountIn(rom, 'penaltyTime')
-  const seconds = Math.min(0x7ff, fight > 0 ? fight : 5 * perMinute)
+  const seconds = Math.min(0x7ff, fight > 0 ? fight : fightMinutes(rom) * perMinute)
   rom.set(bytesOf(word(seconds | 0x2000)), pairs[0].at + 3)
   rom.set(bytesOf(word(seconds)), times[0].at + 4)
 }
