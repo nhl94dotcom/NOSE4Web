@@ -79,7 +79,7 @@ describe.skipIf(!hasRom)('trading players', () => {
     expect(() => trade(project, { team: BOSTON, picks: [5, 6] }, { team: MONTREAL, picks: [6] })).toThrow('Montreal Canadiens would have 27 players, and a team can hold 26.')
   })
 
-  it('swaps goalies one for one, in place, and refuses any other goalie move', () => {
+  it('swaps goalies one for one, in place', () => {
     const project = roomy()
     const [mine, theirs] = [names(project, BOSTON)[0], names(project, MONTREAL)[1]]
     const after = trade(project, { team: BOSTON, picks: [0] }, { team: MONTREAL, picks: [1] })
@@ -87,8 +87,58 @@ describe.skipIf(!hasRom)('trading players', () => {
     expect(names(after, MONTREAL)[1]).toBe(mine)
     expect(after.teams[BOSTON].goalieNibbles).toEqual(project.teams[BOSTON].goalieNibbles)
     expect(after.teams[BOSTON].lines).toEqual(project.teams[BOSTON].lines)
-    expect(() => trade(project, { team: BOSTON, picks: [0] }, { team: MONTREAL, picks: [5] })).toThrow(/Goalies change places one for one/)
-    expect(() => trade(project, { team: BOSTON, picks: [0] }, { team: MONTREAL, picks: [] })).toThrow(/Goalies change places one for one/)
+  })
+
+  it('trades a goalie for a skater: one team a goalie fewer, the other one more, lines kept on the same people', () => {
+    const project = roomy()
+    const [boston, montreal] = [project.teams[BOSTON], project.teams[MONTREAL]]
+    const [starter, backup] = [boston.players[0].name, boston.players[1].name]
+    const skater = montreal.players[goalieCount(montreal)].name
+    const after = trade(project, { team: BOSTON, picks: [0] }, { team: MONTREAL, picks: [goalieCount(montreal)] })
+    const [b, m] = [after.teams[BOSTON], after.teams[MONTREAL]]
+    expect(goalieCount(b)).toBe(goalieCount(boston) - 1)
+    expect(goalieCount(m)).toBe(goalieCount(montreal) + 1)
+    expect(b.players[0].name).toBe(backup)
+    expect(names(after, BOSTON)).toContain(skater)
+    // The new goalie goes after Montreal's; the skater who left is gone.
+    expect(m.players[goalieCount(montreal)].name).toBe(starter)
+    expect(names(after, MONTREAL)).not.toContain(skater)
+    // Boston's lines: where the starter was, the backup; everyone else as they were.
+    const before = lineNames(project, BOSTON)
+    lineNames(after, BOSTON).forEach((line, l) =>
+      line.forEach((name, slot) => {
+        if (slot === 0) expect(name).toBe(before[l][0] === starter ? backup : before[l][0])
+        else if (before[l][slot] !== undefined && names(after, BOSTON).includes(before[l][slot]!)) expect(name).toBe(before[l][slot])
+      }),
+    )
+    // Montreal's lines keep their goalies and every skater still there.
+    const mBefore = lineNames(project, MONTREAL)
+    lineNames(after, MONTREAL).forEach((line, l) =>
+      line.forEach((name, slot) => {
+        if (mBefore[l][slot] !== undefined && mBefore[l][slot] !== skater) expect(name).toBe(mBefore[l][slot])
+      }),
+    )
+    // The ROM keeps it all.
+    const again = openRom(buildRom(after))
+    expect(goalieCount(again.teams[BOSTON])).toBe(goalieCount(b))
+    expect(goalieCount(again.teams[MONTREAL])).toBe(goalieCount(m))
+    expect(again.teams[MONTREAL].players[goalieCount(montreal)].name).toBe(starter)
+    expect(checkProject(after).filter((f) => f.level === 'problem')).toEqual([])
+  })
+
+  it('keeps every team 1 to 4 goalies', () => {
+    const project = roomy()
+    const ducks = project.teams[ANAHEIM]
+    expect(goalieCount(ducks)).toBe(2)
+    // Anaheim's two goalies both leave, and nobody comes back in goal.
+    expect(() => trade(project, { team: ANAHEIM, picks: [0, 1] }, { team: BOSTON, picks: [] })).toThrow(
+      /Anaheim Mighty Ducks would have no goalie, and a team needs at least one/,
+    )
+    // One goalie at a time for a skater: three, four, and not five.
+    const three = trade(project, { team: BOSTON, picks: [0] }, { team: ANAHEIM, picks: [2] })
+    const four = trade(three, { team: MONTREAL, picks: [0] }, { team: ANAHEIM, picks: [3] })
+    expect(goalieCount(four.teams[ANAHEIM])).toBe(4)
+    expect(() => trade(four, { team: 2, picks: [0] }, { team: ANAHEIM, picks: [4] })).toThrow(/Anaheim Mighty Ducks would have 5 goalies, and a team can have 4/)
   })
 
   it('says why a trade cannot be made', () => {
@@ -124,8 +174,10 @@ describe.skipIf(!hasRom)('free agents', () => {
   it('swaps a goalie with one of the free agents', () => {
     const project = roomy()
     const starter = names(project, BOSTON)[0]
-    // Nobody to swap with yet.
-    expect(() => trade(project, { team: BOSTON, picks: [0] }, { team: FREE_AGENTS, picks: [] })).toThrow(/Goalies change places one for one/)
+    // Released on their own, the team keeps its other goalie.
+    const released = trade(project, { team: BOSTON, picks: [0] }, { team: FREE_AGENTS, picks: [] })
+    expect(goalieCount(released.teams[BOSTON])).toBe(goalieCount(project.teams[BOSTON]) - 1)
+    expect(released.freeAgents).toEqual([{ player: project.teams[BOSTON].players[0], role: 'G' }])
     const pool: RomProject = { ...project, freeAgents: [{ player: { name: 'Spare Goalie', jersey: 0x35, attributes: new Array<number>(14).fill(3) }, role: 'G' }] }
     const after = trade(pool, { team: BOSTON, picks: [0] }, { team: FREE_AGENTS, picks: [0] })
     expect(names(after, BOSTON)[0]).toBe('Spare Goalie')

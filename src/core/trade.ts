@@ -3,7 +3,7 @@
 
 import { emptyLineSlots, LINE_SLOTS } from './lines'
 import type { RomProject } from './rom'
-import { deletePlayer, insertSkater, MAX_ROSTER, MIN_ROSTER } from './roster'
+import { deleteGoalie, deletePlayer, insertGoalie, insertSkater, MAX_GOALIES, MAX_ROSTER, MIN_ROSTER } from './roster'
 import { goalieCount, teamDisplayName, type Player, type Team } from './team'
 
 export type Role = 'G' | 'F' | 'D'
@@ -39,29 +39,34 @@ function leaving(project: RomProject, side: TradeSide): FreeAgent[] {
   return side.picks.map((i) => ({ player: team.players[i], role: role(team, i) }))
 }
 
-// A team after its picked players leave and others arrive. Skaters come and
-// go; a goalie can only take the place of one who leaves, since the game
-// needs a team's goalies to stay where they are on the roster.
+// A team after its picked players leave and others arrive. Skaters come and go, keeping their role; goalies
+// traded for goalies take each other's places on the roster, so their lines stay as they are. Any more goalies who
+// leave are taken off (their line slots fall to the first goalie), and any more who arrive go after the team's
+// goalies. A team keeps 1 to MAX_GOALIES goalies.
 function exchange(team: Team, out: FreeAgent[], incoming: FreeAgent[]): Team {
   const name = teamDisplayName(team)
   const goaliesOut = out.filter((p) => p.role === 'G')
   const goaliesIn = incoming.filter((p) => p.role === 'G')
-  if (goaliesOut.length !== goaliesIn.length) {
-    throw new Error(`Goalies change places one for one. ${name} would give ${goaliesOut.length} and get ${goaliesIn.length}.`)
-  }
+  const goalies = goalieCount(team) - goaliesOut.length + goaliesIn.length
+  if (goalies < 1) throw new Error(`${name} would have no goalie, and a team needs at least one.`)
+  if (goalies > MAX_GOALIES) throw new Error(`${name} would have ${goalies} goalies, and a team can have ${MAX_GOALIES}.`)
   const skatersOut = out.filter((p) => p.role !== 'G')
   const skatersIn = incoming.filter((p) => p.role !== 'G')
-  const size = team.players.length - skatersOut.length + skatersIn.length
+  const size = team.players.length - out.length + incoming.length
   if (size < MIN_ROSTER) throw new Error(`${name} would have ${size} players, and a team needs at least ${MIN_ROSTER}.`)
   if (size > MAX_ROSTER) throw new Error(`${name} would have ${size} players, and a team can hold ${MAX_ROSTER}.`)
 
+  const pairs = Math.min(goaliesOut.length, goaliesIn.length)
   let next: Team = {
     ...team,
     players: team.players.map((player) => {
-      const at = goaliesOut.findIndex((g) => g.player === player)
+      const at = goaliesOut.slice(0, pairs).findIndex((g) => g.player === player)
       return at < 0 ? player : goaliesIn[at].player
     }),
   }
+  // The rest: arrivals first, so that a team never drops to no goalie on the way.
+  for (const g of goaliesIn.slice(pairs)) next = insertGoalie(next, g.player)
+  for (const g of goaliesOut.slice(pairs)) next = deleteGoalie(next, next.players.indexOf(g.player))
   // One leaves or one arrives at a time, keeping the roster within its
   // limits throughout, so that a full roster can still trade one for one.
   const toLeave = skatersOut.map((p) => p.player)

@@ -1702,8 +1702,9 @@ export function HelpPage() {
       <ul>
         <li>Skaters keep their role: a forward arrives among the other team's forwards, a defenceman at the end.</li>
         <li>
-          Goalies change places one for one, each taking the other's spot on the roster, because the game needs a
-          team's goalies to stay where they are. A goalie cannot be traded for a skater.
+          A goalie traded for a goalie takes the other's spot on the roster, so the lines stay as they were. A goalie
+          can also go for a skater, or on their own: one who arrives goes after the team's goalies, and where one who
+          leaves was on the lines, the team's first goalie takes their place. A team keeps 1 to 4 goalies.
         </li>
         <li>
           A team has to keep at least 5 players and can hold 26. Two full rosters can still trade one for one.

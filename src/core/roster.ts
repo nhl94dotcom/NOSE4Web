@@ -79,6 +79,35 @@ export function insertSkater(team: Team, player: Player, asForward: boolean): Te
   return withSkaterCounts({ ...team, players, lines }, team.forwards + 1)
 }
 
+// The most goalies a team has: one for each goalie byte value (setGoalieNibble).
+export const MAX_GOALIES = 4
+
+// Puts a goalie on a roster after the others; their goalie byte value is 1. Lines keep pointing at the same people.
+export function insertGoalie(team: Team, player: Player): Team {
+  const at = goalieCount(team)
+  if (at >= MAX_GOALIES) return team
+  const players = [...team.players.slice(0, at), player, ...team.players.slice(at)]
+  const lines = mapLines(team, (v) => (v > at && v <= team.players.length ? v + 1 : v))
+  const goalieNibbles = team.goalieNibbles.map((v, i) => (i === at ? 1 : v))
+  return { ...team, players, lines, goalieNibbles }
+}
+
+// Takes a goalie off a roster; the goalies after them move up, with their goalie byte values. Line slots that used
+// them fall to the first goalie, and later players move up one position. A team keeps at least one goalie.
+export function deleteGoalie(team: Team, index: number): Team {
+  const goalies = goalieCount(team)
+  if (index >= goalies || goalies <= 1) return team
+  const position = index + 1
+  const values = team.goalieNibbles.slice(0, goalies)
+  values.splice(index, 1)
+  return {
+    ...team,
+    players: team.players.filter((_, i) => i !== index),
+    lines: mapLines(team, (v) => (v === position ? 1 : v > position && v <= team.players.length ? v - 1 : v)),
+    goalieNibbles: team.goalieNibbles.map((_, i) => (i < values.length ? values[i] || 1 : 0)),
+  }
+}
+
 // Moves skaters from one team to another, as in a trade. They keep their role
 // as forward or defenceman, and both teams' lines are kept in step.
 export function transferPlayers(teams: Team[], from: number, indexes: number[], to: number): Team[] {

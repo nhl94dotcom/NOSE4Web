@@ -1850,12 +1850,13 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText(/positions? on the lines (is|are) held by players who would leave/).first()).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/trade.png', fullPage: true })
 
-    // A goalie for a skater cannot be done, and the page says why.
-    const goalie = await main.locator('section').nth(1).locator('tbody tr').first().locator('td').nth(2).textContent()
-    await main.getByLabel(`${goalie} leaves Boston Bruins`).check()
-    await expect(main.locator('p.error')).toContainText('Goalies change places one for one')
+    // A team keeps at least one goalie: with both of Boston's leaving, the page says why it cannot be done.
+    const goalieRows = main.locator('section').nth(1).locator('tbody tr')
+    const goalies = [await goalieRows.nth(0).locator('td').nth(2).textContent(), await goalieRows.nth(1).locator('td').nth(2).textContent()]
+    for (const goalie of goalies) await main.getByLabel(`${goalie} leaves Boston Bruins`).check()
+    await expect(main.locator('p.error')).toContainText('Boston Bruins would have no goalie, and a team needs at least one.')
     await expect(main.getByRole('button', { name: 'Make this trade' })).toHaveCount(0)
-    await main.getByLabel(`${goalie} leaves Boston Bruins`).uncheck()
+    for (const goalie of goalies) await main.getByLabel(`${goalie} leaves Boston Bruins`).uncheck()
 
     await main.getByRole('button', { name: 'Make this trade' }).click()
     await expect(main.getByText(/^Done\./)).toBeVisible()
@@ -2119,10 +2120,12 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.locator(`input.name[value="${released}"]`)).toHaveCount(1)
     await expect(entry(page, /^Trade/)).toHaveText('Trade')
 
-    // A goalie cannot simply be released: they have to change places with another.
+    // A goalie can be released too, as long as the team keeps one.
+    await expect(rows(page, 'Goalies')).toHaveCount(2)
     await tick(rows(page, 'Goalies').first())
     await page.getByRole('button', { name: 'Release selected' }).click()
-    await expect(page.getByText(/Goalies change places one for one/)).toBeVisible()
+    await expect(page.getByText('Released 1 player to the free agents.')).toBeVisible()
+    await expect(rows(page, 'Goalies')).toHaveCount(1)
 
     // The roster as a picture.
     await moreRosterTools(page)

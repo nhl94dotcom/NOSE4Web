@@ -6,7 +6,7 @@ import { parseCsv, type Cell } from './csv'
 import { hasLeagueValue, leagueValue, type Role } from './leaguevalue'
 import { overallRating } from './rating'
 import type { RomProject } from './rom'
-import { MAX_ROSTER, MIN_ROSTER, withSkaterCounts } from './roster'
+import { MAX_GOALIES, MAX_ROSTER, MIN_ROSTER, withSkaterCounts } from './roster'
 import { MAX_SECONDS, menuOptions } from './settings'
 import { goalieCount, teamDisplayName, type Player, type Team } from './team'
 import { projectTeamRatings } from './ppfix'
@@ -43,7 +43,6 @@ export interface CsvTable {
 }
 
 const VALID_TEXT = /^[\x20-\x7d]*$/
-const MAX_GOALIES = 4
 const MAX_COUNT = 15
 const LINES_WARNING = 'Check the lines.'
 

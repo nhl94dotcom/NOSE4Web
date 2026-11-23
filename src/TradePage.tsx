@@ -121,7 +121,7 @@ export function TradePage({ project, startTeam, rawAttributes, onRawAttributesCh
       <p className="note">
         Choose two sides, select the players each gives up, and see what the trade would do before making it. Either
         side can give nothing, which makes it a straight move. Skaters keep their role as forward or defenceman.
-        Goalies change places one for one. <b>Free agents</b> are players you are holding on no team: release a
+        A goalie traded for a goalie takes their place; a team keeps 1 to 4 goalies. <b>Free agents</b> are players you are holding on no team: release a
         player to them, or sign one from them, by choosing Free agents as one side.
       </p>
       <h3>What it would do</h3>
