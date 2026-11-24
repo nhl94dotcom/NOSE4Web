@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { eraDraft, eraRules } from './core/erarules'
 import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import {
@@ -15,6 +16,7 @@ import {
   type SeasonOptions,
 } from './core/seasonbuilder'
 import { teamLabels } from './core/team'
+import { applyHackDraft } from './hackdraft'
 
 interface Props {
   project: RomProject
@@ -39,6 +41,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const [error, setError] = useState('')
   const [notes, setNotes] = useState<string[]>([])
   const [rerateNotes, setRerateNotes] = useState<string[]>([])
+  const [rulesNote, setRulesNote] = useState('')
   const supported = seasonBuilderSupported(project.game)
 
   useEffect(() => {
@@ -66,6 +69,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
         setShown(0)
         setNotes([])
         setRerateNotes([])
+        setRulesNote('')
         setError('')
       })
       .catch((e: unknown) => current && setError(e instanceof Error ? e.message : String(e)))
@@ -85,6 +89,9 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const built = useMemo(() => rated?.teams ?? [], [rated])
   // The ROM's own players, re-rated where the season has them by name; the same as the button does, to count them.
   const rerate = useMemo(() => (season && rated ? rerateByName(project, season, rated) : null), [project, season, rated])
+  // The season's rules for tied games, and the Hacks page choices that play them.
+  const era = useMemo(() => (season ? eraRules(chosen) : null), [season, chosen])
+  const eraPlan = useMemo(() => (era ? eraDraft(project, era) : null), [project, era])
   const ours = teamLabels(project.teams, project.game)
   const placed = placement.filter((s) => s !== null).length
   // The ROM's teams a season's team can go to without being chosen by hand: all but its All-Star teams.
@@ -116,6 +123,18 @@ export function RealSeasonPage({ project, onChange }: Props) {
     if (!rerate || rerate.rerated === 0) return
     onChange(rerate.project)
     setRerateNotes(rerate.notes)
+  }
+
+  function setRules() {
+    if (!season || !eraPlan || eraPlan.count === 0) return
+    try {
+      onChange(applyHackDraft(project, eraPlan))
+      setRulesNote(`The rules are now ${season.season}'s.`)
+      setError('')
+    } catch (e) {
+      setRulesNote('')
+      setError(e instanceof Error ? e.message : String(e))
+    }
   }
 
   const number = (key: 'goalies' | 'forwards' | 'defence', label: string, min: number, max: number) => (
@@ -269,6 +288,34 @@ export function RealSeasonPage({ project, onChange }: Props) {
               ))}
             </ul>
           )}
+          <h3>That season's rules</h3>
+          {era?.texts.map((text, i) => (
+            <p key={i} className="note">
+              {text}
+            </p>
+          ))}
+          {era && eraPlan && (
+            <>
+              <p className="note">
+                This sets the Hacks page's rules to match:{' '}
+                {era.shootout
+                  ? `a shootout after one overtime, the three-round shootout, and ${era.threeOnThree ? '3 on 3 overtime in the regular season' : 'overtime 5 on 5'}.`
+                  : 'a tied game ends in a tie after one overtime, played 5 on 5.'}{' '}
+                The playoffs play overtime until a goal, 5 on 5, as they did then. The overtime's length stays as Game
+                settings has it. Undo takes it back.
+              </p>
+              {eraPlan.skipped.length > 0 && (
+                <p className="note">This ROM has its own code for these, so they stay as they are: {eraPlan.skipped.join(', ')}.</p>
+              )}
+              <p>
+                <button disabled={eraPlan.count === 0} onClick={setRules}>
+                  {eraPlan.count > 0 ? `Set the rules to ${season.season}'s` : eraPlan.skipped.length ? 'Nothing else to change' : `This ROM plays ${season.season}'s rules`}
+                </button>
+              </p>
+            </>
+          )}
+          {era && !eraPlan && <p className="note">This ROM takes no hacks, so its rules cannot be set here.</p>}
+          {rulesNote && <p>{rulesNote}</p>}
           <h3>The players</h3>
           <p>
             <label>

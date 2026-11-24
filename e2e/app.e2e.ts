@@ -1598,6 +1598,15 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByLabel('Traded players go to')).toHaveValue('most')
     await main.getByRole('button', { name: /^Re-rate \d{3} players found in 1992-93$/ }).click()
     await expect(main.getByText(/^\d{3} players re-rated from 1992-93\.$/)).toBeVisible()
+
+    // That season's rules: the original game already plays 1992-93's; 2015-16's are a shootout and 3 on 3.
+    await expect(main.getByRole('button', { name: "This ROM plays 1992-93's rules" })).toBeDisabled()
+    await main.getByLabel('Season', { exact: true }).selectOption('20152016')
+    await main.getByRole('button', { name: "Set the rules to 2015-16's" }).click()
+    await expect(main.getByText("The rules are now 2015-16's.")).toBeVisible()
+    await entry(page, 'Hacks').click()
+    await expect(main.getByLabel('Tied regular-season games')).toHaveValue('shootout')
+    await expect(main.getByLabel('3 on 3 overtime')).toHaveValue('season')
     await team(page, 'Dallas Stars').click()
   })
 

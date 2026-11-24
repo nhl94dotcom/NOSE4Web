@@ -106,7 +106,7 @@ export function FeaturesPage() {
         </li>
         <li>Import a team from another ROM: its names, roster, colours, logos and photos.</li>
         <li>Logos and colours for every team at once from another ROM, matched by team name.</li>
-        <li>Real NHL season: every team's players from any season since 1967-68, rated from that season's stats.</li>
+        <li>Real NHL season: every team's players from any season since 1967-68, rated from that season's stats, and that season's rules for tied games.</li>
         <li>Re-rate a ROM's own players by name from any real season, its teams and rosters kept.</li>
         <li>New season: a starting point, so that Changes can list what has changed since.</li>
       </ul>

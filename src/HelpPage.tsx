@@ -1903,6 +1903,13 @@ export function HelpPage() {
           682 of its 684 players are found.
         </li>
         <li>
+          <b>That season's rules:</b> sets the Hacks page's rules for tied regular-season games to that season's. To
+          2003-04 a game still tied after overtime ends in a tie; from 2005-06 it goes to a three-round shootout after
+          one overtime, and from 2015-16 that overtime is 3 on 3. The games always play an overtime and have no 4 on 4,
+          so before 1983-84 there is still an overtime, and 1999-2000 to 2014-15 play theirs 5 on 5. The playoffs play
+          overtime until a goal, as they always have. The overtime's length stays as Game settings has it.
+        </li>
+        <li>
           If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,
           the skaters with the fewest games are left out, and the page says how many.
         </li>

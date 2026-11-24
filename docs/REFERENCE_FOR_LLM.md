@@ -2669,6 +2669,14 @@ play-tested the ROMs (2026-11-22/23: 52 computer games).
   "Campbell", else the first East and the next West. Each takes the best goalies, forwards and defencemen of that
   conference's season teams by overall rating, as many as the other teams get (`ownNumbers` for shared numbers), new
   lines, and keeps its names and team ratings.
+- **That season's rules (`src/core/erarules.ts`: `eraRules`, `eraDraft`; added 2026-11-23).** By the season's first
+  year: before 2005 a tie after one overtime (Genesis `seasonTies` 'tie', SNES `seasonOvertime` and `seasonShootout`
+  off, NHL '95 its three tie choices off); from 2005 a shootout after one overtime plus `nhlShootout`; from 2015
+  `threeOnThree` in the regular season only (Genesis 'season', SNES amount 1, '95 `threeOnThree`, not
+  `threeOnThreeAll`). Before 2005 `nhlShootout` is left alone (it also plays Shootout mode). The games always play an
+  overtime and have no 4 on 4, so pre-1983-84 and 1999-2015 are as near as they go. Overtime length is not touched.
+  `eraDraft` makes a Hacks-page draft (`base`/`wanted`, SNES `amounts`) put in with `applyHackDraft`; choices whose
+  code the ROM has changed (`unknown`, SNES `notOffered`) are left out and named.
 
 ### Gotchas
 
@@ -2683,7 +2691,7 @@ play-tested the ROMs (2026-11-22/23: 52 computer games).
 ### Files and tests
 
 `src/core/seasonbuilder.ts`, `src/RealSeasonPage.tsx`, `scripts/fetch-seasons.mjs`, `scripts/conferences.mjs`,
-`scripts/fetch-conferences.mjs`, `public/seasons/`; `tests/seasonbuilder.test.ts` (season files, names, rosters,
+`scripts/fetch-conferences.mjs`, `public/seasons/`, `src/core/erarules.ts`; `tests/erarules.test.ts`, `tests/seasonbuilder.test.ts` (season files, names, rosters,
 leaders, defencemen's offence, goalie ties, EA's 1992-93 ratings given back, placement, All-Stars, re-rate),
 `e2e/app.e2e.ts` ("fills the teams from a real NHL season").
 
@@ -2691,7 +2699,8 @@ leaders, defencemen's offence, goalie ties, EA's 1992-93 ratings given back, pla
 
 Built 2026-11-21 (a8e97f3), ratings changed 2026-11-22 (85c6cef, 65dbf26), All-Stars and goalie ties 2026-11-23
 (b686800). Match Viewer play test 2026-11-22/23: all ROMs play; stars lead scoring; Genesis 1992-93 like retail.
-Open: 30 more SNES games on whether SNES 1992-93 gives up more goals than retail (3.9 a game against 2.7 in 8).
+SNES 30 paired games 2026-11-23: goals 2.40 against retail's 3.00 (standard error 0.35), shots alike; the earlier
+gap was noise. Season rules added 2026-11-23.
 
 ## 19. Feature status
 
