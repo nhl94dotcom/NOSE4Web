@@ -51,10 +51,10 @@ describe.skipIf(names.length === 0)('the extra attacker and Y button fixes', () 
   })
 })
 
-describe('on the SA-1 builds, the scratch variables by the direct page', () => {
-  // SA-1 by the header's map mode.
-  const sa1s = names.filter((name) => isSa1File(path(name)))
-  it.skipIf(sa1s.length === 0).each(sa1s)('%s: names the scratch variables in direct-page form, the game variables $6000 on', (name) => {
+// SA-1 by the header's map mode.
+const sa1s = names.filter((name) => isSa1File(path(name)))
+describe.skipIf(sa1s.length === 0)('on the SA-1 builds, the scratch variables by the direct page', () => {
+  it.each(sa1s)('%s: names the scratch variables in direct-page form, the game variables $6000 on', (name) => {
     const project = openRom(new Uint8Array(readFileSync(path(name))))
     expect(isSa1(project.bytes)).toBe(true)
     const hex = (b: Uint8Array) => Buffer.from(b).toString('hex')
