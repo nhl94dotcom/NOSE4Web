@@ -127,8 +127,11 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
         if (i !== 1) expect({ ...t, freeBytes: 0 }).toEqual({ ...project.teams[i], freeBytes: 0 })
       })
       expect(again.settings).toEqual(project.settings)
-      // The checks find nothing wrong in the ROM as it is.
-      expect(checkProject(project).filter((finding) => finding.level === 'error')).toEqual([])
+      // The checks find no new problem after the edit. The original game's own: EA's playoff draw 3 has the same team
+      // twice (team 5, in places 2 and 8); a league ROM's line slots with no player are its own.
+      const problems = (p: typeof project) => checkProject(p).filter((finding) => finding.level === 'problem').map((finding) => finding.message)
+      expect(problems(again)).toEqual(problems(project))
+      if (name === RETAIL) expect(problems(project)).toEqual([expect.stringMatching(/^A team is in draw 3 twice/)])
     })
 
     it(`${name}: spreadsheet files, a workbook and a project file come back as they went out`, () => {
@@ -141,7 +144,9 @@ describe.skipIf(!existsSync(path(RETAIL)))("NHL '95", () => {
       expect(openProjectFile(project, saveProjectFile(edited, project, 'set')).project.teams[2].players[3].name).toBe('Saved Name')
       // Compare names a stick handling change by its 16 steps.
       const sth = { ...project, teams: project.teams.map((t, i) => (i === 2 ? { ...t, players: t.players.map((p, j) => (j === 3 ? { ...p, attributes: p.attributes.map((v, a) => (a === 8 ? (v === 15 ? 14 : 15) : v)) } : p)) } : t)) }
-      expect(JSON.stringify(compareProjects(project, sth))).toMatch(/StH .*(1[45])/)
+      const player = project.teams[2].players[3]
+      expect(player.attributes[8]).toBe(12)
+      expect(compareProjects(project, sth).flatMap((section) => section.changes)).toEqual([`${player.name}: StH 81-98 (12) to 99 (15).`])
       // Bulk changes offer stick handling in its 16 steps.
       const stickHandling = bulkAttributes(project.game, 'skaters').find((attribute) => attribute.index === 8)
       expect(stickHandling && bulkValues(stickHandling.kind)).toHaveLength(16)

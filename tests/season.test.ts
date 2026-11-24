@@ -67,6 +67,16 @@ describe('weights between eras', () => {
     expect(effects.every((e) => e.team === BOSTON && e.to === Math.min(15, e.from + 1))).toBe(true)
     const applied = applyBulk(project, change)
     expect(applied.teams[MONTREAL]).toBe(project.teams[MONTREAL])
+    // Boston's weights are written as previewed, the rest of each player as it was.
+    for (const e of effects) {
+      const player = applied.teams[BOSTON].players[e.index]
+      expect(player.name).toBe(e.name)
+      expect(player.attributes[0]).toBe(e.to)
+      expect(player.attributes.slice(1)).toEqual(project.teams[BOSTON].players[e.index].attributes.slice(1))
+    }
+    expect(applied.teams[BOSTON].players.filter((p, i) => p.attributes[0] !== project.teams[BOSTON].players[i].attributes[0]).length).toBe(
+      effects.filter((e) => e.to !== e.from).length,
+    )
     // Not a weight, so there is nothing to convert.
     expect(previewBulk(project, { ...change, attribute: 2 })).toEqual([])
   })

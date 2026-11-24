@@ -5,6 +5,7 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 import { findCodeAll } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { isSa1, isSa1File } from './sneshelp'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -139,9 +140,11 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a proje
 
   // The SA-1 builds: their low variables in BW-RAM at $6000 on and bank $7E's game state in bank $40, so the state is
   // saved to $40:4810 up; the mark stays in WRAM ($7E:F0F0), which the game clears when it starts.
-  const sa1 = names.find((name) => /SA1/.test(name))
-  it.skipIf(!sa1)('on the SA-1 build: the state saved in BW-RAM, the mark in WRAM', () => {
-    const rom = open(sa1!)
+  // SA-1 by the header's map mode.
+  const sa1s = names.filter((name) => isSa1File(path(name)))
+  it.skipIf(sa1s.length === 0).each(sa1s)('on the SA-1 build %s: the state saved in BW-RAM, the mark in WRAM', (name) => {
+    const rom = open(name)
+    expect(isSa1(rom.bytes)).toBe(true)
     const on = applySnesHacks(rom, {}, false, { seasonShootout: 1 })
     const tail = findCodeAll(on.bytes, 'ee....ad....c90300f0..90..a903008d....af........06')[0].at
     const hook = tail + 25
@@ -162,9 +165,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the new SNES choices in a proje
     expect(all).not.toContain('7e7e')
     // Its own player stats (Match Viewer): checks for $40:E788 to the time on ice's end, $E868 ($E0 bytes), to
     // $40:5320 after the game state, and back.
-    const more = hex(on.bytes, code, 37 + 160)
-    expect(more).toContain('a9df00a288e7a02053544040')
-    expect(more).toContain('a9df00a22053a088e7544040')
+    expect(all).toContain('a9df00a288e7a02053544040')
+    expect(all).toContain('a9df00a22053a088e7544040')
     expect(detectSnesHacks(buildRom(on)).amounts?.seasonShootout).toBe(1)
   })
 

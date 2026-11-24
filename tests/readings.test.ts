@@ -10,7 +10,7 @@ import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const hex = (rom: Uint8Array, at: number, length: number) => Buffer.from(rom.subarray(at, at + length)).toString('hex')
 
-describe.skipIf(!existsSync(path('nhl94.bin')))('the Genesis hacks from bugs 13, 20 and 21', () => {
+describe.skipIf(!existsSync(path('nhl94.bin')))("the Genesis hacks from Match Viewer's readings: sniping, awareness, the centres' defence, the goalie's turn and blade, shot scatter, referees and the crowd", () => {
   const rom = () => new Uint8Array(readFileSync(path('nhl94.bin')))
 
   it('changes only the bytes given, and reads each back', () => {

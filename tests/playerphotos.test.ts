@@ -7,6 +7,7 @@ import { playerPhoto, withPlayerPhotos } from '../src/core/playerphotos'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { snesTeamPhotos } from '../src/core/snesphotos'
 import { goalieCount } from '../src/core/team'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
@@ -28,43 +29,57 @@ const find = (project: RomProject) => {
     const slot = project.teams[team].players.findIndex((_, s) => s >= goalies && playerPhoto(project, team, s))
     if (slot >= 0) return { team, slot, name: project.teams[team].players[slot].name }
   }
-  throw new Error('No player with a photo of his own.')
+  throw new Error('No player with a photo of their own.')
 }
 
 for (const name of ['nhl94.bin', 'NHL94.smc']) {
   describe.skipIf(!existsSync(path(name)))(`a player copied with their photo (${name})`, () => {
     it("brings a player and their photo onto one of Anaheim's rows", () => {
       const project = open(name)
-      const graves = find(project)
-      const own = playerPhoto(project, graves.team, graves.slot)
+      const star = find(project)
+      const own = playerPhoto(project, star.team, star.slot)
       expect(own).not.toBe(null)
       // Over Anaheim's last skater (the original Genesis game has no room for one more without making room).
       const row = project.teams[0].players.length - 1
-      const result = paste(project, graves.team, [graves.slot], 0, [row])
+      const result = paste(project, star.team, [star.slot], 0, [row])
       expect(result.notes).toEqual([])
       const reopened = openRom(buildRom(result.project))
-      expect(reopened.teams[0].players[row].name).toBe(graves.name)
+      expect(reopened.teams[0].players[row].name).toBe(star.name)
       const now = playerPhoto(reopened, 0, row)
       expect(now).not.toBe(null)
       // On the Genesis, where every team has the same photo colours, the very same photo.
       if (name.endsWith('.bin')) expect(now).toEqual(own)
-      // The Rangers keep theirs.
-      expect(playerPhoto(reopened, graves.team, graves.slot)).toEqual(own)
+      // The player's own team keeps theirs.
+      expect(playerPhoto(reopened, star.team, star.slot)).toEqual(own)
     })
 
     it('gives a row a stand-in when its new player has no photo of their own, and leaves photos alone for attributes only', () => {
       const project = open(name)
-      const graves = find(project)
-      // A Rangers skater without a photo of their own, pasted over Graves.
-      const goalies = goalieCount(project.teams[graves.team])
-      const plain = project.teams[graves.team].players.findIndex((_, slot) => slot >= goalies && !playerPhoto(project, graves.team, slot))
-      const result = paste(project, graves.team, [plain], graves.team, [graves.slot])
-      expect(playerPhoto(result.project, graves.team, graves.slot)).toBe(null)
-      if (name.endsWith('.smc')) expect(snesTeamPhotos(result.project, graves.team)[graves.slot].generic).toBe(true)
-      else expect(teamPhotos(result.project, graves.team).find((p) => p.slot === graves.slot)?.generic ?? true).toBe(true)
+      const star = find(project)
+      // A skater of the same team without a photo of their own, pasted over the one with a photo.
+      const goalies = goalieCount(project.teams[star.team])
+      const plain = project.teams[star.team].players.findIndex((_, slot) => slot >= goalies && !playerPhoto(project, star.team, slot))
+      expect(plain).toBeGreaterThanOrEqual(0)
+      const result = paste(project, star.team, [plain], star.team, [star.slot])
+      expect(playerPhoto(result.project, star.team, star.slot)).toBe(null)
+      if (name.endsWith('.smc')) expect(snesTeamPhotos(result.project, star.team)[star.slot].generic).toBe(true)
+      else {
+        // The row's entry is still in the featured list, with the stand-in picture.
+        const entry = teamPhotos(result.project, star.team).find((p) => p.slot === star.slot)
+        expect(entry).toBeDefined()
+        expect(entry!.generic).toBe(true)
+      }
       // A copy made without photos says so, and a paste of it leaves the photos as they are.
-      const old = copyPlayers(project.teams[graves.team], [plain])
-      expect(copiedPhotos(old, [graves.slot])).toBe(null)
+      const old = copyPlayers(project.teams[star.team], [plain])
+      expect(copiedPhotos(old, [star.slot])).toBe(null)
+      // (Built, the 1 MB Genesis ROM has no room for the longer name, so the project as the page holds it.)
+      const team = pastePlayers(project.teams[star.team], [star.slot], old, false)
+      const pasted = { ...project, teams: project.teams.map((t, i) => (i === star.team ? team : t)) }
+      expect(pasted.teams[star.team].players[star.slot].name).toBe(project.teams[star.team].players[plain].name)
+      expectSameBytes(pasted.bytes, project.bytes)
+      const photos = (p: RomProject) => (name.endsWith('.smc') ? snesTeamPhotos(p, star.team) : teamPhotos(p, star.team))
+      expect(photos(pasted)).toEqual(photos(project))
+      expect(playerPhoto(pasted, star.team, star.slot)).toEqual(playerPhoto(project, star.team, star.slot))
     })
   })
 }

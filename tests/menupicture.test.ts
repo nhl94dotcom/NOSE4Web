@@ -18,6 +18,8 @@ import { buildRom, openRom } from '../src/core/rom'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name = 'nhl94.bin') => openRom(new Uint8Array(readFileSync(path(name))))
+// Where setoptions' movea.l #GameSetUpMap,a0 points ($F823A, the address at $F823C).
+const pointer = (rom: Uint8Array) => ((rom[0xf823c] << 24) | (rom[0xf823d] << 16) | (rom[0xf823e] << 8) | rom[0xf823f]) >>> 0
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
 const local: { drezzMenuRom?: string } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
 
@@ -81,9 +83,30 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the Game Setup background', () 
     // Only the pointer and the new data change; putting the original back leaves the pointer as it was.
     const back = withOriginalMenuPicture(hacked)
     expect(readMenuPicture(back.bytes)!.original).toBe(true)
+    expect(pointer(back.bytes)).toBe(pointer(project.bytes))
     // A second picture goes where the first is, if it fits.
     const again = withMenuPicture(hacked, made)
     expect(again.bytes.length).toBe(hacked.bytes.length)
+    expect(pointer(again.bytes)).toBe(pointer(hacked.bytes))
+    expect(pointer(again.bytes)).not.toBe(pointer(project.bytes))
+  })
+
+  // Putting the original back gives the league's picture's room back, so the next picture goes there again.
+  it('a picture, the original, a picture again, twice: uses no more room each time', () => {
+    const project = open()
+    const made = menuPictureFromImage(simple(320, 224), 320, 224, menuPicturePalette(project.bytes)!)
+    const places: number[] = []
+    const free: number[] = []
+    let rom = project
+    for (let round = 0; round < 2; round++) {
+      rom = withMenuPicture(rom, made)
+      places.push(pointer(rom.bytes))
+      free.push(rom.bytes.filter((byte) => byte === 0xff).length)
+      rom = withOriginalMenuPicture(rom)
+      expect(pointer(rom.bytes)).toBe(pointer(project.bytes))
+    }
+    expect(places[1]).toBe(places[0])
+    expect(free[1]).toBe(free[0])
   })
 
   it('keeps the background in a project file, put into a fresh copy of the ROM', () => {

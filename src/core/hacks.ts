@@ -26,7 +26,7 @@ import { convertWeight } from './attributes'
 import { readAscii, readU16, readU32, writeAscii, writeU16, writeU32 } from './bytes'
 import { FIGHT_ONCE_MARK_AT, FIGHT_ONCE_TEST_AT, FIGHT_TEXTS, FIGHT_WINNER_AT, fightState, withFight, withFightChoice, withoutFight, type FightChoice } from './fight'
 import { bloodAdded, bloodChoice, bloodInNow, bloodTakenOut } from './genesisblood'
-import { clockwiseKept, clockwiseState, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
+import { clockwiseKept, clockwiseState, hasNoseTape, putClockwise, putFightTape, takeOutClockwise, takeOutFightTape } from './clockwise'
 import { GENESIS_HACK_GROUPS } from './hackgroups'
 import { findGame, NHL94, type GameConfig } from './games'
 import type { RomProject } from './rom'
@@ -3917,6 +3917,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
   // code NOSE4Web moves, that code went past the blood on the second apply:
   // the same game, different bytes; Match Viewer, CDL Season 12).
   const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
+  // Clockwise's sprite edit staying on in a ROM without NOSE4Web's tape is not touched (see its steps).
+  const spritesKept = choices.clockwiseSprites && wanted.clockwiseSprites && !hasNoseTape(rom)
   const bloodKnown = !unknown.includes('headBleeding')
   // Read afresh: work.rom changes in place below, and a state remembered for it would go stale.
   if (bloodKnown && bloodInNow(rom)) work.rom = bloodTakenOut(work.rom)
@@ -4008,15 +4010,18 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     // Taken out only where the ROM has it all: a ROM with part of it keeps that part whatever else changes.
+    // Left alone where it stays on and the ROM has none of NOSE4Web's tape (hasNoseTape): a league's own copy of
+    // Clockwise's edit gets the tape only when the edit is turned on.
     [
       'clockwiseSprites',
       () => {
-        if (!choices.clockwiseSprites) return
+        if (!choices.clockwiseSprites || spritesKept) return
         const kept = clockwiseKept(work.rom)
         takeOutClockwise(work.rom, kept?.had)
         if (kept) erase(work.rom, kept.at, kept.length)
       },
       () => {
+        if (spritesKept) return
         const kept = wanted.clockwiseSprites ? putClockwise(work.rom) : null
         if (kept) place(work, kept)
       },
@@ -4028,7 +4033,12 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     ['fighting', removeFight, putFight],
     // After fighting, whose fight frames NOSE4Web's tape in Clockwise's style goes into (clockwise.ts). Taken out after
     // fighting is: where the patch goes, so does the tape (withoutFight), and where it stays, it is taken out here.
-    ['clockwiseSprites', () => void (choices.clockwiseSprites && takeOutFightTape(work.rom)), () => void (wanted.clockwiseSprites && putFightTape(work.rom))],
+    // Left alone, as above, where fighting stays in too.
+    [
+      'clockwiseSprites',
+      () => void (choices.clockwiseSprites && !(spritesKept && fightKept) && takeOutFightTape(work.rom)),
+      () => void (wanted.clockwiseSprites && !(spritesKept && fightKept) && putFightTape(work.rom)),
+    ],
     // After fighting, whose copy of HotList the game reads once it is in.
     ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],
     // After fighting, whose code its winner hook goes into.

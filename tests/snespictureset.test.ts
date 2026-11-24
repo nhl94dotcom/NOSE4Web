@@ -59,6 +59,7 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES picture files', () => {
     const reopened = openRom(buildRom(result.project))
     expect(look(reopened, 1, 'logo')).toEqual(Array.from(changed.find((f) => f.name === logo.name)!.rgba))
     expect(look(reopened, 11, 'centreIce')).not.toEqual(look(project, 11, 'centreIce'))
+    expect(look(reopened, 11, 'centreIce')).toEqual(Array.from(changed.find((f) => f.name === ice.name)!.rgba))
     expect(look(reopened, 4, 'logo')).toEqual(look(project, 4, 'logo'))
     // By name: the same file, numbered for another team, still goes to Boston.
     const moved = { ...changed.find((f) => f.name === logo.name)!, name: logo.name.replace(/^02_/, '05_') }

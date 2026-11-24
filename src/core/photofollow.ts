@@ -11,7 +11,7 @@ import { goalieCount, type Player } from './team'
 // photos the edit itself changed is left as the edit made it.
 //
 // A player is followed by the editor's own record of them, which a move keeps.
-// An edited player is a new record in the same place, taken for the same man
+// An edited player is a new record in the same place, taken for the same player
 // when the old record is gone.
 
 interface Place {

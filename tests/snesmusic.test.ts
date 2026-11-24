@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { readMidi, songToMidi } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
-import { readSnesDoubledText, readSnesMusic, readSnesNotesText, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesMusicToMidi, snesMusicTune, snesNotesText, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
+import { loRomOffset } from '../src/core/snes'
+import { readSnesDoubledText, readSnesMusic, readSnesNotesText, readSnesSong, SNES_GAME_MUSIC, SNES_SONG_VOICES, snesCustomSongBytes, snesMusicToMidi, snesMusicTune, snesNotesText, snesSongFromMidi, withOriginalSnesSong, withSnesSong } from '../src/core/snesmusic'
 import { snesSongChoices, snesSongName } from '../src/core/snessongs'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -56,6 +58,14 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES organ songs from MIDI file
     // Put back.
     const back = withOriginalSnesSong(next, pointer)
     for (const team of holders) expect(back.teams[team].snesSongs).toEqual(project.teams[team].snesSongs)
+    // Only the pointers change back: the made song stays where it was put, in room the game never reads, and
+    // nothing else differs.
+    const songAt = loRomOffset(pointer >>> 16, pointer & 0xffff)
+    const songLength = snesCustomSongBytes(next.bytes, pointer)!.length
+    expect(Buffer.from(back.bytes.subarray(songAt, songAt + songLength))).toEqual(Buffer.from(next.bytes.subarray(songAt, songAt + songLength)))
+    const rest = back.bytes.slice()
+    rest.set(project.bytes.subarray(songAt, songAt + songLength), songAt)
+    expectSameBytes(rest, project.bytes)
   })
 
   it('puts a melody on both organs, its notes running on a frame or two included, and a chord apart', () => {

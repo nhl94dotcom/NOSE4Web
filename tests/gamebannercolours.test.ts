@@ -16,6 +16,7 @@ import { bannerPalette, menuPalette, withBannerColors } from '../src/core/graphi
 import { letterBanner } from '../src/core/lettering'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const load = (name: string) => (existsSync(path(name)) ? new Uint8Array(readFileSync(path(name))) : null)
@@ -111,7 +112,7 @@ describe.skipIf(!base)('in-game banner colours in NHL 94', () => {
     const text = saveProjectFile(changed, openRom(base!), 'Work')
     const { project: opened } = openProjectFile(openRom(base!), text)
     expect(opened.rinkPalette).toEqual(changed.rinkPalette)
-    expect(buildRom(opened)).toEqual(buildRom(changed))
+    expectSameBytes(buildRom(opened), buildRom(changed))
   })
 
   it('names the teams whose in-game banners show the colour', () => {

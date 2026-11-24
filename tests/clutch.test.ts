@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { goesInAndOutOfLeagueRoms } from './leaguehacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -35,9 +37,12 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('clutch time (Genesis)', () => {
     expect(hex(on.bytes, tick + 98, 18)).toBe('00680069006c006d006e0070007100720075')
     expect(detectHacks(on.bytes).choices).toEqual({ ...NO_HACKS, clutchTime: true })
     expect(Buffer.compare(buildRom(applyHacks(on, NO_HACKS)), buildRom(rom))).toBe(0)
-    // With the other rating hacks.
+    // With the other rating hacks, and out of them again.
     const all = applyHacks(rom, { ...NO_HACKS, clutchTime: true, hotColdRange: 4, bonuses: 'disabled' })
     expect(detectHacks(all.bytes).choices).toEqual({ ...NO_HACKS, clutchTime: true, hotColdRange: 4, bonuses: 'disabled' })
+    const others = { ...NO_HACKS, hotColdRange: 4, bonuses: 'disabled' as const }
+    expectSameBytes(applyHacks(all, others).bytes, applyHacks(rom, others).bytes)
+    expectSameBytes(applyHacks(all, NO_HACKS).bytes, rom.bytes)
   })
 
   it('recognises the first version (which read $D6CC) and replaces it', () => {
@@ -54,6 +59,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('clutch time (Genesis)', () => {
     expect(hex(again.bytes, calc2 + 8, 2)).toBe('bf14')
   })
 })
+
+goesInAndOutOfLeagueRoms('clutch time (Genesis)', { clutchTime: true })
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('clutch time (SNES)', () => {
   it("setplayer's .8 ends in a jml to the clutch code, and Gameloop's tick calls the pass", () => {

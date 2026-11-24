@@ -42,7 +42,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(applyNhl95Hacks(rom, { passFix: false })).toBe(rom)
   })
 
-  it('leaves code it does not know alone, and is for NHL 95 only', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('leaves code it does not know alone, and is for NHL 95 only', () => {
     const rom = open(RETAIL)
     const odd = rom.bytes.slice()
     odd[PASS_AT] = 0x4e
@@ -57,7 +57,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     }
   })
 
-  it('carries the fix in a project file, lists it in the changes and in a comparison', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('carries the fix in a project file, lists it in the changes and in a comparison', () => {
     const opened = open(RETAIL)
     const on = applyNhl95Hacks(opened, { passFix: true })
     const text = saveProjectFile(on, opened, 'P')
@@ -76,7 +76,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(compared.find((s) => s.heading === 'Hacks')?.changes).toEqual(['Pass direction fix: off to on.'])
   })
 
-  it("does not turn off a hack the project's ROM did not know, and drops a value out of range", () => {
+  it.skipIf(!existsSync(path(RETAIL)))("does not turn off a hack the project's ROM did not know, and drops a value out of range", () => {
     const opened = open(RETAIL)
     // The project's ROM has code of its own where the pass fix goes, and the stick shots on.
     const odd = opened.bytes.slice()
@@ -99,7 +99,7 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     expect(detectNhl95Hacks(bad.project.bytes).choices).toMatchObject({ passFix: true, stickShots: true, [number]: detectNhl95Hacks(target.bytes).choices[number] })
   })
 
-  it('names the fix in a Discord post and explains it in the hack sheet', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('names the fix in a Discord post and explains it in the hack sheet', () => {
     const rom = open(RETAIL)
     expect(nhl95HacksForDiscord(rom.bytes, 'W18')).toBe(['**Hacks in W18**', 'None: it plays as the original game.'].join('\n'))
     expect(nhl95HackSheet(rom.bytes, 'W18').sections).toEqual([])
@@ -458,6 +458,8 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     for (const fix of Object.keys(fixes)) {
       const without = applyNhl95Hacks(on, { [fix]: false })
       expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...base, ...fixes, [fix]: false })
+      // The bytes as the others put in without it make them.
+      expectSameBytes(without.bytes, applyNhl95Hacks(rom, { ...fixes, [fix]: false }).bytes, fix)
     }
     expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
   })
@@ -629,6 +631,8 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
     for (const fix of Object.keys(fixes)) {
       const without = applyNhl95Hacks(on, { [fix]: false })
       expect(detectNhl95Hacks(without.bytes).choices).toEqual({ ...base, ...fixes, [fix]: false })
+      // The bytes as the others put in without it make them.
+      expectSameBytes(without.bytes, applyNhl95Hacks(rom, { ...fixes, [fix]: false }).bytes, fix)
     }
     expectSameBytes(applyNhl95Hacks(on, { ...base }).bytes, rom.bytes)
   })
@@ -664,7 +668,12 @@ describe.skipIf(names.length === 0)("NHL '95 hacks", () => {
       speedBurst: 24,
       turnRate: 120,
       puckFriction: 6,
+      baseWeight: 144,
+      hotColdRange: 4,
     } as Partial<typeof NO_NHL95_HACKS>
+    // Every option is in the list: a new one fails here until it is added.
+    expect(Object.keys(all).sort()).toEqual([...NHL95_HACKS].sort())
+    for (const hack of NHL95_HACKS) if (!SWITCHES.includes(hack)) expect(all[hack], hack).not.toBe(NO_NHL95_HACKS[hack])
     const on = applyNhl95Hacks(rom, all)
     expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: { ...base, ...all }, unknown: [] })
     expect(detectNhl95Hacks(buildRom(on))).toEqual({ choices: { ...base, ...all }, unknown: [] })

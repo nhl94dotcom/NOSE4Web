@@ -9,7 +9,7 @@ const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.met
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
 const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
 const names = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
-const hex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+const hex = (bytes: Uint8Array) => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('hex')
 
 describe.skipIf(names.length === 0)('the SNES penalty shot fixes', () => {
   names.forEach((name, n) => {

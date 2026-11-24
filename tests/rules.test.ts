@@ -10,6 +10,7 @@ import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { CSV_TABLES, csvFileName, CsvImportError, importCsv, importCsvSet } from '../src/core/tables'
 import { FREE_AGENTS, trade } from '../src/core/trade'
+import { expectSameBytes } from './samebytes'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
 const hasRom = existsSync(romPath)
@@ -55,7 +56,10 @@ describe.skipIf(!hasRom)("a league's own rules", () => {
     expect(boston.some((m) => /The overall ratings add up to \d+; the league's rules allow at most 1500\./.test(m))).toBe(true)
     // A limit exactly met is kept.
     expect(messages(withRules(project, { maxPlayerOverall: 100 }))).toEqual([])
-    expect(messages(withRules(project, { maxPlayerOverall: 99 })).every((m) => m.includes('Mario Lemieux is rated 100'))).toBe(true)
+    expect(messages(withRules(project, { maxPlayerOverall: 99 }))).toEqual([
+      "Pittsburgh Penguins: Mario Lemieux is rated 100 overall; the league's rules allow at most 99.",
+      "All Stars East: Mario Lemieux is rated 100 overall; the league's rules allow at most 99.",
+    ])
   })
 
   it('finds a player on two teams, and two players in one number', () => {
@@ -114,7 +118,7 @@ describe.skipIf(!hasRom)("a league's own rules", () => {
 
   it('travels in a project file, and is not in the ROM', () => {
     const project = withRules(setup(), { maxPlayers: 24, uniqueJerseys: true, exempt: [26, 27] })
-    expect(buildRom(project)).toEqual(buildRom(setup()))
+    expectSameBytes(buildRom(project), buildRom(setup()))
     const opened = openProjectFile(setup(), saveProjectFile(project, setup(), 'x'))
     expect(opened.project.leagueRules).toEqual(project.leagueRules)
     // A file from before there were rules, or with nonsense in them, opens with none or with what is usable.

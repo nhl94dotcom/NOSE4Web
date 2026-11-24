@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { photosFollowPlayers } from '../src/core/photofollow'
-import { photoLayout, teamPhotos } from '../src/core/photos'
+import { photoLayout, teamPhotos, withPhotoEntries } from '../src/core/photos'
 import { buildRom, openRom, type RomProject } from '../src/core/rom'
 import { deletePlayer, transferPlayers } from '../src/core/roster'
 import { snesTeamPhotos } from '../src/core/snesphotos'
@@ -43,7 +43,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis photos follow their pla
     const after = withTeams(project, project.teams.map((t, i) => (i === 1 ? deletePlayer(t, goalies) : t)))
     const gone = team.players[goalies].name
     for (const [player, face] of genesisFaces(after, 1)) if (player !== gone && before.has(player)) expect(face).toBe(before.get(player))
-    // A renamed player is the same man.
+    // A renamed player is the same player.
     const renamed = after.teams.map((t, i) => (i === 1 ? { ...t, players: t.players.map((p, s) => (s === 0 ? { ...p, name: 'New Name' } : p)) } : t))
     const again = photosFollowPlayers(after, { ...after, teams: renamed })
     expect(again.bytes).toBe(after.bytes)
@@ -54,7 +54,15 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis photos follow their pla
     const project = stock()
     expect(photosFollowPlayers(project, { ...project })).toEqual({ ...project })
     const layout = photoLayout(project.bytes, project.teams.length)!
-    expect(layout.lists[1].entries.length).toBeGreaterThan(0)
+    expect(layout.lists[1].entries.length).toBeGreaterThan(1)
+    // In the same step, Boston's photos set by hand (the pictures given the other way round) and a skater with a
+    // photo traded to Buffalo: Boston's list stays as the edit made it.
+    const entries = layout.lists[1].entries
+    const edited = entries.map((entry, i) => ({ at: entries[entries.length - 1 - i].at, slot: entry.slot }))
+    const photo = teamPhotos(project, 1).find((p) => !p.generic && p.slot >= goalieCount(project.teams[1]))!
+    const set = withPhotoEntries(project, 1, edited)
+    const after = photosFollowPlayers(project, { ...set, teams: transferPlayers(project.teams, 1, [photo.slot], 2) })
+    expect(photoLayout(after.bytes, after.teams.length)!.lists[1].entries).toEqual(edited)
   })
 })
 

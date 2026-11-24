@@ -26,6 +26,8 @@ describe.skipIf(!hasRom)('the title screen credits', () => {
     for (const name of [local.league30Rom, ...(local.otherRoms ?? [])].filter((n): n is string => !!n && existsSync(path(n)))) {
       const project = open(name)
       const credits = project.settings.credits
+      // Not read only in the EVO builds, whose code is their own, and in IDL 5, whose credits are elsewhere.
+      expect(!!credits, name).toBe(!name.includes('EVO') && name !== 'IDL5_v02.bin')
       if (!credits) continue
       expect(creditsBytes(credits.pages).length, name).toBeLessThanOrEqual(credits.room)
       expect(parseCredits(buildRom(project)), name).toEqual(credits)

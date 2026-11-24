@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
+import { otherSnesHacks, snesHackBase } from './sneshelp'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -69,21 +71,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES icing options', () => {
 
   it('go with every other SNES hack, in and out', { timeout: 120_000 }, () => {
     const rom = open('NHL94.smc')
-    const state = detectSnesHacks(rom.bytes)
-    for (const hack of SNES_HACKS) {
-      if (hack === 'creaseIcing' || hack === 'hybridIcing' || state.unknown.includes(hack)) continue
-      let base
-      try {
-        base = applySnesHacks(rom, { [hack]: true })
-      } catch {
-        continue
-      }
+    const hacks = otherSnesHacks(rom, ['creaseIcing', 'hybridIcing'])
+    // Every other hack but the posts fix, not offered on the 1 MB game.
+    expect(hacks.length).toBe(SNES_HACKS.length - 3)
+    for (const hack of hacks) {
+      const base = snesHackBase(rom, hack)
       const with2 = applySnesHacks(base, { creaseIcing: true, hybridIcing: true })
       const read = detectSnesHacks(with2.bytes)
       expect(read.unknown, hack).toEqual(detectSnesHacks(base.bytes).unknown)
+      expect(read.choices, hack).toEqual({ ...detectSnesHacks(base.bytes).choices, creaseIcing: true, hybridIcing: true })
       expect(read.choices[hack], hack).toBe(true)
-      expect(read.choices.creaseIcing && read.choices.hybridIcing, hack).toBe(true)
-      expect(Buffer.compare(buildRom(applySnesHacks(with2, { creaseIcing: false, hybridIcing: false })), buildRom(base)), hack).toBe(0)
+      expectSameBytes(buildRom(applySnesHacks(with2, { creaseIcing: false, hybridIcing: false })), buildRom(base), hack)
     }
   })
 

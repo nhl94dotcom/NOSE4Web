@@ -22,7 +22,7 @@
 import { colorRgb } from './color'
 import type { Picture } from './graphics'
 import type { RomProject } from './rom'
-import { claimSpace } from './space'
+import { claimSpace, releaseSpace } from './space'
 import { far, fitted, keyLevels, levelKey, medianCut, nearest, readImage, SPLASH_HEIGHT, SPLASH_WIDTH, word, type Image } from './splash'
 
 const POINTER_AT = 0xf823a
@@ -394,13 +394,19 @@ export function withMenuPictureBytes(project: RomProject, bytes: Uint8Array): Ro
   return { ...project, bytes: next }
 }
 
-// The project with the original game's background back, where it is still in the ROM.
+// The project with the original game's background back, where it is still in the ROM. The league's picture's room
+// is given back, so the next picture can go there again.
 export function withOriginalMenuPicture(project: RomProject): RomProject {
   const original = header(project.bytes) !== null && readImage(project.bytes, ORIGINAL_HEADER)
   if (!original || original.tiles !== ORIGINAL_TILES || original.width !== ACROSS || original.height !== DOWN) {
     throw new Error("The original game's Game Setup background is no longer in this ROM, so it cannot be put back.")
   }
   const next = project.bytes.slice()
+  const found = image(next)
+  if (found && found.at !== ORIGINAL_HEADER) {
+    const length = u32(next, found.at + 4) + 4 + found.image.width * found.image.height * 2
+    releaseSpace(next, [{ start: found.at, end: found.at + length }])
+  }
   put32(next, POINTER_AT + 2, ORIGINAL_HEADER)
   return { ...project, bytes: next }
 }

@@ -46,21 +46,25 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES bodycheck statistics', () 
     expect(Buffer.compare(buildRom(off), buildRom(retail()))).toBe(0)
   })
 
-  it("finds the Vault's in NHL94_Classic (counts) and SDL16 (counts and shown), and updates SDL16's", () => {
-    for (const name of ['NHL94_Classic.smc', 'SDL16.smc'].filter((n) => names.includes(n))) {
-      const rom = open(name)
-      const state = detectSnesHacks(rom.bytes)
-      expect(state.unknown).not.toContain('bodychecks')
-      expect(state.choices.bodychecks).toBe(true)
-      expect(state.choices.bodychecksShown).toBe(name === 'SDL16.smc')
-      if (name !== 'SDL16.smc') continue
-      expect(state.vaultVersions).toContain('bodychecksShown')
-      const updated = applySnesHacks(rom, { bodychecksShown: true }, true)
-      const after = detectSnesHacks(updated.bytes)
-      expect(after.choices.bodychecksShown).toBe(true)
-      expect(after.vaultVersions).not.toContain('bodychecksShown')
-      expect(Buffer.from(updated.bytes).indexOf(Buffer.from('e220b98e16dd8e16c220', 'hex'))).toBeGreaterThan(0)
-    }
+  it.skipIf(!names.includes('NHL94_Classic.smc'))("finds the Vault's counts in NHL94_Classic", () => {
+    const state = detectSnesHacks(open('NHL94_Classic.smc').bytes)
+    expect(state.unknown).not.toContain('bodychecks')
+    expect(state.choices.bodychecks).toBe(true)
+    expect(state.choices.bodychecksShown).toBe(false)
+  })
+
+  it.skipIf(!names.includes('SDL16.smc'))("finds the Vault's counts and shown in SDL16, and updates them", () => {
+    const rom = open('SDL16.smc')
+    const state = detectSnesHacks(rom.bytes)
+    expect(state.unknown).not.toContain('bodychecks')
+    expect(state.choices.bodychecks).toBe(true)
+    expect(state.choices.bodychecksShown).toBe(true)
+    expect(state.vaultVersions).toContain('bodychecksShown')
+    const updated = applySnesHacks(rom, { bodychecksShown: true }, true)
+    const after = detectSnesHacks(updated.bytes)
+    expect(after.choices.bodychecksShown).toBe(true)
+    expect(after.vaultVersions).not.toContain('bodychecksShown')
+    expect(Buffer.from(updated.bytes).indexOf(Buffer.from('e220b98e16dd8e16c220', 'hex'))).toBeGreaterThan(0)
   })
 
   it("goes into every 1 MB build; not offered where the build counts each player's checks itself", () => {

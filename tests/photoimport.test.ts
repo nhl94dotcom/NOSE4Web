@@ -33,7 +33,7 @@ describe.skipIf(!existsSync(path('NHL94_Classic.smc')) || !existsSync(path('nhl9
     expect(got.slice(0, want.length)).toEqual(want)
   })
 
-  it('frees the photos it replaces, so another team brought in over it takes no more room', { timeout: 300000 }, () => {
+  it('frees the photos it replaces, so another team brought in over it takes no more room', () => {
     const classic = open('NHL94_Classic.smc')
     const build = open('nhl94_2026.sfc')
     const unused = (bytes: Uint8Array) => bytes.reduce((n, v) => n + (v === 0xff ? 1 : 0), 0)
@@ -64,7 +64,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')) || !local.league30Rom || !existsS
       else expect(ours[i].generic).toBe(true)
     })
   })
+})
 
+describe.skipIf(!existsSync(path('nhl94.bin')))('importing a Genesis team without its roster', () => {
   it('leaves photos alone without the roster', () => {
     const result = importTeam(open('nhl94.bin'), open('nhl94.bin'), 0, 1, { ...parts, roster: false })
     expect(result.notes).toContain('Player photos were left alone: they come only with the roster, since each is for a place on it.')

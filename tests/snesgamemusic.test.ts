@@ -1,4 +1,4 @@
-﻿import { existsSync, readFileSync } from 'node:fs'
+﻿import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { musicParts, readMidi, type MidiNote } from '../src/core/genesismusic'
@@ -411,7 +411,8 @@ describe.skipIf(names.length === 0)("the SNES game's other music from MIDI files
     SNES_GAME_MUSIC.forEach((piece, index) => expect(snesCustomMusicName(built.bytes, index)).toBe(`${piece.name} again`))
   })
 
-  it.each(names.filter((name) => open(name).bytes.length < 0x200000))('keeps the fighting working in %s grown for the music, in either order', (name) => {
+  // The 1 MB builds, by their files' size (a copier header adds only 512 bytes).
+  it.each(names.filter((name) => statSync(path(name)).size < 0x200000))('keeps the fighting working in %s grown for the music, in either order', (name) => {
     const project = open(name)
     const music = (from: RomProject) => SNES_GAME_MUSIC.reduce((p, _, index) => roundTrip(p, index).next, from)
     const playsAll = (rom: Uint8Array) =>

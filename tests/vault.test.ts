@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { openRom } from '../src/core/rom'
 import { loRomOffset, snesCodeInPlace } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, relocatedSnesHack } from '../src/core/sneshacks'
+import { isSa1, isSa1File } from './sneshelp'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -51,9 +52,11 @@ describe.skipIf(names.length === 0)('the extra attacker and Y button fixes', () 
 })
 
 describe('on the SA-1 builds, the scratch variables by the direct page', () => {
-  const sa1 = (local.snesRoms ?? []).find((name: string) => /SA1/.test(name) && existsSync(path(name)))
-  it.skipIf(!sa1)('names the scratch variables in direct-page form, the game variables $6000 on', () => {
-    const project = openRom(new Uint8Array(readFileSync(path(sa1!))))
+  // SA-1 by the header's map mode.
+  const sa1s = names.filter((name) => isSa1File(path(name)))
+  it.skipIf(sa1s.length === 0).each(sa1s)('%s: names the scratch variables in direct-page form, the game variables $6000 on', (name) => {
+    const project = openRom(new Uint8Array(readFileSync(path(name))))
+    expect(isSa1(project.bytes)).toBe(true)
     const hex = (b: Uint8Array) => Buffer.from(b).toString('hex')
     const code = (hack: 'showMaxBoost' | 'extraAttackerFix' | 'manualPullGoalie') => relocatedSnesHack(project.bytes, hack)!.map((p) => hex(p.hacked)).join(' ')
     // sta d0, adc $AF, ldy a2, each with a nop: these run with D = $3000 there (Match Viewer), so neither $60xx nor

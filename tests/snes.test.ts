@@ -5,7 +5,7 @@ import { readU16LE } from '../src/core/bytes'
 import { colorRgb, SNES_COLORS } from '../src/core/color'
 import { projectTeamRatings } from '../src/core/ppfix'
 import { findSnesTeamTable, fixSnesChecksum, snesCodeInPlace, snesPreviewSprites, snesStripTables } from '../src/core/snes'
-import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHackChoices } from '../src/core/sneshacks'
+import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHack, type SnesHackChoices, type SnesHackState } from '../src/core/sneshacks'
 import { checkProject } from '../src/core/check'
 import { pictureToImage, type Picture } from '../src/core/graphics'
 import { unpackHuffman } from '../src/core/huffman'
@@ -53,6 +53,11 @@ const STOCK = 'NHL94.smc'
 const names = [STOCK, ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
 const read = (name: string) => new Uint8Array(readFileSync(path(name)))
 const teamsOf = (project: RomProject) => project.teams.map((t) => ({ ...t, freeBytes: 0 }))
+// Every hack the ROM can take that go in together: not one of each pair that cannot both be on, nor fighting and
+// what hooks it, nor those with other code in their place or not offered on the build.
+const LEFT_OUT: SnesHack[] = ['showMaxBoost', 'fighting', 'fightMomentum', 'fightOnce', 'seasonShootout', 'barrCoin', 'blockedShotsShown']
+const allTogether = (state: SnesHackState) =>
+  Object.fromEntries(SNES_HACKS.filter((hack) => !LEFT_OUT.includes(hack) && !state.unknown.includes(hack) && !state.notOffered?.[hack]).map((hack) => [hack, true])) as Partial<SnesHackChoices>
 
 // Where the game's checksum and its inverse are, in a file with or without
 // the copier header.
@@ -152,7 +157,7 @@ describe.skipIf(names.length === 0)('every SNES ROM on this computer', () => {
         expect(changedElsewhere).toEqual([])
         // The hacks still go in, none of their new code into the teams' room (the bank also holds the Player Stats
         // code, which the bodychecks shown change in place).
-        const hacks = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'fightOnce' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !detectSnesHacks(reopened.bytes).unknown.includes(hack) && !detectSnesHacks(reopened.bytes).notOffered?.[hack]).map((hack) => [hack, true]))
+        const hacks = allTogether(detectSnesHacks(reopened.bytes))
         const hacked = applySnesHacks(reopened, hacks)
         const roomOf = (rom: Uint8Array) => [rom.subarray(layout.start, layout.end), rom.subarray(overflow.start, overflow.end)]
         expect(roomOf(hacked.bytes)).toEqual(roomOf(reopened.bytes))
@@ -380,7 +385,7 @@ describe.skipIf(names.length === 0)('SNES hacks', () => {
       const before = detectSnesHacks(project.bytes)
       // Every hack is found, wherever the ROM's code is, but NOSE4Web's fighting, which the rebuilt builds have their own of.
       expect(before.unknown).toEqual(snesCodeInPlace(project.bytes) ? [] : ['fighting'])
-      const wanted = Object.fromEntries(SNES_HACKS.filter((hack) => hack !== 'showMaxBoost' && hack !== 'fighting' && hack !== 'fightMomentum' && hack !== 'fightOnce' && hack !== 'seasonShootout' && hack !== 'barrCoin' && hack !== 'blockedShotsShown' && !before.unknown.includes(hack) && !before.notOffered?.[hack]).map((hack) => [hack, true]))
+      const wanted = allTogether(before)
       const on = applySnesHacks(project, wanted)
       expect(detectSnesHacks(on.bytes).choices).toEqual({ ...allOff, ...wanted })
       // The 30-second periods offer a fourth period length on the menu.
@@ -559,11 +564,13 @@ describe.skipIf(names.length === 0)('SNES logos', () => {
       expectSameBytes(rom, project.bytes)
     })
 
-    it(`replace logos in SNES ROM ${n + 1} where it keeps them unpacked in the ROM, moving them to free space as they need`, () => {
+    it(`replace logos in SNES ROM ${n + 1} where it keeps them unpacked in the ROM, moving them to free space as they need`, ({ skip }) => {
       const project = openRom(read(name))
       const teams = project.teams.length
       const table = snesLogoTable(project.bytes, teams)
-      if (table === null) return
+      // The 1 MB games keep them packed; McMarkis's 2 MB builds unpacked.
+      expect(table === null, name).toBe(project.bytes.length < 0x200000)
+      if (table === null) return skip()
       // Team 1's logo onto team 0, and the last team's onto the next six, with team 1's centre ice onto team 0.
       const edits: SnesPictureEdits = { logos: { 0: snesLogo(project.bytes, teams, none, 1) }, centreIce: {} }
       for (let team = 2; team < 8; team++) edits.logos[team] = snesLogo(project.bytes, teams, none, teams - 1)

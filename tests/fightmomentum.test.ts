@@ -52,8 +52,7 @@ describe.skipIf(roms.length === 0)('fight momentum', () => {
     expect(found.choices).toMatchObject({ fightMomentum: true, giveaways: true, timeOnIce: true, fighting: 'on' })
   })
 
-  it('needs fighting: without it nothing changes', () => {
-    if (!existsSync(path('nhl94.bin'))) return
+  it.skipIf(!existsSync(path('nhl94.bin')))('needs fighting: without it nothing changes', () => {
     const before = new Uint8Array(readFileSync(path('nhl94.bin')))
     const after = hackRom(before, { ...NO_HACKS, fightMomentum: true })
     expect(detectHacks(after).choices.fightMomentum).toBe(false)

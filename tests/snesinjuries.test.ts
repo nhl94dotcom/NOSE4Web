@@ -12,7 +12,7 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.subarray(at, at + count)).toString('hex')
 
 describe.skipIf(names.length === 0)('the SNES injuries choice', () => {
-  it("changes Match Viewer's places in the original game, one choice at a time", () => {
+  it.skipIf(!names.includes('NHL94.smc'))("changes Match Viewer's places in the original game, one choice at a time", () => {
     const project = open('NHL94.smc')
     // bne .23 after the roll's clock test ($9E:9DD6); setInjuryType's bne .rtl ($9E:C34D); jsl setInjuryType and sta InjCntDown ($9E:9E21, $9E:9E28).
     const sites = { never: 0xf1dd6, period: 0xf434d, call: 0xf1e21, count: 0xf1e28 }

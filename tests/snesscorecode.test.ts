@@ -5,6 +5,7 @@ import { buildRom, openRom } from '../src/core/rom'
 import { detectSnesHacks } from '../src/core/sneshacks'
 import { canAddScoreLogos, hasAddedScoreLogos, withScoreLogosAdded, withScoreLogosTakenOut } from '../src/core/snesscorecode'
 import { snesScoreLogo, snesScoreLogosSupported, withoutSnesScoreLogo } from '../src/core/snesscorelogos'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
@@ -35,8 +36,11 @@ for (const name of ['NHL94.smc', 'SDL16.smc', 'NHL94_Classic.smc']) {
       // Downloaded, opened again, and taken out: the original ROM.
       const reopened = openRom(buildRom(added))
       expect(hasAddedScoreLogos(reopened)).toBe(true)
-      const out = withScoreLogosTakenOut(withoutSnesScoreLogo(added, 3))
-      expect(Buffer.compare(out.bytes, project.bytes)).toBe(0)
+      const out = withScoreLogosTakenOut(withoutSnesScoreLogo(reopened, 3))
+      expect(hasAddedScoreLogos(out)).toBe(false)
+      expectSameBytes(buildRom(out), buildRom(project))
+      // Taken out before downloading, too.
+      expectSameBytes(withScoreLogosTakenOut(withoutSnesScoreLogo(added, 3)).bytes, project.bytes)
     })
   })
 }

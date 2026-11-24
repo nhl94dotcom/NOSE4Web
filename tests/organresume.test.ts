@@ -38,11 +38,16 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the organ after a pause', () =>
 
   it.each(names)('is offered on %s where its pause and music driver are the original game’s', (name) => {
     const project = open(name)
-    if (!hacksSupported(project.game)) return
+    // Only the EVO builds, whose code is their own, take no hacks.
+    expect(hacksSupported(project.game)).toBe(!name.includes('EVO'))
+    if (name.includes('EVO')) return
     const state = detectHacks(project.bytes)
-    if (state.unknown.includes('organResume')) return
+    expect(state.unknown).not.toContain('organResume')
+    expect(state.choices.organResume).toBe(false)
     const bytes = hackRom(project.bytes, { ...state.choices, organResume: true })
     expect(detectHacks(bytes).choices).toEqual({ ...state.choices, organResume: true })
+    // And out again: the ROM as its own hacks put in afresh make it.
+    expectSameBytes(hackRom(bytes, { ...state.choices, organResume: false }), hackRom(project.bytes, state.choices))
   })
 
   it('is off in a ROM with no hacks', () => {

@@ -39,7 +39,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('hybrid icing', () => {
   names.forEach((name) => {
     it(`${name}: goes in and comes out, leaving the ROM as its own hacks make it`, () => {
       const rom = open(name)
-      if (!hacksSupported(rom.game)) return
+      // Only the EVO builds, whose code is their own, take no hacks.
+      expect(hacksSupported(rom.game)).toBe(!name.includes('EVO'))
+      if (name.includes('EVO')) return
       const state = detectHacks(rom.bytes)
       expect(state.unknown).not.toContain('hybridIcing')
       expect(state.choices.hybridIcing).toBe(false)

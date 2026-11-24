@@ -10,6 +10,7 @@ const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.met
 const open = (name = 'nhl94.bin') => openRom(new Uint8Array(readFileSync(path(name))))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
 const local: { league30Rom?: string } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const hasLeague30 = !!local.league30Rom && existsSync(path(local.league30Rom))
 
 // A test picture: bands of eight colours over a dark blue field, with a white square.
 function testImage(width: number, height: number): Uint8ClampedArray {
@@ -34,13 +35,19 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     const drawn = (from: number, to: number) => splash.picture.pixels.subarray(from * 320, to * 320).some((p) => p !== 128)
     expect(drawn(24, 120)).toBe(true)
     expect(drawn(128, 200)).toBe(true)
-    if (local.league30Rom && existsSync(path(local.league30Rom))) {
-      // wboy's picture, drawn in the first picture's colours, since its call loads none of its own.
-      const league = readSplash(open(local.league30Rom).bytes)!
-      expect(league.original).toBe(false)
-      expect(league.ownColours).toBe(false)
-      expect(league.palette.slice(64, 128)).toEqual(league.palette.slice(0, 64))
-    }
+  })
+
+  it.skipIf(!hasLeague30)("is wboy's full-screen picture in a 30-team ROM, and the original put back over it from a project file", () => {
+    // wboy's picture, drawn in the first picture's colours, since its call loads none of its own.
+    const league = open(local.league30Rom)
+    const splash = readSplash(league.bytes)!
+    expect(splash.original).toBe(false)
+    expect(splash.ownColours).toBe(false)
+    expect(splash.palette.slice(64, 128)).toEqual(splash.palette.slice(0, 64))
+    // The original put back, in a project file opened over the ROM that had its own.
+    const back = withOriginalSplash(league)
+    const over = openProjectFile(open(local.league30Rom), saveProjectFile(back, league, 'test')).project
+    expect(readSplash(over.bytes)!.original).toBe(true)
   })
 
   it("takes a picture of the league's own, shows it back, and puts the original back", () => {
@@ -69,7 +76,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     expect(restored.bytes[0xfee19]).toBe(0)
   })
 
-  it('keeps the picture in a project file, and the original put back over a ROM that had its own', () => {
+  it('keeps the picture in a project file', () => {
     const project = open()
     const edited = withSplashImage(project, splashFromImage(testImage(320, 224), 320, 224))
     const reopened = openProjectFile(open(), saveProjectFile(edited, project, 'test')).project
@@ -77,17 +84,18 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the second splash screen', () =
     expect(readSplash(reopened.bytes)!.ownColours).toBe(true)
     // A project that left the screen alone leaves a ROM's own as it is.
     expect(saveProjectFile(project, project, 'test')).not.toContain('"screens"')
-    if (local.league30Rom && existsSync(path(local.league30Rom))) {
-      const league = open(local.league30Rom)
-      const back = withOriginalSplash(league)
-      const over = openProjectFile(open(local.league30Rom), saveProjectFile(back, league, 'test')).project
-      expect(readSplash(over.bytes)!.original).toBe(true)
-    }
   })
 
   it('fits a picture of another shape inside the screen, on black', () => {
     const image = splashFromImage(testImage(100, 200), 100, 200)
-    // A tall picture leaves black down both sides: the first tile of the top row is all black.
+    // A tall picture leaves black down both sides: the first tile of the top row is all black, a middle one not.
     expect(image.map[0] & 0x7ff).toBe(image.map[1] & 0x7ff)
+    const colours = (cell: number) => {
+      const tile = image.tiles[image.map[cell] & 0x7ff]
+      const row = image.map[cell] >> 13
+      return Array.from({ length: 64 }, (_, i) => image.palette[row * 16 + ((tile[i >> 1] >> (i & 1 ? 0 : 4)) & 15)])
+    }
+    expect(colours(0).every((colour) => colour === 0)).toBe(true)
+    expect(colours(14 * 40 + 20).some((colour) => colour !== 0)).toBe(true)
   })
 })

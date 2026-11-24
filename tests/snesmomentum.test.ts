@@ -6,6 +6,7 @@ import { buildRom, openRom } from '../src/core/rom'
 import { findCodeAll, loRomAddress, snesCodeInPlace } from '../src/core/snes'
 import { snesFightState } from '../src/core/snesfight'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, withSnesHackChoice, type SnesHack, type SnesHackChoices } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -118,10 +119,17 @@ describe('SNES fight momentum', () => {
       all[hack] = true
     }
     const on = applySnesHacks(rom, all)
-    const state = detectSnesHacks(openRom(buildRom(on)).bytes)
+    const reopened = openRom(buildRom(on))
+    const state = detectSnesHacks(reopened.bytes)
     for (const hack of Object.keys(all) as SnesHack[]) expect(state.choices[hack]).toBe(true)
     expect(state.unknown).toEqual(before.unknown)
-    const off = applySnesHacks(on, before.choices)
+    // Taken out of the downloaded ROM: the ROM as it was, byte for byte. (Its source is the ROM as first opened,
+    // where the moved builds' intro skips find the calls they took out.)
+    const off = applySnesHacks({ ...reopened, source: rom.source }, before.choices)
     expect(detectSnesHacks(off.bytes).choices).toEqual(before.choices)
+    // All but the checksum ($7FDC-$7FDF): the downloaded file has the one buildRom worked out, and SDL16's own is
+    // not that one.
+    const noSum = (b: Uint8Array) => b.slice().fill(0, 0x7fdc, 0x7fe0)
+    expectSameBytes(noSum(off.bytes), noSum(rom.bytes))
   })
 })

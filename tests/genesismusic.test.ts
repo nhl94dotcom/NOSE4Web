@@ -218,7 +218,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
   it.skipIf(!local.league30Rom || !existsSync(path(local.league30Rom)))('finds the songs in league ROMs too', () => {
     for (const name of [local.league30Rom!, ...(local.otherRoms ?? [])].filter((n) => existsSync(path(n)))) {
       const project = open(name)
-      if (!project.game.settingsSupported) continue
+      // Only the EVO builds, whose code is their own, are read without their settings.
+      expect(project.game.settingsSupported, name).toBe(!name.includes('EVO'))
+      if (name.includes('EVO')) continue
       expect(readSong(project.bytes, 0x40), name).not.toBeNull()
     }
   })

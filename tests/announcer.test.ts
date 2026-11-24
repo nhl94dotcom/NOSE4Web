@@ -57,8 +57,10 @@ describe.skipIf(!existsSync(GENESIS))('the announcer picture, Genesis', () => {
     expect(after.palette.filter((w, i) => w !== before.palette[i]).length).toBeLessThanOrEqual(8)
     for (const i of [1, 2, 3, 4, 5, 6, 7]) expect(after.palette[i]).toBe(before.palette[i])
     // Put back.
-    const back = withOriginalGenesisAnnouncer({ ...changed, source: project.source })
-    expect(genesisAnnouncer(back)!.original).toBe(true)
+    const back = genesisAnnouncer(withOriginalGenesisAnnouncer({ ...changed, source: project.source }))!
+    expect(back.original).toBe(true)
+    expect(Array.from(back.picture.pixels)).toEqual(Array.from(before.picture.pixels))
+    expect(back.palette).toEqual(before.palette)
   })
 
   it('keeps a picture of its own in a project file, put into a fresh copy of the ROM', () => {
@@ -102,7 +104,10 @@ describe.skipIf(snesRoms.length === 0)('the announcer picture, SNES', () => {
       // Colour 0, see-through, as it was.
       expect(after.palette[0]).toBe(before.palette[0])
       // Put back, and kept in a project file.
-      expect(snesAnnouncer(withOriginalSnesAnnouncer(changed))!.original).toBe(true)
+      const back = snesAnnouncer(withOriginalSnesAnnouncer(changed))!
+      expect(back.original).toBe(true)
+      expect(Array.from(back.picture.pixels)).toEqual(Array.from(before.picture.pixels))
+      expect(back.palette).toEqual(before.palette)
       const text = saveProjectFile(changed, openRom(new Uint8Array(readFileSync(path(name)))), 'Work')
       const other = new Uint8Array(readFileSync(path(name)))
       other[other.length - 1] ^= 1

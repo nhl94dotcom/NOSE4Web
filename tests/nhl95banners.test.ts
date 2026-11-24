@@ -85,7 +85,7 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     expect(banner(openProjectFile(project, text).project, 'game', 1)).toEqual(banner(project, 'game', 2))
   })
 
-  it('changes a team’s menu banner colours in the original game: its menu colours 1 and 2, the logo’s left as they were', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('changes a team’s menu banner colours in the original game: its menu colours 1 and 2, the logo’s left as they were', () => {
     const project = open(RETAIL)
     const was = menuLogoPalette(project, 1)
     const graphics = { ...project.graphics, menuPalettes: { [1]: withBannerColors(menuPalette(project, 1), [0x00e, 0x0e0]) } }
@@ -96,7 +96,7 @@ describe.skipIf(names.length === 0)("NHL '95 banners", () => {
     expect(bannerColors(reopened, 2)).toEqual(bannerColors(project, 2))
   })
 
-  it('gives the original game’s banners room of their own, every place that reads them following', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('gives the original game’s banners room of their own, every place that reads them following', () => {
     const project = open(RETAIL)
     const roomy = expandPictureSpace(project)
     const refs = NHL95.graphics.bannerReferences

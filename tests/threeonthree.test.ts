@@ -105,9 +105,11 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('3 on 3 overtime', () => {
   names.forEach((name) => {
     it(`${name}: goes in and comes out`, () => {
       const rom = open(name)
-      if (!hacksSupported(rom.game)) return
+      // Only the EVO builds, whose code is their own, take no hacks.
+      expect(hacksSupported(rom.game)).toBe(!name.includes('EVO'))
+      if (name.includes('EVO')) return
       const state = detectHacks(rom.bytes)
-      if (state.unknown.includes('threeOnThree')) return
+      expect(state.unknown).not.toContain('threeOnThree')
       expect(state.choices.threeOnThree).toBe('off')
       for (const choice of ['season', 'all'] as const) {
         const on = openRom(buildRom(applyHacks(rom, { ...state.choices, threeOnThree: choice })))

@@ -202,6 +202,8 @@ describe.skipIf(others.length === 0)('teams in the menu, every ROM on this compu
   others.forEach((name, n) => {
     it(`ROM ${n + 1}`, () => {
       const project = open(path(name))
+      // Only the EVO builds, whose code is their own, have no team count NOSE4Web reads.
+      expect(!!project.settings.menuTeams).toBe(!name.includes('EVO'))
       if (!project.settings.menuTeams) return
       const offered = project.settings.menuTeams.offered
       expect(offered).toBeGreaterThanOrEqual(2)

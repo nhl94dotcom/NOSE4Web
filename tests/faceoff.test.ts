@@ -407,8 +407,7 @@ describe.skipIf(snesNames.length === 0)('the faceoff spot fix in SNES ROMs', () 
     })
   })
 
-  it('finds Stop4Pen in the original game where the disassembly has it, and reads its addresses', () => {
-    if (!existsSync(path('NHL94.smc'))) return
+  it.skipIf(!existsSync(path('NHL94.smc')))('finds Stop4Pen in the original game where the disassembly has it, and reads its addresses', () => {
     const project = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
     const [call, code] = relocatedSnesHack(project.bytes, 'faceoffFix')!
     expect(call.at).toBe(loRomOffset(0x9e, 0xb326))

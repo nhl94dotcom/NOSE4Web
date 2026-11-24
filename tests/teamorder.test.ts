@@ -223,10 +223,14 @@ describe.skipIf(others.length === 0)('moving teams in the ROMs on this computer'
     it(`ROM ${i + 1}: moves every team's tables, or says why not`, () => {
       const project = open(path(name))
       const range = teamMoveRange(project)
-      if ('reason' in range) {
-        expect(range.reason).toMatch(/\./)
-        return
-      }
+      // The ROMs whose teams cannot move, and why: the EVO builds' own menus, and 2on2's photos.
+      const why = name.includes('EVO')
+        ? "This ROM's hack rebuilds the menus and playoffs, so the editor cannot follow every place it keeps a team's number."
+        : name === '2on2_update.bin'
+          ? 'This ROM keeps its player photos in a way the editor cannot follow, so they could not move with their teams.'
+          : null
+      expect('reason' in range ? range.reason : null).toBe(why)
+      if ('reason' in range) return
       // The league's teams by name, and the last team moved to the front.
       const order = alphabeticalOrder(project, range.league)
       expectMoved(project, reopen(withTeamOrder(project, order)), order)

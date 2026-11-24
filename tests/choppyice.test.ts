@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { goesInAndOutOfLeagueRoms } from './leaguehacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -26,11 +28,15 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('choppy ice (Genesis)', () => {
     expect(hex(on.bytes, code, 30)).toBe('48e7540076000c6b000e005266223238c46c671c3a019a78c4686f14e545')
     expect(detectHacks(on.bytes).choices).toEqual({ ...NO_HACKS, choppyIce: true })
     expect(Buffer.compare(buildRom(applyHacks(on, NO_HACKS)), buildRom(rom))).toBe(0)
-    // With the Puck friction option, which changes the moveq before it.
+    // With the Puck friction option, which changes the moveq before it, and out of it again.
     const both = applyHacks(rom, { ...NO_HACKS, choppyIce: true, puckFriction: 8 })
     expect(detectHacks(both.bytes).choices).toEqual({ ...NO_HACKS, choppyIce: true, puckFriction: 8 })
+    expectSameBytes(applyHacks(both, { ...NO_HACKS, puckFriction: 8 }).bytes, applyHacks(rom, { ...NO_HACKS, puckFriction: 8 }).bytes)
+    expectSameBytes(applyHacks(both, NO_HACKS).bytes, rom.bytes)
   })
 })
+
+goesInAndOutOfLeagueRoms('choppy ice (Genesis)', { choppyIce: true })
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('choppy ice (SNES)', () => {
   it("updateplayers' .1xx calls code that adds to the puck's friction as the period goes on", () => {

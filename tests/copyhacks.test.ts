@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { detectHacks, hackRom, hacksCopiedFrom, NO_HACKS, type HackState } from '../src/core/hacks'
 import { openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, snesHacksCopiedFrom, type SnesHackState } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 
@@ -37,14 +38,22 @@ describe('copying hacks from another ROM', () => {
     const { choices, notCopied } = hacksCopiedFrom(detectHacks(rom), detectHacks(league))
     expect(notCopied).toEqual([])
     expect(choices).toEqual(detectHacks(league).choices)
+    // Put into the original game, they make the other ROM again, byte for byte.
+    const copied = hackRom(rom, choices)
+    expect(detectHacks(copied)).toEqual(detectHacks(league))
+    expectSameBytes(copied, league)
   })
 
-  it.skipIf(!existsSync(path('NHL94.smc')))('sets an SNES ROM to another\'s hacks', () => {
+  it.skipIf(!existsSync(path('NHL94.smc')))('sets an SNES ROM to another\'s hacks, which then apply the same', () => {
     const project = openRom(new Uint8Array(readFileSync(path('NHL94.smc'))))
     const league = applySnesHacks(project, { hotColdFix: true, faceoffFix: true, yButtonFix: true })
     const { choices, notCopied } = snesHacksCopiedFrom(detectSnesHacks(project.bytes), detectSnesHacks(league.bytes))
     expect(notCopied).toEqual([])
     expect(choices).toEqual(detectSnesHacks(league.bytes).choices)
+    // Put into the original game, they make the other ROM again, byte for byte.
+    const copied = applySnesHacks(project, choices)
+    expect(detectSnesHacks(copied.bytes)).toEqual(detectSnesHacks(league.bytes))
+    expectSameBytes(copied.bytes, league.bytes)
   })
 })
 

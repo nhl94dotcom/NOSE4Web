@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { applyHacks, blockedShotsOutdated, detectHacks, NO_HACKS, playerStatsPageCodes, type HackChoices } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
+import { ALL_HACKS } from './allhacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -126,15 +127,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('blocked shots (Genesis)', () =>
 
   it('has its two places to itself, with every other hack on', () => {
     const rom = open('nhl94.bin')
-    const all: HackChoices = {
-      ...NO_HACKS,
-      weightFix: 'on', bodychecks: 'on', secondAssist: true, oneTimerAssist: true, regainAssist: true, plusMinus: true, wideRatings: true, bonuses: 'disabled',
-      threeStars: 'linesOn', baseWeight: 144, checkFix: 'all120', aggressionFix: true, ppPkFix: true, comebackFix: true,
-      passFix: true, openNetFix: true, repeatCheckFix: true, fighting: 'arcade', faceoffFix: true, runawayFix: true, penaltyShotTableFix: true, penaltyShotFixes: true,
-      goaliePullFix: true, blindRingFix: true, snipingFix: true, awarenessFix: true, crowdFix: true, stickShots: true,
-      goalieHold: 0, goalieWidth: 40, goalieOut: 224, goalieLine: 144, stamina: true, energyDrain: 65,
-      energyRecovery: 6, noSkatingDrain: true, burstEnergy: 0, speedBurst: 24, turnRate: 300, realTime: true, injuries: 'period', hotColdRange: 4, hybridIcing: true, delayedCalls: true, threeOnThree: 'season', bCheckPenaltiesOff: 'asPenaltiesOn', goalieDelay: 12, fewerSkaterLines: 32, introWait: 20, puckFriction: 8, puckColours: 'home', netColours: 'crowd', greenFan: true, barrPick: true, fourthPeriodOvertime: 5940, seasonTies: 'overtime', anyPosition: true, hitEnergy: 204, holdEnergy: 102, injuryBonus: 2, injuryCap: 12, headBleeding: true, penaltySeconds: 30, fightSeconds: 150, shootoutInjuries: true, nhlShootout: true, choppyIce: true, clutchTime: true, timeOnIce: true, organResume: true, giveaways: true,
-    }
+    // Fight momentum's and one fight a game's hooks at StartGame are on either side of the one at $77CC.
+    const all: HackChoices = { ...ALL_HACKS, blockedShots: false }
     const others = applyHacks(rom, all)
     for (const at of [0x153ca, 0x77cc]) expect(hex(others.bytes, at, 6)).toBe(hex(rom.bytes, at, 6))
     const on = applyHacks(openRom(buildRom(others)), { ...all, blockedShots: true })

@@ -43,7 +43,7 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('building lines from the ratings
       const killers = [lines[at('PK1')][LW], lines[at('PK1')][C], lines[at('PK2')][LW], lines[at('PK2')][C]]
       expect(new Set(killers).size).toBe(4)
       if (team.forwards >= 10) disjoint(killers, [...forwards(at('PP1')), ...forwards(at('PP2'))])
-      // The first line is the best players, as is the first scoring line's forwards.
+      // The first line (NLC) has all eight slots.
       expect(lines[at('NLC')]).toHaveLength(8)
     }
   })
@@ -119,35 +119,35 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('the side each hand goes to', ()
 })
 
 // The Genesis ROMs on this computer whose lines leave positions empty (hacks for 3 on 3, 2 on 2 or 1 on 1), found
-// by their lines, so that no ROM is named here or in the results.
-const fewer = names
-  .filter((name) => !/\.(smc|sfc)$/i.test(name))
-  .map(open)
-  .filter((project) => emptyLineSlots(project.teams).some((line) => line?.some(Boolean)))
+// by their lines, so that no ROM is named here or in the results. Opened when a test first needs them.
+const genesisNames = names.filter((name) => !/\.(smc|sfc)$/i.test(name))
+let fewerFound: RomProject[] | undefined
+const fewer = () => (fewerFound ??= genesisNames.map(open).filter((project) => emptyLineSlots(project.teams).some((line) => line?.some(Boolean))))
 // The 3 on 3 one: three skaters on the first scoring line.
 const skatersOnSc1 = (project: RomProject) => {
   const sc1 = project.game.lineLabels.indexOf('Sc1')
   return SKATER_LINE_SLOTS.filter((slot) => !emptyLineSlots(project.teams)[sc1]?.[slot]).length
 }
-const threeOnThree = fewer.find((project) => skatersOnSc1(project) === 3)
-describe.skipIf(fewer.length === 0)('on a ROM with fewer skaters', () => {
-  fewer.forEach((project, n) => {
-    it(`ROM with fewer skaters ${n + 1}: the best take the open positions, and the hand never decides who plays`, () => {
+describe.skipIf(genesisNames.length === 0)('on a ROM with fewer skaters', () => {
+  it('each ROM with fewer skaters: the best take the open positions, and the hand never decides who plays', (context) => {
+    if (fewer().length === 0) return context.skip()
+    fewer().forEach((project, n) => {
       const empty = emptyLineSlots(project.teams)
       const who = (line: number[]) => SKATER_LINE_SLOTS.map((slot) => line[slot]).filter(Boolean).sort((a, b) => a - b).join()
-      for (const team of project.teams) {
+      for (const [t, team] of project.teams.entries()) {
         const all = team.lines.map((_, l) => l)
         const sides = (side: HandSide) => buildLines(team, project.game, all, empty, { wings: side, defence: side }).lines
         const [shooting, off, either] = [sides('shooting'), sides('off'), sides('either')]
         shooting.forEach((line, l) => {
-          expect(who(off[l])).toBe(who(line))
-          expect(who(either[l])).toBe(who(line))
+          expect(who(off[l]), `ROM with fewer skaters ${n + 1}, team ${t}, line ${l}`).toBe(who(line))
+          expect(who(either[l]), `ROM with fewer skaters ${n + 1}, team ${t}, line ${l}`).toBe(who(line))
         })
       }
     })
-  })
-  it.skipIf(!threeOnThree)("3 on 3: Boston's best defenceman plays the one defence position", () => {
-    const project = threeOnThree!
+  }, 120000)
+  it("3 on 3: Boston's best defenceman plays the one defence position", (context) => {
+    const project = fewer().find((p) => skatersOnSc1(p) === 3)
+    if (!project) return context.skip()
     const empty = emptyLineSlots(project.teams)
     const team = project.teams[1]
     const sc1 = project.game.lineLabels.indexOf('Sc1')

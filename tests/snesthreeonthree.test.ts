@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
+import { isSa1, isSa1File, otherSnesHacks, snesHackBase } from './sneshelp'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -93,28 +95,27 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES 3 on 3 overtime', () => {
 
   it('goes with every other SNES hack, in and out', { timeout: 120_000 }, () => {
     const rom = open('NHL94.smc')
-    const state = detectSnesHacks(rom.bytes)
-    for (const hack of SNES_HACKS) {
-      if (hack === 'threeOnThree' || state.unknown.includes(hack)) continue
-      let base
-      try {
-        base = applySnesHacks(rom, { [hack]: true })
-      } catch {
-        continue
-      }
+    const hacks = otherSnesHacks(rom, ['threeOnThree'])
+    // Every other hack but the posts fix, not offered on the 1 MB game.
+    expect(hacks.length).toBe(SNES_HACKS.length - 2)
+    for (const hack of hacks) {
+      const base = snesHackBase(rom, hack)
       const both = applySnesHacks(base, {}, false, { threeOnThree: 2 })
       const read = detectSnesHacks(both.bytes)
       expect(read.unknown, hack).toEqual(detectSnesHacks(base.bytes).unknown)
+      expect(read.choices, hack).toEqual({ ...detectSnesHacks(base.bytes).choices, threeOnThree: true })
       expect(read.choices[hack], hack).toBe(true)
       expect(read.amounts?.threeOnThree, hack).toBe(2)
-      expect(Buffer.compare(buildRom(applySnesHacks(both, {}, false, { threeOnThree: 0 })), buildRom(base)), hack).toBe(0)
+      expectSameBytes(buildRom(applySnesHacks(both, {}, false, { threeOnThree: 0 })), buildRom(base), hack)
     }
   })
 
-  // McMarkis's SA-1 builds: the variables $6000 on in BW-RAM, OptPlayMode in bank $40.
-  const sa1 = names.find((name) => /SA1/.test(name))
-  it.skipIf(!sa1)('on the SA-1 build: the game\'s variables where that build has them', () => {
-    const on = applySnesHacks(open(sa1!), {}, false, { threeOnThree: 1 }).bytes
+  // McMarkis's SA-1 builds (by their header): the variables $6000 on in BW-RAM, OptPlayMode in bank $40.
+  const sa1s = names.filter((name) => isSa1File(path(name)))
+  it.skipIf(sa1s.length === 0).each(sa1s)("on the SA-1 build %s: the game's variables where that build has them", (name) => {
+    const rom = open(name)
+    expect(isSa1(rom.bytes)).toBe(true)
+    const on = applySnesHacks(rom, {}, false, { threeOnThree: 1 }).bytes
     const all = Buffer.from(on).toString('hex')
     expect(all).toContain('ad3076c90300')
     expect(all).toContain('8da877a90600')

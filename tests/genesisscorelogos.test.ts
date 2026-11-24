@@ -64,6 +64,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis score logos', () => {
     const made = genesisScoreLogoFromImage(pictureToImage(exported.home, palette.slice(0, 16)), 24, 16, palette)
     const set = withGenesisScoreLogo(added, 2, made)
     expect(Buffer.from(genesisScoreLogo(set, 2)!.home.pixels).equals(Buffer.from(made.home.pixels))).toBe(true)
+    // The away logo as made, each pixel in the 4 bits the ROM keeps (awayFromHome gives the background as 16 + 2).
+    expect(Buffer.from(genesisScoreLogo(set, 2)!.away.pixels).equals(Buffer.from(made.away.pixels.map((p) => p & 15)))).toBe(true)
     expect(() => genesisScoreLogoFromImage(new Uint8Array(48 * 32 * 4), 48, 32, palette)).toThrow('24 pixels wide')
   })
 
@@ -73,6 +75,10 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis score logos', () => {
     const added = withGenesisScoreLogosAdded(league)
     expect(added.bytes.length).toBe(league.bytes.length)
     expect(hasGenesisScoreLogos(openRom(buildRom(added)))).toBe(true)
+    // Taken out, the league's ROM as it was.
+    const out = withGenesisScoreLogosTakenOut(added)
+    expect(hasGenesisScoreLogos(out)).toBe(false)
+    expectSameBytes(out.bytes, league.bytes)
     const evo = local.otherRoms?.find((name) => / EVO /.test(name))
     if (evo && existsSync(path(evo))) expect(canAddGenesisScoreLogos(open(evo))).toBe(false)
   })

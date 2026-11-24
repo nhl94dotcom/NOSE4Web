@@ -131,12 +131,9 @@ describe.skipIf(leagueRoms.length === 0)('head bleeding in league ROMs', () => {
   it('adds and takes out cleanly wherever it can be added', { timeout: 300000 }, () => {
     for (const name of leagueRoms) {
       const project = open(name)
-      if (!canAddGenesisBlood(project)) continue
-      // A 4 MB ROM such as EVO's has no room left for it.
-      if (project.bytes.length > 0x200000) {
-        expect(() => withGenesisBloodAdded(project), name).toThrow('no room')
-        continue
-      }
+      // Not offered only in the EVO builds, whose code is their own.
+      expect(canAddGenesisBlood(project), name).toBe(!name.includes('EVO'))
+      if (name.includes('EVO')) continue
       const added = withGenesisBloodAdded(project)
       expect(frames(added.bytes).filter((_, f) => f < 369 || f > 372), name).toEqual(frames(project.bytes).filter((_, f) => f < 369 || f > 372))
       expect(hasGenesisBlood(added), name).toBe(true)

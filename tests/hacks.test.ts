@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { readAscii, readU16, readU32 } from '../src/core/bytes'
+import { hasNoseTape } from '../src/core/clockwise'
 import { expandTeamSpace } from '../src/core/expand'
 import { NHL94_EVO } from '../src/core/games'
 import { expandPictureSpace } from '../src/core/graphics'
@@ -31,6 +32,7 @@ import { CSV_TABLES } from '../src/core/tables'
 import { changesSince } from '../src/core/season'
 import { claimSpace } from '../src/core/space'
 import expected from './smozrom-hashes.json'
+import { ALL_HACKS, ALL_HACKS_LEFT_OUT } from './allhacks'
 import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -566,8 +568,9 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
         '41f8f0414eb900009f403200267c0000898a4242' + '14136b1270001018d0415240141b4eb90000889860ea' + '4cdf091f4e75',
     )
     // The routines it calls are where it says.
+    // Each starts with a movem.l to the stack.
     expect([at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), at(opened.bytes, 0x1a1e4, 4), at(opened.bytes, 0x1a244, 4), at(opened.bytes, 0xfe696, 4)]).toEqual([
-      at(opened.bytes, 0x9f40, 2), at(opened.bytes, 0x8898, 2), '48e7e0c0', '48e7e0c0', '48e7c080',
+      '48e7', '48e7', '48e7e0c0', '48e7e0c0', '48e7c080',
     ])
     // GetForwardCount: the high nibble of the scouting report's forwards byte.
     expect(at(opened.bytes, 0x9f7e, 28)).toBe('48e70080206a001ed0e8000810280003e8480240000f4cdf01004e75')
@@ -706,6 +709,24 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const hacked = applyHacks(opened, all)
     expect(detectHacks(hacked.bytes)).toEqual({ choices: all, unknown: [] })
     expect(Buffer.compare(applyHacks(hacked, NO_HACKS).bytes, opened.bytes)).toBe(0)
+  })
+
+  it('makes every hack there is at once, fighting included, reads them all back and takes them all out', () => {
+    const opened = openRom(stock())
+    // Every choice is away from the original game, but for the two that cannot be on with others.
+    for (const key of Object.keys(NO_HACKS) as (keyof HackChoices)[]) {
+      if (ALL_HACKS_LEFT_OUT.includes(key)) expect(ALL_HACKS[key], key).toBe(NO_HACKS[key])
+      else expect(ALL_HACKS[key], key).not.toBe(NO_HACKS[key])
+    }
+    const hacked = applyHacks(opened, ALL_HACKS)
+    expect(hacked.bytes.length).toBe(0x300000)
+    expect(detectHacks(hacked.bytes)).toEqual({ choices: ALL_HACKS, unknown: [] })
+    // Taken out, the ROM is the original game again. So much code fills the first 1 MB, so the ROM grew to 2 MB
+    // before fighting made it 3; the fights' MB goes, the room the other hacks were given stays, unused.
+    const out = applyHacks(hacked, NO_HACKS).bytes
+    expect(out.length).toBe(0x200000)
+    expectSameBytes(out.subarray(0, opened.bytes.length), opened.bytes)
+    expect(out.subarray(opened.bytes.length).every((byte) => byte === 0xff)).toBe(true)
   })
 
   it('calls the code it adds from the right places, at even addresses in unused room', () => {
@@ -900,7 +921,8 @@ describe.skipIf(!hasLeague)('hacks already in a league ROM', () => {
   it('keeps an earlier version of the bodycheck statistics unless told to replace it', () => {
     const opened = league()
     const state = hackState(opened)!
-    if (state.choices.bodychecks !== 'earlier') return
+    // The league's ROM has the earlier version; if it ever does not, this test would check nothing.
+    expect(state.choices.bodychecks).toBe('earlier')
     const target = readU32(opened.bytes, 0x14130 + 2)
     const code = Array.from(opened.bytes.slice(target, target + 58))
     const kept = applyHacks(opened, { ...state.choices, weightFix: 'on' })
@@ -915,6 +937,90 @@ describe.skipIf(!hasLeague)('hacks already in a league ROM', () => {
     expect(readAscii(removed.bytes, 0x993f, 3)).toBe('PIM')
     expect(hackState(removed)!.choices.bodychecks).toBe('off')
   })
+})
+
+const leagueNames = [local.league30Rom, ...((local as { otherRoms?: string[] }).otherRoms ?? [])].filter((name): name is string => !!name && existsSync(path(name)))
+
+// Applying a league ROM's own hacks again gives back its bytes, but where NOSE4Web knowingly changes them. Each
+// difference is listed here, with what it may be, and the test checks it is only that.
+//   relocated: the second-assist and plus-minus code (smozROM's, in the added room) is taken out and put in again
+//     where room is found next, so the jsr pointers at $1018A, $F6CE6 and $1494C (and $14132, the bodycheck
+//     statistics) change; the code itself is the same.
+//   fewerLines: smozoma's own version of fewer skater lines, rewritten as NOSE4Web writes it (fewerlines.test.ts).
+//   tape: the ROM has some of NOSE4Web's tape on Clockwise's sprites already, so it is given the rest.
+// Any other ROM, GDL Season 4 with Clockwise's edit and none of the tape included, comes back byte for byte.
+const SELF_EXCEPTIONS: Record<string, { bytes: number; relocated?: boolean; fewerLines?: boolean; tape?: boolean }> = {
+  'CDL_Season_12.bin': { bytes: 260, relocated: true },
+  'CDL_dynasty_03_FINAL.bin': { bytes: 260, relocated: true },
+  'DPWM3RegularSeason.bin': { bytes: 260, relocated: true },
+  'Franchise Mode 1990 Final Exi.bin': { bytes: 259, relocated: true },
+  'IDL5_v02.bin': { bytes: 259, relocated: true },
+  'RGDL_S01_FINAL.bin': { bytes: 260, relocated: true },
+  '2on2_update.bin': { bytes: 333, relocated: true, fewerLines: true, tape: true },
+}
+// The ROMs NOSE4Web cannot hack.
+const NOT_HACKABLE = ['NHL 94 [h] EVO v0.2.1 - 2026 10 06.bin', 'NHL 94 [h] EVO v0.4.0 - 2026 10 28.bin']
+// Where smozROM-style code is called from: second assist (twice), plus-minus, bodycheck statistics.
+const CODE_HOOKS = [0x10188, 0xf6ce4, 0x1494a, 0x14130]
+
+describe.skipIf(leagueNames.length === 0)("a league ROM's own hacks applied again", () => {
+  // Numbered, so that no ROM's name appears in the test results.
+  it.each(leagueNames.map((name, n) => [n + 1, name] as const))('ROM %i: gives back its bytes, but for the differences known', (_, name) => {
+    const opened = openRom(new Uint8Array(readFileSync(path(name))))
+    if (!hacksSupported(opened.game)) {
+      expect(NOT_HACKABLE).toContain(name)
+      expect(() => applyHacks(opened, NO_HACKS)).toThrow(new HackError('Hacks cannot be applied to this kind of ROM.'))
+      return
+    }
+    expect(NOT_HACKABLE).not.toContain(name)
+    const state = detectHacks(opened.bytes)
+    const again = applyHacks(opened, state.choices)
+    expect(detectHacks(again.bytes)).toEqual(state)
+    const known = SELF_EXCEPTIONS[name]
+    if (!known) return expectSameBytes(again.bytes, opened.bytes)
+    const before = opened.bytes
+    const after = again.bytes
+    expect(after.length).toBe(before.length)
+    // Applied once more, nothing else changes.
+    expectSameBytes(applyHacks(again, state.choices).bytes, after)
+
+    const moved = CODE_HOOKS.filter((at) => readU32(before, at + 2) !== readU32(after, at + 2))
+    expect(moved.length > 0).toBe(!!known.relocated)
+    for (const at of moved) {
+      expect(readU16(before, at)).toBe(0x4eb9)
+      expect(readU16(after, at)).toBe(0x4eb9)
+      // The code called is the same, up to the four unused bytes after it in either.
+      const from = readU32(before, at + 2)
+      const to = readU32(after, at + 2)
+      const unused = (rom: Uint8Array, o: number) => rom.subarray(o, o + 4).every((byte) => byte === 0xff)
+      let length = 0
+      while (length < 512 && !unused(before, from + length) && !unused(after, to + length)) length += 2
+      expect(length).toBeGreaterThanOrEqual(16)
+      expectSameBytes(after.subarray(to, to + length), before.subarray(from, from + length), `$${at.toString(16)}`)
+    }
+    // The room the added code is in: from the lowest place it is called at, before or after.
+    const codeRoom = Math.min(...moved.flatMap((at) => [readU32(before, at + 2), readU32(after, at + 2)]))
+    const pointer = (i: number) => moved.some((at) => i >= at + 2 && i < at + 6)
+    const fewerLines = (i: number) => (i >= 0x87a0 && i < 0x87d0) || (i >= 0x8c82 && i < 0x8c84)
+    // Clockwise's records and NOSE4Web's tape are in the sprite tiles, from $5DE84 to the end of the first MB.
+    const sprites = (i: number) => i >= 0x5de84 && i < 0x100000 && !fewerLines(i)
+    let count = 0
+    const unexplained: string[] = []
+    for (let i = 0; i < after.length; i++) {
+      if (after[i] === before[i]) continue
+      count++
+      if (pointer(i) || i >= codeRoom || (known.fewerLines && fewerLines(i)) || (known.tape && sprites(i))) continue
+      if (unexplained.length < 10) unexplained.push(`$${i.toString(16)}`)
+    }
+    expect(unexplained).toEqual([])
+    expect(count).toBe(known.bytes)
+    if (known.tape) {
+      // Taking Clockwise's edit out of both gives the same ROM: among the sprites, only the tape differed.
+      expect(hasNoseTape(before)).toBe(true)
+      const off = { ...state.choices, clockwiseSprites: false }
+      expectSameBytes(applyHacks(again, off).bytes, applyHacks(opened, off).bytes)
+    }
+  }, 120000)
 })
 
 describe.skipIf(!hasRom)('the checking fix', () => {

@@ -111,7 +111,9 @@ describe.skipIf(!existsSync(GENESIS))('league value in the original game', () =>
 })
 
 describe.skipIf(!existsSync(SNES))('league value in the original SNES game', () => {
-  const rows = () => CSV_TABLES.find((t) => t.id === 'players')!.rows(snesProject())
+  // Made once, when first wanted.
+  let made: ReturnType<(typeof CSV_TABLES)[number]['rows']> | undefined
+  const rows = () => (made ??= CSV_TABLES.find((t) => t.id === 'players')!.rows(snesProject()))
   const at = () => rows()[0].indexOf('League value')
   // Two Stephane Richers are in the game (the leagues call the defenceman StephaneD), so a team can be given too.
   const of = (name: string, team = '') =>

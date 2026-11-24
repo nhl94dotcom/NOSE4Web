@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { findCodeAll } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks, SNES_HACKS, type SnesHack } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -13,6 +14,18 @@ const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('hex')
 const far = (b: Uint8Array, at: number) => ((b[at + 3] & 0x7f) << 15) | ((b[at + 1] | (b[at + 2] << 8)) & 0x7fff)
 const latin = (b: Uint8Array, at: number, n: number) => Buffer.from(b.subarray(at, at + n)).toString('latin1')
+// Every other hack the ROM can take that go together, without the giveaways' three.
+function othersFor(state: ReturnType<typeof detectSnesHacks>): Partial<Record<SnesHack, boolean>> {
+  const others: Partial<Record<SnesHack, boolean>> = {}
+  for (const hack of SNES_HACKS) {
+    if (state.unknown.includes(hack) || state.notOffered?.[hack] || hack === 'fighting') continue
+    // Blocked shots' Game Stats row goes where giveaways' does; fight momentum needs the fights.
+    if (['showMaxBoost', 'seasonOvertime', 'barrCoin', 'blockedShotsShown', 'fightMomentum', 'fightOnce'].includes(hack)) continue
+    if (['giveaways', 'giveawaysShown', 'giveawayPages'].includes(hack)) continue
+    others[hack] = true
+  }
+  return others
+}
 // The places in the original game (file offsets): puckglue, puckstick, dopass, assdumpin, doshot, FallDown .25, StartGame_scout,
 // puckgoalie's .t2 jsl ChkShotStat, dopass_swing's .2 lda puckvx / sta d0, a2touchpuck's ldy a2 / cpy #$0018, pucknorm's
 // jsl ChkOffsides and checkgoal's lda #$FFFF / sta collflag.
@@ -381,26 +394,46 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: giveaways and takeaways',
         expect(Buffer.compare(buildRom(applySnesHacks(earlier, { giveaways: false })), buildRom(rom))).toBe(0)
       }
       // With all the others the ROM can take that go together.
-      const others: Partial<Record<SnesHack, boolean>> = {}
-      for (const hack of SNES_HACKS) {
-        if (state.unknown.includes(hack) || state.notOffered?.[hack] || hack === 'fighting') continue
-        // Blocked shots' Game Stats row goes where giveaways' does; fight momentum needs the fights.
-        if (['showMaxBoost', 'seasonOvertime', 'barrCoin', 'blockedShotsShown', 'fightMomentum', 'fightOnce'].includes(hack)) continue
-        others[hack] = true
-      }
+      const others = othersFor(state)
       const all = applySnesHacks(rom, others)
-      const both = applySnesHacks(openRom(buildRom(all)), { giveaways: true, giveawaysShown: true })
+      expect(detectSnesHacks(all.bytes).choices.giveaways).toBe(false)
+      const both = applySnesHacks(openRom(buildRom(all)), { giveaways: true, giveawaysShown: true, giveawayPages: true })
       const found = detectSnesHacks(both.bytes)
       expect(found.unknown).toEqual(detectSnesHacks(all.bytes).unknown)
       for (const hack of Object.keys(others) as SnesHack[]) expect(found.choices[hack]).toBe(true)
-      // No other hack at the five newer places.
-      const rest = applySnesHacks(rom, { ...others, giveaways: false, giveawaysShown: false, giveawayPages: false })
+      expect(found.choices).toMatchObject({ giveaways: true, giveawaysShown: true, giveawayPages: true })
+      // Taken out of that: the others' choices, and no other hack at the newer places.
+      const rest = applySnesHacks(both, { giveaways: false, giveawaysShown: false, giveawayPages: false })
+      expect(detectSnesHacks(rest.bytes).choices).toEqual(detectSnesHacks(all.bytes).choices)
+      // The counts and the Game Stats row in and out: the others' ROM, byte for byte. (With the pages too, see below.)
+      const counts = applySnesHacks(openRom(buildRom(all)), { giveaways: true, giveawaysShown: true })
+      expectSameBytes(buildRom(applySnesHacks(counts, { giveaways: false, giveawaysShown: false })), buildRom(all))
       expect(hex(rest.bytes, sites.glue, 5)).toBe(hex(rom.bytes, sites.glue, 5))
       expect(hex(rest.bytes, sites.goalie, 4)).toBe(hex(rom.bytes, sites.goalie, 4))
       expect(hex(rest.bytes, sites.wide, 5)).toBe(hex(rom.bytes, sites.wide, 5))
       expect(hex(rest.bytes, sites.touch, 5)).toBe(hex(rom.bytes, sites.touch, 5))
       expect(hex(rest.bytes, sites.frame, 4)).toBe(hex(rom.bytes, sites.frame, 4))
       expect(hex(rest.bytes, sites.goal, 6)).toBe(hex(rom.bytes, sites.goal, 6))
+    })
+
+    // The blocked shots page goes after the pages it is chained to (applySnesHacks, BLK_CHAINED), so the pages in and
+    // out place its code, and the code after it, again: the same hacks, read the same, some in other places. No room
+    // is used up doing it, however often.
+    it(`${name}: the Player Stats pages in and out with every other hack read the same, and use up no room`, () => {
+      const rom = open(name)
+      const all = applySnesHacks(rom, othersFor(detectSnesHacks(rom.bytes)))
+      const pages = { giveaways: true, giveawaysShown: true, giveawayPages: true }
+      const noPages = { giveaways: false, giveawaysShown: false, giveawayPages: false }
+      const free = (bytes: Uint8Array) => bytes.filter((byte) => byte === 0xff).length
+      const before = buildRom(all)
+      let now = openRom(before)
+      for (let round = 0; round < 2; round++) {
+        now = openRom(buildRom(applySnesHacks(applySnesHacks(now, pages), noPages)))
+        expect(detectSnesHacks(now.bytes)).toEqual(detectSnesHacks(all.bytes))
+        const built = buildRom(now)
+        expect(built.length).toBe(before.length)
+        expect(free(built)).toBe(free(before))
+      }
     })
   })
 })

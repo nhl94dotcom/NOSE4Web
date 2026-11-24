@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { clockwiseExtras, clockwiseKept, clockwiseRecords, clockwiseState, faceoffAnim, putClockwise, takeOutClockwise } from '../src/core/clockwise'
+import { clockwiseExtras, clockwiseKept, clockwiseRecords, clockwiseState, faceoffAnim, hasNoseTape, putClockwise, takeOutClockwise } from '../src/core/clockwise'
 import { detectHacks, hackRom, hacksSupported, NO_HACKS, type HackChoices } from '../src/core/hacks'
 import { fightState } from '../src/core/fight'
 import { unpackTiles } from '../src/core/genesisunpack'
@@ -216,17 +216,26 @@ describe.skipIf(!existsSync(path(GDL)))("Clockwise's sprite edit in a league ROM
     const rom = open(GDL).bytes
     expect(tally(rom)).toEqual({ original: 0, patched: 3498, own: 0 })
     expect(detectHacks(rom).choices.clockwiseSprites).toBe(true)
+    // Clockwise's own patch, none of NOSE4Web's tape: other hacks put in leave the sprites as they are.
+    expect(hasNoseTape(rom)).toBe(false)
+    expectSameBytes(withChoices(rom, {}), rom)
     const off = withChoices(rom, { clockwiseSprites: false })
     expect(tally(off)).toEqual({ original: 3498, patched: 0, own: 0 })
-    expect(outsideDiffers(off, withChoices(rom, {}))).toEqual([])
-    expectSameBytes(withChoices(off, { clockwiseSprites: true }), withChoices(rom, {}))
+    expect(outsideDiffers(off, rom)).toEqual([])
+    // Turned on again, it has the tape, and off once more gives the same ROM.
+    const again = withChoices(off, { clockwiseSprites: true })
+    expect(tally(again)).toEqual({ original: 0, patched: 3498, own: 0 })
+    expect(hasNoseTape(again)).toBe(true)
+    expectSameBytes(withChoices(again, { clockwiseSprites: false }), off)
   })
 })
 
 describe.skipIf(leagueNames.length === 0)("Clockwise's sprite edit in the league ROMs", () => {
   it.each(leagueNames)('reads and goes into %s, changing only records with the original game’s art', (name) => {
     const project = open(name)
-    if (!hacksSupported(project.game)) return
+    // Only the EVO builds, whose code is their own, take no hacks.
+    expect(hacksSupported(project.game)).toBe(!name.includes('EVO'))
+    if (name.includes('EVO')) return
     const rom = project.bytes
     const state = detectHacks(rom)
     expect(state.unknown).not.toContain('clockwiseSprites')
@@ -381,7 +390,7 @@ describe.skipIf(!existsSync(ORIGINAL))("NOSE4Web's additions on the original gam
     expectSameBytes(hackRom(together, NO_HACKS), rom)
   })
 
-  it('gives a ROM made before the additions (Clockwise in, the tape not) the tape when its hacks are put in again', () => {
+  it('leaves a ROM with Clockwise in and none of the tape as it is, and gives it the tape when the edit is turned on', () => {
     const rom = openRom(new Uint8Array(readFileSync(ORIGINAL))).bytes
     const all: HackChoices = { ...NO_HACKS, fighting: 'on', clockwiseSprites: true }
     const together = hackRom(rom, all)
@@ -393,7 +402,9 @@ describe.skipIf(!existsSync(ORIGINAL))("NOSE4Web's additions on the original gam
     for (const t of packed) earlier.set(t.original, anim + 10 + t.at)
     expect(tally(earlier)).toEqual({ original: 0, patched: 3498, own: 0 })
     expect(detectHacks(earlier)).toEqual({ choices: all, unknown: [] })
-    expectSameBytes(withChoices(earlier, {}), together)
+    expect(hasNoseTape(earlier)).toBe(false)
+    expectSameBytes(withChoices(earlier, {}), earlier)
+    expectSameBytes(withChoices(withChoices(earlier, { clockwiseSprites: false }), { clockwiseSprites: true }), together)
     expectSameBytes(hackRom(earlier, NO_HACKS), rom)
   })
   it('replaces the first faceoff tape (whole blades) with the toe-end tape, and takes either out', () => {
@@ -443,10 +454,11 @@ describe.skipIf(!existsSync(path(CDL)))("NOSE4Web's additions on a league ROM wi
 
 // ------------------------------------------------ the untaped frames' tape in league ROMs
 // (NHL 94 EVO, which keeps its own stick colour in these frames, is left out: NOSE4Web's hacks are not offered for it.)
-const spriteNames = leagueNames.filter((name) => hacksSupported(open(name).game))
+const spriteNames = leagueNames.filter((name) => !name.includes('EVO'))
 describe.skipIf(spriteNames.length === 0)("NOSE4Web's tape in the frames Clockwise left untaped, in league ROMs", () => {
   it.each(spriteNames)('goes into %s only where the art is the original game’s, and out again', (name) => {
     const rom = new Uint8Array(readFileSync(path(name)))
+    expect(hacksSupported(openRom(rom).game)).toBe(true)
     const { sprite } = clockwiseExtras()
     const inPlace = clockwiseRecords().filter((r) => is(rom, r.at, r.original) || is(rom, r.at, r.patched)).length * 2 >= clockwiseRecords().length
     // A tile the league redrew (one of Clockwise's records or one of these with neither its bytes before nor after) is

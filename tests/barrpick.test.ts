@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { goesInAndOutOfLeagueRoms } from './leaguehacks'
 import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
@@ -22,6 +23,9 @@ describe.skipIf(!existsSync(path('nhl94.bin')))("Ron Barr's pick on the Genesis"
     expectSameBytes(applyHacks(on, NO_HACKS).bytes, rom.bytes)
   })
 })
+
+goesInAndOutOfLeagueRoms("Ron Barr's pick on the Genesis", { barrPick: true })
+goesInAndOutOfLeagueRoms("Ron Barr's pick by a coin flip on the Genesis", { barrCoin: true })
 
 // The original, its headered copy, the 2 MB build and the SA-1 build: the same code, the RAM moved.
 const SNES = ['NHL94.smc', 'NHL94_Classic.smc', 'nhl94snes_2026.sfc', 'nhl94snes_SA1.sfc'].filter((name) => existsSync(path(name)))

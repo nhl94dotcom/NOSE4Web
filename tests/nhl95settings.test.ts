@@ -308,7 +308,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expectSameBytes(applyNhl95Hacks(both, { hitEnergy: 0, injuryBonus: 0, injuryCap: 10 }).bytes, rom.bytes)
   })
 
-  it('scales the injury risk to NHL 95’s roll of 0 to 399, and reads NHL 94’s numbers back', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('scales the injury risk to NHL 95’s roll of 0 to 399, and reads NHL 94’s numbers back', () => {
     const rom = open(RETAIL)
     for (const [bonus, cap] of [[1, 1], [5, 25], [7, 33], [10, 60]]) {
       const on = applyNhl95Hacks(rom, { injuryBonus: bonus, injuryCap: cap })
@@ -485,7 +485,11 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
       puckFriction: 8,
       baseWeight: 152,
       hotColdRange: 4,
+      referees: 'lenient',
     }
+    // Every option is in one list or the other: a new one fails here until it is added.
+    expect([...Object.keys(switches), ...Object.keys(settings)].sort()).toEqual([...NHL95_HACKS].sort())
+    for (const hack of Object.keys(settings) as (keyof Nhl95HackChoices)[]) expect(settings[hack], hack).not.toBe(NO_NHL95_HACKS[hack])
     const all: Nhl95HackChoices = { ...base, ...switches, ...settings }
     const on = applyNhl95Hacks(rom, all)
     expect(detectNhl95Hacks(on.bytes)).toEqual({ choices: all, unknown: [] })
@@ -525,7 +529,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(html).toContain('aria-label="Goalie hold time" aria-invalid="false" value="2.33"')
   })
 
-  it('offers the most knockdowns can add only with a risk from them, as nothing of it is written without one', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('offers the most knockdowns can add only with a risk from them, as nothing of it is written without one', () => {
     const rom = open(RETAIL)
     const page = (project: typeof rom) => renderToStaticMarkup(createElement(Nhl95HacksPage, { project, name: 'L', onChange: () => {} }))
     const box = (html: string) => html.match(/<input[^>]*aria-label="Most injury risk knockdowns can add"[^>]*>/)![0]
@@ -536,7 +540,7 @@ describe.skipIf(names.length === 0)("NHL 94's settings in NHL '95", () => {
     expect(risk).not.toContain('Set the risk above first.')
   })
 
-  it('lists the settings as they change, in a Discord post and in the hack sheet', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('lists the settings as they change, in a Discord post and in the hack sheet', () => {
     const rom = open(RETAIL)
     const on = applyNhl95Hacks(rom, { penaltySeconds: 30, injuries: 'never', puckFriction: 8, bodychecks: 'on', speedBurst: 16, injuryBonus: 5, injuryCap: 25 })
     const now = detectNhl95Hacks(on.bytes)

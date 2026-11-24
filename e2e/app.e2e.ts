@@ -1,10 +1,12 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import { checkProject } from '../src/core/check'
-import { rinkLogo } from '../src/core/graphics'
+import { colorRgb, nearestColorWord } from '../src/core/color'
+import { menuLogo, menuLogoPalette, rinkLogo } from '../src/core/graphics'
 import { buildRom, openRom as readRom } from '../src/core/rom'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
+import { detectNhl95Hacks } from '../src/core/nhl95hacks'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
 import { snesBlockColours } from '../src/core/snesblockcolours'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesLogo } from '../src/core/snespictures'
@@ -50,6 +52,49 @@ async function downloadFrom(page: Page, button: Locator): Promise<Download> {
   const [download] = await Promise.all([page.waitForEvent('download'), button.click()])
   return download
 }
+
+// Clicks a download button that should download nothing (its question answered Cancel): true if a download came anyway.
+async function downloadedAnyway(page: Page, button: Locator): Promise<boolean> {
+  const came = page.waitForEvent('download', { timeout: 1500 }).then(
+    () => true,
+    () => false,
+  )
+  await button.click()
+  return came
+}
+
+// A Hacks page's guard for a choice not applied yet: the bar, the notice on other pages, and a download that asks
+// first (Cancel downloads nothing; OK applies it, then downloads). Gives back the ROM downloaded with it in.
+async function guardsHackChoice(page: Page, choice: Locator, value: string): Promise<Buffer> {
+  const bar = page.locator('main .pending-bar')
+  await expect(bar).toBeHidden()
+  await choice.selectOption(value)
+  await expect(bar).toContainText('1 change not applied yet.')
+  await entry(page, 'Teams').click()
+  const notice = page.locator('.pending-notice')
+  await expect(notice).toContainText('The Hacks page has 1 change not applied yet.')
+  await entry(page, 'Help').click()
+  await expect(notice).toBeVisible()
+  await notice.getByRole('button', { name: 'Go to Hacks' }).click()
+  await expect(choice).toHaveValue(value)
+  await expect(bar).toContainText('1 change not applied yet.')
+  let asked = ''
+  page.once('dialog', (dialog) => {
+    asked = dialog.message()
+    void dialog.dismiss()
+  })
+  expect(await downloadedAnyway(page, page.getByRole('button', { name: 'Download ROM' }))).toBe(false)
+  expect(asked).toContain('1 change not applied yet')
+  await expect(bar).toBeVisible()
+  page.once('dialog', (dialog) => void dialog.accept())
+  const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
+  await expect(bar).toBeHidden()
+  await expect(choice).toHaveValue(value)
+  return readFileSync(await download.path())
+}
+
+// The header's free room, as a whole count: "0 bytes free" and not "934 bytes free".
+const bytesFree = (count: number) => new RegExp(`(^|\\D)${count} bytes free`)
 
 // Pages show one section at a time, chosen by tabs; most tests work on the whole page, as the All tab shows it, as
 // when one browser chooses it for every page. (Set only where nothing is stored, so a test can store its own.)
@@ -180,7 +225,7 @@ test.describe('with the NHL 94 ROM', () => {
   test('opens the ROM and shows a team', async ({ page }) => {
     await openRom(page)
     await expect(page.locator('header')).toContainText('NHL 94')
-    await expect(page.locator('header')).toContainText('0 bytes free')
+    await expect(page.locator('header')).toContainText(bytesFree(0))
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Guy Hebert')
     await expect(rows(page, 'Skaters')).toHaveCount(16)
     await expect(page.locator('p.notice')).toHaveCount(0) // only for hacks with fewer skaters
@@ -283,7 +328,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect(goalie).toHaveValue('Guy Hebert')
-    await expect(page.locator('header')).toContainText('0 bytes free')
+    await expect(page.locator('header')).toContainText(bytesFree(0))
     await expect(page.getByText('Not downloaded yet')).toBeHidden()
 
     await page.getByRole('button', { name: 'Redo' }).click()
@@ -320,6 +365,23 @@ test.describe('with the NHL 94 ROM', () => {
     const patch = readFileSync(await download.path())
     expect(patch.subarray(0, 5).toString()).toBe('PATCH')
     expect(patch.subarray(-3).toString()).toBe('EOF')
+    // Put on the original game, the patch gives the same bytes as the downloaded ROM.
+    const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
+    let patched = Buffer.from(readFileSync(romPath))
+    let at = 5
+    // Each record: where (3 bytes), how many (2), then the bytes, or for 0 a run: its length (2) and its byte.
+    while (patch.subarray(at, at + 3).toString() !== 'EOF') {
+      const offset = patch.readUIntBE(at, 3)
+      const size = patch.readUInt16BE(at + 3)
+      at += 5
+      const bytes = size ? patch.subarray(at, at + size) : Buffer.alloc(patch.readUInt16BE(at), patch[at + 2])
+      at += size ? size : 3
+      if (offset + bytes.length > patched.length) patched = Buffer.concat([patched, Buffer.alloc(offset + bytes.length - patched.length)])
+      bytes.copy(patched, offset)
+    }
+    expect(at).toBe(patch.length - 3)
+    expect(patched.length).toBe(rom.length)
+    expect(patched.equals(rom)).toBe(true)
   })
 
   test('draws the colour previews and redraws them when a colour changes', async ({ page }) => {
@@ -342,9 +404,9 @@ test.describe('with the NHL 94 ROM', () => {
     await sliders.nth(0).fill('7')
     await sliders.nth(1).fill('0')
     await sliders.nth(2).fill('0')
-    const after = await colours()
-    expect(after).toContain('255,0,0,255')
-    expect(after).not.toEqual(before)
+    // The preview redraws after the change, so wait for it.
+    await expect.poll(colours).toContain('255,0,0,255')
+    expect(await colours()).not.toEqual(before)
     await home.screenshot({ path: 'test-results/shots/colours.png' })
 
     await entry(page, 'Rink colours').click()
@@ -365,7 +427,7 @@ test.describe('with the NHL 94 ROM', () => {
         for (let i = 0; i < data.length; i += 4) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2])
         return seen.size
       })
-    for (let i = 0; i < 4; i++) expect(await colourCount(pictures.nth(i))).toBeGreaterThan(2) // real pictures
+    for (let i = 0; i < 4; i++) await expect.poll(() => colourCount(pictures.nth(i))).toBeGreaterThan(2) // real pictures
     await section.screenshot({ path: 'test-results/shots/pictures.png' })
 
     // Exporting gives a PNG of the right size, and importing it back is accepted.
@@ -395,10 +457,10 @@ test.describe('with the NHL 94 ROM', () => {
       return { name: 'plain.png', mimeType: 'image/png', buffer: Buffer.from(url.split(',')[1], 'base64') }
     }
     await rink.locator('input[type=file]').setInputFiles(await plain(48, 32))
-    expect(await colourCount(rink)).toBe(1)
+    await expect.poll(() => colourCount(rink)).toBe(1)
     await pictures.nth(1).locator('input[type=file]').setInputFiles(await plain(48, 48))
     await expect(section.getByText('Menu logo replaced.')).toBeVisible()
-    expect(await colourCount(pictures.nth(1))).toBe(1)
+    await expect.poll(() => colourCount(pictures.nth(1))).toBe(1)
     await pictures.nth(3).locator('input[type=file]').setInputFiles(await plain(88, 16))
     await expect(section.getByText('In-game banner replaced.')).toBeVisible()
 
@@ -433,13 +495,13 @@ test.describe('with the NHL 94 ROM', () => {
     const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
     await romPicker(page).setInputFiles({ name: 'pictures.bin', mimeType: 'application/octet-stream', buffer: rom })
     await team(page, 'Montreal Canadiens').click()
-    expect(await colourCount(pictures.nth(0))).toBe(1)
-    expect(await colourCount(pictures.nth(1))).toBe(1)
-    expect(await colourCount(pictures.nth(2))).toBe(2) // the busy black and white banner
+    await expect.poll(() => colourCount(pictures.nth(0))).toBe(1)
+    await expect.poll(() => colourCount(pictures.nth(1))).toBe(1)
+    await expect.poll(() => colourCount(pictures.nth(2))).toBe(2) // the busy black and white banner
     expect(rom.length).toBe(2097152)
     await team(page, 'Boston Bruins').click()
-    expect(await colourCount(pictures.nth(2))).toBeGreaterThan(2)
-    expect(await colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
+    await expect.poll(() => colourCount(pictures.nth(2))).toBeGreaterThan(2)
+    await expect.poll(() => colourCount(pictures.nth(0))).toBeGreaterThan(2) // other teams are untouched
   })
 
   test('adds score logos for every team, in home and away colours, and takes them out again', async ({ page }) => {
@@ -499,7 +561,7 @@ test.describe('with the NHL 94 ROM', () => {
       asked = dialog.message()
       void dialog.dismiss()
     })
-    await page.getByRole('button', { name: 'Download ROM' }).click()
+    expect(await downloadedAnyway(page, page.getByRole('button', { name: 'Download ROM' }))).toBe(false)
     expect(asked).toContain('1 change not applied yet')
     await expect(bar).toBeVisible()
     // OK applies it, then downloads the ROM with it in (head bleeding grows it to 2 MB).
@@ -542,7 +604,7 @@ test.describe('with the NHL 94 ROM', () => {
       asked = dialog.message()
       void dialog.dismiss()
     })
-    await page.getByRole('button', { name: 'Download ROM' }).click()
+    expect(await downloadedAnyway(page, page.getByRole('button', { name: 'Download ROM' }))).toBe(false)
     expect(asked).toContain('Trade has 1 player selected')
     expect(asked).toContain('Bulk changes has a change')
     // Back on Trade, the tick is as it was left; made, its notice goes.
@@ -640,15 +702,15 @@ test.describe('with the NHL 94 ROM', () => {
         for (let i = 0; i < data.length; i += 4) if (data[i + 3]) seen.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2])
         return seen.size
       })
-    expect(await colourCount()).toBeGreaterThan(2)
+    await expect.poll(colourCount).toBeGreaterThan(2)
 
     // A filled rectangle over the whole of it, in one colour: one stroke.
     await editor.getByRole('button', { name: 'Colour 2', exact: true }).click()
     await editor.getByRole('button', { name: 'Filled rectangle' }).click()
     await drag([0, 0], [47, 31])
-    expect(await colourCount()).toBe(1)
+    await expect.poll(colourCount).toBe(1)
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
-    expect(await colourCount()).toBeGreaterThan(2)
+    await expect.poll(colourCount).toBeGreaterThan(2)
 
     // The pencil, mirrored, and the eraser.
     await editor.getByRole('button', { name: 'Pencil' }).click()
@@ -724,12 +786,11 @@ test.describe('with the NHL 94 ROM', () => {
     // A box whose number has a lowest value: typing 12 on the way through 1 does not snap it.
     await entry(page, 'Game settings').click()
     const teamsInMenu = page.getByLabel(/Teams in the menu/)
-    if (await teamsInMenu.count()) {
-      await teamsInMenu.click()
-      await page.keyboard.type('12')
-      await teamsInMenu.blur()
-      await expect(teamsInMenu).toHaveValue('12')
-    }
+    await expect(teamsInMenu).toHaveCount(1)
+    await teamsInMenu.click()
+    await page.keyboard.type('12')
+    await teamsInMenu.blur()
+    await expect(teamsInMenu).toHaveValue('12')
     const overtime = page.locator('tr').filter({ hasText: 'Overtime' }).locator('input')
     await overtime.click()
     await page.keyboard.type('300')
@@ -848,13 +909,26 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
     await expect(homeAway.getByText('Every team has the same pair.')).toHaveCount(0)
 
-    // Lines for every team: the original game has no broken line; building them all, then Undo.
+    // Lines for every team: the original game has no broken line; building them all, then Undo puts Boston's back.
+    const lineValues = () =>
+      page
+        .locator('section')
+        .filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
+        .locator('tbody select')
+        .evaluateAll((selects) => selects.map((s) => (s as HTMLSelectElement).value))
+    await team(page, 'Boston Bruins').click()
+    const bostonLines = await lineValues()
+    expect(bostonLines.length).toBeGreaterThan(0)
+    await entry(page, 'Bulk changes').click()
     const builder = page.locator('#line-builder')
     await expect(builder.getByText('No team has a broken line.')).toBeVisible()
     await expect(builder.getByRole('button', { name: 'Fix broken lines only' })).toBeDisabled()
     await builder.getByRole('button', { name: "Build every team's lines" }).click()
     await expect(builder.getByText(/^Built \d+ lines on 28 teams\. Undo takes it back\./)).toBeVisible()
+    await team(page, 'Boston Bruins').click()
+    await expect.poll(lineValues).not.toEqual(bostonLines)
     await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    await expect.poll(lineValues).toEqual(bostonLines)
 
     // One team's: its page builds the ticked lines or all of them, and says which changed.
     await team(page, 'Boston Bruins').click()
@@ -892,16 +966,18 @@ test.describe('with the NHL 94 ROM', () => {
     const original = await names()
 
     await page.getByLabel('Show in order of').selectOption({ label: 'First name' })
-    expect(await names()).toEqual([...original].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())))
+    // As the app sorts: lower case, by character code, ties in roster order.
+    const byName = (a: string, b: string) => (a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0)
+    await expect.poll(names).toEqual([...original].sort(byName))
     await expect(rows(page, 'Skaters').first().getByRole('button', { name: '↓' })).toBeDisabled()
 
     await page.getByLabel('Find').fill(original[3].slice(0, 5))
+    await expect.poll(async () => (await names()).length).toBeLessThan(original.length)
     expect(await names()).toContain(original[3])
-    expect((await names()).length).toBeLessThan(original.length)
 
     await page.getByLabel('Find').fill('')
     await page.getByLabel('Show in order of').selectOption({ label: 'Roster order' })
-    expect(await names()).toEqual(original)
+    await expect.poll(names).toEqual(original)
     await expect(page.getByText('Not downloaded yet')).toBeHidden()
   })
 
@@ -1003,7 +1079,6 @@ test.describe('with the NHL 94 ROM', () => {
 
     // Anaheim's first line: left wing offers only forwards, and the centre
     // chosen for it swaps places with them rather than being on the line twice.
-    await team(page, 'Anaheim Mighty Ducks').click()
     const lines = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Lines', exact: true }) })
     const nlc = lines.locator('tbody tr').first().locator('select')
     // Anaheim's 16 skaters are 9 forwards and 7 defence; the extra attacker is a forward too.
@@ -1050,7 +1125,7 @@ test.describe('with the NHL 94 ROM', () => {
     await tick(drawRows.nth(1))
     await draws.getByRole('button', { name: 'Paste over selected' }).click()
     await expect(draws.getByText('Pasted.')).toBeVisible()
-    expect(await values(drawRows.nth(1))).toEqual(first)
+    await expect.poll(() => values(drawRows.nth(1))).toEqual(first)
   })
 
   test('moves teams, with the menu choices and the team list following', async ({ page }) => {
@@ -1062,9 +1137,10 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(sort).toBeDisabled()
     await section.getByLabel('Move Boston Bruins to number').selectOption({ label: 'To 5' })
     await expect(section.getByText('Boston Bruins is now team 5. Undo takes it back.')).toBeVisible()
-    expect(await section.locator('tbody tr').nth(4).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    const teamAt = (n: number) => section.locator('tbody tr').nth(n).locator('td').nth(1)
+    await expect(teamAt(4)).toHaveText('Boston Bruins')
     await section.getByRole('button', { name: 'Move Boston Bruins up' }).click()
-    expect(await section.locator('tbody tr').nth(3).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    await expect(teamAt(3)).toHaveText('Boston Bruins')
     await section.screenshot({ path: 'test-results/shots/move-teams.png' })
     // Each team is compared with itself as opened: nothing to reset, and no change but the move.
     await team(page, 'Boston Bruins').click()
@@ -1082,13 +1158,13 @@ test.describe('with the NHL 94 ROM', () => {
     // Sorting puts it back, and so does putting back the ROM's order.
     await sort.click()
     await expect(section.getByText('The first 26 teams are now in alphabetical order.', { exact: false })).toBeVisible()
-    expect(await section.locator('tbody tr').nth(1).locator('td').nth(1).textContent()).toBe('Boston Bruins')
+    await expect(teamAt(1)).toHaveText('Boston Bruins')
     await expect(section.getByRole('button', { name: 'Put the teams back as the ROM had them' })).toHaveCount(0)
     // Moving the All-Star team to the front, then back.
     await section.getByLabel('Move All Stars East to number').selectOption({ label: 'To 1' })
-    expect(await section.locator('tbody tr').nth(0).locator('td').nth(1).textContent()).toBe('All Stars East')
+    await expect(teamAt(0)).toHaveText('All Stars East')
     await section.getByRole('button', { name: 'Put the teams back as the ROM had them' }).click()
-    expect(await section.locator('tbody tr').nth(0).locator('td').nth(1).textContent()).toBe('Anaheim Mighty Ducks')
+    await expect(teamAt(0)).toHaveText('Anaheim Mighty Ducks')
     await entry(page, 'Check ROM').click()
     await expect(page.getByText('Nothing to report.')).toBeVisible()
   })
@@ -1254,8 +1330,8 @@ test.describe('with the NHL 94 ROM', () => {
     for (const row of [3, 5, 6]) await skaters.nth(row).locator('input[type=checkbox]').uncheck()
     await tick(goalie)
     await paste('Paste over selected')
+    await expect(page.getByText('Goalies can only be pasted over goalies, and skaters over skaters.')).toBeVisible()
     await expect(nameOf(goalie)).toHaveValue(goalieName)
-    await expect(page.getByText(/goalie/i).first()).toBeVisible()
   })
 
   test('copies between teams when the browser refuses the system clipboard', async ({ page }) => {
@@ -1335,8 +1411,9 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(word).toHaveText(/0E0E/i)
     // A colour the console cannot show exactly snaps to the nearest it can.
     await home.locator('input[type=color]').fill('#804020')
-    const snapped = (await word.textContent())!
-    expect(snapped).toMatch(/^0[02468ACE]{3}$/i)
+    const snapped = nearestColorWord('#804020').toString(16).padStart(4, '0')
+    expect(snapped).toBe('0248')
+    await expect(word).toHaveText(new RegExp(`^${snapped}$`, 'i'))
     await expect(swatches.nth(3)).toHaveAttribute('title', new RegExp(snapped, 'i'))
 
     await swatches.nth(4).click()
@@ -1449,12 +1526,13 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(table.locator('tfoot')).toContainText('League average')
     // Team, Overall, Strength, then First line.
     const firstLine = () => table.locator('tbody tr td:nth-child(4)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
+    const highFirst = (values: number[]) => values.every((v, i) => i === 0 || values[i - 1] >= v)
     await table.getByRole('button', { name: /^First line/ }).click()
+    await expect.poll(async () => highFirst(await firstLine())).toBe(true)
     const down = await firstLine()
-    expect(down).toEqual([...down].sort((a, b) => b - a))
     expect(down[0]).toBeGreaterThan(down[27])
     await table.getByRole('button', { name: /^First line/ }).click()
-    expect(await firstLine()).toEqual([...down].reverse())
+    await expect.poll(firstLine).toEqual([...down].reverse())
     await page.screenshot({ path: 'test-results/shots/league.png', fullPage: true })
 
     // Every line, for leagues with line changes, sorts like the rest and says what makes it up.
@@ -1462,8 +1540,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByLabel(/Show every line/).check()
     for (const label of ['Sc1', 'Sc2', 'Chk', 'PP1', 'PP2', 'PK1', 'PK2']) await expect(table.getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible()
     await table.getByRole('button', { name: /^Sc2/ }).click()
-    const sc2 = await table.locator('tbody tr td:nth-child(6)').evaluateAll((cells) => cells.map((c) => Number(c.textContent)))
-    expect(sc2).toEqual([...sc2].sort((x, y) => y - x))
+    await expect.poll(async () => highFirst(await table.locator('tbody tr td:nth-child(6)').evaluateAll((cells) => cells.map((c) => Number(c.textContent))))).toBe(true)
     await expect(table.locator('tbody tr td:nth-child(6)').first()).toHaveAttribute('title', /^Forwards \d+\.\d, defence \d+\.\d$/)
     await page.screenshot({ path: 'test-results/shots/league_lines.png', fullPage: true })
 
@@ -1491,7 +1568,7 @@ test.describe('with the NHL 94 ROM', () => {
 
     // Narrowing to forwards shows fewer; a cap nobody is above shows none.
     await main.getByLabel('Players to change').selectOption({ label: 'Forwards' })
-    expect(await main.locator('table').first().locator('tbody tr').count()).toBeLessThan(movable)
+    await expect.poll(() => main.locator('table').first().locator('tbody tr').count()).toBeLessThan(movable)
     await main.getByLabel('Players to change').selectOption({ label: 'All skaters' })
     await main.getByLabel('Kind of change').selectOption({ label: 'Cap at (lower anyone above)' })
     await main.getByLabel('Value to use').selectOption({ index: 6 })
@@ -1502,11 +1579,11 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByRole('button', { name: `Apply to ${movable} players` }).click()
     await expect(main.getByText(`Changed ${movable} players.`)).toBeVisible()
     await team(page, 'Anaheim Mighty Ducks').click()
-    expect(await speeds()).toEqual(before.map((v) => String(Math.min(6, Number(v) + 1))))
+    await expect.poll(speeds).toEqual(before.map((v) => String(Math.min(6, Number(v) + 1))))
     await team(page, 'Boston Bruins').click()
     await page.getByRole('button', { name: 'Undo' }).click()
     await team(page, 'Anaheim Mighty Ducks').click()
-    expect(await speeds()).toEqual(before)
+    await expect.poll(speeds).toEqual(before)
   })
 
   test('imports a team from another ROM', async ({ page }) => {
@@ -1558,6 +1635,9 @@ test.describe('with the NHL 94 ROM', () => {
 
   test('fills the teams from a real NHL season', async ({ page }) => {
     await openRom(page)
+    // Dallas's goalie as the ROM has them, to see each Undo put them back.
+    await team(page, 'Dallas Stars').click()
+    const dallasGoalie = await nameOf(rows(page, 'Goalies').first()).inputValue()
     await entry(page, 'Real NHL season').click()
     const main = page.locator('main')
     // The season the original game was rated from comes first; each team goes to its franchise's place.
@@ -1581,6 +1661,7 @@ test.describe('with the NHL 94 ROM', () => {
     // Undo takes it all back; another season places its teams by franchise too.
     await page.getByRole('button', { name: 'Undo' }).click()
     await team(page, 'Dallas Stars').click()
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue(dallasGoalie)
     await entry(page, 'Real NHL season').click()
     await main.getByLabel('Season', { exact: true }).selectOption('19791980')
     await expect(main.getByLabel('Season team for Calgary Flames').locator('option:checked')).toHaveText('Atlanta Flames')
@@ -1591,6 +1672,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText(/^The All-Star teams have the best players of 1979-80 by conference/)).toBeVisible()
     await page.getByRole('button', { name: 'Undo' }).click()
     await team(page, 'Dallas Stars').click()
+    await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue(dallasGoalie)
     await entry(page, 'Real NHL season').click()
 
     // Or the ROM's own players re-rated by name, the teams as they are.
@@ -1607,7 +1689,6 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Hacks').click()
     await expect(main.getByLabel('Tied regular-season games')).toHaveValue('shootout')
     await expect(main.getByLabel('3 on 3 overtime')).toHaveValue('season')
-    await team(page, 'Dallas Stars').click()
   })
 
   test('writes a change report for the league', async ({ page }) => {
@@ -1738,9 +1819,14 @@ test.describe('with the NHL 94 ROM', () => {
     await team(page, 'Boston Bruins').click()
     const logo = page.locator('.picture').filter({ hasText: 'Menu logo' })
     await expect(logo.getByRole('button', { name: 'Reset picture' })).toBeEnabled()
-    // The downloaded ROM holds the red logo.
-    const rom = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
-    expect(readRom(new Uint8Array(readFileSync(await rom.path()))).graphicsSupported).toBe(true)
+    // The downloaded ROM holds the red logo: every pixel one colour, and that colour red.
+    const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
+    expect(rom.graphicsSupported).toBe(true)
+    const boston = rom.teams.findIndex((t) => t.names.includes('Boston'))
+    const decoded = menuLogo(rom, boston)
+    expect([decoded.width, decoded.height]).toEqual([48, 48])
+    expect(new Set(decoded.pixels).size).toBe(1)
+    expect(colorRgb(menuLogoPalette(rom, boston)[decoded.pixels[0]])).toEqual([255, 0, 0])
   })
 
   test('shows banner colours as the in-game banners draw them and gives them a missing one', async ({ page }) => {
@@ -1786,12 +1872,12 @@ test.describe('with the NHL 94 ROM', () => {
     await text.fill('Bruins ~')
     await expect(section.getByText('There is no lettering for ~, so it is left out.')).toBeVisible()
     await text.fill('Bruins')
-    // Too much new lettering for the packed ROM, until the pictures are given room.
+    // Lettered on both banners. On the packed ROM the new lettering may not have room: then the pictures are
+    // given more room and it is tried again. Either way both banners end up lettered.
     await section.getByRole('button', { name: 'Use for all 2' }).click()
     const done = section.getByText('Lettered the menu banner and the in-game banner "BRUINS".')
     const noRoom = section.getByText(/banners share room for a set number of different squares/)
     await expect(done.or(noRoom)).toBeVisible()
-    // New lettering may not fit the packed ROM until the pictures are given room.
     if (await noRoom.isVisible()) {
       await page.getByRole('button', { name: /Give logos and banners more room/ }).click()
       await section.getByRole('button', { name: 'Use for all 2' }).click()
@@ -1812,11 +1898,11 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(page.getByText('Menu banner copied.')).toBeVisible()
 
     await team(page, 'Anaheim Mighty Ducks').click()
-    expect(await swatches()).toEqual(bostonColours)
+    await expect.poll(swatches).toEqual(bostonColours)
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue('Guy Hebert') // the roster is its own
     await expect(page.locator('.picture').filter({ hasText: 'Menu logo' }).getByRole('button', { name: 'Reset picture' })).toBeEnabled()
     await page.getByRole('button', { name: 'Reset whole team' }).click()
-    expect(await swatches()).not.toEqual(bostonColours)
+    await expect.poll(swatches).not.toEqual(bostonColours)
 
     // Another team's banners for this one, with their stripe colours.
     await page.getByLabel('Team whose banners to use').selectOption({ label: 'Detroit Red Wings' })
@@ -1921,12 +2007,15 @@ test.describe('with the NHL 94 ROM', () => {
     expect(file.teams).toHaveLength(28)
     expect(file.freeAgents[0].player.name).toBe(released)
     expect(file.expansions.rosterSpace).toBe(1)
+    // The room left with the work, to see it again once the project is open.
+    const free = Number((await page.locator('header').textContent())!.match(/(\d+) bytes free/)![1])
+    expect(free).toBeGreaterThan(0)
 
     // Start again from the ROM, as on another computer, and open the project.
     page.on('dialog', (dialog) => void dialog.accept())
     await romPicker(page).setInputFiles(romPath)
     await expect(nameOf(rows(page, 'Skaters').first())).not.toHaveValue('Kept In Project')
-    await expect(page.locator('header')).toContainText('0 bytes free')
+    await expect(page.locator('header')).toContainText(bytesFree(0))
     await entry(page, 'Project file').click()
     await main.locator('input[type=file]').setInputFiles({ name: 'Season_10_project.json', mimeType: 'application/json', buffer: Buffer.from(text) })
     await expect(main.getByText('The project is open.')).toBeVisible()
@@ -1934,7 +2023,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(entry(page, /^Trade/)).toHaveText('Trade (1 free)')
     await team(page, 'Anaheim Mighty Ducks').click()
     await expect(nameOf(rows(page, 'Skaters').first())).toHaveValue('Kept In Project')
-    await expect(page.locator('header')).not.toContainText('0 bytes free') // the roster space was made again
+    await expect(page.locator('header')).toContainText(bytesFree(free)) // the roster space was made again
 
     await entry(page, 'Project file').click()
     await main.locator('input[type=file]').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"a":1}') })
@@ -2056,12 +2145,16 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/rules.png', fullPage: true })
 
     // Leaving a team out, and emptying a limit, each take findings away.
-    const before = await main.locator('section').first().locator('tbody tr').count()
+    const findings = main.locator('tbody tr').filter({ hasText: "the league's rules" })
+    const before = await findings.count()
+    expect(before).toBeGreaterThan(1)
     await main.getByText('Teams the rules do not apply to').click()
     await main.getByLabel('Anaheim Mighty Ducks', { exact: true }).check()
     await expect(main.getByText("Has 18 players; the league's rules ask for at least 20.")).toHaveCount(0)
+    await expect.poll(() => findings.count()).toBeLessThan(before)
+    const without = await findings.count()
     await main.getByLabel('Players on a team, at most').fill('')
-    expect(await main.locator('tbody tr').filter({ hasText: "the league's rules" }).count()).toBeLessThan(before)
+    await expect.poll(() => findings.count()).toBeLessThan(without)
 
     // Fixing the team clears its finding: go to it from the list and add players.
     await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
@@ -2149,6 +2242,7 @@ test.describe('with the NHL 94 ROM', () => {
     const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)]
     expect(width).toBeGreaterThan(1500)
     expect(height).toBeGreaterThan(1000)
+    mkdirSync('test-results/shots', { recursive: true })
     writeFileSync('test-results/shots/roster-card.png', png)
   })
 
@@ -2164,7 +2258,7 @@ test.describe('with the NHL 94 ROM', () => {
     // Checking moved down one, after Speed.
     await page.getByRole('button', { name: 'Columns…' }).click()
     await page.getByRole('button', { name: 'Move Checking down' }).click()
-    expect((await headings(skaterTable)).slice(7, 11)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
+    await expect.poll(async () => (await headings(skaterTable)).slice(7, 11)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
     // The boxes follow their headings.
     await expect(rows(page, 'Skaters').first().locator('select.attribute').nth(2)).toHaveAttribute('aria-label', /^Checking of /)
 
@@ -2172,13 +2266,13 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Trade').click()
     const main = page.locator('main')
     const skaters = main.locator('.trade > section').first().locator('table').last()
-    expect((await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
+    await expect.poll(async () => (await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Spd', 'Chk', 'Agl'])
     expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('nose4web.columnOrder.skaters')).length)).toBe(1)
 
     // Reset puts the league's order back everywhere.
     await main.getByRole('button', { name: 'Columns…' }).click()
     await main.getByRole('group', { name: 'Order of the attribute columns' }).getByRole('button', { name: 'Reset to default' }).first().click()
-    expect((await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Chk', 'Spd', 'Agl'])
+    await expect.poll(async () => (await headings(skaters)).slice(6, 10)).toEqual(['Wgt', 'Chk', 'Spd', 'Agl'])
 
     // The roster card: sorted by Speed, the game's 0-6 ratings, no overall, made without an error.
     await team(page, 'Boston Bruins').click()
@@ -2195,9 +2289,10 @@ test.describe('with the NHL 94 ROM', () => {
     const png = readFileSync(await card.path())
     expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
     await expect(page.locator('p.error')).toHaveCount(0)
+    mkdirSync('test-results/shots', { recursive: true })
     writeFileSync('test-results/shots/roster-card-options.png', png)
     // The choices are kept, and the column move shows on the team's table too.
-    expect((await headings(skaterTable)).slice(7, 9)).toEqual(['Chk', 'Wgt'])
+    await expect.poll(async () => (await headings(skaterTable)).slice(7, 9)).toEqual(['Chk', 'Wgt'])
     await page.reload()
     await openRom(page)
     await moreRosterTools(page)
@@ -2556,9 +2651,40 @@ test.describe('with the NHL 94 ROM', () => {
     page.on('dialog', (dialog) => void dialog.accept()) // the "leave site?" prompt
     await openRom(page)
     await page.locator('input.rom-name').fill('My_League')
+    const player = await nameOf(rows(page, 'Skaters').first()).inputValue()
     await rows(page, 'Skaters').first().locator('input.num').first().fill('88')
     await expect(page.getByText('Not downloaded yet')).toBeVisible()
-    await page.waitForTimeout(1500) // the work is stored a moment after the last edit
+    // The work is stored a moment after the last edit: wait until the browser's storage has it.
+    const stored = () =>
+      page.evaluate(
+        (name) =>
+          new Promise<boolean>((done) => {
+            const request = indexedDB.open('nose4web')
+            // Not there yet: leave it for the app to make, with its store.
+            request.onupgradeneeded = () => request.transaction!.abort()
+            request.onerror = () => done(false)
+            request.onsuccess = () => {
+              const database = request.result
+              try {
+                const get = database.transaction('session', 'readonly').objectStore('session').get('current')
+                get.onsuccess = () => {
+                  const session = get.result as { name: string; unsaved: boolean; project: { teams: { players: { name: string; jersey: number }[] }[] } } | undefined
+                  done(!!session && session.name === 'My_League' && session.unsaved && session.project.teams[0].players.some((p) => p.name === name && p.jersey === 0x88))
+                  database.close()
+                }
+                get.onerror = () => {
+                  done(false)
+                  database.close()
+                }
+              } catch {
+                done(false)
+                database.close()
+              }
+            }
+          }),
+        player,
+      )
+    await expect.poll(stored).toBe(true)
 
     await page.reload()
     await expect(page.getByText('with changes not yet downloaded')).toBeVisible()
@@ -2570,19 +2696,26 @@ test.describe('with the NHL 94 ROM', () => {
 })
 
 // Hacked ROMs on this computer, named in tests/local.json (not part of the
-// project). Each is opened and walked through every page, to catch anything
-// that breaks the editor on a ROM unlike the original game.
+// project), and NHL '95 as it came at ../NHL95/NHL_95.bin. Each is opened and
+// walked through every page, to catch anything that breaks the editor on a ROM
+// unlike the original game.
+type LocalRoms = { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[]; nhl95Roms?: string[] }
 const localPath = resolve(process.cwd(), 'tests', 'local.json')
-const local: { league30Rom?: string; otherRoms?: string[]; snesRoms?: string[]; nhl95Roms?: string[] } = existsSync(localPath)
-  ? JSON.parse(readFileSync(localPath, 'utf8'))
-  : {}
+const local: LocalRoms = (() => {
+  try {
+    return existsSync(localPath) ? (JSON.parse(readFileSync(localPath, 'utf8')) as LocalRoms) : {}
+  } catch {
+    // A local.json that cannot be read names no ROMs; the rest of the tests still run.
+    return {}
+  }
+})()
 const hackRoms = [local.league30Rom, ...(local.otherRoms ?? []), ...(local.snesRoms ?? []), 'NHL95/NHL_95.bin', ...(local.nhl95Roms ?? [])]
   .filter((name): name is string => !!name)
   .map((name) => resolve(process.cwd(), '..', name))
   .filter((path) => existsSync(path))
 
-test.describe('with the hacked ROMs on this computer', () => {
-  test.skip(hackRoms.length === 0, 'needs ROMs listed in tests/local.json')
+test.describe("with the hacked ROMs and NHL '95 on this computer", () => {
+  test.skip(hackRoms.length === 0, 'needs ROMs listed in tests/local.json, or ../NHL95/NHL_95.bin')
 
   // Numbered, so that no ROM's name appears in the test results.
   hackRoms.forEach((path, n) => {
@@ -2858,9 +2991,11 @@ test.describe('with the SNES game', () => {
     await main.getByLabel('Copy hacks from another ROM').setInputFiles({ name: 'league.smc', mimeType: 'application/octet-stream', buffer: Buffer.from(buildRom(league)) })
     await expect(main.locator('.outcome li')).toHaveText(['Hot and cold bug fix: off to on.', 'Faceoffs on the dots: off to on.'])
     await expect(main.getByLabel('Faceoffs on the dots')).toHaveValue('on')
-    // A Genesis ROM is not taken.
-    await main.getByLabel('Copy hacks from another ROM').setInputFiles(romPath)
-    await expect(main.getByText(/is NHL 94.*not an SNES ROM/)).toBeVisible()
+    // A Genesis ROM is not taken (when ../nhl94.bin is there to try).
+    if (hasRom) {
+      await main.getByLabel('Copy hacks from another ROM').setInputFiles(romPath)
+      await expect(main.getByText(/is NHL 94.*not an SNES ROM/)).toBeVisible()
+    }
 
     // The recommended fixes leave the faceoff spot fix as it was set.
     await main.getByRole('button', { name: 'Set back to what the ROM has' }).click()
@@ -2903,6 +3038,14 @@ test.describe('with the SNES game', () => {
     const sheet = readFileSync(await (await downloadFrom(page, main.getByRole('button', { name: 'Download hack sheet' }))).path(), 'utf8')
     expect(sheet).toContain("NHL '94 for the SNES.")
     expect(sheet).toContain("<dt>Extra attacker fix</dt><dd>In Edit Lines, picking a line's extra attacker")
+  })
+
+  test('keeps SNES hack choices not applied while other pages show, says so, and asks before a download', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Hacks').click()
+    const rom = await guardsHackChoice(page, page.locator('main').getByLabel('Hot and cold bug fix'), 'on')
+    expect(detectSnesHacks(new Uint8Array(rom)).choices.hotColdFix).toBe(true)
   })
 
   test('puts in any skater at any position, which the line editor then allows, and when the computer pulls its goalie', async ({ page }) => {
@@ -3117,7 +3260,7 @@ test.describe('with the SNES game', () => {
     await photos.getByLabel(/^Green/).fill('0')
     await photos.getByLabel(/^Blue/).fill('0')
     await expect(reset).toBeEnabled()
-    expect(await pixels()).not.toEqual(before)
+    await expect.poll(pixels).not.toEqual(before)
     const rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
     const { snesPhotoPalette } = await import('../src/core/snesphotos')
     expect(snesPhotoPalette(rom, 0)[13] & 0x7fff).toBe(31)
@@ -3125,7 +3268,7 @@ test.describe('with the SNES game', () => {
     expect(snesPhotoPalette(rom, 1)).toEqual(snesPhotoPalette(opened, 1))
     await reset.click()
     await expect(reset).toBeDisabled()
-    expect(await pixels()).toEqual(before)
+    await expect.poll(pixels).toEqual(before)
   })
 
   test('exports an SNES organ song as MIDI and puts it in place of another, for the teams that have it', async ({ page }) => {
@@ -3169,7 +3312,7 @@ test.describe('with the SNES game', () => {
     await banner.locator('.swatch').nth(1).click()
     await banner.getByLabel(/^Red/).fill('31')
     await expect(reset).toBeEnabled()
-    expect(await pixels()).not.toEqual(shown)
+    await expect.poll(pixels).not.toEqual(shown)
     await banner.screenshot({ path: 'test-results/shots/snes-banner-colours.png' })
     const opened = readRom(new Uint8Array(readFileSync(snesPath)))
     let rom = readRom(new Uint8Array(readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())))
@@ -3242,11 +3385,11 @@ test.describe('with the SNES game', () => {
     await expect(logos.getByText(/Logo replaced\..*the white around the logo was made see-through/)).toBeVisible()
     const corner = () =>
       logos.locator('canvas.preview').first().evaluate((canvas: HTMLCanvasElement) => Array.from(canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data))
-    expect((await corner())[3]).toBe(0)
+    await expect.poll(async () => (await corner())[3]).toBe(0)
     await logos.getByRole('button', { name: 'Import it with its background instead' }).click()
     await expect(logos.getByText(/Logo replaced\..*no see-through pixels, so the game will show the logo as a solid box/)).toBeVisible()
     await expect(logos.getByRole('button', { name: 'Import it with its background instead' })).toBeHidden()
-    expect((await corner()).slice(0, 3)).toEqual([0xff, 0xff, 0xff])
+    await expect.poll(async () => (await corner()).slice(0, 4)).toEqual([0xff, 0xff, 0xff, 0xff])
   })
 
   test('adds score logos to the original game, and takes them out again', async ({ page }) => {
@@ -3299,7 +3442,7 @@ test.describe('with the SNES game', () => {
     const first = (await photos.first().locator('strong').textContent())!.replace(/^G /, '')
     await card.getByLabel(`Swap the photo of ${name} with`).selectOption({ label: `G ${first}` })
     await expect(section.getByText(`The photos of ${name} and ${first} swapped.`)).toBeVisible()
-    expect(await photos.first().locator('canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).toBe(mine)
+    await expect.poll(() => photos.first().locator('canvas').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).toBe(mine)
   })
 
   test("draws a team logo and a centre ice logo, counting the logo's tiles", async ({ page }) => {
@@ -3407,10 +3550,37 @@ test.describe("with the NHL '95 ROM", () => {
     const png = await downloadFrom(page, logo.getByRole('button', { name: 'Export PNG' }))
     expect(png.suggestedFilename()).toBe('Boston_Bruins_menu_logo.png')
     // The same picture back in changes nothing visible but is taken as a replacement.
+    const reset = logo.getByRole('button', { name: 'Reset picture' })
+    await expect(reset).toBeDisabled()
     await logo.locator('input[type=file]').setInputFiles(await png.path())
-    await expect(page.locator('.picture').first().locator('xpath=ancestor::section[1]')).not.toContainText('could not')
-    await entry(page, 'Picture files').click()
-    await expect(page.getByText('menu_logo', { exact: false }).first()).toBeVisible()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Logos and banners' }) })
+    await expect(section.getByText('Menu logo replaced.')).toBeVisible()
+    await expect(reset).toBeEnabled()
+  })
+
+  test('applies a hack, downloads the ROM, and opens it again with the hack in', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await entry(page, 'Hacks').click()
+    expect(detectNhl95Hacks(new Uint8Array(readFileSync(nhl95Path))).choices.passFix).toBe(false)
+    await page.getByLabel('Pass direction fix').selectOption('on')
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
+    await expect(page.getByText('Done: 1 change to the game.')).toBeVisible()
+    const rom = readFileSync(await (await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))).path())
+    expect(detectNhl95Hacks(new Uint8Array(rom)).choices.passFix).toBe(true)
+    await romPicker(page).setInputFiles({ name: 'hacked.bin', mimeType: 'application/octet-stream', buffer: rom })
+    await expect(page.locator('input.rom-name')).toHaveValue('hacked')
+    await entry(page, 'Hacks').click()
+    await expect(page.getByLabel('Pass direction fix')).toHaveValue('on')
+    await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled()
+  })
+
+  test("keeps NHL '95 hack choices not applied while other pages show, says so, and asks before a download", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(nhl95Path)
+    await entry(page, 'Hacks').click()
+    const rom = await guardsHackChoice(page, page.locator('main').getByLabel('Pass direction fix'), 'on')
+    expect(detectNhl95Hacks(new Uint8Array(rom)).choices.passFix).toBe(true)
   })
 
   test('sets the Fighting setting at power-on, one of three, only with fighting on', async ({ page }) => {

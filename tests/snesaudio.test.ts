@@ -213,9 +213,9 @@ describe.skipIf(!names.length)('SNES sound', () => {
     const started = performance.now()
     const played = renderSnesMusic(rom, 0x8fdd32, 'title')!
     const took = performance.now() - started
-    console.log('title', played.seconds, 's in', Math.round(took), 'ms', played.notes.length, 'notes')
     expect(played.left.length).toBeGreaterThan(32000 * 60)
-    expect(took).toBeLessThan(5000)
+    // Loose, so that a busy computer does not fail it: a slowdown many times over still does.
+    expect(took).toBeLessThan(30_000)
   })
 })
 

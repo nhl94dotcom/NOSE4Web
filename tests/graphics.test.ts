@@ -471,7 +471,9 @@ describe.skipIf(!league)('team pictures in the 30-team league ROM', () => {
     const away = noise(88, 16, [1, 2, 5, 6], 9)
     let edited = { ...roomy, graphics: withBanner(roomy, 'menu', 2, home) }
     edited = { ...edited, graphics: withBanner(edited, 'visitor', 20, away) }
-    edited.teams[0] = { ...edited.teams[0], players: edited.teams[0].players.map((p, i) => (i === 0 ? { ...p, name: 'New Name' } : p)) }
+    // A new teams list, so that roomy and project keep theirs as they were.
+    edited = { ...edited, teams: edited.teams.map((t, n) => (n === 0 ? { ...t, players: t.players.map((p, i) => (i === 0 ? { ...p, name: 'New Name' } : p)) } : t)) }
+    expect(roomy.teams[0].players[0].name).not.toBe('New Name')
     const reopened = openRom(buildRom(edited))
     expect(banner(reopened, 'menu', 2)).toEqual(home)
     expect(banner(reopened, 'visitor', 20)).toEqual(away)

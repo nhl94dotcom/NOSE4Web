@@ -143,7 +143,19 @@ describe.skipIf(!existsSync(romPath))('the computer goalie pull fix', () => {
     expect(detectHacks(hacked)).toEqual({ choices: { ...NO_HACKS, goaliePullFix: true }, unknown: [] })
     expect(Buffer.compare(hackRom(hacked, NO_HACKS), rom)).toBe(0)
     // What each goal difference (behind by -1, 0, 1, 2, 3) does: before, bmi / bne #2 pull only at exactly 2
-    // behind; after, ble / bgt #2 pull at 1 or 2 behind.
+    // behind; after, ble / bgt #2 pull at 1 or 2 behind. Each branch goes to rtss2 (no pull) when its condition
+    // holds: the first on the difference, the second on the difference less 2.
+    const taken = (op: number, value: number) => {
+      const condition = (op >> 8) & 0xf
+      if (condition === 0xb) return value < 0 // bmi
+      if (condition === 0xf) return value <= 0 // ble
+      if (condition === 0x6) return value !== 0 // bne
+      if (condition === 0xe) return value > 0 // bgt
+      throw new Error(`branch ${op.toString(16)} is not in the interpreter`)
+    }
+    const pulls = (bytes: Uint8Array) => [-1, 0, 1, 2, 3].filter((behind) => !taken(readU16(bytes, 0xf758), behind) && !taken(readU16(bytes, 0xf760), behind - 2))
+    expect(pulls(rom)).toEqual([2])
+    expect(pulls(hacked)).toEqual([1, 2])
   })
 })
 

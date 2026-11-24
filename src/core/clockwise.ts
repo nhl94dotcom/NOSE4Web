@@ -149,8 +149,10 @@ export function takeOutClockwise(rom: Uint8Array, had?: Uint8Array): void {
 // with Clockwise's: tape and eyes in sprite frames they left untaped, tape on the
 // sticks in the faceoff close-up, and in the fight frames of chaos's fighting
 // patch with the eye of the overhand punch.
-// They do not change whether the edit reads on (clockwiseState), so a ROM made
-// before they were added gets them when its hacks are next put in.
+// They do not change whether the edit reads on (clockwiseState). A ROM with some of
+// them (made before the rest were added) gets the rest when its hacks are next put
+// in; a ROM with none (Clockwise's edit from their own patch, as GDL Season 4 has
+// it) gets them only when the edit itself is turned on (hackRom, hasNoseTape).
 
 interface Touch {
   at: number
@@ -272,6 +274,16 @@ function takeOutFaceoffTape(rom: Uint8Array): void {
   const { faceoff, packed } = tapes()
   if (!site.packed) return takeOutEach(rom, faceoff, site.tiles)
   takeOutAll(rom, packed, site.tiles)
+}
+
+// Whether the ROM has any of NOSE4Web's additions: the untaped frames' tape, or either faceoff tape.
+export function hasNoseTape(rom: Uint8Array): boolean {
+  const { faceoff, packed, firstFaceoff, firstPacked } = tapes()
+  if (spriteTapeUsed(rom).some((t) => fits(rom, t.at, t.patched) && !fits(rom, t.at, t.original))) return true
+  const site = faceoffSite(rom)
+  if (!site) return false
+  if (site.packed) return [packed, firstPacked].some((list) => list.every((t) => fits(rom, site.tiles + t.at, t.patched)))
+  return [...faceoff, ...firstFaceoff].some((t) => fits(rom, site.tiles + t.at, t.patched) && !fits(rom, site.tiles + t.at, t.original))
 }
 
 // The fight frames' tape, where the fighting patch is in (it writes the frames at fixed places in the first MB).

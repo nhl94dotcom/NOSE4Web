@@ -144,7 +144,7 @@ describe.skipIf(!hasRom)('the regained-puck assist fix', () => {
     expectSameBytes(applySnesHacks(on, { regainAssist: false }).bytes, project.bytes)
   })
 
-  // The other SNES builds (tests/local.json), the 2 MB ones with RAM $6000 on.
+  // Every other SNES ROM in tests/local.json.
   const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
   const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
   const others = (local.snesRoms ?? []).map((name) => fileURLToPath(new URL(`../../${name}`, import.meta.url))).filter((file) => existsSync(file))

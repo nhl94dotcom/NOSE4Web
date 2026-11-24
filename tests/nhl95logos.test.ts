@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { canAddGenesisScoreLogos } from '../src/core/genesisscorelogos'
-import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, pictureToImage, rinkLogo, rinkLogosSupported, withMenuLogo, withRinkLogo, writeGraphics, type Picture } from '../src/core/graphics'
+import { expandPictureSpace, menuLogo, menuLogoPalette, pictureSpace, pictureToImage, rinkLogo, rinkLogosSupported, withMenuLogo, withRinkLogo, type Picture } from '../src/core/graphics'
 import { importTeam, ALL_PARTS } from '../src/core/importteam'
 import { pictureKinds, withPictureFromImage } from '../src/core/pictureset'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
@@ -59,7 +59,6 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
     for (let i = 7; i < 16; i++) colours[i] = 0x002 * (i - 6)
     const graphics = withMenuLogo(project, BOSTON, pattern(), colours)
     const edited = { ...project, graphics }
-    writeGraphics(project.bytes.slice(), project.game, graphics)
     const reopened = openRom(buildRom(edited))
     expect(menuLogo(reopened, BOSTON)).toEqual(pattern())
     const palette = menuLogoPalette(reopened, BOSTON)
@@ -83,23 +82,29 @@ describe.skipIf(names.length === 0)("NHL '95 menu logos", () => {
     // The pattern as an image, in colours the editor can match exactly.
     const colours = [0, 0x0eee, 0, 0x000e, 0x00e0, 0x0e00, 0x00ee, 0x0e0e, 0x0ee0, 0x0222, 0x0444, 0x0666]
     const picture = pattern()
-    const rgba = pictureToImage(picture, Array.from({ length: 16 }, (_, i) => colours[[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].indexOf(i)] ?? 0))
+    const imagePalette = Array.from({ length: 16 }, (_, i) => colours[[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].indexOf(i)] ?? 0)
+    const rgba = pictureToImage(picture, imagePalette)
     const { graphics } = withPictureFromImage(project, BOSTON, 'menuLogo', { rgba, width: 48, height: 48 })
     expect(graphics.menuPalettes[BOSTON].length).toBe(16)
     const reopened = openRom(buildRom({ ...project, graphics }))
+    // Boston's logo is the image: each pixel see-through where it was, else in the colour the image gave it.
+    const logo = menuLogo(reopened, BOSTON)
+    expect([logo.width, logo.height]).toEqual([48, 48])
+    const shown = (p: Picture, palette: number[]) => Array.from(p.pixels, (i) => (i === 0 ? -1 : palette[i]))
+    expect(shown(logo, menuLogoPalette(reopened, BOSTON))).toEqual(shown(picture, imagePalette))
     project.teams.forEach((_, team) => {
       if (team !== BOSTON) expect(menuLogoPalette(reopened, team)).toEqual(menuLogoPalette(project, team))
     })
   })
 
-  it('is left alone where the code that finds it is not the original game’s', () => {
+  it.skipIf(!existsSync(path(RETAIL)))('is left alone where the code that finds it is not the original game’s', () => {
     const project = open(RETAIL)
     const odd = project.bytes.slice()
     odd[0x7d3ec] = 0x4e // the movea.l of GetTeamLogo
     expect(openRom(odd).graphicsSupported).toBe(false)
   })
 
-  it.skipIf(!existsSync(path('nhl94.bin')))('comes across from NHL 94 with a team, centre-ice logo too', () => {
+  it.skipIf(!existsSync(path('nhl94.bin')) || !existsSync(path(RETAIL)))('comes across from NHL 94 with a team, centre-ice logo too', () => {
     const nhl95 = expandPictureSpace(open(RETAIL))
     const nhl94 = open('nhl94.bin')
     const { project, notes } = importTeam(nhl95, nhl94, BOSTON, BOSTON, { ...ALL_PARTS, names: false, roster: false, photos: false })

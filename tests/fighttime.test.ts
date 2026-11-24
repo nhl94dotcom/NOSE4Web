@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { applyHacks, detectHacks, NO_HACKS } from '../src/core/hacks'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { goesInAndOutOfLeagueRoms } from './leaguehacks'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
@@ -29,6 +30,8 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('fighting penalty time (Genesis)
     expect(Buffer.compare(buildRom(applyHacks(both, NO_HACKS)), buildRom(rom))).toBe(0)
   })
 })
+
+goesInAndOutOfLeagueRoms('fighting penalty time (Genesis)', { fightSeconds: 150 })
 
 describe.skipIf(!existsSync(path('NHL94.smc')))('fighting penalty time (SNES)', () => {
   it("InProgress's .6 calls code that gives the fighting penalties the set time", () => {

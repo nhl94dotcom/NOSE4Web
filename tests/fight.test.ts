@@ -5,7 +5,7 @@ import { checkProject } from '../src/core/check'
 import { fightRam } from '../src/core/fight'
 import { FIGHT_BLOCKS, FIGHT_CHANGES } from '../src/core/fightdata'
 import { canAddGenesisBlood, hasGenesisBlood, withGenesisBloodAdded, withGenesisBloodTakenOut } from '../src/core/genesisblood'
-import { applyHacks, detectHacks, NO_HACKS, RECOMMENDED_FIXES } from '../src/core/hacks'
+import { applyHacks, detectHacks, HackError, NO_HACKS, RECOMMENDED_FIXES } from '../src/core/hacks'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { buildRom, openRom } from '../src/core/rom'
 
@@ -94,8 +94,8 @@ describe.skipIf(!existsSync(GENESIS))("chaos's fighting patch", () => {
     const out = applyHacks(both, { ...detectHacks(both.bytes).choices, fighting: 'none' })
     expect(detectHacks(out.bytes).choices).toMatchObject({ fighting: 'none', fourthPeriodOvertime: 300 })
     expect(out.settings.periodLengths[0].text).toBe('4 Minutes')
-    // Taking the overtime out too gives back the original game.
-    expect(same(applyHacks(applyHacks(both, NO_HACKS), NO_HACKS).bytes.subarray(0xf7900, 0xf7c00), fresh().bytes.subarray(0xf7900, 0xf7c00))).toBe(true)
+    // Taking the overtime out too gives back the original game's menu code.
+    expect(same(applyHacks(both, NO_HACKS).bytes.subarray(0xf7900, 0xf7c00), fresh().bytes.subarray(0xf7900, 0xf7c00))).toBe(true)
   })
 
   it('goes with head bleeding, either way round, and either comes out leaving the other', () => {
@@ -145,13 +145,12 @@ describe.skipIf(leagues.length === 0)("chaos's fighting patch in the ROMs on thi
     it(`ROM ${n + 1}: goes in with the league's own menu kept, or says why not`, () => {
       const opened = openRom(new Uint8Array(readFileSync(path(name))))
       const choices = detectHacks(opened.bytes).choices
-      let fighting
-      try {
-        fighting = applyHacks(opened, { ...choices, fighting: 'arcade' })
-      } catch (e) {
-        expect((e as Error).message).toMatch(/\./)
+      // Only the EVO builds, whose code is their own, take no hacks.
+      if (name.includes('EVO')) {
+        expect(() => applyHacks(opened, { ...choices, fighting: 'arcade' })).toThrow(new HackError('Hacks cannot be applied to this kind of ROM.'))
         return
       }
+      const fighting = applyHacks(opened, { ...choices, fighting: 'arcade' })
       const again = openRom(buildRom(fighting))
       expect(detectHacks(again.bytes).choices.fighting).toBe('arcade')
       // The menu as the league has it: captions, choices, starting values, the teams offered and the period lengths.

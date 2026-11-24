@@ -2,10 +2,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
-import { loRomOffset } from '../src/core/snes'
+import { findCodeAll, loRomOffset } from '../src/core/snes'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
+import { isSa1 } from './sneshelp'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
+const localPath = fileURLToPath(new URL('./local.json', import.meta.url))
+const local: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
+const names = ['NHL94.smc', ...(local.snesRoms ?? [])].filter((name) => existsSync(path(name)))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const hex = (bytes: Uint8Array, at: number, count: number) => Buffer.from(bytes.subarray(at, at + count)).toString('hex')
 
@@ -32,5 +37,30 @@ describe.skipIf(!existsSync(path('NHL94.smc')))("the SNES goalie's poke check", 
     expect(hex(on.bytes, code + 33, 7)).toBe('a980009de31460')
     expect(detectSnesHacks(on.bytes).choices.goaliePoke).toBe(true)
     expect(Buffer.compare(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))).toBe(0)
+  })
+})
+
+describe.skipIf(names.length === 0)("the SNES goalie's poke check in every build", () => {
+  it.each(names)('%s: reads SPA where that build has it, and comes out again', (name) => {
+    const project = open(name)
+    expect(detectSnesHacks(project.bytes).unknown).not.toContain('goaliePoke')
+    // The site after the height, and puckglue's ldy a2 / lda # / sta ,y / lda SPA,y: SPA's address is that lda's
+    // operand (at +9).
+    const [found, ...more] = findCodeAll(project.bytes, '9822......a5a589008' + '0f00449ffff1a85ad0aaabf......85b5a5a989008' + '0f00449ffff1a0aaabf......')
+    expect(more).toEqual([])
+    const [spa, ...others] = findCodeAll(project.bytes, 'a491a9....99....b9....c9....')
+    expect(others).toEqual([])
+    const site = found.at + 43
+    expect(hex(project.bytes, site, 4)).toBe('85b1a6e4')
+    const on = applySnesHacks(project, { goaliePoke: true })
+    expect(on.bytes[site]).toBe(0x20)
+    const code = loRomOffset(0x80 | (site >> 15), on.bytes[site + 1] | (on.bytes[site + 2] << 8))
+    // sta d3 / ldx a2 / lda SPA,x with this build's own SPA.
+    expect(hex(on.bytes, code, 5)).toBe('85b1a691bd')
+    expect(hex(on.bytes, code + 5, 2)).toBe(hex(project.bytes, spa.at + 9, 2))
+    // The SA-1 builds have SPA $6000 on.
+    expect(on.bytes[code + 6] >= 0x60).toBe(isSa1(project.bytes))
+    expect(detectSnesHacks(on.bytes).choices.goaliePoke).toBe(true)
+    expectSameBytes(buildRom(applySnesHacks(openRom(buildRom(on)), { goaliePoke: false })), buildRom(project))
   })
 })

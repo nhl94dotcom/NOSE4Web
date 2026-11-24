@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { buildRom, openRom } from '../src/core/rom'
 import { applySnesHacks, detectSnesHacks } from '../src/core/sneshacks'
+import { expectSameBytes } from './samebytes'
 
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 // A league's SA-1 ROM with NOSE4Web's goalie pull from before 12 November 2026 (the pad read from the table).
@@ -31,5 +32,14 @@ describe.skipIf(!existsSync(path(WCOH)))("SNES: NOSE4Web's earlier goalie pull i
     // The other hacks as they were.
     expect(after.choices).toEqual(before.choices)
     expect(after.unknown).toEqual(before.unknown.filter((hack) => hack !== 'manualPullGoalie'))
+
+    // Taken out, from the earlier version or the updated one: the same ROM, the hook back to ldy $91 / lda tmgoalie,y
+    // and the other hacks as they were.
+    const out = applySnesHacks(rom, { manualPullGoalie: false })
+    expect(Buffer.from(out.bytes.subarray(0xf5142, 0xf5145)).toString('hex')).toBe('a491b9')
+    const read = detectSnesHacks(out.bytes)
+    expect(read.choices).toEqual({ ...before.choices, manualPullGoalie: false })
+    expect(read.unknown).toEqual(after.unknown)
+    expectSameBytes(buildRom(applySnesHacks(updated, { manualPullGoalie: false })), buildRom(out))
   })
 })

@@ -60,6 +60,8 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES: time on ice in Player Sta
       const state = detectSnesHacks(rom.bytes)
       if (state.notOffered?.timeOnIceShown) {
         expect(state.unknown).not.toContain('timeOnIceShown')
+        // Not offered: asking for it is refused, with why.
+        expect(() => applySnesHacks(rom, { timeOnIce: true, timeOnIceShown: true })).toThrow(state.notOffered.timeOnIceShown)
         return
       }
       expect(state.unknown).not.toContain('timeOnIceShown')

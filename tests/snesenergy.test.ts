@@ -42,7 +42,6 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('SNES energy lost to hits', () =
     // Off again, the ROM is as it was.
     const off = applySnesHacks(openRom(buildRom(on)), { noSkatingDrain: false, freeBurst: false, hitEnergy: false, holdEnergy: false })
     expect(Buffer.compare(buildRom(off), buildRom(project))).toBe(0)
-    // Found in the other builds too.
     expect(() => applySnesHacks(project, {}, false, { hitEnergy: 4097 })).toThrow('from 0 to 4096')
   })
 

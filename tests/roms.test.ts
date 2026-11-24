@@ -243,11 +243,10 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('a ROM whose teams each have the
 // the 32-team one, and the 28-team one with the original game's rosters.
 describe("McMarkis's SNES builds", () => {
   const snes: { snesRoms?: string[] } = existsSync(localPath) ? JSON.parse(readFileSync(localPath, 'utf8')) : {}
-  const rebuilt = (snes.snesRoms ?? [])
-    .filter((name) => existsSync(path(name)))
-    .map((name) => openRom(new Uint8Array(readFileSync(path(name)))))
-    .filter((project) => project.game.credit)
-  it.skipIf(rebuilt.length === 0)('are credited to the release with their number of teams', () => {
+  const names = (snes.snesRoms ?? []).filter((name) => existsSync(path(name)))
+  it.skipIf(names.length === 0)('are credited to the release with their number of teams', (context) => {
+    const rebuilt = names.map((name) => openRom(new Uint8Array(readFileSync(path(name))))).filter((project) => project.game.credit)
+    if (rebuilt.length === 0) return context.skip()
     for (const project of rebuilt) {
       const credit = project.game.credit!
       expect(credit.author).toBe('McMarkis')
