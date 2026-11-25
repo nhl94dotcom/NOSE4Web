@@ -484,11 +484,30 @@ export function GuidesPage() {
           height, weight and age.
         </li>
         <li>
-          <b>Few games count for less.</b> Each per-game stat counts as if the player had also played 20 average games,
-          so 3 goals in 2 games does not make a sniper. In the same way, shooting percentage counts 3 more goals on 30
-          more shots, save percentage 600 more shots at .880, and goals against average 20 more games at 3.50. Games
-          played count only up to 70 per cent of the most anyone played, so a star who missed some games is not
-          marked down.
+          <b>Players with only a few games.</b> A player who played only a few games can have extreme numbers by luck,
+          so each player's stats are first pulled toward the average, a lot for a few games and hardly at all for a
+          full season:
+          <ul>
+            <li>
+              Per-game stats (goals, assists, shots and so on): 20 games at the average for their group are added to
+              the player's own. Say the forwards average 0.3 goals a game. A forward with 3 goals in 2 games (1.5 a
+              game) counts as (3 + 20 × 0.3) ÷ (2 + 20), about 0.41 a game. One with 40 goals in 80 games (0.5 a game)
+              counts as (40 + 6) ÷ (80 + 20), 0.46: almost their own.
+            </li>
+            <li>
+              Shooting percentage: 3 goals on 30 shots are added. 2 goals on 4 shots (50 per cent) counts as 5 on 34,
+              about 15 per cent; 40 goals on 250 shots (16 per cent) as 43 on 280, about 15.4 per cent.
+            </li>
+            <li>
+              Goalies: 600 shots saved at .880 are added to the save percentage, and 20 games at 3.50 to the goals
+              against average.
+            </li>
+            <li>
+              Games played works differently: every number from 70 per cent of the most anyone played up counts the
+              same. If the most is 80, then 56 games count as much as 80, so a star who missed some games through
+              injury is not marked down for it.
+            </li>
+          </ul>
         </li>
         <li>
           <b>Standings, not totals.</b> Each stat becomes where the player stands among their group that season, from
