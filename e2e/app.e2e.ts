@@ -130,7 +130,7 @@ test.describe('without a ROM', () => {
     // The ratings method, with its weights from the code.
     await page.getByRole('link', { name: 'How Real NHL season rates players' }).click()
     await expect(page.getByRole('heading', { name: 'How Real NHL season rates players' })).toBeInViewport()
-    await page.getByText('All the weights').click()
+    await page.locator('summary', { hasText: 'All the weights' }).click()
     await expect(page.getByRole('cell', { name: 'Shot Accuracy' }).first()).toBeVisible()
     await page.getByRole('button', { name: 'Back' }).click()
     // The FAQ, a page of its own.
