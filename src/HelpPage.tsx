@@ -438,8 +438,10 @@ export function HelpPage() {
         <b>More roster tools</b>, below the tables.
       </p>
       <p>
-        <b>Add player</b> puts a new defenceman at the bottom of the roster, named with their roster number, with
-        every attribute at its lowest. A team can have at most {MAX_ROSTER} players.
+        <b>Add forward</b>, <b>Add defenceman</b> and <b>Add goalie</b> put a new player on the roster, named with
+        their roster number, with every attribute at its lowest: a forward after the last forward, a defenceman at the
+        bottom, a goalie after the last goalie. The lines keep the players they had. A team can have at most{' '}
+        {MAX_ROSTER} players, 15 forwards, 15 defencemen and 4 goalies.
       </p>
       <p>
         To move players, select them, choose the other team beside <b>Move selected to</b>, and click it. A forward
@@ -594,7 +596,7 @@ export function HelpPage() {
           higher for grinders and enforcers. It stays in the lower half of its range, where the original game does
           not wrap it round.
         </li>
-        <li>To make a new player, press Add player, select the new row, and make it.</li>
+        <li>To make a new player, press Add forward or Add defenceman, select the new row, and make it.</li>
       </ul>
 
       <h3 id="help-keys">Quick edit keys</h3>

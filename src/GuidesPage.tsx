@@ -216,22 +216,20 @@ export function GuidesPage() {
       </ul>
 
       <h3 id="guide-rookie">Add a new player from scratch</h3>
-      <p>For a skater, such as a rookie no ROM has yet.</p>
+      <p>Such as a rookie no ROM has yet.</p>
       <ol>
         <li>
-          On the team's page, under Roster, choose <b>Add player</b>. The new player goes at the end of the roster,
-          named <i># 19</i> or the like, as a defenceman. The button is greyed out when the team has {MAX_ROSTER}{' '}
-          players. Each new player takes 14 bytes of the ROM's room for names and players, plus their name: if the top
-          of the page says the ROM is over the limit, see Help's <i>Space in the ROM</i>.
-        </li>
-        <li>
-          To make them a forward: show the roster in roster order, with nothing filtered, and move them up with{' '}
-          <b>↑</b> until they are just after the last forward. Then, on the Team tab, raise <b>Forwards</b> by 1. Skip
-          it, and they play as a defenceman: the game goes by roster order, not by a player's own position.
+          On the team's page, under Roster, choose <b>Add forward</b>, <b>Add defenceman</b> or <b>Add goalie</b>. The
+          new player goes after the team's last player of that kind, named with their roster number, such as{' '}
+          <i># 12</i>. The game goes by roster order, not by a player's own position, so choose the right button: to
+          change it later, move the player on the roster and change <b>Forwards</b> on the Team tab. The buttons are
+          greyed out when the team has {MAX_ROSTER} players (or 15 forwards, 15 defencemen or 4 goalies). Each new
+          player takes 14 bytes of the ROM's room for names and players, plus their name: if the top of the page says
+          the ROM is over the limit, see Help's <i>Space in the ROM</i>.
         </li>
         <li>Type their name and jersey number in the roster table.</li>
         <li>
-          Give them ratings: tick them, and under <b>Make up attributes</b> choose the kind of skater and the level,
+          Give them ratings: tick them, and under <b>Make up attributes</b> choose the kind of player and the level,
           then <b>Make</b> (or <b>Random</b>). You can also set each rating by hand. Skip it, and every rating stays at
           0, at the lightest weight.
         </li>

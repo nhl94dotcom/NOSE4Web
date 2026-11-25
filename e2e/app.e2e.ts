@@ -182,14 +182,14 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(section('Team')).toBeHidden()
     for (const name of ['Goalies', 'Skaters']) await expect(section(name)).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'Show attributes as' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add player' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add defenceman' })).toBeVisible()
     await expect(section('Lines')).toBeHidden()
     await tab('Lines').click()
     await expect(section('Lines')).toBeVisible()
     await expect(section('Skaters')).toBeHidden()
     // The roster's tools, between its sections and Lines, go with the roster.
     await expect(page.getByRole('combobox', { name: 'Show attributes as' })).toBeHidden()
-    await expect(page.getByRole('button', { name: 'Add player' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Add defenceman' })).toBeHidden()
     // Only the lines' Copy selected is left (a hidden button is not one on the page).
     await expect(page.getByRole('button', { name: 'Copy selected' })).toHaveCount(1)
     // The teams share their tab.
@@ -355,8 +355,14 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
     await expect(page.locator('header')).toContainText('934 bytes free')
     await nameOf(rows(page, 'Skaters').first()).fill('A Considerably Longer Name')
-    await page.getByRole('button', { name: 'Add player' }).click()
+    await page.getByRole('button', { name: 'Add defenceman' }).click()
     await expect(rows(page, 'Skaters')).toHaveCount(17)
+    await expect(nameOf(rows(page, 'Skaters').last())).toHaveValue('# 19')
+    // A forward goes after the last forward, as one, with the defencemen after them.
+    await page.getByRole('button', { name: 'Add forward' }).click()
+    await expect(rows(page, 'Skaters')).toHaveCount(18)
+    // Anaheim's ninth forward is the 11th player, so the new one is the 12th, the tenth skater.
+    await expect(nameOf(rows(page, 'Skaters').nth(9))).toHaveValue('# 12')
 
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     expect(download.suggestedFilename()).toBe('nhl94.bin')
@@ -367,7 +373,8 @@ test.describe('with the NHL 94 ROM', () => {
     await romPicker(page).setInputFiles({ name: 'edited.bin', mimeType: 'application/octet-stream', buffer: saved })
     await expect(page.locator('input.rom-name')).toHaveValue('edited')
     await expect(nameOf(rows(page, 'Skaters').first())).toHaveValue('A Considerably Longer Name')
-    await expect(rows(page, 'Skaters')).toHaveCount(17)
+    await expect(rows(page, 'Skaters')).toHaveCount(18)
+    await expect(nameOf(rows(page, 'Skaters').nth(9))).toHaveValue('# 12')
     // The second expansion is now on offer, and warns that the ROM grows.
     await expect(page.getByRole('button', { name: /Add 512 bytes of roster space \(ROM grows to 2 MB\)/ })).toBeVisible()
   })
@@ -2199,7 +2206,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByRole('button', { name: 'Add 934 bytes of roster space' }).click()
     const florida = main.locator('tbody tr').filter({ hasText: "Has 17 players; the league's rules ask for at least 20." })
     await florida.getByRole('button', { name: 'Florida Panthers' }).click()
-    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add player' }).click()
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Add defenceman' }).click()
     await entry(page, /Check ROM/).click()
     await expect(main.getByText("Has 17 players; the league's rules ask for at least 20.")).toHaveCount(0)
 

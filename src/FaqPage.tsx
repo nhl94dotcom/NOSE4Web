@@ -52,7 +52,8 @@ export function FaqPage() {
 
         <dt>Why can't I add a player, or make a name longer?</dt>
         <dd>
-          A team holds at most {MAX_ROSTER} players, so <b>Add player</b> is greyed out at {MAX_ROSTER}. Names and
+          A team holds at most {MAX_ROSTER} players, so the <b>Add forward</b>, <b>Add defenceman</b> and{' '}
+          <b>Add goalie</b> buttons are greyed out at {MAX_ROSTER}. Names and
           players also share one fixed room in the ROM: the figure at the top of the page says how much is left. When
           the editor can make more room, a button at the top offers it, such as <b>Add 934 bytes of roster space</b>.
           Otherwise, shorten a name somewhere else. Help's <i>Space in the ROM</i> has more.

@@ -115,7 +115,7 @@ export function useSectionTabs(pageKey: string): void {
         button.classList.toggle('active', on)
         button.setAttribute('tabindex', on ? '0' : '-1')
       }
-      // What lies between sections (the team page's roster tools and Add player, between Team and Lines) goes with the
+      // What lies between sections (the team page's roster tools and Add buttons, between Team and Lines) goes with the
       // section before it; what comes before the first, or after one shown under every tab, is always shown.
       let tab: string | null = null
       for (const child of main!.children) {

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { readAscii, readU16, readU32 } from '../src/core/bytes'
 import { expandTeamSpace, nextExpansion } from '../src/core/expand'
 import { buildRom, openRom } from '../src/core/rom'
-import { addPlayer, deletePlayer, MAX_ROSTER, movePlayer, setForwards, setGoalieNibble } from '../src/core/roster'
+import { addPlayer, canAddPlayer, deletePlayer, MAX_ROSTER, movePlayer, setForwards, setGoalieNibble } from '../src/core/roster'
 import { goalieCount, teamSpace, type Team } from '../src/core/team'
 
 const romPath = fileURLToPath(new URL('../../nhl94.bin', import.meta.url))
@@ -55,6 +55,45 @@ describe.skipIf(!hasRom)('roster changes', () => {
     expect(goalieCount(team) + team.forwards + team.defense).toBe(team.players.length)
     for (let i = 0; i < 40; i++) team = addPlayer(team)
     expect(team.players).toHaveLength(MAX_ROSTER)
+  })
+
+  it('adds a forward after the last forward and a goalie after the last goalie, the lines keeping their players', () => {
+    const project = openRom(original)
+    const team = project.teams[ANAHEIM]
+    const goalies = goalieCount(team)
+    const who = (t: typeof team) => t.lines.map((line) => line.map((v) => (v === 0 ? '' : t.players[v - 1].name)))
+
+    const forward = addPlayer(team, 'F')
+    expect(forward.players).toHaveLength(team.players.length + 1)
+    expect(forward.forwards).toBe(team.forwards + 1)
+    expect(forward.defense).toBe(team.defense)
+    const at = goalies + team.forwards
+    expect(forward.players[at].name).toBe(`# ${at + 1}`)
+    expect(forward.players.slice(at + 1)).toEqual(team.players.slice(at))
+    expect(who(forward)).toEqual(who(team))
+
+    const goalie = addPlayer(team, 'G')
+    expect(goalieCount(goalie)).toBe(goalies + 1)
+    expect(goalie.forwards).toBe(team.forwards)
+    expect(goalie.players[goalies].name).toBe(`# 0${goalies + 1}`)
+    expect(who(goalie)).toEqual(who(team))
+
+    // The limits: 15 forwards, 4 goalies, 26 players.
+    let many = team
+    for (let i = 0; i < 20; i++) many = addPlayer(many, 'F')
+    expect(many.forwards).toBe(15)
+    let keepers = team
+    for (let i = 0; i < 6; i++) keepers = addPlayer(keepers, 'G')
+    expect(goalieCount(keepers)).toBe(4)
+    expect(canAddPlayer(keepers, 'G')).toBe(false)
+
+    // The ROM keeps them, given room (the original has none to spare).
+    const roomy = expandTeamSpace(project)
+    roomy.teams[ANAHEIM] = addPlayer(forward, 'G')
+    const reopened = openRom(buildRom(roomy)).teams[ANAHEIM]
+    expect(reopened.players).toEqual(roomy.teams[ANAHEIM].players)
+    expect(reopened.forwards).toBe(team.forwards + 1)
+    expect(goalieCount(reopened)).toBe(goalies + 1)
   })
 
   it('keeps forward, defence and goalie counts consistent', () => {

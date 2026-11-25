@@ -25,6 +25,8 @@ import {
   canAddPlayer,
   canDeletePlayer,
   deletePlayer,
+  MAX_GOALIES,
+  MAX_ROSTER,
   movePlayer,
   setForwards,
   setGoalieNibble,
@@ -810,9 +812,23 @@ export function TeamEditor(props: Props) {
       )}
       <div data-tab="Roster">
         <p>
-          <button disabled={!canAddPlayer(team)} onClick={() => onChange(addPlayer(team))}>
-            Add player
-          </button>{' '}
+          {(
+            [
+              ['F', 'Add forward', 'A new forward, after the last forward'],
+              ['D', 'Add defenceman', 'A new defenceman, at the end of the roster'],
+              ['G', 'Add goalie', 'A new goalie, after the last goalie'],
+            ] as const
+          ).map(([kind, label, about]) => (
+            <span key={kind}>
+              <button
+                disabled={!canAddPlayer(team, kind)}
+                title={`${about}. A team has at most ${MAX_ROSTER} players, ${kind === 'G' ? `${MAX_GOALIES} goalies` : `15 ${kind === 'F' ? 'forwards' : 'defencemen'}`}.`}
+                onClick={() => changeRoster(addPlayer(team, kind))}
+              >
+                {label}
+              </button>{' '}
+            </span>
+          ))}
           <span className="note">
             {ticked.length === 0 &&
               (notice || 'Select players to copy and paste them, move them to another team, release them, or make up new attributes for them.')}

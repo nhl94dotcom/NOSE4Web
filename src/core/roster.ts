@@ -28,16 +28,23 @@ export function movePlayer(team: Team, index: number, delta: -1 | 1): Team {
   return { ...team, players, lines: mapLines(team, (v) => (v === a ? b : v === b ? a : v)) }
 }
 
-export function canAddPlayer(team: Team): boolean {
-  return team.players.length < MAX_ROSTER
+// A new player's place: F after the last forward, D at the end of the roster, G after the last goalie.
+export type NewPlayerKind = 'F' | 'D' | 'G'
+
+export function canAddPlayer(team: Team, kind: NewPlayerKind = 'D'): boolean {
+  if (team.players.length >= MAX_ROSTER) return false
+  if (kind === 'F') return team.forwards < MAX_COUNT
+  if (kind === 'D') return team.defense < MAX_COUNT
+  return goalieCount(team) < MAX_GOALIES
 }
 
-// Adds a blank skater at the end of the roster, which makes them a defenceman.
-export function addPlayer(team: Team): Team {
-  if (!canAddPlayer(team)) return team
-  const number = String(team.players.length + 1).padStart(2, '0')
-  const player = { name: `# ${number}`, jersey: 0, attributes: new Array<number>(14).fill(0) }
-  return withSkaterCounts({ ...team, players: [...team.players, player] }, team.forwards)
+// Adds a blank player where `kind` puts them, named with their roster number once placed (# 19). Lines keep pointing
+// at the same people.
+export function addPlayer(team: Team, kind: NewPlayerKind = 'D'): Team {
+  if (!canAddPlayer(team, kind)) return team
+  const at = kind === 'G' ? goalieCount(team) : kind === 'F' ? goalieCount(team) + team.forwards : team.players.length
+  const player = { name: `# ${String(at + 1).padStart(2, '0')}`, jersey: 0, attributes: new Array<number>(14).fill(0) }
+  return kind === 'G' ? insertGoalie(team, player) : insertSkater(team, player, kind === 'F')
 }
 
 export function canDeletePlayer(team: Team, index: number): boolean {
