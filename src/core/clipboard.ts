@@ -29,6 +29,17 @@ export function copyPlayers(team: Team, indexes: number[], photoOf?: (index: num
   return JSON.stringify({ format: MARKER, players, ...(kinds ? { kinds } : {}) })
 }
 
+// Players from several teams in one copy (the League page's search), as copyPlayers makes it for one team.
+export function copyPlayersOf(picks: { team: Team; index: number; photo?: PlayerPhoto | null }[], game?: CopyKinds): string {
+  const players: CopiedPlayer[] = picks.map(({ team, index, photo }) => ({
+    ...team.players[index],
+    goalie: index < goalieCount(team),
+    ...(photo !== undefined ? { photo } : {}),
+  }))
+  const kinds = game ? { player: game.playerAttributeKinds, goalie: game.goalieAttributeKinds } : undefined
+  return JSON.stringify({ format: MARKER, players, ...(kinds ? { kinds } : {}) })
+}
+
 // The kinds the copy was made from, where it says.
 function copiedKinds(text: string): { player: AttributeKind[]; goalie: AttributeKind[] } | null {
   try {

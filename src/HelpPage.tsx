@@ -45,7 +45,8 @@ export function HelpPage() {
           Pick a page from the list on the left. It is in groups: <b>Game</b> (Teams, Game settings, Hacks and Rink
           colours), <b>League administration</b> (the League page, Trade, Bulk changes, Import a
           team, Real NHL season and New season), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
-          Compare ROMs), then the Features list, everything the editor can do in one list, and Help.
+          Compare ROMs), then the Features list, everything the editor can do in one list, Walkthroughs, common jobs step
+          by step (such as making a ROM of a real NHL season), and Help.
         </li>
         <li>
           <b>Teams</b> opens a team's page. Choose the team from the list at the top of the page; ◀ and ▶ beside it go to
@@ -1908,6 +1909,13 @@ export function HelpPage() {
           one overtime, and from 2015-16 that overtime is 3 on 3. The games always play an overtime and have no 4 on 4,
           so before 1983-84 there is still an overtime, and 1999-2000 to 2014-15 play theirs 5 on 5. The playoffs play
           overtime until a goal, as they always have. The overtime's length stays as Game settings has it.
+        </li>
+        <li>
+          <b>Offer only these teams in the menu:</b> after bringing them in, moves the season's teams to the top of the
+          team list, sets the menu to offer only them and the All-Star teams, and makes new playoff draws of them
+          alone, as Move teams, Teams in the menu and Fill the draws with the league's teams would by hand. The other
+          teams stay in the ROM after them. Where the menu offers fewer teams than the ROM has, the page also says
+          before you bring them in if a team would go where the menu cannot pick it.
         </li>
         <li>
           If the rosters need more room than the ROM has, it is given more roster space first; if that is not enough,

@@ -123,6 +123,11 @@ test.describe('without a ROM', () => {
     await expect(page.getByRole('heading', { name: 'Spreadsheet files' })).toBeInViewport()
 
     await page.getByRole('button', { name: 'Back' }).click()
+    // The walkthroughs, before a ROM is open too.
+    await page.getByRole('button', { name: 'Walkthroughs' }).click()
+    await page.getByRole('link', { name: 'A ROM of a real NHL season (1987-88)' }).click()
+    await expect(page.getByRole('heading', { name: 'A ROM of a real NHL season (1987-88)' })).toBeInViewport()
+    await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByRole('button', { name: 'How to use it' })).toBeVisible()
     // The features list, before a ROM is open too, with each game's hacks folded away.
     await page.getByRole('button', { name: 'Features list' }).click()
@@ -1521,6 +1526,22 @@ test.describe('with the NHL 94 ROM', () => {
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect(found.first()).toContainText('Los Angeles Kings')
 
+    // Or ticked and copied from here, to paste on a team's page.
+    await expect(page.getByRole('button', { name: 'Copy 0 ticked players' })).toBeDisabled()
+    await found.first().getByLabel('Copy Wayne Gretzky').check()
+    await page.getByRole('button', { name: 'Copy the ticked player' }).click()
+    await expect(page.getByText(/^Copied Wayne Gretzky\. On a team's page/)).toBeVisible()
+    await team(page, 'Anaheim Mighty Ducks').click()
+    const skaters = rows(page, 'Skaters')
+    const kept = await nameOf(skaters.nth(3)).inputValue()
+    await tick(skaters.nth(3))
+    await page.getByRole('button', { name: 'Paste attributes only' }).first().click()
+    await expect(page.getByText('Pasted the attributes of 1 player.')).toBeVisible()
+    await expect(nameOf(skaters.nth(3))).toHaveValue(kept)
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await entry(page, 'League').click()
+    await page.getByLabel('Player name to find').fill('gretzky')
+
     const table = leagueTable(page)
     await expect(table.locator('tbody tr')).toHaveCount(28)
     await expect(table.locator('tfoot')).toContainText('League average')
@@ -1670,6 +1691,14 @@ test.describe('with the NHL 94 ROM', () => {
     await main.getByLabel("Fill the All-Star teams with that season's best players of each conference").check()
     await main.getByRole('button', { name: 'Bring in 21 teams from 1979-80' }).click()
     await expect(main.getByText(/^The All-Star teams have the best players of 1979-80 by conference/)).toBeVisible()
+    // The menu offering only them, the All-Stars after them, and the later teams after those.
+    await main.getByRole('button', { name: 'Offer only the 21 teams of 1979-80 in the menu' }).click()
+    await expect(main.getByText('The menu now offers the 21 teams of 1979-80 and the All-Star teams, and the playoff draws are made of them. The other teams are after them in the ROM.')).toBeVisible()
+    await expect(main.getByRole('button', { name: 'The menu offers only the teams of 1979-80' })).toBeDisabled()
+    await entry(page, 'Game settings').click()
+    await expect(page.getByLabel('Teams in the menu')).toHaveValue('23')
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(page.getByLabel('Teams in the menu')).toHaveValue('28')
     await page.getByRole('button', { name: 'Undo' }).click()
     await team(page, 'Dallas Stars').click()
     await expect(nameOf(rows(page, 'Goalies').first())).toHaveValue(dallasGoalie)
@@ -1682,7 +1711,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(main.getByText(/^\d{3} players re-rated from 1992-93\.$/)).toBeVisible()
 
     // That season's rules: the original game already plays 1992-93's; 2015-16's are a shootout and 3 on 3.
-    await expect(main.getByRole('button', { name: "This ROM plays 1992-93's rules" })).toBeDisabled()
+    await expect(main.getByRole('button', { name: "Nothing to change: this ROM plays 1992-93's rules" })).toBeDisabled()
     await main.getByLabel('Season', { exact: true }).selectOption('20152016')
     await main.getByRole('button', { name: "Set the rules to 2015-16's" }).click()
     await expect(main.getByText("The rules are now 2015-16's.")).toBeVisible()

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { copiedPlayerCount, copyPlayers, pastePlayers } from '../src/core/clipboard'
+import { copiedPlayerCount, copyPlayers, copyPlayersOf, pastePlayers } from '../src/core/clipboard'
 import { openRom } from '../src/core/rom'
 import { goalieCount } from '../src/core/team'
 
@@ -25,6 +25,21 @@ describe.skipIf(!existsSync(romPath))('copying players', () => {
     expect(next.players[target + 1]).toEqual(boston.players[skater + 1])
     expect(next.players[target + 2]).toBe(anaheim.players[target + 2])
     expect(next.lines).toBe(anaheim.lines)
+  })
+
+  it('copies players of two teams at once, as the League page does, and pastes their attributes', () => {
+    const { anaheim, boston, skater } = setup()
+    const other = goalieCount(anaheim)
+    const text = copyPlayersOf([
+      { team: boston, index: skater },
+      { team: anaheim, index: other },
+    ])
+    // The same copy as each team's page makes, one after the other.
+    expect(JSON.parse(text).players).toEqual([...JSON.parse(copyPlayers(boston, [skater])).players, ...JSON.parse(copyPlayers(anaheim, [other])).players])
+    expect(copiedPlayerCount(text)).toBe(2)
+    const pasted = pastePlayers(anaheim, [other + 1, other + 2], text, true)
+    expect(pasted.players[other + 1]).toMatchObject({ name: anaheim.players[other + 1].name, attributes: boston.players[skater].attributes })
+    expect(pasted.players[other + 2]).toMatchObject({ name: anaheim.players[other + 2].name, attributes: anaheim.players[other].attributes })
   })
 
   it('repeats the copied players over a longer selection', () => {

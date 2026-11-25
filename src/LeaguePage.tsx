@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
+import { writeClipboard } from './clipboard'
 import { hex } from './core/bytes'
+import { copyPlayersOf } from './core/clipboard'
 import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages, teamSummaries, type SummaryColumn, type TeamSummary } from './core/league'
+import { playerPhoto, playerPhotosSupported } from './core/playerphotos'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
 
@@ -66,6 +69,9 @@ interface Props {
 export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
   const [search, setSearch] = useState('')
   const [moved, setMoved] = useState<{ text: string; failed: boolean } | null>(null)
+  // Players ticked to copy, by team and roster place; cleared when the ROM changes under them.
+  const [ticked, setTicked] = useState<{ team: number; index: number; name: string }[]>([])
+  const [copied, setCopied] = useState('')
   const [sort, setSort] = useState<{ key: string; down: boolean }>({ key: 'team', down: false })
   const [everyLine, setEveryLine] = useState(false)
   const [pair, setPair] = useState<[number, number]>([0, Math.min(1, project.teams.length - 1)])
@@ -75,6 +81,15 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
   const averages = useMemo(() => leagueAverages(summaries), [summaries])
   const linesAverage = useMemo(() => lineAverages(summaries), [summaries])
   const found = useMemo(() => findPlayers(project, search), [project, search])
+  // A tick holds while the player is still in that place (a move or an edit elsewhere can change it).
+  const stillTicked = ticked.filter((t) => project.teams[t.team]?.players[t.index]?.name === t.name)
+  const isTicked = (team: number, index: number) => stillTicked.some((t) => t.team === team && t.index === index)
+  async function copyTicked() {
+    const photos = playerPhotosSupported(project)
+    const picks = stillTicked.map((t) => ({ team: project.teams[t.team], index: t.index, ...(photos ? { photo: playerPhoto(project, t.team, t.index) } : {}) }))
+    await writeClipboard(copyPlayersOf(picks, project.game))
+    setCopied(`Copied ${picks.length === 1 ? stillTicked[0].name : `${picks.length} players`}. On a team's page, tick the players to paste over and choose Paste attributes only (or Paste over selected for the whole player).`)
+  }
   // The original games' All-Star teams are far above the rest; leagues that keep them do not play them.
   const allStars = useMemo(() => project.teams.flatMap((team, t) => (isAllStarTeam(teamDisplayName(team)) ? [t] : [])), [project.teams])
   const balance = useMemo(
@@ -157,6 +172,7 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
                 <th>Pos</th>
                 <th>#</th>
                 <th>Overall</th>
+                <th>Copy</th>
                 <th>Move to</th>
               </tr>
             </thead>
@@ -172,6 +188,20 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
                   <td>{p.role}</td>
                   <td>{hex(p.player.jersey)}</td>
                   <td>{p.overall}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`Copy ${p.player.name}`}
+                      checked={isTicked(p.team, p.index)}
+                      onChange={(e) =>
+                        setTicked(
+                          e.target.checked
+                            ? [...stillTicked, { team: p.team, index: p.index, name: p.player.name }]
+                            : stillTicked.filter((t) => !(t.team === p.team && t.index === p.index)),
+                        )
+                      }
+                    />
+                  </td>
                   <td>
                     <select
                       aria-label={`Move ${p.player.name} to`}
@@ -200,6 +230,14 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
               ))}
             </tbody>
           </table>
+        )}
+        {found.length > 0 && (
+          <p>
+            <button disabled={stillTicked.length === 0} onClick={() => void copyTicked()}>
+              Copy {stillTicked.length === 1 ? 'the ticked player' : `${stillTicked.length} ticked players`}
+            </button>{' '}
+            <span className="note">{copied || 'Tick players to copy them here, then paste on any team’s page.'}</span>
+          </p>
         )}
         {moved && <p className={moved.failed ? 'error' : 'note'}>{moved.text}</p>}
         {found.length > SEARCH_LIMIT && <p className="note">Only the first {SEARCH_LIMIT} are shown. Type more of the name.</p>}

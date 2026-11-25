@@ -92,7 +92,7 @@ export function SettingsEditor({ game, settings, original, teamNames, onChange, 
   const offered = settings.menuTeams?.offered ?? teamNames.length
   const leagueTeams = teamNames.slice(0, offered).flatMap((name, t) => (isAllStarTeam(name) ? [] : [t]))
   const slots = settings.playoffDraws[0]?.length ?? 0
-  const canFillDraws = settings.menuTeams !== null && offered < teamNames.length && slots > 0 && leagueTeams.length >= slots
+  const canFillDraws = slots > 0 && leagueTeams.length >= slots
 
   function fillDraws() {
     onChange({ ...settings, playoffDraws: leagueDraws(leagueTeams, settings.playoffDraws.length, slots) })

@@ -892,7 +892,7 @@ export function applySeason(project: RomProject, season: Season, placement: (num
   const left = built.flatMap((b, s) => (placement.includes(s) ? [] : [`${b.team.location} ${b.team.name}`]))
   notes.push(`${slots.length} ${slots.length === 1 ? 'team' : 'teams'} from ${season.season} brought in.`)
   if (left.length > 0) notes.push(`Not brought in: ${left.join(', ')}.`)
-  if (options.names && canName) notes.push("Logos, colours and arena names are kept: change them on each team's page.")
+  if (options.names && canName) notes.push("Logos, colours and stadium names are kept: change them on each team's page.")
   return { project: { ...current, teams }, notes }
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { eraDraft, eraRules } from './core/erarules'
+import { offerOnly, offersOnly } from './core/seasonmenu'
 import { overallRating } from './core/rating'
 import type { RomProject } from './core/rom'
 import {
@@ -42,6 +43,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const [notes, setNotes] = useState<string[]>([])
   const [rerateNotes, setRerateNotes] = useState<string[]>([])
   const [rulesNote, setRulesNote] = useState('')
+  const [menuNote, setMenuNote] = useState<{ text: string; failed: boolean } | null>(null)
   const supported = seasonBuilderSupported(project.game)
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
         setNotes([])
         setRerateNotes([])
         setRulesNote('')
+        setMenuNote(null)
         setError('')
       })
       .catch((e: unknown) => current && setError(e instanceof Error ? e.message : String(e)))
@@ -93,6 +96,10 @@ export function RealSeasonPage({ project, onChange }: Props) {
   const era = useMemo(() => (season ? eraRules(chosen) : null), [season, chosen])
   const eraPlan = useMemo(() => (era ? eraDraft(project, era) : null), [project, era])
   const ours = teamLabels(project.teams, project.game)
+  // The places the season's teams go, and those of them the Game Setup menu does not offer.
+  const placedSlots = placement.flatMap((s, slot) => (s === null ? [] : [slot]))
+  const menuOffers = project.settings.menuTeams?.offered ?? project.teams.length
+  const unoffered = placedSlots.filter((slot) => slot >= menuOffers)
   const placed = placement.filter((s) => s !== null).length
   // The ROM's teams a season's team can go to without being chosen by hand: all but its All-Star teams.
   const places = project.teams.filter((t) => !/all.?stars?/i.test(t.names.join(' '))).length
@@ -123,6 +130,26 @@ export function RealSeasonPage({ project, onChange }: Props) {
     if (!rerate || rerate.rerated === 0) return
     onChange(rerate.project)
     setRerateNotes(rerate.notes)
+  }
+
+  function offerSeasonTeams() {
+    if (!season) return
+    try {
+      const result = offerOnly(project, placedSlots)
+      if ('reason' in result) {
+        setMenuNote({ text: result.reason, failed: true })
+        return
+      }
+      onChange(result.project)
+      // The season's teams are now the first ones, in the order they were in.
+      setPlacement(project.teams.map((_, n) => (n < placedSlots.length ? placement[placedSlots[n]] : null)))
+      setMenuNote({
+        text: `The menu now offers the ${placedSlots.length} teams of ${season.season}${result.offered > placedSlots.length ? ' and the All-Star teams' : ''}, and the playoff draws are made of them. The other teams are after them in the ROM.`,
+        failed: false,
+      })
+    } catch (e) {
+      setMenuNote({ text: e instanceof Error ? e.message : String(e), failed: true })
+    }
   }
 
   function setRules() {
@@ -255,6 +282,13 @@ export function RealSeasonPage({ project, onChange }: Props) {
               .
             </p>
           )}
+          {unoffered.length > 0 && (
+            <p className="note">
+              The menu offers the first {menuOffers} teams, so {unoffered.map((slot) => `${season.teams[placement[slot]!].location} ${season.teams[placement[slot]!].name}`).join(', ')}{' '}
+              {unoffered.length === 1 ? 'goes' : 'go'} where it cannot be picked. Choose {unoffered.length === 1 ? 'another place' : 'other places'}, or bring them in
+              and then use Offer only these teams in the menu, below.
+            </p>
+          )}
           <p>
             <button disabled={placed === 0} onClick={bringIn}>
               Bring in {placed} {placed === 1 ? 'team' : 'teams'} from {season.season}
@@ -266,6 +300,22 @@ export function RealSeasonPage({ project, onChange }: Props) {
                 <li key={i}>{note}</li>
               ))}
             </ul>
+          )}
+          {project.settings.menuTeams && placed > 0 && (
+            <>
+              <h3>Offer only these teams in the menu</h3>
+              <p className="note">
+                After bringing them in: the {placed} teams of {season.season} go to the top of the team list, the
+                Game Setup menu offers only them (and the All-Star teams), and new playoff draws are made of them. The
+                other teams stay in the ROM, after them, as they are. Do this once the teams are in. Undo takes it back.
+              </p>
+              <p>
+                <button disabled={offersOnly(project, placedSlots)} onClick={offerSeasonTeams}>
+                  {offersOnly(project, placedSlots) ? `The menu offers only the teams of ${season.season}` : `Offer only the ${placed} teams of ${season.season} in the menu`}
+                </button>
+              </p>
+              {menuNote && <p className={menuNote.failed ? 'error' : undefined}>{menuNote.text}</p>}
+            </>
           )}
           <h3>Re-rate the players this ROM has</h3>
           <p className="note">
@@ -309,7 +359,7 @@ export function RealSeasonPage({ project, onChange }: Props) {
               )}
               <p>
                 <button disabled={eraPlan.count === 0} onClick={setRules}>
-                  {eraPlan.count > 0 ? `Set the rules to ${season.season}'s` : eraPlan.skipped.length ? 'Nothing else to change' : `This ROM plays ${season.season}'s rules`}
+                  {eraPlan.count > 0 ? `Set the rules to ${season.season}'s` : eraPlan.skipped.length ? 'Nothing else to change' : `Nothing to change: this ROM plays ${season.season}'s rules`}
                 </button>
               </p>
             </>

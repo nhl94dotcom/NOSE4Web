@@ -2669,6 +2669,13 @@ play-tested the ROMs (2026-11-22/23: 52 computer games).
   "Campbell", else the first East and the next West. Each takes the best goalies, forwards and defencemen of that
   conference's season teams by overall rating, as many as the other teams get (`ownNumbers` for shared numbers), new
   lines, and keeps its names and team ratings.
+- **Offer only these teams (`src/core/seasonmenu.ts`: `offerOnly`, `offersOnly`; added 2026-11-25).** After a
+  bring-in: `withTeamOrder` puts the placed slots first (in slot order), then All-Star teams (`isAllStarTeam`), then
+  the rest; `menuTeams.offered` = placed + All-Stars (team menu lines past it set to the last offered, as Game
+  settings does); `leagueDraws` over the placed teams only. Refuses with `teamMoveRange`'s reason, or where the ROM
+  has no `menuTeams`. Retail + 1987-88: 21 teams + 2 All-Stars offered, Check ROM clean (tests/seasonmenu.test.ts).
+  The page also notes placed slots at or past `menuTeams.offered` before the bring-in (CDL Season 12 placed New
+  Jersey and Washington at 27/28 of 24 offered).
 - **That season's rules (`src/core/erarules.ts`: `eraRules`, `eraDraft`; added 2026-11-23).** By the season's first
   year: before 2005 a tie after one overtime (Genesis `seasonTies` 'tie', SNES `seasonOvertime` and `seasonShootout`
   off, NHL '95 its three tie choices off); from 2005 a shootout after one overtime plus `nhlShootout`; from 2015
@@ -2691,7 +2698,7 @@ play-tested the ROMs (2026-11-22/23: 52 computer games).
 ### Files and tests
 
 `src/core/seasonbuilder.ts`, `src/RealSeasonPage.tsx`, `scripts/fetch-seasons.mjs`, `scripts/conferences.mjs`,
-`scripts/fetch-conferences.mjs`, `public/seasons/`, `src/core/erarules.ts`; `tests/erarules.test.ts`, `tests/seasonbuilder.test.ts` (season files, names, rosters,
+`scripts/fetch-conferences.mjs`, `public/seasons/`, `src/core/erarules.ts`, `src/core/seasonmenu.ts`; `tests/erarules.test.ts`, `tests/seasonmenu.test.ts`, `tests/seasonbuilder.test.ts` (season files, names, rosters,
 leaders, defencemen's offence, goalie ties, EA's 1992-93 ratings given back, placement, All-Stars, re-rate),
 `e2e/app.e2e.ts` ("fills the teams from a real NHL season").
 
