@@ -60,7 +60,7 @@ function restsOn(weights: Record<string, number | number[]>, stats: string[]): s
   return top.map((k) => `${(weights[k] as number) > 0 ? '+' : '−'} ${STATS[k]}`).join(', ')
 }
 
-// The share of the original game's players with each value, in per cent: "1: 9%, 2: 30%, �"; the top is the last.
+// The share of the original game's players with each value, in per cent: "1: 9%, 2: 30%, …"; the top is the last.
 function shares(count: number[]): string {
   const total = count.reduce((s, n) => s + n, 0)
   return count.map((n, value) => `${value}: ${Math.round((100 * n) / total)}%`).join(', ')
