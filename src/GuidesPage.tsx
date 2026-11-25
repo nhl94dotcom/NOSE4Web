@@ -1,4 +1,5 @@
 import { NHL94 } from './core/games'
+import { MAX_ROSTER } from './core/roster'
 import { LEAD_WEIGHT, TOP_SCORE, WEIGHTS } from './core/seasonbuilder'
 
 // Walkthroughs: common jobs step by step, in the order that works, for commissioners new to the editor, and what
@@ -11,9 +12,11 @@ const CONTENTS: [string, string][] = [
   ['first', 'Your first edit, start to finish'],
   ['copy', "Copy one player's ratings onto another"],
   ['moves', 'Move, trade and release players'],
+  ['rookie', 'Add a new player from scratch'],
   ['lines', 'Lines'],
   ['hacks', 'Bug fixes and game options (Hacks)'],
   ['looks', 'Team names, colours and logos'],
+  ['size', 'A league with fewer teams than the ROM'],
   ['before', 'Before a season starts: check and compare'],
   ['newseason', 'From one league season to the next'],
   ['save', 'Saving work, and picking it up later'],
@@ -209,8 +212,36 @@ export function GuidesPage() {
           Trade page shows how many) until you sign them with <b>Sign</b>. Free agents are kept in this browser and in
           a project file, not in the ROM: see Saving work, below.
         </li>
-        <li>After any of these, fix the lines (next). If you don't, a line can keep a place for a player who has gone.</li>
+        <li>After any of these, fix the lines (below). If you don't, a line can keep a place for a player who has gone.</li>
       </ul>
+
+      <h3 id="guide-rookie">Add a new player from scratch</h3>
+      <p>For a skater, such as a rookie no ROM has yet.</p>
+      <ol>
+        <li>
+          On the team's page, under Roster, choose <b>Add player</b>. The new player goes at the end of the roster,
+          named <i># 19</i> or the like, as a defenceman. The button is greyed out when the team has {MAX_ROSTER}{' '}
+          players. Each new player takes 14 bytes of the ROM's room for names and players, plus their name: if the top
+          of the page says the ROM is over the limit, see Help's <i>Space in the ROM</i>.
+        </li>
+        <li>
+          To make them a forward: show the roster in roster order, with nothing filtered, and move them up with{' '}
+          <b>↑</b> until they are just after the last forward. Then, on the Team tab, raise <b>Forwards</b> by 1. Skip
+          it, and they play as a defenceman: the game goes by roster order, not by a player's own position.
+        </li>
+        <li>Type their name and jersey number in the roster table.</li>
+        <li>
+          Give them ratings: tick them, and under <b>Make up attributes</b> choose the kind of skater and the level,
+          then <b>Make</b> (or <b>Random</b>). You can also set each rating by hand. Skip it, and every rating stays at
+          0, at the lightest weight.
+        </li>
+        <li>
+          Put them in the lines: on the Lines tab, choose them for a place, or choose <b>Build all lines</b> to build
+          every line again from the roster. <b>Fix broken lines</b> leaves them out, as no place is broken. Skip it, and
+          they never play: the game puts on the ice only the players in its lines.
+        </li>
+        <li>Open Check ROM.</li>
+      </ol>
 
       <h3 id="guide-lines">Lines</h3>
       <ul>
@@ -253,6 +284,37 @@ export function GuidesPage() {
           in a paint program.
         </li>
       </ul>
+
+      <h3 id="guide-size">A league with fewer teams than the ROM</h3>
+      <p>
+        For a league of, say, 20 teams in a ROM with 26 places, so the menu and the playoffs have only the league's
+        teams. The other teams stay in the ROM, after the league's.
+      </p>
+      <ol>
+        <li>
+          On <b>Bulk changes</b>, under <b>Move teams</b>, move the league's teams to the top of the team list with the
+          arrows beside each team. Their players, lines, names, colours and logos move with them. Skip it, and a
+          league team lower in the list than the number in the next step cannot be picked in the menu.
+        </li>
+        <li>
+          On <b>Game settings</b>, set <b>Teams in the menu</b> to the number of teams to offer. Count any All-Star
+          teams you want offered, and move them up to just after the league's teams. Skip it, and the menu offers
+          every team in the ROM.
+        </li>
+        <li>
+          Still on Game settings, under <b>Playoff draws</b>, choose <b>Fill the draws with the league's teams</b>. It
+          makes new draws from the teams in the menu (not the All-Star teams), each team in at least one. It is offered when the league has at
+          least as many teams as a draw holds (16 in the original game). Skip it, and a playoff can draw teams from
+          outside the league.
+        </li>
+        <li>Open Check ROM.</li>
+      </ol>
+      <p className="note">
+        The editor cannot add team places. For a bigger league, start from a ROM with more places, such as the 30-team
+        ROM or the SNES SA-1 build's 32-team version. To change which teams the league has, rename a place on its
+        team's page (see Team names, colours and logos, above). For a real NHL season, <b>Offer only these teams in
+        the menu</b> on Real NHL season does all three steps at once.
+      </p>
 
       <h3 id="guide-before">Before a season starts: check and compare</h3>
       <ol>
