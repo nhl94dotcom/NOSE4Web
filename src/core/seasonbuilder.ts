@@ -125,7 +125,7 @@ type Weights = { c: number; count: number[] } & { [standing: string]: number | n
 // EA rated veterans higher. Agility then matches EA's within one step for 91 per cent of the players, not 93.
 // Each entry: a constant, a weight for each
 // standing, and how many of the original game's players have each value of the attribute (0 up).
-const WEIGHTS: Record<'F' | 'D' | 'G', Record<string, Weights>> = {
+export const WEIGHTS: Record<'F' | 'D' | 'G', Record<string, Weights>> = {
   F: {
     Agl: { c: 1.38, gp: 0.5, g: 0.65, a: 0.81, shots: 0.99, shpct: -0.01, pim: -0.08, pm: 0.08, ppg: -0.08, shg: 0.27, h: 0, w: 0, age: -0.15, count: [0, 29, 100, 96, 87, 24, 2] },
     Spd: { c: 1.93, gp: 0.52, g: 0.76, a: 0.33, shots: 1.07, shpct: -0.26, pim: -0.24, pm: 0.29, ppg: -0.05, shg: 0.05, h: -0.34, w: -0.23, age: -0.1, count: [0, 18, 106, 115, 83, 12, 4] },
@@ -327,7 +327,7 @@ interface RatedGroup {
 }
 
 // The lowest score that earned each attribute's top value in 1992-93 (see shareOut's use in rateGroup).
-const TOP_SCORE: Record<'F' | 'D' | 'G', Record<string, number>> = {
+export const TOP_SCORE: Record<'F' | 'D' | 'G', Record<string, number>> = {
   F: { Agl: 4.312, Spd: 4.135, OfA: 4.753, DfA: 3.683, ShP: 3.969, Chk: 3.228, StH: 4.08, ShA: 4.723, End: 4.609, Rgh: 3.879, Pas: 3.855, Agr: 4.51, Fgt: 3.916 },
   D: { Agl: 3.681, Spd: 3.362, OfA: 3.384, DfA: 3.916, ShP: 3.892, Chk: 3.709, StH: 3.734, ShA: 2.312, End: 4.541, Rgh: 3.779, Pas: 3.927, Agr: 4.305, Fgt: 3.362 },
   G: { Agl: 4.174, Spd: 3.483, OfA: 5.119, DfA: 5.119, PkC: 4.131, StR: 4.147, StL: 3.972, GvR: 4.182, GvL: 4.028 },
@@ -339,7 +339,7 @@ const TOP_SCORE: Record<'F' | 'D' | 'G', Record<string, number>> = {
 // on most (assists for passing, shooting percentage for shot accuracy, penalty minutes for aggression: a weight of
 // at least LEAD_WEIGHT; games are left out, as many players share the most) always gets the top value: Wayne
 // Gretzky's 163 assists in 1985-86 stand only a little above the next player's, as standings go by order.
-const LEAD_WEIGHT = 1.2
+export const LEAD_WEIGHT = 1.2
 const mainStat = (w: Weights, raw: Raw): string | undefined =>
   Object.keys(raw)
     .filter((k) => k !== 'gp' && typeof w[k] === 'number' && (w[k] as number) >= LEAD_WEIGHT)

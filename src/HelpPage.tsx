@@ -9,7 +9,7 @@ const SECTIONS: [string, [string, string][]][] = [
   ['Getting started', [['start', 'Getting started'], ['narrow', 'On a phone or tablet'], ['space', 'Space in the ROM'], ['reset', 'Resetting changes'], ['download', 'Downloading your work'], ['trouble', 'If something goes wrong']]],
   ['Teams', [['teams', 'Teams'], ['players', 'Players and goalies'], ['ratinguse', 'What the ratings do in play'], ['arrows', 'Moving with the keyboard'], ['copy', 'Copy and paste'], ['make', 'Making up attributes'], ['keys', 'Quick edit keys'], ['lines', 'Lines'], ['colours', 'Team colours'], ['pictures', 'Logos and banners'], ['genesis-score-logos', 'Score logos (Genesis)'], ['genesis-blood', 'Head bleeding (Genesis)'], ['photos', 'Player photos']]],
   ['Game', [['settings', 'Game settings'], ['midi', 'Preparing a MIDI file for an organ song'], ['hacks', 'Hacks'], ['rink', 'Rink colours']]],
-  ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['realseason', 'Real NHL season'], ['byname', 'Matching teams by name']]],
+  ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['realseason', 'Real NHL season'], ['newseason', 'New season'], ['byname', 'Matching teams by name']]],
   ['Files', [['csv', 'Spreadsheet files'], ['picturefiles', 'Picture files'], ['project', 'Project file']]],
   ['Review', [['check', 'Check ROM'], ['rules', "Your league's rules"], ['changes', 'Changes and seasons'], ['compare', 'Compare ROMs']]],
   ['The games and ROMs', [['roms', 'Supported ROMs and limits'], ['snes', 'The SNES game'], ['nhl95', "NHL '95"]]],
@@ -46,7 +46,7 @@ export function HelpPage() {
           colours), <b>League administration</b> (the League page, Trade, Bulk changes, Import a
           team, Real NHL season and New season), <b>Files</b> (spreadsheets, pictures and project files) and <b>Review</b> (Check ROM, Changes and
           Compare ROMs), then the Features list, everything the editor can do in one list, Walkthroughs, common jobs step
-          by step (such as making a ROM of a real NHL season), and Help.
+          by step (such as making a ROM of a real NHL season), the FAQ, short answers to common questions, and Help.
         </li>
         <li>
           <b>Teams</b> opens a team's page. Choose the team from the list at the top of the page; ◀ and ▶ beside it go to
@@ -1870,9 +1870,10 @@ export function HelpPage() {
           gets the forward's rating: Paul Coffey a 5 in 1985-86, and Bobby Orr, with more assists than any forward in
           1970-71, a 6. A player's size does not lower their Agility (Weight already does that in the game), age counts a little
           against Agility and Speed, and age does not count for skills such as passing. The weights were set so that 1992-93, the season EA rated the original game from, gives back EA's
-          ratings within one step for about nine players in ten (all but one in a hundred for Offensive Awareness, Shot
+          ratings within one step for about nine players in ten (98 or more in a hundred for Offensive Awareness, Shot
           Accuracy, Roughness and Aggression). Speed, Agility and Checking are the least sure, as no stat measures them.
-          Weight, shooting hand and glove hand are the player's own; fighting comes from penalty minutes and size.
+          Weight, shooting hand and glove hand are the player's own; fighting comes from penalty minutes and size. The
+          Walkthroughs page, under <i>How Real NHL season rates players</i>, has the whole method and every weight.
         </li>
         <li>
           <b>Where each team goes:</b> to the ROM's team of the same name or franchise (the Atlanta Flames where the
@@ -1922,6 +1923,33 @@ export function HelpPage() {
           the skaters with the fewest games are left out, and the page says how many.
         </li>
         <li>Undo takes it all back. The stats come from the NHL's public stats service.</li>
+      </ul>
+
+      <h3 id="help-newseason">New season</h3>
+      <p>
+        <b>New season</b> (under League administration) marks where a league season begins. Use it once a season, when
+        the off-season starts: before the trades, signings, rookies and rating changes of the season ahead.
+      </p>
+      <ul>
+        <li>
+          <b>What it does:</b> it keeps the teams, settings and hacks as they stand now as the season's starting point,
+          and gives the work the new season's name (Season_12 becomes Season_13; you can type another). It can first
+          save a project file of the season just ended, and can let the free agents go.
+        </li>
+        <li>
+          <b>Why use it:</b> from then on the <b>Changes</b> page, with <b>since the season began</b>, lists everything
+          changed in the off-season, however many times you close the editor or download the ROM in between. That list
+          is the report to post for the league: every trade, signing, release, new player and rating change.
+        </li>
+        <li>
+          <b>Without it:</b> Changes can only list what changed since this ROM was opened, or since the last season you
+          started, so a report can miss changes from an earlier sitting or mix two seasons.
+        </li>
+        <li>
+          It changes nothing in the ROM, and the starting point is not kept in it: it is kept in this browser and in a
+          project file. To keep it on another computer, save a project file. Your league rules carry over. Starting
+          another season replaces the starting point, and Undo takes it back.
+        </li>
       </ul>
 
       <h3 id="help-byname">Matching teams by name</h3>

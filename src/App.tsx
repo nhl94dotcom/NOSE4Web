@@ -70,6 +70,7 @@ const HelpPage = lazy(() => import('./HelpPage').then((m) => ({ default: m.HelpP
 const RealSeasonPage = lazy(() => import('./RealSeasonPage').then((m) => ({ default: m.RealSeasonPage })))
 const FeaturesPage = lazy(() => import('./FeaturesPage').then((m) => ({ default: m.FeaturesPage })))
 const GuidesPage = lazy(() => import('./GuidesPage').then((m) => ({ default: m.GuidesPage })))
+const FaqPage = lazy(() => import('./FaqPage').then((m) => ({ default: m.FaqPage })))
 const HacksPage = lazy(() => import('./HacksPage').then((m) => ({ default: m.HacksPage })))
 const SnesHacksPage = lazy(() => import('./SnesHacksPage').then((m) => ({ default: m.SnesHacksPage })))
 const Nhl95HacksPage = lazy(() => import('./Nhl95HacksPage').then((m) => ({ default: m.Nhl95HacksPage })))
@@ -98,6 +99,7 @@ const NEW_SEASON = -15
 const FEATURES = -16
 const REAL_SEASON = -17
 const GUIDES = -18
+const FAQ = -19
 // The pages that keep work not done yet (pagedrafts.ts).
 const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
@@ -157,7 +159,7 @@ export default function App() {
   // The teams' pages share their tab; each other page has its own.
   useSectionTabs(selected >= 0 ? 'team' : String(selected))
   // Whether the help is showing before any ROM has been opened.
-  const [welcomeHelp, setWelcomeHelp] = useState<'help' | 'features' | 'guides' | null>(null)
+  const [welcomeHelp, setWelcomeHelp] = useState<'help' | 'features' | 'guides' | 'faq' | null>(null)
   // Work stored by an earlier visit, offered on the welcome screen.
   const [earlier, setEarlier] = useState<Session | null>(null)
 
@@ -375,7 +377,7 @@ export default function App() {
         {error && <p className="error">{error}</p>}
         <div className="body">
           <Suspense fallback={loading}>
-            {welcomeHelp === 'features' ? <FeaturesPage /> : welcomeHelp === 'guides' ? <GuidesPage /> : <HelpPage />}
+            {welcomeHelp === 'features' ? <FeaturesPage /> : welcomeHelp === 'guides' ? <GuidesPage /> : welcomeHelp === 'faq' ? <FaqPage /> : <HelpPage />}
           </Suspense>
         </div>
       </div>
@@ -389,6 +391,7 @@ export default function App() {
         <p>An editor for NHL 94 and NHL '95 on the Sega Genesis, and NHL '94 on the SNES: rosters, lines, colours and game settings.</p>
         <p>
           {picker} <button onClick={() => setWelcomeHelp('guides')}>Walkthroughs</button>{' '}
+          <button onClick={() => setWelcomeHelp('faq')}>FAQ</button>{' '}
           <button onClick={() => setWelcomeHelp('help')}>How to use it</button>{' '}
           <button onClick={() => setWelcomeHelp('features')}>Features list</button>
         </p>
@@ -536,6 +539,8 @@ export default function App() {
         return <FeaturesPage />
       case GUIDES:
         return <GuidesPage />
+      case FAQ:
+        return <FaqPage />
       default:
         return (
           <TeamEditor
@@ -651,6 +656,7 @@ export default function App() {
     [HELP]: 'Help',
     [FEATURES]: 'Features list',
     [GUIDES]: 'Walkthroughs',
+    [FAQ]: 'FAQ',
     [CHECK]: 'Check ROM',
     [COMPARE]: 'Compare ROMs',
     [LEAGUE]: 'League',
@@ -762,6 +768,7 @@ export default function App() {
           {entry(COMPARE, 'Compare ROMs')}
           {entry(FEATURES, 'Features list')}
           {entry(GUIDES, 'Walkthroughs')}
+          {entry(FAQ, 'FAQ')}
           {entry(HELP, 'Help')}
         </nav>
         <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>

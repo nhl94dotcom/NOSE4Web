@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import { openRom } from '../src/core/rom'
+import { FaqPage } from '../src/FaqPage'
+import { GuidesPage } from '../src/GuidesPage'
 import { HelpPage } from '../src/HelpPage'
 import { TeamEditor } from '../src/TeamEditor'
 
@@ -14,6 +16,24 @@ it('renders the help page with every section its contents list links to', () => 
   expect(links.length).toBeGreaterThan(10)
   for (const id of links) expect(html).toContain(`id="${id}"`)
   expect(html).toContain('_players.csv')
+})
+
+it('renders the walkthroughs with every section their contents list links to, and the ratings method from the code', () => {
+  const html = renderToStaticMarkup(<GuidesPage />)
+  const links = [...html.matchAll(/href="#(guide-[a-z]+)"/g)].map((m) => m[1])
+  expect(links.length).toBeGreaterThan(10)
+  for (const id of links) expect(html).toContain(`id="${id}"`)
+  // Every attribute of each group in the weights, and what each rests on.
+  for (const name of ['Agility', 'Shot Accuracy', 'Fighting', 'Puck Control', 'Glove Left']) expect(html).toContain(`<td>${name}</td>`)
+  expect(html).toContain('Shot Accuracy: + shooting percentage')
+  expect(html).not.toContain('undefined')
+  expect(html).not.toContain('NaN')
+})
+
+it('renders the FAQ', () => {
+  const html = renderToStaticMarkup(<FaqPage />)
+  expect(html.match(/<dt>/g)?.length).toBeGreaterThan(10)
+  expect(html).toContain('26 players')
 })
 
 it.skipIf(!existsSync(romPath))('renders every team without errors', () => {

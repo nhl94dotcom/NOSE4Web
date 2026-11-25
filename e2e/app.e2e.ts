@@ -45,7 +45,7 @@ async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
   await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(19)
+  await expect(pageEntries(page)).toHaveCount(20)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -125,8 +125,18 @@ test.describe('without a ROM', () => {
     await page.getByRole('button', { name: 'Back' }).click()
     // The walkthroughs, before a ROM is open too.
     await page.getByRole('button', { name: 'Walkthroughs' }).click()
-    await page.getByRole('link', { name: 'A ROM of a real NHL season (1987-88)' }).click()
-    await expect(page.getByRole('heading', { name: 'A ROM of a real NHL season (1987-88)' })).toBeInViewport()
+    await page.getByRole('link', { name: 'A bigger job: a ROM of a real NHL season (1987-88)' }).click()
+    await expect(page.getByRole('heading', { name: 'A bigger job: a ROM of a real NHL season (1987-88)' })).toBeInViewport()
+    // The ratings method, with its weights from the code.
+    await page.getByRole('link', { name: 'How Real NHL season rates players' }).click()
+    await expect(page.getByRole('heading', { name: 'How Real NHL season rates players' })).toBeInViewport()
+    await page.getByText('All the weights').click()
+    await expect(page.getByRole('cell', { name: 'Shot Accuracy' }).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Back' }).click()
+    // The FAQ, a page of its own.
+    await page.getByRole('button', { name: 'FAQ' }).click()
+    await expect(page.getByRole('heading', { name: 'FAQ' })).toBeVisible()
+    await expect(page.getByText('What is the difference between the ROM, a project file and a patch?')).toBeVisible()
     await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByRole('button', { name: 'How to use it' })).toBeVisible()
     // The features list, before a ROM is open too, with each game's hacks folded away.
@@ -1760,7 +1770,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(19)
+  await expect(pageEntries(page)).toHaveCount(20)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2660,7 +2670,7 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(19)
+  await expect(pageEntries(page)).toHaveCount(20)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -3178,7 +3188,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(19)
+  await expect(pageEntries(page)).toHaveCount(20)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 

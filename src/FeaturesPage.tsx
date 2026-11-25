@@ -36,7 +36,7 @@ export function FeaturesPage() {
     <main className="team help features" data-no-tabs>
       <h2>Features list</h2>
       <p className="note">
-        Everything NOSE4Web can do, in the order of the list of pages. For how to use each one, see Help.
+        Everything NOSE4Web can do, in the order of the list of pages. For how to use each one, see Help; for common jobs step by step, Walkthroughs; for short answers, the FAQ.
       </p>
 
       <h3>Games and files</h3>
