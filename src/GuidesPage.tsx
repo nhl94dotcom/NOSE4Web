@@ -437,11 +437,12 @@ export function GuidesPage() {
           <b>Fill the draws with the league's teams</b> on Game settings, in that order.)
         </li>
         <li>
-          On <b>Game settings</b>, set the <b>Overtime</b> length under Clock, in seconds. The NHL's overtime was 5
-          minutes against 20-minute periods, a quarter of a period: 75 seconds for a league that plays 5-minute
-          periods, 150 for 10, 300 for 20. If you change a period length there, change its menu text too. Skip it, and
-          the overtime stays as the ROM has it: in the original game, 600 seconds on the Genesis and 300 on the SNES,
-          whatever the period length.
+          On <b>Game settings</b>, set the <b>Overtime</b> length under Clock, in seconds. This is the regular
+          season's overtime; in the playoffs, an overtime is as long as a period, as in the NHL. The NHL's regular-season
+          overtime was 5 minutes against 20-minute periods, a quarter of a period: 75 seconds for a league that plays
+          5-minute periods, 150 for 10, 300 for 20. If you change a period length there, change its menu text too. Skip
+          it, and the regular season's overtime stays as the ROM has it: in the original game, 600 seconds on the
+          Genesis and 300 on the SNES, whatever the period length.
         </li>
         <li>
           The looks. Names come with the season, but logos, colours and stadium names stay as the ROM had them. For
@@ -556,7 +557,7 @@ export function GuidesPage() {
         </li>
         <li>
           <b>Other ratings.</b> Weight is the player's own weight in pounds. Shooting hand, and a goalie's glove hand,
-          come from the NHL's data. Fighting has a recipe of its own, mostly from penalty minutes and weight.
+          come from the NHL's data. Fighting has a recipe of its own: penalty minutes count most, and fewer assists count for it too.
         </li>
         <li>
           <b>Team ratings.</b> Offence comes from goals scored a game, and Defence from goals allowed a game; from
