@@ -469,16 +469,20 @@ export function GuidesPage() {
       </p>
 
       <h3 id="guide-ratings">How Real NHL season rates players</h3>
-      <p>Real NHL season works out each player's ratings from their stats in that one season. The steps, in order:</p>
+      <p>
+        In short: each player is compared with the other players of that season, one stat at a time. Those comparisons
+        are added up into a score for each rating, and the scores are turned into 0 to 6 ratings, so that the season has
+        about as many 1s, 2s, 3s and so on as the original NHL 94 has. The details, step by step:
+      </p>
       <ol>
         <li>
-          <b>Who is rated together.</b> Each team takes the goalies, forwards and defencemen with the most games for it.
-          Every player chosen across the league is then rated among the others of their kind: forwards among forwards,
-          defencemen among defencemen, goalies among goalies. A player traded during the season is rated on their whole
-          season, every team added together.
+          <b>Who is compared with whom.</b> Each team gets the goalies, forwards and defencemen with the most games for
+          it, as many as you chose. Forwards are then compared only with the other forwards across the league,
+          defencemen with defencemen, and goalies with goalies. A player traded during the season counts with their
+          whole season, all their teams added together.
         </li>
         <li>
-          <b>The stats.</b> For skaters: goals, assists, shots, penalty minutes, plus-minus, power-play goals and
+          <b>The stats used.</b> For skaters: goals, assists, shots, penalty minutes, plus-minus, power-play goals and
           short-handed goals, each per game; shooting percentage; games played; and height, weight and age. For
           goalies: save percentage, goals against average, share of decisions won, shutouts per game, games played,
           height, weight and age.
@@ -510,64 +514,69 @@ export function GuidesPage() {
           </ul>
         </li>
         <li>
-          <b>Standings, not totals.</b> Each stat becomes where the player stands among their group that season, from
-          0 (the lowest) to 1 (the highest). This is what lets every era be rated alike: 50 goals meant more in some
-          seasons than in others, but the season's top scorer stands at the top either way.
+          <b>Each stat becomes a rank from 0 to 1.</b> The raw numbers are not compared, because they mean different
+          things in different seasons: 50 goals was rarer in 1998 than in 1982. Instead, each stat becomes the player's
+          place in that season's order, as a number from 0 to 1: 0 for the lowest, 1 for the highest, 0.5 for the
+          middle. A forward who scored more goals a game than three quarters of the forwards has about 0.75 for goals.
         </li>
         <li>
-          <b>A score for each attribute.</b> Each attribute's score is a starting number, plus each standing times its
-          weight (the tables below). For example, a forward's Shot Accuracy rests almost entirely on shooting
-          percentage, and Aggression on penalty minutes.
+          <b>A score for each rating.</b> Each rating has its own recipe: a starting number, plus each stat's rank
+          times how much that stat counts for that rating (its weight). For a forward's Shot Accuracy, shooting
+          percentage counts by far the most (a weight of 2.96), goals a little (0.69), and the other stats hardly at
+          all. So a forward ranked 0.9 for shooting percentage and 0.8 for goals scores about 0.85 + 2.96 × 0.9 + 0.69
+          × 0.8 = 4.07, plus a little from the other stats. The lists below give each recipe's main stats, and{' '}
+          <i>All the weights</i>, at the end, gives every recipe in full.
         </li>
         <li>
-          <b>Scores become ratings.</b> The players are put in order of score and given the 0 to 6 ratings in the same
-          proportions as the original NHL 94's players have them, the lowest scores the lowest ratings. For example, of
-          the original game's forwards, about 9 per cent have Agility 1, 30 per cent 2, 28 per cent 3, 26 per cent 4, 7
-          per cent 5 and 1 per cent 6. The top rating is 6 for most attributes; for a few, such as Checking, EA gave
-          no one above 5, and that stays the top. There is one exception at the top: every player whose score reaches
-          what earned the top rating in 1992-93 gets it, however many do that season. So a season with more standout
-          players has more top ratings.
+          <b>Scores become 0 to 6 ratings.</b> The players are lined up by score, and the ratings are handed out in the
+          same shares as in the original NHL 94, the lowest scores getting the lowest ratings. For a forward's Agility,
+          that is: the lowest 9 per cent get a 1, the next 30 per cent a 2, then 28 per cent a 3, 26 per cent a 4, 7 per
+          cent a 5, and the top 1 per cent a 6. Most ratings go up to 6; a few stop lower, because EA gave no one more
+          (a forward's Checking stops at 5, for example). One exception: a score high enough to have earned the top
+          rating in 1992-93 always earns it, even if that makes more top ratings than the shares above. So a season with
+          many standout players has more of them.
         </li>
         <li>
-          <b>The season's leader.</b> The player who leads the season in the stat an attribute rests on most always
-          gets the top rating for it: the assists leader for Pass Accuracy, for example. (This counts only where that stat's
-          weight is {LEAD_WEIGHT} or more; games played never counts, as many players share the most.) Standings go by
-          order, so without this, Wayne Gretzky's 163 assists in 1985-86 would stand only a little above the next
-          player's.
+          <b>The season's leader.</b> The player with the season's best number in a rating's main stat always gets the
+          top rating for it: the assists leader for Pass Accuracy, the penalty minutes leader for Aggression. This is
+          needed because a rank shows only the order, not by how much: Wayne Gretzky's 163 assists in 1985-86 would rank
+          just above the next player's, though he was far ahead. (A main stat here is one with a weight of{' '}
+          {LEAD_WEIGHT} or more in that recipe. Games played never counts, as many players tie for the most.)
         </li>
         <li>
-          <b>Defencemen's offence.</b> EA rated no defenceman above 4 for Offensive Awareness, so the defencemen's own
-          scale stops there. A defenceman is also rated among the forwards for it, and keeps the higher of the two:
-          Paul Coffey's 138 points in 1985-86 earn a 5, and Bobby Orr's 102 assists in 1970-71, the most of any player,
-          a 6.
+          <b>Defencemen's Offensive Awareness.</b> EA gave no defenceman more than 4 for it, so defencemen normally stop
+          at 4. But each defenceman is also compared with the forwards for it, and keeps the higher result. So Paul
+          Coffey (138 points in 1985-86) gets a 5, and Bobby Orr (102 assists in 1970-71, more than any forward) a 6.
         </li>
         <li>
-          <b>A cap on overall.</b> No one comes out above the original game's best overall rating: 100 for a skater
-          (Mario Lemieux), 98 for a goalie (Ed Belfour). A player who would has their highest ratings lowered one step
-          at a time, the least earned first. Roughness and Aggression are never lowered, as they are not marks of
-          quality.
+          <b>A ceiling on overall.</b> No one comes out higher overall than the best players of the original game: 100
+          for a skater (Mario Lemieux) and 98 for a goalie (Ed Belfour). For a player who would go over, their highest
+          ratings come down one step at a time, starting with the one they earned by the smallest margin, until they
+          are at the ceiling. Roughness and Aggression are never lowered, because higher is not better for them.
         </li>
         <li>
-          <b>The rest.</b> Weight comes from the player's weight in pounds, and shooting hand and a goalie's glove hand
-          from the NHL's data. Fighting has a score of its own, from penalty minutes and weight mostly. Team ratings:
-          Offence and Defence come from goals for and against a game, and from 1977-78 the power play and penalty kill
-          from that season's percentages. The teams are put in order and given the values the ROM's own teams had, the
-          best team the best value.
+          <b>Other ratings.</b> Weight is the player's own weight in pounds. Shooting hand, and a goalie's glove hand,
+          come from the NHL's data. Fighting has a recipe of its own, mostly from penalty minutes and weight.
         </li>
         <li>
-          <b>Players who made no roster</b> (for Re-rate): each is placed among the players who did, and gets the
-          rating of the rostered player with the nearest score at or below theirs. This way nobody else's rating
-          changes.
+          <b>Team ratings.</b> Offence comes from goals scored a game, and Defence from goals allowed a game; from
+          1977-78 on, the power play and penalty kill come from that season's percentages. On each, the teams are put
+          in order and handed the values the ROM's own teams already had: the best team gets the best of them.
+        </li>
+        <li>
+          <b>Players with too few games for a roster</b> (they matter for Re-rate): each is compared with the players
+          who made a roster, and gets the same rating as the rostered player whose score is just at or below theirs.
+          This way nobody else's ratings change.
         </li>
       </ol>
       <h4>Where the weights come from</h4>
       <p>
-        EA made the original NHL 94's ratings from the 1992-93 season. The weights were fitted so that 1992-93's stats
-        give back EA's ratings as closely as they can, and then changed a little by hand: height and weight no longer
-        count for Agility (the game already slows a heavy player), age counts a little against Agility and Speed, and
-        age no longer counts for skills such as passing and shooting, where EA rated veterans higher.
+        EA rated the original NHL 94's players from the 1992-93 season. The recipes were tuned so that, given 1992-93's
+        stats, they come as close as they can to EA's ratings. Then a few things were changed by hand: height and weight
+        no longer count for Agility (the game already slows a heavy player), age counts a little against Agility and
+        Speed, and age no longer counts for skills such as passing and shooting, where EA rated veterans higher.
       </p>
-      <p>Given 1992-93's stats, the method gives back EA's own ratings this closely (531 players found in both by name):</p>
+      <p>Given 1992-93's stats, the recipes give back EA's own ratings this closely (531 players found in both by name):</p>
       <table className="season-players">
         <thead>
           <tr>
@@ -590,7 +599,7 @@ export function GuidesPage() {
         Checking, Agility and Speed match least well: no stat measures them, so they come from what goes with them,
         such as games, points, shots, age and size. You can change any player on their team's page afterwards.
       </p>
-      <h4>What each attribute rests on most</h4>
+      <h4>What each rating rests on most</h4>
       {GROUPS.map(({ group, title, goalie }) => (
         <div key={group}>
           <p>
@@ -599,8 +608,8 @@ export function GuidesPage() {
           <ul>
             {shownWeights(group).map(([label, w]) => (
               <li key={label}>
-                {shownName(label, goalie)}: {restsOn(w, goalie ? GOALIE_STATS : SKATER_STATS)}. The original game's
-                players: {shares(w.count)}.
+                {shownName(label, goalie)}: {restsOn(w, goalie ? GOALIE_STATS : SKATER_STATS)}. Share of the original
+                game's players at each rating: {shares(w.count)}.
               </li>
             ))}
           </ul>
@@ -608,14 +617,15 @@ export function GuidesPage() {
       ))}
       <p className="note">
         "+" means more of that stat raises the rating, and "−" means more of it lowers the rating. A goalie's goals
-        against average is turned round first, so a lower average counts as more. Roughness is the game's shoot or pass
-        bias, so it rests on shots against assists: a shooter rather than a passer.
+        against average is turned round first, so a lower average counts as more. Roughness is the game's shoot-or-pass
+        setting: the higher it is, the more a computer player shoots rather than passes, so it rises with shots and
+        falls with assists.
       </p>
       <details>
         <summary>All the weights</summary>
         <p className="note">
-          A score is the start, plus each weight times the player's standing in that stat (0 to 1). "Top rating from" is
-          the score that earned the top rating in 1992-93: any player who reaches it gets that rating.
+          Each recipe is the start, plus each weight times the player's rank in that stat (0 to 1). "Top rating from"
+          is the score that earned the top rating in 1992-93: any player who reaches it gets that rating.
         </p>
         {GROUPS.map(({ group, title, goalie }) => (
           <div key={group} className="scroll">
