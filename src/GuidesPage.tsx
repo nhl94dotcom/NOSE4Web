@@ -66,8 +66,9 @@ export function GuidesPage() {
       <h3 id="guide-season">A ROM of a real NHL season (1987-88)</h3>
       <p>
         The aim: the 21 teams of 1987-88, with that season's players rated from their stats, its names, its rules for
-        tied games, and a menu and playoffs of those 21 teams. Start from the original NHL 94 (or a league ROM built on
-        it). Each step is one Undo, so you can try freely.
+        tied games, and a menu and playoffs of those 21 teams. Start from the original game: NHL 94 on the Genesis,
+        or on the SNES the original or McMarkis's SA-1 build (its 32-team version has a place for every team of a
+        recent season, where the others have 26). Each step is one Undo, so you can try freely.
       </p>
       <ol>
         <li>
@@ -85,8 +86,7 @@ export function GuidesPage() {
         <li>
           Look over <b>Where each team goes</b>. Each 1987-88 team goes where the ROM has the same team or franchise:
           the North Stars where the Dallas Stars are, the Nordiques where Quebec is. The five teams that came later
-          (Anaheim, Florida, Ottawa, San Jose and Tampa Bay) say <b>Keep as it is</b>. If the page says a team goes
-          where the menu cannot pick it, carry on: step 7 deals with it.
+          (Anaheim, Florida, Ottawa, San Jose and Tampa Bay) say <b>Keep as it is</b>.
         </li>
         <li>
           Choose <b>Bring in 21 teams from 1987-88</b>. Each team gets the players with the most games for it, new
@@ -286,8 +286,9 @@ export function GuidesPage() {
         <dt>Does it work with 3-on-3, 2-on-2 and other league ROMs?</dt>
         <dd>
           Most league ROMs built on the original games open as any other. A ROM that leaves positions empty on every
-          line (3 on 3, 2 on 2) keeps them empty when the editor builds lines, including for a real season. Help's{' '}
-          <i>Supported ROMs and limits</i> lists what is known not to work.
+          line (3 on 3, 2 on 2) keeps them empty when the editor builds lines. For a real NHL season, start from the
+          original game or the SNES SA-1 build, as above. Help's <i>Supported ROMs and limits</i> lists what is known
+          not to work.
         </dd>
         <dt>Is my ROM sent anywhere?</dt>
         <dd>No. It is read and changed in this browser tab only, and no ROM comes with the site.</dd>
