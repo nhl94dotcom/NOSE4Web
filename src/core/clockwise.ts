@@ -1,7 +1,8 @@
 import { CLOCKWISE_GAPS, CLOCKWISE_LENGTHS, CLOCKWISE_ORIGINAL, CLOCKWISE_PATCHED } from './clockwisedata'
 import { fightState } from './fight'
+import { FIGHT_CHANGES } from './fightdata'
 import { unpackTiles } from './genesisunpack'
-import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_TAPE, FACEOFF_TAPE_FIRST, FIGHT_TAPE, SPRITE_TAPE, SPRITE_TAPE_DROPPED, type Tape } from './tapedata'
+import { FACEOFF_PACKED_TAPE, FACEOFF_PACKED_TAPE_FIRST, FACEOFF_PACKED_TAPE_TOE, FACEOFF_TAPE, FACEOFF_TAPE_FIRST, FACEOFF_TAPE_TOE, FIGHT_TAPE, SPRITE_TAPE, SPRITE_TAPE_DROPPED, type Tape } from './tapedata'
 
 // Clockwise's sprite edit for NHL 94 on the Genesis, Clockwise's IPS patch from the
 // NHL94 forum: touch-ups to the players' sprite tiles (stick tape, eye colour
@@ -168,9 +169,11 @@ interface Tapes {
   fight: Touch[]
   faceoff: Touch[]
   packed: Touch[]
-  // The first faceoff tape's (tapedata.ts), to take out.
+  // The earlier faceoff tapes (tapedata.ts), to take out: the first, and the one to the toe.
   firstFaceoff: Touch[]
   firstPacked: Touch[]
+  toeFaceoff: Touch[]
+  toePacked: Touch[]
 }
 let tape: Tapes | null = null
 const tapes = (): Tapes =>
@@ -182,6 +185,8 @@ const tapes = (): Tapes =>
     packed: touches(FACEOFF_PACKED_TAPE),
     firstFaceoff: touches(FACEOFF_TAPE_FIRST),
     firstPacked: touches(FACEOFF_PACKED_TAPE_FIRST),
+    toeFaceoff: touches(FACEOFF_TAPE_TOE),
+    toePacked: touches(FACEOFF_PACKED_TAPE_TOE),
   })
 const fits = (rom: Uint8Array, at: number, bytes: Uint8Array) => at >= 0 && at + bytes.length <= rom.length && is(rom, at, bytes)
 
@@ -252,11 +257,11 @@ function faceoffSite(rom: Uint8Array): { tiles: number; packed: boolean } | null
 }
 
 // Packed, the stream's changes go in all together where it has all of EA's bytes, and only if it then
-// unpacks to the taped tiles. The first tape comes out first, where the ROM has it.
+// unpacks to the taped tiles. An earlier tape comes out first, where the ROM has it.
 function putFaceoffTape(rom: Uint8Array): void {
   const site = faceoffSite(rom)
   if (!site) return
-  takeOutFirstFaceoffTape(rom, site)
+  takeOutEarlierFaceoffTape(rom, site)
   const { faceoff, packed } = tapes()
   if (!site.packed) return putEach(rom, faceoff, site.tiles)
   if (!packed.every((t) => fits(rom, site.tiles + t.at, t.original))) return
@@ -269,43 +274,73 @@ function putFaceoffTape(rom: Uint8Array): void {
 const takeOutAll = (rom: Uint8Array, list: Touch[], base: number) => {
   if (list.every((t) => fits(rom, base + t.at, t.patched))) for (const t of list) rom.set(t.original, base + t.at)
 }
-// The first tape out: plain, each record of it in full (as the toe-end tape's records sit inside its blades,
-// it comes out before the toe-end tape does); packed, its stream changes together.
-function takeOutFirstFaceoffTape(rom: Uint8Array, site: { tiles: number; packed: boolean }): void {
-  const { firstFaceoff, firstPacked } = tapes()
-  if (site.packed) takeOutAll(rom, firstPacked, site.tiles)
-  else takeOutEach(rom, firstFaceoff, site.tiles)
+// The earlier tapes out: plain, each record of each in full, the first tape's first (as the later tapes' records
+// sit inside its blades, it comes out before they do); packed, each one's stream changes together.
+function takeOutEarlierFaceoffTape(rom: Uint8Array, site: { tiles: number; packed: boolean }): void {
+  const { firstFaceoff, firstPacked, toeFaceoff, toePacked } = tapes()
+  if (site.packed) {
+    takeOutAll(rom, firstPacked, site.tiles)
+    takeOutAll(rom, toePacked, site.tiles)
+  } else {
+    takeOutEach(rom, firstFaceoff, site.tiles)
+    takeOutEach(rom, toeFaceoff, site.tiles)
+  }
 }
 
 function takeOutFaceoffTape(rom: Uint8Array): void {
   const site = faceoffSite(rom)
   if (!site) return
-  takeOutFirstFaceoffTape(rom, site)
+  takeOutEarlierFaceoffTape(rom, site)
   const { faceoff, packed } = tapes()
   if (!site.packed) return takeOutEach(rom, faceoff, site.tiles)
   takeOutAll(rom, packed, site.tiles)
 }
 
-// Whether the ROM has any of NOSE4Web's additions: the untaped frames' tape, or either faceoff tape.
+// Whether the ROM has any of NOSE4Web's additions: the untaped frames' tape, or any faceoff tape.
 export function hasNoseTape(rom: Uint8Array): boolean {
-  const { faceoff, packed, firstFaceoff, firstPacked } = tapes()
+  const { faceoff, packed, firstFaceoff, firstPacked, toeFaceoff, toePacked } = tapes()
   if ([...spriteTapeUsed(rom), ...spriteTapeUsed(rom, true)].some((t) => fits(rom, t.at, t.patched) && !fits(rom, t.at, t.original))) return true
   const site = faceoffSite(rom)
   if (!site) return false
-  if (site.packed) return [packed, firstPacked].some((list) => list.every((t) => fits(rom, site.tiles + t.at, t.patched)))
-  return [...faceoff, ...firstFaceoff].some((t) => fits(rom, site.tiles + t.at, t.patched) && !fits(rom, site.tiles + t.at, t.original))
+  if (site.packed) return [packed, firstPacked, toePacked].some((list) => list.every((t) => fits(rom, site.tiles + t.at, t.patched)))
+  return [...faceoff, ...firstFaceoff, ...toeFaceoff].some((t) => fits(rom, site.tiles + t.at, t.patched) && !fits(rom, site.tiles + t.at, t.original))
 }
 
-// The fight frames' tape, where the fighting patch is in (it writes the frames at fixed places in the first MB).
-const fighting = (rom: Uint8Array) => {
-  const state = fightState(rom)
-  return state !== undefined && state !== 'none'
+// Whether the ROM, with Clockwise's edit on, has an earlier version of NOSE4Web's additions: an earlier faceoff
+// tape, or chaos's fight frames without the tape (as in a ROM whose fighting NOSE4Web did not put in).
+export function clockwiseOutdated(rom: Uint8Array): boolean {
+  if (!clockwiseState(rom)) return false
+  const { faceoff, firstFaceoff, firstPacked, toeFaceoff, toePacked, fight } = tapes()
+  if (fightFrames(rom) && fight.some((t) => fits(rom, t.at, t.original))) return true
+  const site = faceoffSite(rom)
+  if (!site) return false
+  if (site.packed) return [firstPacked, toePacked].some((list) => list.every((t) => fits(rom, site.tiles + t.at, t.patched)))
+  // Plain: a record of an earlier tape in, that the current one does not have.
+  const now = new Set(faceoff.map((t) => `${t.at}:${t.patched.join()}`))
+  return [...firstFaceoff, ...toeFaceoff].some((t) => !now.has(`${t.at}:${t.patched.join()}`) && fits(rom, site.tiles + t.at, t.patched) && !fits(rom, site.tiles + t.at, t.original))
+}
+
+// The fight frames' tape, where the ROM has chaos's fight frames, which the fighting patch writes at fixed places
+// in the first MB: NOSE4Web's fighting, or the patch put in another way (chaos's own tool, whose builds differ a
+// little in code and menu, so fightState does not know them). The frames are there where the bytes the patch
+// writes for them are, but for the tape's and a few others (a build's own touch-ups).
+const FRAMES_AT = 0x9e726
+const FRAME_OTHERS = 32
+let frameBytes: Uint8Array | null = null
+export function fightFrames(rom: Uint8Array): boolean {
+  if (fightState(rom) === 'none') return false
+  frameBytes ??= Uint8Array.from(atob(FIGHT_CHANGES.find((c) => c.at === FRAMES_AT)!.patched), (char) => char.charCodeAt(0))
+  if (FRAMES_AT + frameBytes.length > rom.length) return false
+  const taped = new Set(tapes().fight.flatMap((t) => Array.from(t.patched, (_, i) => t.at + i)))
+  let others = 0
+  for (let i = 0; i < frameBytes.length; i++) if (rom[FRAMES_AT + i] !== frameBytes[i] && !taped.has(FRAMES_AT + i) && ++others > FRAME_OTHERS) return false
+  return true
 }
 export function putFightTape(rom: Uint8Array): void {
-  if (fighting(rom)) putEach(rom, tapes().fight)
+  if (fightFrames(rom)) putEach(rom, tapes().fight)
 }
 export function takeOutFightTape(rom: Uint8Array): void {
-  if (fighting(rom)) takeOutEach(rom, tapes().fight)
+  if (fightFrames(rom)) takeOutEach(rom, tapes().fight)
 }
 
 // NOSE4Web's additions, as the editor reads them (for the tests).

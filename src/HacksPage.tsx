@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HitsTable } from './HitsTable'
 import { WEIGHT_BASES } from './core/attributes'
 import { clockTime, penaltyLengths } from './core/penaltytime'
+import { clockwiseOutdated } from './core/clockwise'
 import { FIGHT_TEXTS, type FightChoice } from './core/fight'
 import type { SeasonTies } from './core/hacks'
 import {
@@ -636,8 +637,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             will mostly be played: skaters are given a little more with line changes on, when each plays less. Checks
             count only with Bodycheck statistics on. smozROM's version, which ROMs made before 25 November 2026 have,
             made a goalie first star nearly every game, and counted penalty minutes as checks with bodycheck
-            statistics off; this one gives a shot faced the same weight as the SNES option. In overtime the scorer of the
-            winning goal is always first star, as in the original game.
+            statistics off; this one gives a shot faced the same weight as the SNES option. When a goal in the first overtime
+            wins the game, its scorer is first star, as in the original game.
           </>,
         )}
       </section>
@@ -1311,8 +1312,11 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         )}
         {hack(
           'clockwiseSprites',
-          onOff('clockwiseSprites'),
-          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the sticks in 33 goalie and skater frames Clockwise left untaped, with three more eyes; tape on the centres' sticks in the faceoff close-up; and, with chaos's fighting patch on, tape on the sticks in the fight frames, with an eye on the overhand punch. Tested in the game by the NHL94 Match Viewer project.",
+          <>
+            {onOff('clockwiseSprites')}
+            {clockwiseOutdated(project.bytes) && putInCurrent}
+          </>,
+          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the sticks in 33 goalie and skater frames Clockwise left untaped, with three more eyes; tape on the centres' sticks in the faceoff close-up, stopping short of the toe; and, with chaos's fighting patch in (put in by NOSE4Web or another way), tape on the sticks in the fight frames, with an eye on the overhand punch. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'barrPick',

@@ -17,7 +17,9 @@
 //   C-D  as 4-7, backwards through what was written: (bits 0-1) + 2 from (bits 2-4) + 1 back
 //   E    as 8, backwards; distance 0 ends the stream
 //   F    as 9, backwards
-// A copy reads the ring buffer as it is being written, so it may overlap.
+// A copy reads the ring buffer as it is being written, so it may overlap; and as it is a ring, a backwards copy that
+// runs past 256 bytes back wraps round to the bytes written last (as the game does: Match Viewer, 2026-11-26, where a
+// stream NOSE4Web made unpacked otherwise in the game).
 
 export interface Unpacked {
   tiles: Uint8Array
@@ -44,10 +46,20 @@ export function unpackTiles(rom: Uint8Array, at: number): Unpacked | null {
     out[n++] = byte
     return true
   }
+  // The game's ring buffer: the byte at a source index (0-255) is the one written last there.
+  const ring = new Uint8Array(256)
+  const putRing = (byte: number) => {
+    ring[n & 255] = byte
+    return put(byte)
+  }
   const copy = (length: number, distance: number, backwards: boolean) => {
-    const from = n - distance
-    if (from - (backwards ? length - 1 : 0) < 0) return false
-    for (let k = 0; k < length; k++) if (!put(out[backwards ? from - k : from + k])) return false
+    let from = (n - distance) & 255
+    for (let k = 0; k < length; k++) {
+      // A source not yet written in this stream (as near its start) is not to be had.
+      if (n < 256 && from >= n) return false
+      if (!putRing(ring[from])) return false
+      from = (from + (backwards ? 255 : 1)) & 255
+    }
     return true
   }
   for (;;) {
@@ -59,13 +71,13 @@ export function unpackTiles(rom: Uint8Array, at: number): Unpacked | null {
     if (kind <= 1) {
       const length = (op & 0x1f) + 1
       if (i + length > rom.length) return null
-      for (let k = 0; k < length && ok; k++) ok = put(rom[i++])
+      for (let k = 0; k < length && ok; k++) ok = putRing(rom[i++])
     } else if (kind === 2) {
-      for (let k = 0; k <= (op & 15) && ok; k++) ok = put(0)
+      for (let k = 0; k <= (op & 15) && ok; k++) ok = putRing(0)
     } else if (kind === 3) {
       const byte = next()
       if (byte < 0) return null
-      for (let k = 0; k < (op & 15) + 3 && ok; k++) ok = put(byte)
+      for (let k = 0; k < (op & 15) + 3 && ok; k++) ok = putRing(byte)
     } else if (kind <= 7) {
       ok = copy((op & 7) + 2, ((op >> 3) & 7) + 1, false)
     } else if (kind === 8 || kind === 14) {

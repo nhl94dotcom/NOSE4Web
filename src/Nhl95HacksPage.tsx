@@ -396,7 +396,8 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       skaters, and goals against, shots faced and shutouts for goalies. Choose it for how the ROM will mostly be played:
       skaters are given a little more with line changes on, when each plays less. It works without Bodycheck
       statistics. NOSE4Web's version before 26 November 2026 made a goalie first star nearly every game; this one
-      gives a shot faced the same weight as the SNES option.
+      gives a shot faced the same weight as the SNES option. When a goal in the first overtime wins the game, its
+      scorer is first star, as in the original game.
     </>
   ),
   bodychecks: () => (

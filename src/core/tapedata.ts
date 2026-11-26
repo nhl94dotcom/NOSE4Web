@@ -43,9 +43,94 @@ export const FIGHT_TAPE: Tape[] = [
   [0xa034e, '0eee', '022e'],
 ]
 
-// The faceoff close-up (FaceOffSprites, 179 tiles): tape on the toe end of each centre's stick. 22 runs, at
-// offsets into its tiles (tile * 32 + byte), as a ROM with them plain has them (the CDL ROMs at $11EA92).
+// The faceoff close-up (FaceOffSprites, 179 tiles): tape on the toe end of each centre's stick, stopping 2 pixels short
+// of the toe in every frame (2026-11-26, after a league member's look: the tape to the toe looked broken as the blade
+// moves). 23 runs, at offsets into its tiles (tile * 32 + byte), as a ROM with them plain has them (the CDL ROMs at $11EA92).
 export const FACEOFF_TAPE: Tape[] = [
+  [0xcfb, 'ee', 'e2'],
+  [0xcff, 'ee', 'e2'],
+  [0xd38, 'eeeeee', '22222e'],
+  [0xd3c, 'eeeeee', '22222e'],
+  [0x1136, 'eeee', '2222'],
+  [0x113a, 'eeee', '2222'],
+  [0x1154, 'ee', '2e'],
+  [0x1158, 'ee', '2e'],
+  [0x12b3, 'ee', '22'],
+  [0x12b7, 'ee', '22'],
+  [0x12d0, 'eeee', '222e'],
+  [0x12d4, 'eeee', '222e'],
+  [0x13f7, 'ee', '22'],
+  [0x13fb, 'ee', '22'],
+  [0x1414, 'eeee', '222e'],
+  [0x1418, 'eeee', '222e'],
+  [0x1472, 'eeee', 'e222'],
+  [0x1476, 'eeee', 'e222'],
+  [0x1490, 'ee', '22'],
+  [0x1494, 'ee', '22'],
+  [0x1608, '0eeeee', '022222'],
+  [0x160c, 'eeeeee', '222222'],
+  [0x1610, 'ee', '22'],
+]
+
+// The same for the original game, which keeps the tiles packed (EA's bytecode, genesisunpack.ts): where its packed
+// stream (from the anim + 10, after the tile count) changes, so that it unpacks to the tiles with FACEOFF_TAPE's
+// changes. Re-encoded at the same length, only in the stretches of ops around the bytes that change (473 bytes in
+// 46 runs of its 3,794); the rest is EA's as it was. Its backwards copies stay within what the game's 256-byte ring
+// still holds (the earlier tapes' streams did not, and the game cleared a few of their stick pixels). These go in and
+// out together, as later parts of the stream copy from earlier ones.
+export const FACEOFF_PACKED_TAPE: Tape[] = [
+  [0x9ad, '21000e5b01fff020001f5950000f86409b80000e803c5a2f20edc7990035ee', '900c5b03fff0001f5950000fc89f00010ee25a238dc720a8000322222eee5a'],
+  [0x9cd, '83fe99', '31ff9a'],
+  [0x9d1, '827051813600ee81be98fc', '5100ee51c8505800e0fa50'],
+  [0x9de, '9b', '95'],
+  [0x9e0, '2300', '2f05'],
+  [0x9e3, '2101', '0000'],
+  [0x9e7, '20', '00'],
+  [0xc33, 'e1', 'e0'],
+  [0xc35, '45', '46'],
+  [0xc39, '82455d800d', '90c45e900c'],
+  [0xc40, '818081159e8030ee5a81cc22e00e010ee059860b01eeee5ae219faaa', '907f519f8002ee22225a81cc22f00d010ee059930a012eee5af1182a'],
+  [0xc60, '82', '8f'],
+  [0xc74, '8fac2381968179837d302200', '4898da000f84de5a90d50122'],
+  [0xc81, '5d43', '5b45'],
+  [0xc86, '03', '04'],
+  [0xc8b, '832429805b5f843f8420', 'ff8a9df0565ef19288bd'],
+  [0xc98, '829c5e80a120', '90c55a85a401'],
+  [0xca0, '8044', '9043'],
+  [0xca3, '2004', '0500'],
+  [0xcac, '5f81', '5e82'],
+  [0xcaf, '83', '80'],
+  [0xcb1, '803e83', '91dd81'],
+  [0xcb5, 'e93358', '92375f'],
+  [0xcbd, 'e17a856086', 'f0f991df88'],
+  [0xcc3, '615e', '605f'],
+  [0xcc9, '8d', '87'],
+  [0xccb, '2900', '2f01'],
+  [0xcce, 'c15a8e20', '225c971f'],
+  [0xcd4, '821d4400e0854082152200e0ef3f732101889c20020caaa95801899a2002bcdbc95902cc0ddb580c04ddbdbc4a9ddddbcbbcccc99d5805b9a8dcccbb8a7803cbcdbbcbcc07dbbb', '911c012eee5a00e031ff93142200e02c86df610d889c000caaa9000c899a00bcdbc95919cc0ddbdbcc04ddbdbc4a9ddddbcbbcccc99dbcccb9a8dcccbb8a7819cbcdbbcbcbccdb'],
+  [0xd1c, 'c222', 'bbc2'],
+  [0xd1f, 'bbb258032daa', '22bbb222222d'],
+  [0xd26, '772030', 'aa7700'],
+  [0xd2a, '01a09a5910b999aaa8bb', 'aaaaa09a5910b999aaa8'],
+  [0xd35, '998cbdbcbbccdddbcc', 'bb998cbdbcbbccdddb'],
+  [0xd3f, '0b80302e000b2200bb21010dbc2101dbcc715827018aaa200a', 'cc0b902f2e000b2208bb00000dbc0000dbcc7158270d8aaa00'],
+  [0xd6c, '804f03cc', '704010dd'],
+  [0xd71, 'dddc580bd77dbc776777db777672607760e5d381e75a88e000f022000fe607812500ee22000e8209405a31ff3f00811f00e05b30ff81459a8084cc2e010bbb200b9a9bbbd0b8a9dbd0', 'dcccddd77dbc776777db777672607760e2d381e75a8be000f022000fdb92a400ee90a4910801ee225a31ff232f02222ee05b00ff90442e8fcc2f0e0bbb009a9bbbd0b8a9dbd0dd8a8d'],
+  [0xdbb, '8a8ddd857c858031ee000e9d7b5c891f0806444460744114474458024474', '917b947f04eeeee2220e589afbe0975c949e130644446074411447444114'],
+  [0xdda, 'd403567777652b0505555550', '74444447567777652b090555'],
+  [0xde7, '56c00065c000', '505556565565'],
+  [0xdee, '30560155', '50707803'],
+  [0xdf3, '7000', '5565'],
+  [0xe83, '00', '01'],
+  [0xe85, '80520022e35a24806f20801f5b8023208023e47772000288', '229054582801d000f01a5d01bb00f01e92787400025e91b5'],
+  [0xe9e, '8036000f5800ffc17801f11f25010eee4843819727040ff0', '0f2222ffff7a01f11f25060eee022222ee2290129452040f'],
+  [0xeb7, 'fff02b81af8120e22e850d29000322000b847f59000b', 'f0fff0ea972080b790ad930c2c000322000b90fe5ad9'],
+]
+
+// NOSE4Web's second faceoff tape (2026-11-22, 88c8168), on the toe end of each centre's stick, right to the toe:
+// recognised so that it comes out and the tape above goes in its place. 22 runs, at offsets into the close-up's
+// tiles (tile * 32 + byte), as a ROM with them plain has them (the CDL ROMs at $11EA92).
+export const FACEOFF_TAPE_TOE: Tape[] = [
   [0xcfa, '0eee', '0222'],
   [0xcfe, '0eee', '0222'],
   [0xd38, 'eeeeee', '22222e'],
@@ -70,12 +155,8 @@ export const FACEOFF_TAPE: Tape[] = [
   [0x1610, 'ee', '22'],
 ]
 
-// The same for the original game, which keeps the tiles packed (EA's bytecode, genesisunpack.ts): where
-// its packed stream (from the anim + 10, after the tile count) changes, so that it unpacks to the tiles with
-// FACEOFF_TAPE's changes. Worked out by re-encoding, at the same length, only the stretches of the stream that
-// make or copy the bytes that change (221 bytes in 19 runs of its 3,794); the rest is EA's as it was. These go
-// in and out together, not each alone, as later parts of the stream copy from earlier ones.
-export const FACEOFF_PACKED_TAPE: Tape[] = [
+// And its packed stream for the original game (221 bytes in 19 runs).
+export const FACEOFF_PACKED_TAPE_TOE: Tape[] = [
   [0x9ad, '21000e5b01fff020001f5950000f86409b80000e803c5a2f20edc7990035ee', '800d5b03fff0001f5950000fc89f000102225a238dc720a8000322222eee5a'],
   [0x9d0, 'f0827051813600ee81be98fc00f09b3f2300cb21019a9c20020cc8a92002', '00e0a0010eee51c8c0c000e0fa5000f08a402f0ccb00009a9c000cc8a900'],
   [0xc42, '81159e8030ee5a81cc22e00e', '509f8030225a81cc2200ee21'],
