@@ -276,7 +276,7 @@ const SNES: Record<SnesHack, string> = {
   skipEaIntro: 'The game starts without the EA logo.',
   barrPick: 'Ron Barr names the team that came out hotter before every game, not only when one is much hotter.',
   barrCoin: 'Ron Barr names a team before every game by a coin flip, whatever their form.',
-  skipPucksIntro: 'The game starts without the flying pucks.',
+  skipPucksIntro: 'The game starts without the flying pucks, and so without the title screen.',
   organResume: 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   realTime: 'The game clock counts real seconds, so a period lasts as long as it says.',
   noIcing: 'Icing is never called.',

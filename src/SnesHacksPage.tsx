@@ -110,13 +110,13 @@ const TESTED_SNES: Partial<Record<SnesHack, boolean>> = {
   noInterference: true,
   hotColdFix: true,
   ppPkFix: true,
-  defenceControl: false,
-  oneMinutePenalties: false,
-  thirtySecondPeriods: false,
+  defenceControl: true,
+  oneMinutePenalties: true,
+  thirtySecondPeriods: true,
   noPenaltyShots: false,
-  noGoalPosts: false,
-  skipEaIntro: false,
-  skipPucksIntro: false,
+  noGoalPosts: true,
+  skipEaIntro: true,
+  skipPucksIntro: true,
 }
 const testedLine = (tested: boolean | undefined) =>
   tested === undefined ? '' : tested ? ' Tested in the game by the NHL94 Match Viewer project.' : ' Not yet tested in the game.'
@@ -141,10 +141,10 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   ),
   defenceControl: 'Turns defence control on for both teams at the start of every game, where the original game starts with it off. Not a fix, but among the recommended hacks, as leagues play with it on.',
   oneMinutePenalties: 'Makes every minor penalty one minute long instead of two.',
-  thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu. It is in the original game, but hidden.',
+  thirtySecondPeriods: 'Adds 30 seconds to the period lengths on the main menu, after 20 Minutes. It is in the original game, but hidden.',
   noInterference: 'Interference is never called.',
   referees:
-    "How often the referee calls the penalties that are their judgement: holding, hooking, tripping, charging, roughing and goalie interference. A player's Aggression still counts as before, for people's players and the computer's alike. Goalie interference can only change in whole steps: half as often when very lenient, as before when lenient, one and a half times as often when strict, twice when very strict. Offsides, icing and the other calls are unchanged. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+    "How often the referee calls the penalties that are their judgement: holding, hooking, tripping, charging, roughing and goalie interference. A player's Aggression still counts as before, for people's players and the computer's alike. Goalie interference can only change in whole steps: half as often when very lenient, as before when lenient, one and a half times as often when strict, twice when very strict. Offsides, icing and the other calls are unchanged. Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   lockedChangeFix:
     "Pressing B on defence sometimes does nothing at all: no switch and no poke. Right after a check or a speed burst your own skater is usually the one best placed for the puck, so B picks that skater, but they cannot poke until the move ends, and the press is lost. It happens often during a burst and nearly always during a check. With the fix B passes over your skater while they are busy and switches to the next best one, as on the Genesis. The one trade-off: right after a missed check you get a teammate rather than a poke. Found by a league member and the NHL94 Match Viewer project. Among the recommended fixes. Tested in the game by the NHL94 Match Viewer project.",
   openNetFix:
@@ -194,7 +194,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   goalieOut:
     "How near centre ice a goalie you control may come without the puck, as their distance from it, so a larger number keeps the goalie nearer their net. Past it the game skates them back to their net. For scale, the goal line is 264 from centre ice; the original game has 228, and the game never lets the goalie come farther out than that, so this can only hold them back. At 255 the goalie can hardly leave the net. The computer's goalie is as before. Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   goalieLine:
-    "The line a goalie you control may not carry the puck past without a whistle, again as a distance from centre ice, so a smaller number lets them go farther; the original game has 187, and 0 lets them go anywhere. At most 210, just outside their crease. Works on McMarkis's SA-1 and 32-team builds too. Not yet tested in the game.",
+    "The line a goalie you control may not carry the puck past without a whistle, again as a distance from centre ice, so a smaller number lets them go farther; the original game has 187, and 0 lets them go anywhere. At most 210, just outside their crease. Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   freeBurst:
     'With line changes on, a speed burst (the A button without the puck) costs no energy, where in the original game each costs 5% of full energy. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.',
   noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
@@ -204,13 +204,13 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "An option, from a league member’s idea. Before each game every player is rolled a little hot or cold, and on the matchup screen Ron Barr names the team that came out hotter (“Lately ... has been playing well”), but only when the gap is wide, so not every game has the line. With this on Ron Barr names the hotter team every game, so the pick changes from game to game and the team picked has the better form that night. With a wide gap the line still says “extremely”, and on an exact tie the home team is picked. The line is the hotter-team line of Ron Barr’s text on the Game settings page, so a league can reword it as a pick, such as “{hotter team has} Ron Barr’s pick tonight.” ({hotter team has} gives the team’s full name and “has”, as in “NY Rangers have”.) Tested in the game by the NHL94 Match Viewer project.",
   barrCoin:
     "An option, instead of the one above: Ron Barr names a team every game by a coin flip, home or visitors alike, whatever the teams’ hot and cold rolls, so about half the time the team named came out colder. The line never says “extremely”. Turning one of the two on turns the other off. It uses the same line of Ron Barr’s text, so the same wording works. Tested in the game by the NHL94 Match Viewer project.",
-  skipPucksIntro: 'Starts the game without the flying pucks.',
+  skipPucksIntro: 'Starts the game without the flying pucks. They are the title screen, so the NHL 94 title, the NHLPA logo and the copyright line do not show either.',
   organResume:
     "Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on the organ carries on with its song from where it was. The bit of the song that faded out as the pause began is heard again, and a note that was sounding comes back at the song's next note. Tested in the game by the NHL94 Match Viewer project.",
   realTime:
     "The original game's clock runs two and a half times as fast as a real one, so a 5-minute period takes 2 minutes to play. This makes the game clock count true seconds, and penalty time with it. Periods then last as long as they say, so choose shorter ones in the game's options. The time limit on a penalty shot grows with it, from about 17 to about 42 seconds. As on the Genesis. Tested in the game by the NHL94 Match Viewer project.",
   noIcing:
-    "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. With this on, No icing within the crease and Hybrid icing have no effect. As on the Genesis, from TheTome's forum post. Not yet tested in the game.",
+    "Icing is never called: a puck shot from a team's own half and over the goal line plays on, and the goalie plays it as any loose puck. With this on, No icing within the crease and Hybrid icing have no effect. As on the Genesis, from TheTome's forum post. Tested in the game by the NHL94 Match Viewer project.",
   extraAttackerFix:
     "In Edit Lines, picking a line's extra attacker for one of its positions puts that player in both places and drops the player they replaced, so the line is a skater short. With the fix the two swap, as they do for any other move within the line. McMarkis's fix from NHL94SNESVault. NOSE4Web's version also fixes the penalty-kill lines, which the Vault's misses (found by the NHL94 Match Viewer project). Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   yButtonFix:
@@ -232,11 +232,11 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   clutchTime:
     "An option, from a community idea: in the last 2:00 of the third period, with the score tied or within one goal, everyone on the ice, both teams and the goalies, plays half a rating point better at everything but aggression, so the end of a close game is sharper. Not in overtime. A goal that makes it a two-goal game ends it at the next faceoff, and one that brings a game back within a goal starts it there. Players already at the top of a rating gain nothing in it. The 2:00 is the same at any period length, so with periods of 2:00 or shorter the whole third period is clutch time. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
   speedBurst:
-    "The push a speed burst (A without the puck) gives. Put 0 for the original game's, which is 35 for a fresh player and less for a tired one (with line changes off nobody tires, so it is always 35). Any other number is the push for everybody, tired or not: 1 as good as takes it away, 17 is about half the original's, and much over 64 can send a player who bursts twice the wrong way. What a burst costs in energy is as before (see Speed bursts cost no energy). Works in every build. Not yet tested in the game.",
+    "The push a speed burst (A without the puck) gives. Put 0 for the original game's, which is 35 for a fresh player and less for a tired one (with line changes off nobody tires, so it is always 35). Any other number is the push for everybody, tired or not: 1 as good as takes it away, 17 is about half the original's, and much over 64 can send a player who bursts twice the wrong way. What a burst costs in energy is as before (see Speed bursts cost no energy). Works in every build. Tested in the game by the NHL94 Match Viewer project.",
   turnRate:
-    "How quickly a skater stops and turns when they reverse. A larger number stops them sooner; a small one gives a long, sliding stop. Each player's leg strength rating adds a little more (0 to 15). The original game has 112, at most 225. Works in every build. Not yet tested in the game.",
+    "How quickly a skater stops and turns when they reverse. A larger number stops them sooner; a small one gives a long, sliding stop. Each player's leg strength rating adds a little more (0 to 15). The original game has 112, at most 225. Works in every build. Tested in the game by the NHL94 Match Viewer project.",
   puckFriction:
-    "How fast the puck slows down on the ice, on the same scale as the Genesis setting. A smaller number slows it faster: 8 slows it twice as fast as the original 9, and 10 half as fast. At 8 a loose puck keeps about 78% of its speed each second, where at 9 it keeps about 88%. A player gliding to take a pass slows the same way, as the game uses this setting for them too. Choppy ice, below, adds to it as before. It does not apply to a puck in the air. From chaos's forum post. Works in every build. Not yet tested in the game.",
+    "How fast the puck slows down on the ice, on the same scale as the Genesis setting. A smaller number slows it faster: 8 slows it twice as fast as the original 9, and 10 half as fast. At 8 a loose puck keeps about 78% of its speed each second, where at 9 it keeps about 88%. A player gliding to take a pass slows the same way, as the game uses this setting for them too. Choppy ice, below, adds to it as before. It does not apply to a puck in the air. From chaos's forum post. Works in every build. Tested in the game by the NHL94 Match Viewer project.",
   choppyIce:
     "An option, from a community idea: the ice wears as each period goes on, so the puck slows a little more, up to a quarter more by the period's end, and the ice is fresh again at the start of each period and overtime. Only the puck: skaters glide as before. Works in every build. Worked out by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.",
   nhlShootout:
