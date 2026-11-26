@@ -445,7 +445,10 @@ export function GuidesPage() {
           Genesis and 300 on the SNES, whatever the period length.
         </li>
         <li>
-          The looks. Names come with the season, but logos, colours and stadium names stay as the ROM had them. For
+          The looks. Names come with the season, but logos, colours and stadium names stay as the ROM had them. A team
+          in another city's place, as the Minnesota North Stars in the Dallas Stars', gets its banners lettered with
+          its city on NHL 94 for the Genesis; the notes after bringing the season in name any team still showing another
+          city's banners or another team's logo. For
           all of 1987-88's looks at once, open a ROM that has them on <b>Import a team</b>, choose{' '}
           <b>Every team at once</b>, tick <b>Home and away colours</b> and <b>Logos, banners and banner colours</b>,
           and bring them in. Teams are matched by name, so the other ROM needs a team called Minnesota North Stars, and

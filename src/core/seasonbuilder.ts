@@ -18,6 +18,7 @@ import type { GameConfig } from './games'
 import { buildLines } from './linebuilder'
 import { emptyLineSlots } from './lines'
 import { overallRating } from './rating'
+import { letterSeasonBanners } from './seasonbanners'
 import type { RomProject } from './rom'
 import { MAX_ROSTER } from './roster'
 import { goalieCount, teamDisplayName, teamSpace, type Player, type Team } from './team'
@@ -892,8 +893,20 @@ export function applySeason(project: RomProject, season: Season, placement: (num
   const left = built.flatMap((b, s) => (placement.includes(s) ? [] : [`${b.team.location} ${b.team.name}`]))
   notes.push(`${slots.length} ${slots.length === 1 ? 'team' : 'teams'} from ${season.season} brought in.`)
   if (left.length > 0) notes.push(`Not brought in: ${left.join(', ')}.`)
-  if (options.names && canName) notes.push("Logos, colours and stadium names are kept: change them on each team's page.")
-  return { project: { ...current, teams }, notes }
+  let out: RomProject = { ...current, teams }
+  if (options.names && canName) {
+    // A team of another city than its place's (the Minnesota North Stars where the original game has Dallas): its
+    // banners lettered with its city where NOSE4Web can (seasonbanners.ts), and the page says what is left.
+    const banners = letterSeasonBanners(out, slots.map((slot) => ({ slot, before: project.teams[slot].names[0], now: teams[slot].names[0] })))
+    out = banners.project
+    const list = (names: string[]) => names.join(', ')
+    if (banners.roomGiven) notes.push(`The logos and banners were given more room for the lettering${banners.roomGiven.grew ? ` (the ROM grew to ${banners.roomGiven.grew / 0x100000} MB)` : ''}, as the team page's button does.`)
+    if (banners.lettered.length > 0) notes.push(`Banners lettered with their city, as they had another city's: ${list(banners.lettered)}.`)
+    if (banners.bannersLeft.length > 0) notes.push(`Still with another city's banners (change them on each team's page): ${list(banners.bannersLeft)}.`)
+    if (banners.logosLeft.length > 0) notes.push(`Still with another team's logo (import your own on each team's page): ${list(banners.logosLeft)}.`)
+    notes.push("Logos, colours and stadium names are otherwise kept: change them on each team's page.")
+  }
+  return { project: out, notes }
 }
 
 export interface RerateResult {
