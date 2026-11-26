@@ -1106,3 +1106,10 @@ main > [data-tab-hidden] {
   height: 0.8em;
   vertical-align: middle;
 }
+
+/* A page that could not be shown (PageErrorBoundary.tsx): its error, to copy. */
+.error-details {
+  white-space: pre-wrap;
+  max-height: 12rem;
+  overflow: auto;
+}

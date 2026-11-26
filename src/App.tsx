@@ -45,6 +45,7 @@ import { ProjectPage } from './ProjectPage'
 import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
+import { PageErrorBoundary } from './PageErrorBoundary'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
@@ -376,9 +377,11 @@ export default function App() {
         </header>
         {error && <p className="error">{error}</p>}
         <div className="body">
+          <PageErrorBoundary key={welcomeHelp}>
           <Suspense fallback={loading}>
             {welcomeHelp === 'features' ? <FeaturesPage /> : welcomeHelp === 'guides' ? <GuidesPage /> : welcomeHelp === 'faq' ? <FaqPage /> : <HelpPage />}
           </Suspense>
+          </PageErrorBoundary>
         </div>
       </div>
     )
@@ -771,7 +774,9 @@ export default function App() {
           {entry(FAQ, 'FAQ')}
           {entry(HELP, 'Help')}
         </nav>
-        <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>
+        <PageErrorBoundary key={selected}>
+          <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>
+        </PageErrorBoundary>
       </div>
     </div>
   )
