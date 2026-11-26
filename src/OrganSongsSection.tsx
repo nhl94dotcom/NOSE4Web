@@ -54,7 +54,9 @@ import {
   withOriginalNhl95Song,
 } from './core/nhl95music'
 import { genesisSongs, readRandomSongs, songNumber } from './core/teamsongs'
+import { editedMusicOf, type EditedMusic } from './core/midiedit'
 import { download } from './download'
+import { MusicEditor } from './MusicEditor'
 import { SongControls, useSongPlayer } from './SongPlayer'
 import { snesMusicSound } from './snesplayer'
 
@@ -94,6 +96,14 @@ function UsedBy({ text }: { text: string | null }) {
   return <td>{text ?? <b>No team: a good one to replace</b>}</td>
 }
 
+// The music editor (MusicEditor.tsx), under each section's own note.
+const EDIT_NOTE = (
+  <p className="note">
+    <b>Edit</b> opens the music in the music editor, to change its notes on a piano roll; it then goes in as a MIDI file
+    would with Replace. Not yet tested in the game.
+  </p>
+)
+
 const seconds = (value: number) => `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`
 
 // The Genesis game's organ songs, NHL 94's or NHL '95's: listen to them, export them as MIDI, or
@@ -102,6 +112,8 @@ export function OrganSongsSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   const player = useSongPlayer<number>()
+  // A song open in the music editor.
+  const [editing, setEditing] = useState<{ number: number; music: EditedMusic } | null>(null)
   const songs = genesisSongs(project.game)
   if (!songs || !songs.supported(project.bytes)) return null
   const nhl95 = project.game.edition === 95
@@ -113,11 +125,16 @@ export function OrganSongsSection({ project, onChange }: Props) {
 
 
   async function replace(number: number, file: File) {
+    putIn(number, new Uint8Array(await file.arrayBuffer()), file.name)
+  }
+
+  // A MIDI file (or the music editor's) in place of song `number`; whether it went in.
+  function putIn(number: number, bytes: Uint8Array, fileName: string): boolean {
     stop()
     try {
-      const { notes, name } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const { notes, name } = readMidi(bytes)
       const made = songs!.fromMidi(notes)
-      const title = (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40)
+      const title = (name || fileName.replace(/\.midi?$/i, '')).slice(0, 40)
       onChange({ ...project, bytes: songs!.withSong(project.bytes, number, made.events, title) })
       const left = [made.drums && `${made.drums} drum ${made.drums === 1 ? 'note' : 'notes'} (the organ plays no drums)`].filter(Boolean)
       const crowded = made.dropped
@@ -131,9 +148,11 @@ export function OrganSongsSection({ project, onChange }: Props) {
           ' Every team with this song in a slot plays it. Undo takes it back.',
       )
       setFailed(false)
+      return true
     } catch (e) {
-      setNotice(e instanceof MidiError || e instanceof SongError ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setNotice(e instanceof MidiError || e instanceof SongError ? e.message : `${fileName} could not be read as a MIDI file.`)
       setFailed(true)
+      return false
     }
   }
 
@@ -161,7 +180,21 @@ export function OrganSongsSection({ project, onChange }: Props) {
           game needs it. Tested in the game by the NHL94 Match Viewer project.
         </p>
       )}
+      {EDIT_NOTE}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {editing && (
+        <MusicEditor
+          key={editing.number}
+          music={editing.music}
+          title={`song ${shown(editing.number)}`}
+          limit={{ most: songs.voices, text: `the organ plays ${songs.voices} notes at once, and no drums` }}
+          doneLabel="Put it in"
+          preview={(bytes) => ({ events: songs.fromMidi(readMidi(bytes).notes).events })}
+          previewText={`Play plays it as it would go in: on the organ, at most ${songs.voices} notes at once, without drums, each note in the game's range. The sound is a rough idea of the console's organ.`}
+          onDone={(bytes, name) => putIn(editing.number, bytes, name) && setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
       <p className="note">
         {unused.length
           ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else: ${unused.map(shown).join(', ')}.`
@@ -192,6 +225,16 @@ export function OrganSongsSection({ project, onChange }: Props) {
                 <td>
                   <button onClick={() => player.toggle(number, song.events, name)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? songs.names[number]), `song_${shown(number)}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  {songs.canReplace(number) && (
+                    <button
+                      onClick={() => {
+                        stop()
+                        setEditing({ number, music: editedMusicOf(songToMidi(song, song.custom?.name ?? songs.names[number])) })
+                      }}
+                    >
+                      Edit…
+                    </button>
+                  )}{' '}
                   {songs.canReplace(number) && (
                     <label className="button">
                       Replace…
@@ -241,6 +284,8 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
   type Pending = { number: number; title: string; notes: MidiNote[]; end: number; parts: MusicPart[]; choices: Map<number, PartChoice> }
   const [pending, setPending] = useState<Pending | null>(() => (kept?.held as Pending | undefined) ?? null)
   useEffect(() => onKeep?.(pending ? { title: pending.title, held: pending } : null), [onKeep, pending])
+  // A piece open in the music editor.
+  const [editing, setEditing] = useState<{ number: number; music: EditedMusic } | null>(null)
   const nhl95 = project.game.edition === 95
   if (project.game.platform !== 'genesis' || !(nhl95 ? nhl95SongsSupported : genesisSongsSupported)(project.bytes)) return null
   const list = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
@@ -249,18 +294,25 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
   const pieceName = (number: number) => list.find((piece) => piece.number === number)!.name
 
   async function read(number: number, file: File) {
+    readBytes(number, new Uint8Array(await file.arrayBuffer()), file.name)
+  }
+
+  // A MIDI file (or the music editor's) for piece `number`, its parts' instruments to choose next; whether it was read.
+  function readBytes(number: number, bytes: Uint8Array, fileName: string): boolean {
     player.stop()
     try {
-      const { notes, name, end, programs } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const { notes, name, end, programs } = readMidi(bytes)
       const parts = musicParts(notes)
       if (!parts.length) throw new MidiError('This MIDI file has no notes.')
       const choices = nhl95 ? nhl95PartChoices(parts, notes, programs) : defaultPartChoices(parts, programs)
-      setPending({ number, title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices })
+      setPending({ number, title: (name || fileName.replace(/\.midi?$/i, '')).slice(0, 40), notes, end, parts, choices })
       setNotice('')
       setFailed(false)
+      return true
     } catch (e) {
-      setNotice(e instanceof MidiError ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setNotice(e instanceof MidiError ? e.message : `${fileName} could not be read as a MIDI file.`)
       setFailed(true)
+      return false
     }
   }
 
@@ -349,7 +401,34 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
           </>
         )}
       </p>
+      {EDIT_NOTE}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {editing && !pending && (
+        <MusicEditor
+          key={editing.number}
+          music={editing.music}
+          title={`the ${pieceName(editing.number).toLowerCase()}`}
+          limit={
+            nhl95
+              ? { most: 1, perPart: true, text: "each of the game's instruments plays one note at a time (the square wave three), one part to an instrument" }
+              : { most: 5, counts: (n) => n.channel !== 9 || n.note === 35 || n.note === 36, text: 'the console plays five notes at once, a kick drum among them' }
+          }
+          doneLabel="Choose the instruments"
+          preview={(bytes, name) => {
+            const { notes, end, programs } = readMidi(bytes)
+            const parts = musicParts(notes)
+            if (nhl95) {
+              const made = nhl95MusicFromMidi(notes, nhl95PartChoices(parts, notes, programs), end)
+              const song = readNhl95Music(withNhl95Music(project.bytes, editing.number, made, name), editing.number)
+              return { events: song ? gameMusicTune(song, 95) : [] }
+            }
+            return { events: gameMusicTune(gameMusicFromMidi(notes, defaultPartChoices(parts, programs), end), 94) }
+          }}
+          previewText="Play plays it as it would go in, on the instruments first chosen for its parts (you can change them after), within the console's limits. The sound is a rough idea in the browser, without the drums."
+          onDone={(bytes, name) => readBytes(editing.number, bytes, name) && setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
       {pending && (
         <div className="notice">
           <p>
@@ -409,6 +488,15 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
                 <td>
                   <button onClick={() => player.toggle(number, gameMusicTune(song!, nhl95 ? 95 : 94), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name, nhl95 ? 95 : 94), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
+                  <button
+                    onClick={() => {
+                      player.stop()
+                      setPending(null)
+                      setEditing({ number, music: editedMusicOf(gameMusicToMidi(song!, song!.custom?.name ?? name, nhl95 ? 95 : 94)) })
+                    }}
+                  >
+                    Edit…
+                  </button>{' '}
                   <label className="button">
                     Replace…
                     <input
@@ -454,6 +542,8 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
   const [notice, setNotice] = useState('')
   const [failed, setFailed] = useState(false)
   const player = useSongPlayer<number>()
+  // A song open in the music editor.
+  const [editing, setEditing] = useState<{ pointer: number; name: string; music: EditedMusic } | null>(null)
   const choices = snesSongChoices(project.bytes)
   if (choices.length === 0) return null
   const usedBy = usage(project, (team) => team.snesSongs, readSnesRandomSongs(project.bytes))
@@ -463,11 +553,16 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
 
 
   async function replace(pointer: number, oldName: string, file: File) {
+    putIn(pointer, oldName, new Uint8Array(await file.arrayBuffer()), file.name)
+  }
+
+  // A MIDI file (or the music editor's) in place of the song at `pointer`; whether it went in.
+  function putIn(pointer: number, oldName: string, bytes: Uint8Array, fileName: string): boolean {
     stop()
     try {
-      const { notes, name } = readMidi(new Uint8Array(await file.arrayBuffer()))
+      const { notes, name } = readMidi(bytes)
       const made = snesSongFromMidi(notes)
-      const title = (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40)
+      const title = (name || fileName.replace(/\.midi?$/i, '')).slice(0, 40)
       onChange(withSnesSong(project, pointer, made, title))
       const left = [made.drums && `${made.drums} drum ${made.drums === 1 ? 'note' : 'notes'} (the organ plays no drums)`].filter(Boolean)
       const crowded = made.dropped
@@ -481,9 +576,11 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
           ' Every team with that song in a slot plays it. Undo takes it back.',
       )
       setFailed(false)
+      return true
     } catch (e) {
-      setNotice(e instanceof MidiError || e instanceof Error ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setNotice(e instanceof MidiError || e instanceof Error ? e.message : `${fileName} could not be read as a MIDI file.`)
       setFailed(true)
+      return false
     }
   }
 
@@ -498,7 +595,28 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
         song in a slot plays the new one. Help, in the list on the left, has tips on preparing a MIDI file. Works on
         the original game and McMarkis's 32-team builds. Tested in the game by the NHL94 Match Viewer project.
       </p>
+      {EDIT_NOTE}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {editing && (
+        <MusicEditor
+          key={editing.pointer}
+          music={editing.music}
+          title={editing.name}
+          limit={{ most: SNES_SONG_VOICES, text: `the organ plays ${SNES_SONG_VOICES} notes at once, and no drums` }}
+          doneLabel="Put it in"
+          preview={(bytes, name) => {
+            const made = snesSongFromMidi(readMidi(bytes).notes)
+            // The ROM with it put in, and where it went: the song the teams' songs now point at.
+            const next = withSnesSong(project, editing.pointer, made, name).bytes
+            const before = new Set(choices.map((c) => c.pointer >>> 0))
+            const to = snesSongChoices(next).find((c) => !before.has(c.pointer >>> 0))?.pointer
+            return { events: made.events, sound: to === undefined ? undefined : () => snesMusicSound(next, to, 'game') }
+          }}
+          previewText="Play plays it as it would go in, on the game's own organ: at most four notes at once, without drums, each note in the organ's range."
+          onDone={(bytes, name) => putIn(editing.pointer, editing.name, bytes, name) && setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
       <p className="note">
         {unused.length
           ? `${unused.length} ${unused.length === 1 ? 'song is' : 'songs are'} used by no team and not picked by Random, so replacing ${unused.length === 1 ? 'it' : 'one'} changes nothing else.`
@@ -529,6 +647,14 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
                   </button>{' '}
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? name), `${(song.custom?.name ?? name).replace(/[^A-Za-z0-9]+/g, '_')}.mid`, 'audio/midi')}>
                     Export MIDI
+                  </button>{' '}
+                  <button
+                    onClick={() => {
+                      stop()
+                      setEditing({ pointer, name, music: editedMusicOf(songToMidi(song, song.custom?.name ?? name)) })
+                    }}
+                  >
+                    Edit…
                   </button>{' '}
                   <label className="button">
                     Replace…
@@ -587,6 +713,8 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
   }
   const [pending, setPending] = useState<Pending | null>(() => (kept?.held as Pending | undefined) ?? null)
   useEffect(() => onKeep?.(pending ? { title: pending.title, held: pending } : null), [onKeep, pending])
+  // A piece open in the music editor.
+  const [editing, setEditing] = useState<{ index: number; music: EditedMusic } | null>(null)
   if (project.game.platform !== 'snes') return null
   const pieces = SNES_GAME_MUSIC.map((piece, index) => {
     const pointer = snesMusicPointer(project.bytes, index)
@@ -596,9 +724,13 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
   const kit = pending ? snesMusicKit(project.bytes, SNES_GAME_MUSIC[pending.index].sounds) : null
 
   async function read(index: number, file: File) {
+    readBytes(index, new Uint8Array(await file.arrayBuffer()), file.name)
+  }
+
+  // A MIDI file (or the music editor's) for piece `index`, its parts' instruments to choose next; whether it was read.
+  function readBytes(index: number, bytes: Uint8Array, fileName: string): boolean {
     player.stop()
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer())
       const { notes, name, end, programs } = readMidi(bytes)
       const parts = musicParts(notes)
       const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
@@ -606,7 +738,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
       if (!found) throw new MidiError("The editor cannot find this ROM's instruments.")
       setPending({
         index,
-        title: (name || file.name.replace(/\.midi?$/i, '')).slice(0, 40),
+        title: (name || fileName.replace(/\.midi?$/i, '')).slice(0, 40),
         notes,
         end,
         loop: midiLoopStart(bytes),
@@ -617,9 +749,11 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
       })
       setNotice('')
       setFailed(false)
+      return true
     } catch (e) {
-      setNotice(e instanceof MidiError ? e.message : `${file.name} could not be read as a MIDI file.`)
+      setNotice(e instanceof MidiError ? e.message : `${fileName} could not be read as a MIDI file.`)
       setFailed(true)
+      return false
     }
   }
 
@@ -685,7 +819,32 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
         instrument's voices are all taken, the drums, then the bass, then the higher notes are kept. Tested in the game
         by the NHL94 Match Viewer project.
       </p>
+      {EDIT_NOTE}
       {notice && <p className={failed ? 'error' : 'note'}>{notice}</p>}
+      {editing && !pending && (
+        <MusicEditor
+          key={editing.index}
+          music={editing.music}
+          title={`the ${SNES_GAME_MUSIC[editing.index].name.toLowerCase()}`}
+          limit={{ most: 8, counts: () => true, text: 'the console has eight voices for the music and its drums, and each instrument only some of them' }}
+          doneLabel="Choose the instruments"
+          preview={(bytes, name) => {
+            const index = editing.index
+            const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
+            if (!found) throw new MidiError("the editor cannot find this ROM's instruments")
+            const { notes, end, programs } = readMidi(bytes)
+            const choices = defaultSnesPartChoices(found, musicParts(notes), programs, midiPartNames(bytes))
+            const made = snesMusicFromMidi(found, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(bytes), bends: midiPitchBends(bytes) }, null)
+            const next = withSnesMusic(project, index, made, name).bytes
+            const pointer = snesMusicPointer(next, index)
+            const music = readSnesMusic(next, pointer)
+            return { events: music ? snesMusicTune(music) : [], sound: () => snesMusicSound(next, pointer, SNES_GAME_MUSIC[index].sounds) }
+          }}
+          previewText="Play plays it as it would go in, on the game's own instruments first chosen for its parts (you can change them after), within the console's voices."
+          onDone={(bytes, name) => readBytes(editing.index, bytes, name) && setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
       {pending && kit && (
         <div className="notice">
           <p>
@@ -758,6 +917,15 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
                   {replaceable && (
                     <>
                       {' '}
+                      <button
+                        onClick={() => {
+                          player.stop()
+                          setPending(null)
+                          setEditing({ index, music: editedMusicOf(snesMusicToMidi(music!, custom ?? name)) })
+                        }}
+                      >
+                        Edit…
+                      </button>{' '}
                       <label className="button">
                         Replace…
                         <input

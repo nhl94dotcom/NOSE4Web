@@ -1142,6 +1142,13 @@ export function HelpPage() {
           such a program and import again.
         </li>
         <li>
+          <b>Or edit it here:</b> <b>Edit</b>, beside each song and piece of game music, opens it in the music editor:
+          its notes on a piano roll, to move, add, delete, transpose, make louder or quieter, speed up or cut short. Red
+          marks where more notes sound at once than go in, and <b>Play</b> plays it as it would go in (on the SNES on the
+          game's own instruments). <b>Open a MIDI file</b> there edits a file of your own first. It then goes in as a
+          MIDI file would with Replace.
+        </li>
+        <li>
           <b>Try it:</b> <b>Play</b> gives a rough idea in the browser (the console's organ sounds different), and
           the downloaded ROM in an emulator gives the real thing.
         </li>

@@ -1070,3 +1070,39 @@ main > [data-tab-hidden] {
     columns: 1;
   }
 }
+
+/* The music editor (MusicEditor.tsx): the keys and the piano roll scroll up and down together; the roll alone sideways. */
+.notice.music-editor {
+  max-width: none;
+}
+.music-roll {
+  display: flex;
+  max-height: 28rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  background: var(--field);
+}
+.music-keys {
+  flex: none;
+  position: sticky;
+  left: 0;
+  border-right: 1px solid var(--line);
+}
+.music-scroll {
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+.music-scroll canvas {
+  display: block;
+  touch-action: none;
+}
+.music-scroll canvas:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.music-swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  vertical-align: middle;
+}
