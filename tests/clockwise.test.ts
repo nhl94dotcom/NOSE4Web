@@ -277,9 +277,9 @@ const tilesOf = (rom: Uint8Array) => unpackTiles(rom, faceoffAnim(rom)! + 8)!
 const CDL_TILES = 0x11ea92
 
 describe("NOSE4Web's additions to Clockwise's sprite edit: data", () => {
-  it('has the untaped frames’ 108 bytes in 96 runs, the fight frames’ 38 in 28 and the faceoff’s 50 in 22 (the first tape’s 81 in 27), each a change, in order', () => {
+  it('has the untaped frames’ 106 bytes in 94 runs, the fight frames’ 38 in 28 and the faceoff’s 50 in 22 (the first tape’s 81 in 27), each a change, in order', () => {
     const { sprite, fight, faceoff, packed, firstFaceoff, firstPacked } = clockwiseExtras()
-    expect([sprite.length, tapeChanges(sprite).size]).toEqual([96, 108])
+    expect([sprite.length, tapeChanges(sprite).size]).toEqual([94, 106])
     expect([fight.length, tapeChanges(fight).size]).toEqual([28, 38])
     expect([faceoff.length, tapeChanges(faceoff).size]).toEqual([22, 50])
     expect([firstFaceoff.length, tapeChanges(firstFaceoff).size]).toEqual([27, 81])
@@ -477,5 +477,21 @@ describe.skipIf(spriteNames.length === 0)("NOSE4Web's tape in the frames Clockwi
     // Out: each of them as it was.
     takeOutClockwise(on)
     for (const t of sprite) expect(on.subarray(t.at, t.at + t.original.length)).toEqual(rom.subarray(t.at, t.at + t.original.length))
+  })
+})
+
+describe.skipIf(!existsSync(ORIGINAL))('frame 89’s tape, dropped 2026-11-25', () => {
+  it('comes out of a ROM made with it, at the next apply and when the edit is turned off', () => {
+    const plain = open('nhl94.bin').bytes
+    const now = hackRom(plain, { ...NO_HACKS, clockwiseSprites: true })
+    // A ROM from 4cf109b: the same, with frame 89's tape in.
+    const earlier = now.slice()
+    const { droppedSprite } = clockwiseExtras()
+    for (const t of droppedSprite) {
+      expect(is(earlier, t.at, t.original)).toBe(true)
+      earlier.set(t.patched, t.at)
+    }
+    expectSameBytes(withChoices(earlier, {}), now)
+    expectSameBytes(withChoices(earlier, { clockwiseSprites: false }), withChoices(now, { clockwiseSprites: false }))
   })
 })

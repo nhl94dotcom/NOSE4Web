@@ -956,7 +956,7 @@ const SELF_EXCEPTIONS: Record<string, { bytes: number; relocated?: boolean; fewe
   'Franchise Mode 1990 Final Exi.bin': { bytes: 259, relocated: true },
   'IDL5_v02.bin': { bytes: 259, relocated: true },
   'RGDL_S01_FINAL.bin': { bytes: 260, relocated: true },
-  '2on2_update.bin': { bytes: 333, relocated: true, fewerLines: true, tape: true },
+  '2on2_update.bin': { bytes: 331, relocated: true, fewerLines: true, tape: true },
 }
 // The ROMs NOSE4Web cannot hack.
 const NOT_HACKABLE = ['NHL 94 [h] EVO v0.2.1 - 2026 10 06.bin', 'NHL 94 [h] EVO v0.4.0 - 2026 10 28.bin']

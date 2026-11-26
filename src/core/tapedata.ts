@@ -163,13 +163,11 @@ export const FACEOFF_PACKED_TAPE_FIRST: Tape[] = [
 ]
 
 // The player sprites' frames that Clockwise's edit left untaped (2026-11-22): tape at the blade's end on the
-// goalies' and skaters' sticks in 34 frames, and the eyes of frames 168, 615 and 627, in the sprite tiles where
+// goalies' and skaters' sticks in 33 frames, and the eyes of frames 168, 615 and 627, in the sprite tiles where
 // Clockwise's records are (clockwise.ts; none of these bytes is in one of their records). From the NHL94 Match
-// Viewer project's records, less five frames they left out on a closer look (205, 490, 673, 721, 809). 108
-// bytes in 96 runs; the frames each is in after it.
+// Viewer project's records, less five frames they left out on a closer look (205, 490, 673, 721, 809), and frame
+// 89, left out after their look in the game (2026-11-25). 106 bytes in 94 runs; the frames each is in after it.
 export const SPRITE_TAPE: Tape[] = [
-  [0x64351, 'db', '2b'], // 89
-  [0x64355, 'dd', '22'], // 89
   [0x69f3f, '7b', '72'], // 168
   [0x76905, 'ee', '22'], // 305
   [0x76909, '0ee0', '0220'], // 305
@@ -264,4 +262,11 @@ export const SPRITE_TAPE: Tape[] = [
   [0x93cfd, 'e0', '20'], // 681
   [0x99c2c, 'eeee', 'e222'], // 754, 786
   [0x99c31, 'eeee', '222e'], // 754, 786
+]
+
+// Frame 89's tape, in the list above from 2026-11-22 (4cf109b) until 2026-11-25: it landed on the shoulder, not
+// the stick, so it is recognised and taken out.
+export const SPRITE_TAPE_DROPPED: Tape[] = [
+  [0x64351, 'db', '2b'], // 89
+  [0x64355, 'dd', '22'], // 89
 ]
