@@ -1535,7 +1535,7 @@ export function HelpPage() {
         <li>
           <b>Goalie hold after a dive catch:</b> seconds a goalie who catches the puck in a dive may hold it after they
           get up, before the whistle: only 0.08 in the original game, so the puck must be passed or dropped at
-          exactly the right moment. Every goalie, the computer's too. Not yet tested in the game.
+          exactly the right moment. Every goalie, the computer's too. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Goalie range to each side</b> and <b>up the ice:</b> how far a goalie you control can roam without the
@@ -2696,7 +2696,7 @@ export function HelpPage() {
           the <b>base weight</b> (the pounds a weight of 0 stands for, which the editor then reads weights by), the{' '}
           <b>hot and cold range</b> and <b>clutch time</b>. NHL 94's 0 to 15 ratings and its hot and cold bonus choices
           are not offered: NHL '95 works out and shows ratings differently. <b>Referee strictness</b>, NHL 94's five
-          levels, from very lenient (about half the calls) to very strict (about twice). Not yet tested in the game.{' '}
+          levels, from very lenient (about half the calls) to very strict (about twice). Tested in the game by the NHL94 Match Viewer project.{' '}
           <b>Fight momentum</b>, with fighting: the team whose player wins a fight gets +2 Agility and +2 Speed for its
           skaters for 90 seconds of play. <b>Blocked shots</b>: each skater's blocked shots counted, with a Player Stats
           page and (with giveaways off) a Game Stats row; it needs Skaters block the puck, as pucks pass through skaters
