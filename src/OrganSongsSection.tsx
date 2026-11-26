@@ -727,8 +727,9 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
     readBytes(index, new Uint8Array(await file.arrayBuffer()), file.name)
   }
 
-  // A MIDI file (or the music editor's) for piece `index`, its parts' instruments to choose next; whether it was read.
-  function readBytes(index: number, bytes: Uint8Array, fileName: string): boolean {
+  // A MIDI file (or the music editor's, with its parts' track names beside it) for piece `index`, its parts'
+  // instruments to choose next; whether it was read.
+  function readBytes(index: number, bytes: Uint8Array, fileName: string, names = midiPartNames(bytes)): boolean {
     player.stop()
     try {
       const { notes, name, end, programs } = readMidi(bytes)
@@ -744,7 +745,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
         loop: midiLoopStart(bytes),
         bends: midiPitchBends(bytes),
         parts,
-        choices: defaultSnesPartChoices(found, parts, programs, midiPartNames(bytes)),
+        choices: defaultSnesPartChoices(found, parts, programs, names),
         own: snesOwnMidi(found, bytes),
       })
       setNotice('')
@@ -828,12 +829,12 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
           title={`the ${SNES_GAME_MUSIC[editing.index].name.toLowerCase()}`}
           limit={{ most: 8, counts: () => true, text: 'the console has eight voices for the music and its drums, and each instrument only some of them' }}
           doneLabel="Choose the instruments"
-          preview={(bytes, name) => {
+          preview={(bytes, name, names) => {
             const index = editing.index
             const found = snesMusicKit(project.bytes, SNES_GAME_MUSIC[index].sounds)
             if (!found) throw new MidiError("the editor cannot find this ROM's instruments")
             const { notes, end, programs } = readMidi(bytes)
-            const choices = defaultSnesPartChoices(found, musicParts(notes), programs, midiPartNames(bytes))
+            const choices = defaultSnesPartChoices(found, musicParts(notes), programs, names)
             const made = snesMusicFromMidi(found, notes, choices, end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(bytes), bends: midiPitchBends(bytes) }, null)
             const next = withSnesMusic(project, index, made, name).bytes
             const pointer = snesMusicPointer(next, index)
@@ -841,7 +842,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
             return { events: music ? snesMusicTune(music) : [], sound: () => snesMusicSound(next, pointer, SNES_GAME_MUSIC[index].sounds) }
           }}
           previewText="Play plays it as it would go in, on the game's own instruments first chosen for its parts (you can change them after), within the console's voices."
-          onDone={(bytes, name) => readBytes(editing.index, bytes, name) && setEditing(null)}
+          onDone={(bytes, name, names) => readBytes(editing.index, bytes, name, names) && setEditing(null)}
           onCancel={() => setEditing(null)}
         />
       )}

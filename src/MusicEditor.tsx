@@ -42,9 +42,10 @@ interface Props {
   doneLabel: string
   // The music as it would go in, to play: its notes as the game has them, and on the SNES its sound on the game's
   // instruments. Said under Play, as "Play plays it as it would go in, on the organ."
-  preview: (midi: Uint8Array, name: string) => { events: SongEvent[]; sound?: () => SnesMusicRender | null }
+  preview: (midi: Uint8Array, name: string, names: Map<number, string>) => { events: SongEvent[]; sound?: () => SnesMusicRender | null }
   previewText: string
-  onDone: (midi: Uint8Array, name: string) => void
+  // The MIDI file, its name, and its parts' track names (EditedMusic's names).
+  onDone: (midi: Uint8Array, name: string, names: Map<number, string>) => void
   onCancel: () => void
 }
 
@@ -383,7 +384,7 @@ export function MusicEditor({ music: first, title, limit, doneLabel, preview, pr
     const shown = { ...music, notes: music.notes.filter((n) => !hidden.has(n.channel)) }
     if (shown.notes.length === 0) return
     try {
-      const made = preview(editedMusicToMidi(shown), music.name || title)
+      const made = preview(editedMusicToMidi(shown), music.name || title, music.names)
       player.toggle('edit', made.events, music.name || title, made.sound)
       setNotice('')
     } catch (e) {
@@ -590,7 +591,7 @@ export function MusicEditor({ music: first, title, limit, doneLabel, preview, pr
           disabled={music.notes.length === 0}
           onClick={() => {
             player.stop()
-            onDone(editedMusicToMidi(music), music.name || title)
+            onDone(editedMusicToMidi(music), music.name || title, music.names)
           }}
         >
           {doneLabel}

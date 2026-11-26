@@ -5,7 +5,7 @@ import { defaultPartChoices, GAME_MUSIC, gameMusicFromMidi, gameMusicToMidi, mus
 import { addNote, changeSpeed, crowded, deleteNotes, editedMusicOf, editedMusicToMidi, keepStretch, lengthenNotes, moveNotes, scaleVelocity, type EditedMusic } from '../src/core/midiedit'
 import { nhl95MusicFromMidi, nhl95PartChoices, NHL95_GAME_MUSIC, readNhl95Music } from '../src/core/nhl95music'
 import { openRom } from '../src/core/rom'
-import { defaultSnesPartChoices, midiLoopStart, midiPitchBends, snesMusicFromMidi, snesMusicKit, snesMusicTempo } from '../src/core/snesgamemusic'
+import { defaultSnesPartChoices, midiLoopStart, midiPartNames, midiPitchBends, snesMusicFromMidi, snesMusicKit, snesMusicTempo } from '../src/core/snesgamemusic'
 import { readSnesMusic, SNES_GAME_MUSIC, snesMusicToMidi } from '../src/core/snesmusic'
 
 // The music editor's notes (midiedit.ts): edits, the too-many-at-once check, and the MIDI file it writes, which reads
@@ -14,7 +14,7 @@ import { readSnesMusic, SNES_GAME_MUSIC, snesMusicToMidi } from '../src/core/sne
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 const open = (name: string) => openRom(new Uint8Array(readFileSync(path(name))))
 const note = (start: number, length: number, pitch: number, channel = 0, velocity = 100): MidiNote => ({ start, length, note: pitch, velocity, channel })
-const music = (notes: MidiNote[], more: Partial<EditedMusic> = {}): EditedMusic => ({ name: 'Test', notes, end: 4, loop: 0, programs: new Map(), bends: [], ...more })
+const music = (notes: MidiNote[], more: Partial<EditedMusic> = {}): EditedMusic => ({ name: 'Test', notes, end: 4, loop: 0, programs: new Map(), bends: [], names: new Map(), ...more })
 const all = (m: EditedMusic) => new Set(m.notes.map((_, i) => i))
 const rounded = (notes: MidiNote[]) => notes.map((n) => ({ ...n, start: Math.round(n.start * 960), length: Math.round(n.length * 960) }))
 
@@ -112,12 +112,17 @@ describe.skipIf(!existsSync(path('NHL94.smc')))('the music editor on the SNES', 
       expect(after.map((n) => [n.note, n.channel, n.velocity]), piece.name).toEqual(before.map((n) => [n.note, n.channel, n.velocity]))
       for (const [i, n] of after.entries()) expect(Math.max(Math.abs(n.start - before[i].start), Math.abs(n.length - before[i].length))).toBeLessThan(0.001)
       expect(midiLoopStart(edited)).toBeCloseTo(midiLoopStart(own), 3)
-      // And it goes in as the same file without the piece's own track names would, on the instruments chosen for it.
+      // And with the track names it carries beside it, its parts go on the instruments (and sides) the piece's own
+      // file's names give them: as the own file without its own volumes and percussion tracks would.
       const kit = snesMusicKit(project.bytes, piece.sounds)!
+      const names = editedMusicOf(own).names
+      expect(names, piece.name).toEqual(midiPartNames(own))
       const made = (bytes: Uint8Array) => {
         const { notes, end, programs } = readMidi(bytes)
-        return snesMusicFromMidi(kit, notes, defaultSnesPartChoices(kit, musicParts(notes), programs), end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(bytes), bends: midiPitchBends(bytes) }, null)
+        return snesMusicFromMidi(kit, notes, defaultSnesPartChoices(kit, musicParts(notes), programs, names), end, { tempo: snesMusicTempo(project.bytes, index), loop: midiLoopStart(bytes), bends: midiPitchBends(bytes) }, null)
       }
+      const { notes: ownNotes, programs: ownPrograms } = readMidi(own)
+      expect(defaultSnesPartChoices(kit, musicParts(ownNotes), ownPrograms, names)).toEqual(defaultSnesPartChoices(kit, musicParts(ownNotes), ownPrograms, midiPartNames(own)))
       const [a, b] = [made(own), made(edited)]
       expect([b.ticks, b.loop], piece.name).toEqual([a.ticks, a.loop])
       expect(b.tracks, piece.name).toEqual(a.tracks)

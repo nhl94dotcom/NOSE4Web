@@ -2,7 +2,7 @@
 // a MIDI file, which then goes in through the same Replace as a file of one's own. Times are in seconds.
 import { DRUMS, FRAMES_PER_SECOND, readMidi, type MidiNote, type SongEvent } from './genesismusic'
 import { MIDI_LOOP_MARKER } from './snesmusic'
-import { midiLoopStart, midiPitchBends, type MidiBend } from './snesgamemusic'
+import { midiLoopStart, midiPartNames, midiPitchBends, type MidiBend } from './snesgamemusic'
 
 export interface EditedMusic {
   name: string
@@ -13,11 +13,15 @@ export interface EditedMusic {
   // Each channel's General MIDI instrument, as the file has it.
   programs: Map<number, number>
   bends: MidiBend[]
+  // Each channel's track name, where the file has tracks of their own (a SNES piece's own MIDI file names them as the
+  // game names its parts, and its Replace puts each back on that part's instrument and side). The file written here
+  // has one track, so they go along beside it (MusicEditor's onDone).
+  names: Map<number, string>
 }
 
 export function editedMusicOf(bytes: Uint8Array, fallbackName = ''): EditedMusic {
   const { notes, name, end, programs } = readMidi(bytes)
-  return { name: (name || fallbackName).slice(0, 40), notes, end, loop: midiLoopStart(bytes), programs, bends: midiPitchBends(bytes) }
+  return { name: (name || fallbackName).slice(0, 40), notes, end, loop: midiLoopStart(bytes), programs, bends: midiPitchBends(bytes), names: midiPartNames(bytes) }
 }
 
 const sorted = (notes: MidiNote[]) => [...notes].sort((a, b) => a.start - b.start || a.note - b.note || a.channel - b.channel)
