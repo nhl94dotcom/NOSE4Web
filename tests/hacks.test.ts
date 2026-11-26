@@ -197,7 +197,8 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
         threeStars: stars === 'n' ? 'original' : stars === 'off' ? 'linesOff' : 'linesOn',
         baseWeight: baseWeightForYear(Number(year)),
       }
-      const hacked = applyHacks(opened, choices).bytes
+      // smozROM's own versions where NOSE4Web's differ (plus-minus and three stars).
+      const hacked = applyHacks(opened, choices, true).bytes
       if (createHash('sha256').update(hacked).digest('hex').slice(0, 16) !== hash) wrong.push(answers)
       // What was put in is what is found, and taking it all out gives the ROM back.
       const state = detectHacks(hacked)
@@ -974,7 +975,9 @@ describe.skipIf(leagueNames.length === 0)("a league ROM's own hacks applied agai
     }
     expect(NOT_HACKABLE).not.toContain(name)
     const state = detectHacks(opened.bytes)
-    const again = applyHacks(opened, state.choices)
+    // With smozROM's own plus-minus and three stars, which these ROMs have: an Apply puts in NOSE4Web's
+    // (starsplusminus.test.ts).
+    const again = applyHacks(opened, state.choices, true)
     expect(detectHacks(again.bytes)).toEqual(state)
     const known = SELF_EXCEPTIONS[name]
     if (!known) return expectSameBytes(again.bytes, opened.bytes)
@@ -982,7 +985,7 @@ describe.skipIf(leagueNames.length === 0)("a league ROM's own hacks applied agai
     const after = again.bytes
     expect(after.length).toBe(before.length)
     // Applied once more, nothing else changes.
-    expectSameBytes(applyHacks(again, state.choices).bytes, after)
+    expectSameBytes(applyHacks(again, state.choices, true).bytes, after)
 
     const moved = CODE_HOOKS.filter((at) => readU32(before, at + 2) !== readU32(after, at + 2))
     expect(moved.length > 0).toBe(!!known.relocated)

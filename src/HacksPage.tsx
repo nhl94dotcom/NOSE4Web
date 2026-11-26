@@ -8,7 +8,9 @@ import {
   applyHacks,
   blockedShotsOutdated,
   giveawaysOutdated,
+  plusMinusOutdated,
   shootoutOutdated,
+  threeStarsOutdated,
   baseWeightForYear,
   BONUS_TEXTS,
   detectHacks,
@@ -118,9 +120,9 @@ const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
   wideRatings: true,
   baseWeight: true,
   bonuses: true,
-  stamina: false,
-  energyDrain: false,
-  energyRecovery: false,
+  stamina: true,
+  energyDrain: true,
+  energyRecovery: true,
   plusMinus: false,
 }
 const testedLine = (tested: boolean | undefined) =>
@@ -589,8 +591,11 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         )}
         {hack(
           'plusMinus',
-          onOff('plusMinus'),
-          'Keeps a plus-minus for every player. The game does not show it; it is there to be read out of a save state by a league that tracks statistics.',
+          <>
+            {onOff('plusMinus')}
+            {plusMinusOutdated(project.bytes) && putInCurrent}
+          </>,
+          "Keeps a plus-minus for every player. The game does not show it; it is there to be read out of a save state by a league that tracks statistics. smozROM's version, which ROMs made before 25 November 2026 have, lost the game's goals so far when an intermission showed a highlight of another game; this one keeps them.",
         )}
         {hack(
           'timeOnIce',
@@ -615,17 +620,23 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         )}
         {hack(
           'threeStars',
-          <select aria-label={HACK_TITLES.threeStars} disabled={unknown('threeStars')} value={wanted.threeStars} onChange={(e) => set({ threeStars: e.target.value as ThreeStars })}>
-            {(Object.keys(STAR_TEXTS) as ThreeStars[]).map((choice) => (
-              <option key={choice} value={choice}>
-                {capital(STAR_TEXTS[choice])}
-              </option>
-            ))}
-          </select>,
+          <>
+            <select aria-label={HACK_TITLES.threeStars} disabled={unknown('threeStars')} value={wanted.threeStars} onChange={(e) => set({ threeStars: e.target.value as ThreeStars })}>
+              {(Object.keys(STAR_TEXTS) as ThreeStars[]).map((choice) => (
+                <option key={choice} value={choice}>
+                  {capital(STAR_TEXTS[choice])}
+                </option>
+              ))}
+            </select>
+            {threeStarsOutdated(project.bytes) && putInCurrent}
+          </>,
           <>
             The original game picks its three stars very simply. The improved way weighs goals, assists, shots and
             checks for skaters, and goals against, shots faced and shutouts for goalies. Choose it for how the ROM
-            will mostly be played: skaters are given a little more with line changes on, when each plays less.
+            will mostly be played: skaters are given a little more with line changes on, when each plays less. Checks
+            count only with Bodycheck statistics on. smozROM's version, which ROMs made before 25 November 2026 have,
+            made a goalie first star nearly every game, and counted penalty minutes as checks with bodycheck
+            statistics off; this one gives a shot faced the same weight as the SNES option.
           </>,
         )}
       </section>
@@ -968,7 +979,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
 
       <section id="hacks-energy">
         <h3>Energy and injury risk</h3>
-        {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to.')}
+        {hack('stamina', onOff('stamina'), 'With line changes on, players on the ice do not tire, so lines need changing only when you want to. The computer then never changes its lines.')}
         {hack(
           'energyDrain',
           number('energyDrain'),
@@ -1427,7 +1438,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
               </p>
             )}
             {wanted.threeStars !== 'original' && wanted.bodychecks === 'off' && !unknown('bodychecks') && (
-              <p>The improved three stars count bodychecks, which are only kept with bodycheck statistics on.</p>
+              <p>The improved three stars count checks only with bodycheck statistics on.</p>
             )}
           </div>
         )}

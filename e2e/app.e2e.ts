@@ -2649,9 +2649,9 @@ test.describe('with the NHL 94 ROM', () => {
 
     await main.getByLabel('Rating scale').selectOption('wide')
     await main.getByLabel('Three stars').selectOption('linesOff')
-    await expect(main.locator('.outcome')).toContainText('The improved three stars count bodychecks')
+    await expect(main.locator('.outcome')).toContainText('The improved three stars count checks only')
     await main.getByLabel('Bodycheck statistics').selectOption('on')
-    await expect(main.locator('.outcome')).not.toContainText('The improved three stars count bodychecks')
+    await expect(main.locator('.outcome')).not.toContainText('The improved three stars count checks only')
     await apply.click()
     await expect(main.getByText('Done: 3 changes to the game. Undo puts it back.')).toBeVisible()
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')

@@ -83,7 +83,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
       : "Each skater's blocked shots (the other team's shots their body stops) are counted and shown on a Player Stats page of their own, and Game Stats shows each team's as Blocked Shots.",
   timeOnIce: () => 'Player Stats has a Time On Ice page (right past Penalty Minutes), sorted by each player\'s time on ice.',
   plusMinus: () => 'Plus-minus is kept for every player (the game does not show it).',
-  threeStars: (c) => `The three stars are chosen by a fuller formula that counts bodychecks, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
+  threeStars: (c) => `The three stars are chosen by a fuller formula, made for line changes ${c.threeStars === 'linesOn' ? 'on' : 'off'}.`,
   wideRatings: () => 'Ratings run from 0 to 15 instead of 0 to 6, so players can differ more finely.',
   bonuses: (c) =>
     ({
@@ -106,7 +106,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
     `A goalie you control may ${more(c.goalieOut, NO_HACKS.goalieOut, 'not come as far out of their net', 'come farther out of their net')} without the puck (to ${c.goalieOut} from centre ice, where the original has ${NO_HACKS.goalieOut}).`,
   goalieLine: (c) =>
     `A goalie you control may carry the puck ${more(c.goalieLine, NO_HACKS.goalieLine, 'less far', 'farther')} up the ice before the whistle (to ${c.goalieLine} from centre ice, where the original has ${NO_HACKS.goalieLine}).`,
-  stamina: () => 'With line changes on, players on the ice never tire, so lines change only when you want them to.',
+  stamina: () => 'With line changes on, players on the ice never tire, so lines change only when you want them to; the computer never changes its lines.',
   injuries: (c) =>
     c.injuries === 'never'
       ? 'Hits never injure: a player knocked down gets up as from any other check.'

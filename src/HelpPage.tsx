@@ -1268,7 +1268,7 @@ export function HelpPage() {
         </li>
         <li>
           <b>Three stars:</b> a fuller way of choosing them, in one version for playing with line changes off and
-          one for line changes on. It counts bodychecks, so it goes with bodycheck statistics.
+          one for line changes on. It counts checks only with bodycheck statistics on.
         </li>
         <li>
           <b>Rating scale:</b> ratings from 0 to 15 in place of 0 to 6, with overall rating formulas made for

@@ -454,6 +454,9 @@ const UNUSED = 0xff
 // The ROM being changed. Adding code can make it larger, so it is held here.
 export interface Work {
   rom: Uint8Array
+  // smozROM's own versions of its hacks, where NOSE4Web's differ (plus-minus, three stars): for checking NOSE4Web
+  // against smozROM's output.
+  smozRom?: boolean
 }
 
 // A place where the game's own instructions are replaced by a call to code
@@ -1436,33 +1439,65 @@ const anyPosition: Part<boolean> = {
 // ------------------------------------------------------ plus-minus statistic
 // Keeps each player's plus-minus where a save state can be read for it. The
 // game shows nothing of it. The memory it uses is cleared before each game.
+// From smozROM: each goal adds a 14-byte entry at $FFDEF6 (length in bytes at
+// $FFDEF4): a flag byte, then the twelve roster places on the ice.
+//
+// smozROM's version clears the log in clearTeamStats, which an intermission
+// highlight of another game calls too, and logs the highlight's goal, so the
+// real game's goals before it were lost (Match Viewer, 2 of 11 games,
+// 2026-11-25). NOSE4Web's logs no goal in a highlight (gmode's gmhl, bit 4 of
+// $FFC2EA) and leaves the log alone when clearTeamStats is called from
+// StartHL2 (its jsr at $135D2 returns to $135D8). Its clear is a call, for
+// room: the two team structs (contiguous, $6C8 bytes from $FFC6CE), then the
+// log, unless the caller's return address, past the two goalie words
+// clearTeamStats keeps on the stack, is StartHL2's.
 
 const PLUS_MINUS_HOOK: Hook = { at: 0x1494a, original: bytes('0678 001E B8A2') }
-const PLUS_MINUS_CODE = bytes(
+const SMOZ_PLUS_MINUS_CODE = bytes(
   '0678 001E B8A2 48E7 E0C0 0838 0005 C2F4 6700 0010 0838 0000 C2FA 6600 0006 08C0 0006 B4FC C6CE 6700 0006 08C0 0007 307C DEF6 3210 D0F8 DEF4 5E78 DEF4 5E78 DEF4 3210 10C0 5248 700B 327C B04A 323C 0080 343C FF10 B451 6600 000A 10FC 00FF 6000 0006 10E9 0066 D2C1 51C8 FFEA 4CDF 0307 4E75',
 )
+// The same, but first: btst #gmhl,(gmode).w / bne.w to its rts.
+const PLUS_MINUS_REST = SMOZ_PLUS_MINUS_CODE.slice(6)
+const PLUS_MINUS_CODE = Uint8Array.from([...bytes(`0678 001E B8A2 0838 0004 C2EA 6600 ${hex4(PLUS_MINUS_REST.length)}`), ...PLUS_MINUS_REST])
 const CLEAR_AT = 0x17132
 const CLEAR = {
   original: bytes('4CDF 0E00 203C 0000 0363 307C C6CE 4218 51C8 FFFC 307C CA32 303C 0363 4218 51C8 FFFC 48E7 0070'),
-  hacked: bytes('4CDF 0E00 203C 0000 06C7 307C C6CE 4218 51C8 FFFC 307C DEF4 3010 5440 4218 51C8 FFFC 48E7 0070'),
+  smozRom: bytes('4CDF 0E00 203C 0000 06C7 307C C6CE 4218 51C8 FFFC 307C DEF4 3010 5440 4218 51C8 FFFC 48E7 0070'),
 }
+// NOSE4Web's: after the movem.l (sp)+,a1-a3, the two clears become a call.
+const CLEAR_HOOK: Hook = { at: CLEAR_AT + 4, original: CLEAR.original.slice(4, 34) }
+const CLEAR_CODE = bytes('303C 06C7 307C C6CE 4218 51C8 FFFC 0CAF 0001 35D8 0008 670E 307C DEF4 3010 5440 4218 51C8 FFFC 4E75')
+
+const plusMinusCodes = (rom: Uint8Array) => ({
+  now: hooked(rom, PLUS_MINUS_HOOK, PLUS_MINUS_CODE) !== null && hooked(rom, CLEAR_HOOK, CLEAR_CODE) !== null,
+  smozRom: hooked(rom, PLUS_MINUS_HOOK, SMOZ_PLUS_MINUS_CODE) !== null && is(rom, CLEAR_AT, CLEAR.smozRom),
+})
+// Whether this ROM has smozROM's version (it reads as on, and NOSE4Web's goes in whenever the hacks are applied).
+export const plusMinusOutdated = (rom: Uint8Array): boolean => plusMinusCodes(rom).smozRom
 
 const plusMinus: Part<boolean> = {
   detect(rom) {
     if (is(rom, PLUS_MINUS_HOOK.at, PLUS_MINUS_HOOK.original) && is(rom, CLEAR_AT, CLEAR.original)) return false
-    return hooked(rom, PLUS_MINUS_HOOK, PLUS_MINUS_CODE) !== null && is(rom, CLEAR_AT, CLEAR.hacked) ? true : undefined
+    const { now, smozRom } = plusMinusCodes(rom)
+    return now || smozRom ? true : undefined
   },
   remove(rom) {
-    const target = hooked(rom, PLUS_MINUS_HOOK, PLUS_MINUS_CODE)
-    if (target === null) return
-    erase(rom, target, PLUS_MINUS_CODE.length)
+    const { now, smozRom } = plusMinusCodes(rom)
+    if (!now && !smozRom) return
+    erase(rom, hooked(rom, PLUS_MINUS_HOOK, now ? PLUS_MINUS_CODE : SMOZ_PLUS_MINUS_CODE)!, (now ? PLUS_MINUS_CODE : SMOZ_PLUS_MINUS_CODE).length)
+    if (now) erase(rom, hooked(rom, CLEAR_HOOK, CLEAR_CODE)!, CLEAR_CODE.length)
     rom.set(PLUS_MINUS_HOOK.original, PLUS_MINUS_HOOK.at)
     rom.set(CLEAR.original, CLEAR_AT)
   },
   apply(work, value) {
     if (!value) return
+    if (work.smozRom) {
+      hook(work, PLUS_MINUS_HOOK, SMOZ_PLUS_MINUS_CODE)
+      work.rom.set(CLEAR.smozRom, CLEAR_AT)
+      return
+    }
     hook(work, PLUS_MINUS_HOOK, PLUS_MINUS_CODE)
-    work.rom.set(CLEAR.hacked, CLEAR_AT)
+    hook(work, CLEAR_HOOK, CLEAR_CODE)
   },
 }
 
@@ -1597,17 +1632,31 @@ const starsCode = (v: StarValues) =>
   bytes(
     `324A 362A 000C 966B 000C 48C3 7819 4EB9 0000 9F40 4440 D044 2883 4241 122A 00CE C2FC ${word(v.assist)} 4242 142A 00E8 B840 6200 0026 D394 C4FC ${word(v.shotFor)} D594 4241 122A 00B4 C2FC ${word(v.goal)} D394 4241 122A 0102 C2FC ${word(v.check)} D394 6000 003A BA69 0136 6200 0032 4A42 6700 002C E281 D394 4241 122A 00B4 4A41 6600 0008 0694 0000 ${word(v.shutout)} C3FC ${word(v.goalsAgainst)} D394 4A43 6A00 0004 5382 C4FC ${word(v.shotsAgainst)} D594 5449 524A 584C 51CC FF84 4E75 FFFF FFFF FFFF`,
   )
-const STARS: Record<ThreeStars, Uint8Array> = {
-  original: STARS_ORIGINAL,
-  linesOff: starsCode({ goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: -11000, shotsAgainst: 4000, shutout: 16000 }),
-  linesOn: starsCode({ goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: -11000, shotsAgainst: 4500, shutout: 20800 }),
+// smozROM's weights. A shot faced counts 4,000 (4,500), so a goalie was first star in all 11 of Match Viewer's games
+// (2026-11-25), as on the SNES; and the checks term reads +$102, which holds checks only with bodycheck counts on
+// (PENALTY hacked), else penalty minutes.
+const SMOZ_STARS: Record<Exclude<ThreeStars, 'original'>, StarValues> = {
+  linesOff: { goal: 11000, assist: 7000, shotFor: 500, check: 500, goalsAgainst: -11000, shotsAgainst: 4000, shutout: 16000 },
+  linesOn: { goal: 14300, assist: 9100, shotFor: 650, check: 650, goalsAgainst: -11000, shotsAgainst: 4500, shutout: 20800 },
 }
-const STAR_CHOICES = Object.keys(STARS) as ThreeStars[]
+// NOSE4Web's: a shot faced as on the SNES (sneshacks.ts, STAR_WEIGHTS), and the checks only with bodycheck counts on.
+const NOW_SHOTS_AGAINST = { linesOff: 900, linesOn: 1170 }
+const starsFor = (choice: ThreeStars, checks: boolean, smozRom = false) => {
+  if (choice === 'original') return STARS_ORIGINAL
+  const smoz = SMOZ_STARS[choice]
+  if (smozRom) return starsCode(smoz)
+  return starsCode({ ...smoz, shotsAgainst: NOW_SHOTS_AGAINST[choice], check: checks ? smoz.check : 0 })
+}
+const STAR_CHOICES: ThreeStars[] = ['original', 'linesOff', 'linesOn']
+// Whether this ROM has smozROM's version (it reads as on, and NOSE4Web's goes in whenever the hacks are applied).
+export const threeStarsOutdated = (rom: Uint8Array): boolean =>
+  STAR_CHOICES.some((choice) => choice !== 'original' && is(rom, STARS_AT, starsFor(choice, true, true)))
 
 const threeStars: Part<ThreeStars> = {
-  detect: (rom) => STAR_CHOICES.find((choice) => is(rom, STARS_AT, STARS[choice])),
+  detect: (rom) => STAR_CHOICES.find((choice) => [true, false].some((checks) => is(rom, STARS_AT, starsFor(choice, checks))) || is(rom, STARS_AT, starsFor(choice, true, true))),
   remove: (rom) => rom.set(STARS_ORIGINAL, STARS_AT),
-  apply: (work, value) => work.rom.set(STARS[value], STARS_AT),
+  // After bodychecks, so the ROM says whether +$102 holds checks.
+  apply: (work, value) => work.rom.set(starsFor(value, is(work.rom, PENALTY_AT, PENALTY.hacked), work.smozRom), STARS_AT),
 }
 
 // --------------------------------------------------------------- base weight
@@ -3893,7 +3942,8 @@ export function detectHacks(rom: Uint8Array): HackState {
 // whose code is not recognised are left exactly as they are. Like smozROM,
 // it takes out every hack it knows and puts the wanted ones in afresh, in
 // smozROM's order, so that the same choices always give the same ROM.
-export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
+// `smozRom` puts in smozROM's own versions where NOSE4Web's differ (see Work).
+export function hackRom(rom: Uint8Array, wanted: HackChoices, smozRom = false): Uint8Array {
   if (!validBase(wanted.baseWeight)) throw new HackError('A base weight has to be an even number from 102 to 152.')
   for (const key of Object.keys(HACK_RANGES) as (keyof typeof HACK_RANGES)[]) {
     const [least, most] = HACK_RANGES[key]
@@ -3909,7 +3959,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices): Uint8Array {
     throw new HackError("Ron Barr's pick every game and the pick by a coin flip cannot both be on: Ron Barr picks one way or the other.")
   }
   const { unknown, choices } = detectHacks(rom)
-  const work: Work = { rom: rom.slice() }
+  const work: Work = { rom: rom.slice(), smozRom }
   // Fighting that stays in is left as it is, but for its menu's starting
   // choice. Head bleeding goes on top of everything: it comes out first, and
   // goes in last. Taken out even where it stays, so that the code the other
@@ -4182,10 +4232,10 @@ export const narrowRating = (value: number) => Math.min(6, Math.round(value / 2.
 // The project with its ROM hacked as wanted. Where the rating scale or the
 // base weight changes, every player's ratings or weight are restated in the
 // new terms, so that each stays as near as can be to what they were.
-export function applyHacks(project: RomProject, wanted: HackChoices): RomProject {
+export function applyHacks(project: RomProject, wanted: HackChoices, smozRom = false): RomProject {
   if (!hacksSupported(project.game)) throw new HackError('Hacks cannot be applied to this kind of ROM.')
   const before = detectHacks(project.bytes)
-  const rom = hackRom(project.bytes, wanted)
+  const rom = hackRom(project.bytes, wanted, smozRom)
   const after = detectHacks(rom).choices
 
   // The marks say what the ROM now is, which for a part left alone is what it was.
