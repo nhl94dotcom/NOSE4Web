@@ -271,7 +271,7 @@ const SNES: Record<SnesHack, string> = {
   oneTimerFix: 'A one-timer whose pass comes late no longer leaves the player swinging with the puck and never shooting: they take the pass and can shoot it.',
   creaseIcing: 'A puck that crosses the goal line within the width of the crease is not icing, as on the Genesis.',
   hybridIcing: "Hybrid icing, as in today's NHL: icing is decided as the puck crosses the goal line, by which team has a skater nearer the end-zone faceoff dots.",
-  noPenaltyShots: 'A foul on a breakaway is an ordinary penalty: there are no penalty shots.',
+  noPenaltyShots: 'A foul on a breakaway is judged like any other foul: there are no penalty shots.',
   noGoalPosts: 'A puck between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'The game starts without the EA logo.',
   barrPick: 'Ron Barr names the team that came out hotter before every game, not only when one is much hotter.',

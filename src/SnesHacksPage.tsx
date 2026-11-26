@@ -113,7 +113,7 @@ const TESTED_SNES: Partial<Record<SnesHack, boolean>> = {
   defenceControl: true,
   oneMinutePenalties: true,
   thirtySecondPeriods: true,
-  noPenaltyShots: false,
+  noPenaltyShots: true,
   noGoalPosts: true,
   skipEaIntro: true,
   skipPucksIntro: true,
@@ -197,7 +197,7 @@ const ABOUT: Record<SnesHack, ReactNode> = {
     "The line a goalie you control may not carry the puck past without a whistle, again as a distance from centre ice, so a smaller number lets them go farther; the original game has 187, and 0 lets them go anywhere. At most 210, just outside their crease. Works on McMarkis's SA-1 and 32-team builds too. Tested in the game by the NHL94 Match Viewer project.",
   freeBurst:
     'With line changes on, a speed burst (the A button without the puck) costs no energy, where in the original game each costs 5% of full energy. Found by the NHL94 Match Viewer project. Tested in the game by the NHL94 Match Viewer project.',
-  noPenaltyShots: 'A foul on a breakaway is called as an ordinary penalty, never a penalty shot.',
+  noPenaltyShots: 'A foul on a breakaway is judged like any other foul: it may be called as a minor, but is often not called at all. It is never a penalty shot.',
   noGoalPosts: 'A puck that reaches the net between the posts is always a goal: it never rings off the post or the crossbar.',
   skipEaIntro: 'Starts the game without the EA logo.',
   barrPick:

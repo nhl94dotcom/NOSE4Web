@@ -17,6 +17,7 @@ import {
   nhl95BlockedShotsOutdated,
   nhl95GiveawaysOutdated,
   nhl95ShootoutOutdated,
+  nhl95ThreeStarsOutdated,
   nhl95HackSheet,
   nhl95HacksForDiscord,
   nhl95HackStateChanges,
@@ -394,7 +395,8 @@ const SETTING_MORE: Partial<Record<Nhl95Hack, (c: Nhl95HackChoices, stock: strin
       The original game picks its three stars very simply. The improved way weighs goals, assists, shots and checks for
       skaters, and goals against, shots faced and shutouts for goalies. Choose it for how the ROM will mostly be played:
       skaters are given a little more with line changes on, when each plays less. It works without Bodycheck
-      statistics.
+      statistics. NOSE4Web's version before 26 November 2026 made a goalie first star nearly every game; this one
+      gives a shot faced the same weight as the SNES option.
     </>
   ),
   bodychecks: () => (
@@ -706,6 +708,7 @@ export function Nhl95HacksPage({ project, name, onChange, kept, onKeep }: Props)
       </p>
     ),
     // An earlier version of a hack: on, and put in again as the current one.
+    threeStars: nhl95ThreeStarsOutdated(project.bytes) && putInCurrent,
     giveaways: nhl95GiveawaysOutdated(project.bytes) && putInCurrent,
     blockedShots: nhl95BlockedShotsOutdated(project.bytes) && putInCurrent,
     seasonShootout: nhl95ShootoutOutdated(project.bytes) && putInCurrent,

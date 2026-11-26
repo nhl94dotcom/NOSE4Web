@@ -1183,7 +1183,7 @@ which the WN95HL sets for the game" expects every W18 / W18p choice to equal `NO
 
 | Option | Place | Original | Hacked |
 |---|---|---|---|
-| `threeStars` | CalcTeamStarScores `$95C8A` (whole routine rewritten in place) | `STARS95.original` | `starsCode95(assist, shotFor, goal, check, shutout, shotsAgainst)`: `linesOff` (7000, 500, 11000, 500, 16000, 4000), `linesOn` (9100, 650, 14300, 650, 20800, 4500); ends `FFFF FFFF FFFF` |
+| `threeStars` | CalcTeamStarScores `$95C8A` (whole routine rewritten in place) | `STARS95.original` | `starsCode95(assist, shotFor, goal, check, shutout, shotsAgainst)`: `linesOff` (7000, 500, 11000, 500, 16000, 900), `linesOn` (9100, 650, 14300, 650, 20800, 1170); ends `FFFF FFFF FFFF`. The first version (to 2026-11-26) had 4000 / 4500 for a shot faced (`STARS95_EARLIER`): it reads as on, `nhl95ThreeStarsOutdated`, and is replaced at any Apply |
 | `bodychecks` | FallDown's `.AddChktoPlayerStats` `$7B164` (16 bytes) | `5268 0010 4240 102B 0066 D0C0 5228 011E` | hook to `CHECK_CODE95`: the same 8 words, then `0839 0000 00FF BEF0 6604 5228 0104 4E75` (adds 1 to the checker's `+$104`, his penalty minutes, "while the clock runs") |
 | | the penalty's add to PIM `$8941E` | `D532 0000` | `4E71 4E71` (around: `$8941A` `0640 0104`, `$89422` `0440 0104`) |
 | | Player Stats texts `$92B01`, `$92B76` | `PIM`, `Penalty Minutes` | `Chk`, `   Checks For  ` |

@@ -1877,11 +1877,21 @@ const STARS95: Record<ThreeStars, Uint8Array> = {
   original: hex(
     '324A 362A 000C 966B 000C 48C3 7819 4EB9 0007 CB4E 4440 D044 2883 B840 6200 003C 4241 122A 00B6 C2FC 2AF8 D394 4241 122A 00D0 C2FC 2774 D394 4241 122A 00EA C2FC 000A 4A43 6600 000E C2FC 0064 D394 4281 D269 0138 D394 6000 003A BA69 0138 6200 0032 4241 122A 00B6 C2FC 0064 4242 142A 00EA 6700 001E 82C2 B27C 0004 6200 0014 0694 0000 7D00 4A41 6600 0008 0694 0001 24F8 5449 524A 584C 51CC FF7E 4E75',
   ),
+  linesOff: starsCode95(7000, 500, 11000, 500, 16000, 900),
+  linesOn: starsCode95(9100, 650, 14300, 650, 20800, 1170),
+}
+// NOSE4Web's first version (to 26 November 2026), with smozROM's weight for a shot faced: a goalie first star
+// nearly every game (Match Viewer).
+const STARS95_EARLIER: Partial<Record<ThreeStars, Uint8Array>> = {
   linesOff: starsCode95(7000, 500, 11000, 500, 16000, 4000),
   linesOn: starsCode95(9100, 650, 14300, 650, 20800, 4500),
 }
+export const nhl95ThreeStarsOutdated = (rom: Uint8Array) =>
+  (Object.values(STARS95_EARLIER) as Uint8Array[]).some((code) => matches(rom, STARS_AT95, code))
 const threeStars95: Part<ThreeStars> = {
-  detect: (rom) => (Object.keys(STARS95) as ThreeStars[]).find((choice) => matches(rom, STARS_AT95, STARS95[choice])),
+  detect: (rom) =>
+    (Object.keys(STARS95) as ThreeStars[]).find((choice) => matches(rom, STARS_AT95, STARS95[choice])) ??
+    (Object.keys(STARS95_EARLIER) as ThreeStars[]).find((choice) => matches(rom, STARS_AT95, STARS95_EARLIER[choice]!)),
   remove: (rom) => rom.set(STARS95.original, STARS_AT95),
   apply: (work, value) => work.rom.set(STARS95[value], STARS_AT95),
 }
@@ -2521,6 +2531,8 @@ export function applyNhl95Hacks(project: RomProject, wanted: Partial<Nhl95HackCh
   if (choices.fighting && wanted.fighting === true && fightUnfixed(project.bytes)) change.push('fighting')
   // So are giveaways and takeaways of an earlier version, with the current one.
   if (choices.giveaways && wanted.giveaways === true && nhl95GiveawaysOutdated(project.bytes)) change.push('giveaways')
+  // And the three stars' first version.
+  if (choices.threeStars !== 'original' && wanted.threeStars === choices.threeStars && nhl95ThreeStarsOutdated(project.bytes)) change.push('threeStars')
   // And the blocked shots page's first version.
   if (choices.blockedShots && wanted.blockedShots === true && nhl95BlockedShotsOutdated(project.bytes)) change.push('blockedShots')
   // And the season shootout's first version.

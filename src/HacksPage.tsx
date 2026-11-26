@@ -109,7 +109,7 @@ const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
   aggressionFix: true,
   ppPkFix: true,
   comebackFix: true,
-  threeStars: false,
+  threeStars: true,
   realTime: true,
   goalieHold: true,
   goalieWidth: true,
@@ -123,7 +123,7 @@ const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
   stamina: true,
   energyDrain: true,
   energyRecovery: true,
-  plusMinus: false,
+  plusMinus: true,
 }
 const testedLine = (tested: boolean | undefined) =>
   tested === undefined ? '' : tested ? ' Tested in the game by the NHL94 Match Viewer project.' : ' Not yet tested in the game.'
@@ -636,7 +636,8 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             will mostly be played: skaters are given a little more with line changes on, when each plays less. Checks
             count only with Bodycheck statistics on. smozROM's version, which ROMs made before 25 November 2026 have,
             made a goalie first star nearly every game, and counted penalty minutes as checks with bodycheck
-            statistics off; this one gives a shot faced the same weight as the SNES option.
+            statistics off; this one gives a shot faced the same weight as the SNES option. In overtime the scorer of the
+            winning goal is always first star, as in the original game.
           </>,
         )}
       </section>
