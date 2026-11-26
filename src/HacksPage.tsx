@@ -89,7 +89,7 @@ const RECOMMENDED_KEYS = new Set<keyof HackChoices>([
 ])
 
 // Whether the hacks whose texts were written before every text said so are tested in the game, by Match
-// Viewer's notes of 21 November 2026 (true: tested; false: not yet). The text gets the line to match.
+// Viewer's notes of 21 November 2026 and later (true: tested; false: not yet). The text gets the line to match.
 const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
   secondAssist: true,
   passFix: true,
@@ -109,15 +109,15 @@ const TESTED_94: Partial<Record<keyof HackChoices, boolean>> = {
   comebackFix: true,
   threeStars: false,
   realTime: false,
-  goalieHold: false,
-  goalieWidth: false,
-  goalieOut: false,
-  goalieLine: false,
-  speedBurst: false,
-  turnRate: false,
+  goalieHold: true,
+  goalieWidth: true,
+  goalieOut: true,
+  goalieLine: true,
+  speedBurst: true,
+  turnRate: true,
   wideRatings: false,
-  baseWeight: false,
-  bonuses: false,
+  baseWeight: true,
+  bonuses: true,
   stamina: false,
   energyDrain: false,
   energyRecovery: false,
@@ -1300,7 +1300,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
         {hack(
           'clockwiseSprites',
           onOff('clockwiseSprites'),
-          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the sticks in 33 goalie and skater frames Clockwise left untaped, with three more eyes; tape on the centres' sticks in the faceoff close-up; and, with chaos's fighting patch on, tape on the sticks in the fight frames, with an eye on the overhand punch. Not yet tested in the game.",
+          "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the sticks in 33 goalie and skater frames Clockwise left untaped, with three more eyes; tape on the centres' sticks in the faceoff close-up; and, with chaos's fighting patch on, tape on the sticks in the fight frames, with an eye on the overhand punch. Tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'barrPick',
