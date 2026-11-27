@@ -59,9 +59,35 @@ export function findGenesisReverseRink(rom: Uint8Array): number | null {
   return found
 }
 
+// NHL '95's reverse angle replay has a map of its own over the rink's own tiles (RevRinkTilelist: 48 x 85, no tiles
+// or palette; Match Viewer, 2026-11-27). Found from its updatescroll: movea.l #Rinktilelist,a0; adda.l 4(a0),a0; blt;
+// btst #4,(sflags4).w; beq.w; movea.l #RevRinkTilelist,a0.
+const UPDATESCROLL_95 = [0x20, 0x7c, -1, -1, -1, -1, 0xd1, 0xe8, 0x00, 0x04, 0x6d, 0x00, -1, -1, 0x08, 0x38, 0x00, 0x04, -1, -1, 0x67, 0x00, 0x00, 0x08, 0x20, 0x7c]
+function findSharedReverseMap(rom: Uint8Array, rink: number): number | null {
+  let found: number | null = null
+  for (let at = rom.indexOf(0x20); at >= 0 && at + UPDATESCROLL_95.length + 4 <= rom.length; at = rom.indexOf(0x20, at + 1)) {
+    if (at & 1 || !UPDATESCROLL_95.every((byte, i) => byte < 0 || rom[at + i] === byte) || readU32(rom, at + 2) !== rink) continue
+    if (found !== null) return null
+    found = readU32(rom, at + UPDATESCROLL_95.length)
+  }
+  return found
+}
+
 export type RinkView = 'play' | 'reverse'
 
 export function readGenesisRink(rom: Uint8Array, view: RinkView = 'play'): GenesisRink | null {
+  if (view === 'reverse' && findGenesisReverseRink(rom) === null) {
+    // NHL '95's: the rink's tiles and palette, its own map.
+    const rinkAt = findGenesisRink(rom)
+    const rink = rinkAt === null ? null : readGenesisRink(rom, 'play')
+    const mapAt = rinkAt === null ? null : findSharedReverseMap(rom, rinkAt)
+    if (!rink || mapAt === null || mapAt + 4 > rom.length) return null
+    const [width, height] = [readU16(rom, mapAt), readU16(rom, mapAt + 2)]
+    if (width !== rink.width || height !== rink.height || mapAt + 4 + width * height * 2 > rom.length) return null
+    const words = Array.from({ length: width * height }, (_, i) => readU16(rom, mapAt + 4 + i * 2))
+    if (words.some((word) => (word & 0x7ff) >= rink.tileCount)) return null
+    return { ...rink, mapAt, words }
+  }
   const at = view === 'play' ? findGenesisRink(rom) : findGenesisReverseRink(rom)
   if (at === null || at + 10 > rom.length) return null
   const paletteAt = at + readU32(rom, at)
@@ -240,23 +266,44 @@ export function genesisRinkGuide(rom: Uint8Array, view: RinkView, palette: numbe
 // another square (weighed by how many places show them) for the closest one, until it fits.
 export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[], fit = false): RinkImport {
   const rink = readGenesisRink(rom, view)
-  if (!rink || rink.height < SHOWN_ROWS + 10) throw new RinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
+  if (!rink || rink.height < SHOWN_ROWS) throw new RinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
   const fullHeight = rink.height * 8
   const shown = SHOWN_ROWS * 8
   if (image.width !== rink.width * 8 || (image.height !== fullHeight && image.height !== shown)) {
     throw new RinkImportError(`The picture must be ${rink.width * 8} pixels wide and ${shown} or ${fullHeight} tall, as Export as PNG saves it; this one is ${image.width} by ${image.height}.`)
   }
-  const rows = image.height / 8
-  const centreFrom = rink.tileCount - CENTRE_TILES
-  const kept = (cell: number) => {
-    const [col, row] = [cell % rink.width, Math.floor(cell / rink.width)]
-    return row >= rows || (rink.words[cell] & 0x7ff) >= centreFrom || KEPT_AREAS[view].some((a) => col >= a.col[0] && col <= a.col[1] && row >= a.row[0] && row <= a.row[1])
+  // The maps the tiles are drawn by: this view's, and on NHL '95 the other view's too, which shares them. The other
+  // keeps its picture: its squares go in again from its own drawing, so the tiles serve both.
+  const otherView: RinkView = view === 'play' ? 'reverse' : 'play'
+  const other = readGenesisRink(rom, otherView)
+  const sharing = other !== null && other.tilesAt === rink.tilesAt && other.mapAt !== rink.mapAt
+  const drawnAs = (v: RinkView) => {
+    const d = drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), v)!.picture
+    const rgba = new Uint8Array(d.width * d.height * 4)
+    d.pixels.forEach((c, i) => {
+      if (c) rgba.set([...colorRgb(palette[c]), 255], i * 4)
+    })
+    return { rgba, width: d.width, height: Math.min(d.height, image.height) }
   }
+  const maps = [
+    { rink, view, image, original: drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), view)!.picture },
+    ...(sharing ? [{ rink: other!, view: otherView, image: drawnAs(otherView), original: drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), otherView)!.picture }] : []),
+  ]
+  // A cell of a map, as one number.
+  const MAP_CELLS = 0x10000
+  const mapOf = (id: number) => maps[Math.floor(id / MAP_CELLS)]
+  const centreFrom = rink.tileCount - CENTRE_TILES
+  const kept = (id: number) => {
+    const { rink: r, view: v, image: img } = mapOf(id)
+    const cell = id % MAP_CELLS
+    const [col, row] = [cell % r.width, Math.floor(cell / r.width)]
+    return row >= img.height / 8 || (r.words[cell] & 0x7ff) >= centreFrom || KEPT_AREAS[v].some((a) => col >= a.col[0] && col <= a.col[1] && row >= a.row[0] && row <= a.row[1])
+  }
+  const ids = maps.flatMap((m, k) => m.rink.words.map((_, cell) => k * MAP_CELLS + cell))
+  const wordOf = (id: number) => mapOf(id).rink.words[id % MAP_CELLS]
   // The tiles the kept cells show keep their place and their pixels.
   const pinned = new Set<number>()
-  rink.words.forEach((word, cell) => {
-    if (kept(cell)) pinned.add(word & 0x7ff)
-  })
+  for (const id of ids) if (kept(id)) pinned.add(wordOf(id) & 0x7ff)
   for (let t = centreFrom; t < rink.tileCount; t++) pinned.add(t)
   const free = Array.from({ length: rink.tileCount }, (_, t) => t).filter((t) => !pinned.has(t))
 
@@ -278,9 +325,9 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
   // picture are new, for a picture that needs too many.
   const before = new Set<string>()
   let usedBefore = 0
-  rink.words.forEach((word, cell) => {
-    if (kept(cell)) return
-    const t = word & 0x7ff
+  ids.forEach((id) => {
+    if (kept(id)) return
+    const t = wordOf(id) & 0x7ff
     const turnings = variants(rom.subarray(rink.tilesAt + t * TILE, rink.tilesAt + (t + 1) * TILE))
     if (turnings.some(([key]) => known.has(key) || before.has(key))) return
     usedBefore++
@@ -289,12 +336,13 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
 
   // Each cell's square from the picture: each pixel to the nearest of the cell's line's colours, or the backdrop
   // (colour 0); a tie keeps what was there.
-  const original = drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), view)!.picture
   const squareOf = new Map<number, Uint8Array>()
-  for (let cell = 0; cell < rink.words.length; cell++) {
-    if (kept(cell)) continue
-    const line = (rink.words[cell] >> 13) & 3
-    const [cx, cy] = [(cell % rink.width) * 8, Math.floor(cell / rink.width) * 8]
+  for (const id of ids) {
+    if (kept(id)) continue
+    const { rink: r, image, original } = mapOf(id)
+    const cell = id % MAP_CELLS
+    const line = (r.words[cell] >> 13) & 3
+    const [cx, cy] = [(cell % r.width) * 8, Math.floor(cell / r.width) * 8]
     const choices = [0, ...Array.from({ length: 15 }, (_, i) => line * 16 + i + 1)]
     const bytes = new Uint8Array(TILE)
     for (let y = 0; y < 8; y++) {
@@ -314,7 +362,7 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
         bytes[y * 4 + (x >> 1)] |= x & 1 ? colour : colour << 4
       }
     }
-    squareOf.set(cell, bytes)
+    squareOf.set(id, bytes)
   }
 
   // The picture's different squares the rink does not keep, each once however turned: the first cell showing it, and
@@ -332,7 +380,8 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
     }
     fresh.set(turnings[0][0], { bytes, cells: [cell] })
     for (const [key] of turnings) freshKey.set(key, turnings[0][0])
-    if (!before.has(turnings[0][0])) added.push(cell)
+    // Only the picture's own map adds squares (the other's are there already).
+    if (!before.has(turnings[0][0]) && cell < MAP_CELLS) added.push(cell)
   }
   const used = fresh.size
   if (used > free.length && !fit) {
@@ -368,7 +417,7 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
   const keys = [...fresh.keys()]
   const freshPixels = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)[0]]))
   const freshTurnings = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)]))
-  const lineOf = (key: string) => (rink.words[fresh.get(key)!.cells[0]] >> 13) & 3
+  const lineOf = (key: string) => (wordOf(fresh.get(key)!.cells[0]) >> 13) & 3
   const keptKeys = new Set(keys)
   const swappedKeys = new Set<string>()
   if (used > free.length) {
@@ -398,7 +447,7 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
 
   // Put the kept squares in, then each cell to its square, or a swapped one's to the closest tile there is.
   const out = rom.slice()
-  const words = rink.words.slice()
+  const words = maps.map((m) => m.rink.words.slice())
   let next = 0
   for (const key of keptKeys) {
     const tile = free[next++]
@@ -408,8 +457,8 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
   const stored = [...pinnedPixels, ...[...keptKeys].map((key, i) => ({ tile: free[i], turnings: freshTurnings.get(key)! }))]
   let places = 0
   let pixels = 0
-  for (const [cell, bytes] of squareOf) {
-    const word = rink.words[cell]
+  for (const [id, bytes] of squareOf) {
+    const word = wordOf(id)
     let place = known.get(variants(bytes)[0][0])
     if (!place) {
       const own = pixelsOf(bytes)[0]
@@ -425,8 +474,8 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
       places++
       for (let i = 0; i < 64; i++) if (own[i] !== best.turning[i]) pixels++
     }
-    words[cell] = (word & 0xe000) | place.flip | place.tile
+    words[Math.floor(id / MAP_CELLS)][id % MAP_CELLS] = (word & 0xe000) | place.flip | place.tile
   }
-  words.forEach((word, cell) => writeU16(out, rink.mapAt + 4 + cell * 2, word))
+  maps.forEach((m, k) => words[k].forEach((word, cell) => writeU16(out, m.rink.mapAt + 4 + cell * 2, word)))
   return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels }
 }

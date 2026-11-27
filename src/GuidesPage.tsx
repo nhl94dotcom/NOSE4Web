@@ -16,7 +16,7 @@ const CONTENTS: [string, string][] = [
   ['lines', 'Lines'],
   ['hacks', 'Bug fixes and game options (Hacks)'],
   ['looks', 'Team names, colours and logos'],
-  ['boards', 'Ads on the boards (NHL 94, Genesis)'],
+  ['boards', "Ads on the boards (Genesis, NHL 94 and NHL '95)"],
   ['music', 'Change a song or the game music'],
   ['size', 'A league with fewer teams than the ROM'],
   ['before', 'Before a season starts: check and compare'],
@@ -286,14 +286,14 @@ export function GuidesPage() {
         <li>
           The rink: <b>Rink colours</b> changes the rink's colours and shows the whole rink as the game has it, the
           boards, benches, penalty boxes and crowd too (on the Genesis under <b>The whole rink</b>), and{' '}
-          <b>Export as PNG</b> saves it. On NHL 94 for the Genesis, draw on the saved picture in a paint program, keeping
+          <b>Export as PNG</b> saves it. On NHL 94 and NHL '95 for the Genesis, draw on the saved picture in a paint program, keeping
           to its size and its colours, and <b>Import a PNG</b> puts it back; do the same for the reverse angle replays'
           rink (<b>Rink</b>, above the picture). Repeat squares where you can: the rink has room for only so many
           different ones, and the page says if a picture needs more.
         </li>
       </ul>
 
-      <h3 id="guide-boards">Ads on the boards (NHL 94, Genesis)</h3>
+      <h3 id="guide-boards">Ads on the boards (Genesis, NHL 94 and NHL '95)</h3>
       <ol>
         <li>
           Open <b>Rink colours</b>. Under <b>The whole rink</b>, click <b>Export as PNG</b> (the picture to edit) and{' '}
@@ -308,7 +308,8 @@ export function GuidesPage() {
         </li>
         <li>
           Keep it cheap: the rink stores each different 8 by 8 square once, and the original rink leaves room for only
-          about 20 more. Line the ads up with the grid, use flat colour, and repeat the same squares (the same ad again
+          about 20 more (NHL '95's rink none: there an ad has to reuse squares the rink has, or replace some, such as part
+          of the crowd). Line the ads up with the grid, use flat colour, and repeat the same squares (the same ad again
           further along the boards costs nothing). A small logo of a few squares fits; a photo does not.
         </li>
         <li>

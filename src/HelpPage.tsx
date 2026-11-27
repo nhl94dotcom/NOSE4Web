@@ -1694,7 +1694,7 @@ export function HelpPage() {
         trim (the band along the foot of the boards, and the bench and penalty box edges) and red markings (goal lines,
         faceoff circles and dots, centre line): the two rink colours nothing else on the screen uses. <b>From each team's
         banner colours</b> sets every team at once from its banner's two colours, the darker for the markings. Tested in the
-        game by the NHL94 Match Viewer project. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
+        game by the NHL94 Match Viewer project. On NHL 94 and NHL '95, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
         pixels keeps the colours it has (the rink's, or the teams' for the players on the benches), and the centre ice
         logo's block, the replay icon and the three stars box (in the rows below the rink) and the boards and glass drawn
         in front of the players stay as they are. The rink has room for only so many different squares; a square that

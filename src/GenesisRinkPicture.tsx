@@ -35,8 +35,10 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const [tooMany, setTooMany] = useState<{ image: Awaited<ReturnType<typeof readImage>>; view: RinkView } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const hasReverse = readGenesisRink(project.bytes, 'reverse') !== null
-  // Putting a picture in: NHL 94's rinks (113 rows, the replay icon and three stars box below the rink).
-  const importable = (v: RinkView) => (readGenesisRink(project.bytes, v)?.height ?? 0) === 113 && onChange !== undefined
+  // Putting a picture in: NHL 94's rinks (113 rows, the replay icon and three stars box below the rink) and NHL '95's
+  // (85 rows, its reverse angle map over the same tiles).
+  const importable = (v: RinkView) => (readGenesisRink(project.bytes, v)?.height ?? 0) >= 85 && onChange !== undefined
+  const shared = project.game.edition === 95
   const drawn = useMemo(() => {
     const rink = drawGenesisRink(project.bytes, project.teams[home]?.palette.slice(0, 16), project.teams[away]?.palette.slice(16, 32), view)
     // The rink's own two lines as the page has them now (the reverse rink is drawn in them too, as the game does),
@@ -158,8 +160,11 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         <p className="note">
           <b>Import a PNG</b> puts an edited picture back in place of the rink: the same size as the export (or only its
           top 680 rows), each square of 8 by 8 pixels in the colours its square has now (the rink's, or for the players on
-          the benches the teams'), matched to the nearest. The centre ice logo's block, the replay icon and the three
-          stars box below the rink stay as they are, and so do the boards and glass drawn in front of the players. The
+          the benches the teams'), matched to the nearest. The centre ice logo's block{shared ? '' : ', the replay icon and the three stars box below the rink'}{' '}
+          stay as they are, and so do the boards and glass drawn in front of the players.{' '}
+          {shared &&
+            "On NHL '95 the reverse angle replay's rink is drawn from the same squares, so a picture for one keeps the other as it is, and the rink uses all its room already: new squares have to replace others (the page says how many), or Make it fit. "}
+          The
           rink has room for only so many different squares; one that repeats another, or another turned round, costs
           nothing, and the page says when a picture needs more. The reverse angle replay has a rink of its own: put a
           picture in for it too, or its replays show the old rink. <b>Edit the rink…</b> draws on it here instead, with the
