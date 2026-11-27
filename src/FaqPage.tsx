@@ -132,6 +132,13 @@ export function FaqPage() {
           the lowest) are left out or cut short when the piece goes in.
         </dd>
 
+        <dt>Can NOSE4Web make our league's schedule?</dt>
+        <dd>
+          Yes: <b>Schedule maker</b> on the League page. Tick the teams, say how often each pair meets (more often within a
+          group, if you give teams groups), and save the games as a spreadsheet for your site. It shares home and away
+          out evenly and never has a team play twice in one game day. The ROM is not changed.
+        </dd>
+
         <dt>Does it work with 3-on-3, 2-on-2 and other league ROMs?</dt>
         <dd>
           Yes, for editing: most league ROMs built on the original games open like any other, including the SNES 2 on 2

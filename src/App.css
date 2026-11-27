@@ -1132,3 +1132,8 @@ main > [data-tab-hidden] {
 .rink-picture canvas {
   display: block;
 }
+
+/* A short text box in a table (the schedule maker's groups). */
+input.short {
+  width: 5em;
+}

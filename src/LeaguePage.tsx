@@ -6,6 +6,7 @@ import { findPlayers, isAllStarTeam, leagueAverages, leagueBalance, lineAverages
 import { playerPhoto, playerPhotosSupported } from './core/playerphotos'
 import type { RomProject } from './core/rom'
 import { teamDisplayName, teamLabels } from './core/team'
+import { ScheduleSection } from './ScheduleSection'
 
 const COLUMNS: { key: SummaryColumn; label: string; title: string; decimals: number }[] = [
   {
@@ -386,6 +387,7 @@ export function LeaguePage({ project, onGoToTeam, onMovePlayers }: Props) {
           <p className="note">Fewer than two teams have this rating.</p>
         )}
       </section>
+      <ScheduleSection project={project} />
     </main>
   )
 }

@@ -1707,7 +1707,14 @@ export function HelpPage() {
           are, the more even the league. Teams more than one standard deviation from the average are marked. The
           original game's All-Star teams are left out unless you turn on <b>Count the All-Star teams</b>.
         </li>
-      </ul>
+              <li>
+          <b>Schedule maker</b> makes a regular season for the teams ticked (at first, the teams the menu offers, without
+          the All-Stars): each pair meets as many times as you say, more often within a group if teams are given groups;
+          home and away are shared out as evenly as they can be, and the games are laid out in game days in which no
+          team plays twice. <b>Mix again</b> gives another order of the same games, and <b>Save as a spreadsheet</b> a
+          CSV of them. The ROM is not changed.
+        </li>
+</ul>
 
       <h3 id="help-trade">Trade and free agents</h3>
       <p>

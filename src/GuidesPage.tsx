@@ -393,6 +393,13 @@ export function GuidesPage() {
         </li>
       </ol>
 
+      <p>
+        The season's schedule: on the <b>League</b> page, <b>Schedule maker</b> has the teams the menu offers ticked
+        (untick any that sit out). Set how many times each pair meets; to have teams meet more often within a division,
+        type a group name beside each (such as East and West) and set both numbers. <b>Mix again</b> shuffles the order;{' '}
+        <b>Save as a spreadsheet</b> gives a CSV of the games, numbered, with the game day, home team and visitors.
+      </p>
+
       <h3 id="guide-newseason">From one league season to the next</h3>
       <ol>
         <li>Open last season's ROM (or its project file, on Project file).</li>

@@ -436,6 +436,27 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/rink.png', fullPage: true })
   })
 
+  test('makes a schedule for the teams in the menu and saves it as a spreadsheet', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'League').click()
+    const tab = page.getByRole('tab', { name: 'Schedule maker' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Schedule maker' }) })
+    // The original game's 26 teams (not the All-Stars), each pair meeting 4 times: 100 games each.
+    await expect(section.getByRole('status')).toContainText('1300 games')
+    await expect(section.getByRole('status')).toContainText('Every team plays 100.')
+    // Two groups: Boston and Buffalo meet 6 times, the rest 2.
+    await section.getByLabel('Boston Bruins\'s group').fill('A')
+    await section.getByLabel('Buffalo Sabres\'s group').fill('A')
+    await section.getByLabel('Times two teams of one group meet').fill('6')
+    await section.getByLabel('Times two teams of different groups meet').fill('2')
+    await expect(section.getByRole('status')).toContainText('654 games')
+    const csv = await downloadFrom(page, section.getByRole('button', { name: 'Save as a spreadsheet' }))
+    expect(csv.suggestedFilename()).toBe('schedule.csv')
+    const text = readFileSync(await csv.path(), 'utf8')
+    expect(text.replace(/^﻿/, '').split(/\r?\n/)[0]).toBe('Game,Day,Home,Visitors')
+  })
+
   test('draws the whole rink, with two teams on the benches, and exports it as a PNG', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Rink colours').click()
