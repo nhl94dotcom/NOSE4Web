@@ -121,13 +121,21 @@ export function drawGenesisRink(rom: Uint8Array, home?: number[], away?: number[
 //   (the boards and glass drawn in front of the players), so its pixels are matched to that line's colours;
 // - a square that repeats another, turned or not, takes no tile of its own.
 
-export class RinkImportError extends Error {}
+export class RinkImportError extends Error {
+  // Set where the picture needs more different squares than there is room for: Make it fit can then put it in.
+  over = 0
+}
 
 export interface RinkImport {
   rom: Uint8Array
   // Tiles the picture needs, and the room there is for it (the count less the centre ice logo's and those kept).
   used: number
   room: number
+  // With Make it fit: the picture's squares swapped for the closest ones the rink keeps, the places (8 by 8) that show
+  // one, and the pixels that differ from the picture.
+  swapped: number
+  places: number
+  pixels: number
 }
 
 const CENTRE_TILES = 24
@@ -177,7 +185,9 @@ function areasOf(cells: number[], width: number): string {
   return `, ${largest.reduce((n, group) => n + group.length, 0) === cells.length ? 'at' : 'most of them at'} ${listed}`
 }
 
-export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[]): RinkImport {
+// `fit`: where the picture needs more different squares than there is room for, swap those that differ least from
+// another square (weighed by how many places show them) for the closest one, until it fits.
+export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[], fit = false): RinkImport {
   const rink = readGenesisRink(rom, view)
   if (!rink || rink.height < SHOWN_ROWS + 10) throw new RinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
   const fullHeight = rink.height * 8
@@ -225,18 +235,15 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
     usedBefore++
     for (const [key] of turnings) before.add(key)
   })
-  const added: number[] = []
 
-  const out = rom.slice()
-  const words = rink.words.slice()
-  let used = 0
+  // Each cell's square from the picture: each pixel to the nearest of the cell's line's colours, or the backdrop
+  // (colour 0); a tie keeps what was there.
   const original = drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), view)!.picture
-  for (let cell = 0; cell < words.length; cell++) {
+  const squareOf = new Map<number, Uint8Array>()
+  for (let cell = 0; cell < rink.words.length; cell++) {
     if (kept(cell)) continue
-    const word = rink.words[cell]
-    const line = (word >> 13) & 3
+    const line = (rink.words[cell] >> 13) & 3
     const [cx, cy] = [(cell % rink.width) * 8, Math.floor(cell / rink.width) * 8]
-    // Each pixel to the nearest of the cell's line's colours, or the backdrop (colour 0); a tie keeps what was there.
     const choices = [0, ...Array.from({ length: 15 }, (_, i) => line * 16 + i + 1)]
     const bytes = new Uint8Array(TILE)
     for (let y = 0; y < 8; y++) {
@@ -256,32 +263,119 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
         bytes[y * 4 + (x >> 1)] |= x & 1 ? colour : colour << 4
       }
     }
-    const key = variants(bytes)[0][0]
-    let place = known.get(key)
-    if (!place && !before.has(key)) added.push(cell)
-    if (!place) {
-      if (used >= free.length) {
-        // Over: remember the square, so a repeat of it costs nothing here either.
-        for (const [k] of variants(bytes)) if (!known.has(k)) known.set(k, { tile: -1, flip: 0 })
-        used++
-        continue
-      }
-      const tile = free[used++]
-      out.set(bytes, rink.tilesAt + tile * TILE)
-      remember(tile, bytes)
-      place = { tile, flip: 0 }
-    }
-    words[cell] = (word & 0xe000) | place.flip | place.tile
+    squareOf.set(cell, bytes)
   }
-  if (used > free.length) {
+
+  // The picture's different squares the rink does not keep, each once however turned: the first cell showing it, and
+  // how many show it.
+  const fresh = new Map<string, { bytes: Uint8Array; cells: number[] }>()
+  const freshKey = new Map<string, string>()
+  const added: number[] = []
+  for (const [cell, bytes] of squareOf) {
+    const turnings = variants(bytes)
+    if (known.has(turnings[0][0])) continue
+    const seen = freshKey.get(turnings[0][0])
+    if (seen) {
+      fresh.get(seen)!.cells.push(cell)
+      continue
+    }
+    fresh.set(turnings[0][0], { bytes, cells: [cell] })
+    for (const [key] of turnings) freshKey.set(key, turnings[0][0])
+    if (!before.has(turnings[0][0])) added.push(cell)
+  }
+  const used = fresh.size
+  if (used > free.length && !fit) {
     const spare = Math.max(0, free.length - usedBefore)
-    throw new RinkImportError(
+    const error = new RinkImportError(
       `This picture needs ${used - free.length} more different squares of 8 by 8 pixels than the rink has room for (${used} of ${free.length}). ` +
         `The rink as it is uses ${usedBefore}, so a picture can add only ${spare} new ${spare === 1 ? 'square' : 'squares'}, and this one adds ${added.length}` +
         `${areasOf(added, rink.width)}. A square that repeats another exactly, or another turned round, costs nothing: draw on a grid of 8 by 8 pixels from ` +
         `the top left corner, and copy whole squares where a pattern repeats (seats, crowd, walls).`,
     )
+    error.over = used - free.length
+    throw error
+  }
+
+  // Make it fit. A square's pixels in its four turnings, and how far two squares are apart drawn in one line's
+  // colours (summed squared distance of their colours; the backdrop is colour 0's).
+  const pixelsOf = (bytes: Uint8Array) => [0, 0x800, 0x1000, 0x1800].map((flip) => Uint8Array.from({ length: 64 }, (_, i) => pixelOf(bytes, flip & 0x800 ? 7 - (i % 8) : i % 8, flip & 0x1000 ? 7 - (i >> 3) : i >> 3)))
+  const lineDistance = [0, 1, 2, 3].map((line) => {
+    const colour = (c: number) => rgb[c === 0 ? 0 : line * 16 + c]
+    return Array.from({ length: 256 }, (_, k) => {
+      const [a, b] = [colour(k >> 4), colour(k & 15)]
+      return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+    })
+  })
+  const apart = (a: Uint8Array, b: Uint8Array, line: number) => {
+    const table = lineDistance[line]
+    let d = 0
+    for (let i = 0; i < 64; i++) d += table[(a[i] << 4) | b[i]]
+    return d
+  }
+  // The tiles the rink keeps, as pixels, to swap a square for.
+  const pinnedPixels = [...pinned].map((tile) => ({ tile, turnings: pixelsOf(rom.subarray(rink.tilesAt + tile * TILE, rink.tilesAt + (tile + 1) * TILE)) }))
+  const keys = [...fresh.keys()]
+  const freshPixels = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)[0]]))
+  const freshTurnings = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)]))
+  const lineOf = (key: string) => (rink.words[fresh.get(key)!.cells[0]] >> 13) & 3
+  const keptKeys = new Set(keys)
+  const swappedKeys = new Set<string>()
+  if (used > free.length) {
+    // The cost of swapping a square away: its distance to the nearest other square (kept by the rink, or one of the
+    // picture's still in), times the places that show it. The cheapest goes first, until the rest fit.
+    const nearest = (key: string) => {
+      const [own, line] = [freshPixels.get(key)!, lineOf(key)]
+      let best = Infinity
+      for (const { turnings } of pinnedPixels) for (const t of turnings) best = Math.min(best, apart(own, t, line))
+      for (const other of keptKeys) if (other !== key) for (const t of freshTurnings.get(other)!) best = Math.min(best, apart(own, t, line))
+      return best * fresh.get(key)!.cells.length
+    }
+    const cost = new Map(keys.map((key) => [key, nearest(key)]))
+    while (keptKeys.size > free.length) {
+      let cheapest = ''
+      for (const key of keptKeys) if (!cheapest || cost.get(key)! < cost.get(cheapest)!) cheapest = key
+      // A cost only grows as squares are taken out, so the cheapest's is counted again: still the cheapest, it goes.
+      const now = nearest(cheapest)
+      if (now > cost.get(cheapest)!) {
+        cost.set(cheapest, now)
+        continue
+      }
+      keptKeys.delete(cheapest)
+      swappedKeys.add(cheapest)
+    }
+  }
+
+  // Put the kept squares in, then each cell to its square, or a swapped one's to the closest tile there is.
+  const out = rom.slice()
+  const words = rink.words.slice()
+  let next = 0
+  for (const key of keptKeys) {
+    const tile = free[next++]
+    out.set(fresh.get(key)!.bytes, rink.tilesAt + tile * TILE)
+    remember(tile, fresh.get(key)!.bytes)
+  }
+  const stored = [...pinnedPixels, ...[...keptKeys].map((key, i) => ({ tile: free[i], turnings: freshTurnings.get(key)! }))]
+  let places = 0
+  let pixels = 0
+  for (const [cell, bytes] of squareOf) {
+    const word = rink.words[cell]
+    let place = known.get(variants(bytes)[0][0])
+    if (!place) {
+      const own = pixelsOf(bytes)[0]
+      const line = (word >> 13) & 3
+      let best = { tile: 0, flip: 0, d: Infinity, turning: own }
+      for (const { tile, turnings } of stored) {
+        turnings.forEach((t, k) => {
+          const d = apart(own, t, line)
+          if (d < best.d) best = { tile, flip: [0, 0x800, 0x1000, 0x1800][k], d, turning: t }
+        })
+      }
+      place = { tile: best.tile, flip: best.flip }
+      places++
+      for (let i = 0; i < 64; i++) if (own[i] !== best.turning[i]) pixels++
+    }
+    words[cell] = (word & 0xe000) | place.flip | place.tile
   }
   words.forEach((word, cell) => writeU16(out, rink.mapAt + 4 + cell * 2, word))
-  return { rom: out, used, room: free.length }
+  return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels }
 }

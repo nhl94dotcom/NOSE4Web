@@ -1683,7 +1683,9 @@ export function HelpPage() {
         pixels keeps the colours it has (the rink's, or the teams' for the players on the benches), and the centre ice
         logo's block, the replay icon and the three stars box (in the rows below the rink) and the boards and glass drawn
         in front of the players stay as they are. The rink has room for only so many different squares; a square that
-        repeats another, turned round or not, costs nothing. The reverse angle replay has its own rink, chosen under{' '}
+        repeats another, turned round or not, costs nothing; a picture over the limit can still go in with{' '}
+        <b>Make it fit</b>, which swaps its least different squares for the closest ones and says how many pixels
+        differ. The reverse angle replay has its own rink, chosen under{' '}
         <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
         undoes both. Tested in the game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too.

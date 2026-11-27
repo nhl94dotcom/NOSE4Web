@@ -22,6 +22,8 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const [away, setAway] = useState(Math.min(1, project.teams.length - 1))
   const [view, setView] = useState<RinkView>('play')
   const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null)
+  // A picture with too many different squares, kept for Make it fit.
+  const [tooMany, setTooMany] = useState<{ image: Awaited<ReturnType<typeof readImage>>; view: RinkView } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const hasReverse = readGenesisRink(project.bytes, 'reverse') !== null
   // Putting a picture in: NHL 94's rinks (113 rows, the replay icon and three stars box below the rink).
@@ -74,18 +76,33 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
     onChange({ ...project, bytes })
     setMessage({ text: 'The rink is the one the ROM had when it was opened. Undo takes it back.', failed: false })
   }
-  const importFile = async (file: File) => {
+  const putIn = (image: Awaited<ReturnType<typeof readImage>>, fit: boolean) => {
+    setTooMany(null)
     try {
-      const image = await readImage(file)
-      const result = importGenesisRink(project.bytes, view, image, drawn.palette)
+      const result = importGenesisRink(project.bytes, view, image, drawn.palette, fit)
       onChange!({ ...project, bytes: result.rom })
+      const swapped = result.swapped
+        ? ` To fit, ${result.swapped} of its squares were swapped for the closest ones the rink has: ${result.pixels} ${result.pixels === 1 ? 'pixel' : 'pixels'} in ${result.places} ${result.places === 1 ? 'place' : 'places'} differ from the picture.`
+        : ''
       setMessage({
-        text: `${view === 'play' ? 'The rink' : "The reverse angle replay's rink"} is now the picture: it takes ${result.used} of the ${result.room} squares of 8 by 8 pixels there is room for. Undo takes it back.`,
+        text: `${view === 'play' ? 'The rink' : "The reverse angle replay's rink"} is now the picture: it takes ${result.used} of the ${result.room} squares of 8 by 8 pixels there is room for.${swapped} Undo takes it back.`,
         failed: false,
       })
     } catch (e) {
-      setMessage({ text: e instanceof RinkImportError ? e.message : `${file.name} could not be read as a picture.`, failed: true })
+      if (e instanceof RinkImportError && e.over > 0) setTooMany({ image, view })
+      setMessage({ text: e instanceof Error ? e.message : String(e), failed: true })
     }
+  }
+  const importFile = async (file: File) => {
+    let image: Awaited<ReturnType<typeof readImage>>
+    try {
+      image = await readImage(file)
+    } catch {
+      setTooMany(null)
+      setMessage({ text: `${file.name} could not be read as a picture.`, failed: true })
+      return
+    }
+    putIn(image, false)
   }
   const teamChoice = (label: string, value: number, set: (n: number) => void) => (
     <label>
@@ -164,6 +181,15 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         {opened && onChange && (changed('play') || changed('reverse')) && <button onClick={putBack}>Put back the original rink</button>}
       </p>
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
+      {tooMany && tooMany.view === view && (
+        <p>
+          <button onClick={() => putIn(tooMany.image, true)}>Make it fit</button>{' '}
+          <span className="note">
+            swaps the squares that differ least from another for the closest one the rink has, until the picture fits,
+            and says how many pixels differ. Undo takes it back.
+          </span>
+        </p>
+      )}
       <div className="rink-picture">
         <canvas ref={canvas} width={drawn.picture.width} height={drawn.picture.height} aria-label="The whole rink" />
       </div>
