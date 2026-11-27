@@ -1,5 +1,7 @@
 import { readU16, readU32, writeU16, writeU32 } from './bytes'
 import type { RomProject } from './rom'
+import { colorRgb } from './color'
+import { bannerColors } from './graphics'
 import { claimSpace, releaseSpace } from './space'
 
 // Each home team's own rink colours (Genesis NHL 94, chosen 2026-11-27): the two colours the rink alone uses, line 0's
@@ -128,6 +130,26 @@ export function readArenaColours(project: Pick<RomProject, 'game' | 'bytes' | 't
 }
 
 export class ArenaColoursError extends Error {}
+
+// How light a colour is, 0 (black) to 1 (white).
+const lightness = (word: number) => {
+  const [r, g, b] = colorRgb(word)
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+}
+// Markings lighter than this would be hard to see on the white ice.
+const MARKINGS_LIGHTEST = 0.7
+
+// Each team's two colours from its banner's two stripes: the darker for the red markings (the rink's own where both
+// are too light to show on the ice), the other for the boards trim.
+export function arenaColoursFromBanners(project: Parameters<typeof bannerColors>[0] & Pick<RomProject, 'teams'>): [number, number][] {
+  return project.teams.map((_, team) => {
+    const [a, b] = bannerColors(project, team)
+    const [darker, lighter] = lightness(a) <= lightness(b) ? [a, b] : [b, a]
+    const markings = lightness(darker) <= MARKINGS_LIGHTEST ? darker : RINK_OWN
+    const trim = markings === RINK_OWN ? darker : lighter
+    return [trim, markings]
+  })
+}
 
 export function withArenaColours(project: RomProject, colours: [number, number][] | null): RomProject {
   const found = place(project)

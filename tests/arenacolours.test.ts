@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { arenaColoursSupported, readArenaColours, RINK_OWN, withArenaColours } from '../src/core/arenacolours'
+import { arenaColoursFromBanners, arenaColoursSupported, readArenaColours, RINK_OWN, withArenaColours } from '../src/core/arenacolours'
+import { bannerColors } from '../src/core/graphics'
+import { colorRgb } from '../src/core/color'
 import { buildRom, openRom } from '../src/core/rom'
 
 // Each home team's rink colours (Genesis NHL 94): line 0's colours 5 and 9, set by HomeTeam after setupIceRinkPal.
@@ -35,6 +37,27 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('each home team’s rink colours
     const off = withArenaColours(on, null)
     expect(Buffer.compare(Buffer.from(off.bytes.subarray(0, project.bytes.length)), Buffer.from(project.bytes))).toBe(0)
     expect(readArenaColours(withArenaColours(project, colours.map(() => [RINK_OWN, RINK_OWN])))).toBeNull()
+  })
+
+  it("takes each team's two colours from its banner: the darker for the markings, unless too light for the ice", () => {
+    const project = openRom(new Uint8Array(readFileSync(path('nhl94.bin'))))
+    const colours = arenaColoursFromBanners(project)
+    expect(colours).toHaveLength(project.teams.length)
+    const light = (w: number) => {
+      const [r, g, b] = colorRgb(w)
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    }
+    colours.forEach(([trim, markings], team) => {
+      const banner = bannerColors(project, team)
+      expect(banner).toContain(trim)
+      if (markings !== RINK_OWN) {
+        expect(banner).toContain(markings)
+        expect(light(markings)).toBeLessThanOrEqual(0.7)
+        expect(light(markings)).toBeLessThanOrEqual(light(trim))
+      }
+    })
+    // Put in, and read back the same.
+    expect(readArenaColours(withArenaColours(project, colours))).toEqual(colours)
   })
 
   it.skipIf(!existsSync(path('NHL95/NHL_95.bin')))("is not offered on NHL '95 (its shared colours not yet known)", () => {

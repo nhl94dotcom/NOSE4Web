@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ARENA_SLOTS, arenaColoursSupported, ArenaColoursError, readArenaColours, RINK_OWN, withArenaColours } from './core/arenacolours'
+import { ARENA_SLOTS, arenaColoursFromBanners, arenaColoursSupported, ArenaColoursError, readArenaColours, RINK_OWN, withArenaColours } from './core/arenacolours'
 import { colorRgb, nearestColorWord } from './core/color'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
@@ -16,6 +16,7 @@ const cssHex = (word: number) => '#' + colorRgb(word).map((v) => v.toString(16).
 // home team's own or the rink's.
 export function ArenaColoursSection({ project, onChange }: Props) {
   const [message, setMessage] = useState('')
+  const [done, setDone] = useState('')
   if (!arenaColoursSupported(project)) return null
   const colours = readArenaColours(project) ?? project.teams.map((): [number, number] => [RINK_OWN, RINK_OWN])
   const rinks = ARENA_SLOTS.map((slot) => project.rinkPalette[slot])
@@ -26,6 +27,15 @@ export function ArenaColoursSection({ project, onChange }: Props) {
       next[team][slot] = value
       onChange(withArenaColours(project, next))
       setMessage('')
+    } catch (e) {
+      setMessage(e instanceof ArenaColoursError ? e.message : String(e))
+    }
+  }
+  const fromBanners = () => {
+    try {
+      onChange(withArenaColours(project, arenaColoursFromBanners(project)))
+      setMessage('')
+      setDone("Every team's boards trim and markings now come from its banner's two colours. Undo takes it back.")
     } catch (e) {
       setMessage(e instanceof ArenaColoursError ? e.message : String(e))
     }
@@ -43,6 +53,14 @@ export function ArenaColoursSection({ project, onChange }: Props) {
         side (pause and intermission) keeps the rink's own colours, as the boards trim is its frame too. Tested in the
         game by the NHL94 Match Viewer project.
       </p>
+      <p>
+        <button onClick={fromBanners}>From each team's banner colours</button>{' '}
+        <span className="note">
+          sets every team at once: the darker of its banner's two colours for the markings (the rink's own red where both
+          are too light to show on the ice), the other for the boards trim. Change any team's afterwards here.
+        </span>
+      </p>
+      {done && <p className="note">{done}</p>}
       {message && <p className="error">{message}</p>}
       <table className="left">
         <thead>
