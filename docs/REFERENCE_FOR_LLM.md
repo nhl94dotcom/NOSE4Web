@@ -1657,7 +1657,7 @@ the last rest is kept. `gameMusicTune` drops drum channels and applies the octav
 the unused byte or two between it and a NOSE4Web song that follows it, so that replacing and putting back leaves the
 ROM as it was (test "gives back the room of a song it replaces"). A stream another table entry also points at is left.
 Replacing a replaced piece keeps the first `replaced` address, and goes where the old one was. The same holds for the
-organ songs (same functions) and for `withSongBytes`. Song `$30` cannot be replaced ("the game finds which song is playing by it"); game music is allowed by
+organ songs (same functions) and for `withSongBytes`. Song `$30` (song 1) is replaced without moving its table entry, which stop_current_song uses to tell songs from sounds: its stream's first 6 bytes become `00 00` + the new song's address (an end event with a loop pointer, followed at once), and the 6 bytes as they were follow the new song's name, for putting it back (MV-confirmed 2026-11-27: start, stop, change, pause with and without organ resume, no other route to $30); game music is allowed by
 `isGameMusic`.
 
 **Project files**: `savedSongs` (`projectfile.ts`) saves `customSongBytes` for the organ songs and, for NHL 94 (not

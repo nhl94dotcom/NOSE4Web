@@ -176,8 +176,8 @@ export function OrganSongsSection({ project, onChange }: Props) {
           your own in its place: every note is played on the game's organ, at most {songs.voices} at once (where more
           sound at once the highest are kept), drums are left out, and notes are moved by octaves into the game's range.
           Every team with that song in a slot plays the new one. Short tunes of 10 to 30 seconds suit the game, as its
-          own are; Help, in the list on the left, has tips on preparing a MIDI file. Song 1 cannot be replaced, as the
-          game needs it. Tested in the game by the NHL94 Match Viewer project.
+          own are; Help, in the list on the left, has tips on preparing a MIDI file. Tested in the game by the NHL94
+          Match Viewer project.
         </p>
       )}
       {EDIT_NOTE}
