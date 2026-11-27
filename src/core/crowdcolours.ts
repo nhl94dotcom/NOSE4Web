@@ -37,7 +37,9 @@ const G_ROUTINE = '207c........d1d0700f327c....22d851c8fffc4e75'
 const G_HOME_TEAM = 0xbf54
 // Line 1's colours, in the order of a team's four words: its first colour, darker, its second, darker.
 const G_SLOTS = [14, 9, 8, 6]
-const G_CODE = 80
+// Each colour's code is 14 bytes: cmpi.w #$FFFF,k(a0,d0.w) (6), beq.s (2), move.w k(a0,d0.w),(palfadenew+2*slot).w (6).
+const G_SLOT = 14
+const G_CODE = 30 + 4 * G_SLOT + 2
 
 const hex = (text: string) => Uint8Array.from(text.match(/../g)!, (pair) => parseInt(pair, 16))
 const word = (n: number) => n.toString(16).padStart(4, '0')
@@ -58,8 +60,8 @@ function genesisCode(rink: number, palfade: number, table: number[]): Uint8Array
   out.set(hex('207c'))
   writeU32(out, 2, rink)
   out.set(hex('d1d0700f327c' + word(palfade) + '22d851c8fffc' + '3038' + word(G_HOME_TEAM) + 'e748' + '41fa' + word(G_CODE - 28)), 6)
-  G_SLOTS.forEach((slot, k) => out.set(hex('0c70ffff' + word(k * 2) + '6706' + '31f0' + word(k * 2) + word(palfade + (16 + slot) * 2)), 30 + k * 12))
-  out.set(hex('4e75'), 78)
+  G_SLOTS.forEach((slot, k) => out.set(hex('0c70ffff' + word(k * 2) + '6706' + '31f0' + word(k * 2) + word(palfade + (16 + slot) * 2)), 30 + k * G_SLOT))
+  out.set(hex('4e75'), 30 + 4 * G_SLOT)
   table.forEach((value, i) => writeU16(out, G_CODE + i * 2, value))
   return out
 }
@@ -170,7 +172,12 @@ export function withCrowdColours(project: RomProject, colours: [number, number][
   const edition = editionOf(project)
   if (!edition) throw new CrowdColoursError('This ROM cannot have crowd colours by team.')
   const snes = edition === 'snes'
-  const entries = (colours ?? []).map(([a, b]) => [a, a === CROWD_OWN ? CROWD_OWN : darker(a, snes), b, b === CROWD_OWN ? CROWD_OWN : darker(b, snes)])
+  // (An SNES colour has 15 bits; a word from elsewhere may carry the 16th, which the console ignores.)
+  const clean = (w: number) => (w === CROWD_OWN ? w : snes ? w & 0x7fff : w)
+  const entries = (colours ?? []).map(([a0, b0]) => {
+    const [a, b] = [clean(a0), clean(b0)]
+    return [a, a === CROWD_OWN ? CROWD_OWN : darker(a, snes), b, b === CROWD_OWN ? CROWD_OWN : darker(b, snes)]
+  })
   const table = Array.from({ length: TABLE_TEAMS }, (_, team) => entries[team] ?? [CROWD_OWN, CROWD_OWN, CROWD_OWN, CROWD_OWN]).flat()
   const none = colours === null || colours.every(([a, b]) => a === CROWD_OWN && b === CROWD_OWN)
 
@@ -221,7 +228,7 @@ export function crowdColoursFromBanners(project: RomProject): [number, number][]
       return [a, b]
     }
     const block = snesBlockColours(project, team)
-    return block ? [block[7], block[8]] : [CROWD_OWN, CROWD_OWN]
+    return block ? [block[7] & 0x7fff, block[8] & 0x7fff] : [CROWD_OWN, CROWD_OWN]
   })
 }
 
