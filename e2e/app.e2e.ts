@@ -3173,6 +3173,16 @@ const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
 test.describe('with the SNES game', () => {
   test.skip(!existsSync(snesPath), 'needs ../NHL94.smc')
 
+  test('exports the rink and puts it back in', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Rink colours').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Rink colours' }) })
+    const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
+    await section.getByLabel('Import a rink picture').setInputFiles(await png.path())
+    await expect(section.getByText(/^The rink is now the picture: it takes \d+ of the \d+ squares/)).toBeVisible()
+  })
+
   test('exports the Game Setup background, puts it back in, and puts the original back', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)

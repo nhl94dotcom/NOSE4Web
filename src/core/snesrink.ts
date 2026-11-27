@@ -1,7 +1,9 @@
 import { readU16LE, writeU16LE } from './bytes'
+import { colorRgb, SNES_COLORS } from './color'
 import type { Picture } from './graphics'
-import { isLz, LzError, unpackLz } from './lz'
-import { findCode, loRomOffset } from './snes'
+import { isLz, LzError, packLz, unpackLz } from './lz'
+import { findCode, grownSnesRom, loRomAddress, loRomBank, loRomOffset, SNES_GROWN_SIZE } from './snes'
+import { freeSpace, keptBanks, sameBank } from './snespictures'
 
 // The SNES game's rink: 128 colours (background palettes 0 to 7), copied by
 // setupice from RinkPalette, the rink's tiles (IceRinkTiles) and its map
@@ -149,4 +151,176 @@ export function withSnesCentreIce(rink: Picture, centreIce: Picture): Picture {
     }
   }
   return picture
+}
+
+// ------------------------------------------------------------- import
+// An edited rink picture (as drawSnesRink draws it without a centre ice logo, 384 pixels wide; the 680 rows the game
+// shows in play, or all 904) put back into IceRinkTiles and IceRinkMap (Match Viewer's measurements, 2026-11-27, on
+// retail and the 32-team build alike):
+// - kept as they are: the rows below the rink (85-112, the pause scoreboard's rink and the replay icon, whose tiles
+//   must stay at 256 or above), the centre ice logo's cells (BuildRinkMap pastes it at rows 44-47, columns 20-27, or
+//   on the 32-team build 6 x 6 at rows 43-48, columns 21-26: both kept), the crowd's animation tiles 1 to 65
+//   (showcrowd rewrites them in play) and every cell that shows one, and tile 0;
+// - each cell keeps its palette row (the rink's, or the teams' on the benches), its priority and its place;
+// - the tiles may grow by up to 95 (the room below the sprites with the largest logo, on the 32-team build; 102 on
+//   retail);
+// - a square that repeats another, turned or not, takes no tile of its own.
+// Both are packed as the ROM packs them (EA LZ) into free space (the ROM grown to 2 MB where it has none left) and
+// every loader of each (lda #bank / sta / lda #address / sta: setupice's and the reload's for the tiles,
+// BuildRinkMap's for the map) pointed there.
+
+export class SnesRinkImportError extends Error {}
+
+export interface SnesRinkImport {
+  rom: Uint8Array
+  used: number
+  room: number
+}
+
+const SHOWN_ROWS = 85
+const MORE_TILES = 95
+const CROWD_TILES = 65
+const LOGO_CELLS = { rows: [43, 48], cols: [20, 27] }
+
+function tileBytes(pixels: ArrayLike<number>): Uint8Array {
+  const out = new Uint8Array(TILE)
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const c = pixels[y * 8 + x]
+      const bit = 1 << (7 - x)
+      if (c & 1) out[y * 2] |= bit
+      if (c & 2) out[y * 2 + 1] |= bit
+      if (c & 4) out[16 + y * 2] |= bit
+      if (c & 8) out[16 + y * 2 + 1] |= bit
+    }
+  }
+  return out
+}
+
+// Every lda #bank / sta $0E / lda #address / sta $0C of the part at `offset`.
+function loadersOf(rom: Uint8Array, offset: number): number[] {
+  const [bank, address] = [loRomBank(offset, 0x80), loRomAddress(offset)]
+  const pattern = [0xa9, bank, 0x00, 0x85, 0x0e, 0xa9, address & 0xff, address >> 8, 0x85, 0x0c]
+  const found: number[] = []
+  for (let at = rom.indexOf(0xa9); at >= 0 && at + pattern.length <= rom.length; at = rom.indexOf(0xa9, at + 1)) {
+    if (pattern.every((byte, i) => rom[at + i] === byte)) found.push(at)
+  }
+  return found
+}
+
+export function snesRinkImportable(rom: Uint8Array): boolean {
+  const rink = readRink(rom)
+  return rink !== null && rink.width === 48 && rink.height >= SHOWN_ROWS
+}
+
+export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[]): SnesRinkImport {
+  const at = places(rom0)
+  const rink = readRink(rom0)
+  if (!at || !rink || rink.width !== 48 || rink.height < SHOWN_ROWS) throw new SnesRinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
+  const [fullHeight, shown] = [rink.height * 8, SHOWN_ROWS * 8]
+  if (image.width !== rink.width * 8 || (image.height !== fullHeight && image.height !== shown)) {
+    throw new SnesRinkImportError(`The picture must be ${rink.width * 8} pixels wide and ${shown} or ${fullHeight} tall, as Export as PNG saves it; this one is ${image.width} by ${image.height}.`)
+  }
+  const count = rink.tiles.length / TILE
+  const kept = (cell: number) => {
+    const [col, row] = [cell % rink.width, Math.floor(cell / rink.width)]
+    const tile = rink.words[cell] & TILE_NUMBER
+    return row >= SHOWN_ROWS || (row >= LOGO_CELLS.rows[0] && row <= LOGO_CELLS.rows[1] && col >= LOGO_CELLS.cols[0] && col <= LOGO_CELLS.cols[1]) || tile <= CROWD_TILES
+  }
+  const pinned = new Set<number>(Array.from({ length: CROWD_TILES + 1 }, (_, t) => t))
+  rink.words.forEach((word, cell) => {
+    if (kept(cell)) pinned.add(word & TILE_NUMBER)
+  })
+  const free = [...Array.from({ length: count }, (_, t) => t).filter((t) => !pinned.has(t)), ...Array.from({ length: MORE_TILES }, (_, k) => count + k)]
+
+  const pixelsOf = (tiles: Uint8Array, tile: number, flip: number) =>
+    Array.from({ length: 64 }, (_, i) => tilePixel(tiles, tile * TILE, flip & FLIP_H ? 7 - (i & 7) : i & 7, flip & FLIP_V ? 7 - (i >> 3) : i >> 3))
+  const FLIPS = [0, FLIP_H, FLIP_V, FLIP_H | FLIP_V]
+  const known = new Map<string, { tile: number; flip: number }>()
+  const remember = (tile: number, tiles: Uint8Array) => {
+    for (const flip of FLIPS) {
+      const key = pixelsOf(tiles, tile, flip).join(',')
+      if (!known.has(key)) known.set(key, { tile, flip })
+    }
+  }
+  for (const t of pinned) if (t < count) remember(t, rink.tiles)
+
+  // Each cell's square from the picture: each pixel to the nearest of its row's colours, or the backdrop (colour 0); a
+  // tie keeps what was there.
+  const rgb = palette.map((word) => colorRgb(word, SNES_COLORS))
+  const original = drawSnesRink(rom0, null)!
+  const squares = new Map<number, number[]>()
+  for (let cell = 0; cell < rink.words.length; cell++) {
+    if (kept(cell) || Math.floor(cell / rink.width) >= image.height / 8) continue
+    const row = (rink.words[cell] & PALETTE_BITS) >> PALETTE_SHIFT
+    const [cx, cy] = [(cell % rink.width) * 8, Math.floor(cell / rink.width) * 8]
+    squares.set(
+      cell,
+      Array.from({ length: 64 }, (_, i) => {
+        const p = (cy + (i >> 3)) * image.width + cx + (i & 7)
+        if (image.rgba[p * 4 + 3] < 128) return 0
+        const [r, g, b] = [image.rgba[p * 4], image.rgba[p * 4 + 1], image.rgba[p * 4 + 2]]
+        const was = original.pixels[p]
+        let best = 0
+        let bestD = (rgb[0][0] - r) ** 2 + (rgb[0][1] - g) ** 2 + (rgb[0][2] - b) ** 2
+        for (let c = 1; c < 16; c++) {
+          const [cr, cg, cb] = rgb[row * COLOURS + c] ?? [0, 0, 0]
+          const d = (cr - r) ** 2 + (cg - g) ** 2 + (cb - b) ** 2
+          if (d < bestD || (d === bestD && row * COLOURS + c === was)) [best, bestD] = [c, d]
+        }
+        return best
+      }),
+    )
+  }
+  // New squares, once each however turned, into the free tiles.
+  const turnings = (pixels: number[]) => FLIPS.map((flip) => pixels.map((_, i) => pixels[(flip & FLIP_V ? 7 - (i >> 3) : i >> 3) * 8 + (flip & FLIP_H ? 7 - (i & 7) : i & 7)]).join(','))
+  const fresh: number[][] = []
+  const freshKeys = new Set<string>()
+  for (const pixels of squares.values()) {
+    const keys = turnings(pixels)
+    if (known.has(keys[0]) || freshKeys.has(keys[0])) continue
+    fresh.push(pixels)
+    for (const key of keys) freshKeys.add(key)
+  }
+  if (fresh.length > free.length) {
+    throw new SnesRinkImportError(
+      `This picture needs ${fresh.length} different squares of 8 by 8 pixels and the rink has room for ${free.length}. A square that repeats another exactly, or another turned round, costs nothing: draw on a grid of 8 by 8 pixels from the top left corner, and copy whole squares where a pattern repeats.`,
+    )
+  }
+  const last = fresh.length ? free[fresh.length - 1] : 0
+  const tiles = new Uint8Array(Math.max(count, last + 1) * TILE)
+  tiles.set(rink.tiles)
+  fresh.forEach((pixels, k) => {
+    tiles.set(tileBytes(pixels), free[k] * TILE)
+    remember(free[k], tiles)
+  })
+  const map = unpackLz(rom0, at.map).data.slice()
+  for (const [cell, pixels] of squares) {
+    const place = known.get(pixels.join(','))!
+    writeU16LE(map, MAP_HEADER + cell * 2, (rink.words[cell] & (PALETTE_BITS | 0x2000)) | place.flip | place.tile)
+  }
+
+  // Packed, put in free space, and every loader pointed there.
+  let rom: Uint8Array = rom0.slice()
+  for (const [part, data] of [
+    [at.tiles, tiles],
+    [at.map, map],
+  ] as const) {
+    const loaders = loadersOf(rom0, part)
+    if (loaders.length === 0) throw new SnesRinkImportError("This ROM's rink is not loaded as the original game's, so a picture cannot be put in.")
+    const packed = packLz(data)
+    const kept2 = keptBanks(rom)
+    let to = freeSpace(rom, packed.length, kept2)
+    if ((to < 0 || !sameBank(to, packed.length)) && rom.length < SNES_GROWN_SIZE) {
+      rom = grownSnesRom(rom)
+      to = freeSpace(rom, packed.length, kept2)
+    }
+    if (to < 0 || !sameBank(to, packed.length)) throw new SnesRinkImportError('There is no room left in this ROM for the rink.')
+    rom.set(packed, to)
+    for (const loader of loaders) {
+      rom[loader + 1] = loRomBank(to, rom[loader + 1])
+      writeU16LE(rom, loader + 6, loRomAddress(to))
+    }
+  }
+  return { rom, used: fresh.length, room: free.length }
 }
