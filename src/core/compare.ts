@@ -1,5 +1,6 @@
 import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
+import { readTitlePicture } from './titlepicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { GAME_MUSIC, readSong } from './genesismusic'
@@ -197,6 +198,9 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const [menuWas, menuNow] = [readMenuPicture(before.bytes), readMenuPicture(after.bytes)]
     const menuSame = menuWas && menuNow && menuWas.palette.every((c, i) => c === menuNow.palette[i]) && menuWas.picture.pixels.every((p, i) => p === menuNow.picture.pixels[i])
     if (menuWas && menuNow && !menuSame) add('Main menu background', [menuNow.original ? "The original game's background again." : 'A picture of its own.'])
+    const [titleWas, titleNow] = [readTitlePicture(before), readTitlePicture(after)]
+    const titleSame = titleWas && titleNow && titleWas.palette.every((c, i) => c === titleNow.palette[i]) && titleWas.picture.pixels.every((p, i) => p === titleNow.picture.pixels[i])
+    if (titleWas && titleNow && !titleSame) add('Title screen picture', [titleNow.original ? "The original game's picture again." : 'A picture of its own.'])
     const songs = genesisSongs(after.game)
     const songLines = (songs && before.game.edition === after.game.edition ? songs.numbers : []).flatMap((number) => {
       const [was, now] = [songs!.read(before.bytes, number), songs!.read(after.bytes, number)]

@@ -4,6 +4,7 @@
 // of a season as it stood, and passes changes to someone with their own ROM.
 
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
+import { titlePictureBytes, withOriginalTitlePicture, withTitlePictureBytes } from './titlepicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
 import {
   genesisAnnouncerBytes,
@@ -99,6 +100,7 @@ interface ProjectFile {
   screens?: {
     splash?: { original: true } | { bytes: string; ownColours: boolean }
     menuPicture?: { original: true } | { bytes: string }
+    titlePicture?: { original: true } | { bytes: string }
     announcer?: { original: true } | { bytes: string }
   }
   // The finished ROM, as a patch to the ROM the project was made on, and that
@@ -624,9 +626,11 @@ function savedScreens(project: RomProject, opened: RomProject): ProjectFile['scr
   }
   const menu = menuPictureBytes(project.bytes)
   if (!sameBytes(menu, menuPictureBytes(opened.bytes))) screens.menuPicture = menu ? { bytes: pack(menu) } : { original: true }
+  const title = titlePictureBytes(project)
+  if (!sameBytes(title, titlePictureBytes(opened))) screens.titlePicture = title ? { bytes: pack(title) } : { original: true }
   const announcer = genesisAnnouncerBytes(project)
   if (!sameBytes(announcer, genesisAnnouncerBytes(opened))) screens.announcer = announcer ? { bytes: pack(announcer) } : { original: true }
-  return screens.splash || screens.menuPicture || screens.announcer ? screens : undefined
+  return screens.splash || screens.menuPicture || screens.titlePicture || screens.announcer ? screens : undefined
 }
 
 // The project's splash screen and main menu background put in, where this ROM can take them.
@@ -673,6 +677,19 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
       }
     } catch {
       left.push('main menu background')
+    }
+  }
+  const title = screens.titlePicture
+  if (title) {
+    try {
+      if ('original' in title) {
+        if (titlePictureBytes(project)) project = withOriginalTitlePicture(project)
+      } else {
+        const bytes = unpack(title.bytes)
+        if (!sameBytes(titlePictureBytes(project), bytes)) project = withTitlePictureBytes(project, bytes)
+      }
+    } catch {
+      left.push('title screen picture')
     }
   }
   const announcer = screens.announcer

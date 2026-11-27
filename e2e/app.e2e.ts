@@ -509,6 +509,21 @@ test.describe('with the NHL 94 ROM', () => {
     expect(reverse.suggestedFilename()).toBe('rink_reverse.png')
   })
 
+  test('exports the title screen picture, puts it back in, and puts the original back', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    await page.getByRole('tab', { name: 'Pictures' }).click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Title screen picture' }) })
+    await expect(section.getByText("The original game's picture.")).toBeVisible()
+    const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
+    expect(png.suggestedFilename()).toBe('title_screen.png')
+    await section.getByLabel('Import a title screen picture').setInputFiles(await png.path())
+    await expect(section.getByText(/ is now the title screen's picture\./)).toBeVisible()
+    await expect(section.getByText('A picture of your own.')).toBeVisible()
+    await section.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(section.getByText("The original game's picture.")).toBeVisible()
+  })
+
   test('exports and replaces team logos and banners', async ({ page }) => {
     await openRom(page)
     await team(page, 'Montreal Canadiens').click()

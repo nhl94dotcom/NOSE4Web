@@ -140,14 +140,15 @@ export const word = ([r, g, b]: Rgb) => GENESIS_COLORS.word([r, g, b])
 export const far = (a: Rgb, b: Rgb) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
 const BLACK = 0
 
-// The image fitted inside the screen, centred, on black, in the console's levels (one key a pixel).
-export function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Uint16Array {
-  const scale = Math.min(SPLASH_WIDTH / width, SPLASH_HEIGHT / height)
+// The image fitted inside the screen (320 x 224 unless given), centred, on black, in the console's levels (one key a
+// pixel).
+export function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, screenWidth = SPLASH_WIDTH, screenHeight = SPLASH_HEIGHT): Uint16Array {
+  const scale = Math.min(screenWidth / width, screenHeight / height)
   const w = Math.round(width * scale)
   const h = Math.round(height * scale)
-  const left = Math.floor((SPLASH_WIDTH - w) / 2)
-  const top = Math.floor((SPLASH_HEIGHT - h) / 2)
-  const keys = new Uint16Array(SPLASH_WIDTH * SPLASH_HEIGHT)
+  const left = Math.floor((screenWidth - w) / 2)
+  const top = Math.floor((screenHeight - h) / 2)
+  const keys = new Uint16Array(screenWidth * screenHeight)
   const SAMPLES = 3
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -163,7 +164,7 @@ export function fitted(rgba: Uint8Array | Uint8ClampedArray, width: number, heig
         }
       }
       const rgb = sum.map((v) => v / (SAMPLES * SAMPLES)) as Rgb
-      keys[(top + y) * SPLASH_WIDTH + left + x] = levelKey(toLevels(rgb))
+      keys[(top + y) * screenWidth + left + x] = levelKey(toLevels(rgb))
     }
   }
   return keys

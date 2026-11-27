@@ -124,6 +124,13 @@ export function FaqPage() {
           notes on a piano roll first. Walkthroughs' <i>Change a song or the game music</i> takes you through it.
         </dd>
 
+        <dt>Can I change the title screen?</dt>
+        <dd>
+          On the Genesis, NHL 94 and NHL '95, yes: <b>Title screen picture</b> on the Game settings page, under
+          Pictures. Export the picture as a PNG, edit it or make your own, and import it. The NHL shield, NHLPA logo and
+          lettering still slide in over it, and the credits still roll. Not yet on the SNES.
+        </dd>
+
         <dt>Can each team have its own rink?</dt>
         <dd>
           Partly. On NHL 94 for the Genesis, <b>Each home team's rink colours</b> on the Rink colours page gives each home

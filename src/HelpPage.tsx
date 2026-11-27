@@ -1018,6 +1018,13 @@ export function HelpPage() {
           over the team banners; importing it again here makes it fit. Based on Drezz's guide; tested in the game by
           the NHL94 Match Viewer project.
         </li>
+        <li>
+          <b>Title screen picture</b> (Genesis, NHL 94 and NHL '95): the picture on the title screen, under the NHL
+          shield, NHLPA logo and lettering that slide in and the credits. Import a picture of your own and it is fitted
+          inside the screen, 256 by 224 pixels, in up to 33 colours of its own (NHL '95: 42) plus the lettering's.
+          Every 8 by 8 square can be different, so detail is kept. <b>Export as PNG</b> saves the picture to edit, and{' '}
+          <b>Put back the original</b> puts the game's own back. Not yet tested in the game.
+        </li>
       </ul>
 
       <h3 id="help-music">Music</h3>
@@ -2422,8 +2429,8 @@ export function HelpPage() {
           removing a player, or changing the number of forwards, sets the defence count to fit the roster.
         </li>
         <li>
-          Team logos and banners can be replaced, and player photos. Other graphics, such as player sprites and
-          the title screens, cannot.
+          Team logos and banners can be replaced, and player photos, and on the Genesis the splash screen, the main
+          menu background, the title screen picture and the rink. Other graphics, such as player sprites, cannot.
         </li>
         <li>
           So that the game will run a changed ROM, the editor turns off the game's own check that the ROM is
