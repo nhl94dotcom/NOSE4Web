@@ -1019,6 +1019,13 @@ export function HelpPage() {
           the NHL94 Match Viewer project.
         </li>
         <li>
+          <b>Main menu background</b> (SNES): the picture behind the Game Setup screen, over the pattern the game's other
+          menus share. Import a picture of your own and it is fitted inside the screen, 256 by 224 pixels, in 15
+          colours of its own plus the pattern's, with room for 407 different 8 by 8 squares (a busier picture has its
+          most alike merged). Squares that match the pattern, and the parts the logo boxes and team names always cover,
+          are left to the pattern. On retail and the 32-team builds. Not yet tested in the game.
+        </li>
+        <li>
           <b>Title screen picture</b> (Genesis, NHL 94 and NHL '95): the picture on the title screen, under the NHL
           shield, NHLPA logo and lettering that slide in and the credits. Import a picture of your own and it is fitted
           inside the screen, 256 by 224 pixels, in up to 33 colours of its own (NHL '95: 42) plus the lettering's.
@@ -2430,7 +2437,7 @@ export function HelpPage() {
         </li>
         <li>
           Team logos and banners can be replaced, and player photos, and on the Genesis the splash screen, the main
-          menu background, the title screen picture and the rink. Other graphics, such as player sprites, cannot.
+          menu background, the title screen picture and the rink, and on the SNES the main menu background. Other graphics, such as player sprites, cannot.
         </li>
         <li>
           So that the game will run a changed ROM, the editor turns off the game's own check that the ROM is

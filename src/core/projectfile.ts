@@ -5,6 +5,7 @@
 
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
 import { titlePictureBytes, withOriginalTitlePicture, withTitlePictureBytes } from './titlepicture'
+import { snesSetupPictureBytes, withOriginalSnesSetupPicture, withSnesSetupPictureBytes } from './snessetuppicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
 import {
   genesisAnnouncerBytes,
@@ -102,6 +103,8 @@ interface ProjectFile {
     menuPicture?: { original: true } | { bytes: string }
     titlePicture?: { original: true } | { bytes: string }
     announcer?: { original: true } | { bytes: string }
+    // The SNES Game Setup background, as its three unpacked parts.
+    snesMenuPicture?: { original: true } | { bytes: string }
   }
   // The finished ROM, as a patch to the ROM the project was made on, and that
   // ROM's fingerprint. Opened over the same ROM, it puts back everything,
@@ -615,9 +618,13 @@ const sameBytes = (a: Uint8Array | null, b: Uint8Array | null) => a === b || (!!
 // The splash screen and main menu background, where the project has changed them from the ROM it opened.
 function savedScreens(project: RomProject, opened: RomProject): ProjectFile['screens'] {
   if (project.game.platform === 'snes') {
-    // The SNES has only the announcer's picture of these.
+    // The SNES has the announcer's picture and the Game Setup background of these.
+    const snes: NonNullable<ProjectFile['screens']> = {}
     const announcer = snesAnnouncerBytes(project)
-    return sameBytes(announcer, snesAnnouncerBytes(opened)) ? undefined : { announcer: announcer ? { bytes: pack(announcer) } : { original: true } }
+    if (!sameBytes(announcer, snesAnnouncerBytes(opened))) snes.announcer = announcer ? { bytes: pack(announcer) } : { original: true }
+    const menu = snesSetupPictureBytes(project)
+    if (!sameBytes(menu, snesSetupPictureBytes(opened))) snes.snesMenuPicture = menu ? { bytes: pack(menu) } : { original: true }
+    return snes.announcer || snes.snesMenuPicture ? snes : undefined
   }
   const screens: NonNullable<ProjectFile['screens']> = {}
   const [splash, was] = [splashBytes(project.bytes), splashBytes(opened.bytes)]
@@ -638,16 +645,30 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
   if (!screens) return project
   if (project.game.platform === 'snes') {
     const announcer = screens.announcer
-    if (!announcer) return project
-    try {
-      if ('original' in announcer) {
-        if (snesAnnouncerBytes(project)) project = withOriginalSnesAnnouncer(project)
-      } else {
-        const bytes = unpack(announcer.bytes)
-        if (!sameBytes(snesAnnouncerBytes(project), bytes)) project = withSnesAnnouncerBytes(project, bytes)
+    if (announcer) {
+      try {
+        if ('original' in announcer) {
+          if (snesAnnouncerBytes(project)) project = withOriginalSnesAnnouncer(project)
+        } else {
+          const bytes = unpack(announcer.bytes)
+          if (!sameBytes(snesAnnouncerBytes(project), bytes)) project = withSnesAnnouncerBytes(project, bytes)
+        }
+      } catch {
+        notes.push("The project's announcer picture could not be put into this ROM, and was left out.")
       }
-    } catch {
-      notes.push("The project's announcer picture could not be put into this ROM, and was left out.")
+    }
+    const menu = screens.snesMenuPicture
+    if (menu) {
+      try {
+        if ('original' in menu) {
+          if (snesSetupPictureBytes(project)) project = withOriginalSnesSetupPicture(project)
+        } else {
+          const bytes = unpack(menu.bytes)
+          if (!sameBytes(snesSetupPictureBytes(project), bytes)) project = withSnesSetupPictureBytes(project, bytes)
+        }
+      } catch {
+        notes.push("The project's main menu background could not be put into this ROM, and was left out.")
+      }
     }
     return project
   }

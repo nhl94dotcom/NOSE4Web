@@ -1,6 +1,7 @@
 import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
 import { readTitlePicture } from './titlepicture'
+import { readSnesSetupPicture } from './snessetuppicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
 import { GAME_MUSIC, readSong } from './genesismusic'
@@ -226,6 +227,9 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
       return [`${name}: ${now ? `"${snesCustomMusicName(after.bytes, index)}", from a MIDI file` : "the game's own again"}.`]
     })
     add('Game music', musicLines)
+    const [menuWas, menuNow] = [readSnesSetupPicture(before), readSnesSetupPicture(after)]
+    const menuSame = menuWas && menuNow && menuWas.palette.every((c, i) => c === menuNow.palette[i]) && menuWas.picture.pixels.every((p, i) => p === menuNow.picture.pixels[i])
+    if (menuWas && menuNow && !menuSame) add('Main menu background', [menuNow.original ? 'The picture the ROM was opened with again.' : 'A picture of its own.'])
   }
 
   const choice = (project: RomProject, i: number) => {

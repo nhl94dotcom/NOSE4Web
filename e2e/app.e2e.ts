@@ -3125,6 +3125,21 @@ const snesPath = resolve(process.cwd(), '..', 'NHL94.smc')
 test.describe('with the SNES game', () => {
   test.skip(!existsSync(snesPath), 'needs ../NHL94.smc')
 
+  test('exports the Game Setup background, puts it back in, and puts the original back', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Game settings').click()
+    await page.getByRole('tab', { name: 'Pictures' }).click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Main menu background' }) })
+    await expect(section.getByText('The picture this ROM was opened with.')).toBeVisible()
+    const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
+    expect(png.suggestedFilename()).toBe('main_menu_background.png')
+    await section.getByLabel('Import a Game Setup background').setInputFiles(await png.path())
+    await expect(section.getByText(/ is now the Game Setup background\. It takes \d+ of the 407 squares/)).toBeVisible()
+    await section.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(section.getByText('The picture this ROM was opened with.')).toBeVisible()
+  })
+
   test("plays SNES music in the music editor as it would go in, on the game's own instruments", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
@@ -3371,7 +3386,7 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture', 'Main menu background'])
     await entry(page, 'Music').click()
     const musicTab = page.getByRole('tab', { name: 'Game music' })
     if (await musicTab.isVisible()) await musicTab.click()

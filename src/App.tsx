@@ -52,6 +52,7 @@ import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
 import { MenuPictureSection } from './MenuPictureSection'
 import { TitlePictureSection } from './TitlePictureSection'
+import { SnesSetupPictureSection } from './SnesSetupPictureSection'
 import { AnnouncerSection } from './AnnouncerSection'
 import { ScoutingSection } from './ScoutingSection'
 import { GameMusicSection, OrganSongsSection, SnesGameMusicSection, SnesOrganSongsSection, type HeldMusic } from './OrganSongsSection'
@@ -485,6 +486,7 @@ export default function App() {
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <TitlePictureSection project={current} opened={opened} onChange={change} />}
+            {current.game.platform === 'snes' && <SnesSetupPictureSection project={current} onChange={change} />}
           </SettingsEditor>
         )
       case MUSIC:
