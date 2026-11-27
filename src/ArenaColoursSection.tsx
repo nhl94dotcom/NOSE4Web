@@ -40,8 +40,8 @@ export function ArenaColoursSection({ project, onChange }: Props) {
         boxes) and the <b>red markings</b> (the goal lines, the faceoff circles and dots and the centre line). Every
         other rink colour is shared with the score box, the clock, the EA logo or the crowd, so it stays the same for
         every team (above). A team left on <i>the rink's own</i> uses the colour above. The scoreboard seen from the
-        side (pause and intermission) keeps the rink's own colours, as the boards trim is its frame too. Not yet tested
-        in the game.
+        side (pause and intermission) keeps the rink's own colours, as the boards trim is its frame too. Tested in the
+        game by the NHL94 Match Viewer project.
       </p>
       {message && <p className="error">{message}</p>}
       <table className="left">

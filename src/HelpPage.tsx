@@ -1678,8 +1678,8 @@ export function HelpPage() {
         or to draw on in a paint program. The block at centre ice is where the game puts the home team's centre ice
         logo as a game starts. On NHL 94, <b>Each home team's rink colours</b> gives each home team its own boards
         trim (the band along the foot of the boards, and the bench and penalty box edges) and red markings (goal lines,
-        faceoff circles and dots, centre line): the two rink colours nothing else on the screen uses. Not yet tested in
-        the game. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
+        faceoff circles and dots, centre line): the two rink colours nothing else on the screen uses. Tested in the
+        game by the NHL94 Match Viewer project. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
         pixels keeps the colours it has (the rink's, or the teams' for the players on the benches), and the centre ice
         logo's block, the replay icon and the three stars box (in the rows below the rink) and the boards and glass drawn
         in front of the players stay as they are. The rink has room for only so many different squares; a square that

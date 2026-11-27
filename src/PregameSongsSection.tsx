@@ -52,7 +52,7 @@ export function PregameSongsSection({ project, onChange }: Props) {
         The music on the matchup screen before a game, where Ron Barr talks it up: the home team's choice, in place of the
         game's own ({ownName.toLowerCase()}). A piece of the game's music plays until the game starts, as the game's own
         does. An organ song plays once, about 20 seconds, and then the screen is quiet until the game starts. Silence
-        plays nothing. Not yet tested in the game.
+        plays nothing. Tested in the game by the NHL94 Match Viewer project.
       </p>
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
       <table className="left">
