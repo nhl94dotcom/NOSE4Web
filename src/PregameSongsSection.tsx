@@ -18,7 +18,10 @@ export function PregameSongsSection({ project, onChange }: Props) {
   const nhl95 = project.game.edition === 95
   const own = pregameOwnSong(project)
   const songs = readPregameSongs(project) ?? project.teams.map(() => own)
+  // Organ songs on NHL 94 only: NHL '95's matchup screen has not loaded the organ, so one plays silent (Match Viewer).
   const organ = genesisSongs(project.game)
+  const offered = organ && !nhl95 ? organ.numbers : []
+  const elsewhere = [...new Set(songs)].filter((song) => song !== PREGAME_SILENCE && !pieces.some((piece) => piece.number === song) && !offered.includes(song))
   const pieces = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
   const ownName = pieces.find((piece) => piece.number === own)?.name ?? 'Its own music'
 
@@ -47,8 +50,8 @@ export function PregameSongsSection({ project, onChange }: Props) {
       <p className="note">
         The music on the matchup screen before a game, where Ron Barr talks it up: the home team's choice, in place of the
         game's own ({ownName.toLowerCase()}). A piece of the game's music plays until the game starts, as the game's own
-        does. An organ song plays once, about 20 seconds, and then the screen is quiet until the game starts. Silence
-        plays nothing. Not yet tested in the game.
+        does.{nhl95 ? '' : ' An organ song plays once, about 20 seconds, and then the screen is quiet until the game starts.'}{' '}
+        Silence plays nothing. Not yet tested in the game.
       </p>
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
       <table className="left">
@@ -72,9 +75,9 @@ export function PregameSongsSection({ project, onChange }: Props) {
                       </option>
                     ))}
                   </optgroup>
-                  {organ && (
+                  {organ && offered.length > 0 && (
                     <optgroup label="Organ songs (play once)">
-                      {organ.numbers.map((number) => (
+                      {offered.map((number) => (
                         <option key={number} value={number}>
                           {songNumber(number, organ)}. {songName(number, project.bytes, organ)}
                         </option>
@@ -82,6 +85,11 @@ export function PregameSongsSection({ project, onChange }: Props) {
                     </optgroup>
                   )}
                   <option value={PREGAME_SILENCE}>Silence</option>
+                  {elsewhere.map((song) => (
+                    <option key={song} value={song}>
+                      {organ?.numbers.includes(song) ? `${songNumber(song, organ)}. ${songName(song, project.bytes, organ)} (plays nothing here)` : `Song ${song}`}
+                    </option>
+                  ))}
                 </select>
               </td>
             </tr>

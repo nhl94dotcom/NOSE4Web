@@ -1105,8 +1105,8 @@ export function HelpPage() {
         </li>
         <li>
           <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
-          a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
-          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
+          a game, in place of the game's own: a piece of the game's music, on NHL 94 an organ song (it plays once, about
+          20 seconds, then the screen is quiet), or silence. <b>Every team the game's own music</b> puts it all back.
         </li>
       </ul>
 
@@ -1685,7 +1685,7 @@ export function HelpPage() {
         in front of the players stay as they are. The rink has room for only so many different squares; a square that
         repeats another, turned round or not, costs nothing. The reverse angle replay has its own rink, chosen under{' '}
         <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
-        undoes both. Not yet tested in the game. On the SNES the page's own picture of the rink, with the home team's
+        undoes both. Tested in the game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too.
       </p>
 

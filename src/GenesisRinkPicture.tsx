@@ -117,7 +117,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           stars box below the rink stay as they are, and so do the boards and glass drawn in front of the players. The
           rink has room for only so many different squares; one that repeats another, or another turned round, costs
           nothing, and the page says when a picture needs more. The reverse angle replay has a rink of its own: put a
-          picture in for it too, or its replays show the old rink. Not yet tested in the game.
+          picture in for it too, or its replays show the old rink. Tested in the game by the NHL94 Match Viewer project.
         </p>
       )}
       <p>

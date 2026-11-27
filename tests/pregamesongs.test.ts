@@ -25,6 +25,8 @@ for (const [name, own, site] of [['nhl94.bin', 0x7a, 0xfcc86], ['NHL95/NHL_95.bi
       // movem.l d0/a0,-(sp); move.w (HomeTeam).w,d0
       expect(Buffer.from(on.bytes.subarray(code, code + 6)).toString('hex')).toBe(name.includes('95') ? '48e780803038bf54'.slice(0, 12) : '48e780803038c330'.slice(0, 12))
       expect(readPregameSongs(on)).toEqual(songs)
+      // Silence on NHL 94 turns the sound off first (p_turnoff, $1A264); NHL '95's driver restart already has.
+      expect(Buffer.from(on.bytes.subarray(code + 18, code + 26)).toString('hex')).toBe(name.includes('95') ? '6a064e714e714e71' : '6a064eb90001a264')
       const again = openRom(buildRom(on))
       expect(readPregameSongs(again)).toEqual(songs)
       // Changed, and all back to the game's own.

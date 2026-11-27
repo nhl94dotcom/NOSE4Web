@@ -135,7 +135,8 @@ export function FaqPage() {
         <dt>Can each team have its own song before the game?</dt>
         <dd>
           On the Genesis, yes: <b>Pre-game songs</b> on the Music page picks the music the matchup screen plays
-          when each team is at home. Organ songs play once and stop; the game's own music plays until the game starts.
+          when each team is at home. On NHL 94 an organ song can play there too, once; the game's own music plays until
+          the game starts.
           Not on the SNES, whose matchup screen keeps the menu music playing.
         </dd>
 
