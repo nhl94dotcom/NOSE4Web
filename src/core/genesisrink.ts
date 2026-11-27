@@ -140,6 +140,43 @@ const KEPT_AREAS: Record<RinkView, { col: [number, number]; row: [number, number
   reverse: [{ col: [32, 39], row: [85, 88] }],
 }
 
+// Where a picture's new squares are, as the largest groups of them that touch, in pixels: ", most of them at x 88 to 223, y 0 to
+// 39 (70 squares) and ...".
+function areasOf(cells: number[], width: number): string {
+  const left = new Set(cells)
+  const groups: number[][] = []
+  for (const start of cells) {
+    if (!left.has(start)) continue
+    left.delete(start)
+    const group = [start]
+    for (let i = 0; i < group.length; i++) {
+      const [col, row] = [group[i] % width, Math.floor(group[i] / width)]
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const [c, r] = [col + dx, row + dy]
+          const next = r * width + c
+          if (c >= 0 && c < width && left.has(next)) {
+            left.delete(next)
+            group.push(next)
+          }
+        }
+      }
+    }
+    groups.push(group)
+  }
+  const largest = groups.sort((a, b) => b.length - a.length).slice(0, 3).filter((group) => group.length >= Math.max(2, cells.length / 20))
+  if (largest.length === 0) return ''
+  const describe = (group: number[]) => {
+    const cols = group.map((cell) => cell % width)
+    const rows = group.map((cell) => Math.floor(cell / width))
+    const [x0, x1, y0, y1] = [Math.min(...cols) * 8, Math.max(...cols) * 8 + 7, Math.min(...rows) * 8, Math.max(...rows) * 8 + 7]
+    return `x ${x0} to ${x1}, y ${y0} to ${y1} (${group.length} ${group.length === 1 ? 'square' : 'squares'})`
+  }
+  const texts = largest.map(describe)
+  const listed = texts.length === 1 ? texts[0] : `${texts.slice(0, -1).join('; ')} and ${texts[texts.length - 1]}`
+  return `, ${largest.reduce((n, group) => n + group.length, 0) === cells.length ? 'at' : 'most of them at'} ${listed}`
+}
+
 export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[]): RinkImport {
   const rink = readGenesisRink(rom, view)
   if (!rink || rink.height < SHOWN_ROWS + 10) throw new RinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
@@ -176,6 +213,19 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
     for (const [key, flip] of variants(bytes)) if (!known.has(key)) known.set(key, { tile, flip })
   }
   for (const t of pinned) remember(t, rom.subarray(rink.tilesAt + t * TILE, rink.tilesAt + (t + 1) * TILE))
+  // The squares the rink has now in the cells a picture replaces: how many of the room they take, and which squares of a
+  // picture are new, for a picture that needs too many.
+  const before = new Set<string>()
+  let usedBefore = 0
+  rink.words.forEach((word, cell) => {
+    if (kept(cell)) return
+    const t = word & 0x7ff
+    const turnings = variants(rom.subarray(rink.tilesAt + t * TILE, rink.tilesAt + (t + 1) * TILE))
+    if (turnings.some(([key]) => known.has(key) || before.has(key))) return
+    usedBefore++
+    for (const [key] of turnings) before.add(key)
+  })
+  const added: number[] = []
 
   const out = rom.slice()
   const words = rink.words.slice()
@@ -206,9 +256,13 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
         bytes[y * 4 + (x >> 1)] |= x & 1 ? colour : colour << 4
       }
     }
-    let place = known.get(variants(bytes)[0][0])
+    const key = variants(bytes)[0][0]
+    let place = known.get(key)
+    if (!place && !before.has(key)) added.push(cell)
     if (!place) {
       if (used >= free.length) {
+        // Over: remember the square, so a repeat of it costs nothing here either.
+        for (const [k] of variants(bytes)) if (!known.has(k)) known.set(k, { tile: -1, flip: 0 })
         used++
         continue
       }
@@ -220,7 +274,13 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
     words[cell] = (word & 0xe000) | place.flip | place.tile
   }
   if (used > free.length) {
-    throw new RinkImportError(`This picture needs ${used} different squares of 8 by 8 pixels and the rink has room for ${free.length}. Repeat more of them: a square that is an exact copy of another, or of another turned round, costs nothing.`)
+    const spare = Math.max(0, free.length - usedBefore)
+    throw new RinkImportError(
+      `This picture needs ${used - free.length} more different squares of 8 by 8 pixels than the rink has room for (${used} of ${free.length}). ` +
+        `The rink as it is uses ${usedBefore}, so a picture can add only ${spare} new ${spare === 1 ? 'square' : 'squares'}, and this one adds ${added.length}` +
+        `${areasOf(added, rink.width)}. A square that repeats another exactly, or another turned round, costs nothing: draw on a grid of 8 by 8 pixels from ` +
+        `the top left corner, and copy whole squares where a pattern repeats (seats, crowd, walls).`,
+    )
   }
   words.forEach((word, cell) => writeU16(out, rink.mapAt + 4 + cell * 2, word))
   return { rom: out, used, room: free.length }

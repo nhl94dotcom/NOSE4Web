@@ -89,5 +89,22 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('putting an edited rink into NHL
       noise[i + 2] = (seed >> 16) & 255
     }
     expect(() => importGenesisRink(project.bytes, 'play', { rgba: noise, width: 384, height: 904 }, image.palette)).toThrow(/different squares/)
+    // Noise in one block only (x 96 to 223, y 96 to 255: 16 by 20 squares, less those the import keeps): the message says how many the rink
+    // already uses, how many the picture adds, and where.
+    const block = Uint8ClampedArray.from(image.rgba)
+    for (let y = 96; y < 256; y++) {
+      for (let x = 96; x < 224; x++) {
+        const i = (y * 384 + x) * 4
+        seed = (seed * 1103515245 + 12345) >>> 0
+        block.set([seed & 255, (seed >> 8) & 255, (seed >> 16) & 255, 255], i)
+      }
+    }
+    let message = ''
+    try {
+      importGenesisRink(project.bytes, 'play', { rgba: block, width: 384, height: 904 }, image.palette)
+    } catch (e) {
+      message = (e as Error).message
+    }
+    expect(message).toMatch(/^This picture needs \d+ more different squares of 8 by 8 pixels than the rink has room for \(\d+ of 399\)\. The rink as it is uses 379, so a picture can add only 20 new squares, and this one adds (\d+), at x 96 to 223, y 96 to 255 \(\1 squares\)\./)
   })
 })
