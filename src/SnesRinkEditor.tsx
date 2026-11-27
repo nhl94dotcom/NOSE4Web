@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { download } from './download'
 import { colorRgb, SNES_COLORS } from './core/color'
 import type { RomProject } from './core/rom'
 import { drawSnesRink } from './core/snesrink'
@@ -90,7 +91,22 @@ export function SnesRinkEditor({ project, original, onChange }: Props) {
           graphics, so a change can show there too.
         </p>
         <p>
-          {teamSelect('Home', home, setHome)} {teamSelect('Visitors', visitor, setVisitor)}
+          {teamSelect('Home', home, setHome)} {teamSelect('Visitors', visitor, setVisitor)}{' '}
+          {picture && (
+            <button
+              onClick={() =>
+                canvas.current?.toBlob(async (blob) => {
+                  if (blob) download(new Uint8Array(await blob.arrayBuffer()), 'rink.png', 'image/png')
+                }, 'image/png')
+              }
+            >
+              Export as PNG
+            </button>
+          )}
+        </p>
+        <p className="note">
+          <b>Export as PNG</b> saves the whole rink as drawn here, the boards, benches, penalty boxes and crowd too, to
+          look at or to draw on in a paint program. Putting an edited rink back in comes later.
         </p>
         {picture && (
           <div className="rink-preview">

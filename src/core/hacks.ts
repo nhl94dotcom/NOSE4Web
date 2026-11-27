@@ -3967,6 +3967,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices, smozRom = false): 
   // code NOSE4Web moves, that code went past the blood on the second apply:
   // the same game, different bytes; Match Viewer, CDL Season 12).
   const fightKept = choices.fighting !== 'none' && wanted.fighting !== 'none'
+  // Fighting this editor leaves as it is: its own kept, or another build of the patch it does not know (left alone).
+  const fightStays = fightKept || unknown.includes('fighting')
   // Clockwise's sprite edit staying on in a ROM without NOSE4Web's tape is not touched (see its steps).
   const spritesKept = choices.clockwiseSprites && wanted.clockwiseSprites && !hasNoseTape(rom)
   const bloodKnown = !unknown.includes('headBleeding')
@@ -4086,8 +4088,8 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices, smozRom = false): 
     // Left alone, as above, where fighting stays in too.
     [
       'clockwiseSprites',
-      () => void (choices.clockwiseSprites && !(spritesKept && fightKept) && takeOutFightTape(work.rom)),
-      () => void (wanted.clockwiseSprites && !(spritesKept && fightKept) && putFightTape(work.rom)),
+      () => void (choices.clockwiseSprites && !(spritesKept && fightStays) && takeOutFightTape(work.rom)),
+      () => void (wanted.clockwiseSprites && !(spritesKept && fightStays) && putFightTape(work.rom)),
     ],
     // After fighting, whose copy of HotList the game reads once it is in.
     ['goalieBladeFix', () => goalieBladeFix.remove(work.rom), () => goalieBladeFix.apply(work, wanted.goalieBladeFix)],

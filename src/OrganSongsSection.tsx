@@ -227,6 +227,7 @@ export function OrganSongsSection({ project, onChange }: Props) {
                   <button onClick={() => download(songToMidi(song, song.custom?.name ?? songs.names[number]), `song_${shown(number)}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
                   {songs.canReplace(number) && (
                     <button
+                      disabled={editing !== null}
                       onClick={() => {
                         stop()
                         setEditing({ number, music: editedMusicOf(songToMidi(song, song.custom?.name ?? songs.names[number])) })
@@ -236,11 +237,12 @@ export function OrganSongsSection({ project, onChange }: Props) {
                     </button>
                   )}{' '}
                   {songs.canReplace(number) && (
-                    <label className="button">
+                    <label className={editing ? 'button disabled' : 'button'}>
                       Replace…
                       <input
                         type="file"
                         accept=".mid,.midi,audio/midi"
+                        disabled={editing !== null}
                         hidden
                         aria-label={`Replace song ${shown(number)}`}
                         onChange={(e) => {
@@ -410,7 +412,7 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
           title={`the ${pieceName(editing.number).toLowerCase()}`}
           limit={
             nhl95
-              ? { most: 1, perPart: true, text: "each of the game's instruments plays one note at a time (the square wave three), one part to an instrument" }
+              ? { most: 1, perPart: true, text: "each of the game's instruments plays one note at a time, one part to an instrument (the square wave three at once, so red on a part for it may be fine)" }
               : { most: 5, counts: (n) => n.channel !== 9 || n.note === 35 || n.note === 36, text: 'the console plays five notes at once, a kick drum among them' }
           }
           doneLabel="Choose the instruments"
@@ -489,6 +491,7 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
                   <button onClick={() => player.toggle(number, gameMusicTune(song!, nhl95 ? 95 : 94), shown)}>{player.playing === number ? 'Stop' : 'Play'}</button>{' '}
                   <button onClick={() => download(gameMusicToMidi(song!, song!.custom?.name ?? name, nhl95 ? 95 : 94), `${name.toLowerCase().replace(/ /g, '_')}.mid`, 'audio/midi')}>Export MIDI</button>{' '}
                   <button
+                    disabled={editing !== null || pending !== null}
                     onClick={() => {
                       player.stop()
                       setPending(null)
@@ -497,11 +500,12 @@ export function GameMusicSection({ project, onChange, kept, onKeep }: MusicProps
                   >
                     Edit…
                   </button>{' '}
-                  <label className="button">
+                  <label className={editing ? 'button disabled' : 'button'}>
                     Replace…
                     <input
                       type="file"
                       accept=".mid,.midi,audio/midi"
+                      disabled={editing !== null}
                       hidden
                       aria-label={`Replace the ${name.toLowerCase()}`}
                       onChange={(e) => {
@@ -649,6 +653,7 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
                     Export MIDI
                   </button>{' '}
                   <button
+                    disabled={editing !== null}
                     onClick={() => {
                       stop()
                       setEditing({ pointer, name, music: editedMusicOf(songToMidi(song, song.custom?.name ?? name)) })
@@ -656,11 +661,12 @@ export function SnesOrganSongsSection({ project, onChange }: Props) {
                   >
                     Edit…
                   </button>{' '}
-                  <label className="button">
+                  <label className={editing ? 'button disabled' : 'button'}>
                     Replace…
                     <input
                       type="file"
                       accept=".mid,.midi,audio/midi"
+                      disabled={editing !== null}
                       hidden
                       aria-label={`Replace ${name}`}
                       onChange={(e) => {
@@ -841,7 +847,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
             const music = readSnesMusic(next, pointer)
             return { events: music ? snesMusicTune(music) : [], sound: () => snesMusicSound(next, pointer, SNES_GAME_MUSIC[index].sounds) }
           }}
-          previewText="Play plays it as it would go in, on the game's own instruments first chosen for its parts (you can change them after), within the console's voices."
+          previewText="Play plays it as it would go in, on the game's own instruments first chosen for its parts (you can change them after), within the console's voices. A piece edited here goes back on its parts' own instruments and sides, but at the game's usual loudness for each, and its crash and other percussion tracks play from the drum track."
           onDone={(bytes, name, names) => readBytes(editing.index, bytes, name, names) && setEditing(null)}
           onCancel={() => setEditing(null)}
         />
@@ -919,6 +925,7 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
                     <>
                       {' '}
                       <button
+                        disabled={editing !== null || pending !== null}
                         onClick={() => {
                           player.stop()
                           setPending(null)
@@ -927,11 +934,12 @@ export function SnesGameMusicSection({ project, onChange, kept, onKeep }: MusicP
                       >
                         Edit…
                       </button>{' '}
-                      <label className="button">
+                      <label className={editing ? 'button disabled' : 'button'}>
                         Replace…
                         <input
                           type="file"
                           accept=".mid,.midi,audio/midi"
+                          disabled={editing !== null}
                           hidden
                           aria-label={`Replace the ${name.toLowerCase()}`}
                           onChange={(e) => {

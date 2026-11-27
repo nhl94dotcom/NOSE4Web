@@ -43,8 +43,9 @@ export function letterSeasonBanners(project: RomProject, cities: { slot: number;
   let graphics: GraphicsEdits = project.graphics
   for (const { slot, now } of moved) {
     const name = teamDisplayName(project.teams[slot])
-    // A banner every team shares is not this team's to letter.
-    const targets = BANNERS.filter((b) => kinds.includes(b.kind) && pictureEditable(project, b.kind) && pictureSharedWith(project, slot, b.kind).length < project.teams.length)
+    // Only banners of this team's own: one it shares with other teams would be lettered for them too.
+    const shared = BANNERS.some((b) => kinds.includes(b.kind) && pictureSharedWith(project, slot, b.kind).length > 1)
+    const targets = shared ? [] : BANNERS.filter((b) => kinds.includes(b.kind) && pictureEditable(project, b.kind))
     const lettering = measureLettering(now)
     if (targets.length === 0 || lettering.text.length === 0 || lettering.tooWide > 0) {
       result.bannersLeft.push(name)
@@ -60,12 +61,14 @@ export function letterSeasonBanners(project: RomProject, cities: { slot: number;
       try {
         graphics = letter(base)
       } catch (e) {
-        // Out of room: once, the room the team page's "more room" button gives, then again.
+        // Out of room: once, the room the team page's "more room" button gives, then again; kept only if it lets
+        // the lettering in.
         const space = pictureSpace({ ...base, graphics })
         if (!(e instanceof NoRoomError) || result.roomGiven || !space) throw e
-        base = expandPictureSpace({ ...base, graphics })
+        const roomier = expandPictureSpace({ ...base, graphics })
+        graphics = letter(roomier)
+        base = roomier
         result.roomGiven = { grew: space.grows ? space.romSize : null }
-        graphics = letter(base)
       }
       result.lettered.push(name)
     } catch {

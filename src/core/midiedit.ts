@@ -86,10 +86,13 @@ export function keepStretch(music: EditedMusic, from: number, to: number): Edite
 
 // The stretches where more than `most` notes sound at once (`counted` picks which notes count), with the most there.
 export function crowded(notes: MidiNote[], most: number, counted: (note: MidiNote) => boolean = (n) => n.channel !== DRUMS): { from: number; to: number; count: number }[] {
+  // Times to the MIDI file's ticks, so that a note ending as the next begins (after a move, a sum one rounding off)
+  // is not taken for an overlap.
+  const tick = (seconds: number) => Math.round(seconds * TICKS_PER_SECOND) / TICKS_PER_SECOND
   const edges: { at: number; step: number }[] = []
   for (const n of notes) {
     if (!counted(n) || n.length <= 0) continue
-    edges.push({ at: n.start, step: 1 }, { at: n.start + n.length, step: -1 })
+    edges.push({ at: tick(n.start), step: 1 }, { at: tick(n.start + n.length), step: -1 })
   }
   // Ends before starts at one moment: a note ending as the next begins does not overlap it.
   edges.sort((a, b) => a.at - b.at || a.step - b.step)

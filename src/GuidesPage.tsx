@@ -16,6 +16,7 @@ const CONTENTS: [string, string][] = [
   ['lines', 'Lines'],
   ['hacks', 'Bug fixes and game options (Hacks)'],
   ['looks', 'Team names, colours and logos'],
+  ['music', 'Change a song or the game music'],
   ['size', 'A league with fewer teams than the ROM'],
   ['before', 'Before a season starts: check and compare'],
   ['newseason', 'From one league season to the next'],
@@ -281,7 +282,72 @@ export function GuidesPage() {
           one team or every team. <b>Picture files</b> exports every picture to a .zip and imports them back, to edit
           in a paint program.
         </li>
+        <li>
+          The rink: <b>Rink colours</b> changes the rink's colours and shows the whole rink as the game has it, the
+          boards, benches, penalty boxes and crowd too (on the Genesis under <b>The whole rink</b>), and{' '}
+          <b>Export as PNG</b> saves it. (Putting an edited rink back in comes later.)
+        </li>
       </ul>
+
+      <h3 id="guide-music">Change a song or the game music</h3>
+      <p>
+        The organ songs are the short tunes the organ plays at goals and stoppages; each team's page picks which ones it
+        plays. The game music is the rest: the title and menu music, and on the Genesis the end of period and scouting
+        report pieces, on the SNES the playoff music.
+      </p>
+      <ol>
+        <li>
+          Open <b>Game settings</b> and its <b>Music</b> tab. In <b>Organ songs</b>, <b>Used by</b> shows which teams play
+          each song; one that no team uses is the safe one to replace first.
+        </li>
+        <li>
+          <b>Play</b> to hear a piece, and <b>Export MIDI</b> to save it as a MIDI file.
+        </li>
+        <li>
+          To put in a file of your own as it is: <b>Replace…</b> and pick the MIDI file. For the game music you then
+          choose a game instrument for each of its parts, and <b>Put it in</b>.
+        </li>
+        <li>
+          To change the notes: <b>Edit…</b>. The piece opens on a piano roll: time runs left to right, high notes at the
+          top, each part in its own colour, and the drums on rows of their own at the bottom. To edit a file of your own
+          first, choose <b>Open a MIDI file…</b> in the editor.
+        </li>
+        <li>
+          Notes: click one to pick it, Shift-click to pick more, or drag a box round several. Drag picked notes to move
+          them, or drag a note's right end to make it longer. Double-click an empty spot to add a note to the part ticked
+          under <b>New notes</b>. Delete removes the picked notes; the up and down arrows move them a semitone (with
+          Shift, an octave); left and right move them a step, the <b>Step</b> chosen (with Shift, longer or shorter).
+          Ctrl+Z undoes and Ctrl+Y redoes.
+        </li>
+        <li>
+          Parts and the whole piece: each part's row moves it down or up an octave or a semitone, makes it quieter or
+          louder, picks all its notes, or deletes it. <b>Speed</b> makes the whole piece faster or slower, and{' '}
+          <b>Keep from … to … seconds</b> cuts it to a stretch. Untick a part's <b>Shown</b> to hide it, and to hear the
+          others without it.
+        </li>
+        <li>
+          Red: a red band marks where more notes sound at once than go into the ROM; there the extra ones are left out
+          or cut short. The links under the roll jump to the first few. The game's own pieces have some too.
+        </li>
+        <li>
+          <b>Play</b> plays the piece as it would go in, the limits applied. On the SNES you hear the game's own
+          instruments; on the Genesis a rough organ-like tone in the browser, so play the downloaded ROM in an emulator
+          for the real sound.
+        </li>
+        <li>
+          <b>Put it in</b> (an organ song) or <b>Choose the instruments</b> (game music: the instruments first chosen are
+          the piece's own where the editor can tell them, and you can change each). <b>Save as MIDI</b> keeps your edit
+          as a file, to finish later or in another music program. Undo takes a put-in piece back, and{' '}
+          <b>Put back the original</b> brings back the game's own.
+        </li>
+      </ol>
+      <p>
+        Things to know. Every organ note plays on the organ, drums left out, at most 4 at once (7 in NHL '95), each
+        moved by octaves into the organ's range. On NHL '95 each game instrument plays one note at a time and one part,
+        so chords in a part thin out. On the SNES, a game piece edited here goes back on its parts' own instruments and
+        sides, at the game's usual loudness for each, its crash and other percussion played from the drum track. Short
+        organ songs, 10 to 30 seconds, suit the game best.
+      </p>
 
       <h3 id="guide-size">A league with fewer teams than the ROM</h3>
       <p>

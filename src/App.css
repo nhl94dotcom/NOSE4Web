@@ -1113,3 +1113,22 @@ main > [data-tab-hidden] {
   max-height: 12rem;
   overflow: auto;
 }
+
+/* A file-picking label made to look like a button, while its picker is disabled. */
+.button.disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* The whole Genesis rink (GenesisRinkPicture.tsx), at its own size, scrolling. */
+.rink-picture {
+  max-height: 32rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  display: inline-block;
+  max-width: 100%;
+}
+.rink-picture canvas {
+  display: block;
+}

@@ -164,6 +164,8 @@ type NumberKey = keyof typeof HACK_RANGES
 
 export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
   const state = useMemo(() => detectHacks(project.bytes), [project.bytes])
+  // Worked out once a ROM: it reads Clockwise's records, the fight frames and the faceoff close-up.
+  const clockwiseIsOutdated = useMemo(() => clockwiseOutdated(project.bytes), [project.bytes])
   // The choices being made, which start again from the ROM whenever it changes.
   // They start from those the app kept, and when the ROM changes they are laid on it as it is now.
   // (After this page's Apply, or once the app has applied them or found nothing left, they start again from the ROM.)
@@ -1314,7 +1316,7 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'clockwiseSprites',
           <>
             {onOff('clockwiseSprites')}
-            {clockwiseOutdated(project.bytes) && putInCurrent}
+            {clockwiseIsOutdated && putInCurrent}
           </>,
           "Clockwise's touch-ups to the player graphics: stick tape, eye colour and other small details, from Clockwise's patch on the NHL94 forum. Several league ROMs have some or all of it already. It also redraws the two nets, so the nets must stay in their original colours with it on. Art a league has redrawn itself is kept. NOSE4Web adds touch-ups of its own in Clockwise's style, worked out by the NHL94 Match Viewer project: tape on the sticks in 33 goalie and skater frames Clockwise left untaped, with three more eyes; tape on the centres' sticks in the faceoff close-up, stopping short of the toe; and, with chaos's fighting patch in (put in by NOSE4Web or another way), tape on the sticks in the fight frames, with an eye on the overhand punch. Tested in the game by the NHL94 Match Viewer project.",
         )}

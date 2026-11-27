@@ -1142,7 +1142,7 @@ export function HelpPage() {
           such a program and import again.
         </li>
         <li>
-          <b>Or edit it here:</b> <b>Edit</b>, beside each song and piece of game music, opens it in the music editor:
+          <b>Or edit it here:</b> <b>Edit</b>, beside each song and piece of game music that can be replaced, opens it in the music editor:
           its notes on a piano roll, to move, add, delete, transpose, make louder or quieter, speed up or cut short. Red
           marks where more notes sound at once than go in, and <b>Play</b> plays it as it would go in (on the SNES on the
           game's own instruments). <b>Open a MIDI file</b> there edits a file of your own first. It then goes in as a
@@ -1654,6 +1654,14 @@ export function HelpPage() {
         <b>Rink colours</b>, below the teams, has 16 colours for the ice and 16 for the arena around it. They are
         shared by every rink in the game. Use the list above the picture to preview different parts of the rink and
         the pause menu.
+      </p>
+      <p>
+        On the Genesis, <b>The whole rink</b> below draws the rink as the game has it, from the ROM's own pictures:
+        the ice and its markings, the boards, the benches, the penalty boxes and the crowd, in the colours above, with
+        the players on the benches in the colours of the two teams chosen. <b>Export as PNG</b> saves it, to look at
+        or to draw on in a paint program. The block at centre ice is where the game puts the home team's centre ice
+        logo as a game starts. Putting an edited rink back in is not offered yet. On the SNES the page's own picture of
+        the rink, with the home team's centre ice logo in place, has an <b>Export as PNG</b> button too.
       </p>
 
       <h3 id="help-league">League</h3>

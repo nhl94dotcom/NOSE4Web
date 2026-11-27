@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { hex } from './core/bytes'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
+import { GenesisRinkPicture } from './GenesisRinkPicture'
+import type { RomProject } from './core/rom'
 
 const VIEWS = [
   { template: 'rink-center', title: 'Centre ice' },
@@ -26,9 +28,11 @@ interface Props {
   original: number[]
   onChange: (palette: number[]) => void
   edition?: 95
+  // The ROM, for the whole rink drawn from it (GenesisRinkPicture), with the colours above.
+  project?: RomProject
 }
 
-export function RinkEditor({ palette, original, onChange, edition }: Props) {
+export function RinkEditor({ palette, original, onChange, edition, project }: Props) {
   const views = edition === 95 ? VIEWS_95 : VIEWS
   const [view, setView] = useState(views[0].template)
   const ice = palette.slice(0, 16)
@@ -65,6 +69,7 @@ export function RinkEditor({ palette, original, onChange, edition }: Props) {
           <ResetButton what="arena colours" changed={differs(16, 32)} onReset={() => onChange([...ice, ...original.slice(16)])} />
         </p>
       </section>
+      {project && <GenesisRinkPicture project={project} />}
     </main>
   )
 }

@@ -22,6 +22,14 @@ export function FaqPage() {
           <b>Save project file</b>).
         </dd>
 
+        <dt>A page says "This part of the page could not be shown". Is my work gone?</dt>
+        <dd>
+          No. Something went wrong drawing that page only: your ROM and every change are still there. Choose another page
+          on the left, or <b>Try again</b>. <b>Copy the details</b> and send them, with the page, the section you clicked
+          and the ROM, so that it can be fixed. If it says the page could not be loaded, the site was updated while
+          your tab was open: reload, then choose <b>Continue editing</b>.
+        </dd>
+
         <dt>What is the difference between the ROM, a project file and a patch?</dt>
         <dd>
           The downloaded ROM is the game to play, with every change in it. A project file is your work without the ROM:
@@ -65,6 +73,21 @@ export function FaqPage() {
           says. Raise that number, or move the team up with <b>Move teams</b> on Bulk changes.
         </dd>
 
+        <dt>A hack says "This ROM has an earlier version of it".</dt>
+        <dd>
+          NOSE4Web has improved that hack since it went into this ROM (Clockwise's stick tape, giveaways, the season
+          shootout and others). <b>Put in the current version</b> beside it updates it; nothing else changes, and Undo
+          takes it back.
+        </dd>
+
+        <dt>A hack is greyed out: "This ROM has other changes in this part of the game".</dt>
+        <dd>
+          Something other than the original game's code is where that hack goes, so NOSE4Web leaves it alone rather than
+          risk breaking it: another tool's patch, or a build of the game it does not know yet. If you think the option
+          should work on your ROM, send the ROM: often NOSE4Web only needs to learn that build (as for a later SA-1 60
+          fps build, whose energy options were greyed out until 26 November 2026).
+        </dd>
+
         <dt>Which bug fixes should a league use?</dt>
         <dd>
           On Hacks, <b>Turn on the recommended fixes</b> picks the ones most leagues use. Each option says whether the
@@ -83,6 +106,30 @@ export function FaqPage() {
           Start from the original game, or on the SNES the SA-1 build. A league ROM with code changes of its own may not
           take one as cleanly. To keep your league's teams and only give the players a season's ratings, use{' '}
           <b>Re-rate the players this ROM has</b> on Real NHL season.
+        </dd>
+
+        <dt>A team from a real season shows another city's banner or logo.</dt>
+        <dd>
+          Real NHL season puts each team where its franchise is in the ROM, so the 1987-88 Minnesota North Stars go where
+          the original game has the Dallas Stars. On NHL 94 for the Genesis their banners are lettered with their city;
+          the notes after bringing the season in name every team still showing another city's banner (always on the
+          SNES) or another team's logo. Change those on the team's page, under <b>Logos and banners</b>, or bring them
+          from another ROM with <b>Import a team</b>.
+        </dd>
+
+        <dt>Can I change the music?</dt>
+        <dd>
+          Yes, on <b>Game settings</b>, under its Music tab: the organ songs the teams play and the game's other music.{' '}
+          <b>Replace</b> puts a MIDI file of your own in; <b>Edit</b> opens a piece in the music editor, to change its
+          notes on a piano roll first. Walkthroughs' <i>Change a song or the game music</i> takes you through it.
+        </dd>
+
+        <dt>Why does the music editor show red on the game's own songs?</dt>
+        <dd>
+          Red marks where more notes sound at once than NOSE4Web puts into the ROM: 4 on the organ in NHL 94 and on the
+          SNES, 7 in NHL '95, and the console's own limits for the game music. The game's own songs were written with
+          more in places, and the console drops some of them as it plays. Where there is red, the extra notes (usually
+          the lowest) are left out or cut short when the piece goes in.
         </dd>
 
         <dt>Does it work with 3-on-3, 2-on-2 and other league ROMs?</dt>

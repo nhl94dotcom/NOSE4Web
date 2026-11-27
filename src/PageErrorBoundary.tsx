@@ -26,6 +26,22 @@ export class PageErrorBoundary extends Component<Props, State> {
     const { error } = this.state
     if (!error) return this.props.children
     const details = `${error.name}: ${error.message}\n${error.stack ?? ''}`.slice(0, 2000)
+    // A part of the site that could not be loaded (the site was updated while this tab was open): only reloading
+    // the page brings it, and the work comes back with Continue editing.
+    if (/dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch/i.test(error.message)) {
+      return (
+        <main className="team">
+          <h2>This page could not be loaded</h2>
+          <p className="error">
+            The site has probably been updated since this tab was opened. Reload the page; your work is kept in this
+            browser, so choose <b>Continue editing</b> on the first screen to carry on.
+          </p>
+          <p>
+            <button onClick={() => window.location.reload()}>Reload the page</button>
+          </p>
+        </main>
+      )
+    }
     return (
       <main className="team">
         <h2>This part of the page could not be shown</h2>

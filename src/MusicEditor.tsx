@@ -53,7 +53,8 @@ const ROW = 7
 const RULER = 16
 const STRIP = 8
 const KEYS = 34
-const MAX_WIDTH = 30000
+// Wide enough for a long piece, and within what every browser draws on a canvas.
+const MAX_WIDTH = 12000
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const noteName = (note: number) => `${NOTE_NAMES[note % 12]}${Math.floor(note / 12) - 1}`
 const BLACK = new Set([1, 3, 6, 8, 10])
@@ -89,7 +90,9 @@ export function MusicEditor({ music: first, title, limit, doneLabel, preview, pr
   const keys = useRef<HTMLCanvasElement>(null)
 
   const channels = useMemo(() => [...new Set(music.notes.map((n) => n.channel))].sort((a, b) => a - b), [music])
-  const [active, setActive] = useState(() => channels.find((c) => c !== DRUMS) ?? 0)
+  const [chosen, setActive] = useState(() => channels.find((c) => c !== DRUMS) ?? 0)
+  // The part new notes go to: the one chosen, or where it has gone (its notes all deleted, another file opened), the first.
+  const active = channels.includes(chosen) ? chosen : (channels.find((c) => c !== DRUMS) ?? channels[0] ?? 0)
   const colourOf = (channel: number) => COLOURS[channel % COLOURS.length]
   const duration = Math.max(music.end, music.notes.reduce((most, n) => Math.max(most, n.start + n.length), 0), 1)
   const [zoom, setZoom] = useState(() => Math.max(20, Math.min(200, 900 / duration)))
@@ -242,6 +245,8 @@ export function MusicEditor({ music: first, title, limit, doneLabel, preview, pr
   useEffect(draw)
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    // The left button (or a touch) only.
+    if (e.button !== 0) return
     canvas.current!.focus()
     canvas.current!.setPointerCapture?.(e.pointerId)
     const { x, y } = point(e)
@@ -540,7 +545,15 @@ export function MusicEditor({ music: first, title, limit, doneLabel, preview, pr
                   <input type="radio" name="music-active" aria-label={`Add new notes to ${name}`} checked={active === channel} onChange={() => setActive(channel)} />
                 </td>
                 <td>
-                  <button onClick={() => setPicked(notesOf(music, channel))}>Pick all</button>{' '}
+                  <button
+                    onClick={() => {
+                      // A hidden part shows again when its notes are picked, so that what is picked is seen.
+                      if (hidden.has(channel)) setHidden(new Set([...hidden].filter((c) => c !== channel)))
+                      setPicked(notesOf(music, channel))
+                    }}
+                  >
+                    Pick all
+                  </button>{' '}
                   {channel !== DRUMS && (
                     <>
                       <button aria-label={`${name} an octave down`} onClick={() => forPart(channel, (m, p) => moveNotes(m, p, 0, -12))}>

@@ -436,6 +436,20 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/rink.png', fullPage: true })
   })
 
+  test('draws the whole rink, with two teams on the benches, and exports it as a PNG', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: 'The whole rink' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'The whole rink' }) })
+    await expect(section.getByText(/384 by 904 pixels/)).toBeVisible()
+    const rink = section.getByLabel('The whole rink')
+    await expect(rink).toHaveAttribute('width', '384')
+    await section.getByLabel('Home').selectOption({ label: 'Montreal Canadiens' })
+    const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
+    expect(png.suggestedFilename()).toBe('rink.png')
+  })
+
   test('exports and replaces team logos and banners', async ({ page }) => {
     await openRom(page)
     await team(page, 'Montreal Canadiens').click()
@@ -3052,6 +3066,14 @@ test.describe('with the SNES game', () => {
     const organ = songs.locator('.music-editor')
     await organ.getByRole('button', { name: 'Play' }).click()
     await expect(organ.locator('.song-controls')).toHaveAttribute('data-sound', 'real')
+  })
+
+  test('exports the SNES rink as a PNG', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Rink colours').click()
+    const png = await downloadFrom(page, page.getByRole('button', { name: 'Export as PNG' }))
+    expect(png.suggestedFilename()).toBe('rink.png')
   })
 
   test('replaces the SNES playoff and title music with MIDI files, growing the ROM for the title, and puts them back', async ({ page }) => {

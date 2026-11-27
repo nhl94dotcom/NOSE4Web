@@ -163,6 +163,8 @@ export default function App() {
   const [welcomeHelp, setWelcomeHelp] = useState<'help' | 'features' | 'guides' | 'faq' | null>(null)
   // Work stored by an earlier visit, offered on the welcome screen.
   const [earlier, setEarlier] = useState<Session | null>(null)
+  // How many ROMs have been opened: a page that could not be shown starts afresh with another ROM.
+  const [opens, setOpens] = useState(0)
 
   useEffect(() => {
     void loadSession().then(setEarlier)
@@ -259,6 +261,7 @@ export default function App() {
   }
 
   function start(opened: RomProject, openedName: string, hasUnsavedWork: boolean) {
+    setOpens((n) => n + 1)
     reset(opened)
     setHackDraft(null)
     setHeldMusic(null)
@@ -463,7 +466,7 @@ export default function App() {
         return current.game.platform === 'snes' ? (
           <SnesRinkEditor project={current} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} />
         ) : (
-          <RinkEditor key={current.game.edition ?? 94} palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} edition={current.game.edition} />
+          <RinkEditor key={current.game.edition ?? 94} palette={current.rinkPalette} original={opened.rinkPalette} onChange={(rinkPalette) => change({ ...current, rinkPalette })} edition={current.game.edition} project={current} />
         )
       case SETTINGS:
         return (
@@ -774,7 +777,7 @@ export default function App() {
           {entry(FAQ, 'FAQ')}
           {entry(HELP, 'Help')}
         </nav>
-        <PageErrorBoundary key={selected}>
+        <PageErrorBoundary key={`${selected}:${opens}`}>
           <Suspense fallback={loading}>{page(project, inOrder, original)}</Suspense>
         </PageErrorBoundary>
       </div>

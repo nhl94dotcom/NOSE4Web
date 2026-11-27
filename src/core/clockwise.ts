@@ -307,9 +307,11 @@ export function hasNoseTape(rom: Uint8Array): boolean {
 }
 
 // Whether the ROM, with Clockwise's edit on, has an earlier version of NOSE4Web's additions: an earlier faceoff
-// tape, or chaos's fight frames without the tape (as in a ROM whose fighting NOSE4Web did not put in).
+// tape, or chaos's fight frames without the tape (as in a ROM whose fighting NOSE4Web did not put in). A ROM with
+// Clockwise's edit but none of NOSE4Web's tape (a league's own copy of the edit) has none: it gets the tape only when
+// the edit is turned on (hackRom), so it is not offered as an earlier version.
 export function clockwiseOutdated(rom: Uint8Array): boolean {
-  if (!clockwiseState(rom)) return false
+  if (!clockwiseState(rom) || !hasNoseTape(rom)) return false
   const { faceoff, firstFaceoff, firstPacked, toeFaceoff, toePacked, fight } = tapes()
   if (fightFrames(rom) && fight.some((t) => fits(rom, t.at, t.original))) return true
   const site = faceoffSite(rom)
