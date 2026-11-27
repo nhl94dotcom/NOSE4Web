@@ -1,3 +1,4 @@
+import { CrowdColoursSection } from './CrowdColoursSection'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { download } from './download'
 import { colorRgb, SNES_COLORS } from './core/color'
@@ -33,7 +34,7 @@ interface Props {
   // The colours as they are in the ROM that was opened.
   original: number[]
   onChange: (palette: number[]) => void
-  // A change to the ROM itself (an imported rink).
+  // A change to the ROM itself (an imported rink, or each home team's crowd colours).
   onProject?: (project: RomProject) => void
 }
 
@@ -219,6 +220,7 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           </p>
         </section>
       ))}
+      {onProject && <CrowdColoursSection project={project} onChange={onProject} />}
     </main>
   )
 }

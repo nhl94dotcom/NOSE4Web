@@ -4,6 +4,7 @@ import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 import { GenesisRinkPicture } from './GenesisRinkPicture'
 import { ArenaColoursSection } from './ArenaColoursSection'
+import { CrowdColoursSection } from './CrowdColoursSection'
 import type { RomProject } from './core/rom'
 
 const VIEWS = [
@@ -74,6 +75,7 @@ export function RinkEditor({ palette, original, onChange, edition, project, open
         </p>
       </section>
       {project && onProject && <ArenaColoursSection project={project} onChange={onProject} />}
+      {project && onProject && <CrowdColoursSection project={project} onChange={onProject} />}
       {project && <GenesisRinkPicture project={project} opened={opened} onChange={onProject} />}
     </main>
   )

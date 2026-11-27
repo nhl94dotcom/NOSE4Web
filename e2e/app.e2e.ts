@@ -3183,6 +3183,22 @@ test.describe('with the SNES game', () => {
     await expect(section.getByText(/^The rink is now the picture: it takes \d+ of the \d+ squares/)).toBeVisible()
   })
 
+  test("dresses each home team's crowd in its banner colours, and puts the crowd's own back", async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: "Each home team's crowd colours" })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: "Each home team's crowd colours" }) })
+    await section.getByRole('button', { name: "From each team's banner colours" }).click()
+    await expect(section.getByText("Every team's crowd now wears its banner's two colours.", { exact: false })).toBeVisible()
+    const row = section.locator('tr').filter({ hasText: 'Boston Bruins' })
+    await row.getByRole('button', { name: "The crowd's own" }).first().click()
+    await expect(row.getByText("the crowd's own")).toHaveCount(1)
+    await section.getByRole('button', { name: "Every team the crowd's own" }).click()
+    await expect(section.getByRole('button', { name: "Every team the crowd's own" })).toHaveCount(0)
+  })
+
   test('exports the Game Setup background, puts it back in, and puts the original back', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
