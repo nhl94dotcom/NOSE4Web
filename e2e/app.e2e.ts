@@ -45,7 +45,7 @@ async function openRom(page: Page) {
   await page.goto('/')
   await romPicker(page).setInputFiles(romPath)
   await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(20)
+  await expect(pageEntries(page)).toHaveCount(21)
 }
 
 async function downloadFrom(page: Page, button: Locator): Promise<Download> {
@@ -218,7 +218,7 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(section('Clock')).toBeVisible()
     await expect(section('Playoff draws')).toBeHidden()
     // Its sections in groups.
-    await expect(tabs.getByRole('tab')).toHaveText(['Menu and clock', 'Playoff draws', 'Screen text', 'Pictures', 'Music', 'All'])
+    await expect(tabs.getByRole('tab')).toHaveText(['Menu and clock', 'Playoff draws', 'Screen text', 'Pictures', 'All'])
     await tab('Screen text').click()
     for (const name of ["Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages']) await expect(section(name)).toBeVisible()
     await expect(section('Clock')).toBeHidden()
@@ -438,8 +438,8 @@ test.describe('with the NHL 94 ROM', () => {
 
   test("gives a home team its own pre-game song, and puts the game's own back", async ({ page }) => {
     await openRom(page)
-    await entry(page, 'Game settings').click()
-    const tab = page.getByRole('tab', { name: 'Music' })
+    await entry(page, 'Music').click()
+    const tab = page.getByRole('tab', { name: 'Pre-game songs' })
     if (await tab.isVisible()) await tab.click()
     const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Pre-game songs' }) })
     const boston = section.getByLabel('Pre-game song: Boston Bruins')
@@ -1280,7 +1280,7 @@ test.describe('with the NHL 94 ROM', () => {
 
   test('exports an organ song as MIDI, replaces another with it, and puts the original back', async ({ page }) => {
     await openRom(page)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     const brass = songs.locator('tr').filter({ hasText: 'Brass Bonanza (HFD)' })
     // Who uses each song, and the ones nobody does, to replace first.
@@ -1296,7 +1296,7 @@ test.describe('with the NHL 94 ROM', () => {
     // The team pages offer it by its name.
     await team(page, 'Boston Bruins').click()
     await expect(page.getByLabel('Organ song: Home goal').locator('option', { hasText: '2. Brass Bonanza (HFD) (in place of' })).toHaveCount(1)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     await second.getByRole('button', { name: 'Put back the original' }).click()
     await expect(second).toContainText('Here We Go [E-flat] (BOS)')
     await expect(second.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)
@@ -1304,7 +1304,7 @@ test.describe('with the NHL 94 ROM', () => {
 
   test('edits an organ song and a piece of game music in the music editor, and puts them in', async ({ page }) => {
     await openRom(page)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     const second = songs.locator('tbody tr').nth(1)
     await second.getByRole('button', { name: 'Edit…' }).click()
@@ -1353,7 +1353,7 @@ test.describe('with the NHL 94 ROM', () => {
 
   test("lists the game's other music, plays a piece and exports it as MIDI", async ({ page }) => {
     await openRom(page)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.locator('tbody tr')).toHaveCount(3)
     const title = music.locator('tr').filter({ hasText: 'Title music' })
@@ -1899,7 +1899,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.goto('/')
     await romPicker(page).setInputFiles({ name: 'three_on_three.bin', mimeType: 'application/octet-stream', buffer: rom })
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(20)
+  await expect(pageEntries(page)).toHaveCount(21)
     // Nothing for the checker to complain about.
     await expect(entry(page, /Check ROM/)).toHaveText('Check ROM')
 
@@ -2799,7 +2799,7 @@ test.describe('with the NHL 94 ROM', () => {
     const download = await downloadFrom(page, page.getByRole('button', { name: 'Download ROM' }))
     await romPicker(page).setInputFiles(await download.path())
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(20)
+  await expect(pageEntries(page)).toHaveCount(21)
     await expect(page.locator('header')).toContainText('NHL 94, 0–15 ratings')
     await expect(entry(page, /^Changes/)).toHaveText('Changes')
     await entry(page, 'Hacks').click()
@@ -3113,7 +3113,7 @@ test.describe('with the SNES game', () => {
   test("plays SNES music in the music editor as it would go in, on the game's own instruments", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await music.locator('tbody tr').filter({ hasText: 'Playoff music' }).getByRole('button', { name: 'Edit…' }).click()
     const editor = music.locator('.music-editor')
@@ -3138,7 +3138,7 @@ test.describe('with the SNES game', () => {
   test('replaces the SNES playoff and title music with MIDI files, growing the ROM for the title, and puts them back', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.getByText(/Tested in the game by the NHL94 Match Viewer project\./).first()).toBeVisible()
     const playoff = music.locator('tbody tr').filter({ hasText: 'Playoff music' })
@@ -3167,7 +3167,7 @@ test.describe('with the SNES game', () => {
     await expect(music.getByText(/^The title music is now "[^"]+", \d:\d\d long, playing again from the start when it ends\..* The ROM grew to 2 MB to make room for it\. Undo takes it back\.$/)).toBeVisible()
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Playoff music: "Playoff music", from a MIDI file.')).toBeVisible()
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     await replaced.getByRole('button', { name: 'Put back the original' }).click()
     await expect(music.getByText("The playoff music is the game's own again. Undo takes it back.")).toBeVisible()
     await music.locator('tbody tr').filter({ hasText: '(in place of the title music)' }).getByRole('button', { name: 'Put back the original' }).click()
@@ -3342,7 +3342,7 @@ test.describe('with the SNES game', () => {
     await romPicker(page).setInputFiles(snesPath)
     // Picture files holds its player photos.
     await expect(teamList(page).locator('option')).toHaveCount(28)
-  await expect(pageEntries(page)).toHaveCount(20)
+  await expect(pageEntries(page)).toHaveCount(21)
     await expect(entry(page, 'Picture files')).toHaveCount(1)
     await expect(page.getByText("This ROM is NHL '94 for the SNES.")).toBeVisible()
 
@@ -3356,7 +3356,10 @@ test.describe('with the SNES game', () => {
     await home.getByLabel(/^Red/).fill('31')
     // The main menu's starting choices.
     await entry(page, 'Game settings').click()
-    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture', 'Organ songs', 'Game music'])
+    await expect(page.locator('main h2')).toHaveText(['Main menu starting choices', 'Clock', 'Playoff draws', "Ron Barr's matchup screen text", 'Title screen credits', 'Rule messages', 'Announcer picture'])
+    await entry(page, 'Music').click()
+    const musicTab = page.getByRole('tab', { name: 'Game music' })
+    if (await musicTab.isVisible()) await musicTab.click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.locator('tbody tr')).toHaveCount(3)
     const menuMusic = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Menu music' }).getByRole('button', { name: 'Export MIDI' }))
@@ -3369,6 +3372,7 @@ test.describe('with the SNES game', () => {
     await expect(music.locator('.song-controls')).toContainText(/\d:\d\d \/ 1:09/)
     await menuRow.getByRole('button', { name: 'Stop' }).click()
     await expect(music.locator('.song-controls')).toHaveCount(0)
+    await entry(page, 'Game settings').click()
     const choice = (caption: string) => page.locator('tr').filter({ hasText: caption }).locator('select')
     await choice('Home').selectOption({ label: 'Boston Bruins' })
     await choice('Line Changes').selectOption({ label: 'Automatic' })
@@ -3467,7 +3471,7 @@ test.describe('with the SNES game', () => {
   test('exports an SNES organ song as MIDI and puts it in place of another, for the teams that have it', async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(snesPath)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     const brass = songs.locator('tr').filter({ hasText: /^Brass Bonanza/ })
     const midi = await downloadFrom(page, brass.getByRole('button', { name: 'Export MIDI' }))
@@ -3483,7 +3487,7 @@ test.describe('with the SNES game', () => {
     await team(page, 'San Jose Sharks').click()
     const options = await page.locator('select[aria-label^="Organ song"]').first().locator('option').allTextContents()
     expect(options).toContain('Brass Bonanza')
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     await songs.locator('tr').filter({ hasText: 'Brass Bonanza (in place of Jaws Theme)' }).getByRole('button', { name: 'Put back the original' }).click()
     await expect(songs.getByText('Jaws Theme is back. Undo takes it back.')).toBeVisible()
   })
@@ -3823,6 +3827,9 @@ test.describe("with the NHL '95 ROM", () => {
     await page.screenshot({ path: 'test-results/shots/nhl95-rink.png' })
     await entry(page, 'Game settings').click()
     await expect(page.getByText('Per. Length')).toBeVisible()
+    await entry(page, 'Music').click()
+    const organTab = page.getByRole('tab', { name: 'Organ songs' })
+    if (await organTab.isVisible()) await organTab.click()
     await expect(page.getByRole('heading', { name: 'Organ songs' })).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/nhl95-settings.png', fullPage: true })
     // Its own Hacks page, with the pass direction fix and none of the hacks made for NHL 94's code alone.
@@ -3874,7 +3881,7 @@ test.describe("with the NHL '95 ROM", () => {
   test("lists its 36 organ songs, replaces one with another's MIDI file, and a team page chooses six", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(nhl95Path)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const songs = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Organ songs' }) })
     await expect(songs.locator('tbody tr')).toHaveCount(36)
     // Its other music: listened to and exported.
@@ -3903,7 +3910,7 @@ test.describe("with the NHL '95 ROM", () => {
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Song 30: "Brass Bonanza", from a MIDI file.')).toBeVisible()
     await expect(page.getByText(/Organ song, home goal: .* to 12\. Brass Bonanza\./)).toBeVisible()
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     await thirtieth.getByRole('button', { name: 'Put back the original' }).click()
     await expect(thirtieth).not.toContainText('in place of')
   })
@@ -3911,7 +3918,7 @@ test.describe("with the NHL '95 ROM", () => {
   test("replaces its title music with the scouting report's MIDI file, each instrument once", async ({ page }) => {
     await page.goto('/')
     await romPicker(page).setInputFiles(nhl95Path)
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     const music = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Game music' }) })
     await expect(music.getByText(/Tested in the game by the NHL94 Match Viewer project\./).first()).toBeVisible()
     const midi = await downloadFrom(page, music.locator('tr').filter({ hasText: 'Scouting report music' }).getByRole('button', { name: 'Export MIDI' }))
@@ -3937,7 +3944,7 @@ test.describe("with the NHL '95 ROM", () => {
     await replaced.getByRole('button', { name: 'Stop' }).click()
     await entry(page, /^Changes/).click()
     await expect(page.getByText('Title music: "Scouting report music", from a MIDI file.')).toBeVisible()
-    await entry(page, 'Game settings').click()
+    await entry(page, 'Music').click()
     await replaced.getByRole('button', { name: 'Put back the original' }).click()
     await expect(replaced).toContainText('Title music')
     await expect(replaced.getByRole('button', { name: 'Put back the original' })).toHaveCount(0)

@@ -119,7 +119,7 @@ export function FaqPage() {
 
         <dt>Can I change the music?</dt>
         <dd>
-          Yes, on <b>Game settings</b>, under its Music tab: the organ songs the teams play and the game's other music.{' '}
+          Yes, on the <b>Music</b> page: the organ songs the teams play and the game's other music.{' '}
           <b>Replace</b> puts a MIDI file of your own in; <b>Edit</b> opens a piece in the music editor, to change its
           notes on a piano roll first. Walkthroughs' <i>Change a song or the game music</i> takes you through it.
         </dd>
@@ -134,7 +134,7 @@ export function FaqPage() {
 
         <dt>Can each team have its own song before the game?</dt>
         <dd>
-          On the Genesis, yes: <b>Pre-game songs</b> on Game settings' Music tab picks the music the matchup screen plays
+          On the Genesis, yes: <b>Pre-game songs</b> on the Music page picks the music the matchup screen plays
           when each team is at home. Organ songs play once and stop; the game's own music plays until the game starts.
           Not on the SNES, whose matchup screen keeps the menu music playing.
         </dd>

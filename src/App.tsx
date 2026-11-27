@@ -102,6 +102,7 @@ const FEATURES = -16
 const REAL_SEASON = -17
 const GUIDES = -18
 const FAQ = -19
+const MUSIC = -20
 // The pages that keep work not done yet (pagedrafts.ts).
 const WORK_PAGES = { bulk: BULK, trade: TRADE, importTeam: IMPORT_TEAM }
 
@@ -134,7 +135,7 @@ export default function App() {
   const [hackDraft, setHackDraft] = useState<HackDraft | null>(null)
   // Only while they still change something on the ROM as it is now (Undo, or another page, may have done them).
   const liveDraft = useMemo(() => (project && hackDraft && draftLeft(project, hackDraft) ? hackDraft : null), [project, hackDraft])
-  // A MIDI file read on Game settings and not put in yet, kept the same way.
+  // A MIDI file read on the Music page and not put in yet, kept the same way.
   const [heldMusic, setHeldMusic] = useState<HeldMusic | null>(null)
   // Work set up on Bulk changes, Trade and Import a team, kept the same way (pagedrafts.ts).
   const [pageWork, setPageWork] = useState<PageWork>(NO_PAGE_WORK)
@@ -277,7 +278,7 @@ export default function App() {
     if (!file) return
     if (unsaved && !window.confirm('You have changes that have not been downloaded. Open another ROM and lose them?')) return
     if (!unsaved && liveDraft && !window.confirm(`The Hacks page has ${changesText(liveDraft.count)} not applied yet. Open another ROM and lose ${itOrThem(liveDraft.count)}?`)) return
-    if (!unsaved && !liveDraft && heldMusic && !window.confirm(`The music "${heldMusic.title}" is loaded on Game settings but not put in yet. Open another ROM and lose it?`)) return
+    if (!unsaved && !liveDraft && heldMusic && !window.confirm(`The music "${heldMusic.title}" is loaded on the Music page but not put in yet. Open another ROM and lose it?`)) return
     if (!unsaved && !liveDraft && !heldMusic && leftOnPages.length > 0 && !window.confirm(`Some work is set up but not done:\n${pageWorkText}\n\nOpen another ROM and lose it?`)) return
     try {
       start(openRom(new Uint8Array(await file.arrayBuffer())), file.name.replace(/\.(bin|smd|md|gen|smc|sfc)$/i, ''), false)
@@ -318,7 +319,7 @@ export default function App() {
     if (
       heldMusic &&
       !window.confirm(
-        `The music "${heldMusic.title}" is loaded on Game settings but not put in yet, so it would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
+        `The music "${heldMusic.title}" is loaded on the Music page but not put in yet, so it would not be in the ${asPatch ? 'patch' : 'ROM'}.\n\n` +
           'OK: download without it.\nCancel: do not download yet (go to Game settings and press Put it in, or Cancel there).',
       )
     )
@@ -482,12 +483,31 @@ export default function App() {
             {(isGenesis94(current.game) || current.game.platform === 'snes') && <AnnouncerSection project={current} onChange={change} />}
             {isGenesis94(current.game) && <SplashScreenSection project={current} opened={opened} onChange={change} />}
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
+          </SettingsEditor>
+        )
+      case MUSIC:
+        // The game's music: the organ songs the teams choose from (each team's choices stay on its page), the game's
+        // other music, and the pre-game songs.
+        return (
+          <main className="team">
+            <h2>Music</h2>
+            <p className="note">
+              The songs the organ can play, the game's other music, and on the Genesis the song each home team's matchup
+              screen plays.
+            </p>
+            <p className="note">
+              <b>On each team's page</b>, under <b>Organ songs</b>, are the songs the organ plays in that team's home
+              games: one for each of six moments ({current.game.platform === 'snes' ? 'the first faceoff of a period, the faceoff on a home power play, other faceoffs, a home goal, the faceoff on a home penalty kill, and late in the third period' : 'the start of a period, a home power play, a faceoff (once a period, and in the shootout), a home goal, a home penalty kill, and late in the third period'}), each a song from the list here or{' '}
+              <b>Random</b>, with <b>Play</b> to hear it and a button to put back the team's own. A song you put in here
+              appears there by its name. Every team's six at once are a table on <b>Spreadsheet files</b>, and{' '}
+              <b>Import a team</b> brings a team's songs with it from another ROM.
+            </p>
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'genesis' && <GameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
             {current.game.platform === 'genesis' && <PregameSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesGameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
-          </SettingsEditor>
+          </main>
         )
       case CSV:
         return <CsvPanel project={current} setName={name || 'rom'} onChange={change} onSetNameChange={setName} />
@@ -652,6 +672,7 @@ export default function App() {
   const showSettings = hasSettings(project.game, project.settings)
   const showHacks = hacksSupported(project.game) || project.game.platform === 'snes' || nhl95HacksSupported(project.game)
   const showRink = project.rinkPalette.length > 0
+  const showMusic = project.game.platform === 'genesis' || project.game.platform === 'snes'
   const entry = (id: number, label: string) => (
     <button className={selected === id ? 'active' : ''} onClick={() => go(id)}>
       {label}
@@ -660,6 +681,7 @@ export default function App() {
   const PAGE_NAMES: Record<number, string> = {
     [RINK]: 'Rink colours',
     [SETTINGS]: 'Game settings',
+    [MUSIC]: 'Music',
     [CSV]: 'Spreadsheet files',
     [HELP]: 'Help',
     [FEATURES]: 'Features list',
@@ -742,7 +764,7 @@ export default function App() {
       </header>
       {error && <p className="error">{error}</p>}
       {liveDraft && selected !== HACKS && <PendingNotice count={liveDraft.count} onGo={() => go(HACKS)} />}
-      {heldMusic && selected !== SETTINGS && <MusicPendingNotice title={heldMusic.title} onGo={() => go(SETTINGS)} />}
+      {heldMusic && selected !== MUSIC && <MusicPendingNotice title={heldMusic.title} onGo={() => go(MUSIC)} />}
       {leftOnPages.map((left) => {
         const page = WORK_PAGES[left.page]
         return page === selected ? null : <WorkPendingNotice key={left.page} text={left.text} button={left.button} place={PAGE_NAMES[page]} onGo={() => go(page)} />
@@ -757,6 +779,7 @@ export default function App() {
             Teams
           </button>
           {showSettings && entry(SETTINGS, 'Game settings')}
+          {showMusic && entry(MUSIC, 'Music')}
           {showHacks && entry(HACKS, 'Hacks')}
           {showRink && entry(RINK, 'Rink colours')}
           <div className="group">League administration</div>

@@ -300,7 +300,7 @@ export function GuidesPage() {
       </p>
       <ol>
         <li>
-          Open <b>Game settings</b> and its <b>Music</b> tab. In <b>Organ songs</b>, <b>Used by</b> shows which teams play
+          Open the <b>Music</b> page. In <b>Organ songs</b>, <b>Used by</b> shows which teams play
           each song; one that no team uses is the safe one to replace first.
         </li>
         <li>

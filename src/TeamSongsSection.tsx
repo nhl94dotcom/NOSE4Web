@@ -73,7 +73,7 @@ export function TeamSongsSection({ project, team, original, onChange }: Props) {
           : ", with the teams that have each in the original game"}
         . The power play and penalty kill songs play at the faceoff after a penalty puts the home
         team a man up or a man short. <b>Play</b> gives a rough idea of the song chosen (the console's organ sounds different). To add a song of
-        your own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
+        your own from a MIDI file, use <b>Organ songs</b> on the Music page; it then appears here by its name.
         {nhl95 && ' Tested in the game by the NHL94 Match Viewer project.'}
         {outside &&
           ` In this ROM only the first ${room} teams have songs of their own, so this team's songs are left to chance. Choosing a song here makes room so that every team has six of its own.`}
@@ -144,7 +144,7 @@ export function SnesTeamSongsSection({ project, team, original, onChange }: Prop
       <p className="note">
         The organ plays these in the team's home games. <b>Random</b> plays one of the game's eight random songs. The
         song names are the community's. <b>Play</b> plays the song chosen on the game's own organ. To add a song of your
-        own from a MIDI file, use <b>Organ songs</b> on the Game settings page; it then appears here by its name.
+        own from a MIDI file, use <b>Organ songs</b> on the Music page; it then appears here by its name.
       </p>
       <table className="left">
         <tbody>

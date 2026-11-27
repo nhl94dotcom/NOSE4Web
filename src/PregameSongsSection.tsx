@@ -11,7 +11,7 @@ interface Props {
   onChange: (project: RomProject) => void
 }
 
-// Game settings' pre-game songs (pregamesongs.ts): the music each home team's matchup screen plays.
+// The Music page's pre-game songs (pregamesongs.ts): the music each home team's matchup screen plays.
 export function PregameSongsSection({ project, onChange }: Props) {
   const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null)
   if (project.game.platform !== 'genesis' || !pregameSongsSupported(project)) return null
@@ -42,7 +42,7 @@ export function PregameSongsSection({ project, onChange }: Props) {
   }
 
   return (
-    <section data-tab="Music">
+    <section>
       <h2>Pre-game songs</h2>
       <p className="note">
         The music on the matchup screen before a game, where Ron Barr talks it up: the home team's choice, in place of the

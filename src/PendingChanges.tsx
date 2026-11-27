@@ -26,13 +26,13 @@ export function PendingNotice({ count, onGo }: { count: number; onGo: () => void
   )
 }
 
-// On every other page while a MIDI file read on Game settings waits to be put in.
+// On every other page while a MIDI file read on the Music page waits to be put in.
 export function MusicPendingNotice({ title, onGo }: { title: string; onGo: () => void }) {
   return (
     <p className="notice pending-notice" role="status">
-      <b>The music "{title}" is loaded on Game settings but not put in yet.</b> It is kept while you look at other
+      <b>The music "{title}" is loaded on the Music page but not put in yet.</b> It is kept while you look at other
       pages. It goes into the ROM when you press Put it in there, and a download asks about it first.{' '}
-      <button onClick={onGo}>Go to Game settings</button>
+      <button onClick={onGo}>Go to Music</button>
     </p>
   )
 }

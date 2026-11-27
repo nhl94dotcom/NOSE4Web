@@ -8,7 +8,7 @@ import { CSV_TABLES } from './core/tables'
 const SECTIONS: [string, [string, string][]][] = [
   ['Getting started', [['start', 'Getting started'], ['narrow', 'On a phone or tablet'], ['space', 'Space in the ROM'], ['reset', 'Resetting changes'], ['download', 'Downloading your work'], ['trouble', 'If something goes wrong']]],
   ['Teams', [['teams', 'Teams'], ['players', 'Players and goalies'], ['ratinguse', 'What the ratings do in play'], ['arrows', 'Moving with the keyboard'], ['copy', 'Copy and paste'], ['make', 'Making up attributes'], ['keys', 'Quick edit keys'], ['lines', 'Lines'], ['colours', 'Team colours'], ['pictures', 'Logos and banners'], ['genesis-score-logos', 'Score logos (Genesis)'], ['genesis-blood', 'Head bleeding (Genesis)'], ['photos', 'Player photos']]],
-  ['Game', [['settings', 'Game settings'], ['midi', 'Preparing a MIDI file for an organ song'], ['hacks', 'Hacks'], ['rink', 'Rink colours']]],
+  ['Game', [['settings', 'Game settings'], ['music', 'Music'], ['midi', 'Preparing a MIDI file for an organ song'], ['hacks', 'Hacks'], ['rink', 'Rink colours']]],
   ['League administration', [['league', 'League'], ['trade', 'Trade and free agents'], ['bulk', 'Bulk changes'], ['importteam', 'Import a team'], ['realseason', 'Real NHL season'], ['newseason', 'New season'], ['byname', 'Matching teams by name']]],
   ['Files', [['csv', 'Spreadsheet files'], ['picturefiles', 'Picture files'], ['project', 'Project file']]],
   ['Review', [['check', 'Check ROM'], ['rules', "Your league's rules"], ['changes', 'Changes and seasons'], ['compare', 'Compare ROMs']]],
@@ -914,8 +914,8 @@ export function HelpPage() {
       <h3 id="help-settings">Game settings</h3>
       <p>
         The page's tabs are <b>Menu and clock</b>, <b>Playoff draws</b>, <b>Screen text</b> (the matchup text, the
-        credits and the rule messages), <b>Pictures</b> (the announcer, the splash screen and the menu picture){' '}
-        and <b>Music</b> (organ songs and game music). Each game shows only the ones it has. Moving the teams into
+        credits and the rule messages) and <b>Pictures</b> (the announcer, the splash screen and the menu picture).
+        Each game shows only the ones it has. The music has a page of its own, <b>Music</b>. Moving the teams into
         another order is on the Bulk changes page.
       </p>
       <ul>
@@ -1018,6 +1018,17 @@ export function HelpPage() {
           over the team banners; importing it again here makes it fit. Based on Drezz's guide; tested in the game by
           the NHL94 Match Viewer project.
         </li>
+      </ul>
+
+      <h3 id="help-music">Music</h3>
+      <p>
+        The <b>Music</b> page has the game's music: the organ songs the teams choose from, the game's other music, and
+        on the Genesis each home team's pre-game song. Which songs a team's organ plays is on the team's own page,
+        under <b>Organ songs</b>: a song (or <b>Random</b>) for each of six moments of its home games, such as a home
+        goal, a home power play and late in the third period, with <b>Play</b> to hear each. Every team's at once
+        are a table on <b>Spreadsheet files</b>, and <b>Import a team</b> brings a team's songs from another ROM.
+      </p>
+      <ul>
         <li>
           <b>Organ songs</b> (Genesis; for NHL '95 see its own section): the songs the organ plays, which each team's page chooses from.{' '}
           <b>Play</b> gives a rough idea of a song in the browser (the console's organ sounds different); while it
@@ -1092,6 +1103,11 @@ export function HelpPage() {
           Every team that had the old song gets the new one. Tested in the game by the NHL94 Match Viewer project, on
           the original game and McMarkis's 32-team builds.
         </li>
+        <li>
+          <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
+          a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
+          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
+        </li>
       </ul>
 
       <h4 id="help-midi">Preparing a MIDI file for an organ song</h4>
@@ -1147,11 +1163,6 @@ export function HelpPage() {
           marks where more notes sound at once than go in, and <b>Play</b> plays it as it would go in (on the SNES on the
           game's own instruments). <b>Open a MIDI file</b> there edits a file of your own first. It then goes in as a
           MIDI file would with Replace.
-        </li>
-        <li>
-          <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
-          a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
-          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
         </li>
         <li>
           <b>Try it:</b> <b>Play</b> gives a rough idea in the browser (the console's organ sounds different), and
@@ -2733,7 +2744,7 @@ export function HelpPage() {
           with fighting: a player who has fought cannot fight again that game. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
-          <b>Organ songs</b>: as in NHL 94, on the Game settings page: each of NHL '95's 36 songs can be played, saved
+          <b>Organ songs</b>: as in NHL 94, on the Music page: each of NHL '95's 36 songs can be played, saved
           as a MIDI file, replaced with a MIDI file of your own (at most seven notes at once, as NHL '95's own songs have, on the organ) and put back;{' '}
           <b>Used by</b> shows the teams that have it. Any of the songs can be replaced. Each team page chooses its six
           songs, and the songs file in Files numbers them 1 to 36. NHL '95's songs are NHL 94's tunes, and are named as
