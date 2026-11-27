@@ -28,11 +28,14 @@ interface Props {
   original: number[]
   onChange: (palette: number[]) => void
   edition?: 95
-  // The ROM, for the whole rink drawn from it (GenesisRinkPicture), with the colours above.
+  // The ROM, for the whole rink drawn from it (GenesisRinkPicture), with the colours above; the ROM as opened, and a
+  // change to it (an imported rink).
   project?: RomProject
+  opened?: RomProject
+  onProject?: (project: RomProject) => void
 }
 
-export function RinkEditor({ palette, original, onChange, edition, project }: Props) {
+export function RinkEditor({ palette, original, onChange, edition, project, opened, onProject }: Props) {
   const views = edition === 95 ? VIEWS_95 : VIEWS
   const [view, setView] = useState(views[0].template)
   const ice = palette.slice(0, 16)
@@ -69,7 +72,7 @@ export function RinkEditor({ palette, original, onChange, edition, project }: Pr
           <ResetButton what="arena colours" changed={differs(16, 32)} onReset={() => onChange([...ice, ...original.slice(16)])} />
         </p>
       </section>
-      {project && <GenesisRinkPicture project={project} />}
+      {project && <GenesisRinkPicture project={project} opened={opened} onChange={onProject} />}
     </main>
   )
 }

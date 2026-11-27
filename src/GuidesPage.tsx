@@ -285,7 +285,10 @@ export function GuidesPage() {
         <li>
           The rink: <b>Rink colours</b> changes the rink's colours and shows the whole rink as the game has it, the
           boards, benches, penalty boxes and crowd too (on the Genesis under <b>The whole rink</b>), and{' '}
-          <b>Export as PNG</b> saves it. (Putting an edited rink back in comes later.)
+          <b>Export as PNG</b> saves it. On NHL 94 for the Genesis, draw on the saved picture in a paint program, keeping
+          to its size and its colours, and <b>Import a PNG</b> puts it back; do the same for the reverse angle replays'
+          rink (<b>Rink</b>, above the picture). Repeat squares where you can: the rink has room for only so many
+          different ones, and the page says if a picture needs more.
         </li>
       </ul>
 

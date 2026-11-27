@@ -1,23 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { drawGenesisRink } from './core/genesisrink'
+import { drawGenesisRink, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './core/genesisrink'
 import { pictureToImage } from './core/graphics'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
 import { download } from './download'
-import { pictureToPng } from './images'
+import { pictureToPng, readImage } from './images'
+
+interface Props {
+  project: RomProject
+  // The ROM as it was opened, for Put back the original rink, and a change to the ROM (an imported rink).
+  opened?: RomProject
+  onChange?: (project: RomProject) => void
+}
 
 // The Genesis rink as the game draws it, boards, crowd, benches and ice markings, in the rink colours above and two
-// teams' colours for the players on the benches; to look at, and to save as a PNG.
-export function GenesisRinkPicture({ project }: { project: RomProject }) {
+// teams' colours for the players on the benches; to look at, to save as a PNG, and on NHL 94 to put an edited one back
+// (genesisrink.ts): the rink in play, and the reverse angle replay's own.
+export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const [home, setHome] = useState(0)
   const [away, setAway] = useState(Math.min(1, project.teams.length - 1))
-  const [message, setMessage] = useState('')
+  const [view, setView] = useState<RinkView>('play')
+  const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
+  const hasReverse = readGenesisRink(project.bytes, 'reverse') !== null
+  // Putting a picture in: NHL 94's rinks (113 rows, the replay icon and three stars box below the rink).
+  const importable = (v: RinkView) => (readGenesisRink(project.bytes, v)?.height ?? 0) === 113 && onChange !== undefined
   const drawn = useMemo(() => {
-    const rink = drawGenesisRink(project.bytes, project.teams[home]?.palette.slice(0, 16), project.teams[away]?.palette.slice(16, 32))
-    // The rink's own two lines as the page has them now.
+    const rink = drawGenesisRink(project.bytes, project.teams[home]?.palette.slice(0, 16), project.teams[away]?.palette.slice(16, 32), view)
+    // The rink's own two lines as the page has them now (the reverse rink is drawn in them too, as the game does).
     return rink && { picture: rink.picture, palette: [...project.rinkPalette.slice(0, 32), ...rink.palette.slice(32)] }
-  }, [project.bytes, project.teams, project.rinkPalette, home, away])
+  }, [project.bytes, project.teams, project.rinkPalette, home, away, view])
 
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
@@ -28,6 +40,45 @@ export function GenesisRinkPicture({ project }: { project: RomProject }) {
   }, [drawn])
 
   if (!drawn) return null
+  // The rink's tiles and map, as the ROM has them and as it was opened.
+  const region = (rom: Uint8Array, v: RinkView) => {
+    const rink = readGenesisRink(rom, v)
+    return rink ? { tiles: [rink.tilesAt, rink.tilesAt + rink.tileCount * 32], map: [rink.mapAt + 4, rink.mapAt + 4 + rink.width * rink.height * 2] } : null
+  }
+  const changed = (v: RinkView) => {
+    const [now, was] = [region(project.bytes, v), opened && region(opened.bytes, v)]
+    if (!now || !was) return false
+    return [now.tiles, now.map].some(([from, to], k) => {
+      const [wFrom] = k === 0 ? was.tiles : was.map
+      for (let i = 0; i < to - from; i++) if (project.bytes[from + i] !== opened!.bytes[wFrom + i]) return true
+      return false
+    })
+  }
+  const putBack = () => {
+    if (!opened || !onChange) return
+    const bytes = project.bytes.slice()
+    for (const v of ['play', 'reverse'] as const) {
+      const [now, was] = [region(bytes, v), region(opened.bytes, v)]
+      if (!now || !was) continue
+      bytes.set(opened.bytes.subarray(was.tiles[0], was.tiles[1]), now.tiles[0])
+      bytes.set(opened.bytes.subarray(was.map[0], was.map[1]), now.map[0])
+    }
+    onChange({ ...project, bytes })
+    setMessage({ text: 'The rink is the one the ROM had when it was opened. Undo takes it back.', failed: false })
+  }
+  const importFile = async (file: File) => {
+    try {
+      const image = await readImage(file)
+      const result = importGenesisRink(project.bytes, view, image, drawn.palette)
+      onChange!({ ...project, bytes: result.rom })
+      setMessage({
+        text: `${view === 'play' ? 'The rink' : "The reverse angle replay's rink"} is now the picture: it takes ${result.used} of the ${result.room} squares of 8 by 8 pixels there is room for. Undo takes it back.`,
+        failed: false,
+      })
+    } catch (e) {
+      setMessage({ text: e instanceof RinkImportError ? e.message : `${file.name} could not be read as a picture.`, failed: true })
+    }
+  }
   const teamChoice = (label: string, value: number, set: (n: number) => void) => (
     <label>
       {label}{' '}
@@ -45,27 +96,66 @@ export function GenesisRinkPicture({ project }: { project: RomProject }) {
       <h2>The whole rink</h2>
       <p className="note">
         The rink as the game has it: the ice and its markings, the boards, the benches, the penalty boxes and the crowd,
-        {` ${drawn.picture.width} by ${drawn.picture.height}`} pixels. The block at centre ice is where
-        the game puts the home team's centre ice logo as a game starts (in NHL 94 the EA Sports logo too){drawn.picture.height > 700 ? '; and only the top 680 rows are the rink, the rows below holding the replay icon and other pieces the game uses' : ''}. The players on the benches take the colours of the teams
+        {` ${drawn.picture.width} by ${drawn.picture.height}`} pixels. The block at centre ice is where the game puts
+        the home team's centre ice logo as a game starts{drawn.picture.height > 700 ? '; and only the top 680 rows are the rink, the rows below holding the replay icon and other pieces the game uses' : ''}. The players on the benches take the colours of the teams
         playing: choose two to see them. <b>Export as PNG</b> saves the picture, to look at or to draw on in a paint
-        program. Putting an edited picture back in comes next; it is not offered yet.
+        program.
       </p>
+      {importable(view) && (
+        <p className="note">
+          <b>Import a PNG</b> puts an edited picture back in place of the rink: the same size as the export (or only its
+          top 680 rows), each square of 8 by 8 pixels in the colours its square has now (the rink's, or for the players on
+          the benches the teams'), matched to the nearest. The centre ice logo's block, the replay icon and the three
+          stars box below the rink stay as they are, and so do the boards and glass drawn in front of the players. The
+          rink has room for only so many different squares; one that repeats another, or another turned round, costs
+          nothing, and the page says when a picture needs more. The reverse angle replay has a rink of its own: put a
+          picture in for it too, or its replays show the old rink. Not yet tested in the game.
+        </p>
+      )}
       <p>
+        {hasReverse && (
+          <>
+            <label>
+              Rink{' '}
+              <select aria-label="Which rink" value={view} onChange={(e) => setView(e.target.value as RinkView)}>
+                <option value="play">In play</option>
+                <option value="reverse">Reverse angle replays</option>
+              </select>
+            </label>{' '}
+          </>
+        )}
         {teamChoice('Home', home, setHome)} {teamChoice('Visitors', away, setAway)}{' '}
         <button
           onClick={async () => {
             try {
-              download(await pictureToPng(drawn.picture, drawn.palette), 'rink.png', 'image/png')
-              setMessage('')
+              download(await pictureToPng(drawn.picture, drawn.palette), view === 'play' ? 'rink.png' : 'rink_reverse.png', 'image/png')
+              setMessage(null)
             } catch (e) {
-              setMessage(e instanceof Error ? e.message : String(e))
+              setMessage({ text: e instanceof Error ? e.message : String(e), failed: true })
             }
           }}
         >
           Export as PNG
-        </button>
+        </button>{' '}
+        {importable(view) && (
+          <label className="button">
+            Import a PNG…
+            <input
+              type="file"
+              accept="image/png,image/*"
+              hidden
+              aria-label="Import a rink picture"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) void importFile(file)
+              }}
+            />
+          </label>
+        )}{' '}
+        {opened && onChange && (changed('play') || changed('reverse')) && <button onClick={putBack}>Put back the original rink</button>}
       </p>
-      {message && <p className="error">{message}</p>}
+      {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
       <div className="rink-picture">
         <canvas ref={canvas} width={drawn.picture.width} height={drawn.picture.height} aria-label="The whole rink" />
       </div>

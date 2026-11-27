@@ -1660,8 +1660,14 @@ export function HelpPage() {
         the ice and its markings, the boards, the benches, the penalty boxes and the crowd, in the colours above, with
         the players on the benches in the colours of the two teams chosen. <b>Export as PNG</b> saves it, to look at
         or to draw on in a paint program. The block at centre ice is where the game puts the home team's centre ice
-        logo as a game starts. Putting an edited rink back in is not offered yet. On the SNES the page's own picture of
-        the rink, with the home team's centre ice logo in place, has an <b>Export as PNG</b> button too.
+        logo as a game starts. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
+        pixels keeps the colours it has (the rink's, or the teams' for the players on the benches), and the centre ice
+        logo's block, the replay icon and the three stars box (in the rows below the rink) and the boards and glass drawn
+        in front of the players stay as they are. The rink has room for only so many different squares; a square that
+        repeats another, turned round or not, costs nothing. The reverse angle replay has its own rink, chosen under{' '}
+        <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
+        undoes both. Not yet tested in the game. On the SNES the page's own picture of the rink, with the home team's
+        centre ice logo in place, has an <b>Export as PNG</b> button too.
       </p>
 
       <h3 id="help-league">League</h3>

@@ -469,6 +469,13 @@ test.describe('with the NHL 94 ROM', () => {
     await section.getByLabel('Home').selectOption({ label: 'Montreal Canadiens' })
     const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
     expect(png.suggestedFilename()).toBe('rink.png')
+    // Its own picture back in: the same rink, and Put back the original appears only once something differs.
+    await section.getByLabel('Import a rink picture').setInputFiles(await png.path())
+    await expect(section.getByText(/^The rink is now the picture: it takes \d+ of the \d+ squares/)).toBeVisible()
+    // The reverse angle replay's rink, exported under its own name.
+    await section.getByLabel('Which rink').selectOption('reverse')
+    const reverse = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
+    expect(reverse.suggestedFilename()).toBe('rink_reverse.png')
   })
 
   test('exports and replaces team logos and banners', async ({ page }) => {
