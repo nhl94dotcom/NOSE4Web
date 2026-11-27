@@ -12,8 +12,8 @@ import { claimSpace, claimSpace95, releaseSpace } from './space'
 //   bpl.s +6; jsr (p_turnoff).l; move.w d0,-(sp); jsr (song).l; movem.l (sp)+,d0/a0; rts; table: a word a team.
 // Silence ($FFFF) on NHL 94 calls p_turnoff ($1A264, all sound off, saving every register it uses) first, as Match
 // Viewer found the Game Setup screen's title music otherwise plays on (2026-11-27); NHL '95's driver restart before
-// the hook already stops it, so there the jsr is three nops. The first build (30 bytes, move.w (a0,d0.w),-(sp) and
-// no p_turnoff) is still read, and choosing again puts in this one.
+// the hook already stops it. NHL '95 has code of its own (ORGAN_95 below) that loads the organ's instruments first.
+// Earlier builds' code is still read, and choosing again puts in the current one.
 
 export const PREGAME_SILENCE = 0xffff
 // Teams the table holds (HomeTeam is a team number; a league ROM has at most 32).
@@ -25,7 +25,8 @@ interface Site {
   after: string
   song: number
   homeTeam: number
-  // NHL 94's p_turnoff, found by its first bytes (movem.l d0-d7/a0-a2,-(sp); bsr; move.b #$77,...; move.b #$77,...).
+  // NHL 94's p_turnoff, found by its first bytes (movem.l d0-d7/a0-a2,-(sp); bsr; move.b #$77,...; move.b #$77,...);
+  // null on NHL '95, whose code calls SoundCmd, the jsr in `before`.
   turnoff: string | null
   claim: (rom: Uint8Array, size: number) => { rom: Uint8Array; at: number } | null
 }
@@ -51,53 +52,74 @@ function only(rom: Uint8Array, pattern: string): number {
   return found
 }
 
-const CODE_LENGTH = 40
-const FIRST_CODE_LENGTH = 30
 const word = (value: number) => value.toString(16).padStart(4, '0')
-function code(site: Site, song: number, turnoff: number | null, table: number[]): Uint8Array {
-  const out = new Uint8Array(CODE_LENGTH + table.length * 2)
-  out.set(hex('48e78080' + '3038' + word(site.homeTeam) + 'd040' + '41fa001c' + '30300000' + '6a06'))
-  if (turnoff === null) out.set(hex('4e714e714e71'), 20)
-  else {
-    out.set(hex('4eb9'), 20)
-    writeU32(out, 22, turnoff)
-  }
-  out.set(hex('3f004eb9'), 26)
-  writeU32(out, 30, song)
-  out.set(hex('4cdf01014e75'), 34)
-  table.forEach((value, i) => writeU16(out, CODE_LENGTH + i * 2, value))
+
+// The code, as each build put it in: its length (the table follows), where it holds song()'s address, and the bytes for
+// a song() address and a helper (NHL 94: p_turnoff; NHL '95: SoundCmd) with an empty table. The last is the one put in.
+interface Build {
+  length: number
+  songAt: number
+  make: (site: Site, song: number, helper: number) => Uint8Array
+}
+const head = (site: Site, lea: number) => '3038' + word(site.homeTeam) + 'd040' + '41fa' + word(lea)
+const withLong = (text: string, longs: [number, number][], length: number) => {
+  const out = new Uint8Array(length)
+  out.set(hex(text))
+  for (const [at, value] of longs) writeU32(out, at, value)
   return out
 }
-// The first build's code, read so a ROM made with it can be changed.
-function firstCode(site: Site, song: number): Uint8Array {
-  const out = new Uint8Array(FIRST_CODE_LENGTH)
-  out.set(hex('48e78080' + '3038' + word(site.homeTeam) + 'd040' + '41fa0012' + '3f300000' + '4eb9'))
-  writeU32(out, 20, song)
-  out.set(hex('4cdf01014e75'), 24)
-  return out
+// The first build (both games): move.w (a0,d0.w),-(sp); jsr (song).l.
+const FIRST: Build = {
+  length: 30,
+  songAt: 20,
+  make: (site, song) => withLong('48e78080' + head(site, 0x12) + '3f300000' + '4eb900000000' + '4cdf01014e75', [[20, song]], 30),
 }
-const turnoffOf = (rom: Uint8Array, site: Site) => (site.turnoff === null ? null : only(rom, site.turnoff))
+// The second: the song in d0; bpl.s past jsr (p_turnoff).l for silence on NHL 94, three nops in its place on NHL '95.
+const SECOND = (turnoff: boolean): Build => ({
+  length: 40,
+  songAt: 30,
+  make: (site, song, helper) =>
+    withLong('48e78080' + head(site, 0x1c) + '30300000' + '6a06' + (turnoff ? '4eb900000000' : '4e714e714e71') + '3f00' + '4eb900000000' + '4cdf01014e75', turnoff ? [[22, helper], [30, song]] : [[30, song]], 40),
+})
+// NHL '95's third (Match Viewer's, 2026-11-27): the matchup screen's driver has only the front end's instruments (load
+// list 0), and every organ song needs patch $19 (and $32 / $35 also $0C), only in list 1, so before an organ song
+// ($32 and up; silence, $FFFF, is below as a signed number) it loads list 1 as StartGame does:
+//   movem.l d0-d2/a0-a2,-(sp); move.w (HomeTeam).w,d0; add.w d0,d0; lea table(pc),a0; move.w (a0,d0.w),d0;
+//   cmpi.w #$32,d0; blt.s .play; move.w d0,-(sp); move.w #7,d0; move.w #1,d1; jsr (SoundCmd).l; move.w (sp)+,d0;
+//   .play move.w d0,-(sp); jsr (song).l; movem.l (sp)+,d0-d2/a0-a2; rts
+// List 1 on top of list 0 leaves out patch $49 (an effect), which nothing on the matchup screen plays; StartGame loads
+// list 1 again.
+const ORGAN_95: Build = {
+  length: 56,
+  songAt: 46,
+  make: (site, song, helper) =>
+    withLong('48e7e0e0' + head(site, 0x2c) + '30300000' + '0c400032' + '6d12' + '3f00' + '303c0007' + '323c0001' + '4eb900000000' + '301f' + '3f00' + '4eb900000000' + '4cdf07074e75', [[36, helper], [46, song]], 56),
+}
+const BUILDS: Record<94 | 95, Build[]> = { 94: [FIRST, SECOND(true)], 95: [FIRST, SECOND(false), ORGAN_95] }
+const current = (edition: 94 | 95) => BUILDS[edition][BUILDS[edition].length - 1]
 
 // The place in the ROM: where the 10 bytes are, as the game has them (`plain`) or hooked, and for a hooked one the code
-// and where its table starts.
-function place(project: Pick<RomProject, 'game' | 'bytes'>): { site: Site; at: number; song: number; code: number | null; table: number; turnoff: number | null } | null {
+// and where its table starts; and the helper the code calls.
+function place(project: Pick<RomProject, 'game' | 'bytes'>): { site: Site; edition: 94 | 95; at: number; song: number; code: number | null; table: number; helper: number } | null {
   const edition = editionOf(project)
   if (!edition) return null
   const site = SITES[edition]
   const rom = project.bytes
-  const turnoff = turnoffOf(rom, site)
-  if (turnoff !== null && turnoff < 0) return null
   const push = '3f3c' + site.song.toString(16).padStart(4, '0')
   const plain = only(rom, site.before + push + '4eb9........' + site.after)
   const hooked = only(rom, site.before + '4eb9........4e714e71' + site.after)
   if ((plain >= 0) === (hooked >= 0)) return null
   const at = (plain >= 0 ? plain : hooked) + site.before.length / 2
-  if (plain >= 0) return { site, at, song: readU32(rom, at + 6), code: null, table: 0, turnoff }
+  // NHL 94: p_turnoff, found by its bytes; NHL '95: SoundCmd, the jsr just before the place.
+  const helper = site.turnoff !== null ? only(rom, site.turnoff) : readU32(rom, at - 4)
+  if (helper < 0) return null
+  if (plain >= 0) return { site, edition, at, song: readU32(rom, at + 6), code: null, table: 0, helper }
   const target = readU32(rom, at + 2)
-  if (target + CODE_LENGTH > rom.length) return null
-  const matches = (template: Uint8Array) => template.every((byte, i) => rom[target + i] === byte)
-  if (matches(code(site, readU32(rom, target + 30), turnoff, []))) return { site, at, song: readU32(rom, target + 30), code: target, table: target + CODE_LENGTH, turnoff }
-  if (matches(firstCode(site, readU32(rom, target + 20)))) return { site, at, song: readU32(rom, target + 20), code: target, table: target + FIRST_CODE_LENGTH, turnoff }
+  for (const build of BUILDS[edition]) {
+    if (target + build.length > rom.length) continue
+    const song = readU32(rom, target + build.songAt)
+    if (build.make(site, song, helper).every((byte, i) => rom[target + i] === byte)) return { site, edition, at, song, code: target, table: target + build.length, helper }
+  }
   return null
 }
 
@@ -129,7 +151,10 @@ export function withPregameSongs(project: RomProject, songs: number[] | null): R
   }
   if (songs === null || songs.every((song) => song === own)) return { ...project, bytes: rom }
   const table = Array.from({ length: TABLE_TEAMS }, (_, team) => songs[team] ?? own)
-  const bytes = code(found.site, found.song, found.turnoff, table)
+  const build = current(found.edition)
+  const bytes = new Uint8Array(build.length + table.length * 2)
+  bytes.set(build.make(found.site, found.song, found.helper))
+  table.forEach((value, i) => writeU16(bytes, build.length + i * 2, value))
   const claimed = found.site.claim(rom, bytes.length)
   if (!claimed) throw new PregameSongError('There is no room left in this ROM for the pre-game songs.')
   rom = claimed.rom

@@ -1105,8 +1105,8 @@ export function HelpPage() {
         </li>
         <li>
           <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
-          a game, in place of the game's own: a piece of the game's music, on NHL 94 an organ song (it plays once, about
-          20 seconds, then the screen is quiet), or silence. <b>Every team the game's own music</b> puts it all back.
+          a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
+          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
         </li>
       </ul>
 

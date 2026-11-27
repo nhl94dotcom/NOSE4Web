@@ -22,11 +22,13 @@ for (const [name, own, site] of [['nhl94.bin', 0x7a, 0xfcc86], ['NHL95/NHL_95.bi
       expect(Buffer.from(on.bytes.subarray(site, site + 2)).toString('hex')).toBe('4eb9')
       expect(Buffer.from(on.bytes.subarray(site + 6, site + 10)).toString('hex')).toBe('4e714e71')
       const code = readU32(on.bytes, site + 2)
-      // movem.l d0/a0,-(sp); move.w (HomeTeam).w,d0
-      expect(Buffer.from(on.bytes.subarray(code, code + 6)).toString('hex')).toBe(name.includes('95') ? '48e780803038bf54'.slice(0, 12) : '48e780803038c330'.slice(0, 12))
+      // movem.l d0/a0,-(sp) (NHL '95: d0-d2/a0-a2); move.w (HomeTeam).w,d0
+      expect(Buffer.from(on.bytes.subarray(code, code + 6)).toString('hex')).toBe(name.includes('95') ? '48e7e0e03038' : '48e780803038')
       expect(readPregameSongs(on)).toEqual(songs)
-      // Silence on NHL 94 turns the sound off first (p_turnoff, $1A264); NHL '95's driver restart already has.
-      expect(Buffer.from(on.bytes.subarray(code + 18, code + 26)).toString('hex')).toBe(name.includes('95') ? '6a064e714e714e71' : '6a064eb90001a264')
+      // Silence on NHL 94 turns the sound off first (p_turnoff, $1A264). NHL '95 loads the in-game instruments (list 1,
+      // SoundCmd $676D8) before an organ song ($32 and up), as Match Viewer's tested fix does.
+      if (name.includes('95')) expect(Buffer.from(on.bytes.subarray(code + 18, code + 40)).toString('hex')).toBe('0c4000326d123f00303c0007323c00014eb9000676d8')
+      else expect(Buffer.from(on.bytes.subarray(code + 18, code + 26)).toString('hex')).toBe('6a064eb90001a264')
       const again = openRom(buildRom(on))
       expect(readPregameSongs(again)).toEqual(songs)
       // Changed, and all back to the game's own.
