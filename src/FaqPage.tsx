@@ -128,7 +128,7 @@ export function FaqPage() {
         <dd>
           On the Genesis, NHL 94 and NHL '95, yes: <b>Title screen picture</b> on the Game settings page, under
           Pictures. Export the picture as a PNG, edit it or make your own, and import it. The NHL shield, NHLPA logo and
-          lettering still slide in over it, and the credits still roll. Not yet on the SNES.
+          lettering still slide in over it, and the credits still roll. Not on the SNES, though its main menu background can be changed (Game settings, Pictures).
         </dd>
 
         <dt>Can each team have its own rink?</dt>

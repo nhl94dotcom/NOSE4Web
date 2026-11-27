@@ -1023,14 +1023,14 @@ export function HelpPage() {
           menus share. Import a picture of your own and it is fitted inside the screen, 256 by 224 pixels, in 15
           colours of its own plus the pattern's, with room for 407 different 8 by 8 squares (a busier picture has its
           most alike merged). Squares that match the pattern, and the parts the logo boxes and team names always cover,
-          are left to the pattern. On retail and the 32-team builds. Not yet tested in the game.
+          are left to the pattern. On retail and the 32-team builds. Tested in the game by the NHL94 Match Viewer project.
         </li>
         <li>
           <b>Title screen picture</b> (Genesis, NHL 94 and NHL '95): the picture on the title screen, under the NHL
           shield, NHLPA logo and lettering that slide in and the credits. Import a picture of your own and it is fitted
           inside the screen, 256 by 224 pixels, in up to 33 colours of its own (NHL '95: 42) plus the lettering's.
           Every 8 by 8 square can be different, so detail is kept. <b>Export as PNG</b> saves the picture to edit, and{' '}
-          <b>Put back the original</b> puts the game's own back. Not yet tested in the game.
+          <b>Put back the original</b> puts the game's own back. Tested in the game by the NHL94 Match Viewer project.
         </li>
       </ul>
 

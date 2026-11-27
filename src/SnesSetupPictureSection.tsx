@@ -65,8 +65,8 @@ export function SnesSetupPictureSection({ project, onChange }: Props) {
         inside the screen, 256 by 224 pixels. It has 15 colours of its own, plus the pattern's and the backdrop's to use
         as they are, and room for {SNES_SETUP_SQUARES} different 8 by 8 squares; a busier picture has its most alike
         squares merged to fit. Squares that match the pattern, and the parts the logo boxes and team names always cover,
-        are left to the pattern and cost nothing. The ROM grows to 2 MB if it has no room left. Not yet tested in the
-        game.
+        are left to the pattern and cost nothing. The ROM grows to 2 MB if it has no room left. Tested in the game
+        by the NHL94 Match Viewer project.
       </p>
       <PictureView picture={shown.picture} palette={shown.palette} scale={2} format={SNES_COLORS} />
       <p>

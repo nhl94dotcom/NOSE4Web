@@ -60,8 +60,8 @@ export function TitlePictureSection({ project, opened, onChange }: Props) {
           : 'The NHL shield, the NHLPA logo and the "NHL Hockey" lettering slide in over it, and the credits roll over its bottom rows.'}{' '}
         A picture of your own is fitted inside the screen on black. It has up to {titlePictureColours(project)} colours of
         its own, plus the colours of the {nhl95 ? 'lettering' : 'shield, logo and lettering'} to use as they are, which
-        stay so those look as they do. Every 8 by 8 square can be different, so detail is kept. Not yet tested in the
-        game.
+        stay so those look as they do. Every 8 by 8 square can be different, so detail is kept. Tested in the game by
+        the NHL94 Match Viewer project.
       </p>
       <PictureView picture={title.picture} palette={title.palette} scale={2} />
       <p>
