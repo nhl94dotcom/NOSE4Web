@@ -3,6 +3,7 @@ import { hex } from './core/bytes'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 import { GenesisRinkPicture } from './GenesisRinkPicture'
+import { ArenaColoursSection } from './ArenaColoursSection'
 import type { RomProject } from './core/rom'
 
 const VIEWS = [
@@ -72,6 +73,7 @@ export function RinkEditor({ palette, original, onChange, edition, project, open
           <ResetButton what="arena colours" changed={differs(16, 32)} onReset={() => onChange([...ice, ...original.slice(16)])} />
         </p>
       </section>
+      {project && onProject && <ArenaColoursSection project={project} onChange={onProject} />}
       {project && <GenesisRinkPicture project={project} opened={opened} onChange={onProject} />}
     </main>
   )

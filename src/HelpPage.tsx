@@ -1149,6 +1149,11 @@ export function HelpPage() {
           MIDI file would with Replace.
         </li>
         <li>
+          <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
+          a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
+          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
+        </li>
+        <li>
           <b>Try it:</b> <b>Play</b> gives a rough idea in the browser (the console's organ sounds different), and
           the downloaded ROM in an emulator gives the real thing.
         </li>
@@ -1660,7 +1665,10 @@ export function HelpPage() {
         the ice and its markings, the boards, the benches, the penalty boxes and the crowd, in the colours above, with
         the players on the benches in the colours of the two teams chosen. <b>Export as PNG</b> saves it, to look at
         or to draw on in a paint program. The block at centre ice is where the game puts the home team's centre ice
-        logo as a game starts. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
+        logo as a game starts. On NHL 94, <b>Each home team's rink colours</b> gives each home team its own boards
+        trim (the band along the foot of the boards, and the bench and penalty box edges) and red markings (goal lines,
+        faceoff circles and dots, centre line): the two rink colours nothing else on the screen uses. Not yet tested in
+        the game. On NHL 94, <b>Import a PNG</b> puts an edited picture back: each square of 8 by 8
         pixels keeps the colours it has (the rink's, or the teams' for the players on the benches), and the centre ice
         logo's block, the replay icon and the three stars box (in the rows below the rink) and the boards and glass drawn
         in front of the players stay as they are. The rink has room for only so many different squares; a square that

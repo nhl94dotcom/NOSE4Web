@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ARENA_SLOTS, readArenaColours, RINK_OWN } from './core/arenacolours'
 import { drawGenesisRink, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './core/genesisrink'
 import { pictureToImage } from './core/graphics'
 import type { RomProject } from './core/rom'
@@ -27,9 +28,16 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const importable = (v: RinkView) => (readGenesisRink(project.bytes, v)?.height ?? 0) === 113 && onChange !== undefined
   const drawn = useMemo(() => {
     const rink = drawGenesisRink(project.bytes, project.teams[home]?.palette.slice(0, 16), project.teams[away]?.palette.slice(16, 32), view)
-    // The rink's own two lines as the page has them now (the reverse rink is drawn in them too, as the game does).
-    return rink && { picture: rink.picture, palette: [...project.rinkPalette.slice(0, 32), ...rink.palette.slice(32)] }
-  }, [project.bytes, project.teams, project.rinkPalette, home, away, view])
+    // The rink's own two lines as the page has them now (the reverse rink is drawn in them too, as the game does),
+    // with the home team's own boards trim and red markings where it has them (arenacolours.ts).
+    if (!rink) return null
+    const palette = [...project.rinkPalette.slice(0, 32), ...rink.palette.slice(32)]
+    const own = readArenaColours(project)?.[home]
+    ARENA_SLOTS.forEach((slot, i) => {
+      if (own && own[i] !== RINK_OWN) palette[slot] = own[i]
+    })
+    return { picture: rink.picture, palette }
+  }, [project, home, away, view])
 
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
@@ -98,7 +106,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         The rink as the game has it: the ice and its markings, the boards, the benches, the penalty boxes and the crowd,
         {` ${drawn.picture.width} by ${drawn.picture.height}`} pixels. The block at centre ice is where the game puts
         the home team's centre ice logo as a game starts{drawn.picture.height > 700 ? '; and only the top 680 rows are the rink, the rows below holding the replay icon and other pieces the game uses' : ''}. The players on the benches take the colours of the teams
-        playing: choose two to see them. <b>Export as PNG</b> saves the picture, to look at or to draw on in a paint
+        playing, and the home team's own boards trim and red markings show where it has them: choose two to see them. <b>Export as PNG</b> saves the picture, to look at or to draw on in a paint
         program.
       </p>
       {importable(view) && (

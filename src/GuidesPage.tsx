@@ -345,6 +345,10 @@ export function GuidesPage() {
         </li>
       </ol>
       <p>
+        A team's own song before its home games: <b>Pre-game songs</b>, below the game music, sets the matchup screen's
+        music for each home team (on the Genesis).
+      </p>
+      <p>
         Things to know. Every organ note plays on the organ, drums left out, at most 4 at once (7 in NHL '95), each
         moved by octaves into the organ's range. On NHL '95 each game instrument plays one note at a time and one part,
         so chords in a part thin out. On the SNES, a game piece edited here goes back on its parts' own instruments and

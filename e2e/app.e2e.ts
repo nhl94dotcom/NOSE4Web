@@ -436,6 +436,23 @@ test.describe('with the NHL 94 ROM', () => {
     await page.screenshot({ path: 'test-results/shots/rink.png', fullPage: true })
   })
 
+  test("gives a home team its own pre-game song, and puts the game's own back", async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Game settings').click()
+    const tab = page.getByRole('tab', { name: 'Music' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Pre-game songs' }) })
+    const boston = section.getByLabel('Pre-game song: Boston Bruins')
+    await expect(boston).toHaveValue(String(0x7a))
+    await boston.selectOption({ label: 'Title music' })
+    await expect(boston).toHaveValue(String(0x78))
+    await section.getByLabel('Pre-game song: Buffalo Sabres').selectOption({ label: 'Silence' })
+    await expect(section.getByLabel('Pre-game song: Buffalo Sabres')).toHaveValue(String(0xffff))
+    await section.getByRole('button', { name: "Every team the game's own music" }).click()
+    await expect(boston).toHaveValue(String(0x7a))
+    await expect(section.getByRole('button', { name: "Every team the game's own music" })).toHaveCount(0)
+  })
+
   test('makes a schedule for the teams in the menu and saves it as a spreadsheet', async ({ page }) => {
     await openRom(page)
     await entry(page, 'League').click()
@@ -455,6 +472,20 @@ test.describe('with the NHL 94 ROM', () => {
     expect(csv.suggestedFilename()).toBe('schedule.csv')
     const text = readFileSync(await csv.path(), 'utf8')
     expect(text.replace(/^﻿/, '').split(/\r?\n/)[0]).toBe('Game,Day,Home,Visitors')
+  })
+
+  test("gives a home team its own boards trim and red markings, and the rink's own back", async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: "Each home team's rink colours" })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: "Each home team's rink colours" }) })
+    const trim = section.getByLabel('Boards trim: Boston Bruins')
+    await trim.fill('#000000')
+    await expect(trim).toHaveValue('#000000')
+    const row = section.locator('tr').filter({ hasText: 'Boston Bruins' })
+    await row.getByRole('button', { name: "The rink's own" }).click()
+    await expect(row.getByRole('button', { name: "The rink's own" })).toHaveCount(0)
   })
 
   test('draws the whole rink, with two teams on the benches, and exports it as a PNG', async ({ page }) => {

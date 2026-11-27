@@ -124,6 +124,21 @@ export function FaqPage() {
           notes on a piano roll first. Walkthroughs' <i>Change a song or the game music</i> takes you through it.
         </dd>
 
+        <dt>Can each team have its own rink?</dt>
+        <dd>
+          Partly. On NHL 94 for the Genesis, <b>Each home team's rink colours</b> on the Rink colours page gives each home
+          team its own boards trim and red markings. The rink's other colours are shared with the score box, the clock,
+          the EA logo and the crowd, so they stay the same for every team. The rink's picture itself (Import a PNG) is
+          the same for every team.
+        </dd>
+
+        <dt>Can each team have its own song before the game?</dt>
+        <dd>
+          On the Genesis, yes: <b>Pre-game songs</b> on Game settings' Music tab picks the music the matchup screen plays
+          when each team is at home. Organ songs play once and stop; the game's own music plays until the game starts.
+          Not on the SNES, whose matchup screen keeps the menu music playing.
+        </dd>
+
         <dt>Why does the music editor show red on the game's own songs?</dt>
         <dd>
           Red marks where more notes sound at once than NOSE4Web puts into the ROM: 4 on the organ in NHL 94 and on the

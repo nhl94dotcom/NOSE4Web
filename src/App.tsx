@@ -46,6 +46,7 @@ import { useProjectHistory } from './history'
 import { RinkEditor } from './RinkEditor'
 import { clearSession, loadSession, saveSession, type Session } from './session'
 import { PageErrorBoundary } from './PageErrorBoundary'
+import { PregameSongsSection } from './PregameSongsSection'
 import { SettingsEditor } from './SettingsEditor'
 import { SnesBannerColoursEditor } from './SnesBannerColoursEditor'
 import { SnesCopyTeamSection } from './SnesCopyTeamSection'
@@ -483,6 +484,7 @@ export default function App() {
             {isGenesis94(current.game) && <MenuPictureSection project={current} opened={opened} onChange={change} />}
             {current.game.platform === 'genesis' && <OrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'genesis' && <GameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
+            {current.game.platform === 'genesis' && <PregameSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesOrganSongsSection project={current} onChange={change} />}
             {current.game.platform === 'snes' && <SnesGameMusicSection project={current} onChange={change} kept={heldMusic} onKeep={setHeldMusic} />}
           </SettingsEditor>
