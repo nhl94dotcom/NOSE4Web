@@ -19,7 +19,7 @@ import { PaletteEditor } from './Palette'
 // Each stroke is handed on when the mouse button is let go, so undo takes back
 // one stroke at a time.
 
-type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'line' | 'rectangle' | 'box'
+type Tool = 'pencil' | 'eraser' | 'fill' | 'picker' | 'line' | 'rectangle' | 'box' | 'copy' | 'stamp'
 
 const TOOLS: { tool: Tool; label: string; key: string }[] = [
   { tool: 'pencil', label: 'Pencil', key: 'p' },
@@ -29,7 +29,16 @@ const TOOLS: { tool: Tool; label: string; key: string }[] = [
   { tool: 'line', label: 'Line', key: 'l' },
   { tool: 'rectangle', label: 'Rectangle', key: 'r' },
   { tool: 'box', label: 'Filled rectangle', key: 'b' },
+  { tool: 'copy', label: 'Copy', key: 'c' },
+  { tool: 'stamp', label: 'Stamp', key: 's' },
 ]
+
+// A part of the picture copied, to stamp elsewhere: its pixels row by row, see-through ones too.
+interface Copied {
+  width: number
+  height: number
+  pixels: Uint8Array
+}
 
 export interface PixelEditorProps {
   title: string
@@ -51,14 +60,22 @@ export interface PixelEditorProps {
   problem?: string
   // The picture shown where the game shows it.
   context?: (picture: Picture) => ReactNode
+  // The grid a stamp snaps to (the rink's 8 by 8 squares), if any.
+  snap?: number
+  // Zoom to start at.
+  startZoom?: number
   onCommit: (picture: Picture) => void
   onClose: () => void
 }
 
-export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, tidy, problem, context, onCommit, onClose }: PixelEditorProps) {
+export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, tidy, problem, context, snap, startZoom, onCommit, onClose }: PixelEditorProps) {
   const [tool, setTool] = useState<Tool>('pencil')
   const [colour, setColour] = useState(colours[0] ?? 1)
-  const [zoom, setZoom] = useState(picture.width > 64 ? 6 : 8)
+  const [zoom, setZoom] = useState(startZoom ?? (picture.width > 64 ? 6 : 8))
+  // What Copy took, the rectangle being dragged out, and whether stamps snap to the grid.
+  const [copied, setCopied] = useState<Copied | null>(null)
+  const [selection, setSelection] = useState<[Point, Point] | null>(null)
+  const [snapping, setSnapping] = useState(snap !== undefined)
   const [grid, setGrid] = useState(true)
   const [mirror, setMirror] = useState(false)
   // The picture as drawn so far in a stroke, and where the stroke began and last was.
@@ -76,14 +93,19 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     const { width, height } = shown
     const rgb = palette.map((word) => colorRgb(word, format))
     context2d.clearRect(0, 0, width * zoom, height * zoom)
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const value = shown.pixels[y * width + x]
-        if (value === 0) continue
-        const [r, g, b] = rgb[value] ?? [255, 0, 255]
-        context2d.fillStyle = `rgb(${r}, ${g}, ${b})`
-        context2d.fillRect(x * zoom, y * zoom, zoom, zoom)
-      }
+    // The picture at its own size, then drawn large in one go (a rectangle a pixel is too slow for the rink).
+    const small = document.createElement('canvas')
+    small.width = width
+    small.height = height
+    const smallContext = small.getContext('2d')
+    if (smallContext) {
+      const data = smallContext.createImageData(width, height)
+      shown.pixels.forEach((value, i) => {
+        if (value !== 0) data.data.set([...(rgb[value] ?? [255, 0, 255]), 255], i * 4)
+      })
+      smallContext.putImageData(data, 0, 0)
+      context2d.imageSmoothingEnabled = false
+      context2d.drawImage(small, 0, 0, width * zoom, height * zoom)
     }
     if (grid && zoom >= 4) {
       for (let x = 0; x <= width; x++) {
@@ -95,7 +117,14 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
         context2d.fillRect(0, y * zoom - (y === height ? 1 : 0), width * zoom, 1)
       }
     }
-  }, [shown, palette, format, zoom, grid])
+    if (selection) {
+      const [[x0, y0], [x1, y1]] = selection
+      const [left, top] = [Math.min(x0, x1), Math.min(y0, y1)]
+      context2d.strokeStyle = 'rgba(255, 0, 255, 0.9)'
+      context2d.lineWidth = 2
+      context2d.strokeRect(left * zoom, top * zoom, (Math.abs(x1 - x0) + 1) * zoom, (Math.abs(y1 - y0) + 1) * zoom)
+    }
+  }, [shown, palette, format, zoom, grid, selection])
 
   const where = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
     const box = event.currentTarget.getBoundingClientRect()
@@ -117,9 +146,34 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     setDraft(next)
   }
 
+  // The copied part put down with its top left at `point` (on the grid, when snapping).
+  const stamped = (point: Point): Picture => {
+    if (!copied) return picture
+    const step = snapping && snap ? snap : 1
+    const [left, top] = [Math.floor(point[0] / step) * step, Math.floor(point[1] / step) * step]
+    const pixels = picture.pixels.slice()
+    for (let y = 0; y < copied.height; y++) {
+      for (let x = 0; x < copied.width; x++) {
+        const [px, py] = [left + x, top + y]
+        if (px < picture.width && py < picture.height) pixels[py * picture.width + px] = copied.pixels[y * copied.width + x]
+      }
+    }
+    return { ...picture, pixels }
+  }
+
   function down(event: React.PointerEvent<HTMLCanvasElement>) {
     if (event.button !== 0) return
     const point = where(event)
+    if (tool === 'stamp') {
+      if (copied) commit(stamped(point))
+      return
+    }
+    if (tool === 'copy') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      setSelection([point, point])
+      stroke.current = { start: point, last: point, base: picture, points: [point], drawn: picture }
+      return
+    }
     if (tool === 'picker') {
       const value = pixelAt(picture, point)
       if (value === 0) setTool('eraser')
@@ -141,6 +195,11 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     if (!current) return
     const point = where(event)
     if (point[0] === current.last[0] && point[1] === current.last[1]) return
+    if (tool === 'copy') {
+      current.last = point
+      setSelection([current.start, point])
+      return
+    }
     if (tool === 'pencil' || tool === 'eraser') {
       current.points.push(...linePoints(current.last, point).slice(1))
       current.last = point
@@ -156,6 +215,19 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     const current = stroke.current
     if (!current) return
     stroke.current = null
+    if (tool === 'copy') {
+      // What the rectangle covers, to stamp with next.
+      const clamp = (v: number, most: number) => Math.max(0, Math.min(most - 1, v))
+      const [x0, x1] = [current.start[0], current.last[0]].map((v) => clamp(v, picture.width)).sort((a, b) => a - b)
+      const [y0, y1] = [current.start[1], current.last[1]].map((v) => clamp(v, picture.height)).sort((a, b) => a - b)
+      const [width, height] = [x1 - x0 + 1, y1 - y0 + 1]
+      const pixels = new Uint8Array(width * height)
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels[y * width + x] = picture.pixels[(y0 + y) * picture.width + x0 + x]
+      setCopied({ width, height, pixels })
+      setSelection(null)
+      setTool('stamp')
+      return
+    }
     commit(current.drawn)
     setDraft(null)
   }
@@ -208,6 +280,20 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
         <label>
           <input type="checkbox" checked={grid} onChange={(e) => setGrid(e.target.checked)} /> Grid
         </label>{' '}
+        {snap !== undefined && (
+          <>
+            <label>
+              <input type="checkbox" checked={snapping} onChange={(e) => setSnapping(e.target.checked)} /> Stamps snap to the {snap} by {snap} squares
+            </label>{' '}
+          </>
+        )}
+        {copied && (
+          <>
+            <span className="note">
+              Copied: {copied.width} by {copied.height}. Stamp puts it down where you click (its top left corner).
+            </span>{' '}
+          </>
+        )}
         <label>
           Zoom{' '}
           <select value={zoom} onChange={(e) => setZoom(Number(e.target.value))}>
@@ -268,7 +354,7 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
             onPointerMove={move}
             onPointerUp={up}
             onPointerCancel={up}
-            style={{ cursor: tool === 'picker' ? 'copy' : 'crosshair', touchAction: 'none' }}
+            style={{ cursor: tool === 'picker' ? 'copy' : tool === 'stamp' ? 'cell' : 'crosshair', touchAction: 'none' }}
           />
         </div>
         <div className="paint-side">

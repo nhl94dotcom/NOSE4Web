@@ -321,6 +321,12 @@ export function GuidesPage() {
           without the ads. <b>Undo</b> or <b>Put back the original rink</b> takes it all back.
         </li>
       </ol>
+      <p>
+        Or draw them here: <b>Edit the rink…</b> opens the rink with the grid on, in the rink's own colours. Each stroke
+        goes in as you draw, the page counts the squares, and a stroke that needs too many is refused. Draw one ad, then{' '}
+        <b>Copy</b> it (drag a rectangle round it) and <b>Stamp</b> it along the boards: stamps snap to the squares, so
+        the copies cost nothing.
+      </p>
       <p className="note">
         Skip a step and: without the grid, an ad drawn across squares can need far more squares than it looks; with
         soft edges or new colours, nearly every square it touches becomes a new one; without the reverse rink, replays

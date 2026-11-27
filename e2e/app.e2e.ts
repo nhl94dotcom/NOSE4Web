@@ -511,6 +511,52 @@ test.describe('with the NHL 94 ROM', () => {
     expect(reverse.suggestedFilename()).toBe('rink_reverse.png')
   })
 
+  test('edits the rink here: a stroke goes in, Copy and Stamp repeat it, and a stroke over the room is refused', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: 'The whole rink' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'The whole rink' }) })
+    await section.getByRole('button', { name: 'Edit the rink…' }).click()
+    const editor = section.getByRole('group', { name: 'Draw the rink' })
+    await editor.getByLabel('Zoom').selectOption('2')
+    const canvas = editor.getByLabel('Rink, drawn large')
+    await canvas.evaluate((c: HTMLCanvasElement) => c.scrollIntoView({ block: 'start' }))
+    const drag = async (from: [number, number], to: [number, number]) => {
+      const box = (await canvas.boundingBox())!
+      const at = (x: number, y: number) => [box.x + ((x + 0.5) * box.width) / 384, box.y + ((y + 0.5) * box.height) / 680] as const
+      await page.mouse.move(...at(...from))
+      await page.mouse.down()
+      await page.mouse.move(...at(...to), { steps: 4 })
+      await page.mouse.up()
+    }
+    await expect(editor.getByText(/^It takes \d+ of the \d+ squares/)).toBeVisible()
+    // A block of one colour on the top boards: one square, repeated.
+    await editor.getByRole('button', { name: 'Row 0 colour 12', exact: true }).click()
+    await editor.getByRole('button', { name: 'Filled rectangle' }).click()
+    await drag([128, 40], [143, 47])
+    await expect(section.getByRole('button', { name: 'Put back the original rink' })).toBeVisible()
+    // Copied and stamped further along: no more squares (fewer, where it covers one used only there).
+    const before = await editor.getByText(/^It takes \d+ of the/).textContent()
+    await editor.getByRole('button', { name: 'Copy' }).click()
+    await drag([128, 40], [143, 47])
+    await editor.getByRole('button', { name: 'Stamp' }).click()
+    await drag([200, 40], [200, 40])
+    const count = (text: string | null) => Number(/It takes (\d+)/.exec(text ?? '')![1])
+    await expect.poll(async () => count(await editor.getByText(/^It takes \d+ of the/).textContent())).toBeLessThanOrEqual(count(before))
+    // Noise over a big area needs far more squares than there is room for: refused, the rink as it was.
+    await editor.getByRole('button', { name: 'Row 0 colour 3', exact: true }).click()
+    await editor.getByRole('button', { name: 'Pencil' }).click()
+    const box = (await canvas.boundingBox())!
+    await page.mouse.move(box.x + 40, box.y + 120)
+    await page.mouse.down()
+    for (let i = 0; i < 80; i++) await page.mouse.move(box.x + 40 + ((i * 37) % 680), box.y + 120 + ((i * 53) % 380))
+    await page.mouse.up()
+    await expect(editor.getByText(/Edit rejected: This picture needs \d+ more different squares/)).toBeVisible()
+    await editor.getByRole('button', { name: 'Done drawing' }).click()
+    await expect(editor).toHaveCount(0)
+  })
+
   test('exports the title screen picture, puts it back in, and puts the original back', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Game settings').click()

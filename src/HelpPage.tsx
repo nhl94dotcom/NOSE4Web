@@ -1701,7 +1701,9 @@ export function HelpPage() {
         <b>Make it fit</b>, which swaps its least different squares for the closest ones and says how many pixels
         differ. The reverse angle replay has its own rink, chosen under{' '}
         <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
-        undoes both. Tested in the game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
+        undoes both. <b>Edit the rink…</b> draws on it here, a stroke at a time, with the same rules, the squares
+        counted as you draw, and <b>Copy</b> and <b>Stamp</b> to repeat a part (snapped to the squares). Tested in the
+        game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too.
       </p>
 

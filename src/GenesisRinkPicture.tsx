@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ARENA_SLOTS, readArenaColours, RINK_OWN } from './core/arenacolours'
 import { drawGenesisRink, genesisRinkGuide, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './core/genesisrink'
-import { pictureToImage } from './core/graphics'
+import { pictureToImage, type Picture } from './core/graphics'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
 import { download } from './download'
 import { pictureToPng, readImage, rgbaToPng } from './images'
+import { PixelEditor } from './PixelEditor'
+
+// The rows of the rink the game shows in play, which the editor draws on.
+const SHOWN_ROWS = 85
+// The colours a stroke may paint with: the rink's two lines (the benches' squares take the teams' nearest).
+const RINK_COLOURS = [...Array.from({ length: 15 }, (_, i) => i + 1), ...Array.from({ length: 15 }, (_, i) => i + 17)]
 
 interface Props {
   project: RomProject
@@ -22,6 +28,9 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const [away, setAway] = useState(Math.min(1, project.teams.length - 1))
   const [view, setView] = useState<RinkView>('play')
   const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null)
+  // Drawing on the rink here, and why the last stroke was refused.
+  const [editing, setEditing] = useState(false)
+  const [refused, setRefused] = useState('')
   // A picture with too many different squares, kept for Make it fit.
   const [tooMany, setTooMany] = useState<{ image: Awaited<ReturnType<typeof readImage>>; view: RinkView } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -104,6 +113,25 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
     }
     putIn(image, false)
   }
+  // The rows in play, to draw on, and a drawing as the import takes a picture.
+  const inPlay = (picture: Picture): Picture => ({ width: picture.width, height: SHOWN_ROWS * 8, pixels: picture.pixels.slice(0, picture.width * SHOWN_ROWS * 8) })
+  const asImage = (picture: Picture) => ({ rgba: pictureToImage(picture, drawn.palette), width: picture.width, height: picture.height })
+  const stroke = (picture: Picture) => {
+    try {
+      onChange!({ ...project, bytes: importGenesisRink(project.bytes, view, asImage(picture), drawn.palette).rom })
+      setRefused('')
+    } catch (e) {
+      setRefused(e instanceof RinkImportError ? e.message : String(e))
+    }
+  }
+  const squaresUsed = (picture: Picture) => {
+    try {
+      const result = importGenesisRink(project.bytes, view, asImage(picture), drawn.palette)
+      return { text: `It takes ${result.used} of the ${result.room} squares of 8 by 8 pixels the rink has room for.`, over: false }
+    } catch (e) {
+      return e instanceof RinkImportError ? { text: e.message, over: true } : null
+    }
+  }
   const teamChoice = (label: string, value: number, set: (n: number) => void) => (
     <label>
       {label}{' '}
@@ -134,7 +162,10 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           stars box below the rink stay as they are, and so do the boards and glass drawn in front of the players. The
           rink has room for only so many different squares; one that repeats another, or another turned round, costs
           nothing, and the page says when a picture needs more. The reverse angle replay has a rink of its own: put a
-          picture in for it too, or its replays show the old rink. <b>Drawing guide</b> saves a picture to keep beside
+          picture in for it too, or its replays show the old rink. <b>Edit the rink…</b> draws on it here instead, with the
+          same rules: each stroke goes in as you draw (Undo takes it back), the page counts the squares, and{' '}
+          <b>Copy</b> and <b>Stamp</b> repeat an ad along the boards, snapped to the squares, for nothing.{' '}
+          <b>Drawing guide</b> saves a picture to keep beside
           the export while you draw, not to import: the 8 by 8 grid the rink is made of, the boards (for ads), benches,
           penalty boxes and end glass bright, the rest dimmed, and the centre ice block the game keeps in red. Tested in
           the game by the NHL94 Match Viewer project.
@@ -167,6 +198,9 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         </button>{' '}
         {importable(view) && (
           <>
+            <button aria-pressed={editing} onClick={() => setEditing(!editing)}>
+              {editing ? 'Stop editing' : 'Edit the rink…'}
+            </button>{' '}
             <button
               onClick={async () => {
                 try {
@@ -201,6 +235,23 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         {opened && onChange && (changed('play') || changed('reverse')) && <button onClick={putBack}>Put back the original rink</button>}
       </p>
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
+      {editing && importable(view) && (
+        <PixelEditor
+          title={view === 'play' ? 'Rink' : 'Reverse angle rink'}
+          picture={inPlay(drawn.picture)}
+          palette={drawn.palette}
+          colours={RINK_COLOURS}
+          limit={squaresUsed}
+          problem={refused || undefined}
+          snap={8}
+          startZoom={4}
+          onCommit={stroke}
+          onClose={() => {
+            setEditing(false)
+            setRefused('')
+          }}
+        />
+      )}
       {tooMany && tooMany.view === view && (
         <p>
           <button onClick={() => putIn(tooMany.image, true)}>Make it fit</button>{' '}
