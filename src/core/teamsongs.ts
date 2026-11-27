@@ -165,8 +165,8 @@ export const NHL94_SONGS: GenesisSongs = {
   names: SONG_NAMES,
   voices: SONG_VOICES,
   isSong,
-  // Song 1 stays: the game finds which song is playing by it.
-  canReplace: (number) => number > FIRST_SONG && number <= LAST_SONG,
+  // Song 1 too: its table entry stays, and a jump at its start plays the new one (genesismusic.ts).
+  canReplace: (number) => number >= FIRST_SONG && number <= LAST_SONG,
   supported: genesisSongsSupported,
   read: readSong,
   fromMidi: songFromMidi,

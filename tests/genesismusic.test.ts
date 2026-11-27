@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { defaultPartChoices, GAME_MUSIC, type PartChoice, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong } from '../src/core/genesismusic'
+import { defaultPartChoices, GAME_MUSIC, type PartChoice, gameMusicFromMidi, gameMusicToMidi, gameMusicTune, musicParts, customSongBytes, readMidi, readSong, SONG_VOICES, songFromMidi, songToMidi, withOriginalSong, withSong, withSongBytes } from '../src/core/genesismusic'
 import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 import { expectSameBytes } from './samebytes'
@@ -121,8 +121,29 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('Genesis organ songs from MIDI f
     const back = withOriginalSong(again, 0x40)
     expect(readSong(back, 0x40)!.custom).toBeNull()
     expect(readSong(back, 0x40)!.events).toEqual(before.events)
-    // Song 1 stays: the game finds the song playing by it.
-    expect(() => withSong(project.bytes, 0x30, made.events, 'x')).toThrow('Song 1 cannot be replaced')
+    // Song 1: its table entry stays (stop_current_song's line between songs and sounds), and its stream starts with a
+    // jump to the new song, which sits past it; put back, the ROM is as it was.
+    const table = 0x2c708 - 0x30 * 4
+    const entry = (rom: Uint8Array) => ((rom[table + 0xc0] << 24) | (rom[table + 0xc1] << 16) | (rom[table + 0xc2] << 8) | rom[table + 0xc3]) >>> 0
+    const own = entry(project.bytes)
+    const one = withSong(project.bytes, 0x30, made.events, 'One')
+    expect(entry(one)).toBe(own)
+    expect([one[own], one[own + 1]]).toEqual([0, 0])
+    const to = ((one[own + 2] << 24) | (one[own + 3] << 16) | (one[own + 4] << 8) | one[own + 5]) >>> 0
+    expect(to).toBeGreaterThan(own)
+    expect(readSong(one, 0x30)!.custom!.name).toBe('One')
+    expect(readSong(one, 0x30)!.events).toEqual(readSong(withSong(project.bytes, 0x41, made.events, 'x'), 0x41)!.events)
+    // Replaced again, and put back.
+    const twice = withSong(one, 0x30, made.events.slice(0, 4), 'Two')
+    expect(readSong(twice, 0x30)!.custom!.name).toBe('Two')
+    const restored = withOriginalSong(twice, 0x30)
+    expect(readSong(restored, 0x30)!.custom).toBeNull()
+    expect(Buffer.compare(Buffer.from(restored.subarray(0, project.bytes.length)), Buffer.from(project.bytes))).toBe(0)
+    // Its bytes for a project file go into a fresh copy the same.
+    const bytes = customSongBytes(one, 0x30)!
+    const copied = withSongBytes(project.bytes, 0x30, bytes)
+    expect(readSong(copied, 0x30)!.custom!.name).toBe('One')
+    expect(Buffer.compare(Buffer.from(withOriginalSong(copied, 0x30).subarray(0, project.bytes.length)), Buffer.from(project.bytes))).toBe(0)
   })
 
   it('keeps a song in a project file, and puts it into a fresh copy of the ROM', () => {
