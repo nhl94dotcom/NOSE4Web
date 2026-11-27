@@ -831,7 +831,9 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           <>
             The original game's clock runs two and a half times as fast as a real one, so that a 5 minute period takes
             2 minutes to play. This makes the game clock, the penalty clock and the penalty shot clock count true
-            seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page.
+            seconds. Periods then last as long as they say, so choose shorter ones on the Game settings page. A penalty
+            shot's shooter then has 25 seconds, not about 10. The penalty shot clock is tested in the game by the NHL94
+            Match Viewer project.
           </>,
         )}
         {hack(
