@@ -185,6 +185,57 @@ function areasOf(cells: number[], width: number): string {
   return `, ${largest.reduce((n, group) => n + group.length, 0) === cells.length ? 'at' : 'most of them at'} ${listed}`
 }
 
+// A guide for drawing on the rink (board ads and the like), not to be imported: the rows the game shows in play, an
+// 8-pixel grid (each square of the grid is one the rink stores), the boards bright (every square within two of the
+// ice: the boards all round, the benches, the penalty boxes and the glass at the ends), everything else dimmed, the ice
+// (see-through in the export) its own pale blue, and the centre ice logo's block, which an import keeps, red.
+// `palette` is the 64 colours the page draws the rink in.
+export function genesisRinkGuide(rom: Uint8Array, view: RinkView, palette: number[]): { rgba: Uint8Array; width: number; height: number; boards: number } | null {
+  const rink = readGenesisRink(rom, view)
+  const drawn = drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), view)
+  if (!rink || !drawn) return null
+  const across = rink.width
+  const down = Math.min(SHOWN_ROWS, rink.height)
+  const [width, height] = [across * 8, down * 8]
+  const pixelAt = (x: number, y: number) => drawn.picture.pixels[y * drawn.picture.width + x]
+  // The ice: squares mostly see-through or in the ice's own colours.
+  const ICE = [0, 1, 2, 8, 9, 10, 11, 13, 15]
+  const ice = new Set<number>()
+  for (let cell = 0; cell < across * down; cell++) {
+    const [cx, cy] = [(cell % across) * 8, Math.floor(cell / across) * 8]
+    let n = 0
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if (ICE.includes(pixelAt(cx + x, cy + y))) n++
+    if (n >= 40) ice.add(cell)
+  }
+  const boards = new Set<number>()
+  for (let cell = 0; cell < across * down; cell++) {
+    if (ice.has(cell)) continue
+    const [col, row] = [cell % across, Math.floor(cell / across)]
+    for (let dr = -2; dr <= 2 && !boards.has(cell); dr++) {
+      for (let dc = -2; dc <= 2; dc++) {
+        if (col + dc >= 0 && col + dc < across && ice.has((row + dr) * across + col + dc)) {
+          boards.add(cell)
+          break
+        }
+      }
+    }
+  }
+  const centreFrom = rink.tileCount - CENTRE_TILES
+  const rgba = new Uint8Array(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cell = Math.floor(y / 8) * across + Math.floor(x / 8)
+      const c = pixelAt(x, y)
+      let [r, g, b] = c === 0 ? [200, 235, 255] : colorRgb(palette[c])
+      if ((rink.words[cell] & 0x7ff) >= centreFrom) [r, g, b] = [r * 0.4 + 150, g * 0.4, b * 0.4]
+      else if (!boards.has(cell)) [r, g, b] = [r * 0.4, g * 0.4, b * 0.4]
+      if (x % 8 === 0 || y % 8 === 0) [r, g, b] = [r * 0.6 + 90, g * 0.6 + 90, b * 0.6 + 90]
+      rgba.set([Math.round(r), Math.round(g), Math.round(b), 255], (y * width + x) * 4)
+    }
+  }
+  return { rgba, width, height, boards: boards.size }
+}
+
 // `fit`: where the picture needs more different squares than there is room for, swap those that differ least from
 // another square (weighed by how many places show them) for the closest one, until it fits.
 export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[], fit = false): RinkImport {

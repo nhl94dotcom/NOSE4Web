@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { drawGenesisRink, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from '../src/core/genesisrink'
+import { drawGenesisRink, genesisRinkGuide, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from '../src/core/genesisrink'
 import { pictureToImage } from '../src/core/graphics'
 import { openRom } from '../src/core/rom'
 
@@ -23,6 +23,19 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('putting an edited rink into NHL
   const rom = () => (opened ??= open())
   const project = { get bytes() { return rom().bytes } }
   const teams = { get home() { return rom().teams[0].palette.slice(0, 16) }, get away() { return rom().teams[1].palette.slice(16, 32) } }
+
+  it('draws a guide of the rows in play: the boards bright, the centre ice block red', () => {
+    const image = rgbaOf(project.bytes, 'play', teams)
+    const guide = genesisRinkGuide(project.bytes, 'play', image.palette)!
+    expect([guide.width, guide.height]).toEqual([384, 680])
+    expect(guide.boards).toBeGreaterThan(400)
+    expect(guide.boards).toBeLessThan(900)
+    // The centre ice block (the last 24 tiles' cells) is tinted red: its pixels' red beats green.
+    const rink = readGenesisRink(project.bytes, 'play')!
+    const cell = rink.words.findIndex((w) => (w & 0x7ff) >= rink.tileCount - 24)
+    const at = ((Math.floor(cell / 48) * 8 + 4) * 384 + (cell % 48) * 8 + 4) * 4
+    expect(guide.rgba[at]).toBeGreaterThan(guide.rgba[at + 1])
+  })
 
   it('finds the reverse angle replay’s rink, with its own map and two tiles fewer', () => {
     const reverse = readGenesisRink(project.bytes, 'reverse')!

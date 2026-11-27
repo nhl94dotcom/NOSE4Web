@@ -20,6 +20,20 @@ export async function readImage(file: Blob): Promise<LoadedImage> {
   return { rgba: context.getImageData(0, 0, bitmap.width, bitmap.height).data, width: bitmap.width, height: bitmap.height }
 }
 
+// Colours already as RGBA, as a PNG file.
+export async function rgbaToPng(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number): Promise<Uint8Array> {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')!
+  const data = context.createImageData(width, height)
+  data.data.set(rgba)
+  context.putImageData(data, 0, 0)
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('The browser could not make a PNG file.')
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
 // A picture as a PNG file, with colour 0 see-through.
 export async function pictureToPng(picture: Picture, palette: number[], format?: ColorFormat): Promise<Uint8Array> {
   const canvas = document.createElement('canvas')

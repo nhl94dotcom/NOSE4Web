@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ARENA_SLOTS, readArenaColours, RINK_OWN } from './core/arenacolours'
-import { drawGenesisRink, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './core/genesisrink'
+import { drawGenesisRink, genesisRinkGuide, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './core/genesisrink'
 import { pictureToImage } from './core/graphics'
 import type { RomProject } from './core/rom'
 import { teamDisplayName } from './core/team'
 import { download } from './download'
-import { pictureToPng, readImage } from './images'
+import { pictureToPng, readImage, rgbaToPng } from './images'
 
 interface Props {
   project: RomProject
@@ -134,7 +134,10 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           stars box below the rink stay as they are, and so do the boards and glass drawn in front of the players. The
           rink has room for only so many different squares; one that repeats another, or another turned round, costs
           nothing, and the page says when a picture needs more. The reverse angle replay has a rink of its own: put a
-          picture in for it too, or its replays show the old rink. Tested in the game by the NHL94 Match Viewer project.
+          picture in for it too, or its replays show the old rink. <b>Drawing guide</b> saves a picture to keep beside
+          the export while you draw, not to import: the 8 by 8 grid the rink is made of, the boards (for ads), benches,
+          penalty boxes and end glass bright, the rest dimmed, and the centre ice block the game keeps in red. Tested in
+          the game by the NHL94 Match Viewer project.
         </p>
       )}
       <p>
@@ -162,6 +165,23 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         >
           Export as PNG
         </button>{' '}
+        {importable(view) && (
+          <>
+            <button
+              onClick={async () => {
+                try {
+                  const guide = genesisRinkGuide(project.bytes, view, drawn.palette)
+                  if (!guide) return
+                  download(await rgbaToPng(guide.rgba, guide.width, guide.height), view === 'play' ? 'rink_guide.png' : 'rink_reverse_guide.png', 'image/png')
+                } catch (e) {
+                  setMessage({ text: e instanceof Error ? e.message : String(e), failed: true })
+                }
+              }}
+            >
+              Drawing guide
+            </button>{' '}
+          </>
+        )}
         {importable(view) && (
           <label className="button">
             Import a PNG…

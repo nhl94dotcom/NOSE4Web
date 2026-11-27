@@ -16,6 +16,7 @@ const CONTENTS: [string, string][] = [
   ['lines', 'Lines'],
   ['hacks', 'Bug fixes and game options (Hacks)'],
   ['looks', 'Team names, colours and logos'],
+  ['boards', 'Ads on the boards (NHL 94, Genesis)'],
   ['music', 'Change a song or the game music'],
   ['size', 'A league with fewer teams than the ROM'],
   ['before', 'Before a season starts: check and compare'],
@@ -291,6 +292,40 @@ export function GuidesPage() {
           different ones, and the page says if a picture needs more.
         </li>
       </ul>
+
+      <h3 id="guide-boards">Ads on the boards (NHL 94, Genesis)</h3>
+      <ol>
+        <li>
+          Open <b>Rink colours</b>. Under <b>The whole rink</b>, click <b>Export as PNG</b> (the picture to edit) and{' '}
+          <b>Drawing guide</b> (a picture to keep beside it, not to import). The guide shows the 8 by 8 grid the rink is
+          made of, with the boards, benches, penalty boxes and end glass bright and the rest dimmed. The red block at
+          centre ice is the home team's logo; leave it alone.
+        </li>
+        <li>
+          Open the export in a paint program and turn on a grid of 8 pixels from the top left corner. Draw the ads on
+          the boards with the rink's own colours (pick them with the eyedropper), with the pencil tool and anti-aliasing
+          off, so every pixel is a rink colour.
+        </li>
+        <li>
+          Keep it cheap: the rink stores each different 8 by 8 square once, and the original rink leaves room for only
+          about 20 more. Line the ads up with the grid, use flat colour, and repeat the same squares (the same ad again
+          further along the boards costs nothing). A small logo of a few squares fits; a photo does not.
+        </li>
+        <li>
+          Save as PNG at the same size and click <b>Import a PNG…</b>. If it says the picture needs too many squares, it
+          names where the new ones are: simplify those, or click <b>Make it fit</b>, which swaps the least different
+          squares for the closest ones the rink has and says how many pixels changed.
+        </li>
+        <li>
+          Do the same for the reverse angle replays' rink (<b>Rink</b>, above the picture), or its replays show the boards
+          without the ads. <b>Undo</b> or <b>Put back the original rink</b> takes it all back.
+        </li>
+      </ol>
+      <p className="note">
+        Skip a step and: without the grid, an ad drawn across squares can need far more squares than it looks; with
+        soft edges or new colours, nearly every square it touches becomes a new one; without the reverse rink, replays
+        show the old boards.
+      </p>
 
       <h3 id="guide-music">Change a song or the game music</h3>
       <p>
