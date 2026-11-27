@@ -679,15 +679,31 @@ const INJURY_IMPACT_AT = 55
 // What the energy code needs from this ROM, all from the energy drain in
 // playeracc: lda.l OptLine / beq; ...; jsl getpde; lda d0; sec; sbc #33 ...
 // (lda seed / and #$3F / bne: one call in 64; the bne is bra with noSkatingDrain).
-const DRAIN = 'af......f0..ad....293f00....22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......'
-const DRAIN_SKIP_AT = 12
+// playeracc's drain, in two forms: the original game's, every 64th frame (lda frames / and #$3F / bne past it), and a
+// later 60 fps build's (lda frames / and #$7F / cmp dp / bcs past it: a league's SA-1 Classic + 60 fps + Fighting ROM,
+// 2026-11-26). Each with where its skip branch is and what that branch is; what follows is the same, 2 bytes on.
+const DRAIN_TAIL = '22......a5..38e9210085..c9000c30..bd....85..1865..85..5c......'
+const DRAINS = [
+  { pattern: 'af......f0..ad....293f00' + '....' + DRAIN_TAIL, skipAt: 12, branch: 0xd0 },
+  { pattern: 'af......f0..ad....297f00c5..' + '....' + DRAIN_TAIL, skipAt: 14, branch: 0xb0 },
+]
+// The drain the ROM has: where it starts, its skip branch, and how far its later parts are moved from the original's.
+function findDrain(rom: Uint8Array): { at: number; skipAt: number; branch: number; moved: number } | null {
+  const found = DRAINS.map((d) => ({ ...d, at: only(rom, d.pattern) })).filter((d) => d.at >= 0)
+  if (found.length !== 1) return null
+  const { at, skipAt, branch } = found[0]
+  return { at, skipAt: at + skipAt, branch, moved: skipAt - 12 }
+}
 // jml setpde. The direct-page a2 and d1 are read from getpde itself.
 function energyEnv(
   rom: Uint8Array,
 ): { gmclock: Uint8Array; optLine: Uint8Array; getpde: Uint8Array; setpde: Uint8Array; a2: number; d0: number; d1: number; pnum: Uint8Array; pfteam: Uint8Array } | null {
-  const drain = only(rom, DRAIN)
-  if (drain < 0) return null
-  const getpde = rom.slice(drain + 15, drain + 18)
+  const found = findDrain(rom)
+  if (!found) return null
+  // Past the skip branch, the original's offsets moved on by the later form's 2 bytes.
+  const drain = found.at
+  const m = found.moved
+  const getpde = rom.slice(drain + 15 + m, drain + 18 + m)
   const at = loRomOffset(getpde[2], getpde[0] | (getpde[1] << 8))
   if (at < 0 || at + 19 > rom.length || rom[at] !== 0xbd || rom[at + 7] !== 0x85 || rom[at + 17] !== 0x85) return null
   // FallDown's .t2 tests the clock with lda.w gmclock (its first 3 bytes may be the hit energy's jsr).
@@ -697,9 +713,9 @@ function energyEnv(
     gmclock: rom.slice(fall + 18, fall + 20),
     optLine: rom.slice(drain, drain + 4),
     getpde,
-    setpde: rom.slice(drain + 42, drain + 45),
+    setpde: rom.slice(drain + 42 + m, drain + 45 + m),
     a2: rom[at + 18],
-    d0: rom[drain + 19],
+    d0: rom[drain + 19 + m],
     d1: rom[at + 8],
     pnum: rom.slice(at + 1, at + 3),
     pfteam: rom.slice(at + 10, at + 12),
@@ -4911,10 +4927,10 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   // With line changes on, playeracc's drain each 64th frame on the ice (with the endurance give-back)
   // never runs: its bne past it becomes bra.
   noSkatingDrain: (rom) => {
-    const found = only(rom, DRAIN)
-    if (found < 0 || ![0xd0, 0x80].includes(rom[found + DRAIN_SKIP_AT])) return null
-    const length = rom[found + DRAIN_SKIP_AT + 1]
-    return [{ at: found + DRAIN_SKIP_AT, original: Uint8Array.of(0xd0, length), hacked: Uint8Array.of(0x80, length) }]
+    const found = findDrain(rom)
+    if (!found || ![found.branch, 0x80].includes(rom[found.skipAt])) return null
+    const length = rom[found.skipAt + 1]
+    return [{ at: found.skipAt, original: Uint8Array.of(found.branch, length), hacked: Uint8Array.of(0x80, length) }]
   },
   // burst (the A button without the puck, with line changes on): jsl getpde; lda.l OptLine / beq; lda d0 / sec / sbc #$CC; sta d0;
   // jsl setpde, then full energy with Auto. The cost becomes 0.
