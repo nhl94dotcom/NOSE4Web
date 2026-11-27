@@ -21,8 +21,9 @@ export function PregameSongsSection({ project, onChange }: Props) {
   // Organ songs on NHL 94 only: NHL '95's matchup screen has not loaded the organ, so one plays silent (Match Viewer).
   const organ = genesisSongs(project.game)
   const offered = organ && !nhl95 ? organ.numbers : []
-  const elsewhere = [...new Set(songs)].filter((song) => song !== PREGAME_SILENCE && !pieces.some((piece) => piece.number === song) && !offered.includes(song))
   const pieces = nhl95 ? NHL95_GAME_MUSIC : GAME_MUSIC
+  // A song the ROM has that the lists above do not offer (an organ song put in on NHL '95 by the first build).
+  const elsewhere = [...new Set(songs)].filter((song) => song !== PREGAME_SILENCE && !pieces.some((piece) => piece.number === song) && !offered.includes(song))
   const ownName = pieces.find((piece) => piece.number === own)?.name ?? 'Its own music'
 
   const set = (team: number, value: number) => {
