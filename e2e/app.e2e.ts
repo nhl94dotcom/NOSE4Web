@@ -3194,7 +3194,7 @@ test.describe('with the SNES game', () => {
     await expect(section.getByText("Every team's crowd now wears its banner's two colours.", { exact: false })).toBeVisible()
     const row = section.locator('tr').filter({ hasText: 'Boston Bruins' })
     await row.getByRole('button', { name: "The crowd's own" }).first().click()
-    await expect(row.getByText("the crowd's own")).toHaveCount(1)
+    await expect(row.getByText("the crowd's own", { exact: true })).toHaveCount(1)
     await section.getByRole('button', { name: "Every team the crowd's own" }).click()
     await expect(section.getByRole('button', { name: "Every team the crowd's own" })).toHaveCount(0)
   })
