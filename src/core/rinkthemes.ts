@@ -11,6 +11,7 @@ export const rinkThemesSupported = (project: Pick<RomProject, 'game' | 'bytes'>)
 
 import { colorRgb } from './color'
 import { drawGenesisRink, importGenesisRink, readGenesisRink, type RinkView } from './genesisrink'
+import { readHorBoard, withHorBoardImage } from './horboard'
 import type { RomProject } from './rom'
 
 export type RinkTheme = 'outdoor' | 'empty'
@@ -109,9 +110,43 @@ export function themedRink(rom: Uint8Array, view: RinkView, palette: number[], t
   return { rgba, width, height }
 }
 
+// The side-on scoreboard's picture (horboard.ts) with its crowd in the theme too: the squares of rows 12 to 17 (the
+// stands behind the glass) that show the crowd, in the rink's line 1, as Match Viewer saw them still full of fans
+// behind the pause menu with a theme in (2026-11-27). Rows 9 to 11's few such squares are the penalty boxes' people.
+export function themedHorBoard(project: Pick<RomProject, 'game' | 'bytes' | 'rinkPalette'>, theme: RinkTheme): { rgba: Uint8ClampedArray; width: number; height: number } | null {
+  const board = readHorBoard(project)
+  if (!board) return null
+  const { width, height, pixels } = board.picture
+  const rgb = board.palette.map((word) => colorRgb(word))
+  const crowd = new Set<number>()
+  for (let row = 12; row <= 17; row++) {
+    for (let col = 0; col < width / 8; col++) {
+      let found = false
+      for (let y = 0; y < 8 && !found; y++) for (let x = 0; x < 8 && !found; x++) if (pixels[(row * 8 + y) * width + col * 8 + x] >= 16) found = true
+      if (found) crowd.add(row * (width / 8) + col)
+    }
+  }
+  const rgba = new Uint8ClampedArray(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const c = pixels[y * width + x]
+      if (crowd.has(Math.floor(y / 8) * (width / 8) + Math.floor(x / 8))) rgba.set([...PAINT[theme](x, y), 255], (y * width + x) * 4)
+      else if (c) rgba.set([...rgb[c], 255], (y * width + x) * 4)
+    }
+  }
+  return { rgba, width, height }
+}
+
 // The project with a theme put into the rink in play and the reverse angle replay's (where the ROM has one). On NHL
 // '95 the two maps share their tiles, so both go in at once (the old crowd's squares freed for both).
 export function withRinkTheme(project: RomProject, theme: RinkTheme, palette: number[]): RomProject {
+  const rinks = withRinkThemeRinks(project, theme, palette)
+  // And the side-on scoreboard's crowd.
+  const side = themedHorBoard(rinks, theme)
+  return side ? withHorBoardImage(rinks, side.rgba, side.width, side.height).project : rinks
+}
+
+function withRinkThemeRinks(project: RomProject, theme: RinkTheme, palette: number[]): RomProject {
   const [play, reverse] = [readGenesisRink(project.bytes, 'play'), readGenesisRink(project.bytes, 'reverse')]
   const images = { play: themedRink(project.bytes, 'play', palette, theme), reverse: themedRink(project.bytes, 'reverse', palette, theme) }
   if (!play || !images.play) return project

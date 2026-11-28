@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { drawGenesisRink } from '../src/core/genesisrink'
+import { readHorBoard } from '../src/core/horboard'
 import { openRom } from '../src/core/rom'
 import { RINK_THEMES, rinkThemesSupported, withRinkTheme } from '../src/core/rinkthemes'
 
@@ -37,6 +38,18 @@ for (const name of ['nhl94.bin']) {
           for (const row of [14, 77]) for (let y = row * 8; y < row * 8 + 8; y++) for (let x = 23 * 8; x < 25 * 8; x++) if (was.pixels[y * 384 + x] !== now.pixels[y * 384 + x]) nets++
           expect(nets).toBe(0)
         }
+        // The side-on scoreboard's crowd (rows 12-17) in the theme too; the rest of its picture as it was.
+        const [sideWas, sideNow] = [readHorBoard(project)!.picture, readHorBoard(after)!.picture]
+        let crowdRows = 0
+        let elsewhere = 0
+        for (let i = 0; i < 256 * 224; i++) {
+          if (sideWas.pixels[i] === sideNow.pixels[i]) continue
+          const row = Math.floor(i / 256 / 8)
+          if (row >= 12 && row <= 17) crowdRows++
+          else elsewhere++
+        }
+        expect(crowdRows).toBeGreaterThan(2000)
+        expect(elsewhere).toBe(0)
       })
     }
   })

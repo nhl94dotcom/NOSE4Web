@@ -1706,7 +1706,7 @@ export function HelpPage() {
         <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
         undoes both. <b>Edit the rink…</b> draws on it here, a stroke at a time, with the same rules, the squares
         counted as you draw, and <b>Copy</b> and <b>Stamp</b> to repeat a part (snapped to the squares). Tested in the
-        game by the NHL94 Match Viewer project. On NHL 94, <b>Rink theme</b> redraws the stands of both rinks in one
+        game by the NHL94 Match Viewer project. On NHL 94, <b>Rink theme</b> redraws the stands of both rinks, and the crowd behind the side-on scoreboard, in one
         go: <b>Outdoor</b> (snow and pine trees) or <b>Empty arena</b> (empty seats); the ice, boards, benches and
         penalty boxes stay, and the fans the game draws over the stands still show unless <b>No fans in the stands</b>{' '}
         (Hacks page, Looks and sound) is on. Tested in the game by the NHL94 Match Viewer project. On NHL 94, <b>Side-on scoreboard</b> is the rink seen from the side

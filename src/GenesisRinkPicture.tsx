@@ -258,7 +258,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
               try {
                 onChange({ ...project, ...withRinkTheme(project, theme, drawn.palette) })
                 const name = RINK_THEMES.find((t) => t.theme === theme)!.name
-                setMessage({ text: `${name} is in: the stands of the rink in play and the reverse angle replay's are redrawn. Undo or Put back the original rink takes it back.`, failed: false })
+                setMessage({ text: `${name} is in: the stands of the rink in play and the reverse angle replay's are redrawn, and the crowd behind the side-on scoreboard. Undo takes it all back (Put back the original rink, and the side-on scoreboard's own Put back the original below, each take back their part).`, failed: false })
               } catch (e) {
                 setMessage({ text: e instanceof RinkImportError ? e.message : String(e), failed: true })
               }
