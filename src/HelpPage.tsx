@@ -1708,7 +1708,7 @@ export function HelpPage() {
         counted as you draw, and <b>Copy</b> and <b>Stamp</b> to repeat a part (snapped to the squares). Tested in the
         game by the NHL94 Match Viewer project. On NHL 94, <b>Side-on scoreboard</b> is the rink seen from the side
         behind the pause menu and the intermission, with its own <b>Export as PNG</b> and <b>Import a PNG…</b>, for a
-        logo or ads on its boards and glass, in the rink's colours. Not yet tested in the game. On the SNES the page's own picture of the rink, with the home team's
+        logo or ads on its boards and glass, in the rink's colours; tested in the game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too, and <b>Import a PNG…</b> and{' '}
         <b>Edit the rink…</b> to put an edited one back, with room for about 85 more squares; the centre ice logo's
         place, the crowd's moving squares and the replay icon stay as they are, and the rows below the rink (the pause

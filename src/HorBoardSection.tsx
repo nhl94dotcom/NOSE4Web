@@ -44,7 +44,7 @@ export function HorBoardSection({ project, opened, onChange }: Props) {
         blocks, scores and clock cover rows 2 to 5, and the menu box, the intermission's scores and a penalty's name bar
         cover their parts while they show. It is drawn in the rink's own colours (the Rink colours above), all of them
         to use; a picture of your own, 256 by 224 pixels as <b>Export as PNG</b> saves it, has room for{' '}
-        {HOR_MOST_TILES} different 8 by 8 squares. Not yet tested in the game.
+        {HOR_MOST_TILES} different 8 by 8 squares. Tested in the game by the NHL94 Match Viewer project.
       </p>
       <PictureView picture={board.picture} palette={board.palette} scale={2} />
       <p>
