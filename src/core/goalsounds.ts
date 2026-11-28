@@ -16,7 +16,10 @@ import { claimSpace, claimSpace95, releaseSpace } from './space'
 //   .home move.w (HomeTeam).w,d0; add.w d0,d0; lea table(pc),a0; move.w (a0,d0.w),d0
 //   .play move.w d0,-(sp); jsr (sfx).l; movem.l (sp)+,d0/a0; rts
 //   table: a word for each of 32 home teams, then the visitors' word.
-// A penalty shot or shootout goal comes through the same place.
+// A penalty shot or shootout goal comes through the same place. Match Viewer (2026-11-28, both games, 32 goals plus
+// penalty shots and shootouts): every goal made the right team's sound, goal songs as before; the game also starts a
+// crowd cheer of its own at every home goal, which this does not change, so a home goal's 'No siren' is the crowd
+// only; the horn (with that cheer) is about 1.7 times as loud as the siren.
 
 // The game's own sound effects offered (sfx numbers, the same in both games; NHL '95 maps them through SfxTable).
 export const GOAL_SIREN = 0
@@ -24,7 +27,8 @@ export const GOAL_SOUNDS = [
   { number: GOAL_SIREN, name: "The goal siren (the game's own)" },
   { number: 4, name: 'The end of period horn' },
   { number: 0xb, name: 'The crowd cheering' },
-  { number: 0xffff, name: 'No sound (the crowd and goal song only)' },
+  { number: 0xc, name: 'The crowd booing' },
+  { number: 0xffff, name: 'No siren' },
 ] as const
 
 const TABLE_TEAMS = 32

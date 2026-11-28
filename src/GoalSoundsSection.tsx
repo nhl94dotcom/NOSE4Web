@@ -39,8 +39,9 @@ export function GoalSoundsSection({ project, onChange }: Props) {
       <h2>Goal sounds</h2>
       <p className="note">
         The sound when a goal goes in, in place of the goal siren: the home team's choice when they score, and one for
-        every visiting team's goal. The crowd still cheers, and a home goal's organ song still follows. Not yet tested in
-        the game.
+        every visiting team's goal. A home goal also gets the crowd's own cheer, whatever is chosen, and its organ song
+        still follows. The end of period horn is louder than the siren. Tested in the game by the NHL94 Match Viewer
+        project.
       </p>
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
       <p>

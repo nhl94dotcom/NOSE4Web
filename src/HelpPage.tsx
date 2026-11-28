@@ -1125,7 +1125,8 @@ export function HelpPage() {
         <li>
           <b>Goal sounds</b> (Genesis, NHL 94 and NHL '95): the sound a goal makes in place of the goal siren, chosen
           for each home team's own goals, and one for every visiting team's goal: the siren, the end of period horn, the
-          crowd cheering or no sound. <b>The goal siren for every goal</b> puts it back. Not yet tested in the game.
+          crowd cheering, the crowd booing or no siren (a home goal still gets the crowd's own cheer). <b>The goal siren
+          for every goal</b> puts it back. Tested in the game by the NHL94 Match Viewer project.
         </li>
       </ul>
 
