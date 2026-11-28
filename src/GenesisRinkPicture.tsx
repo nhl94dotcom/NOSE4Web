@@ -7,6 +7,7 @@ import { teamDisplayName } from './core/team'
 import { download } from './download'
 import { pictureToPng, readImage, rgbaToPng } from './images'
 import { PixelEditor } from './PixelEditor'
+import { RINK_THEMES, rinkThemesSupported, withRinkTheme, type RinkTheme } from './core/rinkthemes'
 
 // The rows of the rink the game shows in play, which the editor draws on.
 const SHOWN_ROWS = 85
@@ -31,6 +32,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   // Drawing on the rink here, and why the last stroke was refused.
   const [editing, setEditing] = useState(false)
   const [refused, setRefused] = useState('')
+  const [theme, setTheme] = useState<RinkTheme>('outdoor')
   // A picture with too many different squares, kept for Make it fit.
   const [tooMany, setTooMany] = useState<{ image: Awaited<ReturnType<typeof readImage>>; view: RinkView } | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -239,6 +241,38 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         )}{' '}
         {opened && onChange && (changed('play') || changed('reverse')) && <button onClick={putBack}>Put back the original rink</button>}
       </p>
+      {onChange && rinkThemesSupported(project) && (
+        <p>
+          <label>
+            Rink theme{' '}
+            <select value={theme} onChange={(e) => setTheme(e.target.value as RinkTheme)}>
+              {RINK_THEMES.map((t) => (
+                <option key={t.theme} value={t.theme}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>{' '}
+          <button
+            onClick={() => {
+              try {
+                onChange({ ...project, ...withRinkTheme(project, theme, drawn.palette) })
+                const name = RINK_THEMES.find((t) => t.theme === theme)!.name
+                setMessage({ text: `${name} is in: the stands of the rink in play and the reverse angle replay's are redrawn. Undo or Put back the original rink takes it back.`, failed: false })
+              } catch (e) {
+                setMessage({ text: e instanceof RinkImportError ? e.message : String(e), failed: true })
+              }
+            }}
+          >
+            Put in the theme
+          </button>{' '}
+          <span className="note">
+            {RINK_THEMES.find((t) => t.theme === theme)!.note} The ice, boards, benches and penalty boxes stay as they are.
+            The fans that move (who jump at a goal) are drawn over the stands by the game, so they still show. Not yet
+            tested in the game.
+          </span>
+        </p>
+      )}
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
       {editing && importable(view) && (
         <PixelEditor

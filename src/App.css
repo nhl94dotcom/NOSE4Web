@@ -816,6 +816,9 @@ button:disabled {
 
 .paint-canvas {
   max-width: 100%;
+  /* A big picture (the rink) scrolls inside the window, both scroll bars in sight. */
+  max-height: 75vh;
+  min-width: 0;
   overflow: auto;
   border: 1px solid var(--line);
   line-height: 0;

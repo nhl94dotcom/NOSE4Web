@@ -263,8 +263,16 @@ export function genesisRinkGuide(rom: Uint8Array, view: RinkView, palette: numbe
 }
 
 // `fit`: where the picture needs more different squares than there is room for, swap those that differ least from
-// another square (weighed by how many places show them) for the closest one, until it fits.
-export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[], fit = false): RinkImport {
+// another square (weighed by how many places show them) for the closest one, until it fits. `other`: on NHL '95, a
+// picture for the other view's map too (which shares the tiles), in place of its own drawing.
+export function importGenesisRink(
+  rom: Uint8Array,
+  view: RinkView,
+  image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number },
+  palette: number[],
+  fit = false,
+  other?: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number },
+): RinkImport {
   const rink = readGenesisRink(rom, view)
   if (!rink || rink.height < SHOWN_ROWS) throw new RinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
   const fullHeight = rink.height * 8
@@ -275,8 +283,8 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
   // The maps the tiles are drawn by: this view's, and on NHL '95 the other view's too, which shares them. The other
   // keeps its picture: its squares go in again from its own drawing, so the tiles serve both.
   const otherView: RinkView = view === 'play' ? 'reverse' : 'play'
-  const other = readGenesisRink(rom, otherView)
-  const sharing = other !== null && other.tilesAt === rink.tilesAt && other.mapAt !== rink.mapAt
+  const otherRink = readGenesisRink(rom, otherView)
+  const sharing = otherRink !== null && otherRink.tilesAt === rink.tilesAt && otherRink.mapAt !== rink.mapAt
   const drawnAs = (v: RinkView) => {
     const d = drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), v)!.picture
     const rgba = new Uint8Array(d.width * d.height * 4)
@@ -287,7 +295,7 @@ export function importGenesisRink(rom: Uint8Array, view: RinkView, image: { rgba
   }
   const maps = [
     { rink, view, image, original: drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), view)!.picture },
-    ...(sharing ? [{ rink: other!, view: otherView, image: drawnAs(otherView), original: drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), otherView)!.picture }] : []),
+    ...(sharing ? [{ rink: otherRink!, view: otherView, image: other ?? drawnAs(otherView), original: drawGenesisRink(rom, palette.slice(32, 48), palette.slice(48, 64), otherView)!.picture }] : []),
   ]
   // A cell of a map, as one number.
   const MAP_CELLS = 0x10000

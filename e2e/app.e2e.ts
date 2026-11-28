@@ -558,6 +558,19 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(editor).toHaveCount(0)
   })
 
+  test('puts a rink theme into both rinks, and the original back', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: 'The whole rink' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'The whole rink' }) })
+    await section.getByLabel('Rink theme').selectOption({ label: 'Empty arena' })
+    await section.getByRole('button', { name: 'Put in the theme' }).click()
+    await expect(section.getByText(/^Empty arena is in: the stands/)).toBeVisible()
+    await section.getByRole('button', { name: 'Put back the original rink' }).click()
+    await expect(section.getByRole('button', { name: 'Put back the original rink' })).toHaveCount(0)
+  })
+
   test('exports the title screen picture, puts it back in, and puts the original back', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Game settings').click()
