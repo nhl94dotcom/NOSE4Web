@@ -643,6 +643,11 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
             wins the game, its scorer is first star, as in the original game.
           </>,
         )}
+        {hack(
+          'intermissionReport',
+          onOff('intermissionReport'),
+          "Between periods and at the end of the game, before the ticker and highlights, the ticker box shows up to two pages of facts about the game: scorers, a goalie who has stopped every shot, shots, the power play, faceoffs, hits, breakaways, one-timer and shorthanded goals, passing and the score, the four that stand out most. Any button turns the page; START skips to the next period, as in the ticker. Not shown in a shootout. Made and tested in the game by the NHL94 Match Viewer project.",
+        )}
       </section>
 
       <section id="hacks-ratings">
@@ -1313,11 +1318,6 @@ export function HacksPage({ project, name, onChange, kept, onKeep }: Props) {
           'greenFan',
           onOff('greenFan'),
           "A fan in a green shirt in the stands is missing their arm and leg in the original game, cut off by the stairs. This puts them back from tiles still in the ROM. From kingraph's forum post; several league ROMs have it. Tested in the game by the NHL94 Match Viewer project.",
-        )}
-        {hack(
-          'intermissionReport',
-          onOff('intermissionReport'),
-          "Between periods and at the end of the game, before the ticker and highlights, the ticker box shows up to two pages of facts about the game: scorers, a goalie who has stopped every shot, shots, the power play, faceoffs, hits, breakaways, one-timer and shorthanded goals, passing and the score, the four that stand out most. Any button turns the page; START skips to the next period, as in the ticker. Not shown in a shootout. Made and tested in the game by the NHL94 Match Viewer project.",
         )}
         {hack(
           'noFans',
