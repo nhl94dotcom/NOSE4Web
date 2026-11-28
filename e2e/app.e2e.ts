@@ -559,6 +559,31 @@ test.describe('with the NHL 94 ROM', () => {
     await expect(editor).toHaveCount(0)
   })
 
+  test('edits the side-on scoreboard here: a stroke goes in, and the original goes back', async ({ page }) => {
+    await openRom(page)
+    await entry(page, 'Rink colours').click()
+    const tab = page.getByRole('tab', { name: 'Side-on scoreboard' })
+    if (await tab.isVisible()) await tab.click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Side-on scoreboard' }) })
+    await section.getByRole('button', { name: 'Edit the side-on scoreboard…' }).click()
+    const editor = section.getByRole('group', { name: 'Draw the side-on scoreboard' })
+    await expect(editor.getByText(/^It takes \d+ of the 454 squares/)).toBeVisible()
+    await editor.getByLabel('Zoom').selectOption('2')
+    const canvas = editor.getByLabel('Side-on scoreboard, drawn large')
+    await editor.getByRole('button', { name: 'Row 0 colour 12', exact: true }).click()
+    await editor.getByRole('button', { name: 'Filled rectangle' }).click()
+    await canvas.evaluate((c: HTMLCanvasElement) => c.scrollIntoView({ block: 'start' }))
+    const box = (await canvas.boundingBox())!
+    const at = (x: number, y: number) => [box.x + ((x + 0.5) * box.width) / 256, box.y + ((y + 0.5) * box.height) / 224] as const
+    await page.mouse.move(...at(64, 144))
+    await page.mouse.down()
+    await page.mouse.move(...at(95, 159), { steps: 4 })
+    await page.mouse.up()
+    await expect(section.getByText('A picture of your own.')).toBeVisible()
+    await section.getByRole('button', { name: 'Put back the original' }).click()
+    await expect(section.getByText("The original game's picture.")).toBeVisible()
+  })
+
   test('puts a rink theme into both rinks, and the original back', async ({ page }) => {
     await openRom(page)
     await entry(page, 'Rink colours').click()
@@ -3197,6 +3222,30 @@ test.describe('with the SNES game', () => {
     const png = await downloadFrom(page, section.getByRole('button', { name: 'Export as PNG' }))
     await section.getByLabel('Import a rink picture').setInputFiles(await png.path())
     await expect(section.getByText(/^The rink is now the picture: it takes \d+ of the \d+ squares/)).toBeVisible()
+  })
+
+  test('edits the pause side view below the rink here: a stroke goes in', async ({ page }) => {
+    await page.goto('/')
+    await romPicker(page).setInputFiles(snesPath)
+    await entry(page, 'Rink colours').click()
+    const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Rink colours' }) })
+    await section.getByRole('button', { name: 'Edit the pause side view…' }).click()
+    const editor = section.getByRole('group', { name: 'Draw the pause side view' })
+    await editor.getByLabel('Zoom').selectOption('2')
+    const count = async () => Number(/It takes (\d+)/.exec((await editor.getByText(/^It takes \d+ of the/).textContent()) ?? '')![1])
+    const before = await count()
+    await editor.getByRole('button', { name: 'Row 0 colour 3', exact: true }).click()
+    await editor.getByRole('button', { name: 'Filled rectangle' }).click()
+    const canvas = editor.getByLabel('Pause side view, drawn large')
+    await canvas.evaluate((c: HTMLCanvasElement) => c.scrollIntoView({ block: 'start' }))
+    const box = (await canvas.boundingBox())!
+    const at = (x: number, y: number) => [box.x + ((x + 0.5) * box.width) / 384, box.y + ((y + 0.5) * box.height) / 224] as const
+    // A small block on the side view's boards (the crowd's moving squares above them stay as they are): new squares.
+    await page.mouse.move(...at(40, 152))
+    await page.mouse.down()
+    await page.mouse.move(...at(61, 165), { steps: 4 })
+    await page.mouse.up()
+    await expect.poll(count).toBeGreaterThan(before)
   })
 
   test("dresses each home team's crowd in its banner colours, and puts the crowd's own back", async ({ page }) => {

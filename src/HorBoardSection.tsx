@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { HorBoardError, HOR_MOST_TILES, readHorBoard, withHorBoardImage, withOriginalHorBoard } from './core/horboard'
+import { pictureToImage, type Picture } from './core/graphics'
 import type { RomProject } from './core/rom'
 import { download } from './download'
 import { PictureView } from './GraphicsEditor'
 import { pictureToPng, readImage } from './images'
+import { PixelEditor } from './PixelEditor'
+
+// Both of the rink's own palette lines, as the picture is drawn in them.
+const BOARD_COLOURS = [...Array.from({ length: 15 }, (_, i) => i + 1), ...Array.from({ length: 15 }, (_, i) => i + 17)]
 
 interface Props {
   project: RomProject
@@ -15,8 +20,28 @@ interface Props {
 // penalty's side-on view.
 export function HorBoardSection({ project, opened, onChange }: Props) {
   const [notice, setNotice] = useState<{ text: string; failed: boolean } | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [refused, setRefused] = useState('')
   const board = readHorBoard(project)
   if (!board) return null
+  const asImage = (picture: Picture) => pictureToImage(picture, board.palette)
+  // Each stroke in the editor goes in as an import of the whole picture.
+  const stroke = (picture: Picture) => {
+    try {
+      onChange(withHorBoardImage(project, asImage(picture), picture.width, picture.height).project)
+      setRefused('')
+    } catch (e) {
+      setRefused(e instanceof Error ? e.message : String(e))
+    }
+  }
+  const squaresUsed = (picture: Picture) => {
+    try {
+      const made = withHorBoardImage(project, asImage(picture), picture.width, picture.height)
+      return { text: `It takes ${made.tiles} of the ${HOR_MOST_TILES} squares of 8 by 8 pixels there is room for.`, over: false }
+    } catch (e) {
+      return e instanceof HorBoardError ? { text: e.message, over: true } : null
+    }
+  }
   const wasOriginal = readHorBoard(opened)?.original ?? true
 
   async function importPicture(file: File) {
@@ -44,7 +69,8 @@ export function HorBoardSection({ project, opened, onChange }: Props) {
         blocks, scores and clock cover rows 2 to 5, and the menu box, the intermission's scores and a penalty's name bar
         cover their parts while they show. It is drawn in the rink's own colours (the Rink colours above), all of them
         to use; a picture of your own, 256 by 224 pixels as <b>Export as PNG</b> saves it, has room for{' '}
-        {HOR_MOST_TILES} different 8 by 8 squares. Tested in the game by the NHL94 Match Viewer project.
+        {HOR_MOST_TILES} different 8 by 8 squares. <b>Edit the side-on scoreboard…</b> draws on it here, each stroke
+        going in as you draw. Tested in the game by the NHL94 Match Viewer project.
       </p>
       <PictureView picture={board.picture} palette={board.palette} scale={2} />
       <p>
@@ -71,6 +97,9 @@ export function HorBoardSection({ project, opened, onChange }: Props) {
             }}
           />
         </label>{' '}
+        <button aria-pressed={editing} onClick={() => setEditing(!editing)}>
+          Edit the side-on scoreboard…
+        </button>{' '}
         <button
           disabled={board.original}
           onClick={() => {
@@ -87,6 +116,23 @@ export function HorBoardSection({ project, opened, onChange }: Props) {
         <span className="note">{board.original ? "The original game's picture." : wasOriginal ? 'A picture of your own.' : 'This ROM has a picture of its own.'}</span>
       </p>
       {notice && <p className={notice.failed ? 'error' : 'note'}>{notice.text}</p>}
+      {editing && (
+        <PixelEditor
+          title="Side-on scoreboard"
+          picture={board.picture}
+          palette={board.palette}
+          colours={BOARD_COLOURS}
+          limit={squaresUsed}
+          problem={refused || undefined}
+          snap={8}
+          startZoom={3}
+          onCommit={stroke}
+          onClose={() => {
+            setEditing(false)
+            setRefused('')
+          }}
+        />
+      )}
     </section>
   )
 }

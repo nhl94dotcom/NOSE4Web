@@ -38,6 +38,9 @@ interface Props {
   onProject?: (project: RomProject) => void
 }
 
+// The first row of the pause and intermission scoreboard's side view, below the rink in play.
+const SIDE_FROM = 680
+
 export function SnesRinkEditor({ project, original, onChange, onProject }: Props) {
   const palette = project.rinkPalette
   const teams = project.teams
@@ -45,7 +48,8 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
   const [visitor, setVisitor] = useState(Math.min(1, teams.length - 1))
   const canvas = useRef<HTMLCanvasElement>(null)
   const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null)
-  const [editing, setEditing] = useState(false)
+  // Which part the editor draws on: the rink in play, or the pause scoreboard's side view below it.
+  const [editing, setEditing] = useState<false | 'rink' | 'side'>(false)
   const [refused, setRefused] = useState('')
 
   const edits = project.snesPictures ?? NO_SNES_PICTURE_EDITS
@@ -66,11 +70,21 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
     return out
   }, [palette, teams, home, visitor, ice])
   const importable = onProject !== undefined && snesRinkImportable(project.bytes)
-  // The rows in play, to draw on, without the centre ice logo (its cells stay as they are).
+  // The whole picture without the centre ice logo (its cells stay as they are); the editor draws on the rows in play,
+  // or on the side view's rows below them, and a stroke goes in as the whole picture.
+  const whole = useMemo(() => drawSnesRink(project.bytes, null), [project.bytes])
   const bare = useMemo(() => {
-    const whole = drawSnesRink(project.bytes, null)
-    return whole ? { width: whole.width, height: 680, pixels: whole.pixels.slice(0, whole.width * 680) } : null
-  }, [project.bytes])
+    if (!whole) return null
+    if (editing === 'side') return whole.height > SIDE_FROM ? { width: whole.width, height: whole.height - SIDE_FROM, pixels: whole.pixels.slice(whole.width * SIDE_FROM) } : null
+    return { width: whole.width, height: SIDE_FROM, pixels: whole.pixels.slice(0, whole.width * SIDE_FROM) }
+  }, [whole, editing])
+  // A drawing as the whole picture: the side view's rows put under the rink's.
+  const asWhole = (p: Picture): Picture => {
+    if (editing !== 'side' || !whole) return p
+    const pixels = whole.pixels.slice()
+    pixels.set(p.pixels, whole.width * SIDE_FROM)
+    return { width: whole.width, height: whole.height, pixels }
+  }
   // Saved, edited and put back in one set of colours whoever is chosen to look at (snesRinkFileColours).
   const files = useMemo(() => snesRinkFileColours(project), [project])
   const asImage = (p: Picture) => ({ rgba: pictureToImage(p, files, SNES_COLORS), width: p.width, height: p.height })
@@ -150,9 +164,14 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
                   }}
                 />
               </label>{' '}
-              <button aria-pressed={editing} onClick={() => setEditing(!editing)}>
-                {editing ? 'Stop editing' : 'Edit the rink…'}
-              </button>
+              <button aria-pressed={editing === 'rink'} onClick={() => setEditing(editing === 'rink' ? false : 'rink')}>
+                {editing === 'rink' ? 'Stop editing' : 'Edit the rink…'}
+              </button>{' '}
+              {whole && whole.height > SIDE_FROM && (
+                <button aria-pressed={editing === 'side'} onClick={() => setEditing(editing === 'side' ? false : 'side')}>
+                  {editing === 'side' ? 'Stop editing' : 'Edit the pause side view…'}
+                </button>
+              )}
             </>
           )}
         </p>
@@ -165,19 +184,22 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           rink (from 680 pixels down) are the pause and intermission scoreboard's side view: with the whole picture, 904
           rows, ads can go on its boards and glass too (its left 256 pixels show, from about 680 to 840 down). The rink has room for its own squares and about 85 more; a square that
           repeats another, turned round or not, costs nothing. <b>Edit the rink…</b> draws on it here, a stroke at a
-          time, with the same rules. Tested in the game by the NHL94 Match Viewer project.
+          time, with the same rules, and <b>Edit the pause side view…</b> the side view's rows below it (the boards and stands
+          seen from the side at a pause, an intermission or a penalty; its left 256 pixels show). Tested in the game by
+          the NHL94 Match Viewer project.
         </p>
         {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
         {editing && importable && bare && (
           <PixelEditor
-            title="Rink"
+            key={editing}
+            title={editing === 'side' ? 'Pause side view' : 'Rink'}
             picture={bare}
             palette={files}
             format={SNES_COLORS}
             colours={[...Array.from({ length: 15 }, (_, i) => i + 1), ...Array.from({ length: 15 }, (_, i) => i + 17)]}
             limit={(p) => {
               try {
-                const result = put(asImage(p))
+                const result = put(asImage(asWhole(p)))
                 return { text: `It takes ${result.used} of the ${result.room} squares of 8 by 8 pixels the rink has room for.`, over: false }
               } catch (err) {
                 return err instanceof SnesRinkImportError ? { text: err.message, over: true } : null
@@ -188,7 +210,7 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
             startZoom={4}
             onCommit={(p) => {
               try {
-                onProject!({ ...project, bytes: put(asImage(p)).rom })
+                onProject!({ ...project, bytes: put(asImage(asWhole(p))).rom })
                 setRefused('')
               } catch (err) {
                 setRefused(err instanceof SnesRinkImportError ? err.message : String(err))
