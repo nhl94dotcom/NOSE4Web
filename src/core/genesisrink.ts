@@ -143,8 +143,10 @@ export function drawGenesisRink(rom: Uint8Array, home?: number[], away?: number[
 //   them stay as they are;
 // - the replay icon (columns 32-39, rows 85-88) and, on the rink in play, the three stars box (columns 13-18, rows
 //   91-94) are read from the map's hidden rows: they stay as they are, and so do the rows the picture leaves out;
-// - each cell keeps its palette line (the rink's, or a team's for the players on the benches) and its priority bit
-//   (the boards and glass drawn in front of the players), so its pixels are matched to that line's colours;
+// - each cell keeps its priority bit (the boards and glass drawn in front of the players); a cell in a team's palette
+//   line (the players on the benches) keeps it, and one in the rink's own two takes whichever of them its pixels fit
+//   better (a tie keeps the line it had), so that people drawn where the boards were keep their skin and clothes
+//   colours, which only line 1 has (the user's "zombies", 2026-11-28); its pixels are matched to that line's colours;
 // - a square that repeats another, turned or not, takes no tile of its own.
 
 export class RinkImportError extends Error {
@@ -343,34 +345,49 @@ export function importGenesisRink(
   })
 
   // Each cell's square from the picture: each pixel to the nearest of the cell's line's colours, or the backdrop
-  // (colour 0); a tie keeps what was there.
+  // (colour 0); a tie keeps what was there. A cell in line 0 or 1 takes the one of the two that fits it better.
   const squareOf = new Map<number, Uint8Array>()
+  const lineFor = new Map<number, number>()
+  const lineAt = (id: number) => lineFor.get(id) ?? (wordOf(id) >> 13) & 3
   for (const id of ids) {
     if (kept(id)) continue
     const { rink: r, image, original } = mapOf(id)
     const cell = id % MAP_CELLS
-    const line = (r.words[cell] >> 13) & 3
+    const own = (r.words[cell] >> 13) & 3
     const [cx, cy] = [(cell % r.width) * 8, Math.floor(cell / r.width) * 8]
-    const choices = [0, ...Array.from({ length: 15 }, (_, i) => line * 16 + i + 1)]
-    const bytes = new Uint8Array(TILE)
-    for (let y = 0; y < 8; y++) {
-      for (let x = 0; x < 8; x++) {
-        const i = (cy + y) * image.width + cx + x
-        const [r, g, b] = [image.rgba[i * 4], image.rgba[i * 4 + 1], image.rgba[i * 4 + 2]]
-        const was = original.pixels[i]
-        // A see-through pixel (as Export as PNG saves the backdrop) is the backdrop.
-        if (image.rgba[i * 4 + 3] < 128) continue
-        let best = choices[0]
-        let bestDistance = Infinity
-        for (const c of choices) {
-          const d = (rgb[c][0] - r) ** 2 + (rgb[c][1] - g) ** 2 + (rgb[c][2] - b) ** 2
-          if (d < bestDistance || (d === bestDistance && c === was)) [best, bestDistance] = [c, d]
+    const inLine = (line: number) => {
+      const choices = [0, ...Array.from({ length: 15 }, (_, i) => line * 16 + i + 1)]
+      const bytes = new Uint8Array(TILE)
+      let total = 0
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const i = (cy + y) * image.width + cx + x
+          const [r, g, b] = [image.rgba[i * 4], image.rgba[i * 4 + 1], image.rgba[i * 4 + 2]]
+          const was = original.pixels[i]
+          // A see-through pixel (as Export as PNG saves the backdrop) is the backdrop.
+          if (image.rgba[i * 4 + 3] < 128) continue
+          let best = choices[0]
+          let bestDistance = Infinity
+          for (const c of choices) {
+            const d = (rgb[c][0] - r) ** 2 + (rgb[c][1] - g) ** 2 + (rgb[c][2] - b) ** 2
+            if (d < bestDistance || (d === bestDistance && c === was)) [best, bestDistance] = [c, d]
+          }
+          total += bestDistance
+          const colour = best === 0 ? 0 : best - line * 16
+          bytes[y * 4 + (x >> 1)] |= x & 1 ? colour : colour << 4
         }
-        const colour = best === 0 ? 0 : best - line * 16
-        bytes[y * 4 + (x >> 1)] |= x & 1 ? colour : colour << 4
+      }
+      return { bytes, total }
+    }
+    let chosen = inLine(own)
+    if (own <= 1 && chosen.total > 0) {
+      const other = inLine(1 - own)
+      if (other.total < chosen.total) {
+        chosen = other
+        lineFor.set(id, 1 - own)
       }
     }
-    squareOf.set(id, bytes)
+    squareOf.set(id, chosen.bytes)
   }
 
   // The picture's different squares the rink does not keep, each once however turned: the first cell showing it, and
@@ -425,7 +442,7 @@ export function importGenesisRink(
   const keys = [...fresh.keys()]
   const freshPixels = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)[0]]))
   const freshTurnings = new Map(keys.map((key) => [key, pixelsOf(fresh.get(key)!.bytes)]))
-  const lineOf = (key: string) => (wordOf(fresh.get(key)!.cells[0]) >> 13) & 3
+  const lineOf = (key: string) => lineAt(fresh.get(key)!.cells[0])
   const keptKeys = new Set(keys)
   const swappedKeys = new Set<string>()
   if (used > free.length) {
@@ -477,7 +494,7 @@ export function importGenesisRink(
     let place = known.get(variants(bytes)[0][0])
     if (!place) {
       const own = pixelsOf(bytes)[0]
-      const line = (word >> 13) & 3
+      const line = lineAt(id)
       let best = { tile: 0, flip: 0, d: Infinity, turning: own }
       for (const { tile, turnings } of stored) {
         turnings.forEach((t, k) => {
@@ -489,7 +506,7 @@ export function importGenesisRink(
       places++
       for (let i = 0; i < 64; i++) if (own[i] !== best.turning[i]) pixels++
     }
-    words[Math.floor(id / MAP_CELLS)][id % MAP_CELLS] = (word & 0xe000) | place.flip | place.tile
+    words[Math.floor(id / MAP_CELLS)][id % MAP_CELLS] = (word & 0x8000) | (lineAt(id) << 13) | place.flip | place.tile
   }
   maps.forEach((m, k) => words[k].forEach((word, cell) => writeU16(out, m.rink.mapAt + 4 + cell * 2, word)))
   return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels }

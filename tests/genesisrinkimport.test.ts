@@ -37,6 +37,26 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('putting an edited rink into NHL
     expect(guide.rgba[at]).toBeGreaterThan(guide.rgba[at + 1])
   })
 
+  it('keeps people drawn where the boards were in their own colours: a square moves to the rink line that fits', () => {
+    // A crowd square (row 12, column 0: line 1, skin and clothes colours) stamped over one in line 0 (row 44, column 0).
+    const image = rgbaOf(project.bytes, 'play', teams)
+    const rink = readGenesisRink(project.bytes, 'play')!
+    const [from, to] = [12 * 48, 44 * 48]
+    expect((rink.words[from] >> 13) & 3).toBe(1)
+    expect((rink.words[to] >> 13) & 3).toBe(0)
+    const rgba = Uint8ClampedArray.from(image.rgba.subarray(0, 384 * 680 * 4))
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) for (let k = 0; k < 4; k++) rgba[((44 * 8 + y) * 384 + x) * 4 + k] = image.rgba[((12 * 8 + y) * 384 + x) * 4 + k]
+    const result = importGenesisRink(project.bytes, 'play', { rgba, width: 384, height: 680 }, image.palette)
+    const after = readGenesisRink(result.rom, 'play')!
+    expect((after.words[to] >> 13) & 3).toBe(1)
+    const again = rgbaOf(result.rom, 'play', teams)
+    let off = 0
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) for (let k = 0; k < 3; k++) if (again.rgba[((44 * 8 + y) * 384 + x) * 4 + k] !== image.rgba[((12 * 8 + y) * 384 + x) * 4 + k]) off++
+    expect(off).toBe(0)
+    // Everything else as it was: the picture unchanged elsewhere keeps every other cell's line.
+    expect(after.words.filter((w, i) => i !== to && i < 85 * 48 && ((w >> 13) & 3) !== ((rink.words[i] >> 13) & 3)).length).toBe(0)
+  })
+
   it('finds the reverse angle replay’s rink, with its own map and two tiles fewer', () => {
     const reverse = readGenesisRink(project.bytes, 'reverse')!
     expect([reverse.at, reverse.tileCount, reverse.width, reverse.height]).toEqual([0xb5180, 452, 48, 113])
