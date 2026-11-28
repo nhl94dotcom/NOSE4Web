@@ -100,7 +100,7 @@ function UsedBy({ text }: { text: string | null }) {
 const EDIT_NOTE = (
   <p className="note">
     <b>Edit</b> opens the music in the music editor, to change its notes on a piano roll; it then goes in as a MIDI file
-    would with Replace. Not yet tested in the game.
+    would with Replace. Tested in the game by the NHL94 Match Viewer project.
   </p>
 )
 

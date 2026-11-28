@@ -481,6 +481,18 @@ export function withSnesSetupPicture(project: RomProject, made: SnesSetupImage):
 // pointed at them.
 function withParts(project: RomProject, loaders: Loaders, parts: { tiles: Uint8Array; map: Uint8Array; palette: Uint8Array }): RomProject {
   let rom: Uint8Array = project.bytes.slice()
+  // A picture NOSE4Web put in before gives its room back (the opened ROM's own never does), so importing again and
+  // again does not use free space up.
+  const opened = openedLoaders(project.source)
+  if (opened) {
+    for (const [now, was] of [
+      [loaders.tiles, opened.tiles],
+      [loaders.map, opened.map],
+      [loaders.palette, opened.palette],
+    ]) {
+      if (now.offset !== was.offset) rom.fill(0xff, now.offset, now.offset + unpackAny(project.bytes, now.offset).packedSize)
+    }
+  }
   const pieces: [Loader, Uint8Array][] = [
     [loaders.tiles, parts.tiles],
     [loaders.map, parts.map],
@@ -536,6 +548,8 @@ export function withOriginalSnesSetupPicture(project: RomProject): RomProject {
     [loaders.map, opened.map],
     [loaders.palette, opened.palette],
   ]) {
+    // The league's own copy gives its room back.
+    if (now.offset !== was.offset) rom.fill(0xff, now.offset, now.offset + unpackAny(project.bytes, now.offset).packedSize)
     rom[now.at + 1] = loRomBank(was.offset, rom[now.at + 1])
     put16(rom, now.at + 6, loRomAddress(was.offset))
   }

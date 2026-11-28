@@ -218,7 +218,15 @@ export function snesRinkImportable(rom: Uint8Array): boolean {
   return rink !== null && rink.width === 48 && rink.height >= SHOWN_ROWS
 }
 
-export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }, palette: number[]): SnesRinkImport {
+// `opened`: the ROM as it was opened, whose own tiles and map are never given back; a copy NOSE4Web put in before is,
+// so that drawing a stroke at a time does not use free space up (the review of 2026-11-27 found 22 strokes filled the
+// 32-team build's).
+export function importSnesRink(
+  rom0: Uint8Array,
+  image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number },
+  palette: number[],
+  opened?: Uint8Array,
+): SnesRinkImport {
   const at = places(rom0)
   const rink = readRink(rom0)
   if (!at || !rink || rink.width !== 48 || rink.height < SHOWN_ROWS) throw new SnesRinkImportError("This ROM's rink is not laid out as the original game's, so a picture cannot be put in.")
@@ -306,14 +314,17 @@ export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uin
     writeU16LE(map, MAP_HEADER + cell * 2, (rink.words[cell] & (PALETTE_BITS | 0x2000)) | place.flip | place.tile)
   }
 
-  // Packed, put in free space, and every loader pointed there.
+  // Packed, put in free space, and every loader pointed there; the copy put in before, not the opened ROM's own, given
+  // back first.
   let rom: Uint8Array = rom0.slice()
-  for (const [part, data] of [
-    [at.tiles, tiles],
-    [at.map, map],
+  const own = opened ? places(opened.length % 0x8000 === 0x200 ? opened.subarray(0x200) : opened) : null
+  for (const [part, data, ownPart] of [
+    [at.tiles, tiles, own?.tiles],
+    [at.map, map, own?.map],
   ] as const) {
     const loaders = loadersOf(rom0, part)
     if (loaders.length === 0) throw new SnesRinkImportError("This ROM's rink is not loaded as the original game's, so a picture cannot be put in.")
+    if (own && part !== ownPart) rom.fill(0xff, part, part + unpackLz(rom0, part).packedSize)
     const packed = packLz(data)
     const kept2 = keptBanks(rom)
     let to = freeSpace(rom, packed.length, kept2)
@@ -329,4 +340,16 @@ export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uin
     }
   }
   return { rom, used: fresh.length, room: free.length }
+}
+
+// The colours a rink picture is saved, edited and put back in: the rink's own, with the first two teams on the benches
+// (rows 2 and 3), whoever the page shows, so that a file goes back the same way it came out, on the Rink colours page
+// or in Picture files (the review of 2026-11-27).
+export function snesRinkFileColours(project: { rinkPalette: number[]; teams: { palette: number[] }[] }): number[] {
+  const out = project.rinkPalette.slice()
+  for (let i = 0; i < COLOURS; i++) {
+    out[2 * COLOURS + i] = project.teams[0]?.palette[i] ?? out[2 * COLOURS + i]
+    out[3 * COLOURS + i] = project.teams[1]?.palette[COLOURS + i] ?? out[3 * COLOURS + i]
+  }
+  return out
 }

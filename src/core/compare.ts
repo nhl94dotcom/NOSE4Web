@@ -1,6 +1,8 @@
 import { attributeText } from './attributes'
 import { readMenuPicture } from './menupicture'
 import { readTitlePicture } from './titlepicture'
+import { genesisRinkBytes } from './genesisrink'
+import { horBoardBytes } from './horboard'
 import { readSnesSetupPicture } from './snessetuppicture'
 import { readSplash } from './splash'
 import { SNES_SONG_SLOTS, snesSongName } from './snessongs'
@@ -202,6 +204,13 @@ function compareSettings(before: RomProject, after: RomProject): Difference[] {
     const [titleWas, titleNow] = [readTitlePicture(before), readTitlePicture(after)]
     const titleSame = titleWas && titleNow && titleWas.palette.every((c, i) => c === titleNow.palette[i]) && titleWas.picture.pixels.every((p, i) => p === titleNow.picture.pixels[i])
     if (titleWas && titleNow && !titleSame) add('Title screen picture', [titleNow.original ? "The original game's picture again." : 'A picture of its own.'])
+    const sameOrBoth = (a: Uint8Array | null, b: Uint8Array | null) => a === b || (!!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]))
+    const rinkLines = (['play', 'reverse'] as const).flatMap((view) =>
+      sameOrBoth(genesisRinkBytes(before.bytes, view), genesisRinkBytes(after.bytes, view)) ? [] : [view === 'play' ? 'The rink in play is drawn differently.' : "The reverse angle replay's rink is drawn differently."],
+    )
+    add('The whole rink', rinkLines)
+    const horNow = horBoardBytes(after)
+    if (!sameOrBoth(horBoardBytes(before), horNow)) add('Side-on scoreboard', [horNow ? 'A picture of its own.' : "The original game's picture again."])
     const songs = genesisSongs(after.game)
     const songLines = (songs && before.game.edition === after.game.edition ? songs.numbers : []).flatMap((number) => {
       const [was, now] = [songs!.read(before.bytes, number), songs!.read(after.bytes, number)]

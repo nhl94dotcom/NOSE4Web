@@ -439,9 +439,16 @@ export function importGenesisRink(
       return best * fresh.get(key)!.cells.length
     }
     const cost = new Map(keys.map((key) => [key, nearest(key)]))
+    // Only the squares the picture adds are swapped, so that what was not edited (on NHL '95 the other map too) stays
+    // as it was; the rink's own only if that is not enough (the review of 2026-11-27).
+    let addedOnly = true
     while (keptKeys.size > free.length) {
       let cheapest = ''
-      for (const key of keptKeys) if (!cheapest || cost.get(key)! < cost.get(cheapest)!) cheapest = key
+      for (const key of keptKeys) if ((!addedOnly || !before.has(key)) && (!cheapest || cost.get(key)! < cost.get(cheapest)!)) cheapest = key
+      if (!cheapest) {
+        addedOnly = false
+        continue
+      }
       // A cost only grows as squares are taken out, so the cheapest's is counted again: still the cheapest, it goes.
       const now = nearest(cheapest)
       if (now > cost.get(cheapest)!) {
@@ -486,4 +493,25 @@ export function importGenesisRink(
   }
   maps.forEach((m, k) => words[k].forEach((word, cell) => writeU16(out, m.rink.mapAt + 4 + cell * 2, word)))
   return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels }
+}
+
+// A rink's tiles and map words as they are in the ROM, for a project file (an imported picture or a theme changes
+// them in place), and put back where the ROM's rink has the same layout (the review of 2026-11-27).
+export function genesisRinkBytes(rom: Uint8Array, view: RinkView): Uint8Array | null {
+  const rink = readGenesisRink(rom, view)
+  if (!rink) return null
+  const tiles = rom.subarray(rink.tilesAt, rink.tilesAt + rink.tileCount * TILE)
+  const out = new Uint8Array(tiles.length + rink.words.length * 2)
+  out.set(tiles)
+  rink.words.forEach((word, i) => writeU16(out, tiles.length + i * 2, word))
+  return out
+}
+
+export function withGenesisRinkBytes(rom: Uint8Array, view: RinkView, bytes: Uint8Array): Uint8Array {
+  const rink = readGenesisRink(rom, view)
+  if (!rink || bytes.length !== rink.tileCount * TILE + rink.words.length * 2) throw new RinkImportError("This ROM's rink is not laid out as the one the project was made with.")
+  const out = rom.slice()
+  out.set(bytes.subarray(0, rink.tileCount * TILE), rink.tilesAt)
+  out.set(bytes.subarray(rink.tileCount * TILE), rink.mapAt + 4)
+  return out
 }

@@ -152,13 +152,19 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     const step = snapping && snap ? snap : 1
     const [left, top] = [Math.floor(point[0] / step) * step, Math.floor(point[1] / step) * step]
     const pixels = picture.pixels.slice()
+    const points: Point[] = []
     for (let y = 0; y < copied.height; y++) {
       for (let x = 0; x < copied.width; x++) {
         const [px, py] = [left + x, top + y]
-        if (px < picture.width && py < picture.height) pixels[py * picture.width + px] = copied.pixels[y * copied.width + x]
+        if (px < picture.width && py < picture.height) {
+          pixels[py * picture.width + px] = copied.pixels[y * copied.width + x]
+          points.push([px, py])
+        }
       }
     }
-    return { ...picture, pixels }
+    // As any stroke: what the picture's rules make of it (an SNES logo's squares each in one row).
+    const next = { ...picture, pixels }
+    return afterStroke ? afterStroke(next, points, copied.pixels.find((v) => v !== 0) ?? colour) : next
   }
 
   function down(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -218,8 +224,13 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
     if (tool === 'copy') {
       // What the rectangle covers, to stamp with next.
       const clamp = (v: number, most: number) => Math.max(0, Math.min(most - 1, v))
-      const [x0, x1] = [current.start[0], current.last[0]].map((v) => clamp(v, picture.width)).sort((a, b) => a - b)
-      const [y0, y1] = [current.start[1], current.last[1]].map((v) => clamp(v, picture.height)).sort((a, b) => a - b)
+      let [x0, x1] = [current.start[0], current.last[0]].map((v) => clamp(v, picture.width)).sort((a, b) => a - b)
+      let [y0, y1] = [current.start[1], current.last[1]].map((v) => clamp(v, picture.height)).sort((a, b) => a - b)
+      // Snapping: whole squares, the rectangle grown out to the grid, so that a stamp on the grid repeats squares.
+      if (snapping && snap) {
+        ;[x0, y0] = [Math.floor(x0 / snap) * snap, Math.floor(y0 / snap) * snap]
+        ;[x1, y1] = [Math.min(picture.width, Math.ceil((x1 + 1) / snap) * snap) - 1, Math.min(picture.height, Math.ceil((y1 + 1) / snap) * snap) - 1]
+      }
       const [width, height] = [x1 - x0 + 1, y1 - y0 + 1]
       const pixels = new Uint8Array(width * height)
       for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels[y * width + x] = picture.pixels[(y0 + y) * picture.width + x0 + x]

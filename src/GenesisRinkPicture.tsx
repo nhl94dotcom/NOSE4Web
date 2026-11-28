@@ -51,7 +51,12 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
     ARENA_SLOTS.forEach((slot, i) => {
       if (own && own[i] !== RINK_OWN) palette[slot] = own[i]
     })
-    return { picture: rink.picture, palette }
+    // The colours a picture is saved, edited and put back in: the rink's own (no team's trim or markings), the first two
+    // teams on the benches, whoever is chosen to look at, so that a file goes back the same way it came out, here or
+    // in Picture files (the review of 2026-11-27).
+    const first = drawGenesisRink(project.bytes, project.teams[0]?.palette.slice(0, 16), project.teams[1]?.palette.slice(16, 32), view)
+    const files = [...project.rinkPalette.slice(0, 32), ...(first ?? rink).palette.slice(32)]
+    return { picture: rink.picture, palette, files }
   }, [project, home, away, view])
 
   useEffect(() => {
@@ -92,7 +97,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const putIn = (image: Awaited<ReturnType<typeof readImage>>, fit: boolean) => {
     setTooMany(null)
     try {
-      const result = importGenesisRink(project.bytes, view, image, drawn.palette, fit)
+      const result = importGenesisRink(project.bytes, view, image, drawn.files, fit)
       onChange!({ ...project, bytes: result.rom })
       const swapped = result.swapped
         ? ` To fit, ${result.swapped} of its squares were swapped for the closest ones the rink has: ${result.pixels} ${result.pixels === 1 ? 'pixel' : 'pixels'} in ${result.places} ${result.places === 1 ? 'place' : 'places'} differ from the picture.`
@@ -119,10 +124,10 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   }
   // The rows in play, to draw on, and a drawing as the import takes a picture.
   const inPlay = (picture: Picture): Picture => ({ width: picture.width, height: SHOWN_ROWS * 8, pixels: picture.pixels.slice(0, picture.width * SHOWN_ROWS * 8) })
-  const asImage = (picture: Picture) => ({ rgba: pictureToImage(picture, drawn.palette), width: picture.width, height: picture.height })
+  const asImage = (picture: Picture) => ({ rgba: pictureToImage(picture, drawn.files), width: picture.width, height: picture.height })
   const stroke = (picture: Picture) => {
     try {
-      onChange!({ ...project, bytes: importGenesisRink(project.bytes, view, asImage(picture), drawn.palette).rom })
+      onChange!({ ...project, bytes: importGenesisRink(project.bytes, view, asImage(picture), drawn.files).rom })
       setRefused('')
     } catch (e) {
       setRefused(e instanceof RinkImportError ? e.message : String(e))
@@ -130,7 +135,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   }
   const squaresUsed = (picture: Picture) => {
     try {
-      const result = importGenesisRink(project.bytes, view, asImage(picture), drawn.palette)
+      const result = importGenesisRink(project.bytes, view, asImage(picture), drawn.files)
       return { text: `It takes ${result.used} of the ${result.room} squares of 8 by 8 pixels the rink has room for.`, over: false }
     } catch (e) {
       return e instanceof RinkImportError ? { text: e.message, over: true } : null
@@ -156,7 +161,8 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         {` ${drawn.picture.width} by ${drawn.picture.height}`} pixels. The block at centre ice is where the game puts
         the home team's centre ice logo as a game starts{drawn.picture.height > 700 ? '; and only the top 680 rows are the rink, the rows below holding the replay icon and other pieces the game uses' : ''}. The players on the benches take the colours of the teams
         playing, and the home team's own boards trim and red markings show where it has them: choose two to see them. <b>Export as PNG</b> saves the picture, to look at or to draw on in a paint
-        program.
+        program, always in the rink's own colours with the first two teams on the benches (whoever is chosen above), so
+        that it goes back in the same way here and in Picture files.
       </p>
       {importable(view) && (
         <p className="note">
@@ -194,7 +200,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         <button
           onClick={async () => {
             try {
-              download(await pictureToPng(drawn.picture, drawn.palette), view === 'play' ? 'rink.png' : 'rink_reverse.png', 'image/png')
+              download(await pictureToPng(drawn.picture, drawn.files), view === 'play' ? 'rink.png' : 'rink_reverse.png', 'image/png')
               setMessage(null)
             } catch (e) {
               setMessage({ text: e instanceof Error ? e.message : String(e), failed: true })
@@ -211,7 +217,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
             <button
               onClick={async () => {
                 try {
-                  const guide = genesisRinkGuide(project.bytes, view, drawn.palette)
+                  const guide = genesisRinkGuide(project.bytes, view, drawn.files)
                   if (!guide) return
                   download(await rgbaToPng(guide.rgba, guide.width, guide.height), view === 'play' ? 'rink_guide.png' : 'rink_reverse_guide.png', 'image/png')
                 } catch (e) {
@@ -256,7 +262,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           <button
             onClick={() => {
               try {
-                onChange({ ...project, ...withRinkTheme(project, theme, drawn.palette) })
+                onChange({ ...project, ...withRinkTheme(project, theme, drawn.files) })
                 const name = RINK_THEMES.find((t) => t.theme === theme)!.name
                 setMessage({ text: `${name} is in: the stands of the rink in play and the reverse angle replay's are redrawn, and the crowd behind the side-on scoreboard. Undo takes it all back (Put back the original rink, and the side-on scoreboard's own Put back the original below, each take back their part).`, failed: false })
               } catch (e) {
@@ -278,7 +284,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         <PixelEditor
           title={view === 'play' ? 'Rink' : 'Reverse angle rink'}
           picture={inPlay(drawn.picture)}
-          palette={drawn.palette}
+          palette={drawn.files}
           colours={RINK_COLOURS}
           limit={squaresUsed}
           problem={refused || undefined}

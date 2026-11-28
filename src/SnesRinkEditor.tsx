@@ -4,12 +4,12 @@ import { download } from './download'
 import { colorRgb, SNES_COLORS } from './core/color'
 import type { RomProject } from './core/rom'
 import { pictureToImage, type Picture } from './core/graphics'
-import { drawSnesRink, importSnesRink, SnesRinkImportError, snesRinkImportable } from './core/snesrink'
+import { drawSnesRink, importSnesRink, snesRinkFileColours, SnesRinkImportError, snesRinkImportable } from './core/snesrink'
 import { NO_SNES_PICTURE_EDITS, snesCentreIce, snesPicturesSupported } from './core/snespictures'
 import { teamDisplayName } from './core/team'
 import { PaletteEditor } from './Palette'
 import { ResetButton } from './ResetButton'
-import { readImage } from './images'
+import { pictureToPng, readImage } from './images'
 import { PixelEditor } from './PixelEditor'
 
 const COLOURS = 16
@@ -71,8 +71,10 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
     const whole = drawSnesRink(project.bytes, null)
     return whole ? { width: whole.width, height: 680, pixels: whole.pixels.slice(0, whole.width * 680) } : null
   }, [project.bytes])
-  const asImage = (p: Picture) => ({ rgba: pictureToImage(p, colours, SNES_COLORS), width: p.width, height: p.height })
-  const put = (image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }) => importSnesRink(project.bytes, image, colours)
+  // Saved, edited and put back in one set of colours whoever is chosen to look at (snesRinkFileColours).
+  const files = useMemo(() => snesRinkFileColours(project), [project])
+  const asImage = (p: Picture) => ({ rgba: pictureToImage(p, files, SNES_COLORS), width: p.width, height: p.height })
+  const put = (image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number }) => importSnesRink(project.bytes, image, files, project.source)
 
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
@@ -109,17 +111,18 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
         <p className="note">
           The rink is the same for every game; the home team's centre ice logo is put in its middle, and the players on
           the benches are drawn in the two teams' uniform colours. The game also uses some of these colours for other
-          graphics, so a change can show there too.
+          graphics, so a change can show there too. <b>Each home team's crowd colours</b>, below, dresses the crowd by
+          home team.
         </p>
         <p>
           {teamSelect('Home', home, setHome)} {teamSelect('Visitors', visitor, setVisitor)}{' '}
           {picture && (
             <button
-              onClick={() =>
-                canvas.current?.toBlob(async (blob) => {
-                  if (blob) download(new Uint8Array(await blob.arrayBuffer()), 'rink.png', 'image/png')
-                }, 'image/png')
-              }
+              onClick={() => {
+                // The whole rink in the file colours (snesRinkFileColours), the centre ice logo's place as the rink has it.
+                const whole = drawSnesRink(project.bytes, null)
+                if (whole) void pictureToPng(whole, files, SNES_COLORS).then((png) => download(png, 'rink.png', 'image/png'))
+              }}
             >
               Export as PNG
             </button>
@@ -154,7 +157,8 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           )}
         </p>
         <p className="note">
-          <b>Export as PNG</b> saves the whole rink as drawn here, the boards, benches, penalty boxes and crowd too, to
+          <b>Export as PNG</b> saves the whole rink, the boards, benches, penalty boxes and crowd too (in the rink's own
+          colours, the first two teams on the benches, whoever is chosen above, and without a centre ice logo), to
           look at or to draw on in a paint program. <b>Import a PNG</b> puts an edited one back: the same size (or only
           its top 680 rows), each square of 8 by 8 pixels in the colours its square has now, matched to the nearest. The
           centre ice logo's place, the crowd's moving squares and the replay icon stay as they are. The rows below the
@@ -168,7 +172,7 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           <PixelEditor
             title="Rink"
             picture={bare}
-            palette={colours}
+            palette={files}
             format={SNES_COLORS}
             colours={[...Array.from({ length: 15 }, (_, i) => i + 1), ...Array.from({ length: 15 }, (_, i) => i + 17)]}
             limit={(p) => {

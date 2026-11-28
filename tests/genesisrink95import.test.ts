@@ -43,6 +43,23 @@ describe.skipIf(!existsSync(path('NHL95/NHL_95.bin')))("putting an edited rink i
       expect(() => importGenesisRink(rom, view, { ...image, rgba: edited.map((v, i) => (i % 4 === 3 ? v : (v + i) & 255)) }, d.palette)).toThrow(/more different squares/)
       const otherView = view === 'play' ? 'reverse' : 'play'
       expect(differing(drawn(changed.rom, otherView).picture.pixels, drawn(rom, otherView).picture.pixels)).toBe(0)
+      // Make it fit with new squares in a block of this rink: only the block's own squares are swapped, so the other
+      // rink, and this one outside the block, stay as they were.
+      const noisy = Uint8ClampedArray.from(image.rgba)
+      let seed = 5
+      for (let y = 296; y < 328; y++) {
+        for (let x = 96; x < 160; x++) {
+          seed = (Math.imul(seed, 1103515245) + 12345) >>> 0
+          noisy.set([seed >>> 24, (seed >>> 16) & 255, (seed >>> 8) & 255, 255], (y * 384 + x) * 4)
+        }
+      }
+      const fitted = importGenesisRink(rom, view, { ...image, rgba: noisy }, d.palette, true)
+      expect(fitted.swapped).toBeGreaterThan(0)
+      expect(differing(drawn(fitted.rom, otherView).picture.pixels, drawn(rom, otherView).picture.pixels)).toBe(0)
+      const [mine, was] = [drawn(fitted.rom, view).picture.pixels, drawn(rom, view).picture.pixels]
+      let outsideBlock = 0
+      for (let y = 0; y < 680; y++) for (let x = 0; x < 384; x++) if ((y < 296 || y >= 328 || x < 96 || x >= 160) && mine[y * 384 + x] !== was[y * 384 + x]) outsideBlock++
+      expect(outsideBlock).toBe(0)
       expect(differing(drawn(changed.rom, view).picture.pixels, drawn(rom, view).picture.pixels)).toBeGreaterThan(100)
     })
   }

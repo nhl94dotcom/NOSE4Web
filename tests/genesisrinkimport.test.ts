@@ -126,12 +126,12 @@ describe.skipIf(!existsSync(path('nhl94.bin')))('putting an edited rink into NHL
     expect(fitted.places).toBeGreaterThanOrEqual(fitted.swapped)
     const after = readGenesisRink(fitted.rom, 'play')!
     expect(after.words.every((word) => (word & 0x7ff) < after.tileCount)).toBe(true)
-    // Outside the block (the picture there is the rink as it was), every pixel that differs is one it counts: the
-    // squares swapped may be anywhere, the cheapest first.
+    // Outside the block (the picture there is the rink as it was) nothing changes: only squares the picture adds are
+    // swapped.
     const redrawn = drawn(fitted.rom, 'play', teams).picture.pixels
     let outside = 0
     for (let y = 0; y < 680; y++) for (let x = 0; x < 384; x++) if ((y < 96 || y >= 256 || x < 96 || x >= 224) && redrawn[y * 384 + x] !== image.picture.pixels[y * 384 + x]) outside++
-    expect(outside).toBeLessThanOrEqual(fitted.pixels)
+    expect(outside).toBe(0)
     expect(message).toMatch(/^This picture needs \d+ more different squares of 8 by 8 pixels than the rink has room for \(\d+ of 399\)\. The rink as it is uses 379, so a picture can add only 20 new squares, and this one adds (\d+), at x 96 to 223, y 96 to 255 \(\1 squares\)\./)
   })
 })

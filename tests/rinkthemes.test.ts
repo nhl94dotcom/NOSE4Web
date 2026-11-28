@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { drawGenesisRink } from '../src/core/genesisrink'
+import { compareProjects } from '../src/core/compare'
 import { readHorBoard } from '../src/core/horboard'
+import { openProjectFile, saveProjectFile } from '../src/core/projectfile'
 import { openRom } from '../src/core/rom'
 import { RINK_THEMES, rinkThemesSupported, withRinkTheme } from '../src/core/rinkthemes'
 
@@ -54,6 +56,23 @@ for (const name of ['nhl94.bin']) {
     }
   })
 }
+
+it.skipIf(!existsSync(path('nhl94.bin')))('keeps a theme in a project file, and Compare lists it', () => {
+  const open = () => openRom(new Uint8Array(readFileSync(path('nhl94.bin'))))
+  const project = open()
+  const [home, away] = [project.teams[0].palette.slice(0, 16), project.teams[1].palette.slice(16, 32)]
+  const palette = [...project.rinkPalette.slice(0, 32), ...drawGenesisRink(project.bytes, home, away, 'play')!.palette.slice(32)]
+  const themed = withRinkTheme(project, 'outdoor', palette)
+  const reopened = openProjectFile(open(), saveProjectFile(themed, project, 'test')).project
+  for (const view of ['play', 'reverse'] as const) {
+    const [a, b] = [drawGenesisRink(themed.bytes, home, away, view)!.picture.pixels, drawGenesisRink(reopened.bytes, home, away, view)!.picture.pixels]
+    expect(a.every((v, i) => v === b[i])).toBe(true)
+  }
+  expect(readHorBoard(reopened)!.picture.pixels.every((v, i) => v === readHorBoard(themed)!.picture.pixels[i])).toBe(true)
+  const headings = compareProjects(project, themed).map((d) => d.heading)
+  expect(headings).toContain('The whole rink')
+  expect(headings).toContain('Side-on scoreboard')
+})
 
 it.skipIf(!existsSync(path('NHL95/NHL_95.bin')))("is not offered on NHL '95, whose stands are thin strips", () => {
   expect(rinkThemesSupported(openRom(new Uint8Array(readFileSync(path('NHL95/NHL_95.bin')))))).toBe(false)

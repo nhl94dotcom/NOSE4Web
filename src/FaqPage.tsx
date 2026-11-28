@@ -127,7 +127,7 @@ export function FaqPage() {
         <dt>Can I carry my league's whole look to another ROM?</dt>
         <dd>
           Yes: <b>Picture files</b>, <b>Export all pictures</b>. The zip holds every team's logos and banners, the player
-          photos, and in a screens folder the title screen, the main menu background and the rinks. Open the other ROM,
+          photos, and in a screens folder the title screen, the main menu background, the rinks and the side-on scoreboard. Open the other ROM,
           and import the zip on its Picture files page; pictures that already match are skipped.
         </dd>
 
@@ -143,7 +143,17 @@ export function FaqPage() {
           Partly. On NHL 94 for the Genesis, <b>Each home team's rink colours</b> on the Rink colours page gives each home
           team its own boards trim and red markings. The rink's other colours are shared with the score box, the clock,
           the EA logo and the crowd, so they stay the same for every team. The rink's picture itself (Import a PNG) is
-          the same for every team.
+          the same for every team. On NHL '95 and the SNES, <b>Each home team's crowd colours</b> dresses the home crowd
+          in two of the team's colours instead. A <b>Rink theme</b> (NHL 94: Outdoor, Empty arena) is the same for every
+          team.
+        </dd>
+
+        <dt>Can I put ads on the boards?</dt>
+        <dd>
+          Yes, on all three games: <b>Rink colours</b>, <b>Export as PNG</b>, then <b>Import a PNG…</b>, or draw them
+          here with <b>Edit the rink…</b>. The walkthrough <i>Ads on the boards</i> takes you through it. On NHL 94 the
+          side-on scoreboard (pause and intermission) can have ads too, and on the SNES the rows below the rink are its
+          pause scoreboard's.
         </dd>
 
         <dt>Can each team have its own song before the game?</dt>

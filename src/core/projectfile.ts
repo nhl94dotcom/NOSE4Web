@@ -6,6 +6,7 @@
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
 import { titlePictureBytes, withOriginalTitlePicture, withTitlePictureBytes } from './titlepicture'
 import { horBoardBytes, withHorBoardBytes, withOriginalHorBoard } from './horboard'
+import { genesisRinkBytes, withGenesisRinkBytes } from './genesisrink'
 import { snesSetupPictureBytes, withOriginalSnesSetupPicture, withSnesSetupPictureBytes } from './snessetuppicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
 import {
@@ -104,6 +105,8 @@ interface ProjectFile {
     menuPicture?: { original: true } | { bytes: string }
     titlePicture?: { original: true } | { bytes: string }
     horBoard?: { original: true } | { bytes: string }
+    // The Genesis rinks' tiles and maps, where an imported picture or a theme changed them (in place, so as bytes).
+    rinks?: { play?: { bytes: string }; reverse?: { bytes: string } }
     announcer?: { original: true } | { bytes: string }
     // The SNES Game Setup background, as its three unpacked parts.
     snesMenuPicture?: { original: true } | { bytes: string }
@@ -641,7 +644,13 @@ function savedScreens(project: RomProject, opened: RomProject): ProjectFile['scr
   if (!sameBytes(hor, horBoardBytes(opened))) screens.horBoard = hor ? { bytes: pack(hor) } : { original: true }
   const announcer = genesisAnnouncerBytes(project)
   if (!sameBytes(announcer, genesisAnnouncerBytes(opened))) screens.announcer = announcer ? { bytes: pack(announcer) } : { original: true }
-  return screens.splash || screens.menuPicture || screens.titlePicture || screens.horBoard || screens.announcer ? screens : undefined
+  const rinks: NonNullable<NonNullable<ProjectFile['screens']>['rinks']> = {}
+  for (const view of ['play', 'reverse'] as const) {
+    const now = genesisRinkBytes(project.bytes, view)
+    if (now && !sameBytes(now, genesisRinkBytes(opened.bytes, view))) rinks[view] = { bytes: pack(now) }
+  }
+  if (rinks.play || rinks.reverse) screens.rinks = rinks
+  return screens.splash || screens.menuPicture || screens.titlePicture || screens.horBoard || screens.rinks || screens.announcer ? screens : undefined
 }
 
 // The project's splash screen and main menu background put in, where this ROM can take them.
@@ -728,6 +737,16 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
       }
     } catch {
       left.push('side-on scoreboard picture')
+    }
+  }
+  for (const view of ['play', 'reverse'] as const) {
+    const saved = screens.rinks?.[view]
+    if (!saved) continue
+    try {
+      const bytes = unpack(saved.bytes)
+      if (!sameBytes(genesisRinkBytes(project.bytes, view), bytes)) project = { ...project, bytes: withGenesisRinkBytes(project.bytes, view, bytes) }
+    } catch {
+      left.push(view === 'play' ? 'rink' : "reverse angle replay's rink")
     }
   }
   const announcer = screens.announcer

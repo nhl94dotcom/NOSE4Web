@@ -61,6 +61,14 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc']) {
       expect(boardChanged).toBeGreaterThan(100)
       expect(iconChanged).toBe(0)
 
+      // Imported again and again (a stroke at a time in Edit the rink), each copy gives its room back: free space holds.
+      let again = { ...project, bytes: importSnesRink(rom, { rgba: edited, ...shown }, palette, project.source).rom }
+      const freeAfterFirst = again.bytes.filter((b) => b === 0xff).length
+      for (let i = 0; i < 30; i++) again = { ...again, bytes: importSnesRink(again.bytes, { rgba: edited, ...shown }, palette, project.source).rom }
+      expect(again.bytes.length).toBe(changed.rom.length)
+      expect(Math.abs(again.bytes.filter((b) => b === 0xff).length - freeAfterFirst)).toBeLessThan(64)
+      expect(differing(drawSnesRink(again.bytes, null)!.pixels, after.pixels)).toBe(0)
+
       // Noise everywhere: far more squares than the room.
       const noise = Uint8ClampedArray.from(rgba).map((v, i) => (i % 4 === 3 ? 255 : (v * 7 + i * 13) & 255))
       expect(() => importSnesRink(rom, { rgba: noise, ...shown }, palette)).toThrow(SnesRinkImportError)

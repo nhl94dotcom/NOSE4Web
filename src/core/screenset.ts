@@ -10,7 +10,7 @@ import { readHorBoard, withHorBoardImage } from './horboard'
 import { menuPictureFromImage, menuPicturePalette, readMenuPicture, withMenuPicture } from './menupicture'
 import type { RomProject } from './rom'
 import { readSnesSetupPicture, snesSetupPictureFromImage, withSnesSetupPicture } from './snessetuppicture'
-import { drawSnesRink, importSnesRink, SnesRinkImportError, snesRinkImportable } from './snesrink'
+import { drawSnesRink, importSnesRink, snesRinkFileColours, SnesRinkImportError, snesRinkImportable } from './snesrink'
 import { readTitlePicture, titlePictureFromImage, titlePicturePalette, withTitlePicture } from './titlepicture'
 
 export const SCREENS_FOLDER = 'screens/'
@@ -43,14 +43,7 @@ function genesisRink(project: RomProject, view: RinkView) {
 }
 
 // The SNES rink without a centre ice logo (its cells stay as they are), the first two teams' colours on the benches.
-function snesRinkColours(project: RomProject): number[] {
-  const out = project.rinkPalette.slice()
-  for (let i = 0; i < 16; i++) {
-    out[32 + i] = project.teams[0]?.palette[i] ?? out[32 + i]
-    out[48 + i] = project.teams[1]?.palette[16 + i] ?? out[48 + i]
-  }
-  return out
-}
+const snesRinkColours = (project: RomProject) => snesRinkFileColours(project)
 
 const SCREENS: Record<'genesis' | 'snes', Screen[]> = {
   genesis: [
@@ -99,7 +92,7 @@ const SCREENS: Record<'genesis' | 'snes', Screen[]> = {
         const rink = snesRinkImportable(project.bytes) ? drawSnesRink(project.bytes, null) : null
         return rink ? { picture: rink, palette: snesRinkColours(project) } : null
       },
-      put: (project, image) => ({ ...project, bytes: importSnesRink(project.bytes, image, snesRinkColours(project)).rom }),
+      put: (project, image) => ({ ...project, bytes: importSnesRink(project.bytes, image, snesRinkColours(project), project.source).rom }),
     },
   ],
 }

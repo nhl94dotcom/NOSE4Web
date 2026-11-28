@@ -16,7 +16,7 @@ const CONTENTS: [string, string][] = [
   ['lines', 'Lines'],
   ['hacks', 'Bug fixes and game options (Hacks)'],
   ['looks', 'Team names, colours and logos'],
-  ['boards', "Ads on the boards (Genesis, NHL 94 and NHL '95)"],
+  ['boards', 'Ads on the boards'],
   ['music', 'Change a song or the game music'],
   ['size', 'A league with fewer teams than the ROM'],
   ['before', 'Before a season starts: check and compare'],
@@ -286,14 +286,20 @@ export function GuidesPage() {
         <li>
           The rink: <b>Rink colours</b> changes the rink's colours and shows the whole rink as the game has it, the
           boards, benches, penalty boxes and crowd too (on the Genesis under <b>The whole rink</b>), and{' '}
-          <b>Export as PNG</b> saves it. On NHL 94 and NHL '95 for the Genesis, draw on the saved picture in a paint program, keeping
+          <b>Export as PNG</b> saves it. On NHL 94, NHL '95 and the SNES, draw on the saved picture in a paint program, keeping
           to its size and its colours, and <b>Import a PNG</b> puts it back; do the same for the reverse angle replays'
           rink (<b>Rink</b>, above the picture). Repeat squares where you can: the rink has room for only so many
           different ones, and the page says if a picture needs more.
         </li>
+        <li>
+          The arena's look: on Rink colours, each home team's rink colours (NHL 94) or crowd colours (NHL '95, SNES), a
+          <b> Rink theme</b> (NHL 94: Outdoor or Empty arena, with <b>No fans in the stands</b> on the Hacks page), and
+          the side-on scoreboard (NHL 94). On Game settings, under Pictures, the title screen picture (Genesis) and the
+          main menu background (Genesis NHL 94 and the SNES).
+        </li>
       </ul>
 
-      <h3 id="guide-boards">Ads on the boards (Genesis, NHL 94 and NHL '95)</h3>
+      <h3 id="guide-boards">Ads on the boards</h3>
       <ol>
         <li>
           Open <b>Rink colours</b>. Under <b>The whole rink</b>, click <b>Export as PNG</b> (the picture to edit) and{' '}
@@ -327,6 +333,13 @@ export function GuidesPage() {
         goes in as you draw, the page counts the squares, and a stroke that needs too many is refused. Draw one ad, then{' '}
         <b>Copy</b> it (drag a rectangle round it) and <b>Stamp</b> it along the boards: stamps snap to the squares, so
         the copies cost nothing.
+      </p>
+      <p>
+        On the SNES the rink's <b>Export as PNG</b>, <b>Import a PNG…</b> and <b>Edit the rink…</b> are at the top of
+        Rink colours, with room for about 85 more squares (there is no Make it fit or drawing guide there); a picture of
+        all 904 rows puts ads on the pause scoreboard's side view too. On NHL 94, <b>Side-on scoreboard</b>, below the
+        rink, has its own <b>Export as PNG</b> and <b>Import a PNG…</b> for the pause and intermission screen, with room
+        for 454 squares.
       </p>
       <p className="note">
         Skip a step and: without the grid, an ad drawn across squares can need far more squares than it looks; with

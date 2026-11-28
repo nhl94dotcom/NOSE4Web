@@ -50,6 +50,13 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc', 'nhl94snes_SA1.sfc']) {
       // Its bytes for a project file, and the original back.
       const bytes = snesSetupPictureBytes(on)!
       expect(snesSetupPictureBytes(withSnesSetupPictureBytes(project, bytes))).toEqual(bytes)
+      // Imported ten times more: each copy gives its room back, so free space holds (from the second on; the first
+      // copy's pieces land a little differently).
+      const second = withSnesSetupPicture(on, made)
+      let repeated = second
+      for (let i = 0; i < 10; i++) repeated = withSnesSetupPicture(repeated, made)
+      expect(repeated.bytes.length).toBe(on.bytes.length)
+      expect(repeated.bytes.filter((b) => b === 0xff).length).toBe(second.bytes.filter((b) => b === 0xff).length)
       const back = readSnesSetupPicture(withOriginalSnesSetupPicture(on))!
       expect(back.original).toBe(true)
       expect(Buffer.compare(Buffer.from(back.picture.pixels), Buffer.from(shown.picture.pixels))).toBe(0)

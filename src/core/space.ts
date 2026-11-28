@@ -51,17 +51,22 @@ export function claimSpace(rom: Uint8Array, size: number, keepMark = false, inPl
   // data, as NOSE would move it. Where something follows the mark, that is
   // another tool's work, and the mark is left where it is.
   const marked = !keepMark && last >= 1 && rom[last - 1] === 0x60 && rom[last] === 0xfe
-  const at = marked ? last - 1 : last + 1 + ((last + 1) % 2) + GAP
+  // The room always starts at an even address: the 68000 reads code and words only there (an odd one is an address
+  // error). A mark at an odd address leaves its first byte unused and the room starts after it.
+  const odd = marked && (last - 1) % 2 === 1
+  const at = marked ? last - 1 + (odd ? 1 : 0) : last + 1 + ((last + 1) % 2) + GAP
   const needed = at + size + (marked ? 2 : 0)
   let length = rom.length
   if (needed > length) length = (length === 0x80000 || length === 0x100000) && length * 2 <= LARGEST_ROM ? length * 2 : 0
   if (needed > length) return null
   if (inPlace && length === rom.length) {
+    if (odd) rom[at - 1] = UNUSED
     if (marked) rom.set([0x60, 0xfe], at + size)
     return { rom, at }
   }
   const grown = new Uint8Array(length).fill(UNUSED)
   grown.set(rom)
+  if (odd) grown[at - 1] = UNUSED
   if (marked) grown.set([0x60, 0xfe], at + size)
   return { rom: grown, at }
 }

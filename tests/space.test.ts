@@ -74,3 +74,23 @@ describe('giving room back', () => {
     expect(b.rom).toEqual(before)
   })
 })
+
+describe('claiming room', () => {
+  it('always gives an even address, even after a NOSE end mark at an odd one (the 68000 runs code only there)', () => {
+    // A 1 MB ROM whose used part ends with NOSE's mark, 60 FE, at an odd address.
+    const rom = new Uint8Array(0x100000).fill(0xff)
+    rom.fill(0x11, 0, 0x8001)
+    rom.set([0x60, 0xfe], 0x8001)
+    const claimed = claimSpace(rom, 10)!
+    expect(claimed.at % 2).toBe(0)
+    expect(claimed.at).toBe(0x8002)
+    // The mark's stray first byte is unused, and the mark follows the room.
+    expect(claimed.rom[0x8001]).toBe(0xff)
+    expect([claimed.rom[0x8002 + 10], claimed.rom[0x8002 + 11]]).toEqual([0x60, 0xfe])
+    // At an even address it is used as before.
+    const even = new Uint8Array(0x100000).fill(0xff)
+    even.fill(0x11, 0, 0x8000)
+    even.set([0x60, 0xfe], 0x8000)
+    expect(claimSpace(even, 10)!.at).toBe(0x8000)
+  })
+})

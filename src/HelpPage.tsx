@@ -914,7 +914,7 @@ export function HelpPage() {
       <h3 id="help-settings">Game settings</h3>
       <p>
         The page's tabs are <b>Menu and clock</b>, <b>Playoff draws</b>, <b>Screen text</b> (the matchup text, the
-        credits and the rule messages) and <b>Pictures</b> (the announcer, the splash screen and the menu picture).
+        credits and the rule messages) and <b>Pictures</b> (the announcer, the splash screen, the main menu background and the title screen picture).
         Each game shows only the ones it has. The music has a page of its own, <b>Music</b>. Moving the teams into
         another order is on the Bulk changes page.
       </p>
@@ -1028,7 +1028,7 @@ export function HelpPage() {
         <li>
           <b>Title screen picture</b> (Genesis, NHL 94 and NHL '95): the picture on the title screen, under the NHL
           shield, NHLPA logo and lettering that slide in and the credits. Import a picture of your own and it is fitted
-          inside the screen, 256 by 224 pixels, in up to 33 colours of its own (NHL '95: 42) plus the lettering's.
+          inside the screen, 256 by 224 pixels, in up to 33 colours of its own (NHL '95: 42) plus the colours of the shield, logo and lettering (NHL '95: the lettering).
           Every 8 by 8 square can be different, so detail is kept. <b>Export as PNG</b> saves the picture to edit, and{' '}
           <b>Put back the original</b> puts the game's own back. Tested in the game by the NHL94 Match Viewer project.
         </li>
@@ -1120,7 +1120,7 @@ export function HelpPage() {
         <li>
           <b>Pre-game songs</b> (Genesis, NHL 94 and NHL '95): the music each home team's matchup screen plays before
           a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
-          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back.
+          seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back. Tested in the game by the NHL94 Match Viewer project.
         </li>
       </ul>
 
@@ -1682,7 +1682,8 @@ export function HelpPage() {
       <h3 id="help-rink">Rink colours</h3>
       <p>
         <b>Rink colours</b>, below the teams, has 16 colours for the ice and 16 for the arena around it. They are
-        shared by every rink in the game. Use the list above the picture to preview different parts of the rink and
+        shared by every rink in the game (on NHL 94 each home team can have its own boards trim and red markings, and on
+        NHL '95 and the SNES its own crowd colours; see below). Use the list above the picture to preview different parts of the rink and
         the pause menu.
       </p>
       <p>
@@ -2144,7 +2145,10 @@ export function HelpPage() {
         <b>Picture files</b> handles every team's logos, banners and player photos at once, as the spreadsheet
         files do the rest.
         <b> Export all pictures</b> saves them as PNG files in one zip, named with the Name box at the top.
-        <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for.
+        <b> Import pictures</b> takes a zip, or any number of PNG files, and replaces the pictures they are for. The
+        zip also has a screens folder: the title screen, the main menu background, the rinks and the side-on scoreboard,
+        the whole screens a league makes its own; each goes in as on its own page (Game settings or Rink colours), with
+        the same rules, and one that matches the ROM is skipped.
       </p>
       <ul>
         <li>
@@ -2450,7 +2454,8 @@ export function HelpPage() {
         </li>
         <li>
           Team logos and banners can be replaced, and player photos, and on the Genesis the splash screen, the main
-          menu background, the title screen picture and the rink, and on the SNES the main menu background. Other graphics, such as player sprites, cannot.
+          menu background, the title screen picture, the rink and the side-on scoreboard (NHL 94), and on the SNES the
+          main menu background and the rink. Other graphics, such as player sprites, cannot.
         </li>
         <li>
           So that the game will run a changed ROM, the editor turns off the game's own check that the ROM is
