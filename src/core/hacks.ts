@@ -213,6 +213,8 @@ export interface HackChoices {
   netColours: PuckColours
   // The fan in green in the stands, with their arm and leg back.
   greenFan: boolean
+  // No fans drawn over the stands (for a rink theme without a crowd).
+  noFans: boolean
   // Clockwise's touch-ups to the player sprites (clockwise.ts).
   clockwiseSprites: boolean
   // Ron Barr names the hotter team every game, not only when the gap is wide.
@@ -312,6 +314,7 @@ export type HackPart =
   | 'puckColours'
   | 'netColours'
   | 'greenFan'
+  | 'noFans'
   | 'clockwiseSprites'
   | 'barrPick'
   | 'barrCoin'
@@ -404,6 +407,7 @@ export const NO_HACKS: HackChoices = {
   puckColours: 'rink',
   netColours: 'rink',
   greenFan: false,
+  noFans: false,
   clockwiseSprites: false,
   barrPick: false,
   barrCoin: false,
@@ -3352,6 +3356,13 @@ const barrCoin = switchPart(
   bytes('303C 0002 4EB9 0001 1086 31C0 BF50 343C 005E 4E71 4E71 4E71 4E71'),
 )
 
+// No fans in the stands (Match Viewer, 2026-11-27, for the rink themes): showcrowd draws the penalty-box players,
+// then the two crowd frames' sprites from move.b (Crowdframe).w,d0 ($16216); that becomes rts (it saves no
+// registers), as the game itself skips the crowd in a reverse angle replay. The crowd's level and noise go on; the
+// goal celebration's jumping fans and the side-on scoreboard's go too; the boxed players stay. A game with it plays
+// out differently from one without after a few hundred frames (less work a frame, and some randomness is the beam's).
+const noFans = switchPart(0x16216, bytes('1038 B89A'), bytes('4E75 B89A'))
+
 const greenFan: Part<boolean> = {
   detect: (rom) => (GREEN_FAN.every((s) => is(rom, s.at, s.original)) ? false : GREEN_FAN.every((s) => is(rom, s.at, s.hacked)) ? true : undefined),
   remove: (rom) => GREEN_FAN.forEach((s) => rom.set(s.original, s.at)),
@@ -3925,6 +3936,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     puckColours: found('puckColours', puckColours.detect(rom), NO_HACKS.puckColours),
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
+    noFans: found('noFans', noFans.detect(rom), NO_HACKS.noFans),
     clockwiseSprites: found('clockwiseSprites', clockwiseState(rom), NO_HACKS.clockwiseSprites),
     barrPick: found('barrPick', barrPick.detect(rom), NO_HACKS.barrPick),
     barrCoin: found('barrCoin', barrCoin.detect(rom), NO_HACKS.barrCoin),
@@ -4061,6 +4073,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices, smozRom = false): 
     ['puckColours', () => puckColours.remove(work.rom), () => puckColours.apply(work, wanted.puckColours)],
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
+    ['noFans', () => noFans.remove(work.rom), () => noFans.apply(work, wanted.noFans)],
     // Taken out only where the ROM has it all: a ROM with part of it keeps that part whatever else changes.
     // Left alone where it stays on and the ROM has none of NOSE4Web's tape (hasNoseTape): a league's own copy of
     // Clockwise's edit gets the tape only when the edit is turned on.
@@ -4362,6 +4375,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   puckColours: 'Puck colours',
   netColours: 'Net colours',
   greenFan: 'The fan in green',
+  noFans: 'No fans in the stands',
   clockwiseSprites: "Clockwise's sprite edit",
   barrPick: "Ron Barr's pick every game",
   barrCoin: "Ron Barr's pick by a coin flip",
@@ -4449,6 +4463,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   puckColours: 'puckColours',
   netColours: 'netColours',
   greenFan: 'greenFan',
+  noFans: 'noFans',
   clockwiseSprites: 'clockwiseSprites',
   barrPick: 'barrPick',
   barrCoin: 'barrCoin',

@@ -83,6 +83,7 @@ export const ALL_HACKS: HackChoices = {
   puckColours: 'home',
   netColours: 'rink',
   greenFan: true,
+  noFans: true,
   clockwiseSprites: true,
   barrPick: true,
   barrCoin: false,

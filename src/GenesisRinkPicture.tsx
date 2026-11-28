@@ -268,8 +268,8 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           </button>{' '}
           <span className="note">
             {RINK_THEMES.find((t) => t.theme === theme)!.note} The ice, boards, benches and penalty boxes stay as they are.
-            The fans that move (who jump at a goal) are drawn over the stands by the game, so they still show. Not yet
-            tested in the game.
+            The fans that move (who jump at a goal) are drawn over the stands by the game, so they still show unless{' '}
+            <b>No fans in the stands</b> is on, on the Hacks page. Tested in the game by the NHL94 Match Viewer project.
           </span>
         </p>
       )}

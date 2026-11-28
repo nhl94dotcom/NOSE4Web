@@ -73,13 +73,36 @@ export function themedRink(rom: Uint8Array, view: RinkView, palette: number[], t
   }
   // The centre ice logo's block (the last 24 tiles) stays, wherever it is.
   const centreFrom = rink.tileCount - 24
+  // The stands: squares neither ice nor within two of it, and reachable from the picture's edge through such squares,
+  // so nothing the boards enclose is ever redrawn (Match Viewer found two plain ice squares before each net, darker
+  // than the test for ice, painted over by the first build).
+  const open = (cell: number) => !ice.has(cell) && !nearIce(cell) && (rink.words[cell] & 0x7ff) < centreFrom
+  const stands = new Set<number>()
+  const queue: number[] = []
+  for (let cell = 0; cell < across * down; cell++) {
+    const [c, r] = [cell % across, Math.floor(cell / across)]
+    if ((c === 0 || r === 0 || c === across - 1 || r === down - 1) && open(cell)) {
+      stands.add(cell)
+      queue.push(cell)
+    }
+  }
+  while (queue.length) {
+    const cell = queue.pop()!
+    const [c, r] = [cell % across, Math.floor(cell / across)]
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [nc, nr] = [c + dc, r + dr]
+      const next = nr * across + nc
+      if (nc < 0 || nr < 0 || nc >= across || nr >= down || stands.has(next) || !open(next)) continue
+      stands.add(next)
+      queue.push(next)
+    }
+  }
   const rgba = new Uint8ClampedArray(width * height * 4)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const cell = Math.floor(y / 8) * across + Math.floor(x / 8)
       const c = pixel(x, y)
-      const stands = !ice.has(cell) && !nearIce(cell) && (rink.words[cell] & 0x7ff) < centreFrom
-      if (stands) rgba.set([...PAINT[theme](x, y), 255], (y * width + x) * 4)
+      if (stands.has(cell)) rgba.set([...PAINT[theme](x, y), 255], (y * width + x) * 4)
       else if (c) rgba.set([...rgb[c], 255], (y * width + x) * 4)
     }
   }

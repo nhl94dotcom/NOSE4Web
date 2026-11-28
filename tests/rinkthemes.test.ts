@@ -32,6 +32,10 @@ for (const name of ['nhl94.bin']) {
           }
           expect(middle).toBe(0)
           expect(corner).toBeGreaterThan(100)
+          // The ice before each net (rows 14 and 77, columns 23-24: plain ice, Match Viewer) is as it was.
+          let nets = 0
+          for (const row of [14, 77]) for (let y = row * 8; y < row * 8 + 8; y++) for (let x = 23 * 8; x < 25 * 8; x++) if (was.pixels[y * 384 + x] !== now.pixels[y * 384 + x]) nets++
+          expect(nets).toBe(0)
         }
       })
     }

@@ -458,6 +458,11 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     expect(detectHacks(red).choices.netColours).toBe('crowd')
     const fan = applyHacks(opened, { ...NO_HACKS, greenFan: true }).bytes
     expect([at(fan, 0xbdeae, 2), at(fan, 0xbdeee, 2)]).toEqual(['206a', '2074'])
+    // No fans: showcrowd's move.b (Crowdframe).w,d0 at $16216 becomes rts (Match Viewer).
+    expect(at(opened.bytes, 0x16216, 4)).toBe('1038b89a')
+    const empty = applyHacks(opened, { ...NO_HACKS, noFans: true }).bytes
+    expect(at(empty, 0x16216, 4)).toBe('4e75b89a')
+    expect(detectHacks(empty).choices.noFans).toBe(true)
     expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')
   })
 
