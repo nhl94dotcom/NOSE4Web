@@ -1122,6 +1122,11 @@ export function HelpPage() {
           a game, in place of the game's own: a piece of the game's music, an organ song (it plays once, about 20
           seconds, then the screen is quiet) or silence. <b>Every team the game's own music</b> puts it all back. Tested in the game by the NHL94 Match Viewer project.
         </li>
+        <li>
+          <b>Goal sounds</b> (Genesis, NHL 94 and NHL '95): the sound a goal makes in place of the goal siren, chosen
+          for each home team's own goals, and one for every visiting team's goal: the siren, the end of period horn, the
+          crowd cheering or no sound. <b>The goal siren for every goal</b> puts it back. Not yet tested in the game.
+        </li>
       </ul>
 
       <h4 id="help-midi">Preparing a MIDI file for an organ song</h4>
