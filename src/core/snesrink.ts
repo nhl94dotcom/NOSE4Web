@@ -162,8 +162,9 @@ export function withSnesCentreIce(rink: Picture, centreIce: Picture): Picture {
 //   on the 32-team build 6 x 6 at rows 43-48, columns 21-26: both kept), the crowd's animation tiles 1 to 65
 //   (showcrowd rewrites them in play) and every cell that shows one, and tile 0;
 // - each cell keeps its palette row (the rink's, or the teams' on the benches), its priority and its place;
-// - the tiles may grow by up to 95 (the room below the sprites with the largest logo, on the 32-team build; 102 on
-//   retail);
+// - the tiles may grow by up to 85: Match Viewer measured room for 95 more below the sprites with the largest logo on
+//   the 32-team build (102 on retail), but 95 would end exactly at $5FFF there, so 10 are kept spare (and 68 more were
+//   tested in the game, 27 tiles still free at the tightest moment);
 // - a square that repeats another, turned or not, takes no tile of its own.
 // Both are packed as the ROM packs them (EA LZ) into free space (the ROM grown to 2 MB where it has none left) and
 // every loader of each (lda #bank / sta / lda #address / sta: setupice's and the reload's for the tiles,
@@ -178,7 +179,7 @@ export interface SnesRinkImport {
 }
 
 const SHOWN_ROWS = 85
-const MORE_TILES = 95
+const MORE_TILES = 85
 const CROWD_TILES = 65
 const LOGO_CELLS = { rows: [43, 48], cols: [20, 27] }
 

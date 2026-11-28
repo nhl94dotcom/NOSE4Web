@@ -158,9 +158,9 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           look at or to draw on in a paint program. <b>Import a PNG</b> puts an edited one back: the same size (or only
           its top 680 rows), each square of 8 by 8 pixels in the colours its square has now, matched to the nearest. The
           centre ice logo's place, the crowd's moving squares, and the rows below the rink (the pause screen's rink and
-          the replay icon) stay as they are. The rink has room for its own squares and about 95 more; a square that
+          the replay icon) stay as they are. The rink has room for its own squares and about 85 more; a square that
           repeats another, turned round or not, costs nothing. <b>Edit the rink…</b> draws on it here, a stroke at a
-          time, with the same rules. Not yet tested in the game.
+          time, with the same rules. Tested in the game by the NHL94 Match Viewer project.
         </p>
         {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
         {editing && importable && bare && (

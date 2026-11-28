@@ -42,7 +42,7 @@ export function CrowdColoursSection({ project, onChange }: Props) {
         {project.game.platform === 'snes'
           ? 'On the SNES the free colours are the crowd’s blue and green shirts.'
           : "On NHL '95 the rink's other colours are shared with the score box and the referee's box, so the crowd's are the ones each team can have; they show in the goal celebration and at the game's end too."}{' '}
-        A team left on <i>the crowd's own</i> keeps them. Not yet tested in the game.
+        A team left on <i>the crowd's own</i> keeps them. Tested in the game by the NHL94 Match Viewer project.
       </p>
       <p>
         <button onClick={() => put(crowdColoursFromBanners(project), "Every team's crowd now wears its banner's two colours. Undo takes it back.")}>
