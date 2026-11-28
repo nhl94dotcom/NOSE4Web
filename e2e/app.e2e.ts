@@ -432,7 +432,8 @@ test.describe('with the NHL 94 ROM', () => {
     await home.screenshot({ path: 'test-results/shots/colours.png' })
 
     await entry(page, 'Rink colours').click()
-    await expect(page.locator('canvas.preview')).toBeVisible()
+    // The rink colours' preview (the side-on scoreboard's picture is a preview too, further down).
+    await expect(page.locator('canvas.preview').first()).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/rink.png', fullPage: true })
   })
 
