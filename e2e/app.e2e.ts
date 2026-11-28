@@ -545,7 +545,8 @@ test.describe('with the NHL 94 ROM', () => {
     await drag([200, 40], [200, 40])
     const count = (text: string | null) => Number(/It takes (\d+)/.exec(text ?? '')![1])
     await expect.poll(async () => count(await editor.getByText(/^It takes \d+ of the/).textContent())).toBeLessThanOrEqual(count(before))
-    // Noise over a big area needs far more squares than there is room for: refused, the rink as it was.
+    // Noise over a big area needs far more squares than room can be made for by merging a few: refused, the rink as
+    // it was.
     await editor.getByRole('button', { name: 'Row 0 colour 3', exact: true }).click()
     await editor.getByRole('button', { name: 'Pencil' }).click()
     const box = (await canvas.boundingBox())!
@@ -553,7 +554,7 @@ test.describe('with the NHL 94 ROM', () => {
     await page.mouse.down()
     for (let i = 0; i < 80; i++) await page.mouse.move(box.x + 40 + ((i * 37) % 680), box.y + 120 + ((i * 53) % 380))
     await page.mouse.up()
-    await expect(editor.getByText(/Edit rejected: This picture needs \d+ more different squares/)).toBeVisible()
+    await expect(editor.getByText(/Edit rejected: This stroke needs \d+ more different squares/)).toBeVisible()
     await editor.getByRole('button', { name: 'Done drawing' }).click()
     await expect(editor).toHaveCount(0)
   })

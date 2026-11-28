@@ -24,6 +24,9 @@ interface Props {
 // The Genesis rink as the game draws it, boards, crowd, benches and ice markings, in the rink colours above and two
 // teams' colours for the players on the benches; to look at, to save as a PNG, and on NHL 94 to put an edited one back
 // (genesisrink.ts): the rink in play, and the reverse angle replay's own.
+// The most squares a stroke in Edit the rink may merge elsewhere to make room for itself.
+const MOST_MERGED = 16
+
 export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const [home, setHome] = useState(0)
   const [away, setAway] = useState(Math.min(1, project.teams.length - 1))
@@ -145,6 +148,13 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
       // Where the rink has no room for a new square (NHL '95 has none), room is made from its own nearly matching
       // squares, and the stroke stays as drawn.
       const result = importGenesisRink(project.bytes, view, asImage(picture), drawn.files, 'keep-new')
+      // A stroke may make room by merging a few squares, not by wearing the rink down (a scribble over it all).
+      if (result.swapped > MOST_MERGED) {
+        setRefused(
+          `This stroke needs ${result.swapped} more different squares than the rink has room for, and making that room would merge ${result.swapped} of the rink's own squares elsewhere (at most ${MOST_MERGED} a stroke). Draw a smaller stroke, or repeat squares: Copy and Stamp on the grid cost nothing.`,
+        )
+        return
+      }
       onChange!({ ...project, bytes: result.rom })
       if (result.at.length > 0) mark(result.at, true)
       setMessage(
