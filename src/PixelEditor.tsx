@@ -308,8 +308,14 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
         {copied && (
           <>
             <span className="note">
-              Copied: {copied.width} by {copied.height}. Stamp puts it down where you click (its top left corner).
+              Copied: {copied.width} by {copied.height}. Stamp puts it down where you click (its top left corner); click,
+              don't drag.
             </span>{' '}
+          </>
+        )}
+        {!copied && tool === 'stamp' && (
+          <>
+            <span className="note">Nothing copied yet: choose Copy and drag over a part first, then click to stamp it.</span>{' '}
           </>
         )}
         <label>
