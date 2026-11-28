@@ -157,8 +157,9 @@ export function SnesRinkEditor({ project, original, onChange, onProject }: Props
           <b>Export as PNG</b> saves the whole rink as drawn here, the boards, benches, penalty boxes and crowd too, to
           look at or to draw on in a paint program. <b>Import a PNG</b> puts an edited one back: the same size (or only
           its top 680 rows), each square of 8 by 8 pixels in the colours its square has now, matched to the nearest. The
-          centre ice logo's place, the crowd's moving squares, and the rows below the rink (the pause screen's rink and
-          the replay icon) stay as they are. The rink has room for its own squares and about 85 more; a square that
+          centre ice logo's place, the crowd's moving squares and the replay icon stay as they are. The rows below the
+          rink (from 680 pixels down) are the pause and intermission scoreboard's side view: with the whole picture, 904
+          rows, ads can go on its boards and glass too (its left 256 pixels show, from about 680 to 840 down). The rink has room for its own squares and about 85 more; a square that
           repeats another, turned round or not, costs nothing. <b>Edit the rink…</b> draws on it here, a stroke at a
           time, with the same rules. Tested in the game by the NHL94 Match Viewer project.
         </p>

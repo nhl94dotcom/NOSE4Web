@@ -2002,15 +2002,15 @@ test.describe('with the NHL 94 ROM', () => {
     await entry(page, 'Picture files').click()
     const main = page.locator('main')
 
-    await expect(main.getByText('306 pictures in Season_10_pictures.zip')).toBeVisible()
+    await expect(main.getByText('307 pictures in Season_10_pictures.zip')).toBeVisible()
     const download = await downloadFrom(page, main.getByRole('button', { name: 'Export all pictures' }))
     expect(download.suggestedFilename()).toBe('Season_10_pictures.zip')
     const zip = new Uint8Array(readFileSync(await download.path()))
     const files = await readZip(zip)
     // Four pictures for each of 28 teams, less the centre-ice logo the two All Stars teams share,
-    // 191 player photos in a folder for each team, and the 4 whole screens.
-    expect(files).toHaveLength(28 * 4 - 1 + 191 + 4)
-    expect(files.filter((f) => f.name.startsWith('screens/')).map((f) => f.name)).toEqual(['screens/title_screen.png', 'screens/main_menu_background.png', 'screens/rink.png', 'screens/rink_reverse.png'])
+    // 191 player photos in a folder for each team, and the 5 whole screens.
+    expect(files).toHaveLength(28 * 4 - 1 + 191 + 5)
+    expect(files.filter((f) => f.name.startsWith('screens/')).map((f) => f.name)).toEqual(['screens/title_screen.png', 'screens/main_menu_background.png', 'screens/rink.png', 'screens/rink_reverse.png', 'screens/side_on_scoreboard.png'])
     expect(files.filter((f) => f.name.startsWith('photos/02_Boston_Bruins/'))).toHaveLength(6)
     expect(files.map((f) => f.name)).toContain('02_Boston_Bruins_menu_logo.png')
     for (const file of files) expect([...file.data.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
@@ -2018,7 +2018,7 @@ test.describe('with the NHL 94 ROM', () => {
     // Brought straight back in, nothing changes.
     const picker = main.locator('input[type=file]')
     await picker.setInputFiles({ name: 'Season_10_pictures.zip', mimeType: 'application/zip', buffer: Buffer.from(zip) })
-    await expect(main.getByText('Replaced 0 pictures. 306 files matched what was there already.')).toBeVisible()
+    await expect(main.getByText('Replaced 0 pictures. 307 files matched what was there already.')).toBeVisible()
     await expect(page.getByText('Not downloaded yet')).toHaveCount(0)
 
     // A set with one logo painted red, in a folder, with a stray file beside it.
@@ -2035,7 +2035,7 @@ test.describe('with the NHL 94 ROM', () => {
       { name: 'pictures/readme.txt', data: new Uint8Array([104, 105]) },
     ])
     await picker.setInputFiles({ name: 'edited.zip', mimeType: 'application/zip', buffer: Buffer.from(changed) })
-    await expect(main.getByText('Replaced 1 picture. 305 files matched what was there already. 1 file could not be used.')).toBeVisible()
+    await expect(main.getByText('Replaced 1 picture. 306 files matched what was there already. 1 file could not be used.')).toBeVisible()
     await expect(main.getByText('pictures/readme.txt: not a PNG file, so it was left out.')).toBeVisible()
     await expect(main.getByText('Boston Bruins: Menu logo')).toBeVisible()
     await page.screenshot({ path: 'test-results/shots/picture-files.png', fullPage: true })

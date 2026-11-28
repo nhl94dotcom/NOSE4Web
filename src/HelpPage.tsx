@@ -1706,10 +1706,13 @@ export function HelpPage() {
         <b>Rink</b>: put a picture in for it too, or its replays show the old one. <b>Put back the original rink</b>{' '}
         undoes both. <b>Edit the rink…</b> draws on it here, a stroke at a time, with the same rules, the squares
         counted as you draw, and <b>Copy</b> and <b>Stamp</b> to repeat a part (snapped to the squares). Tested in the
-        game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
+        game by the NHL94 Match Viewer project. On NHL 94, <b>Side-on scoreboard</b> is the rink seen from the side
+        behind the pause menu and the intermission, with its own <b>Export as PNG</b> and <b>Import a PNG…</b>, for a
+        logo or ads on its boards and glass, in the rink's colours. Not yet tested in the game. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too, and <b>Import a PNG…</b> and{' '}
         <b>Edit the rink…</b> to put an edited one back, with room for about 85 more squares; the centre ice logo's
-        place, the crowd's moving squares and the rows below the rink stay as they are. Tested in the game by the NHL94 Match Viewer project.
+        place, the crowd's moving squares and the replay icon stay as they are, and the rows below the rink (the pause
+        scoreboard's side view) can take ads too. Tested in the game by the NHL94 Match Viewer project.
       </p>
 
       <h3 id="help-league">League</h3>

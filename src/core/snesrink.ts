@@ -157,8 +157,11 @@ export function withSnesCentreIce(rink: Picture, centreIce: Picture): Picture {
 // An edited rink picture (as drawSnesRink draws it without a centre ice logo, 384 pixels wide; the 680 rows the game
 // shows in play, or all 904) put back into IceRinkTiles and IceRinkMap (Match Viewer's measurements, 2026-11-27, on
 // retail and the 32-team build alike):
-// - kept as they are: the rows below the rink (85-112, the pause scoreboard's rink and the replay icon, whose tiles
-//   must stay at 256 or above), the centre ice logo's cells (BuildRinkMap pastes it at rows 44-47, columns 20-27, or
+// - the rows below the rink (85-112) are the pause scoreboard's rink (SetHor_rink shows their columns 0-31): a
+//   picture of all 904 rows may change them, ads on its boards and glass; the replay icon there (rows 85-92, columns
+//   32-39, tiles 435-530, which must stay at 256 or above) is kept, and with a picture of only the 680 rows in play,
+//   all of them (Match Viewer, 2026-11-27);
+// - kept as they are: the centre ice logo's cells (BuildRinkMap pastes it at rows 44-47, columns 20-27, or
 //   on the 32-team build 6 x 6 at rows 43-48, columns 21-26: both kept), the crowd's animation tiles 1 to 65
 //   (showcrowd rewrites them in play) and every cell that shows one, and tile 0;
 // - each cell keeps its palette row (the rink's, or the teams' on the benches), its priority and its place;
@@ -182,6 +185,7 @@ const SHOWN_ROWS = 85
 const MORE_TILES = 85
 const CROWD_TILES = 65
 const LOGO_CELLS = { rows: [43, 48], cols: [20, 27] }
+const REPLAY_ICON = { rows: [85, 92], cols: [32, 39] }
 
 function tileBytes(pixels: ArrayLike<number>): Uint8Array {
   const out = new Uint8Array(TILE)
@@ -223,10 +227,11 @@ export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uin
     throw new SnesRinkImportError(`The picture must be ${rink.width * 8} pixels wide and ${shown} or ${fullHeight} tall, as Export as PNG saves it; this one is ${image.width} by ${image.height}.`)
   }
   const count = rink.tiles.length / TILE
+  const rows = image.height / 8
   const kept = (cell: number) => {
     const [col, row] = [cell % rink.width, Math.floor(cell / rink.width)]
     const tile = rink.words[cell] & TILE_NUMBER
-    return row >= SHOWN_ROWS || (row >= LOGO_CELLS.rows[0] && row <= LOGO_CELLS.rows[1] && col >= LOGO_CELLS.cols[0] && col <= LOGO_CELLS.cols[1]) || tile <= CROWD_TILES
+    return row >= rows || (row >= REPLAY_ICON.rows[0] && row <= REPLAY_ICON.rows[1] && col >= REPLAY_ICON.cols[0] && col <= REPLAY_ICON.cols[1]) || (row >= LOGO_CELLS.rows[0] && row <= LOGO_CELLS.rows[1] && col >= LOGO_CELLS.cols[0] && col <= LOGO_CELLS.cols[1]) || tile <= CROWD_TILES
   }
   const pinned = new Set<number>(Array.from({ length: CROWD_TILES + 1 }, (_, t) => t))
   rink.words.forEach((word, cell) => {
@@ -252,7 +257,7 @@ export function importSnesRink(rom0: Uint8Array, image: { rgba: Uint8Array | Uin
   const original = drawSnesRink(rom0, null)!
   const squares = new Map<number, number[]>()
   for (let cell = 0; cell < rink.words.length; cell++) {
-    if (kept(cell) || Math.floor(cell / rink.width) >= image.height / 8) continue
+    if (kept(cell)) continue
     const row = (rink.words[cell] & PALETTE_BITS) >> PALETTE_SHIFT
     const [cx, cy] = [(cell % rink.width) * 8, Math.floor(cell / rink.width) * 8]
     squares.set(

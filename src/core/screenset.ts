@@ -6,6 +6,7 @@
 import { SNES_COLORS } from './color'
 import { drawGenesisRink, importGenesisRink, readGenesisRink, RinkImportError, type RinkView } from './genesisrink'
 import { pictureToImage, type Picture } from './graphics'
+import { readHorBoard, withHorBoardImage } from './horboard'
 import { menuPictureFromImage, menuPicturePalette, readMenuPicture, withMenuPicture } from './menupicture'
 import type { RomProject } from './rom'
 import { readSnesSetupPicture, snesSetupPictureFromImage, withSnesSetupPicture } from './snessetuppicture'
@@ -76,6 +77,12 @@ const SCREENS: Record<'genesis' | 'snes', Screen[]> = {
       title: "The reverse angle replay's rink",
       read: (project) => genesisRink(project, 'reverse'),
       put: (project, image) => ({ ...project, bytes: importGenesisRink(project.bytes, 'reverse', image, genesisRink(project, 'reverse')!.palette).rom }),
+    },
+    {
+      file: 'side_on_scoreboard.png',
+      title: 'Side-on scoreboard',
+      read: (project) => readHorBoard(project),
+      put: (project, image) => withHorBoardImage(project, image.rgba, image.width, image.height).project,
     },
   ],
   snes: [

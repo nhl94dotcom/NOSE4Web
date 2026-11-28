@@ -41,6 +41,26 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc']) {
       // A built ROM opened again draws the same.
       expect(differing(drawSnesRink(openRom(buildRom({ ...project, bytes: changed.rom })).bytes, null)!.pixels, after.pixels)).toBe(0)
 
+      // All 904 rows: the pause scoreboard's rink (rows 85-112) may change too, the replay icon (rows 85-92, columns
+      // 32-39) not.
+      const whole = pictureToImage(rink, palette, SNES_COLORS)
+      expect(differing(drawSnesRink(importSnesRink(rom, { rgba: whole, width: 384, height: 904 }, palette).rom, null)!.pixels, rink.pixels)).toBe(0)
+      const board = Uint8ClampedArray.from(whole)
+      for (let y = 704; y < 720; y++) for (let x = 40; x < 72; x++) board.set(((x >> 2) + (y >> 2)) % 2 ? a : b, (y * 384 + x) * 4)
+      for (let y = 680; y < 744; y++) for (let x = 256; x < 320; x++) board.set(b, (y * 384 + x) * 4)
+      const onBoard = drawSnesRink(importSnesRink(rom, { rgba: board, width: 384, height: 904 }, palette).rom, null)!
+      let boardChanged = 0
+      let iconChanged = 0
+      for (let y = 680; y < 904; y++) {
+        for (let x = 0; x < 384; x++) {
+          if (onBoard.pixels[y * 384 + x] === rink.pixels[y * 384 + x]) continue
+          if (y < 744 && x >= 256 && x < 320) iconChanged++
+          else boardChanged++
+        }
+      }
+      expect(boardChanged).toBeGreaterThan(100)
+      expect(iconChanged).toBe(0)
+
       // Noise everywhere: far more squares than the room.
       const noise = Uint8ClampedArray.from(rgba).map((v, i) => (i % 4 === 3 ? 255 : (v * 7 + i * 13) & 255))
       expect(() => importSnesRink(rom, { rgba: noise, ...shown }, palette)).toThrow(SnesRinkImportError)

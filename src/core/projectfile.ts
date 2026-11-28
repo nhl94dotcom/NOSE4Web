@@ -5,6 +5,7 @@
 
 import { menuPictureBytes, withMenuPictureBytes, withOriginalMenuPicture } from './menupicture'
 import { titlePictureBytes, withOriginalTitlePicture, withTitlePictureBytes } from './titlepicture'
+import { horBoardBytes, withHorBoardBytes, withOriginalHorBoard } from './horboard'
 import { snesSetupPictureBytes, withOriginalSnesSetupPicture, withSnesSetupPictureBytes } from './snessetuppicture'
 import { splashBytes, withOriginalSplash, withSplashBytes } from './splash'
 import {
@@ -102,6 +103,7 @@ interface ProjectFile {
     splash?: { original: true } | { bytes: string; ownColours: boolean }
     menuPicture?: { original: true } | { bytes: string }
     titlePicture?: { original: true } | { bytes: string }
+    horBoard?: { original: true } | { bytes: string }
     announcer?: { original: true } | { bytes: string }
     // The SNES Game Setup background, as its three unpacked parts.
     snesMenuPicture?: { original: true } | { bytes: string }
@@ -635,9 +637,11 @@ function savedScreens(project: RomProject, opened: RomProject): ProjectFile['scr
   if (!sameBytes(menu, menuPictureBytes(opened.bytes))) screens.menuPicture = menu ? { bytes: pack(menu) } : { original: true }
   const title = titlePictureBytes(project)
   if (!sameBytes(title, titlePictureBytes(opened))) screens.titlePicture = title ? { bytes: pack(title) } : { original: true }
+  const hor = horBoardBytes(project)
+  if (!sameBytes(hor, horBoardBytes(opened))) screens.horBoard = hor ? { bytes: pack(hor) } : { original: true }
   const announcer = genesisAnnouncerBytes(project)
   if (!sameBytes(announcer, genesisAnnouncerBytes(opened))) screens.announcer = announcer ? { bytes: pack(announcer) } : { original: true }
-  return screens.splash || screens.menuPicture || screens.titlePicture || screens.announcer ? screens : undefined
+  return screens.splash || screens.menuPicture || screens.titlePicture || screens.horBoard || screens.announcer ? screens : undefined
 }
 
 // The project's splash screen and main menu background put in, where this ROM can take them.
@@ -711,6 +715,19 @@ function withSavedScreens(project: RomProject, screens: ProjectFile['screens'], 
       }
     } catch {
       left.push('title screen picture')
+    }
+  }
+  const hor = screens.horBoard
+  if (hor) {
+    try {
+      if ('original' in hor) {
+        if (horBoardBytes(project)) project = withOriginalHorBoard(project)
+      } else {
+        const bytes = unpack(hor.bytes)
+        if (!sameBytes(horBoardBytes(project), bytes)) project = withHorBoardBytes(project, bytes)
+      }
+    } catch {
+      left.push('side-on scoreboard picture')
     }
   }
   const announcer = screens.announcer

@@ -9,7 +9,7 @@ import { importScreenSet, screenImage, screenSet } from '../src/core/screenset'
 const path = (name: string) => fileURLToPath(new URL(`../../${name}`, import.meta.url))
 
 for (const [name, files] of [
-  ['nhl94.bin', ['screens/title_screen.png', 'screens/main_menu_background.png', 'screens/rink.png', 'screens/rink_reverse.png']],
+  ['nhl94.bin', ['screens/title_screen.png', 'screens/main_menu_background.png', 'screens/rink.png', 'screens/rink_reverse.png', 'screens/side_on_scoreboard.png']],
   ['NHL95/NHL_95.bin', ['screens/title_screen.png', 'screens/rink.png', 'screens/rink_reverse.png']],
   ['NHL94.smc', ['screens/main_menu_background.png', 'screens/rink.png']],
 ] as const) {

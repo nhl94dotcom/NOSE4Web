@@ -3,6 +3,7 @@ import { hex } from './core/bytes'
 import { PaletteEditor, Preview } from './Palette'
 import { ResetButton } from './ResetButton'
 import { GenesisRinkPicture } from './GenesisRinkPicture'
+import { HorBoardSection } from './HorBoardSection'
 import { ArenaColoursSection } from './ArenaColoursSection'
 import { CrowdColoursSection } from './CrowdColoursSection'
 import type { RomProject } from './core/rom'
@@ -77,6 +78,7 @@ export function RinkEditor({ palette, original, onChange, edition, project, open
       {project && onProject && <ArenaColoursSection project={project} onChange={onProject} />}
       {project && onProject && <CrowdColoursSection project={project} onChange={onProject} />}
       {project && <GenesisRinkPicture project={project} opened={opened} onChange={onProject} />}
+      {project && opened && onProject && <HorBoardSection project={project} opened={opened} onChange={onProject} />}
     </main>
   )
 }
