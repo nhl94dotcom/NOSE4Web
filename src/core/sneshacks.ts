@@ -4343,7 +4343,13 @@ export function snesIntermissionCode(code: string, nt3: number, at: number, ramM
   bytes.set(word(nt3), SNES_INTREPORT_NT3)
   if (ramMove) for (const field of SNES_INTREPORT_RAM16) bytes.set(word(readU16(bytes, field) + ramMove), field)
   for (const field of SNES_INTREPORT_CODE16) bytes.set(word(readU16(bytes, field) + loRomAddress(at) - 0x8000), field)
-  for (const field of SNES_INTREPORT_CODE24) bytes[field + 2] = loRomBank(at, 0x80)
+  // A long address (the code's own tables, read with lda long,x): its address moves with the code as a 16-bit field
+  // does, and its bank is the code's (Match Viewer, 2026-11-28: only the bank moved at first, and the game froze at a
+  // period's end).
+  for (const field of SNES_INTREPORT_CODE24) {
+    bytes.set(word(readU16(bytes, field) + loRomAddress(at) - 0x8000), field)
+    bytes[field + 2] = loRomBank(at, 0x80)
+  }
   return bytes
 }
 

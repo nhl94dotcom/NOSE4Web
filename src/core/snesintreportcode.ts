@@ -151,8 +151,8 @@ export const SNES_INTREPORT_SA1 =
 // Where the code reads NewTicker3Pos (lda #address, then lda #bank at +5).
 export const SNES_INTREPORT_NT3 = 0x0a6
 
-// To put the code at bank B, address A: add (A - $8000) to each 16-bit code field, and set the bank byte after each
-// 24-bit field (the third byte) to B. Offsets from the code's first byte; Match Viewer's list.
+// To put the code at bank B, address A: add (A - $8000) to each 16-bit code field, and to the first two bytes of each
+// 24-bit field, whose third byte becomes B. Offsets from the code's first byte; Match Viewer's list.
 export const SNES_INTREPORT_CODE16 = [
   0x021, 0x031, 0x07f, 0x0a3, 0x100, 0x10c, 0x121, 0x125, 0x144, 0x152, 0x157, 0x1e6, 0x1ec, 0x1f2, 0x22a, 0x242,
   0x248, 0x25d, 0x265, 0x297, 0x2db, 0x2f2, 0x313, 0x319, 0x31e, 0x320, 0x322, 0x324, 0x326, 0x328, 0x32a, 0x32c,

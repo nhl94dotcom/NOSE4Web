@@ -40,6 +40,17 @@ const BUILDS: Record<string, typeof RETAIL> = {
   'nhl94snes_SA1.sfc': { hookA: 0x9fa34f, hookAOriginal: '22e3a39f', hookB: 0x9fa3fc, hookBOriginal: 'ad2f6df022', routine: '88C9C4A6' },
 }
 const ROUTINE_LENGTH = 2368
+// The built ROMs' CRC32s from Match Viewer's assembly of intreport94s_patch.asm on each base, at the code address
+// NOSE4Web places it ($9B:F6C0) and its RAM ($7E:EF00, SA-1 $40:5700).
+const ASSEMBLED: Record<string, string> = {
+  'NHL94.smc': '89D12D73',
+  'NHL94_Classic.smc': '809A0BA0',
+  'NHL94-2on2-xstioph-fix2.smc': '988B50B2',
+  'pond_hockey_nhl94_1min.smc': '4CB8E3E3',
+  'nhl94snes_2026.sfc': '9140E179',
+  'nhl94_2026.sfc': '012B86D4',
+  'nhl94snes_SA1.sfc': 'EDB74B22',
+}
 
 // The code at `at` (bank:address `target`) moved back to $A0:8000, where Match Viewer assembled it.
 function atA08000(code: Uint8Array, target: number, ramMove: number): Uint8Array {
@@ -56,6 +67,9 @@ function atA08000(code: Uint8Array, target: number, ramMove: number): Uint8Array
     back[field + 1] = (value >> 8) & 0xff
   }
   for (const field of SNES_INTREPORT_CODE24) {
+    const value = (back[field] | (back[field + 1] << 8)) - moved
+    back[field] = value & 0xff
+    back[field + 1] = (value >> 8) & 0xff
     expect(back[field + 2]).toBe(target >> 16)
     back[field + 2] = 0xa0
   }
@@ -91,6 +105,10 @@ for (const [name, build] of Object.entries(BUILDS)) {
       const ramMove = build.hookBOriginal === 'ad2f6df022' ? SNES_INTREPORT_SA1_RAM_MOVE : 0
       if (ramMove) expect(readWord(on.bytes, at + SNES_INTREPORT_RAM16[0])).toBe(0x5700)
       expect(crc(atA08000(on.bytes.slice(at, at + ROUTINE_LENGTH), target, ramMove))).toBe(build.routine)
+
+      // Built, the ROM is what Match Viewer's own assembly of the patch at this placement gives (2026-11-28: their
+      // check found the long table reads left at $A0:8000's offsets, which froze the game at a period's end).
+      if (ASSEMBLED[name]) expect(crc(buildRom(on))).toBe(ASSEMBLED[name])
 
       // Through a rebuild (with a copier header where the ROM has one), and out again.
       const reopened = openRom(buildRom(on))
