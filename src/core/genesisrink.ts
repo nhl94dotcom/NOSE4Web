@@ -164,6 +164,8 @@ export interface RinkImport {
   swapped: number
   places: number
   pixels: number
+  // Where on this view's picture those places are (each square's top left corner, in pixels).
+  at: { x: number; y: number }[]
 }
 
 const CENTRE_TILES = 24
@@ -265,14 +267,17 @@ export function genesisRinkGuide(rom: Uint8Array, view: RinkView, palette: numbe
 }
 
 // `fit`: where the picture needs more different squares than there is room for, swap those that differ least from
-// another square (weighed by how many places show them) for the closest one, until it fits. `other`: on NHL '95, a
+// another square (weighed by how many places show them) for the closest one, until it fits: the picture's new squares
+// first (Make it fit on an import), or with 'keep-new' the rink's own first, so that a stroke in Edit the rink stays as
+// drawn and room is made from the rink's nearly matching squares (NHL '95's rink has no spare room at all; the user
+// found strokes refused, 2026-11-28). `other`: on NHL '95, a
 // picture for the other view's map too (which shares the tiles), in place of its own drawing.
 export function importGenesisRink(
   rom: Uint8Array,
   view: RinkView,
   image: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number },
   palette: number[],
-  fit = false,
+  fit: boolean | 'keep-new' = false,
   other?: { rgba: Uint8Array | Uint8ClampedArray; width: number; height: number },
 ): RinkImport {
   const rink = readGenesisRink(rom, view)
@@ -456,14 +461,16 @@ export function importGenesisRink(
       return best * fresh.get(key)!.cells.length
     }
     const cost = new Map(keys.map((key) => [key, nearest(key)]))
-    // Only the squares the picture adds are swapped, so that what was not edited (on NHL '95 the other map too) stays
-    // as it was; the rink's own only if that is not enough (the review of 2026-11-27).
-    let addedOnly = true
+    // Make it fit swaps only the squares the picture adds, so that what was not edited (on NHL '95 the other map too)
+    // stays as it was (the review of 2026-11-27); 'keep-new' only the rink's own; either takes the others when that is
+    // not enough.
+    let preferred = true
+    const wanted = (key: string) => (fit === 'keep-new' ? before.has(key) : !before.has(key))
     while (keptKeys.size > free.length) {
       let cheapest = ''
-      for (const key of keptKeys) if ((!addedOnly || !before.has(key)) && (!cheapest || cost.get(key)! < cost.get(cheapest)!)) cheapest = key
+      for (const key of keptKeys) if ((!preferred || wanted(key)) && (!cheapest || cost.get(key)! < cost.get(cheapest)!)) cheapest = key
       if (!cheapest) {
-        addedOnly = false
+        preferred = false
         continue
       }
       // A cost only grows as squares are taken out, so the cheapest's is counted again: still the cheapest, it goes.
@@ -489,6 +496,7 @@ export function importGenesisRink(
   const stored = [...pinnedPixels, ...[...keptKeys].map((key, i) => ({ tile: free[i], turnings: freshTurnings.get(key)! }))]
   let places = 0
   let pixels = 0
+  const at: { x: number; y: number }[] = []
   for (const [id, bytes] of squareOf) {
     const word = wordOf(id)
     let place = known.get(variants(bytes)[0][0])
@@ -504,12 +512,13 @@ export function importGenesisRink(
       }
       place = { tile: best.tile, flip: best.flip }
       places++
+      if (id < MAP_CELLS) at.push({ x: (id % rink.width) * 8, y: Math.floor(id / rink.width) * 8 })
       for (let i = 0; i < 64; i++) if (own[i] !== best.turning[i]) pixels++
     }
     words[Math.floor(id / MAP_CELLS)][id % MAP_CELLS] = (word & 0x8000) | (lineAt(id) << 13) | place.flip | place.tile
   }
   maps.forEach((m, k) => words[k].forEach((word, cell) => writeU16(out, m.rink.mapAt + 4 + cell * 2, word)))
-  return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels }
+  return { rom: out, used: Math.min(used, free.length), room: free.length, swapped: swappedKeys.size, places, pixels, at }
 }
 
 // A rink's tiles and map words as they are in the ROM, for a project file (an imported picture or a theme changes

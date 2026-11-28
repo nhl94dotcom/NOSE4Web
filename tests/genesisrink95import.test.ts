@@ -25,6 +25,30 @@ describe.skipIf(!existsSync(path('NHL95/NHL_95.bin')))("putting an edited rink i
     expect(reverse.words.filter((w, i) => w !== play.words[i]).length).toBeGreaterThan(2000)
   })
 
+  it('takes a stroke of new squares in Edit the rink, making room from its own nearly matching squares', () => {
+    const rom = project().bytes
+    const d = drawn(rom, 'play')
+    const inPlay = { width: 384, height: 680, pixels: d.picture.pixels.slice(0, 384 * 680) }
+    const rgba = pictureToImage(inPlay, d.palette)
+    // A short red bar on the ice: a square the rink does not have, where there is no room at all.
+    for (let x = 120; x < 124; x++) rgba.set([255, 0, 0, 255], (300 * 384 + x) * 4)
+    expect(() => importGenesisRink(rom, 'play', { rgba, width: 384, height: 680 }, d.palette)).toThrow()
+    const result = importGenesisRink(rom, 'play', { rgba, width: 384, height: 680 }, d.palette, 'keep-new')
+    expect(result.swapped).toBeGreaterThan(0)
+    // The stroke is exactly as drawn: its square's pixels are the picture's.
+    const after = drawn(result.rom, 'play').picture.pixels
+    const want = drawn(rom, 'play')
+    let strokeOff = 0
+    for (let x = 120; x < 124; x++) if (after[300 * 384 + x] === want.picture.pixels[300 * 384 + x]) strokeOff++
+    expect(strokeOff).toBe(0)
+    // Elsewhere, only the merged squares' few pixels change (`pixels` counts both maps, which share the tiles).
+    let elsewhere = 0
+    for (let i = 0; i < 384 * 680; i++) if (Math.floor(i / 384 / 8) !== 37 || Math.floor((i % 384) / 8) !== 15) if (after[i] !== want.picture.pixels[i]) elsewhere++
+    expect(elsewhere).toBeGreaterThan(0)
+    expect(elsewhere).toBeLessThanOrEqual(result.pixels)
+    expect(result.pixels).toBeLessThan(80)
+  })
+
   for (const view of ['play', 'reverse'] as const) {
     it(`gives both rinks back as they were for its own picture (${view}), and keeps the other's when one changes`, () => {
       const rom = project().bytes

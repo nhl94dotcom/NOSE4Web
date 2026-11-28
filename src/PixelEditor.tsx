@@ -64,11 +64,13 @@ export interface PixelEditorProps {
   snap?: number
   // Zoom to start at.
   startZoom?: number
+  // Rectangles to outline (in pixels), such as squares an import changed elsewhere.
+  marks?: { x: number; y: number; width: number; height: number }[]
   onCommit: (picture: Picture) => void
   onClose: () => void
 }
 
-export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, tidy, problem, context, snap, startZoom, onCommit, onClose }: PixelEditorProps) {
+export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, colours, editable, limit, afterStroke, tidy, problem, context, snap, startZoom, marks, onCommit, onClose }: PixelEditorProps) {
   const [tool, setTool] = useState<Tool>('pencil')
   const [colour, setColour] = useState(colours[0] ?? 1)
   const [zoom, setZoom] = useState(startZoom ?? (picture.width > 64 ? 6 : 8))
@@ -124,7 +126,12 @@ export function PixelEditor({ title, picture, palette, format = GENESIS_COLORS, 
       context2d.lineWidth = 2
       context2d.strokeRect(left * zoom, top * zoom, (Math.abs(x1 - x0) + 1) * zoom, (Math.abs(y1 - y0) + 1) * zoom)
     }
-  }, [shown, palette, format, zoom, grid, selection])
+    if (marks && marks.length > 0) {
+      context2d.strokeStyle = 'rgba(255, 220, 0, 0.95)'
+      context2d.lineWidth = 2
+      for (const m of marks) context2d.strokeRect(m.x * zoom, m.y * zoom, m.width * zoom, m.height * zoom)
+    }
+  }, [shown, palette, format, zoom, grid, selection, marks])
 
   const where = (event: React.PointerEvent<HTMLCanvasElement>): Point => {
     const box = event.currentTarget.getBoundingClientRect()

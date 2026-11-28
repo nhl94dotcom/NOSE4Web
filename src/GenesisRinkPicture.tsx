@@ -32,6 +32,17 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   // Drawing on the rink here, and why the last stroke was refused.
   const [editing, setEditing] = useState(false)
   const [refused, setRefused] = useState('')
+  // Squares Make it fit or a stroke changed elsewhere (top left corners, in pixels), outlined on the pictures until
+  // hidden or the view changes.
+  const [marked, setMarked] = useState<{ view: RinkView; at: { x: number; y: number }[] }>({ view: 'play', at: [] })
+  const marks = useMemo(() => (marked.view === view ? marked.at : []), [marked, view])
+  const editorMarks = useMemo(() => marks.map((p) => ({ x: p.x, y: p.y, width: 8, height: 8 })), [marks])
+  const mark = (at: { x: number; y: number }[], add: boolean) =>
+    setMarked((was) => {
+      const kept = add && was.view === view ? was.at : []
+      const seen = new Set(kept.map((p) => `${p.x},${p.y}`))
+      return { view, at: [...kept, ...at.filter((p) => !seen.has(`${p.x},${p.y}`))] }
+    })
   const [theme, setTheme] = useState<RinkTheme>('outdoor')
   // A picture with too many different squares, kept for Make it fit.
   const [tooMany, setTooMany] = useState<{ image: Awaited<ReturnType<typeof readImage>>; view: RinkView } | null>(null)
@@ -65,7 +76,10 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
     const image = context.createImageData(drawn.picture.width, drawn.picture.height)
     image.data.set(pictureToImage(drawn.picture, drawn.palette))
     context.putImageData(image, 0, 0)
-  }, [drawn])
+    context.strokeStyle = 'rgba(255, 220, 0, 0.95)'
+    context.lineWidth = 2
+    for (const p of marks) context.strokeRect(p.x - 1, p.y - 1, 10, 10)
+  }, [drawn, marks])
 
   if (!drawn) return null
   // The rink's tiles and map, as the ROM has them and as it was opened.
@@ -99,8 +113,9 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
     try {
       const result = importGenesisRink(project.bytes, view, image, drawn.files, fit)
       onChange!({ ...project, bytes: result.rom })
+      mark(result.at, false)
       const swapped = result.swapped
-        ? ` To fit, ${result.swapped} of its squares were swapped for the closest ones the rink has: ${result.pixels} ${result.pixels === 1 ? 'pixel' : 'pixels'} in ${result.places} ${result.places === 1 ? 'place' : 'places'} differ from the picture.`
+        ? ` To fit, ${result.swapped} of its squares were swapped for the closest ones the rink has: ${result.pixels} ${result.pixels === 1 ? 'pixel' : 'pixels'} in ${result.places} ${result.places === 1 ? 'place' : 'places'} differ from the picture, outlined in yellow.`
         : ''
       setMessage({
         text: `${view === 'play' ? 'The rink' : "The reverse angle replay's rink"} is now the picture: it takes ${result.used} of the ${result.room} squares of 8 by 8 pixels there is room for.${swapped} Undo takes it back.`,
@@ -127,7 +142,23 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
   const asImage = (picture: Picture) => ({ rgba: pictureToImage(picture, drawn.files), width: picture.width, height: picture.height })
   const stroke = (picture: Picture) => {
     try {
-      onChange!({ ...project, bytes: importGenesisRink(project.bytes, view, asImage(picture), drawn.files).rom })
+      // Where the rink has no room for a new square (NHL '95 has none), room is made from its own nearly matching
+      // squares, and the stroke stays as drawn.
+      const result = importGenesisRink(project.bytes, view, asImage(picture), drawn.files, 'keep-new')
+      onChange!({ ...project, bytes: result.rom })
+      if (result.at.length > 0) mark(result.at, true)
+      setMessage(
+        result.swapped > 0
+          ? {
+              text:
+                `To make room, ${result.swapped} nearly matching ${result.swapped === 1 ? 'square' : 'squares'} elsewhere on the rink ${result.swapped === 1 ? 'was' : 'were'} merged with the closest, ` +
+                `${result.pixels} ${result.pixels === 1 ? 'pixel' : 'pixels'} changed` +
+                (result.at.length > 0 ? `, at ${result.at.slice(0, 6).map((p) => `x ${p.x}, y ${p.y}`).join('; ')}${result.at.length > 6 ? ` and ${result.at.length - 6} more` : ''}` : '') +
+                ', outlined in yellow. Undo takes it back.',
+              failed: false,
+            }
+          : null,
+      )
       setRefused('')
     } catch (e) {
       setRefused(e instanceof RinkImportError ? e.message : String(e))
@@ -280,6 +311,14 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
         </p>
       )}
       {message && <p className={message.failed ? 'error' : 'note'}>{message.text}</p>}
+      {marks.length > 0 && (
+        <p>
+          <span className="note">
+            {marks.length} {marks.length === 1 ? 'square' : 'squares'} changed to make room, outlined in yellow.
+          </span>{' '}
+          <button onClick={() => mark([], false)}>Hide the outlines</button>
+        </p>
+      )}
       {editing && importable(view) && (
         <PixelEditor
           title={view === 'play' ? 'Rink' : 'Reverse angle rink'}
@@ -290,6 +329,7 @@ export function GenesisRinkPicture({ project, opened, onChange }: Props) {
           problem={refused || undefined}
           snap={8}
           startZoom={4}
+          marks={editorMarks}
           onCommit={stroke}
           onClose={() => {
             setEditing(false)
