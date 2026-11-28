@@ -47,7 +47,7 @@ export const SNES_HACK_GROUPS: HackGroup<SnesHack>[] = [
     title: 'Fixes',
     hacks: ['hotColdFix', 'ppPkFix', 'comebackFix', 'faceoffFix', 'penaltyShotFixes', 'extraAttackerFix', 'yButtonFix', 'awarenessFix', 'oneTimerFix', 'shotFix', 'lockedChangeFix', 'lockedDefenceFix', 'openNetFix', 'secondAssist', 'regainAssist', 'postsFix'],
   },
-  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'threeStars'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'bodychecksShown', 'timeOnIce', 'timeOnIceShown', 'giveaways', 'giveawaysShown', 'giveawayPages', 'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'threeStars', 'intermissionReport'] },
   { id: 'ratings', title: 'Ratings', hacks: ['clutchTime'] },
   {
     id: 'rules',

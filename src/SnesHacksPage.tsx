@@ -205,6 +205,8 @@ const ABOUT: Record<SnesHack, ReactNode> = {
   barrCoin:
     "An option, instead of the one above: Ron Barr names a team every game by a coin flip, home or visitors alike, whatever the teams’ hot and cold rolls, so about half the time the team named came out colder. The line never says “extremely”. Turning one of the two on turns the other off. It uses the same line of Ron Barr’s text, so the same wording works. Tested in the game by the NHL94 Match Viewer project.",
   skipPucksIntro: 'Starts the game without the flying pucks. They are the title screen, so the NHL 94 title, the NHLPA logo and the copyright line do not show either.',
+  intermissionReport:
+    "Between periods and at the end of the game, before the ticker and highlights, the ticker box shows up to two pages of facts about the game: scorers, a goalie who has stopped every shot, shots, the power play, faceoffs, hits, breakaways, one-timer and shorthanded goals, passing and the score, the four that stand out most. The pages turn by themselves, as the ticker's do, and the menu works as usual meanwhile. Not shown in a shootout. For the original 1 MB game (and the Classic, 2-on-2 and pond hockey ROMs made from it) and McMarkis's 2 MB and SA-1 builds. Made and tested in the game by the NHL94 Match Viewer project.",
   organResume:
     "Pausing the game stops the organ, and it stays quiet after the pause until the next song starts. With this on the organ carries on with its song from where it was. The bit of the song that faded out as the pause began is heard again, and a note that was sounding comes back at the song's next note. Tested in the game by the NHL94 Match Viewer project.",
   realTime:

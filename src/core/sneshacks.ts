@@ -2,9 +2,10 @@ import { fightTimeText, penaltyTimeText } from './penaltytime'
 import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { holdSeconds, REFEREE_TEXTS } from './hacks'
-import { findCode, findCodeAll, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
+import { findCode, findCodeAll, findSnesTeamTable, loRomAddress, loRomBank, loRomOffset, snesCodeInPlace, snesHomeTeamAddress, splitSnesFile } from './snes'
 import { SNES_FIGHT_BONUS_RANGE, SNES_FIGHT_SHARED_SITE, snesFightBlocked, snesFightCountJump, snesFightState, withoutSnesFight, withSnesFight } from './snesfight'
 import { snesPeriodCountPlace } from './snesmenu'
+import { SNES_INTREPORT_2MB, SNES_INTREPORT_CODE16, SNES_INTREPORT_CODE24, SNES_INTREPORT_NT3, SNES_INTREPORT_RAM16, SNES_INTREPORT_RETAIL, SNES_INTREPORT_SA1, SNES_INTREPORT_SA1_RAM_MOVE } from './snesintreportcode'
 import { refreshSnesSettings } from './snessettings'
 
 // Hacks for NHL '94 on the SNES, from the community's disassembly,
@@ -82,6 +83,7 @@ export type SnesHack =
   | 'blockedShotsShown'
   | 'blockedShotPages'
   | 'organResume'
+  | 'intermissionReport'
   | 'realTime'
   | 'noIcing'
   | 'threeStars'
@@ -372,6 +374,7 @@ export const SNES_HACKS: SnesHack[] = [
   'blockedShotsShown',
   'blockedShotPages',
   'organResume',
+  'intermissionReport',
   'realTime',
   'noIcing',
   'threeStars',
@@ -451,6 +454,7 @@ export const SNES_HACK_TITLES: Record<SnesHack, string> = {
   blockedShotsShown: 'Blocked shots in Game Stats',
   blockedShotPages: 'Blocked shots in Player Stats',
   organResume: 'Organ music after a pause',
+  intermissionReport: 'Intermission report',
   realTime: 'Real-time clock',
   noIcing: 'No icing',
   threeStars: 'Three stars',
@@ -4259,6 +4263,109 @@ function organPlaces(rom: Uint8Array): Placed[] | null {
   ]
 }
 
+// ------------------------------------------------------ intermission report
+// As on the Genesis (hacks.ts, intermissionReport): Match Viewer's code (snesintreportcode.ts) shows facts about the
+// game in the ticker box between periods. Intermission's jsl Intermission_ticker becomes jsl to the code, and
+// IntermissionTick's lda demoflag / beq IntermissionTick_done (5 bytes) jml to its +$40 and a nop; the code does those
+// steps itself. Each build's copy calls the game's routines at that build's addresses, so the hack is offered only on
+// the builds Match Viewer made it for (the 1 MB game, McMarkis's 2 MB LoROM build and the SA-1 builds), each known by
+// its routines starting as Match Viewer's patterns have them at its addresses and its team records' bank.
+// NewTicker3Pos, which moves between the SA-1 builds, is found by its bytes in bank $9C. The code's RAM is as Match
+// Viewer built it ($7E:EF00, $6C bytes) on LoROM, checked against NOSE4Web's other hacks; on SA-1 moved from their
+// $40:4800 to $40:5700, as the season shootout's save reaches $40:4810 up.
+interface IrBuild {
+  code: string
+  // The low variables' shift: 0, or $6000 on SA-1.
+  low: number
+  // Intermission (the jsl to Intermission_ticker, hookA, is in its first $100 bytes) and IntermissionTick, the
+  // second hook, which has Intermission_ticker $19 bytes before it and IntermissionTick_done $27 bytes after.
+  intermission: number
+  hookA: number
+  tick: number
+  print: number
+  framer: number
+  goalies: number
+  playerRec: number
+  teamBank: number
+}
+const IR_BUILDS: IrBuild[] = [
+  { code: SNES_INTREPORT_RETAIL, low: 0, intermission: 0x9fa2a6, hookA: 0x9fa2e6, tick: 0x9fa393, print: 0x9ec7be, framer: 0x9d8000, goalies: 0x9ed300, playerRec: 0x9fc732, teamBank: 0x9c },
+  { code: SNES_INTREPORT_2MB, low: 0, intermission: 0x9fa2b5, hookA: 0x9fa2f5, tick: 0x9fa3a2, print: 0x9ec806, framer: 0x9d8000, goalies: 0x9ed352, playerRec: 0x9fc770, teamBank: 0xa1 },
+  { code: SNES_INTREPORT_SA1, low: 0x6000, intermission: 0x9fa30f, hookA: 0x9fa34f, tick: 0x9fa3fc, print: 0x9ec826, framer: 0x9d8000, goalies: 0x9ed383, playerRec: 0x9fc842, teamBank: 0xa1 },
+]
+// Match Viewer's patterns (.. any byte): Intermission_ticker up to IntermissionTick, IntermissionTick after its first
+// test (to IntermissionTick_done's lda #0 / rtl), Intermission, print, Framer, GetGoalieCount and GetPlayerNamePointer
+// (these two with the team records' bank), NewTicker3Pos (its control record, then 26 spaces).
+const IR_TICKER = 'ad....30060f......d00b22......a5a98d....30e94c....'
+const IR_TICK = 'a58338ed....c95001901722......af......cd....d0e322......a908001c....a900006b'
+const IR_INTERMISSION = '22......a90000a01e0099....888810f9a583a4858d....8c....a901001c....ad....c90400f002'
+const IR_PRINT = 'daa00200ad....0a0a0a0a0a6d....0a6d....aaaf......6f......0d....8514'
+const IR_FRAMER = 'da5aaf......186f......0d....85c5a99c00850ea98680850c20....a5c94acd....b003'
+const irGoalies = (bank: number) => `a591a8a9${hex8(bank)}0085c7b9....85c5a00a001877c585c564a5a7c5ebe6a50a0a`
+const irPlayerRec = (bank: number) => `a9${hex8(bank)}00858ba491b9....8589a000001867898589800aa5891867896908008589c6a5`
+const IR_NT3 = '0500..0217' + '0500..0217' + '1c00' + '20'.repeat(26)
+const IR_NT3_BANK = 0x9c
+const IR_TICK_ENTRY = 0x40
+const NOT_IR_BUILD =
+  "The intermission report is made for the 1 MB game and McMarkis's 2 MB and SA-1 builds, and this build's code is not as theirs, so it is not offered."
+
+const fitsAt = (rom: Uint8Array, address: number, pattern: string) => {
+  const at = loRomOffset(address >> 16, address & 0xffff)
+  const bytes = pattern.match(/../g)!
+  return at + bytes.length <= rom.length && bytes.every((pair, i) => pair === '..' || rom[at + i] === parseInt(pair, 16))
+}
+
+// The build this ROM is, with its NewTicker3Pos (a word in bank $9C), or null if none.
+function irBuild(rom: Uint8Array): { build: IrBuild; nt3: number } | null {
+  const table = findSnesTeamTable(rom)
+  const teamBank = table ? rom[table.offset + 2] : -1
+  const build = IR_BUILDS.find(
+    (b) =>
+      b.teamBank === teamBank &&
+      fitsAt(rom, b.tick - 0x19, IR_TICKER) &&
+      fitsAt(rom, b.tick + 5, IR_TICK) &&
+      fitsAt(rom, b.intermission, IR_INTERMISSION) &&
+      fitsAt(rom, b.print, IR_PRINT) &&
+      fitsAt(rom, b.framer, IR_FRAMER) &&
+      fitsAt(rom, b.goalies, irGoalies(b.teamBank)) &&
+      fitsAt(rom, b.playerRec, irPlayerRec(b.teamBank)),
+  )
+  if (!build) return null
+  const start = loRomOffset(IR_NT3_BANK, 0x8000)
+  const found = start < rom.length ? findCodeAll(rom.subarray(start, start + 0x8000), IR_NT3) : []
+  return found.length === 1 ? { build, nt3: loRomAddress(found[0].at) } : null
+}
+
+// The build's code for `at` in the ROM, reading NewTicker3Pos at `nt3`.
+// `ramMove`: added to every RAM field (the SA-1 builds' block moved clear of the season shootout's save).
+export function snesIntermissionCode(code: string, nt3: number, at: number, ramMove = 0): Uint8Array {
+  const bytes = hexBytes(code)
+  bytes.set(word(nt3), SNES_INTREPORT_NT3)
+  if (ramMove) for (const field of SNES_INTREPORT_RAM16) bytes.set(word(readU16(bytes, field) + ramMove), field)
+  for (const field of SNES_INTREPORT_CODE16) bytes.set(word(readU16(bytes, field) + loRomAddress(at) - 0x8000), field)
+  for (const field of SNES_INTREPORT_CODE24) bytes[field + 2] = loRomBank(at, 0x80)
+  return bytes
+}
+
+function intermissionReportPlaces(rom: Uint8Array): Placed[] | null {
+  const found = irBuild(rom)
+  if (!found) return null
+  const { build, nt3 } = found
+  const hookA = loRomOffset(build.hookA >> 16, build.hookA & 0xffff)
+  const tick = loRomOffset(build.tick >> 16, build.tick & 0xffff)
+  const originalA = bytesOf('22', long24(build.tick - 0x19))
+  const originalB = bytesOf('AD', word(0x0d2f + build.low), 'F0 22')
+  const length = build.code.length / 2
+  const room = farRoom(rom, hookA, originalA, length)
+  if (room < 0 || room + length > rom.length) return null
+  const bank = loRomBank(room, 0x80)
+  return [
+    { at: hookA, original: originalA, hacked: bytesOf('22', word(loRomAddress(room)), bank) },
+    { at: tick, original: originalB, hacked: bytesOf('5C', word(loRomAddress(room + IR_TICK_ENTRY)), bank, 'EA') },
+    { at: room, original: unused(length), hacked: snesIntermissionCode(build.code, nt3, room, build.low ? SNES_INTREPORT_SA1_RAM_MOVE : 0) },
+  ]
+}
+
 // The referee's code for each level, A times the multiplier, padded with NOPs to one length; none for the original.
 const REFEREE_OFF = 2
 const REFEREE_INTERFERENCE = [1, 2, 2, 3, 4]
@@ -4579,6 +4686,7 @@ const RELOCATED: Partial<Record<SnesHack, Relocate>> = {
   goalieOut: (rom, _source, amount) => goalieOutPlaces(rom, amount),
   goalieLine: (rom, _source, amount) => goalieLinePlaces(rom, amount),
   organResume: (rom) => organPlaces(rom),
+  intermissionReport: (rom) => intermissionReportPlaces(rom),
   // Put in before the fights (which go in last), it is the version without fightinj: recognised as that too.
   shootoutInjuries: (rom) => {
     const places = shootoutInjuryPlaces(rom)
@@ -5676,6 +5784,11 @@ function detect(rom: Uint8Array): SnesHackState {
     notOffered.postsFix = NO_POSTS
     unknown.splice(unknown.indexOf('postsFix'), 1)
   }
+  // A build the intermission report is not made for: not offered, and not other code in the way.
+  if (unknown.includes('intermissionReport') && !irBuild(rom)) {
+    notOffered.intermissionReport = NOT_IR_BUILD
+    unknown.splice(unknown.indexOf('intermissionReport'), 1)
+  }
   if (ownIceTime(rom)) {
     // Its own count is not other code in the way: the hack is off, and not offered.
     for (const hack of ['timeOnIce', 'timeOnIceShown'] as const) {
@@ -5859,7 +5972,7 @@ const SNES_PAGE_ORDER: SnesHack[] = [
   'blockedShots', 'blockedShotsShown', 'blockedShotPages', 'fightMomentum', 'fightOnce',
   'bodychecks', 'bodychecksShown', 'regainAssist', 'forwardsAndDefence', 'showMaxBoost', 'manualPullGoalie',
   'defenceControl', 'oneMinutePenalties', 'thirtySecondPeriods', 'fourthPeriodOvertime', 'seasonOvertime', 'referees', 'noInterference', 'noPenaltyShots', 'noGoalPosts', 'creaseIcing', 'hybridIcing', 'hitEnergy', 'holdEnergy', 'injuryBonus', 'noSkatingDrain', 'freeBurst', 'energySpeed', 'goaliePoke', 'skipEaIntro', 'skipPucksIntro', 'barrPick', 'barrCoin', 'organResume',
-  'realTime', 'noIcing',
+  'realTime', 'noIcing', 'intermissionReport',
   'goalieHold', 'diveHold', 'goalieWidth', 'goalieOut', 'goalieLine',
   'speedBurst', 'turnRate', 'puckFriction',
 ]
