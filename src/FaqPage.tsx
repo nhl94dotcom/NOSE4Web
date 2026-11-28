@@ -124,6 +124,13 @@ export function FaqPage() {
           notes on a piano roll first. Walkthroughs' <i>Change a song or the game music</i> takes you through it.
         </dd>
 
+        <dt>Can I carry my league's whole look to another ROM?</dt>
+        <dd>
+          Yes: <b>Picture files</b>, <b>Export all pictures</b>. The zip holds every team's logos and banners, the player
+          photos, and in a screens folder the title screen, the main menu background and the rinks. Open the other ROM,
+          and import the zip on its Picture files page; pictures that already match are skipped.
+        </dd>
+
         <dt>Can I change the title screen?</dt>
         <dd>
           On the Genesis, NHL 94 and NHL '95, yes: <b>Title screen picture</b> on the Game settings page, under

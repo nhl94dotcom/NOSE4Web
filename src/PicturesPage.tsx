@@ -4,9 +4,10 @@ import { anyPhotos, identifyPhotoFile, importPhotoSet, photoSet } from './core/p
 import type { RomProject } from './core/rom'
 import { importSnesPictureSet, snesPictureKinds, snesPictureSet, snesPictureTitle } from './core/snespictureset'
 import { SNES_COLORS } from './core/color'
+import { importScreenSet, isScreenFile, screenImage, screenSet } from './core/screenset'
 import { createZip, isZip, readZip } from './core/zip'
 import { download } from './download'
-import { pictureToPng, readImage } from './images'
+import { pictureToPng, readImage, rgbaToPng } from './images'
 
 interface Props {
   project: RomProject
@@ -34,6 +35,8 @@ export function PicturesPage({ project, setName, onChange }: Props) {
   const set = snes ? snesPictureSet(project) : logos ? pictureSet(project) : []
   const what = snes ? 'logos' : 'logos and banners'
   const photos = photoSet(project)
+  // The whole screens: title, main menu background, rinks.
+  const screens = screenSet(project)
 
   async function exportAll() {
     setBusy(true)
@@ -42,6 +45,7 @@ export function PicturesPage({ project, setName, onChange }: Props) {
       const files = []
       for (const entry of set) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette, snes ? SNES_COLORS : undefined) })
       for (const entry of photos) files.push({ name: entry.name, data: await pictureToPng(entry.picture, entry.palette, entry.format) })
+      for (const entry of screens) files.push({ name: entry.name, data: await rgbaToPng(screenImage(entry), entry.picture.width, entry.picture.height) })
       download(createZip(files), `${setName}_pictures.zip`, 'application/zip')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -77,9 +81,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           unreadable.push(`${file.name}: could not be read as an image.`)
         }
       }
-      // Photos are in a folder of their own; the rest are logos and banners.
-      const photoFiles = images.filter((image) => identifyPhotoFile(image.name))
-      const pictureFiles = images.filter((image) => !identifyPhotoFile(image.name))
+      // Photos and the whole screens are in folders of their own; the rest are logos and banners.
+      const screenFiles = images.filter((image) => isScreenFile(image.name))
+      const photoFiles = images.filter((image) => !isScreenFile(image.name) && identifyPhotoFile(image.name))
+      const pictureFiles = images.filter((image) => !isScreenFile(image.name) && !identifyPhotoFile(image.name))
       const pictures = logos
         ? (snes ? importSnesPictureSet : importPictureSet)(project, pictureFiles, { byName })
         : {
@@ -89,13 +94,14 @@ export function PicturesPage({ project, setName, onChange }: Props) {
             problems: pictureFiles.map((file) => `${file.name}: this ROM's ${what} are not in picture files.`),
           }
       const faces = importPhotoSet(pictures.project, photoFiles, byName)
-      if (pictures.replaced.length + faces.replaced.length > 0) onChange(faces.project)
-      setGrew(faces.project.bytes.length > project.bytes.length ? faces.project.bytes.length / 0x100000 : 0)
+      const whole = importScreenSet(faces.project, screenFiles)
+      if (pictures.replaced.length + faces.replaced.length + whole.replaced.length > 0) onChange(whole.project)
+      setGrew(whole.project.bytes.length > project.bytes.length ? whole.project.bytes.length / 0x100000 : 0)
       setResult({
-        project: faces.project,
-        replaced: [...pictures.replaced, ...faces.replaced.map((title) => `${title} (photo)`)],
-        unchanged: pictures.unchanged + faces.unchanged,
-        problems: [...unreadable, ...pictures.problems, ...faces.problems],
+        project: whole.project,
+        replaced: [...pictures.replaced, ...faces.replaced.map((title) => `${title} (photo)`), ...whole.replaced],
+        unchanged: pictures.unchanged + faces.unchanged + whole.unchanged,
+        problems: [...unreadable, ...pictures.problems, ...faces.problems, ...whole.problems],
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -109,8 +115,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
       <p className="note">
         Every team's {logos ? what : ''}
         {logos && anyPhotos(project) ? ', and ' : ''}
-        {anyPhotos(project) ? "the players' own photos" : ''} as PNG files in one zip, the way the spreadsheet files hold everything else. Use it to
-        carry artwork to next season's ROM, to edit many pictures in one sitting, or to keep a copy.
+        {anyPhotos(project) ? "the players' own photos" : ''}
+        {screens.length > 0 ? `, and the whole screens a league makes its own (${screens.map((s) => s.title.toLowerCase()).join(', ')})` : ''} as PNG
+        files in one zip, the way the spreadsheet files hold everything else: a league's whole look in one file. Use it
+        to carry artwork to next season's ROM, to edit many pictures in one sitting, or to keep a copy.
       </p>
       <section>
         <h3>Export</h3>
@@ -119,9 +127,10 @@ export function PicturesPage({ project, setName, onChange }: Props) {
             Export all pictures
           </button>{' '}
           <span className="note">
-            {count(set.length + photos.length, 'picture')} in {setName}_pictures.zip
+            {count(set.length + photos.length + screens.length, 'picture')} in {setName}_pictures.zip
             {titles.length > 0 && `: ${titles.map((title) => title.toLowerCase()).join(', ')} for each team. One that several teams share is in it once`}
             {photos.length > 0 && `. ${count(photos.length, 'player photo')} in its photos folder, a folder for each team and a file for each player with a photo of their own, named after them`}
+            {screens.length > 0 && `. The screens in its screens folder: ${screens.map((s) => s.name.slice(8)).join(', ')}`}
             .
           </span>
         </p>
@@ -164,7 +173,8 @@ export function PicturesPage({ project, setName, onChange }: Props) {
           replaced. Each must be the same size as the picture it replaces. A player photo, in the photos folder,
           goes to the player of its name on the team of its folder, wherever they are on the roster; it may be any
           size, as when imported on the team page. A Genesis player with no photo in the featured players is
-          added to them.
+          added to them. A screen, in the screens folder, goes in as on its own page (Game settings for the title screen
+          and main menu background, Rink colours for the rinks), with the same rules.
         </p>
         {busy && <p>Working…</p>}
         {error && <p className="error">{error}</p>}
