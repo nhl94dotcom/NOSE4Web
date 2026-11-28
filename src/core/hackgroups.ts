@@ -24,7 +24,7 @@ export const GENESIS_HACK_GROUPS: HackGroup<keyof HackChoices>[] = [
       'centreDefenceFix', 'goalieTurnFix', 'goalieBladeFix', 'shotScatterFix', 'crowdFix',
     ],
   },
-  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars'] },
+  { id: 'statistics', title: 'Statistics', hacks: ['stickShots', 'bodychecks', 'plusMinus', 'timeOnIce', 'giveaways', 'blockedShots', 'threeStars', 'intermissionReport'] },
   { id: 'ratings', title: 'Ratings', hacks: ['wideRatings', 'baseWeight', 'bonuses', 'hotColdRange', 'clutchTime'] },
   // Ties and overtime first, then the clock and penalties, then icing.
   { id: 'rules', title: 'Rules', hacks: ['seasonTies', 'nhlShootout', 'shootoutInjuries', 'threeOnThree', 'fourthPeriodOvertime', 'penaltySeconds', 'realTime', 'delayedCalls', 'bCheckPenaltiesOff', 'referees', 'noIcing', 'hybridIcing'] },

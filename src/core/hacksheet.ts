@@ -146,6 +146,7 @@ const GENESIS: Record<keyof HackChoices, Explain> = {
   puckColours: (c) => `The puck is drawn in the ${c.puckColours === 'crowd' ? "crowd's" : c.puckColours === 'home' ? "home team's" : c.puckColours === 'away' ? "visitors'" : "rink's"} colours.`,
   greenFan: () => 'The fan in green in the stands has their arm and leg back.',
   noFans: () => 'No fans are drawn in the stands; the crowd is still heard.',
+  intermissionReport: () => 'Between periods, the ticker first shows a few facts about the game.',
   clockwiseSprites: () => "The players are drawn with Clockwise's touch-ups: stick tape, eye colour and other small details. NOSE4Web's own, in Clockwise's style, tape the sticks in frames Clockwise left untaped, in the faceoff close-up and in the fight frames, and colour three more eyes.",
   organResume: () => 'After a pause the organ carries on with its song from where it was, instead of staying quiet.',
   barrPick: () => "Ron Barr names the team that came out hotter before every game, not only when one is much hotter.",

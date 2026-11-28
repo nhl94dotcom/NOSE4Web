@@ -33,6 +33,7 @@ import type { RomProject } from './rom'
 import { discordPost } from './discord'
 import { genesisOptionLimits } from './menuteams'
 import { claimSpace, fullRomReason } from './space'
+import { INTERMISSION_REPORT_CODE } from './intreportcode'
 import { goalieCount, type Player, type Team } from './team'
 import type { FreeAgent } from './trade'
 
@@ -215,6 +216,8 @@ export interface HackChoices {
   greenFan: boolean
   // No fans drawn over the stands (for a rink theme without a crowd).
   noFans: boolean
+  // Match Viewer's intermission report: facts about the game in the ticker box between periods (intreportcode.ts).
+  intermissionReport: boolean
   // Clockwise's touch-ups to the player sprites (clockwise.ts).
   clockwiseSprites: boolean
   // Ron Barr names the hotter team every game, not only when the gap is wide.
@@ -315,6 +318,7 @@ export type HackPart =
   | 'netColours'
   | 'greenFan'
   | 'noFans'
+  | 'intermissionReport'
   | 'clockwiseSprites'
   | 'barrPick'
   | 'barrCoin'
@@ -408,6 +412,7 @@ export const NO_HACKS: HackChoices = {
   netColours: 'rink',
   greenFan: false,
   noFans: false,
+  intermissionReport: false,
   clockwiseSprites: false,
   barrPick: false,
   barrCoin: false,
@@ -3363,6 +3368,38 @@ const barrCoin = switchPart(
 // out differently from one without after a few hundred frames (less work a frame, and some randomness is the beam's).
 const noFans = switchPart(0x16216, bytes('1038 B89A'), bytes('4E75 B89A'))
 
+// ------------------------------------------------------ intermission report
+// Match Viewer's (intreportcode.ts): Intermission's bsr.w GetShifter / move.w d1,(TickerNum).w at $1315C becomes jsr
+// to the code and a nop; the code does those two steps at its end. It calls eight of the game's routines by their
+// retail addresses, so it is offered only where each starts as retail's does (EVO, for one, hooks the same place).
+const INTERMISSION_HOOK: Hook = { at: 0x1315c, original: bytes('6100 512C 31C1 CF2C') }
+const INTERMISSION_CODE = bytes(INTERMISSION_REPORT_CODE)
+const INTERMISSION_CALLS: [number, string][] = [
+  [0x9f40, '48e74080206a001e'], // GetGoalieCount
+  [0x111d0, '48e70ff0444031c0'], // waitxsr
+  [0x119b8, '48e7f8c03f38bf78'], // Framer
+  [0x11ba4, '3f38bf7808f80002'], // print
+  [0x134d8, '6100000a343c07ff'], // ClearTickerArea
+  [0x134e4, '6100e6ac0006bd03'], // SetTickerAreaPosition
+  [0x1828a, '2f0074f072103038'], // GetShifter
+  [0x18bc8, '206a001ed0d06000'], // GetPlayerNamePointer
+]
+const intermissionReport: Part<boolean> = {
+  detect(rom) {
+    if (!INTERMISSION_CALLS.every(([at, start]) => is(rom, at, bytes(start)))) return undefined
+    if (is(rom, INTERMISSION_HOOK.at, INTERMISSION_HOOK.original)) return false
+    return hooked(rom, INTERMISSION_HOOK, INTERMISSION_CODE) === null ? undefined : true
+  },
+  remove(rom) {
+    const target = hooked(rom, INTERMISSION_HOOK, INTERMISSION_CODE)
+    if (target !== null) erase(rom, target, INTERMISSION_CODE.length)
+    rom.set(INTERMISSION_HOOK.original, INTERMISSION_HOOK.at)
+  },
+  apply(work, value) {
+    if (value) hook(work, INTERMISSION_HOOK, INTERMISSION_CODE)
+  },
+}
+
 const greenFan: Part<boolean> = {
   detect: (rom) => (GREEN_FAN.every((s) => is(rom, s.at, s.original)) ? false : GREEN_FAN.every((s) => is(rom, s.at, s.hacked)) ? true : undefined),
   remove: (rom) => GREEN_FAN.forEach((s) => rom.set(s.original, s.at)),
@@ -3937,6 +3974,7 @@ export function detectHacks(rom: Uint8Array): HackState {
     netColours: found('netColours', netColours.detect(rom), NO_HACKS.netColours),
     greenFan: found('greenFan', greenFan.detect(rom), NO_HACKS.greenFan),
     noFans: found('noFans', noFans.detect(rom), NO_HACKS.noFans),
+    intermissionReport: found('intermissionReport', intermissionReport.detect(rom), NO_HACKS.intermissionReport),
     clockwiseSprites: found('clockwiseSprites', clockwiseState(rom), NO_HACKS.clockwiseSprites),
     barrPick: found('barrPick', barrPick.detect(rom), NO_HACKS.barrPick),
     barrCoin: found('barrCoin', barrCoin.detect(rom), NO_HACKS.barrCoin),
@@ -4074,6 +4112,7 @@ export function hackRom(rom: Uint8Array, wanted: HackChoices, smozRom = false): 
     ['netColours', () => netColours.remove(work.rom), () => netColours.apply(work, wanted.netColours)],
     ['greenFan', () => greenFan.remove(work.rom), () => greenFan.apply(work, wanted.greenFan)],
     ['noFans', () => noFans.remove(work.rom), () => noFans.apply(work, wanted.noFans)],
+    ['intermissionReport', () => intermissionReport.remove(work.rom), () => intermissionReport.apply(work, wanted.intermissionReport)],
     // Taken out only where the ROM has it all: a ROM with part of it keeps that part whatever else changes.
     // Left alone where it stays on and the ROM has none of NOSE4Web's tape (hasNoseTape): a league's own copy of
     // Clockwise's edit gets the tape only when the edit is turned on.
@@ -4376,6 +4415,7 @@ export const HACK_TITLES: Record<keyof HackChoices, string> = {
   netColours: 'Net colours',
   greenFan: 'The fan in green',
   noFans: 'No fans in the stands',
+  intermissionReport: 'Intermission report',
   clockwiseSprites: "Clockwise's sprite edit",
   barrPick: "Ron Barr's pick every game",
   barrCoin: "Ron Barr's pick by a coin flip",
@@ -4464,6 +4504,7 @@ export const HACK_PARTS: Record<keyof HackChoices, HackPart> = {
   netColours: 'netColours',
   greenFan: 'greenFan',
   noFans: 'noFans',
+  intermissionReport: 'intermissionReport',
   clockwiseSprites: 'clockwiseSprites',
   barrPick: 'barrPick',
   barrCoin: 'barrCoin',

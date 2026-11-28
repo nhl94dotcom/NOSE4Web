@@ -1,3 +1,4 @@
+import { INTERMISSION_REPORT_CODE } from '../src/core/intreportcode'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -463,6 +464,18 @@ describe.skipIf(!hasRom)('hacks from smozROM', () => {
     const empty = applyHacks(opened, { ...NO_HACKS, noFans: true }).bytes
     expect(at(empty, 0x16216, 4)).toBe('4e75b89a')
     expect(detectHacks(empty).choices.noFans).toBe(true)
+    // The intermission report (Match Viewer's): Intermission's bsr.w GetShifter / move.w d1,(TickerNum).w at $1315C
+    // becomes jsr to its code (1,934 bytes, at an even address) and a nop; off again, the ROM is as it was.
+    expect(at(opened.bytes, 0x1315c, 8)).toBe('6100512c31c1cf2c')
+    const report = applyHacks(opened, { ...NO_HACKS, intermissionReport: true }).bytes
+    expect(at(report, 0x1315c, 2)).toBe('4eb9')
+    expect(at(report, 0x13162, 2)).toBe('4e71')
+    const code = (report[0x1315e] << 24) | (report[0x1315f] << 16) | (report[0x13160] << 8) | report[0x13161]
+    expect(code % 2).toBe(0)
+    expect(at(report, code, 4)).toBe(Buffer.from(INTERMISSION_REPORT_CODE.slice(0, 8), 'hex').toString('hex'))
+    expect(detectHacks(report).choices.intermissionReport).toBe(true)
+    const back = applyHacks({ ...opened, bytes: report }, { ...detectHacks(report).choices, intermissionReport: false }).bytes
+    expect(Buffer.compare(Buffer.from(back.subarray(0, opened.bytes.length)), Buffer.from(opened.bytes))).toBe(0)
     expect(() => applyHacks(opened, { ...NO_HACKS, puckFriction: 0 })).toThrow('from 1 to 12')
   })
 
