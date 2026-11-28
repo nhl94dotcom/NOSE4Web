@@ -238,8 +238,7 @@ export function importSnesRink(
   const rows = image.height / 8
   const kept = (cell: number) => {
     const [col, row] = [cell % rink.width, Math.floor(cell / rink.width)]
-    const tile = rink.words[cell] & TILE_NUMBER
-    return row >= rows || (row >= REPLAY_ICON.rows[0] && row <= REPLAY_ICON.rows[1] && col >= REPLAY_ICON.cols[0] && col <= REPLAY_ICON.cols[1]) || (row >= LOGO_CELLS.rows[0] && row <= LOGO_CELLS.rows[1] && col >= LOGO_CELLS.cols[0] && col <= LOGO_CELLS.cols[1]) || tile <= CROWD_TILES
+    return row >= rows || (row >= REPLAY_ICON.rows[0] && row <= REPLAY_ICON.rows[1] && col >= REPLAY_ICON.cols[0] && col <= REPLAY_ICON.cols[1]) || (row >= LOGO_CELLS.rows[0] && row <= LOGO_CELLS.rows[1] && col >= LOGO_CELLS.cols[0] && col <= LOGO_CELLS.cols[1])
   }
   const pinned = new Set<number>(Array.from({ length: CROWD_TILES + 1 }, (_, t) => t))
   rink.words.forEach((word, cell) => {
@@ -296,6 +295,17 @@ export function importSnesRink(
       if (other.total < chosen.total) {
         chosen = other
         rowFor.set(cell, 1 - own)
+      }
+    }
+    // The crowd's moving squares (tiles 1-65, whose pictures the game rewrites to animate them): the tiles stay, and a
+    // cell showing one stays as it is unless the picture changes it there; changed, it shows a square of its own and
+    // no longer moves, so drawing over the crowd takes its movement away there too (the user, 2026-11-28).
+    if ((rink.words[cell] & TILE_NUMBER) <= CROWD_TILES) {
+      const row = rowFor.get(cell) ?? own
+      const same = chosen.pixels.every((v, i) => original.pixels[(cy + (i >> 3)) * image.width + cx + (i & 7)] === (v ? row * COLOURS + v : 0))
+      if (same) {
+        rowFor.delete(cell)
+        continue
       }
     }
     squares.set(cell, chosen.pixels)

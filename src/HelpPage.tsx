@@ -1125,7 +1125,7 @@ export function HelpPage() {
         <li>
           <b>Goal sounds</b> (Genesis, NHL 94 and NHL '95): the sound a goal makes in place of the goal siren, chosen
           for each home team's own goals, and one for every visiting team's goal: the siren, the end of period horn, the
-          crowd cheering, the crowd booing or no siren (a home goal still gets the crowd's own cheer). <b>The goal siren
+          crowd cheering or no siren (a home goal still gets the crowd's own cheer, and a visitors' goal its boo). <b>The goal siren
           for every goal</b> puts it back. Tested in the game by the NHL94 Match Viewer project.
         </li>
       </ul>
@@ -1721,8 +1721,8 @@ export function HelpPage() {
         logo or ads on its boards and glass, in the rink's colours; tested in the game by the NHL94 Match Viewer project. On the SNES the page's own picture of the rink, with the home team's
         centre ice logo in place, has an <b>Export as PNG</b> button too, and <b>Import a PNG…</b> and{' '}
         <b>Edit the rink…</b> to put an edited one back, with room for about 85 more squares; the centre ice logo's
-        place, the crowd's moving squares and the replay icon stay as they are, and the rows below the rink (the pause
-        scoreboard's side view) can take ads too. Tested in the game by the NHL94 Match Viewer project.
+        place and the replay icon stay as they are; a moving crowd square drawn over stops moving, and the rows below
+        the rink (the pause scoreboard's side view) can take ads too. Tested in the game by the NHL94 Match Viewer project.
       </p>
 
       <h3 id="help-league">League</h3>

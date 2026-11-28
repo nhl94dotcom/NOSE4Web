@@ -48,6 +48,17 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc']) {
       for (let y = 0; y < 680; y++) for (let x = 0; x < 384; x++) if ((y >> 3 !== dr || x >> 3 !== dc) && moved.pixels[y * 384 + x] !== rink.pixels[y * 384 + x]) elsewhere++
       expect(elsewhere).toBe(0)
 
+      // An animated crowd square (tiles 1-65, which the game redraws) painted over: it gets a square of its own and no
+      // longer moves; every crowd square left alone keeps its tile, and so its movement.
+      const crowdCell = words.findIndex((w, cell) => cell < 85 * 48 && (w & 0x3ff) >= 1 && (w & 0x3ff) <= 65 && ((w >> 10) & 7) === 1)
+      expect(crowdCell).toBeGreaterThanOrEqual(0)
+      const painted = Uint8ClampedArray.from(rgba)
+      const [pr, pc] = [Math.floor(crowdCell / 48), crowdCell % 48]
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) painted.set([255, 255, 255, 255], ((pr * 8 + y) * 384 + pc * 8 + x) * 4)
+      const wordsAfter = snesRinkWords(importSnesRink(rom, { rgba: painted, ...shown }, palette).rom)!
+      expect(wordsAfter[crowdCell] & 0x3ff).toBeGreaterThan(65)
+      expect(wordsAfter.filter((w, cell) => cell !== crowdCell && cell < 85 * 48 && (words[cell] & 0x3ff) <= 65 && w !== words[cell]).length).toBe(0)
+
       // A 32 x 16 checkerboard of two of the boards' colours on the ice: new squares, in the room there is.
       const edited = Uint8ClampedArray.from(rgba)
       const [a, b] = [rgba.slice(0, 4), Uint8ClampedArray.from([255, 255, 255, 255])]
