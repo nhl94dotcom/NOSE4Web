@@ -260,17 +260,20 @@ export function importSnesRink(
   for (const t of pinned) if (t < count) remember(t, rink.tiles)
 
   // Each cell's square from the picture: each pixel to the nearest of its row's colours, or the backdrop (colour 0); a
-  // tie keeps what was there.
+  // tie keeps what was there. A cell in row 0 (the boards and ice) or row 1 (the crowd's skin, hair and clothes) takes
+  // whichever of the two its pixels fit better, a tie keeping its own, so that people drawn where the boards were keep
+  // their colours (as on the Genesis, the user's "zombies", 2026-11-28).
   const rgb = palette.map((word) => colorRgb(word, SNES_COLORS))
   const original = drawSnesRink(rom0, null)!
   const squares = new Map<number, number[]>()
+  const rowFor = new Map<number, number>()
   for (let cell = 0; cell < rink.words.length; cell++) {
     if (kept(cell)) continue
-    const row = (rink.words[cell] & PALETTE_BITS) >> PALETTE_SHIFT
+    const own = (rink.words[cell] & PALETTE_BITS) >> PALETTE_SHIFT
     const [cx, cy] = [(cell % rink.width) * 8, Math.floor(cell / rink.width) * 8]
-    squares.set(
-      cell,
-      Array.from({ length: 64 }, (_, i) => {
+    const inRow = (row: number) => {
+      let total = 0
+      const pixels = Array.from({ length: 64 }, (_, i) => {
         const p = (cy + (i >> 3)) * image.width + cx + (i & 7)
         if (image.rgba[p * 4 + 3] < 128) return 0
         const [r, g, b] = [image.rgba[p * 4], image.rgba[p * 4 + 1], image.rgba[p * 4 + 2]]
@@ -282,9 +285,20 @@ export function importSnesRink(
           const d = (cr - r) ** 2 + (cg - g) ** 2 + (cb - b) ** 2
           if (d < bestD || (d === bestD && row * COLOURS + c === was)) [best, bestD] = [c, d]
         }
+        total += bestD
         return best
-      }),
-    )
+      })
+      return { pixels, total }
+    }
+    let chosen = inRow(own)
+    if (own <= 1 && chosen.total > 0) {
+      const other = inRow(1 - own)
+      if (other.total < chosen.total) {
+        chosen = other
+        rowFor.set(cell, 1 - own)
+      }
+    }
+    squares.set(cell, chosen.pixels)
   }
   // New squares, once each however turned, into the free tiles.
   const turnings = (pixels: number[]) => FLIPS.map((flip) => pixels.map((_, i) => pixels[(flip & FLIP_V ? 7 - (i >> 3) : i >> 3) * 8 + (flip & FLIP_H ? 7 - (i & 7) : i & 7)]).join(','))
@@ -311,7 +325,9 @@ export function importSnesRink(
   const map = unpackLz(rom0, at.map).data.slice()
   for (const [cell, pixels] of squares) {
     const place = known.get(pixels.join(','))!
-    writeU16LE(map, MAP_HEADER + cell * 2, (rink.words[cell] & (PALETTE_BITS | 0x2000)) | place.flip | place.tile)
+    const row = rowFor.get(cell)
+    const bits = row === undefined ? rink.words[cell] & PALETTE_BITS : row << PALETTE_SHIFT
+    writeU16LE(map, MAP_HEADER + cell * 2, bits | (rink.words[cell] & 0x2000) | place.flip | place.tile)
   }
 
   // Packed, put in free space, and every loader pointed there; the copy put in before, not the opened ROM's own, given
@@ -352,4 +368,10 @@ export function snesRinkFileColours(project: { rinkPalette: number[]; teams: { p
     out[3 * COLOURS + i] = project.teams[1]?.palette[COLOURS + i] ?? out[3 * COLOURS + i]
   }
   return out
+}
+
+// The rink map's words (each cell's tile, flips and palette row), for tests and tools.
+export const snesRinkWords = (rom: Uint8Array): number[] | null => {
+  const rink = readRink(rom)
+  return rink ? Array.from(rink.words) : null
 }

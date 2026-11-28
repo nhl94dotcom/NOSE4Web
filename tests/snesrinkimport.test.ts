@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { SNES_COLORS } from '../src/core/color'
 import { pictureToImage } from '../src/core/graphics'
 import { buildRom, openRom } from '../src/core/rom'
-import { drawSnesRink, importSnesRink, readSnesRinkPalette, SnesRinkImportError, snesRinkImportable } from '../src/core/snesrink'
+import { drawSnesRink, importSnesRink, readSnesRinkPalette, SnesRinkImportError, snesRinkImportable, snesRinkWords } from '../src/core/snesrink'
 
 // Putting an edited rink picture back into the SNES rink (snesrink.ts), on retail and the 32-team build.
 
@@ -24,6 +24,29 @@ for (const name of ['NHL94.smc', 'nhl94_2026.sfc']) {
       const same = importSnesRink(rom, { rgba, ...shown }, palette)
       expect(same.used).toBeLessThanOrEqual(same.room)
       expect(differing(drawSnesRink(same.rom, null)!.pixels, rink.pixels)).toBe(0)
+
+      // A crowd square (row 1: skin, hair, clothes) stamped on the ice (row 0): it moves to row 1 and keeps its colours.
+      const cellPixels = (pixels: Uint8Array, r: number, c: number) => Array.from({ length: 64 }, (_, i) => pixels[(r * 8 + (i >> 3)) * 384 + c * 8 + (i & 7)])
+      let source: [number, number] | null = null
+      for (let r = 0; r < 85 && !source; r++) {
+        for (let c = 0; c < 48 && !source; c++) {
+          const px = cellPixels(rink.pixels, r, c).filter((v) => v)
+          if (px.length >= 40 && px.every((v) => v >> 4 === 1) && new Set(px).size >= 4) source = [r, c]
+        }
+      }
+      expect(source).not.toBeNull()
+      // A row-0 cell the import may change (not one of the crowd's animated tiles, 0-65, nor the logo's block).
+      const words = snesRinkWords(rom)!
+      const target = words.findIndex((w, cell) => cell < 85 * 48 && (w & 0x3ff) > 65 && ((w >> 10) & 7) === 0 && !(Math.floor(cell / 48) >= 43 && Math.floor(cell / 48) <= 48 && cell % 48 >= 20 && cell % 48 <= 27))
+      expect(target).toBeGreaterThanOrEqual(0)
+      const [dr, dc] = [Math.floor(target / 48), target % 48]
+      const stamped = Uint8ClampedArray.from(rgba)
+      for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) for (let k = 0; k < 4; k++) stamped[((dr * 8 + y) * 384 + dc * 8 + x) * 4 + k] = rgba[((source![0] * 8 + y) * 384 + source![1] * 8 + x) * 4 + k]
+      const moved = drawSnesRink(importSnesRink(rom, { rgba: stamped, ...shown }, palette).rom, null)!
+      expect(cellPixels(moved.pixels, dr, dc)).toEqual(cellPixels(rink.pixels, source![0], source![1]))
+      let elsewhere = 0
+      for (let y = 0; y < 680; y++) for (let x = 0; x < 384; x++) if ((y >> 3 !== dr || x >> 3 !== dc) && moved.pixels[y * 384 + x] !== rink.pixels[y * 384 + x]) elsewhere++
+      expect(elsewhere).toBe(0)
 
       // A 32 x 16 checkerboard of two of the boards' colours on the ice: new squares, in the room there is.
       const edited = Uint8ClampedArray.from(rgba)
